@@ -5,7 +5,7 @@ from classes.Depot import Depot
 import clustering.methods
 from classes.SaveMixin import SaveMixin
 from visualization.visualizer import *
-import decision.neighbour_filtering
+import policies.neighbour_filtering
 import numpy as np
 import math
 from globals import STATE_CACHE_DIR
@@ -115,7 +115,7 @@ class State(SaveMixin):
         :return: List of Action objects
         """
         actions = []
-        neighbours = decision.neighbour_filtering.filtering_neighbours(
+        neighbours = policies.neighbour_filtering.filtering_neighbours(
             self,
             vehicle,
             0,
@@ -175,7 +175,7 @@ class State(SaveMixin):
                         ):
                             for (
                                 location
-                            ) in decision.neighbour_filtering.filtering_neighbours(
+                            ) in policies.neighbour_filtering.filtering_neighbours(
                                 self,
                                 vehicle,
                                 pick_up,

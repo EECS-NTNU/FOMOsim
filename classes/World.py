@@ -16,8 +16,6 @@ from globals import (
 )
 
 from progress.bar import IncrementalBar
-import decision
-import decision.value_functions
 from system_simulation.scripts import system_simulate
 
 
@@ -206,7 +204,8 @@ class World(SaveMixin, HyperParameters):
             for end in np.arange(len(self.state.clusters))
             if start != end
         }
-        self.policy = self.set_policy(policy)
+        self.policy = policy
+        policy.initWorld(self)
         self.metrics = World.WorldMetric(test_parameter_name, test_parameter_value)
         self.verbose = verbose
         self.visualize = visualize
@@ -315,87 +314,6 @@ class World(SaveMixin, HyperParameters):
     def get_discount(self):
         # Divide by 60 as there is 60 minutes in an hour. We want this number in hours to avoid big numbers is the power
         return self.DISCOUNT_RATE ** (self.time / 60)
-
-    def set_policy(
-        self,
-        policy=None,
-        policy_class=None,
-        value_function_class=None,
-    ):
-        """
-        Method used to set the policy of the world based on the parameters of the world object.
-        Can either take in policy object or policy class and value function class.
-        :param policy: policy object
-        :param policy_class
-        :param value_function_class:
-        :return the updated policy
-        """
-        if policy is None:
-            if policy_class is decision.EpsilonGreedyValueFunctionPolicy:
-                value_function = (
-                    value_function_class(
-                        self.ANN_LEARNING_RATE,
-                        self.WEIGHT_INITIALIZATION_VALUE,
-                        self.DISCOUNT_RATE,
-                        self.VEHICLE_INVENTORY_STEP_SIZE,
-                        self.LOCATION_REPETITION,
-                        self.TRACE_DECAY,
-                        self.ANN_NETWORK_STRUCTURE,
-                    )
-                    if value_function_class is decision.value_functions.ANNValueFunction
-                    else value_function_class(
-                        self.WEIGHT_UPDATE_STEP_SIZE,
-                        self.WEIGHT_INITIALIZATION_VALUE,
-                        self.DISCOUNT_RATE,
-                        self.VEHICLE_INVENTORY_STEP_SIZE,
-                        self.LOCATION_REPETITION,
-                        self.TRACE_DECAY,
-                    )
-                )
-                policy = policy_class(
-                    self.DIVIDE_GET_POSSIBLE_ACTIONS,
-                    self.NUMBER_OF_NEIGHBOURS,
-                    self.EPSILON,
-                    value_function,
-                )
-            elif policy_class is decision.RandomActionPolicy:
-                policy = policy_class(
-                    self.DIVIDE_GET_POSSIBLE_ACTIONS,
-                    self.NUMBER_OF_NEIGHBOURS,
-                )
-            else:
-                if policy_class is None:
-                    return policy
-                policy = policy_class()
-        # The the value function is the DoNothing Policy. Empty the vehicle arrival events in the stack
-        if isinstance(policy, decision.DoNothing):
-            self.stack = [
-                event
-                for event in self.stack
-                if not isinstance(event, classes.VehicleArrival)
-            ]
-        elif isinstance(policy, decision.NightShift):
-            self.stack = [
-                event
-                for event in self.stack
-                if not isinstance(event, classes.VehicleArrival)
-            ]
-            for cluster in self.state.clusters:
-                for scooter in cluster.scooters:
-                    if scooter.battery < 70:
-                        scooter.swap_battery()
-
-        elif isinstance(policy, decision.SwapAllPolicy):
-            for vehicle in self.state.vehicles:
-                vehicle.battery_inventory_capacity = 250
-                vehicle.battery_inventory = 250
-                vehicle.scooter_inventory_capacity = 0
-                vehicle.scooter_inventory = []
-
-        # If the policy has a value function. Initialize it from the world state
-        if hasattr(policy, "value_function"):
-            policy.value_function.setup(self.state)
-        return policy
 
     def get_filename(self):
         return (
