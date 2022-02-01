@@ -4,7 +4,7 @@ This file contains all the policies used in the thesis.
 import copy
 
 from policies import Policy
-import classes
+import sim
 import numpy.random as random
 import abc
 
@@ -28,4 +28,4 @@ class RandomActionPolicy(Policy):
         if len(possible_actions) > 0:
           return random.choice(possible_actions)
         else:
-          return classes.Action([], [], [], 0)
+          return sim.Action([], [], [], 0)

@@ -1,5 +1,5 @@
-import classes
-from classes import Event
+import sim
+from sim import Event
 from globals import SCOOTER_SPEED
 import numpy as np
 
@@ -44,7 +44,7 @@ class ScooterDeparture(Event):
 
             # create an arrival event for the departed scooter
             world.add_event(
-                classes.ScooterArrival(
+                sim.ScooterArrival(
                     arrival_time,
                     scooter,
                     arrival_cluster.id,
@@ -56,7 +56,7 @@ class ScooterDeparture(Event):
             # remove scooter from the departure cluster
             departure_cluster.remove_scooter(scooter)
         else:
-            world.add_event(classes.LostTrip(self.time, self.departure_cluster_id))
+            world.add_event(sim.LostTrip(self.time, self.departure_cluster_id))
 
         # set time of world to this event's time
         super(ScooterDeparture, self).perform(world, **kwargs)

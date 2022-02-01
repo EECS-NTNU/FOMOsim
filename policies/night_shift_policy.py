@@ -4,7 +4,7 @@ This file contains all the policies used in the thesis.
 import copy
 
 from policies import Policy
-import classes
+import sim
 import numpy.random as random
 import abc
 
@@ -15,13 +15,13 @@ class NightShift(Policy):
         super().__init__(0, 0)
 
     def get_best_action(self, world, vehicle):
-        return classes.Action([], [], [], 0)
+        return sim.Action([], [], [], 0)
 
     def initWorld(self, world):
         world.stack = [
             event
             for event in world.stack
-            if not isinstance(event, classes.VehicleArrival)
+            if not isinstance(event, sim.VehicleArrival)
         ]
         for cluster in world.state.clusters:
             for scooter in cluster.scooters:

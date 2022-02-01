@@ -1,7 +1,7 @@
 """
 Main file for clustering module
 """
-from classes import Vehicle, State
+from sim import Vehicle, State
 import clustering.methods as methods
 import os
 from globals import *

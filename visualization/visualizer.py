@@ -3,7 +3,7 @@ Methods for visualizing different aspects of the system.
 """
 
 
-from classes import Action, Scooter, State, Vehicle
+from sim import Action, Scooter, State, Vehicle
 from visualization.helpers import *
 import matplotlib.pyplot as plt
 import copy
@@ -441,13 +441,13 @@ def visualize_loss(losses: [[float]]):
 
 def heatmap():
     import folium
-    import classes
+    import sim
     import clustering.scripts
     from folium.plugins import HeatMap
 
     map_hooray = folium.Map(location=[59.925586, 10.730721], zoom_start=13)
 
-    world_to_analyse = classes.World(
+    world_to_analyse = sim.World(
         960,
         None,
         clustering.scripts.get_initial_state(

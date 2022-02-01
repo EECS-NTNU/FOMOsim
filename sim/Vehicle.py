@@ -1,7 +1,7 @@
 from typing import Union
-from classes.Depot import Depot
-from classes.Cluster import Cluster
-from classes.Scooter import Scooter
+from sim.Depot import Depot
+from sim.Cluster import Cluster
+from sim.Scooter import Scooter
 
 
 class Vehicle:

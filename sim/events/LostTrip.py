@@ -1,4 +1,4 @@
-from classes import Event
+from sim import Event
 
 
 class LostTrip(Event):

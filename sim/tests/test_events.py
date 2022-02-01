@@ -3,7 +3,7 @@ import random
 
 import clustering.scripts
 import decision
-from classes import (
+from sim import (
     ScooterDeparture,
     ScooterArrival,
     VehicleArrival,

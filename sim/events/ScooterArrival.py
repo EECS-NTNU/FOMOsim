@@ -1,5 +1,5 @@
-from classes import Event
-import classes
+from sim import Event
+import sim
 
 
 class ScooterArrival(Event):
@@ -10,7 +10,7 @@ class ScooterArrival(Event):
     def __init__(
         self,
         arrival_time: int,
-        scooter: classes.Scooter,
+        scooter: sim.Scooter,
         arrival_cluster_id: int,
         departure_cluster_id: int,
         distance: int,

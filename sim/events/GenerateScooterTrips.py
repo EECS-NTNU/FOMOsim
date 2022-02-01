@@ -1,5 +1,5 @@
-import classes
-from classes import Event
+import sim
+from sim import Event
 from globals import ITERATION_LENGTH_MINUTES
 import numpy as np
 
@@ -30,7 +30,7 @@ class GenerateScooterTrips(Event):
             # generate departure and arrival event for every trip and add to world stack
             for departure_time in trips_departure_time:
                 # add departure event to the stack
-                departure_event = classes.ScooterDeparture(
+                departure_event = sim.ScooterDeparture(
                     departure_time, departure_cluster.id
                 )
                 world.add_event(departure_event)

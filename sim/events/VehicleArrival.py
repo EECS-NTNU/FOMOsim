@@ -1,6 +1,6 @@
 import time
 
-from classes.events.Event import Event
+from sim.events.Event import Event
 import copy
 
 

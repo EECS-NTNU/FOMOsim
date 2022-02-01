@@ -1,7 +1,7 @@
 import random
 import unittest
 
-import classes
+import sim
 from clustering.scripts import get_initial_state
 import globals
 

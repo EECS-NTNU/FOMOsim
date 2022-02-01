@@ -3,8 +3,8 @@ import copy
 from sklearn.cluster import KMeans
 import os
 
-from classes import State, Scooter, Cluster
-from classes.Depot import Depot
+from sim import State, Scooter, Cluster
+from sim.Depot import Depot
 from globals import (
     GEOSPATIAL_BOUND_NEW,
     TEST_DATA_DIRECTORY,

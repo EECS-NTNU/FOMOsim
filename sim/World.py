@@ -4,9 +4,9 @@ from typing import List
 
 import numpy as np
 import bisect
-import classes
+import sim
 import globals
-from classes.SaveMixin import SaveMixin
+from sim.SaveMixin import SaveMixin
 
 from globals import (
     HyperParameters,
@@ -182,13 +182,13 @@ class World(SaveMixin, HyperParameters):
         self.state = initial_state
         self.time = 0
         self.rewards = []
-        self.stack: List[classes.Event] = []
+        self.stack: List[sim.Event] = []
         self.tabu_list = []
         # Initialize the stack with a vehicle arrival for every vehicle at time zero
         number_of_vans, number_of_bikes = 0, 0
         for vehicle in self.state.vehicles:
             self.stack.append(
-                classes.VehicleArrival(0, vehicle.id, visualize=visualize)
+                sim.VehicleArrival(0, vehicle.id, visualize=visualize)
             )
             if vehicle.scooter_inventory_capacity > 0:
                 number_of_vans += 1
@@ -197,7 +197,7 @@ class World(SaveMixin, HyperParameters):
         self.NUMBER_OF_VANS = number_of_vans
         self.NUMBER_OF_BIKES = number_of_bikes
         # Add Generate Scooter Trip event to the stack
-        self.stack.append(classes.GenerateScooterTrips(ITERATION_LENGTH_MINUTES))
+        self.stack.append(sim.GenerateScooterTrips(ITERATION_LENGTH_MINUTES))
         self.cluster_flow = {
             (start, end): 0
             for start in np.arange(len(self.state.clusters))
@@ -236,7 +236,7 @@ class World(SaveMixin, HyperParameters):
         while self.time < self.shift_duration:
             event = self.stack.pop(0)
             event.perform(self)
-            if isinstance(event, classes.GenerateScooterTrips) and self.verbose:
+            if isinstance(event, sim.GenerateScooterTrips) and self.verbose:
                 self.progress_bar.next()
         if self.verbose:
             self.progress_bar.finish()
@@ -269,7 +269,7 @@ class World(SaveMixin, HyperParameters):
         """
         return sum([reward for reward, location_id in self.rewards])
 
-    def add_event(self, event: classes.Event) -> None:
+    def add_event(self, event: sim.Event) -> None:
         """
         Adds event to the sorted stack.
         Avoids calling sort on every iteration by using the bisect package
@@ -308,7 +308,7 @@ class World(SaveMixin, HyperParameters):
         return [
             (event.departure_cluster_id, event.arrival_cluster_id, event.scooter.id)
             for event in self.stack
-            if isinstance(event, classes.ScooterArrival)
+            if isinstance(event, sim.ScooterArrival)
         ]
 
     def get_discount(self):

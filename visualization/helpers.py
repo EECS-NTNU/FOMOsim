@@ -13,7 +13,7 @@ from globals import (
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
-import classes
+import sim
 
 
 def display_graph(
@@ -605,7 +605,7 @@ def add_location_center(locations, ax):
         ax.scatter(
             center_x,
             center_y,
-            c=BLUE if isinstance(location, classes.Depot) else COLORS[location.id],
+            c=BLUE if isinstance(location, sim.Depot) else COLORS[location.id],
             edgecolor="None",
             alpha=0.8,
             s=200,

@@ -4,7 +4,7 @@ This file contains all the policies used in the thesis.
 import copy
 
 from policies import Policy
-import classes
+import sim
 import numpy.random as random
 import abc
 
@@ -99,7 +99,7 @@ class RebalancingPolicy(Policy):
                 visit_positive_deviation_cluster_next
             )
 
-        return classes.Action(
+        return sim.Action(
             scooters_to_swap,
             scooters_to_pickup,
             scooters_to_deliver,

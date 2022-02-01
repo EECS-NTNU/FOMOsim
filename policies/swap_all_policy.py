@@ -4,7 +4,7 @@ This file contains all the policies used in the thesis.
 import copy
 
 from policies import Policy
-import classes
+import sim
 import numpy.random as random
 import abc
 
@@ -55,7 +55,7 @@ class SwapAllPolicy(Policy):
             )[0]
 
         # Return an action with no re-balancing, only scooter swapping
-        return classes.Action(
+        return sim.Action(
             battery_swaps=swappable_scooters_ids[:number_of_scooters_to_swap],
             pick_ups=[],
             delivery_scooters=[],

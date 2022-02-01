@@ -1,9 +1,9 @@
 import random
-from classes.Location import Location
-from classes.Cluster import Cluster
-from classes.Depot import Depot
+from sim.Location import Location
+from sim.Cluster import Cluster
+from sim.Depot import Depot
 import clustering.methods
-from classes.SaveMixin import SaveMixin
+from sim.SaveMixin import SaveMixin
 from visualization.visualizer import *
 import policies.neighbour_filtering
 import numpy as np

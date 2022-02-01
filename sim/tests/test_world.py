@@ -1,7 +1,7 @@
 import os
 import unittest
 import random
-import classes
+import sim
 import clustering.scripts
 import decision
 import decision.value_functions
@@ -10,7 +10,7 @@ import globals
 
 class WorldTestCase(unittest.TestCase):
     def setUp(self) -> None:
-        self.world = classes.World(
+        self.world = sim.World(
             40,
             policy=decision.SwapAllPolicy(),
             initial_state=clustering.scripts.get_initial_state(100, 20),
@@ -18,13 +18,13 @@ class WorldTestCase(unittest.TestCase):
         )
 
     def test_run(self):
-        self.world.stack = [classes.Event(time) for time in range(10, 41, 10)]
+        self.world.stack = [sim.Event(time) for time in range(10, 41, 10)]
         self.world.run()
 
     def test_add_event(self):
         # Clear initial stack
         self.world.stack = []
-        shuffled_events = [classes.Event(time) for time in range(10, 41, 10)]
+        shuffled_events = [sim.Event(time) for time in range(10, 41, 10)]
         random.shuffle(shuffled_events)
         for event in shuffled_events:
             self.world.add_event(event)
@@ -39,7 +39,7 @@ class WorldTestCase(unittest.TestCase):
         # Clear initial stack
         self.world.stack = []
         # Perform Vehicle arrival event
-        arrival_event = classes.VehicleArrival(0, 0, False)
+        arrival_event = sim.VehicleArrival(0, 0, False)
         arrival_event.perform(self.world)
         vehicle = [vehicle for vehicle in self.world.state.vehicles if vehicle.id == 0][
             0
@@ -67,7 +67,7 @@ class WorldTestCase(unittest.TestCase):
     def save_world(self):
         filepath = f"{globals.WORLD_CACHE_DIR}/{self.world.get_filename()}.pickle"
         self.world.save(globals.WORLD_CACHE_DIR)
-        file_world = classes.World.load(filepath)
+        file_world = sim.World.load(filepath)
         file_world.shift_duration = 2
         file_world.run()
         os.remove(filepath)

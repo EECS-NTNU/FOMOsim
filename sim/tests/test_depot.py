@@ -1,5 +1,5 @@
 import unittest
-import classes
+import sim
 import clustering.scripts
 import decision
 from globals import (
@@ -12,7 +12,7 @@ from globals import (
 
 class DepotTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.world = classes.World(
+        self.world = sim.World(
             shift_duration=VAN_BATTERY_INVENTORY * SWAP_TIME_PER_BATTERY + 1,
             policy=decision.SwapAllPolicy(),
             initial_state=clustering.scripts.get_initial_state(
@@ -24,7 +24,7 @@ class DepotTests(unittest.TestCase):
         self.vehicle = self.world.state.vehicles[0]
 
     def test_depot_charge(self):
-        depot = classes.Depot(lat=0.0, lon=0.0, depot_id=0)
+        depot = sim.Depot(lat=0.0, lon=0.0, depot_id=0)
         depot.swap_battery_inventory(0, number_of_battery_to_change=10)
         self.assertLess(depot.get_available_battery_swaps(time=1), SMALL_DEPOT_CAPACITY)
         self.assertEqual(

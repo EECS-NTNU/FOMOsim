@@ -4,7 +4,7 @@ import copy
 import time
 from progress.bar import IncrementalBar
 
-import classes
+import sim
 import clustering.scripts
 import policies
 from visualization.visualizer import visualize_analysis
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     NUM_VANS = 2
     DURATION = 10080
 
-    rebalancing = classes.World(
+    rebalancing = sim.World(
         DURATION,
         policies.RebalancingPolicy(),
         clustering.scripts.get_initial_state(

@@ -1,4 +1,4 @@
-from classes.Location import Location
+from sim.Location import Location
 
 
 class Scooter(Location):

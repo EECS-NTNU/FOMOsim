@@ -3,7 +3,7 @@ This file contains the base policy class
 """
 import copy
 
-import classes
+import sim
 import numpy.random as random
 import abc
 
@@ -50,8 +50,8 @@ class Policy(abc.ABC):
     @staticmethod
     def print_action_stats(
         world,
-        vehicle: classes.Vehicle,
-        actions_info: [(classes.Action, int, int)],
+        vehicle: sim.Vehicle,
+        actions_info: [(sim.Action, int, int)],
     ) -> None:
         if world.verbose:
             print(f"\n{vehicle}:")
