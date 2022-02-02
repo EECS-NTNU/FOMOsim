@@ -1,6 +1,6 @@
 class HyperParameters:
     """
-    Class inherited by World class. Sets all parameters for the instance.
+    Class inherited by Simulator class. Sets all parameters for the instance.
     """
 
     def __init__(
@@ -74,7 +74,7 @@ class HyperParameters:
 
 
 """
-WORLD SETTINGS
+SIM SETTINGS
 """
 ITERATION_LENGTH_MINUTES = 20
 BATTERY_LIMIT = 20.0
@@ -119,7 +119,7 @@ IMPORTANT PATHS
 """
 
 STATE_CACHE_DIR = "test_state_cache"
-WORLD_CACHE_DIR = "world_cache"
+SIM_CACHE_DIR = "sim_cache"
 
 # Test data directory
 TEST_DATA_DIRECTORY = "test_data"

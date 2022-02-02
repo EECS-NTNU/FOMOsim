@@ -31,7 +31,7 @@ class ScooterDeparture(Event):
 
             # get a arrival cluster from the leave prob distribution
             arrival_cluster = np.random.choice(
-                world.state.clusters, p=departure_cluster.get_leave_distribution()
+                world.state.stations, p=departure_cluster.get_leave_distribution()
             )
 
             trip_distance = world.state.get_distance(

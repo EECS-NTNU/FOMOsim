@@ -14,7 +14,7 @@ class StateTests(unittest.TestCase):
 
     def test_leave_probabilities(self):
         for state in [self.state_mid, self.state_small, self.state_mid]:
-            for cluster in state.clusters:
+            for cluster in state.stations:
                 self.assertAlmostEqual(sum(cluster.get_leave_distribution()), 1)
                 self.assertFalse(
                     any([prob < 0 for prob in cluster.get_leave_distribution()]),

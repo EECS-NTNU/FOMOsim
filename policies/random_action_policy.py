@@ -8,8 +8,6 @@ import sim
 import numpy.random as random
 import abc
 
-import system_simulation.scripts
-
 class RandomActionPolicy(Policy):
     def __init__(self, get_possible_actions_divide, number_of_neighbors):
         super().__init__(get_possible_actions_divide, number_of_neighbors)

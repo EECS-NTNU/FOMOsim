@@ -37,9 +37,8 @@ def training(input_arguments, suffix):
         policy_class=decision.EpsilonGreedyValueFunctionPolicy,
         value_function_class=decision.value_functions.ANNValueFunction,
     )
-    for cluster in world_to_analyse.state.clusters:
+    for cluster in world_to_analyse.state.stations:
         cluster.scooters = cluster.scooters[: round(len(cluster.scooters) * 0.6)]
-        cluster.ideal_state = round(cluster.ideal_state * 0.6)
     decision_times = [train_value_function(world_to_analyse, save_suffix=f"{suffix}")]
 
     df = pd.DataFrame(

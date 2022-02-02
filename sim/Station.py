@@ -6,23 +6,21 @@ from globals import CLUSTER_CENTER_DELTA, BATTERY_LIMIT
 import copy
 
 
-class Cluster(Location):
+class Station(Location):
     """
-    Cluster class representing a collection of e-scooters. Contains all customer behaviour data.
+    Station class representing a collection of e-scooters. Contains all customer behaviour data.
     """
 
     def __init__(
         self,
         cluster_id: int,
         scooters: [Scooter],
-        ideal_state=None,
         trip_intensity_per_iteration=None,
         center_location=None,
         move_probabilities=None,
         average_number_of_scooters=None,
     ):
         self.scooters = scooters
-        self.ideal_state = ideal_state
         self.trip_intensity_per_iteration = trip_intensity_per_iteration
         self.average_number_of_scooters = average_number_of_scooters
         super().__init__(
@@ -32,13 +30,12 @@ class Cluster(Location):
         self.move_probabilities = move_probabilities
 
     def __deepcopy__(self, *args):
-        return Cluster(
+        return Station(
             self.id,
             copy.deepcopy(self.scooters),
             center_location=self.get_location(),
             move_probabilities=self.move_probabilities,
             trip_intensity_per_iteration=self.trip_intensity_per_iteration,
-            ideal_state=self.ideal_state,
             average_number_of_scooters=self.average_number_of_scooters,
         )
 
@@ -74,10 +71,7 @@ class Cluster(Location):
         self.move_probabilities = move_probabilities
 
     def number_of_possible_pickups(self):
-        if self.number_of_scooters() <= self.ideal_state:
-            return 0
-        else:
-            return self.number_of_scooters() - self.ideal_state
+        return self.number_of_scooters()
 
     def number_of_scooters(self):
         return len(self.scooters)
@@ -142,24 +136,15 @@ class Cluster(Location):
         elif len(matches) > 1:
             raise ValueError(
                 f"There are more than one scooter ({len(matches)} scooters) "
-                f"matching on id {scooter_id} in Cluster {self.id}"
+                f"matching on id {scooter_id} in Station {self.id}"
             )
         else:
             raise ValueError(f"No scooters with id={scooter_id} where found")
 
     def __repr__(self):
         return (
-            f"<Cluster {self.id}: {len(self.scooters)} scooters, current state: {self.get_current_state()},"
-            f" ideal state: {self.ideal_state}>"
+            f"<Station {self.id}: {len(self.scooters)} scooters, current state: {self.get_current_state()}>"
         )
 
     def __str__(self):
-        return f"Cluster {self.id}"
-
-    def prob_of_scooter_usage(self, available_scooters):
-        return max(
-            0.0,
-            (1 - (available_scooters / self.ideal_state))
-            if self.ideal_state > 0
-            else 0.0,
-        )
+        return f"Station {self.id}"

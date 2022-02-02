@@ -343,8 +343,8 @@ def add_cluster_info(state, graph, ax):
     """
     pos = nx.get_node_attributes(graph, "pos")
     # add number of scooters and battery label to nodes
-    for i, cluster in enumerate(state.clusters):
-        node_info = f"S = {cluster.number_of_scooters()}\nIS = {cluster.ideal_state}\nB = {round(cluster.get_current_state(), 1)}"
+    for i, cluster in enumerate(state.stations):
+        node_info = f"S = {cluster.number_of_scooters()}\nB = {round(cluster.get_current_state(), 1)}"
         x, y = pos[i]
         ax.annotate(
             node_info, xy=(x, y + 0.03), horizontalalignment="center", fontsize=12
@@ -546,7 +546,7 @@ def make_scooter_visualize(state, ax, scooter_label=False):
     # make a list of all scooters
     all_scooters = list(
         itertools.chain.from_iterable(
-            map(lambda cluster: cluster.scooters, state.clusters)
+            map(lambda cluster: cluster.scooters, state.stations)
         )
     )
 
@@ -556,7 +556,7 @@ def make_scooter_visualize(state, ax, scooter_label=False):
     # list of all cluster ids associated with scooters (so we can get the right color of the scooter nodes)
     all_cluster_ids = list(
         itertools.chain.from_iterable(
-            [cluster.id] * len(cluster.scooters) for cluster in state.clusters
+            [cluster.id] * len(cluster.scooters) for cluster in state.stations
         )
     )
 

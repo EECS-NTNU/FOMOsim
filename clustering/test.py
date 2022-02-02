@@ -1,6 +1,6 @@
 import unittest
 
-from classes import Depot, Cluster
+from classes import Depot, Station
 from clustering.scripts import get_initial_state
 
 
@@ -17,20 +17,13 @@ class ClusteringTests(unittest.TestCase):
             200,
         )
 
-    def test_ideal_state_sum_to_number_of_scooters(self):
-        self.assertGreaterEqual(
-            len(self.state_mid.get_scooters()),
-            sum(cluster.ideal_state for cluster in self.state_mid.clusters),
-            -1,
-        )
-
     def test_current_cluster_is_depot(self):
         for vehicle in get_initial_state(100).vehicles:
             self.assertIsInstance(vehicle.current_location, Depot)
 
     def test_current_cluster_is_not_depot(self):
         for vehicle in self.state_big.vehicles:
-            self.assertIsInstance(vehicle.current_location, Cluster)
+            self.assertIsInstance(vehicle.current_location, Station)
 
     def test_create_multiple_vehicles(self):
         multiple_vehicle_state = get_initial_state(
@@ -75,7 +68,7 @@ class ClusteringTests(unittest.TestCase):
 
     def test_move_probabilities(self):
         for state in [self.state_mid, self.state_small, self.state_big]:
-            for cluster in state.clusters:
+            for cluster in state.stations:
                 self.assertAlmostEqual(sum(cluster.move_probabilities), 1)
                 self.assertFalse(
                     any([prob < 0 for prob in cluster.move_probabilities]),
@@ -85,17 +78,6 @@ class ClusteringTests(unittest.TestCase):
                     any([prob > 1 for prob in cluster.move_probabilities]),
                     "There are probabilities bigger than one in the move probabilities matrix",
                 )
-
-    def test_ideal_states(self):
-        # test that all ideal states are greater than or equal 0
-        for state in self.all_states:
-            for cluster in state.clusters:
-                self.assertGreaterEqual(
-                    cluster.ideal_state,
-                    0,
-                    f"A cluster is initialized with an ideal state less than or equal to 0",
-                )
-
 
 if __name__ == "__main__":
     unittest.main()

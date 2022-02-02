@@ -11,29 +11,27 @@ from sim.SaveMixin import SaveMixin
 from globals import (
     HyperParameters,
     WHITE,
-    WORLD_CACHE_DIR,
+    SIM_CACHE_DIR,
     ITERATION_LENGTH_MINUTES,
 )
 
 from progress.bar import IncrementalBar
-from system_simulation.scripts import system_simulate
 
 
-class World(SaveMixin, HyperParameters):
+class Simulator(SaveMixin, HyperParameters):
     """
     Class containing all metadata about an instance. This class contains both the state, the policy and parameters.
     This class uses the state as the environment and the policy as the actor. Additionally, it is the main driver of the
     event based simulation system using the event classes.
     """
 
-    class WorldMetric:
+    class Metric:
         """
         Class for storing and aggregate the metric data of the instance
         """
 
         def __init__(self, test_parameter_name="", test_parameter_value=0.0):
             self.lost_demand = []
-            self.average_negative_deviation_ideal_state = []
             self.deficient_battery = []
             self.timeline = []
             self.total_available_scooters = []
@@ -45,15 +43,14 @@ class World(SaveMixin, HyperParameters):
             def lists_average(lists):
                 return np.mean(np.stack(lists, axis=0), axis=1).tolist()
 
-            new_world_metric = cls()
+            new_sim_metric = cls()
             if all([len(metric.timeline) == 0 for metric in metrics]):
-                return new_world_metric
+                return new_sim_metric
             number_of_metrics = len(metrics)
 
             # Fields to take the average of
             average_fields = [
                 "lost_demand",
-                "average_negative_deviation_ideal_state",
                 "deficient_battery",
                 "total_available_scooters",
             ]
@@ -61,9 +58,9 @@ class World(SaveMixin, HyperParameters):
             fields = {field: [[0] * number_of_metrics] for field in average_fields}
             # Find the time for the latest event
             max_time = np.max(np.concatenate([metric.timeline for metric in metrics]))
-            new_world_metric.timeline = list(range(int(max_time) + 1))
+            new_sim_metric.timeline = list(range(int(max_time) + 1))
             # populate fields with average at every time step
-            for time in new_world_metric.timeline[1:]:
+            for time in new_sim_metric.timeline[1:]:
                 # If there is a new value in the timeline, update the timeline
                 if any([time in metric.timeline for metric in metrics]):
                     for field in fields.keys():
@@ -83,49 +80,37 @@ class World(SaveMixin, HyperParameters):
                     for field in fields.keys():
                         fields[field].append(fields[field][-1])
             # Take the average of all the runs
-            new_world_metric.__dict__.update(
+            new_sim_metric.__dict__.update(
                 {
                     field: lists_average(metric_list)
                     for field, metric_list in fields.items()
                 }
             )
 
-            new_world_metric.testing_parameter_name = metrics[0].testing_parameter_name
-            new_world_metric.testing_parameter_value = metrics[
+            new_sim_metric.testing_parameter_name = metrics[0].testing_parameter_name
+            new_sim_metric.testing_parameter_value = metrics[
                 0
             ].testing_parameter_value
-            return new_world_metric
+            return new_sim_metric
 
-        def add_analysis_metrics(self, world):
+        def add_analysis_metrics(self, sim):
             """
             Add data to analysis
-            :param world: world object to record state from
+            :param sim: sim object to record state from
             """
             self.lost_demand.append(
                 sum(
                     [
                         1
-                        for reward, location in world.rewards
-                        if reward == world.LOST_TRIP_REWARD
+                        for reward, location in sim.rewards
+                        if reward == sim.LOST_TRIP_REWARD
                     ]
                 )
-                if len(world.rewards) > 0
+                if len(sim.rewards) > 0
                 else 0
             )
-            self.average_negative_deviation_ideal_state.append(
-                sum(
-                    [
-                        max(
-                            0,
-                            cluster.ideal_state - len(cluster.get_available_scooters()),
-                        )
-                        for cluster in world.state.clusters
-                    ]
-                )
-                / len(world.state.clusters)
-            )
             self.deficient_battery.append(
-                sum([scooter.battery for scooter in world.state.get_scooters()]) / len(world.state.get_scooters())
+                sum([scooter.battery for scooter in sim.state.get_scooters()]) / len(sim.state.get_scooters())
                 # sum(
                 #     [
                 #         cluster.ideal_state * 100
@@ -137,21 +122,21 @@ class World(SaveMixin, HyperParameters):
                 #                 ]
                 #             )
                 #         )
-                #         for cluster in world.state.clusters
+                #         for cluster in sim.state.stations
                 #         if len(cluster.scooters) < cluster.ideal_state
                 #     ]
                 # )
-                # / len(world.state.get_scooters())
+                # / len(sim.state.get_scooters())
             )
             self.total_available_scooters.append(
                 sum(
                     [
                         len(cluster.get_available_scooters())
-                        for cluster in world.state.clusters
+                        for cluster in sim.state.stations
                     ]
                 )
             )
-            self.timeline.append(world.time)
+            self.timeline.append(sim.time)
 
         def get_all_metrics(self):
             """
@@ -159,7 +144,6 @@ class World(SaveMixin, HyperParameters):
             """
             return (
                 self.lost_demand,
-                self.average_negative_deviation_ideal_state,
                 self.deficient_battery,
                 self.total_available_scooters,
             )
@@ -200,13 +184,13 @@ class World(SaveMixin, HyperParameters):
         self.stack.append(sim.GenerateScooterTrips(ITERATION_LENGTH_MINUTES))
         self.cluster_flow = {
             (start, end): 0
-            for start in np.arange(len(self.state.clusters))
-            for end in np.arange(len(self.state.clusters))
+            for start in np.arange(len(self.state.stations))
+            for end in np.arange(len(self.state.stations))
             if start != end
         }
         self.policy = policy
-        policy.initWorld(self)
-        self.metrics = World.WorldMetric(test_parameter_name, test_parameter_value)
+        policy.initSim(self)
+        self.metrics = Simulator.Metric(test_parameter_name, test_parameter_value)
         self.verbose = verbose
         self.visualize = visualize
         if label is None:
@@ -216,7 +200,7 @@ class World(SaveMixin, HyperParameters):
         self.disable_training = False
         if verbose:
             self.progress_bar = IncrementalBar(
-                "Running World",
+                "Running Sim",
                 check_tty=False,
                 max=round(shift_duration / ITERATION_LENGTH_MINUTES) + 1,
                 color=WHITE,
@@ -224,13 +208,13 @@ class World(SaveMixin, HyperParameters):
             )
 
     def __repr__(self):
-        return f"<World with {self.time} of {self.shift_duration} elapsed. {len(self.stack)} events in stack>"
+        return f"<Sim with {self.time} of {self.shift_duration} elapsed. {len(self.stack)} events in stack>"
 
     def run(self):
         """
         Main method for running the Event Based Simulation Engine.
 
-        The world object uses a stack initialized with vehicle arrival events and a GenerateScooterTrips event.
+        The sim object uses a stack initialized with vehicle arrival events and a GenerateScooterTrips event.
         It then pops events from this stack. The stack is always sorted in by the time of the events.
         """
         while self.time < self.shift_duration:
@@ -244,14 +228,14 @@ class World(SaveMixin, HyperParameters):
     def get_remaining_time(self) -> int:
         """
         Computes the remaining time by taking the difference between the shift duration
-        and the current time of the world object.
+        and the current time of the sim object.
         :return: the remaining time as a float
         """
         return self.shift_duration - self.time
 
     def add_reward(self, reward: float, location_id: int, discount=False) -> None:
         """
-        Adds the input reward to the rewards list of the world object
+        Adds the input reward to the rewards list of the sim object
         :param location_id: location where the reward was conducted
         :param discount: boolean if the reward is to be discounted
         :param reward: reward given
@@ -317,42 +301,89 @@ class World(SaveMixin, HyperParameters):
 
     def get_filename(self):
         return (
-            f"{self.created_at}_World_T_e{self.time}_t_{self.shift_duration}_"
-            f"S_c{len(self.state.clusters)}_s{len(self.state.get_scooters())}"
+            f"{self.created_at}_Sim_T_e{self.time}_t_{self.shift_duration}_"
+            f"S_c{len(self.state.stations)}_s{len(self.state.get_scooters())}"
         )
 
-    def save_world(self, cache_directory=None, suffix=""):
-        directory = WORLD_CACHE_DIR
+    def save_sim(self, cache_directory=None, suffix=""):
+        directory = SIM_CACHE_DIR
         if cache_directory:
-            directory = f"{WORLD_CACHE_DIR}/{cache_directory}"
+            directory = f"{SIM_CACHE_DIR}/{cache_directory}"
         super().save(directory, f"-{suffix}")
 
     def get_train_directory(self, suffix=None):
         suffix = suffix if suffix else f"{self.created_at}"
         return (
             f"trained_models/{self.policy.value_function.__repr__()}/"
-            f"c{len(self.state.clusters)}_s{len(self.state.get_scooters())}/{suffix}"
+            f"c{len(self.state.stations)}_s{len(self.state.get_scooters())}/{suffix}"
         )
 
     def system_simulate(self):
-        return system_simulate(self.state)
+        """
+        Simulation of poisson process on the system
+        Poisson distributed number of trips out of each cluster, markov chain decides where the trip goes
+        :param state: current world
+        :return: flows generated by the system simulation
+        """
+        flow_counter = {
+            (start, end): 0
+            for start in np.arange(len(self.state.stations))
+            for end in np.arange(len(self.state.stations))
+            if start != end
+        }
+        trips = []
+        lost_demand = []
+        scenario = random.choice(self.state.simulation_scenarios)
+        for start_cluster_id, number_of_trips, end_cluster_indices in scenario:
+            start_cluster = self.state.get_location_by_id(start_cluster_id)
+            # if there is more trips than scooters available, the system has lost demand
+            valid_scooters = start_cluster.get_available_scooters()
+            if number_of_trips > len(valid_scooters):
+                lost_demand.append(
+                    (number_of_trips - len(valid_scooters), start_cluster_id)
+                )
+                end_cluster_indices = end_cluster_indices[: len(valid_scooters)]
+
+            # loop to generate trips from the cluster
+            for j, end_cluster_index in enumerate(end_cluster_indices):
+                trips.append(
+                    (
+                        start_cluster,
+                        self.state.get_location_by_id(end_cluster_index),
+                        valid_scooters.pop(0),
+                    )
+                )
+                flow_counter[(start_cluster.id, end_cluster_index)] += 1
+
+        # compute trip after all trips are generated to avoid handling inflow in cluster
+        for start_cluster, end_cluster, scooter in trips:
+            start_cluster.scooters.remove(scooter)
+            trip_distance = self.state.get_distance(start_cluster.id, end_cluster.id)
+            scooter.travel(trip_distance)
+            end_cluster.add_scooter(scooter)
+
+        return (
+            [(start, end, flow) for (start, end), flow in list(flow_counter.items())],
+            trips,
+            lost_demand,
+        )
 
     def __deepcopy__(self, *args):
-        new_world = World(
+        new_sim = Simulator(
             self.shift_duration,
             self.policy,
             copy.deepcopy(self.state),
             verbose=self.verbose,
             visualize=self.visualize,
         )
-        new_world.time = self.time
-        new_world.rewards = self.rewards.copy()
-        new_world.stack = copy.deepcopy(self.stack)
-        new_world.tabu_list = self.tabu_list.copy()
-        new_world.cluster_flow = self.cluster_flow.copy()
-        new_world.metrics = copy.deepcopy(self.metrics)
-        new_world.disable_training = self.disable_training
+        new_sim.time = self.time
+        new_sim.rewards = self.rewards.copy()
+        new_sim.stack = copy.deepcopy(self.stack)
+        new_sim.tabu_list = self.tabu_list.copy()
+        new_sim.cluster_flow = self.cluster_flow.copy()
+        new_sim.metrics = copy.deepcopy(self.metrics)
+        new_sim.disable_training = self.disable_training
         # Set all hyper parameters
         for parameter in HyperParameters().__dict__.keys():
-            setattr(new_world, parameter, getattr(self, parameter))
-        return new_world
+            setattr(new_sim, parameter, getattr(self, parameter))
+        return new_sim

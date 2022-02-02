@@ -57,7 +57,7 @@ class EventsTests(unittest.TestCase):
         new_destination = random.choice(
             [
                 cluster
-                for cluster in self.world.state.clusters
+                for cluster in self.world.state.stations
                 if len(cluster.scooters) > 0
                 and cluster.id != self.vehicle.current_location.id
             ]

@@ -1,6 +1,6 @@
 from typing import Union
 from sim.Depot import Depot
-from sim.Cluster import Cluster
+from sim.Station import Station
 from sim.Scooter import Scooter
 
 
@@ -12,7 +12,7 @@ class Vehicle:
     def __init__(
         self,
         vehicle_id: int,
-        start_location: Union[Cluster, Depot],
+        start_location: Union[Station, Depot],
         battery_inventory_capacity: int,
         scooter_inventory_capacity: int,
     ):
@@ -58,7 +58,7 @@ class Vehicle:
         self.scooter_inventory.remove(scooter)
         return scooter
 
-    def set_current_location(self, location: Cluster, action):
+    def set_current_location(self, location: Station, action):
         self.service_route.append((self.current_location, action))
         self.current_location = location
 

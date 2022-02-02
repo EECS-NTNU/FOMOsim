@@ -8,8 +8,6 @@ import sim
 import numpy.random as random
 import abc
 
-import system_simulation.scripts
-
 class RebalancingPolicy(Policy):
     def __init__(self):
         super().__init__(0, 0)
@@ -46,8 +44,7 @@ class RebalancingPolicy(Policy):
                         vehicle.scooter_inventory_capacity
                         - len(vehicle.scooter_inventory),
                         vehicle.battery_inventory,
-                        len(vehicle.current_location.scooters)
-                        - vehicle.current_location.ideal_state,
+                        len(vehicle.current_location.scooters),
                     ),
                     0,
                 )
@@ -64,12 +61,11 @@ class RebalancingPolicy(Policy):
             return sorted(
                 [
                     cluster
-                    for cluster in world.state.clusters
+                    for cluster in world.state.stations
                     if cluster.id != vehicle.current_location.id
                     and cluster.id not in world.tabu_list
                 ],
-                key=lambda cluster: len(cluster.get_available_scooters())
-                - cluster.ideal_state,
+                key=lambda cluster: len(cluster.get_available_scooters()),
                 reverse=is_finding_positive_deviation,
             )[0].id
 

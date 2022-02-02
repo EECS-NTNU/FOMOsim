@@ -6,7 +6,7 @@ class Scooter(Location):
     E-scooter class containing state and all operations necessary
     """
 
-    def __init__(self, lat: float, lon: float, battery: float, scooter_id: int):
+    def __init__(self, lat: float = 0, lon: float = 0, battery: float = 100.0, scooter_id: int = 0):
         super().__init__(lat, lon, scooter_id)
         self.battery = battery
         self.battery_change_per_kilometer = 5.0

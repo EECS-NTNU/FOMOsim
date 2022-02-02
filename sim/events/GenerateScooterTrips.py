@@ -13,7 +13,7 @@ class GenerateScooterTrips(Event):
         super().__init__(time)
 
     def perform(self, world, **kwargs) -> None:
-        for departure_cluster in world.state.clusters:
+        for departure_cluster in world.state.stations:
             # poisson process to select number of trips in a iteration
             number_of_trips = round(
                 np.random.poisson(departure_cluster.trip_intensity_per_iteration)

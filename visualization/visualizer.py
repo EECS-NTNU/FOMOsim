@@ -375,7 +375,6 @@ def visualize_analysis(instances, title=None):
     for i, instance in enumerate(instances):
         (
             lost_demand,
-            deviation_ideal_state,
             deficient_battery,
             total_available_scooters,
         ) = instance.metrics.get_all_metrics()
@@ -467,9 +466,8 @@ def heatmap():
     )
     percentage = 1500 / 2500
     all_coordinates = []
-    for cluster in world_to_analyse.state.clusters:
+    for cluster in world_to_analyse.state.stations:
         cluster.scooters = cluster.scooters[: round(len(cluster.scooters) * percentage)]
-        cluster.ideal_state = round(cluster.ideal_state * percentage)
         for scooter in cluster.scooters:
             all_coordinates.append(scooter.get_location())
 

@@ -7,9 +7,6 @@ import sim
 import numpy.random as random
 import abc
 
-import system_simulation.scripts
-
-
 class Policy(abc.ABC):
     """
     Base Policy class. Used mainly as an interface for the get best action method
@@ -41,7 +38,7 @@ class Policy(abc.ABC):
         """
         pass
 
-    def initWorld(self, world):
+    def initSim(self, sim):
         pass
 
     def __repr__(self):
@@ -49,11 +46,11 @@ class Policy(abc.ABC):
 
     @staticmethod
     def print_action_stats(
-        world,
+        sim,
         vehicle: sim.Vehicle,
         actions_info: [(sim.Action, int, int)],
     ) -> None:
-        if world.verbose:
+        if sim.verbose:
             print(f"\n{vehicle}:")
             for action, reward, computational_time in actions_info:
                 print(

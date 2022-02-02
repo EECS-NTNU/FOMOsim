@@ -31,7 +31,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
     def get_cache(state):
         # Cache current states in state
         current_states, available_scooters = [], []
-        for cluster in state.clusters:
+        for cluster in state.stations:
             current_states.append(cluster.get_current_state())
             available_scooters.append(cluster.get_available_scooters())
         return current_states, available_scooters

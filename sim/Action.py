@@ -67,7 +67,7 @@ class Action:
                 )
                 battery_reward += (
                     (100.0 - battery_swap_scooter.battery) / 100.0
-                ) * vehicle_location.prob_of_scooter_usage(available_scooters)
+                )# * vehicle_location.prob_of_scooter_usage(available_scooters)
                 if battery_swap_scooter.battery < BATTERY_LIMIT:
                     # If the swapped scooter was unavailable, make sure probability of scooter usage decrease.
                     available_scooters += 1

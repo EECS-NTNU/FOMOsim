@@ -7,7 +7,7 @@ class Depot(Location):
     Class for depot. Contains method for updating the state of the depot.
     """
 
-    def __init__(self, lat: float, lon: float, depot_id: int, main_depot=False):
+    def __init__(self, lat: float = 0, lon: float = 0, depot_id: int = 0, main_depot=False):
         super(Depot, self).__init__(lat, lon, depot_id)
         self.capacity = MAIN_DEPOT_CAPACITY if main_depot else SMALL_DEPOT_CAPACITY
         self.time = 0

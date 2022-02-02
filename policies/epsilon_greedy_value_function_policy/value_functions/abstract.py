@@ -137,7 +137,7 @@ class ValueFunction(abc.ABC):
     def get_number_of_location_indicators_and_state_features(
         self, state: classes.State
     ):
-        return self.number_of_features_per_cluster * len(state.clusters)
+        return self.number_of_features_per_cluster * len(state.stations)
 
     def create_features(
         self,
@@ -215,14 +215,14 @@ class ValueFunction(abc.ABC):
             def filter_scooter_ids(ids, isAvailable=True):
                 if isAvailable:
                     available_filter = (
-                        lambda scooter_id: state.clusters[current_location]
+                        lambda scooter_id: state.stations[current_location]
                         .get_scooter_from_id(scooter_id)
                         .battery
                         > BATTERY_LIMIT
                     )
                 else:
                     available_filter = (
-                        lambda scooter_id: state.clusters[current_location]
+                        lambda scooter_id: state.stations[current_location]
                         .get_scooter_from_id(scooter_id)
                         .battery
                         < BATTERY_LIMIT
@@ -244,7 +244,7 @@ class ValueFunction(abc.ABC):
                 [
                     (
                         100
-                        - state.clusters[current_location]
+                        - state.stations[current_location]
                         .get_scooter_from_id(scooter_id)
                         .battery
                     )
@@ -255,7 +255,7 @@ class ValueFunction(abc.ABC):
                 [
                     (
                         100
-                        - state.clusters[current_location]
+                        - state.stations[current_location]
                         .get_scooter_from_id(scooter_id)
                         .battery
                     )
@@ -271,12 +271,12 @@ class ValueFunction(abc.ABC):
             cache
             if cache is not None
             else (
-                [cluster.get_current_state() for cluster in state.clusters],
-                [cluster.get_available_scooters() for cluster in state.clusters],
+                [cluster.get_current_state() for cluster in state.stations],
+                [cluster.get_available_scooters() for cluster in state.stations],
             )
         )  # Use cache if you have it
         negative_deviations, battery_deficiency = [], []
-        for i, cluster in enumerate(state.clusters):
+        for i, cluster in enumerate(state.stations):
             deviation = (
                 len(available_scooters[i])
                 - cluster.ideal_state

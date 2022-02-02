@@ -8,8 +8,6 @@ import sim
 import numpy.random as random
 import abc
 
-import system_simulation.scripts
-
 class NightShift(Policy):
     def __init__(self):
         super().__init__(0, 0)
@@ -17,13 +15,13 @@ class NightShift(Policy):
     def get_best_action(self, world, vehicle):
         return sim.Action([], [], [], 0)
 
-    def initWorld(self, world):
-        world.stack = [
+    def initSim(self, sim):
+        sim.stack = [
             event
-            for event in world.stack
+            for event in sim.stack
             if not isinstance(event, sim.VehicleArrival)
         ]
-        for cluster in world.state.clusters:
+        for cluster in sim.state.stations:
             for scooter in cluster.scooters:
                 if scooter.battery < 70:
                     scooter.swap_battery()

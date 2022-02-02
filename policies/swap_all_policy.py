@@ -8,9 +8,6 @@ import sim
 import numpy.random as random
 import abc
 
-import system_simulation.scripts
-
-
 class SwapAllPolicy(Policy):
     def __init__(self):
 
@@ -43,7 +40,7 @@ class SwapAllPolicy(Policy):
             next_location = sorted(
                 [
                     cluster
-                    for cluster in world.state.clusters
+                    for cluster in world.state.stations
                     if cluster.id != vehicle.current_location.id
                     and cluster.id not in world.tabu_list
                 ],
@@ -62,8 +59,8 @@ class SwapAllPolicy(Policy):
             next_location=next_location.id,
         )
 
-    def initWorld(self, world):
-        for vehicle in world.state.vehicles:
+    def initSim(self, sim):
+        for vehicle in sim.state.vehicles:
             vehicle.battery_inventory_capacity = 250
             vehicle.battery_inventory = 250
             vehicle.scooter_inventory_capacity = 0

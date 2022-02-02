@@ -16,24 +16,24 @@ def filtering_neighbours(
     clusters_positive_deviation = sorted(
         [
             cluster
-            for cluster in state.clusters
+            for cluster in state.stations
             if cluster.id != vehicle.current_location.id
             and cluster.id not in exclude
-            and len(cluster.get_available_scooters()) - cluster.ideal_state > 0
+            and len(cluster.get_available_scooters()) > 0
         ],
-        key=lambda cluster: len(cluster.get_available_scooters()) - cluster.ideal_state,
+        key=lambda cluster: len(cluster.get_available_scooters()),
         reverse=True,
     )
 
     clusters_negative_deviation = sorted(
         [
             cluster
-            for cluster in state.clusters
+            for cluster in state.stations
             if cluster.id != vehicle.current_location.id
             and cluster.id not in exclude
-            and len(cluster.get_available_scooters()) - cluster.ideal_state < 0
+            and len(cluster.get_available_scooters()) < 0
         ],
-        key=lambda cluster: len(cluster.get_available_scooters()) - cluster.ideal_state,
+        key=lambda cluster: len(cluster.get_available_scooters()),
     )
 
     has_more_capacity = (
@@ -85,14 +85,9 @@ def add_depots_as_neighbours(state, time, vehicle, max_swaps):
     )
 
 
-def get_deviation_ideal_state(state):
-    # cluster score based on deviation
-    return [cluster.ideal_state - len(cluster.scooters) for cluster in state.clusters]
-
-
 def get_battery_deficient_in_clusters(state):
     # cluster score based on how much deficient of battery the cluster have
     return [
         len(cluster.scooters) - cluster.get_current_state()
-        for cluster in state.clusters
+        for cluster in state.stations
     ]

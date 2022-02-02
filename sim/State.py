@@ -1,6 +1,6 @@
 import random
 from sim.Location import Location
-from sim.Cluster import Cluster
+from sim.Station import Station
 from sim.Depot import Depot
 import clustering.methods
 from sim.SaveMixin import SaveMixin
@@ -19,15 +19,15 @@ class State(SaveMixin):
 
     def __init__(
         self,
-        clusters: [Cluster],
+        stations: [Station],
         depots: [Depot],
-        vehicles=None,
-        distance_matrix=None,
+        vehicles: [Vehicle],
+        distance_matrix=None, # will calculate based on coordinates if not given
     ):
-        self.clusters = clusters
+        self.stations = stations
         self.vehicles = vehicles
         self.depots = depots
-        self.locations = self.clusters + self.depots
+        self.locations = self.stations + self.depots
         if distance_matrix:
             self.distance_matrix = distance_matrix
         else:
@@ -37,7 +37,7 @@ class State(SaveMixin):
 
     def __deepcopy__(self, *args):
         new_state = State(
-            copy.deepcopy(self.clusters),
+            copy.deepcopy(self.stations),
             copy.deepcopy(self.depots),
             copy.deepcopy(self.vehicles),
             distance_matrix=self.distance_matrix,
@@ -58,18 +58,18 @@ class State(SaveMixin):
         :param lon:
         :return:
         """
-        return min(self.clusters, key=lambda cluster: cluster.distance_to(lat, lon))
+        return min(self.stations, key=lambda cluster: cluster.distance_to(lat, lon))
 
     def get_scooters(self):
         all_scooters = []
-        for cluster in self.clusters:
+        for cluster in self.stations:
             for scooter in cluster.scooters:
                 all_scooters.append(scooter)
         return all_scooters
 
     def get_distance(self, start_location_id: int, end_location_id: int):
         """
-        Calculate distance between two clusters
+        Calculate distance between two stations
         :param start_location_id: Location id
         :param end_location_id: Location id
         :return: float - distance in kilometers
@@ -77,11 +77,11 @@ class State(SaveMixin):
         return self.distance_matrix[start_location_id][end_location_id]
 
     def get_distance_to_all_clusters(self, location_id):
-        return self.distance_matrix[location_id][: len(self.clusters)]
+        return self.distance_matrix[location_id][: len(self.stations)]
 
     def calculate_distance_matrix(self):
         """
-        Computes distance matrix for all clusters
+        Computes distance matrix for all stations
         :return: Distance matrix
         """
         distance_matrix = []
@@ -108,7 +108,7 @@ class State(SaveMixin):
         """
         Enumerate all possible actions from the current state
         :param time: time of the world when the actions is to be performed
-        :param exclude: clusters to exclude from next cluster
+        :param exclude: stations to exclude from next cluster
         :param vehicle: vehicle to perform this action
         :param number_of_neighbours: number of neighbours to evaluate, if None: all neighbors are returned
         :param divide: number to divide by to create range increment
@@ -146,25 +146,20 @@ class State(SaveMixin):
 
             # Initiate constraints for battery swap, pick-up and drop-off
             pick_ups = min(
-                max(
-                    len(vehicle.current_location.scooters)
-                    - vehicle.current_location.ideal_state,
-                    0,
-                ),
+                len(vehicle.current_location.scooters),
                 vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory),
                 vehicle.battery_inventory,
             )
             swaps = vehicle.get_max_number_of_swaps()
             drop_offs = max(
                 min(
-                    vehicle.current_location.ideal_state
-                    - len(vehicle.current_location.scooters),
+                    len(vehicle.current_location.scooters),
                     len(vehicle.scooter_inventory),
                 ),
                 0,
             )
             combinations = []
-            # Different combinations of battery swaps, pick-ups, drop-offs and clusters
+            # Different combinations of battery swaps, pick-ups, drop-offs and stations
             for pick_up in get_range(pick_ups):
                 for swap in get_range(swaps):
                     for drop_off in get_range(drop_offs):
@@ -311,8 +306,8 @@ class State(SaveMixin):
 
     def __repr__(self):
         return (
-            f"<State: {len(self.get_scooters())} scooters in {len(self.clusters)} "
-            f"clusters with {len(self.vehicles)} vehicles>"
+            f"<State: {len(self.get_scooters())} scooters in {len(self.stations)} "
+            f"stations with {len(self.vehicles)} vehicles>"
         )
 
     def get_neighbours(
@@ -323,7 +318,7 @@ class State(SaveMixin):
         exclude=None,
     ):
         """
-        Get sorted list of clusters closest to input cluster
+        Get sorted list of stations closest to input cluster
         :param is_sorted: Boolean if the neighbours list should be sorted in a ascending order based on distance
         :param location: location to find neighbours for
         :param number_of_neighbours: number of neighbours to return
@@ -366,7 +361,7 @@ class State(SaveMixin):
         visualize_state(self)
 
     def visualize_clustering(self):
-        visualize_clustering(self.clusters)
+        visualize_clustering(self.stations)
 
     def visualize_flow(
         self,
@@ -421,12 +416,12 @@ class State(SaveMixin):
         visualize_scooter_simulation(self, trips)
 
     def set_probability_matrix(self, probability_matrix: np.ndarray):
-        if probability_matrix.shape != (len(self.clusters), len(self.clusters)):
+        if probability_matrix.shape != (len(self.stations), len(self.stations)):
             ValueError(
-                f"The shape of the probability matrix does not match the number of clusters in the class:"
-                f" {probability_matrix.shape} != {(len(self.clusters), len(self.clusters))}"
+                f"The shape of the probability matrix does not match the number of stations in the class:"
+                f" {probability_matrix.shape} != {(len(self.stations), len(self.stations))}"
             )
-        for cluster in self.clusters:
+        for cluster in self.stations:
             cluster.set_move_probabilities(probability_matrix[cluster.id])
 
     def save_state(self):
@@ -434,33 +429,21 @@ class State(SaveMixin):
 
     @staticmethod
     def save_path(
-        number_of_clusters,
+        number_of_stations,
         sample_size,
-        ideal_state_computation,
     ):
         def convert_binary(binary):
             return 1 if binary else 0
 
         return (
-            f"c{number_of_clusters}s{sample_size}_"
-            f"i{convert_binary(ideal_state_computation)}"
+            f"c{number_of_stations}s{sample_size}_"
         )
 
     def get_filename(self):
         return State.save_path(
-            len(self.clusters),
-            len(self.get_scooters()),
-            all(
-                [
-                    cluster.ideal_state * self.TRIP_INTENSITY_RATE
-                    == cluster.trip_intensity_per_iteration
-                    for cluster in self.clusters
-                ]
-            ),
+            len(self.stations),
+            len(self.get_scooters())
         )
-
-    def compute_and_set_ideal_state(self, sample_scooters):
-        clustering.methods.compute_and_set_ideal_state(self, sample_scooters)
 
     def compute_and_set_trip_intensity(self, sample_scooters):
         clustering.methods.compute_and_set_trip_intensity(self, sample_scooters)
@@ -470,7 +453,7 @@ class State(SaveMixin):
         sampled_scooter_ids = random.sample(
             [scooter.id for scooter in self.get_scooters()], sample_size
         )
-        for cluster in self.clusters:
+        for cluster in self.stations:
             cluster.scooters = [
                 scooter
                 for scooter in cluster.scooters
@@ -479,9 +462,9 @@ class State(SaveMixin):
 
     def get_random_cluster(self, exclude=None):
         return random.choice(
-            [cluster for cluster in self.clusters if cluster.id != exclude.id]
+            [cluster for cluster in self.stations if cluster.id != exclude.id]
             if exclude
-            else self.clusters
+            else self.stations
         )
 
     def get_vehicle_by_id(self, vehicle_id: int) -> Vehicle:
@@ -510,7 +493,7 @@ class State(SaveMixin):
                         0,
                     )
                     * lost_trip_reward
-                    for cluster in self.clusters
+                    for cluster in self.stations
                     if cluster.id != exclude
                 ]
             )

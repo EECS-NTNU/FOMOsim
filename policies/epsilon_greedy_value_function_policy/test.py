@@ -183,7 +183,7 @@ class BasicDecisionTests(unittest.TestCase):
         vehicle.current_location = random.choice(
             [
                 cluster
-                for cluster in bigger_state.clusters
+                for cluster in bigger_state.stations
                 if cluster.number_of_scooters() > 0
             ]
         )
@@ -326,7 +326,7 @@ class ValueFunctionTests(unittest.TestCase):
         # recording clusters with available scooters less than ideal state
         deficient_cluster = [
             cluster
-            for cluster in unsimulated_world.state.clusters
+            for cluster in unsimulated_world.state.stations
             if len(cluster.get_available_scooters()) < cluster.ideal_state
         ]
         counter = 0
@@ -418,7 +418,7 @@ class ValueFunctionTests(unittest.TestCase):
         # Record current state
         vehicle = self.world.state.vehicles[0]
         # Scooters is current cluster
-        scooters = self.world.state.clusters[
+        scooters = self.world.state.stations[
             vehicle.current_location.id
         ].get_swappable_scooters()
         deliver_scooter = random.choice(
@@ -427,7 +427,7 @@ class ValueFunctionTests(unittest.TestCase):
                 for scooter in random.choice(
                     [
                         cluster
-                        for cluster in self.world.state.clusters
+                        for cluster in self.world.state.stations
                         if cluster.id != vehicle.current_location.id
                     ]
                 ).scooters
@@ -442,7 +442,7 @@ class ValueFunctionTests(unittest.TestCase):
             random.choice(
                 [
                     cluster.id
-                    for cluster in self.world.state.clusters
+                    for cluster in self.world.state.stations
                     if cluster.id != vehicle.current_location.id
                 ]
             ),

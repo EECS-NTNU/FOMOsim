@@ -5,6 +5,12 @@ from sim import Vehicle, State
 import clustering.methods as methods
 import os
 from globals import *
+import pandas as pd
+
+def scooter_sample_filter(dataframe: pd.DataFrame, sample_size=None):
+    if sample_size:
+        dataframe = dataframe.sample(sample_size)
+    return dataframe["id"].tolist()
 
 
 def get_initial_state(
@@ -15,7 +21,6 @@ def get_initial_state(
     initial_location_depot=True,
     number_of_vans=4,
     number_of_bikes=0,
-    ideal_state_computation=False,
 ) -> State:
     """
     Main method for setting up a state object based on EnTur data from test_data directory.
@@ -27,13 +32,12 @@ def get_initial_state(
     :param initial_location_depot: set the initial current location of the vehicles to the depot
     :param number_of_vans: the number of vans to use
     :param number_of_bikes: the number of bikes to use
-    :param ideal_state_computation: Fake ideal state
     :return:
     """
     # If this combination has been requested before we fetch a cached version
     filepath = (
         f"{STATE_CACHE_DIR}/"
-        f"{State.save_path(number_of_clusters, sample_size, ideal_state_computation)}.pickle"
+        f"{State.save_path(number_of_clusters, sample_size)}.pickle"
     )
     if cache and os.path.exists(filepath):
         print(f"\nUsing cached version of state from {filepath}\n")
@@ -61,7 +65,7 @@ def get_initial_state(
         initial_state = State(clusters, depots, [])
 
         # Sample size filtering. Create list of scooter ids to include
-        sample_scooters = methods.scooter_sample_filter(entur_dataframe, sample_size)
+        sample_scooters = scooter_sample_filter(entur_dataframe, sample_size)
 
         # Trip intensity analysis
         initial_state.compute_and_set_trip_intensity(sample_scooters)
@@ -76,9 +80,6 @@ def get_initial_state(
         # Generate scenarios
         initial_state.simulation_scenarios = methods.generate_scenarios(initial_state)
 
-        # Find the ideal state for each cluster
-        initial_state.compute_and_set_ideal_state(sample_scooters)
-
         if save:
             # Cache the state for later
             initial_state.save_state()
@@ -86,7 +87,7 @@ def get_initial_state(
 
     # Choosing a location as starting cluster for all vehicles
     current_location = (
-        initial_state.depots[0] if initial_location_depot else initial_state.clusters[0]
+        initial_state.depots[0] if initial_location_depot else initial_state.stations[0]
     )
 
     # Setting vehicles to initial state
