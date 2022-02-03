@@ -14,6 +14,7 @@ def scooter_sample_filter(dataframe: pd.DataFrame, sample_size=None):
 
 
 def get_initial_state(
+    classname,
     sample_size=None,
     number_of_clusters=20,
     save=True,
@@ -56,7 +57,7 @@ def get_initial_state(
         cluster_labels = methods.cluster_data(entur_dataframe, number_of_clusters)
 
         # Structure data into objects
-        clusters = methods.generate_cluster_objects(entur_dataframe, cluster_labels)
+        clusters = methods.generate_cluster_objects(classname, entur_dataframe, cluster_labels)
 
         # generate depots and adding them to clusters list
         depots = methods.generate_depots(number_of_clusters=len(clusters))
@@ -68,7 +69,7 @@ def get_initial_state(
         sample_scooters = scooter_sample_filter(entur_dataframe, sample_size)
 
         # Trip intensity analysis
-        initial_state.compute_and_set_trip_intensity(sample_scooters)
+        initial_state.compute_and_set_leave_intensity(sample_scooters)
 
         # Get probability of movement from scooters in a cluster
         probability_matrix = methods.scooter_movement_analysis(initial_state)
@@ -76,9 +77,6 @@ def get_initial_state(
 
         if sample_size:
             initial_state.sample(sample_size)
-
-        # Generate scenarios
-        initial_state.simulation_scenarios = methods.generate_scenarios(initial_state)
 
         if save:
             # Cache the state for later

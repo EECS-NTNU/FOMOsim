@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 import os
 
-from sim import State, Scooter, Station
+from sim import State, Bike, Scooter, Station
 from sim.Depot import Depot
 from globals import (
     GEOSPATIAL_BOUND_NEW,
@@ -213,7 +213,7 @@ def scooter_movement_analysis(state: State) -> np.ndarray:
 
 
 def generate_cluster_objects(
-    scooter_data: pd.DataFrame, cluster_labels: list
+    classname, scooter_data: pd.DataFrame, cluster_labels: list
 ) -> [Station]:
     """
     Based on cluster labels and scooter data create Scooter and Station objects.
@@ -233,16 +233,23 @@ def generate_cluster_objects(
             scooter_data_w_labels["cluster_labels"] == cluster_label
         ]
         # Generate scooter objets, using index as ID
-        scooters = [
+        scooters = []
+        if classname == "Bike":
+          scooters = [
+            Bike(row["lat"], row["lon"], index)
+            for index, row in cluster_scooters.iterrows()
+          ]
+        else:
+          scooters = [
             Scooter(row["lat"], row["lon"], row["battery"], index)
             for index, row in cluster_scooters.iterrows()
-        ]
+          ]
         # Adding all scooters to cluster to find center location
         clusters.append(Station(cluster_label, scooters))
     return sorted(clusters, key=lambda cluster: cluster.id)
 
 
-def compute_and_set_trip_intensity(state: State, sample_scooters: list):
+def compute_and_set_leave_intensity(state: State, sample_scooters: list):
     """
     Counts the number of e-scooters leaving each cluster and average over all snapshots to calculate the trip intensity
     :param state: state object
@@ -297,7 +304,7 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list):
         previous_snapshot = current_snapshot
     cluster_trip_intensities = np.mean(trip_counter, axis=1)
     for cluster in state.stations:
-        cluster.trip_intensity_per_iteration = cluster_trip_intensities[cluster.id]
+        cluster.leave_intensity_per_iteration = cluster_trip_intensities[cluster.id]
     progress.finish()
 
 
@@ -317,28 +324,3 @@ def generate_depots(number_of_clusters):
 
     return depots
 
-
-def generate_scenarios(state: State, number_of_scenarios=10000):
-    """
-    Generate system simulation scenarios. This is used to speed up the training simulation
-    :param state: new state
-    :param number_of_scenarios: how many scenarios to generate
-    :return: the scenarios list of (cluster id, number of trips, list of end cluster ids)
-    """
-    scenarios = []
-    cluster_indices = np.arange(len(state.stations))
-    for i in range(number_of_scenarios):
-        one_scenario = []
-        for cluster in state.stations:
-            number_of_trips = round(
-                np.random.poisson(cluster.trip_intensity_per_iteration)
-            )
-            end_cluster_indices = np.random.choice(
-                cluster_indices,
-                p=cluster.get_leave_distribution(),
-                size=number_of_trips,
-            ).tolist()
-            one_scenario.append((cluster.id, number_of_trips, end_cluster_indices))
-
-        scenarios.append(one_scenario)
-    return scenarios

@@ -39,8 +39,9 @@ class Vehicle:
             raise ValueError("Can't pick up an scooter when the vehicle is full")
         else:
             self.scooter_inventory.append(scooter)
-            if scooter.battery < 70:
-                self.change_battery(scooter)
+            if scooter.hasBattery():
+                if scooter.battery < 70:
+                    self.change_battery(scooter)
             scooter.remove_location()
 
     def drop_off(self, scooter_id: int):

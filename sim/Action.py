@@ -73,7 +73,7 @@ class Action:
                     available_scooters += 1
             # Calculate estimated lost trip reward
             estimated_lost_trip_reward = lost_trip_reward * max(
-                vehicle_location.trip_intensity_per_iteration - available_scooters,
+                vehicle_location.leave_intensity_per_iteration - available_scooters,
                 0,
             )
             # Get 1 in reward for every delivery and battery reward according to probability of usage

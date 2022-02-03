@@ -15,13 +15,15 @@ class Station(Location):
         self,
         cluster_id: int,
         scooters: [Scooter],
-        trip_intensity_per_iteration=None,
+        leave_intensity_per_iteration=None,
+        arrive_intensity_per_iteration=None,
         center_location=None,
         move_probabilities=None,
         average_number_of_scooters=None,
     ):
         self.scooters = scooters
-        self.trip_intensity_per_iteration = trip_intensity_per_iteration
+        self.leave_intensity_per_iteration = leave_intensity_per_iteration
+        self.arrive_intensity_per_iteration = arrive_intensity_per_iteration
         self.average_number_of_scooters = average_number_of_scooters
         super().__init__(
             *(center_location if center_location else self.__compute_center()),
@@ -35,7 +37,7 @@ class Station(Location):
             copy.deepcopy(self.scooters),
             center_location=self.get_location(),
             move_probabilities=self.move_probabilities,
-            trip_intensity_per_iteration=self.trip_intensity_per_iteration,
+            leave_intensity_per_iteration=self.leave_intensity_per_iteration,
             average_number_of_scooters=self.average_number_of_scooters,
         )
 
@@ -97,14 +99,14 @@ class Station(Location):
         # Changing coordinates of scooter to this location + some delta
         delta_lat = np.random.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
         delta_lon = np.random.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
-        scooter.set_coordinates(self.get_lat() + delta_lat, self.get_lon() + delta_lon)
+        scooter.set_location(self.get_lat() + delta_lat, self.get_lon() + delta_lon)
 
     def remove_scooter(self, scooter: Scooter):
         self.scooters.remove(scooter)
 
     def get_available_scooters(self):
         return [
-            scooter for scooter in self.scooters if scooter.battery >= BATTERY_LIMIT
+            scooter for scooter in self.scooters if scooter.usable()
         ]
 
     def print_all_scooters(self, with_coordinates=False):
@@ -121,7 +123,7 @@ class Station(Location):
         Filter out scooters with 100% battery and sort them by battery percentage
         """
         scooters = [
-            scooter for scooter in self.scooters if scooter.battery < battery_limit
+            scooter for scooter in self.scooters if scooter.hasBattery() and scooter.battery < battery_limit
         ]
         return sorted(scooters, key=lambda scooter: scooter.battery, reverse=False)
 

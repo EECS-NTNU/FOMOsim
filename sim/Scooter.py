@@ -1,5 +1,5 @@
 from sim.Location import Location
-
+from globals import BATTERY_LIMIT
 
 class Scooter(Location):
     """
@@ -17,11 +17,14 @@ class Scooter(Location):
     def travel(self, distance):
         self.battery -= distance * self.battery_change_per_kilometer
 
+    def usable(self):
+      return self.battery >= BATTERY_LIMIT
+
+    def hasBattery(self):
+      return True
+
     def swap_battery(self):
         self.battery = 100.0
-
-    def set_coordinates(self, lat: float, lon: float):
-        self.set_location(lat, lon)
 
     def __repr__(self):
         return f"ID-{self.id} B-{round(self.battery,1)}"

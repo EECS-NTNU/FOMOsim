@@ -32,8 +32,8 @@ class State(SaveMixin):
             self.distance_matrix = distance_matrix
         else:
             self.distance_matrix = self.calculate_distance_matrix()
-        self.simulation_scenarios = None
         self.TRIP_INTENSITY_RATE = 0.1
+        self.scooters_in_use = []
 
     def __deepcopy__(self, *args):
         new_state = State(
@@ -42,12 +42,18 @@ class State(SaveMixin):
             copy.deepcopy(self.vehicles),
             distance_matrix=self.distance_matrix,
         )
-        new_state.simulation_scenarios = self.simulation_scenarios
         for vehicle in new_state.vehicles:
             vehicle.current_location = new_state.get_location_by_id(
                 vehicle.current_location.id
             )
         return new_state
+
+    def scooter_in_use(scooter):
+        self.scooters_in_use.append(scooter)
+
+    def get_used_scooter():
+        if len(self.scooters_in_use) > 0:
+            return self.scooters_in_use.pop()
 
     def get_all_locations(self):
         return self.locations
@@ -96,159 +102,6 @@ class State(SaveMixin):
                     )
             distance_matrix.append(neighbour_distance)
         return distance_matrix
-
-    def get_possible_actions(
-        self,
-        vehicle: Vehicle,
-        number_of_neighbours,
-        divide=None,
-        exclude=None,
-        time=None,
-    ):
-        """
-        Enumerate all possible actions from the current state
-        :param time: time of the world when the actions is to be performed
-        :param exclude: stations to exclude from next cluster
-        :param vehicle: vehicle to perform this action
-        :param number_of_neighbours: number of neighbours to evaluate, if None: all neighbors are returned
-        :param divide: number to divide by to create range increment
-        :return: List of Action objects
-        """
-        actions = []
-        neighbours = policies.neighbour_filtering.filtering_neighbours(
-            self,
-            vehicle,
-            0,
-            0,
-            number_of_neighbours,
-            exclude=exclude,
-        )
-        # Return empty action if
-        if not vehicle.is_at_depot():
-
-            def get_range(max_int):
-                if divide and divide > 0 and max_int > 0:
-                    return list(
-                        {
-                            *(
-                                [
-                                    i
-                                    for i in range(
-                                        0, int(max_int + 1), int(math.ceil(max_int / divide))
-                                    )
-                                ]
-                                + [int(max_int)]
-                            )
-                        }
-                    )
-                else:
-                    return [i for i in range(int(max_int + 1))]
-
-            # Initiate constraints for battery swap, pick-up and drop-off
-            pick_ups = min(
-                len(vehicle.current_location.scooters),
-                vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory),
-                vehicle.battery_inventory,
-            )
-            swaps = vehicle.get_max_number_of_swaps()
-            drop_offs = max(
-                min(
-                    len(vehicle.current_location.scooters),
-                    len(vehicle.scooter_inventory),
-                ),
-                0,
-            )
-            combinations = []
-            # Different combinations of battery swaps, pick-ups, drop-offs and stations
-            for pick_up in get_range(pick_ups):
-                for swap in get_range(swaps):
-                    for drop_off in get_range(drop_offs):
-                        if (
-                            (pick_up + swap) <= len(vehicle.current_location.scooters)
-                            and (pick_up + swap) <= vehicle.battery_inventory
-                            and (pick_up + swap + drop_off > 0)
-                        ):
-                            for (
-                                location
-                            ) in policies.neighbour_filtering.filtering_neighbours(
-                                self,
-                                vehicle,
-                                pick_up,
-                                drop_off,
-                                number_of_neighbours,
-                                exclude=exclude,
-                            ):
-                                combinations.append(
-                                    [
-                                        max(
-                                            min(
-                                                vehicle.battery_inventory - pick_up,
-                                                swap,
-                                            ),
-                                            0,
-                                        ),
-                                        pick_up,
-                                        drop_off,
-                                        location.id,
-                                    ]
-                                )
-
-            # Assume that no battery swap or pick-up of scooters with 100% battery and
-            # that the scooters with the lowest battery are prioritized
-            swappable_scooters_id = [
-                scooter.id
-                for scooter in vehicle.current_location.get_swappable_scooters()
-            ]
-
-            none_swappable_scooters_id = [
-                scooter.id
-                for scooter in vehicle.current_location.scooters
-                if scooter.battery >= 70
-            ]
-
-            def choose_pick_up(swaps, pickups):
-                number_of_none_swappable_scooters = max(
-                    swaps + pickups - len(swappable_scooters_id), 0
-                )
-
-                return (
-                    swappable_scooters_id[swaps : swaps + pick_up]
-                    + none_swappable_scooters_id[:number_of_none_swappable_scooters]
-                )
-
-            # Adding every action. Actions are the IDs of the scooters to be handled.
-            for battery_swap, pick_up, drop_off, cluster_id in combinations:
-                if not vehicle.is_at_depot() and (
-                    vehicle.battery_inventory - battery_swap - pick_up
-                    < vehicle.battery_inventory_capacity * 0.1
-                ):
-                    # If battery inventory is low, go to depot
-                    cluster_id = [
-                        depot.id
-                        for depot in sorted(
-                            self.depots,
-                            key=lambda depot: self.get_distance(
-                                vehicle.current_location.id, depot.id
-                            ),
-                        )
-                        if depot.get_available_battery_swaps(time)
-                        > vehicle.battery_inventory_capacity * 0.9
-                    ][0]
-                actions.append(
-                    Action(
-                        swappable_scooters_id[:battery_swap],
-                        choose_pick_up(battery_swap, pick_up),
-                        [scooter.id for scooter in vehicle.scooter_inventory][
-                            :drop_off
-                        ],
-                        cluster_id,
-                    )
-                )
-        return (
-            actions
-            if len(actions) > 0
-            else [Action([], [], [], neighbour.id) for neighbour in neighbours]
-        )
 
     def do_action(self, action: Action, vehicle: Vehicle, time: int):
         """
@@ -445,8 +298,8 @@ class State(SaveMixin):
             len(self.get_scooters())
         )
 
-    def compute_and_set_trip_intensity(self, sample_scooters):
-        clustering.methods.compute_and_set_trip_intensity(self, sample_scooters)
+    def compute_and_set_leave_intensity(self, sample_scooters):
+        clustering.methods.compute_and_set_leave_intensity(self, sample_scooters)
 
     def sample(self, sample_size: int):
         # Filter out scooters not in sample
@@ -487,7 +340,7 @@ class State(SaveMixin):
                 [
                     max(
                         (
-                            cluster.trip_intensity_per_iteration
+                            cluster.leave_intensity_per_iteration
                             - len(cluster.get_available_scooters())
                         ),
                         0,

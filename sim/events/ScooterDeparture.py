@@ -1,6 +1,6 @@
 import sim
 from sim import Event
-from globals import SCOOTER_SPEED
+from globals import *
 import numpy as np
 
 
@@ -29,29 +29,33 @@ class ScooterDeparture(Event):
         if len(available_scooters) > 0:
             scooter = available_scooters.pop(0)
 
-            # get a arrival cluster from the leave prob distribution
-            arrival_cluster = np.random.choice(
-                world.state.stations, p=departure_cluster.get_leave_distribution()
-            )
-
-            trip_distance = world.state.get_distance(
-                departure_cluster.id,
-                arrival_cluster.id,
-            )
-
-            # calculate arrival time
-            arrival_time = self.time + round(trip_distance / SCOOTER_SPEED * 60)
-
-            # create an arrival event for the departed scooter
-            world.add_event(
-                sim.ScooterArrival(
-                    arrival_time,
-                    scooter,
-                    arrival_cluster.id,
-                    departure_cluster.id,
-                    trip_distance,
+            if FULL_TRIP:
+                # get a arrival cluster from the leave prob distribution
+                arrival_cluster = np.random.choice(
+                    world.state.stations, p=departure_cluster.get_leave_distribution()
                 )
-            )
+
+                trip_distance = world.state.get_distance(
+                    departure_cluster.id,
+                    arrival_cluster.id,
+                )
+
+                # calculate arrival time
+                arrival_time = self.time + round(trip_distance / SCOOTER_SPEED * 60)
+
+                # create an arrival event for the departed scooter
+                world.add_event(
+                    sim.ScooterArrival(
+                        arrival_time,
+                        scooter,
+                        arrival_cluster.id,
+                        departure_cluster.id,
+                        trip_distance,
+                    )
+                )
+
+            else:
+                world.state.scooter_in_use(scooter)
 
             # remove scooter from the departure cluster
             departure_cluster.remove_scooter(scooter)

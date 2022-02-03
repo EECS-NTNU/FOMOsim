@@ -1,5 +1,6 @@
 from .Action import Action
 from .Station import Station
+from .Bike import Bike
 from .Scooter import Scooter
 from .State import State
 from .Vehicle import Vehicle

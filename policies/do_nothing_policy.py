@@ -15,11 +15,11 @@ class DoNothing(Policy):
     def get_best_action(self, world, vehicle):
         return sim.Action([], [], [], 0)
 
-    def initSim(self, sim):
+    def initSim(self, simul):
         # Empty the vehicle arrival events in the stack
-        sim.stack = [
+        simul.stack = [
             event
-            for event in sim.stack
+            for event in simul.stack
             if not isinstance(event, sim.VehicleArrival)
         ]
         
