@@ -12,7 +12,7 @@ class RebalancingPolicy(Policy):
     def __init__(self):
         super().__init__(0, 0)
 
-    def get_best_action(self, world, vehicle):
+    def get_best_action(self, simulator, vehicle):
         vehicle_has_scooter_inventory = len(vehicle.scooter_inventory) > 0
         if vehicle.is_at_depot():
             scooters_to_deliver = []
@@ -61,9 +61,9 @@ class RebalancingPolicy(Policy):
             return sorted(
                 [
                     cluster
-                    for cluster in world.state.stations
+                    for cluster in simulator.state.stations
                     if cluster.id != vehicle.current_location.id
-                    and cluster.id not in world.tabu_list
+                    and cluster.id not in simulator.tabu_list
                 ],
                 key=lambda cluster: len(cluster.get_available_scooters()),
                 reverse=is_finding_positive_deviation,
@@ -76,7 +76,7 @@ class RebalancingPolicy(Policy):
             - number_of_scooters_to_pick_up
             < vehicle.battery_inventory_capacity * 0.1
         ) and not vehicle.is_at_depot():
-            next_location_id = world.state.depots[0].id
+            next_location_id = simulator.state.depots[0].id
         else:
             """
             If vehicle has scooter inventory upon arrival,
