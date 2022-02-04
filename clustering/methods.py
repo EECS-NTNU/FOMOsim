@@ -7,7 +7,7 @@ import os
 
 from sim import State, Bike, Scooter, Station
 from sim.Depot import Depot
-from globals import (
+from settings import (
     GEOSPATIAL_BOUND_NEW,
     TEST_DATA_DIRECTORY,
     MAIN_DEPOT_LOCATION,

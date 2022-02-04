@@ -4,7 +4,7 @@ Main file for clustering module
 from sim import Vehicle, State
 import clustering.methods as methods
 import os
-from globals import *
+from settings import *
 import pandas as pd
 
 def scooter_sample_filter(dataframe: pd.DataFrame, sample_size=None):

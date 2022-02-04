@@ -1,5 +1,5 @@
 from sim.Location import Location
-from globals import BATTERY_LIMIT
+from settings import BATTERY_LIMIT
 
 class Scooter(Location):
     """

@@ -1,5 +1,5 @@
 from math import sqrt, pi, sin, cos, atan2
-from globals import GEOSPATIAL_BOUND_NEW
+from settings import GEOSPATIAL_BOUND_NEW
 
 
 class Location:

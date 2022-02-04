@@ -2,7 +2,7 @@ from shapely.geometry import MultiPoint
 import numpy as np
 from sim.Scooter import Scooter
 from sim.Location import Location
-from globals import CLUSTER_CENTER_DELTA, BATTERY_LIMIT
+from settings import CLUSTER_CENTER_DELTA, BATTERY_LIMIT
 import copy
 
 

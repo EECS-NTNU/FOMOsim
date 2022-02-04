@@ -1,6 +1,6 @@
 import sim
 from sim import Event
-from globals import *
+from settings import *
 import numpy as np
 
 

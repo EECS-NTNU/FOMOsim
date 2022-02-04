@@ -10,8 +10,6 @@ import clustering.scripts
 import policies
 from visualization.visualizer import visualize_analysis
 
-import globals
-
 state = clustering.scripts.get_initial_state(
     "Bike",
     500,

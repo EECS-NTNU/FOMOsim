@@ -12,8 +12,7 @@ from sim import (
     LostTrip,
     World,
 )
-from globals import ITERATION_LENGTH_MINUTES
-
+from settings import ITERATION_LENGTH_MINUTES
 
 class EventsTests(unittest.TestCase):
     def setUp(self) -> None:

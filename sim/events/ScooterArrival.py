@@ -1,6 +1,6 @@
 from sim import Event
 import sim
-from globals import *
+from settings import *
 
 class ScooterArrival(Event):
     """

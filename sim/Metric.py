@@ -8,40 +8,26 @@ class Metric:
     def __init__(self):
         self.metrics = {}
 
-        self.metrics["lost_demand"] = []
-        self.metrics["deficient_battery"] = []
+        self.metrics["average_battery"] = []
         self.metrics["total_available_scooters"] = []
 
-        self.timeline = []
+    def add_metric(self, sim, metric, value):
+        if metric not in self.metrics:
+            self.metrics[metric] = []
+        self.metrics.get(metric, []).append((sim.time, value))
 
     def add_analysis_metrics(self, sim):
-        """
-        Add data to analysis
-        :param sim: sim object to record state from
-        """
-        self.metrics["lost_demand"].append(
+        self.metrics["average_battery"].append((sim.time, 
+                                                  sum([scooter.battery for scooter in sim.state.get_scooters() if scooter.hasBattery()]) / len(sim.state.get_scooters()))
+        )
+        self.metrics["total_available_scooters"].append((sim.time, 
             sum(
                 [
-                    1
-                    for reward, location in sim.rewards
-                    if reward == sim.LOST_TRIP_REWARD
+                    len(station.get_available_scooters())
+                    for station in sim.state.stations
                 ]
             )
-            if len(sim.rewards) > 0
-            else 0
-        )
-        self.metrics["deficient_battery"].append(
-            sum([scooter.battery for scooter in sim.state.get_scooters() if scooter.hasBattery()]) / len(sim.state.get_scooters())
-        )
-        self.metrics["total_available_scooters"].append(
-            sum(
-                [
-                    len(cluster.get_available_scooters())
-                    for cluster in sim.state.stations
-                ]
-            )
-        )
-        self.timeline.append(sim.time)
+        ))
 
     def get_all_metrics(self):
         """

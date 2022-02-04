@@ -5,20 +5,13 @@ from typing import List
 import numpy as np
 import bisect
 import sim
-import globals
+import settings
 from sim.SaveMixin import SaveMixin
 from sim import Metric
 
-from globals import (
-    HyperParameters,
-    WHITE,
-    SIM_CACHE_DIR,
-    ITERATION_LENGTH_MINUTES,
-)
-
 from progress.bar import IncrementalBar
 
-class Simulator(SaveMixin, HyperParameters):
+class Simulator(SaveMixin):
     """
     Class containing all metadata about an instance. This class contains both the state, the policy and parameters.
     This class uses the state as the environment and the policy as the actor. Additionally, it is the main driver of the
@@ -40,7 +33,6 @@ class Simulator(SaveMixin, HyperParameters):
         self.shift_duration = shift_duration
         self.state = initial_state
         self.time = 0
-        self.rewards = []
         self.stack: List[sim.Event] = []
         self.tabu_list = []
         # Initialize the stack with a vehicle arrival for every vehicle at time zero
@@ -53,10 +45,10 @@ class Simulator(SaveMixin, HyperParameters):
                 number_of_vans += 1
             else:
                 number_of_bikes += 1
-        self.NUMBER_OF_VANS = number_of_vans
-        self.NUMBER_OF_BIKES = number_of_bikes
+        settings.NUMBER_OF_VANS = number_of_vans
+        settings.NUMBER_OF_BIKES = number_of_bikes
         # Add Generate Scooter Trip event to the stack
-        self.stack.append(sim.GenerateScooterTrips(ITERATION_LENGTH_MINUTES))
+        self.stack.append(sim.GenerateScooterTrips(settings.ITERATION_LENGTH_MINUTES))
         self.cluster_flow = {
             (start, end): 0
             for start in np.arange(len(self.state.stations))
@@ -76,8 +68,8 @@ class Simulator(SaveMixin, HyperParameters):
             self.progress_bar = IncrementalBar(
                 "Running Sim",
                 check_tty=False,
-                max=round(shift_duration / ITERATION_LENGTH_MINUTES) + 1,
-                color=WHITE,
+                max=round(shift_duration / settings.ITERATION_LENGTH_MINUTES) + 1,
+                color=settings.WHITE,
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
 
@@ -106,26 +98,6 @@ class Simulator(SaveMixin, HyperParameters):
         :return: the remaining time as a float
         """
         return self.shift_duration - self.time
-
-    def add_reward(self, reward: float, location_id: int, discount=False) -> None:
-        """
-        Adds the input reward to the rewards list of the sim object
-        :param location_id: location where the reward was conducted
-        :param discount: boolean if the reward is to be discounted
-        :param reward: reward given
-        """
-        self.rewards.append(
-            (reward * self.get_discount(), location_id)
-            if discount
-            else (reward, location_id)
-        )
-
-    def get_total_reward(self) -> float:
-        """
-        Get total accumulated reward at current point of time
-        :return:
-        """
-        return sum([reward for reward, location_id in self.rewards])
 
     def add_event(self, event: sim.Event) -> None:
         """
@@ -171,7 +143,7 @@ class Simulator(SaveMixin, HyperParameters):
 
     def get_discount(self):
         # Divide by 60 as there is 60 minutes in an hour. We want this number in hours to avoid big numbers is the power
-        return self.DISCOUNT_RATE ** (self.time / 60)
+        return settings.DISCOUNT_RATE ** (self.time / 60)
 
     def get_filename(self):
         return (
@@ -194,7 +166,6 @@ class Simulator(SaveMixin, HyperParameters):
             visualize=self.visualize,
         )
         new_sim.time = self.time
-        new_sim.rewards = self.rewards.copy()
         new_sim.stack = copy.deepcopy(self.stack)
         new_sim.tabu_list = self.tabu_list.copy()
         new_sim.cluster_flow = self.cluster_flow.copy()

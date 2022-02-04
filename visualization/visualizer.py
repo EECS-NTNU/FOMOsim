@@ -374,7 +374,6 @@ def visualize_analysis(instances, title=None):
 
     for i, instance in enumerate(instances):
         metrics = instance.metrics.get_all_metrics()
-        x = instance.metrics.timeline
 
         label = (
             instance.label.split("/")[1]
@@ -382,9 +381,23 @@ def visualize_analysis(instances, title=None):
             else instance.label
         )
 
-        ax1.plot(x, metrics["lost_demand"], c=COLORS[i], label=label)
-        ax2.plot(x, metrics["total_available_scooters"], c=COLORS[i], label=label)
-        ax4.plot(x, metrics["deficient_battery"], c=COLORS[i], label=label)
+        if len(metrics.get("lost_demand", [])) > 0:
+            x = [item[0] for item in metrics["lost_demand"]]
+            y = []
+            last = 0
+            for item in metrics["lost_demand"]:
+                y.append(last + item[1])
+                last += item[1]
+            
+            ax1.plot(x, y, c=COLORS[i], label=label)
+        if len(metrics["total_available_scooters"]) > 0:
+            x = [item[0] for item in metrics["total_available_scooters"]]
+            y = [item[1] for item in metrics["total_available_scooters"]]
+            ax2.plot(x, y, c=COLORS[i], label=label)
+        if len(metrics["average_battery"]) > 0:
+            x = [item[0] for item in metrics["average_battery"]]
+            y = [item[1] for item in metrics["average_battery"]]
+            ax4.plot(x, y, c=COLORS[i], label=label)
 
     for subplot in subplots:
         subplot.legend()

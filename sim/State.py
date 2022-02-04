@@ -8,7 +8,7 @@ from visualization.visualizer import *
 import policies.neighbour_filtering
 import numpy as np
 import math
-from globals import STATE_CACHE_DIR
+from settings import STATE_CACHE_DIR
 import copy
 
 
@@ -328,22 +328,3 @@ class State(SaveMixin):
             raise ValueError(
                 f"There are no vehicle in the state with an id of {vehicle_id}"
             )
-
-    def get_expected_lost_trip_reward(self, lost_trip_reward, exclude=-1):
-        # If number of available scooters is less than trip intensity add reward
-        return float(
-            sum(
-                [
-                    max(
-                        (
-                            cluster.leave_intensity_per_iteration
-                            - len(cluster.get_available_scooters())
-                        ),
-                        0,
-                    )
-                    * lost_trip_reward
-                    for cluster in self.stations
-                    if cluster.id != exclude
-                ]
-            )
-        )

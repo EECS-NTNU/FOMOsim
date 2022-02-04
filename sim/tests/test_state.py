@@ -3,7 +3,7 @@ import unittest
 
 import sim
 from clustering.scripts import get_initial_state
-import globals
+import settings
 
 
 class StateTests(unittest.TestCase):

@@ -5,7 +5,7 @@ import sim
 import clustering.scripts
 import decision
 import decision.value_functions
-import globals
+import settings
 
 
 class WorldTestCase(unittest.TestCase):
@@ -65,8 +65,8 @@ class WorldTestCase(unittest.TestCase):
         self.assertNotIn(first_vehicle_location, self.world.tabu_list)
 
     def save_world(self):
-        filepath = f"{globals.WORLD_CACHE_DIR}/{self.world.get_filename()}.pickle"
-        self.world.save(globals.WORLD_CACHE_DIR)
+        filepath = f"{settings.WORLD_CACHE_DIR}/{self.world.get_filename()}.pickle"
+        self.world.save(settings.WORLD_CACHE_DIR)
         file_world = sim.World.load(filepath)
         file_world.shift_duration = 2
         file_world.run()

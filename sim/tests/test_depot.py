@@ -2,7 +2,7 @@ import unittest
 import sim
 import clustering.scripts
 import decision
-from globals import (
+from settings import (
     VAN_BATTERY_INVENTORY,
     SMALL_DEPOT_CAPACITY,
     SWAP_TIME_PER_BATTERY,

@@ -1,7 +1,7 @@
 import itertools
 from scipy.interpolate import make_interp_spline
 from matplotlib import gridspec
-from globals import (
+from settings import (
     BLACK,
     RED,
     BLUE,

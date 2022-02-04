@@ -1,5 +1,5 @@
 from sim.Location import Location
-from globals import *
+from settings import *
 
 
 class Depot(Location):
