@@ -38,6 +38,7 @@ class Station(Location):
             center_location=self.get_location(),
             move_probabilities=self.move_probabilities,
             leave_intensity_per_iteration=self.leave_intensity_per_iteration,
+            arrive_intensity_per_iteration=self.arrive_intensity_per_iteration,
             average_number_of_scooters=self.average_number_of_scooters,
         )
 

@@ -48,10 +48,10 @@ class State(SaveMixin):
             )
         return new_state
 
-    def scooter_in_use(scooter):
+    def scooter_in_use(self, scooter):
         self.scooters_in_use.append(scooter)
 
-    def get_used_scooter():
+    def get_used_scooter(self):
         if len(self.scooters_in_use) > 0:
             return self.scooters_in_use.pop()
 
@@ -297,9 +297,6 @@ class State(SaveMixin):
             len(self.stations),
             len(self.get_scooters())
         )
-
-    def compute_and_set_leave_intensity(self, sample_scooters):
-        clustering.methods.compute_and_set_leave_intensity(self, sample_scooters)
 
     def sample(self, sample_size: int):
         # Filter out scooters not in sample

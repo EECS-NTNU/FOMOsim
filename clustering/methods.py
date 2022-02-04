@@ -249,7 +249,7 @@ def generate_cluster_objects(
     return sorted(clusters, key=lambda cluster: cluster.id)
 
 
-def compute_and_set_leave_intensity(state: State, sample_scooters: list):
+def compute_and_set_trip_intensity(state: State, sample_scooters: list):
     """
     Counts the number of e-scooters leaving each cluster and average over all snapshots to calculate the trip intensity
     :param state: state object
@@ -260,7 +260,8 @@ def compute_and_set_leave_intensity(state: State, sample_scooters: list):
         max=len(os.listdir(TEST_DATA_DIRECTORY)),
     )
     # Fetch all snapshots from test data
-    trip_counter = np.zeros((len(state.stations), len(os.listdir(TEST_DATA_DIRECTORY))))
+    trip_counter_leave = np.zeros((len(state.stations), len(os.listdir(TEST_DATA_DIRECTORY))))
+    trip_counter_arrive = np.zeros((len(state.stations), len(os.listdir(TEST_DATA_DIRECTORY))))
     previous_snapshot = None
     for index, file_path in enumerate(sorted(os.listdir(TEST_DATA_DIRECTORY))):
         progress.next()
@@ -278,13 +279,16 @@ def compute_and_set_leave_intensity(state: State, sample_scooters: list):
                 scooters_leaving_the_cluster = filtered_moved_scooters[
                     filtered_moved_scooters["cluster_before"] == cluster.id
                 ]
+                scooters_arriving_to_the_cluster = filtered_moved_scooters[
+                    filtered_moved_scooters["cluster_after"] == cluster.id
+                ]
                 # These are all the scooters that move, both within and to new clusters
                 scooters_moving_in_the_cluster = moved_scooters[
                     moved_scooters["cluster_before"] == cluster.id
                 ]
                 # Number of scooters leaving the cluster
                 # + number of disappeared scooters likely to leave ( # of disappeared * ratio of leaving)
-                trip_counter[cluster.id][index] = len(
+                trip_counter_leave[cluster.id][index] = len(
                     scooters_leaving_the_cluster
                 ) + round(
                     len(
@@ -301,10 +305,16 @@ def compute_and_set_leave_intensity(state: State, sample_scooters: list):
                         else 1
                     )
                 )
+                # Number of scooters arriving to the cluster
+                trip_counter_arrive[cluster.id][index] = len(scooters_arriving_to_the_cluster)
         previous_snapshot = current_snapshot
-    cluster_trip_intensities = np.mean(trip_counter, axis=1)
+
+    cluster_leave_intensities = np.mean(trip_counter_leave, axis=1)
+    cluster_arrive_intensities = np.mean(trip_counter_arrive, axis=1)
     for cluster in state.stations:
-        cluster.leave_intensity_per_iteration = cluster_trip_intensities[cluster.id]
+        cluster.leave_intensity_per_iteration = cluster_leave_intensities[cluster.id]
+        cluster.arrive_intensity_per_iteration = cluster_arrive_intensities[cluster.id]
+
     progress.finish()
 
 

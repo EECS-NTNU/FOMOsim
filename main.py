@@ -55,7 +55,7 @@ simulator = sim.Simulator(
     copy.deepcopy(state),
     verbose=True,
     visualize=False,
-    label="World",
+    label="Rebalancing",
 )
 simulator.run()
 
@@ -67,7 +67,7 @@ simulator2 = sim.Simulator(
     copy.deepcopy(state),
     verbose=True,
     visualize=False,
-    label="World2",
+    label="DoNothing",
 )
 simulator2.run()
 

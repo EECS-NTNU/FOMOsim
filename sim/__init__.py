@@ -7,6 +7,7 @@ from .Vehicle import Vehicle
 from .Location import Location
 from .Depot import Depot
 from .events.Event import Event
+from .Metric import Metric
 from .Simulator import Simulator
 from .events.LostTrip import LostTrip
 from .events.ScooterDeparture import ScooterDeparture

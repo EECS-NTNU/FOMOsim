@@ -76,7 +76,7 @@ class HyperParameters:
 """
 SIM SETTINGS
 """
-FULL_TRIP = False,
+FULL_TRIP = False
 
 ITERATION_LENGTH_MINUTES = 20
 BATTERY_LIMIT = 20.0
