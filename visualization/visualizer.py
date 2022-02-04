@@ -373,11 +373,7 @@ def visualize_analysis(instances, title=None):
     ax2.yaxis.set_label_position("right")
 
     for i, instance in enumerate(instances):
-        (
-            lost_demand,
-            deficient_battery,
-            total_available_scooters,
-        ) = instance.metrics.get_all_metrics()
+        metrics = instance.metrics.get_all_metrics()
         x = instance.metrics.timeline
 
         label = (
@@ -386,9 +382,9 @@ def visualize_analysis(instances, title=None):
             else instance.label
         )
 
-        ax1.plot(x, lost_demand, c=COLORS[i], label=label)
-        ax2.plot(x, total_available_scooters, c=COLORS[i], label=label)
-        ax4.plot(x, deficient_battery, c=COLORS[i], label=label)
+        ax1.plot(x, metrics["lost_demand"], c=COLORS[i], label=label)
+        ax2.plot(x, metrics["total_available_scooters"], c=COLORS[i], label=label)
+        ax4.plot(x, metrics["deficient_battery"], c=COLORS[i], label=label)
 
     for subplot in subplots:
         subplot.legend()

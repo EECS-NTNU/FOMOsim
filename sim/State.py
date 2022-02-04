@@ -105,11 +105,10 @@ class State(SaveMixin):
 
     def do_action(self, action: Action, vehicle: Vehicle, time: int):
         """
-        Performs an action on the state -> changing the state + calculates the reward
+        Performs an action on the state -> changing the state
         :param time: at what time the action is performed
         :param vehicle: Vehicle to perform this action
         :param action: Action - action to be performed on the state
-        :return: float - reward for doing the action on the state
         """
         refill_time = 0
         if vehicle.is_at_depot():

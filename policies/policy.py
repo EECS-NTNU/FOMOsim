@@ -44,17 +44,3 @@ class Policy(abc.ABC):
     def __repr__(self):
         return f"{self.__class__.__name__}"
 
-    @staticmethod
-    def print_action_stats(
-        sim,
-        vehicle: sim.Vehicle,
-        actions_info: [(sim.Action, int, int)],
-    ) -> None:
-        if sim.verbose:
-            print(f"\n{vehicle}:")
-            for action, reward, computational_time in actions_info:
-                print(
-                    f"\n{action} Reward - {round(reward, 3)} | Comp. time - {round(computational_time, 2)}"
-                )
-            print("\n----------------------------------------------------------------")
-

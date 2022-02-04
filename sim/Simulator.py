@@ -30,8 +30,6 @@ class Simulator(SaveMixin, HyperParameters):
         shift_duration: int,
         policy,
         initial_state,
-        test_parameter_name="",
-        test_parameter_value=None,
         verbose=False,
         visualize=True,
         label=None,
@@ -67,7 +65,7 @@ class Simulator(SaveMixin, HyperParameters):
         }
         self.policy = policy
         policy.initSim(self)
-        self.metrics = Metric(test_parameter_name, test_parameter_value)
+        self.metrics = Metric()
         self.verbose = verbose
         self.visualize = visualize
         if label is None:
