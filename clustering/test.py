@@ -27,7 +27,7 @@ class ClusteringTests(unittest.TestCase):
 
     def test_create_multiple_vehicles(self):
         multiple_vehicle_state = get_initial_state(
-            100, number_of_vans=2, number_of_bikes=3
+            100, number_of_vans=2,
         )
         # There is a total of 5 vehicles
         self.assertEqual(len(multiple_vehicle_state.vehicles), 5)

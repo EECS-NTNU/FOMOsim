@@ -36,17 +36,10 @@ class Simulator(SaveMixin):
         self.stack: List[sim.Event] = []
         self.tabu_list = []
         # Initialize the stack with a vehicle arrival for every vehicle at time zero
-        number_of_vans, number_of_bikes = 0, 0
         for vehicle in self.state.vehicles:
             self.stack.append(
                 sim.VehicleArrival(0, vehicle.id, visualize=visualize)
             )
-            if vehicle.scooter_inventory_capacity > 0:
-                number_of_vans += 1
-            else:
-                number_of_bikes += 1
-        settings.NUMBER_OF_VANS = number_of_vans
-        settings.NUMBER_OF_BIKES = number_of_bikes
         # Add Generate Scooter Trip event to the stack
         self.stack.append(sim.GenerateScooterTrips(settings.ITERATION_LENGTH_MINUTES))
         self.cluster_flow = {

@@ -32,7 +32,7 @@ class ANNValueFunction(ValueFunction):
         self.model = None
         self.train_count = 0
 
-    def setup(self, state: classes.State):
+    def setup(self, state: sim.State):
         if self.setup_complete:
             return
         number_of_state_features = (
@@ -82,8 +82,8 @@ class ANNValueFunction(ValueFunction):
 
     def estimate_value(
         self,
-        state: classes.State,
-        vehicle: classes.Vehicle,
+        state: sim.State,
+        vehicle: sim.Vehicle,
         time: int,
     ):
 
@@ -112,15 +112,15 @@ class ANNValueFunction(ValueFunction):
 
     def get_next_state_features(
         self,
-        state: classes.State,
-        vehicle: classes.Vehicle,
-        action: classes.Action,
+        state: sim.State,
+        vehicle: sim.Vehicle,
+        action: sim.Action,
         cache=None,  # current_states, available_scooters = cache
     ):
         return self.convert_next_state_features(state, vehicle, action, cache)
 
     def get_state_features(
-        self, state: classes.State, vehicle: classes.Vehicle, cache=None
+        self, state: sim.State, vehicle: sim.Vehicle, cache=None
     ):
         return self.convert_state_to_features(state, vehicle, cache=cache)
 

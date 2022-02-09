@@ -462,7 +462,6 @@ def heatmap():
             2500,
             50,
             number_of_vans=2,
-            number_of_bikes=0,
         ),
         verbose=False,
         visualize=False,

@@ -1,7 +1,7 @@
 from collections import deque
 
-import classes
-from globals import SMALL_DEPOT_CAPACITY, BATTERY_LIMIT
+import sim
+from settings import SMALL_DEPOT_CAPACITY, BATTERY_LIMIT
 import abc
 
 
@@ -71,7 +71,7 @@ class ValueFunction(abc.ABC):
     def __repr__(self):
         return f"{self.__class__.__name__}"
 
-    def setup(self, state: classes.State):
+    def setup(self, state: sim.State):
         """
         Method for setting up the value function when the state is known
         :param state: state to infer weights with
@@ -86,8 +86,8 @@ class ValueFunction(abc.ABC):
     @Decorators.check_setup
     def estimate_value(
         self,
-        state: classes.State,
-        vehicle: classes.Vehicle,
+        state: sim.State,
+        vehicle: sim.Vehicle,
         time: int,
     ):
         pass
@@ -117,8 +117,8 @@ class ValueFunction(abc.ABC):
     @Decorators.check_setup
     def get_state_features(
         self,
-        state: classes.State,
-        vehicle: classes.Vehicle,
+        state: sim.State,
+        vehicle: sim.Vehicle,
         cache=None,  # current_states, available_scooters = cache
     ):
         pass
@@ -127,15 +127,15 @@ class ValueFunction(abc.ABC):
     @Decorators.check_setup
     def get_next_state_features(
         self,
-        state: classes.State,
-        vehicle: classes.Vehicle,
-        action: classes.Action,
+        state: sim.State,
+        vehicle: sim.Vehicle,
+        action: sim.Action,
         cache=None,  # current_states, available_scooters = cache
     ):
         pass
 
     def get_number_of_location_indicators_and_state_features(
-        self, state: classes.State
+        self, state: sim.State
     ):
         return self.number_of_features_per_cluster * len(state.stations)
 
@@ -162,8 +162,8 @@ class ValueFunction(abc.ABC):
     @Decorators.check_setup
     def convert_state_to_features(
         self,
-        state: classes.State,
-        vehicle: classes.Vehicle,
+        state: sim.State,
+        vehicle: sim.Vehicle,
         cache=None,
     ):
         return self.create_features(

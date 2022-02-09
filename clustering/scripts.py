@@ -21,7 +21,6 @@ def get_initial_state(
     cache=True,
     initial_location_depot=True,
     number_of_vans=4,
-    number_of_bikes=0,
 ) -> State:
     """
     Main method for setting up a state object based on EnTur data from test_data directory.
@@ -32,7 +31,6 @@ def get_initial_state(
     :param cache: if the model should check for a cached version
     :param initial_location_depot: set the initial current location of the vehicles to the depot
     :param number_of_vans: the number of vans to use
-    :param number_of_bikes: the number of bikes to use
     :return:
     """
     # If this combination has been requested before we fetch a cached version
@@ -92,11 +90,7 @@ def get_initial_state(
     initial_state.vehicles = [
         Vehicle(i, current_location, VAN_BATTERY_INVENTORY, VAN_SCOOTER_INVENTORY)
         for i in range(number_of_vans)
-    ] + [
-        Vehicle(i, current_location, BIKE_BATTERY_INVENTORY, BIKE_SCOOTER_INVENTORY)
-        for i in range(number_of_vans, number_of_vans + number_of_bikes)
     ]
-
     return initial_state
 
 
