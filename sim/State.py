@@ -5,7 +5,6 @@ from sim.Depot import Depot
 import clustering.methods
 from sim.SaveMixin import SaveMixin
 from visualization.visualizer import *
-import policies.neighbour_filtering
 import numpy as np
 import math
 from settings import STATE_CACHE_DIR
@@ -35,18 +34,18 @@ class State(SaveMixin):
         self.TRIP_INTENSITY_RATE = 0.1
         self.scooters_in_use = []
 
-    def __deepcopy__(self, *args):
-        new_state = State(
-            copy.deepcopy(self.stations),
-            copy.deepcopy(self.depots),
-            copy.deepcopy(self.vehicles),
-            distance_matrix=self.distance_matrix,
-        )
-        for vehicle in new_state.vehicles:
-            vehicle.current_location = new_state.get_location_by_id(
-                vehicle.current_location.id
-            )
-        return new_state
+    # def __deepcopy__(self, *args):
+    #     new_state = State(
+    #         copy.deepcopy(self.stations),
+    #         copy.deepcopy(self.depots),
+    #         copy.deepcopy(self.vehicles),
+    #         distance_matrix=self.distance_matrix,
+    #     )
+    #     for vehicle in new_state.vehicles:
+    #         vehicle.current_location = new_state.get_location_by_id(
+    #             vehicle.current_location.id
+    #         )
+    #     return new_state
 
     def scooter_in_use(self, scooter):
         self.scooters_in_use.append(scooter)

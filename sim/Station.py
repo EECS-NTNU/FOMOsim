@@ -31,16 +31,16 @@ class Station(Location):
         )
         self.move_probabilities = move_probabilities
 
-    def __deepcopy__(self, *args):
-        return Station(
-            self.id,
-            copy.deepcopy(self.scooters),
-            center_location=self.get_location(),
-            move_probabilities=self.move_probabilities,
-            leave_intensity_per_iteration=self.leave_intensity_per_iteration,
-            arrive_intensity_per_iteration=self.arrive_intensity_per_iteration,
-            average_number_of_scooters=self.average_number_of_scooters,
-        )
+    # def __deepcopy__(self, *args):
+    #     return Station(
+    #         self.id,
+    #         copy.deepcopy(self.scooters),
+    #         center_location=self.get_location(),
+    #         move_probabilities=self.move_probabilities,
+    #         leave_intensity_per_iteration=self.leave_intensity_per_iteration,
+    #         arrive_intensity_per_iteration=self.arrive_intensity_per_iteration,
+    #         average_number_of_scooters=self.average_number_of_scooters,
+    #     )
 
     class Decorators:
         @classmethod

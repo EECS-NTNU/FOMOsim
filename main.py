@@ -9,14 +9,14 @@ import sim
 import clustering.scripts
 import policies
 import policies.epsilon_greedy_value_function_policy
+import policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy
 import policies.epsilon_greedy_value_function_policy.settings as annsettings
 import policies.epsilon_greedy_value_function_policy.value_functions
 from visualization.visualizer import visualize_analysis
 
 # Set up initial state
 # This is done with a script that reads data from an "entur" snapshot
-state = clustering.scripts.get_initial_state(
-    "Bike",
+state = policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy.get_initial_state(
     500,
     5,
     number_of_vans=1,
@@ -57,6 +57,9 @@ simulator = sim.Simulator(
     visualize=False,
     label="EGVFP",
 )
+
+policy.value_function.setup(simulator.state)
+
 simulator.run()
 
 # Visualize results

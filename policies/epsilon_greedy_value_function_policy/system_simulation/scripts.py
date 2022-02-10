@@ -15,8 +15,8 @@ def system_simulate(state):
     """
     flow_counter = {
         (start, end): 0
-        for start in np.arange(len(state.clusters))
-        for end in np.arange(len(state.clusters))
+        for start in np.arange(len(state.stations))
+        for end in np.arange(len(state.stations))
         if start != end
     }
     trips = []
