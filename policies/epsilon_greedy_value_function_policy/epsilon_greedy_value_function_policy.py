@@ -12,6 +12,7 @@ import abc
 import math
 
 from policies import Policy
+import policies.epsilon_greedy_value_function_policy.settings as epssettings
 import policies.neighbour_filtering
 import policies.epsilon_greedy_value_function_policy.system_simulation.scripts
 import settings
@@ -415,7 +416,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                 action_info.append(
                     (
                         action,
-                        next_state_value + reward * world.LOST_TRIP_REWARD,
+                        next_state_value + reward * epssettings.LOST_TRIP_REWARD,
                         next_state_features,
                     )
                 )
@@ -423,6 +424,8 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
             best_action, next_state_value, next_state_features = max(
                 action_info, key=lambda pair: pair[1]
             )
+            if not hasattr(world, "disable_training"):
+                world.disable_training = False
             if not world.disable_training:
                 if self.value_function.use_replay_buffer():
                     self.value_function.train(world.REPLAY_BUFFER_SIZE)
@@ -430,7 +433,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                     self.value_function.train(
                         (
                             state_features,
-                            reward * world.LOST_TRIP_REWARD,
+                            reward * epssettings.LOST_TRIP_REWARD,
                             next_state_features,
                         )
                     )

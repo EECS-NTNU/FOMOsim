@@ -375,12 +375,6 @@ def visualize_analysis(instances, title=None):
     for i, instance in enumerate(instances):
         metrics = instance.metrics.get_all_metrics()
 
-        label = (
-            instance.label.split("/")[1]
-            if hasattr(instance.policy, "value_function")
-            else instance.label
-        )
-
         if len(metrics.get("lost_demand", [])) > 0:
             x = [item[0] for item in metrics["lost_demand"]]
             y = []
@@ -389,15 +383,15 @@ def visualize_analysis(instances, title=None):
                 y.append(last + item[1])
                 last += item[1]
             
-            ax1.plot(x, y, c=COLORS[i], label=label)
+            ax1.plot(x, y, c=COLORS[i], label=instance.label)
         if len(metrics["total_available_scooters"]) > 0:
             x = [item[0] for item in metrics["total_available_scooters"]]
             y = [item[1] for item in metrics["total_available_scooters"]]
-            ax2.plot(x, y, c=COLORS[i], label=label)
+            ax2.plot(x, y, c=COLORS[i], label=instance.label)
         if len(metrics["average_battery"]) > 0:
             x = [item[0] for item in metrics["average_battery"]]
             y = [item[1] for item in metrics["average_battery"]]
-            ax4.plot(x, y, c=COLORS[i], label=label)
+            ax4.plot(x, y, c=COLORS[i], label=instance.label)
 
     for subplot in subplots:
         subplot.legend()
