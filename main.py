@@ -24,24 +24,25 @@ state = policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_funct
 
 # Set up first simulator
 
-# value_function = decision.value_functions.ANNValueFunction(
-#         annsettings.ANN_LEARNING_RATE,
-#         annsettings.WEIGHT_INITIALIZATION_VALUE,
-#         annsettings.DISCOUNT_RATE,
-#         annsettings.VEHICLE_INVENTORY_STEP_SIZE,
-#         annsettings.LOCATION_REPETITION,
-#         annsettings.TRACE_DECAY,
-#         [100, 100, 100],
-# )
-
-value_function = policies.epsilon_greedy_value_function_policy.value_functions.LinearValueFunction(
-        annsettings.WEIGHT_UPDATE_STEP_SIZE,
+value_function = policies.epsilon_greedy_value_function_policy.value_functions.ANNValueFunction(
+        annsettings.ANN_LEARNING_RATE,
         annsettings.WEIGHT_INITIALIZATION_VALUE,
         annsettings.DISCOUNT_RATE,
         annsettings.VEHICLE_INVENTORY_STEP_SIZE,
         annsettings.LOCATION_REPETITION,
         annsettings.TRACE_DECAY,
+        [100, 100, 100],
 )
+
+# value_function = policies.epsilon_greedy_value_function_policy.value_functions.LinearValueFunction(
+#         annsettings.WEIGHT_UPDATE_STEP_SIZE,
+#         annsettings.WEIGHT_INITIALIZATION_VALUE,
+#         annsettings.DISCOUNT_RATE,
+#         annsettings.VEHICLE_INVENTORY_STEP_SIZE,
+#         annsettings.LOCATION_REPETITION,
+#         annsettings.TRACE_DECAY,
+# )
+
 policy = policies.epsilon_greedy_value_function_policy.EpsilonGreedyValueFunctionPolicy(
     annsettings.DIVIDE_GET_POSSIBLE_ACTIONS,
     annsettings.NUMBER_OF_NEIGHBOURS,

@@ -1,3 +1,5 @@
+#!/bin/python3
+
 """
 Multiprocessing extension of train_value_function.py
 """

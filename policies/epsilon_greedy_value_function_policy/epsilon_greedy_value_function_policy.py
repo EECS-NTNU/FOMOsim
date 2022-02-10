@@ -428,7 +428,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                 world.disable_training = False
             if not world.disable_training:
                 if self.value_function.use_replay_buffer():
-                    self.value_function.train(world.REPLAY_BUFFER_SIZE)
+                    self.value_function.train(epssettings.REPLAY_BUFFER_SIZE)
                 else:
                     self.value_function.train(
                         (

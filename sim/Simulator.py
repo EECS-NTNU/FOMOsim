@@ -145,25 +145,25 @@ class Simulator(SaveMixin):
         )
 
     def save_sim(self, cache_directory=None, suffix=""):
-        directory = SIM_CACHE_DIR
+        directory = settings.SIM_CACHE_DIR
         if cache_directory:
-            directory = f"{SIM_CACHE_DIR}/{cache_directory}"
+            directory = f"{settings.SIM_CACHE_DIR}/{cache_directory}"
         super().save(directory, f"-{suffix}")
 
-    def __deepcopy__(self, *args):
-        new_sim = Simulator(
-            self.shift_duration,
-            self.policy,
-            copy.deepcopy(self.state),
-            verbose=self.verbose,
-            visualize=self.visualize,
-        )
-        new_sim.time = self.time
-        new_sim.stack = copy.deepcopy(self.stack)
-        new_sim.tabu_list = self.tabu_list.copy()
-        new_sim.cluster_flow = self.cluster_flow.copy()
-        new_sim.metrics = copy.deepcopy(self.metrics)
-        # Set all hyper parameters
-        for parameter in HyperParameters().__dict__.keys():
-            setattr(new_sim, parameter, getattr(self, parameter))
-        return new_sim
+    # def __deepcopy__(self, *args):
+    #     new_sim = Simulator(
+    #         self.shift_duration,
+    #         self.policy,
+    #         copy.deepcopy(self.state),
+    #         verbose=self.verbose,
+    #         visualize=self.visualize,
+    #     )
+    #     new_sim.time = self.time
+    #     new_sim.stack = copy.deepcopy(self.stack)
+    #     new_sim.tabu_list = self.tabu_list.copy()
+    #     new_sim.cluster_flow = self.cluster_flow.copy()
+    #     new_sim.metrics = copy.deepcopy(self.metrics)
+    #     # Set all hyper parameters
+    #     for parameter in HyperParameters().__dict__.keys():
+    #         setattr(new_sim, parameter, getattr(self, parameter))
+    #     return new_sim

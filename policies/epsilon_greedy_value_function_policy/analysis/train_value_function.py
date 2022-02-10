@@ -1,18 +1,33 @@
+#!/bin/python3
+
 """
 MAIN SCRIPT FOR TRAINING THE MODEL
 """
 
 import copy
 import time
+import os
+import sys
 
-import classes
+sys.path.insert(1, os.path.join(sys.path[0], '../../..'))
+
+import sim
 import clustering.scripts
-import decision.value_functions
-import training_simulation.scripts
+import policies
+import policies.epsilon_greedy_value_function_policy
+import policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy
+import policies.epsilon_greedy_value_function_policy.settings as annsettings
+import policies.epsilon_greedy_value_function_policy.value_functions
+
+import policies.epsilon_greedy_value_function_policy.training_simulation.scripts
 from progress.bar import IncrementalBar
 
-import globals
-
+def get_train_directory(simulator, suffix=None):
+    suffix = suffix if suffix else f"{simulator.created_at}"
+    return (
+        f"trained_models/{simulator.policy.value_function.__repr__()}/"
+        f"c{len(simulator.state.stations)}_s{len(simulator.state.get_scooters())}/{suffix}"
+    )
 
 def train_value_function(
     world, save_suffix="", scenario_training=True, epsilon_decay=True
@@ -38,7 +53,7 @@ def train_value_function(
     # Determine number of shifts to run based on the training parameters
     number_of_shifts = world.TRAINING_SHIFTS_BEFORE_SAVE * world.MODELS_TO_BE_SAVED
     # Initialize the epsilon parameter
-    world.policy.epsilon = world.INITIAL_EPSILON if epsilon_decay else world.EPSILON
+    world.policy.epsilon = annsettings.INITIAL_EPSILON if epsilon_decay else world.EPSILON
     training_times = []
     for shift in range(number_of_shifts + 1):
         # Start timer for computational time analysis
@@ -49,19 +64,19 @@ def train_value_function(
         if epsilon_decay and shift > 0:
             # Decay epsilon
             policy_world.policy.epsilon -= (
-                world.INITIAL_EPSILON - world.FINAL_EPSILON
+                annsettings.INITIAL_EPSILON - annsettings.FINAL_EPSILON
             ) / number_of_shifts
         if shift % world.TRAINING_SHIFTS_BEFORE_SAVE == 0:
             # Save model for intervals set by training parameters
-            policy_world.save_world(
-                cache_directory=world.get_train_directory(save_suffix), suffix=shift
+            policy_world.save_sim(
+                cache_directory=get_train_directory(policy_world, save_suffix), suffix=shift
             )
 
         # avoid running the world after the last model is saved
         if shift != number_of_shifts:
             if scenario_training:
                 # scenario training is a faster simulation engine used when learning
-                training_simulation.scripts.training_simulation(policy_world)
+                policies.epsilon_greedy_value_function_policy.training_simulation.scripts.training_simulation(policy_world)
             else:
                 # Train using event based simulation engine
                 policy_world.run()
@@ -80,31 +95,43 @@ if __name__ == "__main__":
 
     SAMPLE_SIZE = 2500
     NUMBER_OF_CLUSTERS = [10, 20, 30, 50, 75, 100, 200, 300]
-    standard_parameters = globals.HyperParameters()
     decision_times = []
     for num_clusters in NUMBER_OF_CLUSTERS:
-        world_to_analyse = classes.World(
+        value_function = policies.epsilon_greedy_value_function_policy.value_functions.ANNValueFunction(
+            0.0001,
+            annsettings.WEIGHT_INITIALIZATION_VALUE,
+            annsettings.DISCOUNT_RATE,
+            annsettings.VEHICLE_INVENTORY_STEP_SIZE,
+            annsettings.LOCATION_REPETITION,
+            annsettings.TRACE_DECAY,
+            [1000, 2000, 1000, 200],
+        )
+
+        policy = policies.epsilon_greedy_value_function_policy.EpsilonGreedyValueFunctionPolicy(
+            annsettings.DIVIDE_GET_POSSIBLE_ACTIONS,
+            annsettings.NUMBER_OF_NEIGHBOURS,
+            annsettings.EPSILON,
+            value_function,
+        )
+
+        world_to_analyse = sim.Simulator(
             960,
-            None,
-            clustering.scripts.get_initial_state(
+            policy,
+            policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy.get_initial_state(
                 SAMPLE_SIZE,
                 num_clusters,
                 number_of_vans=2,
-                number_of_bikes=0,
             ),
             verbose=False,
             visualize=False,
-            MODELS_TO_BE_SAVED=1,
-            TRAINING_SHIFTS_BEFORE_SAVE=10,
-            ANN_LEARNING_RATE=0.0001,
-            ANN_NETWORK_STRUCTURE=[1000, 2000, 1000, 200],
-            REPLAY_BUFFER_SIZE=64,
-        )
-        world_to_analyse.policy = world_to_analyse.set_policy(
-            policy_class=decision.EpsilonGreedyValueFunctionPolicy,
-            value_function_class=decision.value_functions.ANNValueFunction,
         )
 
+        policy.value_function.setup(world_to_analyse.state)
+
+        world_to_analyse.MODELS_TO_BE_SAVED=1
+        world_to_analyse.TRAINING_SHIFTS_BEFORE_SAVE=10
+        world_to_analyse.REPLAY_BUFFER_SIZE=64
+        
         decision_times.append(train_value_function(world_to_analyse))
 
     df = pd.DataFrame(

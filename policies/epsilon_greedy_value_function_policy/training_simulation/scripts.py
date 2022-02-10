@@ -1,5 +1,8 @@
-from globals import ITERATION_LENGTH_MINUTES
+from settings import ITERATION_LENGTH_MINUTES
 
+import policies.epsilon_greedy_value_function_policy.settings as annsettings
+
+import policies.epsilon_greedy_value_function_policy.system_simulation.scripts
 
 def training_simulation(world):
     """
@@ -58,7 +61,7 @@ def training_simulation(world):
                     world.policy.value_function.replay_buffer.append(
                         (
                             vehicle_cluster_features[vehicle_index],
-                            lost_demand * world.LOST_TRIP_REWARD,
+                            lost_demand * annsettings.LOST_TRIP_REWARD,
                             cluster_features,
                         )
                     )
@@ -66,7 +69,7 @@ def training_simulation(world):
                     world.policy.value_function.replay_buffer_negative.append(
                         (
                             vehicle_cluster_features[vehicle_index],
-                            lost_demand * world.LOST_TRIP_REWARD,
+                            lost_demand * annsettings.LOST_TRIP_REWARD,
                             cluster_features,
                         )
                     )
@@ -75,7 +78,7 @@ def training_simulation(world):
 
         else:
             # performing a scooter trips simulation
-            _, _, lost_demands = world.system_simulate()
+            _, _, lost_demands = policies.epsilon_greedy_value_function_policy.system_simulation.scripts.system_simulate(world.state)
             lost_demand = (
                 sum(map(lambda lost_trips: lost_trips[0], lost_demands))
                 if len(lost_demands) > 0
