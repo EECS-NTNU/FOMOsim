@@ -11,10 +11,13 @@ import copy
 import os
 import math
 from multiprocessing import Pool
-import classes
-import decision.value_functions
-import decision
-import analysis.export_metrics_to_xlsx
+import sys
+
+sys.path.insert(1, os.path.join(sys.path[0], '../../..'))
+
+import sim
+import policies.epsilon_greedy_value_function_policy.value_functions
+import policies.epsilon_greedy_value_function_policy.analysis.export_metrics_to_xlsx
 from visualization.visualizer import visualize_analysis
 
 
@@ -40,7 +43,7 @@ def run_analysis_from_path(
     # Sort the policies by the training duration
     world_objects = sorted(
         [
-            classes.World.load(os.path.join(path, world_obj_path))
+            sim.Simulator.load(os.path.join(path, world_obj_path))
             for world_obj_path in os.listdir(path)
             if world_obj_path != ".DS_Store"
         ],
@@ -53,7 +56,7 @@ def run_analysis_from_path(
         # route visualization
         if visualize_route:
             for event in world.stack:
-                if isinstance(event, classes.VehicleArrival):
+                if isinstance(event, sim.VehicleArrival):
                     event.visualize = True
 
         # Always rollout for 8 hours
@@ -100,7 +103,7 @@ def evaluate_world(world, world_attribute, verbose, runs_per_policy):
         run_world.run()
         metrics.append(run_world.metrics)
     # Aggregate results from all runs
-    world.metrics = classes.World.WorldMetric.aggregate_metrics(metrics)
+    world.metrics = metrics[0] # FIXME: should be average of all runs
 
     # If the model has a value function add the td errors to the output
     td_error_tuple = None
@@ -142,15 +145,14 @@ def run_analysis(
         first_world, *rest = worlds
     # Always add a policy that does nothing and a random action
     for baseline_policy_class in [
-        decision.DoNothing,
-        decision.SwapAllPolicy,
-        decision.RebalancingPolicy,
+        policies.DoNothing,
+        policies.SwapAllPolicy,
+        policies.RebalancingPolicy,
     ]:
         # Use the first world as the world for baseline policies
         baseline_policy_world = copy.deepcopy(first_world)
-        baseline_policy_world.policy = baseline_policy_world.set_policy(
-            policy_class=baseline_policy_class
-        )
+        baseline_policy_world.policy = baseline_policy_class()
+        baseline_policy_world.policy.setup_from_state(baseline_policy_world.state)
 
     worlds.append(baseline_policy_world)
 
@@ -181,7 +183,7 @@ def run_analysis(
             world_result.save_world()
 
     if export_to_excel:
-        analysis.export_metrics_to_xlsx.metrics_to_xlsx(instances)
+        policies.epsilon_greedy_value_function_policy.analysis.export_metrics_to_xlsx.metrics_to_xlsx(instances)
 
     return instances
 

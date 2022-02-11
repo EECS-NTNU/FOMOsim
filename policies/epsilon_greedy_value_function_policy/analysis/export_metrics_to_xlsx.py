@@ -1,15 +1,16 @@
 """
 General methods for exporting results for evaluation to excel
 """
-import analysis.evaluate_policies
-import classes
-from globals import HyperParameters, EXCEL_EXPORT_DIR
+import policies.epsilon_greedy_value_function_policy.analysis.evaluate_policies
+import policies.epsilon_greedy_value_function_policy.settings as annsettings
+import sim
+import policies.epsilon_greedy_value_function_policy.settings as annsettings
 import pandas as pd
 import os
 from openpyxl import load_workbook
 
 
-def metrics_to_xlsx(instances: [classes.World]):
+def metrics_to_xlsx(instances: [sim.Simulator]):
     """
     Method to export metrics for a list of evaluated instances to Excel
     :param instances: list of instances to be exported
@@ -34,10 +35,10 @@ def metrics_to_xlsx(instances: [classes.World]):
         )
 
     # creating the directory to save the file if it doesn't exist
-    if not os.path.exists(EXCEL_EXPORT_DIR):
-        os.makedirs(EXCEL_EXPORT_DIR)
+    if not os.path.exists(annsettings.EXCEL_EXPORT_DIR):
+        os.makedirs(annsettings.EXCEL_EXPORT_DIR)
 
-    file_name = f"{EXCEL_EXPORT_DIR}/{parameter_name.title()}.xlsx"
+    file_name = f"{annsettings.EXCEL_EXPORT_DIR}/{parameter_name.title()}.xlsx"
 
     # if the file isn't created -> create a new .xlsx file
     if not os.path.isfile(file_name):

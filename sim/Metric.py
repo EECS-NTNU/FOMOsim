@@ -29,6 +29,12 @@ class Metric:
             )
         ))
 
+    def timeline(self, metric="average_battery"):
+        return [item[0] for item in metrics[metric]]
+
+    def values(self, metric):
+        return [item[1] for item in metrics[metric]]
+
     def get_all_metrics(self):
         """
         Returns all metrics recorded for analysis
