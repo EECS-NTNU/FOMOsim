@@ -10,8 +10,13 @@ import clustering.scripts
 import policies
 from visualization.visualizer import visualize_analysis
 
+from sense import *
+
 # Set up initial state
 # This is done with a script that reads data from an "entur" snapshot
+
+np.random.seed(123)
+
 state = clustering.scripts.get_initial_state(
     "Bike",
     500,
@@ -19,6 +24,8 @@ state = clustering.scripts.get_initial_state(
     number_of_vans=1,
     number_of_bikes=0,
 )
+
+sense_analyze(100)
 
 # Set up first simulator
 simulator = sim.Simulator(
