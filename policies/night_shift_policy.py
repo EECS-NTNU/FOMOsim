@@ -15,13 +15,15 @@ class NightShift(Policy):
     def get_best_action(self, world, vehicle):
         return sim.Action([], [], [], 0)
 
-    def initSim(self, sim):
-        sim.event_queue = [
+    def initSim(self, simul):
+        # TODO: Do every night
+        simul.event_queue = [
             event
-            for event in sim.event_queue
+            for event in simul.event_queue
             if not isinstance(event, sim.VehicleArrival)
         ]
-        for cluster in sim.state.stations:
+        for cluster in simul.state.stations:
             for scooter in cluster.scooters:
-                if scooter.battery < 70:
-                    scooter.swap_battery()
+                if isinstance(scooter, sim.Scooter):
+                    if scooter.battery < 70:
+                        scooter.swap_battery()

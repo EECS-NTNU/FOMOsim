@@ -23,7 +23,7 @@ state = clustering.scripts.get_initial_state(
 # Set up first simulator
 simulator = sim.Simulator(
     100,
-    policies.RebalancingPolicy(),
+    policies.RandomActionPolicy(),
     copy.deepcopy(state),
     verbose=False,
     visualize=False,
@@ -33,18 +33,18 @@ simulator = sim.Simulator(
 # Run first simulator
 simulator.run()
 
-# Set up second simulator with different policy
-simulator2 = sim.Simulator(
-    40,
-    policies.DoNothing(),
-    copy.deepcopy(state),
-    verbose=True,
-    visualize=False,
-    label="DoNothing",
-)
+# # Set up second simulator with different policy
+# simulator2 = sim.Simulator(
+#     40,
+#     policies.DoNothing(),
+#     copy.deepcopy(state),
+#     verbose=True,
+#     visualize=False,
+#     label="DoNothing",
+# )
 
-# Run second simulator
-simulator2.run()
+# # Run second simulator
+# simulator2.run()
 
 # Visualize results
-visualize_analysis([simulator, simulator2])
+visualize_analysis([simulator])

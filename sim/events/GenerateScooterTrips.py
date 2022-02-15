@@ -21,6 +21,7 @@ class GenerateScooterTrips(Event):
 
             # generate trip departure times (can be implemented with np.random.uniform if we want decimal times)
             # both functions generate numbers from a discrete uniform distribution
+
             trips_departure_time = sorted(
                 np.random.randint(
                     self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
