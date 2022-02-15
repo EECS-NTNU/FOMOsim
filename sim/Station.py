@@ -55,9 +55,6 @@ class Station(Location):
 
             return return_function
 
-    def get_current_state(self) -> float:
-        return sum(map(lambda scooter: scooter.battery / 100, self.scooters))
-
     @Decorators.check_move_probabilities
     def get_leave_distribution(self):
         # Copy list
@@ -146,7 +143,7 @@ class Station(Location):
 
     def __repr__(self):
         return (
-            f"<Station {self.id}: {len(self.scooters)} scooters, current state: {self.get_current_state()}>"
+            f"<Station {self.id}: {len(self.scooters)} scooters>"
         )
 
     def __str__(self):

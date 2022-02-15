@@ -41,6 +41,10 @@ class ScooterArrival(Event):
             if FULL_TRIP:
                 # adding the trip to world flow for visualizing purposes
                 world.add_trip_to_flow(self.departure_cluster_id, self.arrival_cluster_id)
+                world.state.remove_used_scooter(self.scooter)
 
         # set time of world to this event's time
         super(ScooterArrival, self).perform(world, **kwargs)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} at time {self.time}, arriving at cluster {self.arrival_cluster_id}>"

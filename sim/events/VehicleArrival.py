@@ -46,6 +46,8 @@ class VehicleArrival(Event):
         # find the best action from the current world state
         action = world.policy.get_best_action(world, vehicle)
 
+        print("\n", action)
+
         if isinstance(action, tuple):
             action, _ = action
 
@@ -98,5 +100,5 @@ class VehicleArrival(Event):
         # Compute the arrival time for the Vehicle arrival event created by the action
         arrival_time += self.time + action_time
 
-        # Add a new Vehicle Arrival event for the next cluster arrival to the world stack
+        # Add a new Vehicle Arrival event for the next cluster arrival to the world event_queue
         world.add_event(VehicleArrival(arrival_time, vehicle.id, self.visualize))

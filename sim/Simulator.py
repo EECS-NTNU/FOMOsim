@@ -33,15 +33,15 @@ class Simulator(SaveMixin):
         self.shift_duration = shift_duration
         self.state = initial_state
         self.time = 0
-        self.stack: List[sim.Event] = []
+        self.event_queue: List[sim.Event] = []
         self.tabu_list = []
-        # Initialize the stack with a vehicle arrival for every vehicle at time zero
+        # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.vehicles:
-            self.stack.append(
+            self.event_queue.append(
                 sim.VehicleArrival(0, vehicle.id, visualize=visualize)
             )
-        # Add Generate Scooter Trip event to the stack
-        self.stack.append(sim.GenerateScooterTrips(settings.ITERATION_LENGTH_MINUTES))
+        # Add Generate Scooter Trip event to the event_queue
+        self.event_queue.append(sim.GenerateScooterTrips(settings.ITERATION_LENGTH_MINUTES))
         self.cluster_flow = {
             (start, end): 0
             for start in np.arange(len(self.state.stations))
@@ -67,19 +67,37 @@ class Simulator(SaveMixin):
             )
 
     def __repr__(self):
-        return f"<Sim with {self.time} of {self.shift_duration} elapsed. {len(self.stack)} events in stack>"
+        string = f"<Sim with {self.time} of {self.shift_duration} elapsed. {len(self.event_queue)} events in event_queue>"
+        return string
+
+    def single_step(self):
+        event = self.event_queue.pop(0)
+
+        print()
+        print("Time:", event.time)
+        print(self.state)
+
+        event.perform(self)
+
+        print("\n", event)
+        return event
+
+    def full_step(self):
+        while True:
+            event = self.single_step()
+            if isinstance(event, sim.GenerateScooterTrips):
+                break
 
     def run(self):
         """
         Main method for running the Event Based Simulation Engine.
 
-        The sim object uses a stack initialized with vehicle arrival events and a GenerateScooterTrips event.
-        It then pops events from this stack. The stack is always sorted in by the time of the events.
+        The sim object uses a queue initialized with vehicle arrival events and a GenerateScooterTrips event.
+        It then pops events from this queue. The queue is always sorted in by the time of the events.
         """
         while self.time < self.shift_duration:
-            event = self.stack.pop(0)
-            event.perform(self)
-            if isinstance(event, sim.GenerateScooterTrips) and self.verbose:
+            self.full_step()
+            if self.verbose:
                 self.progress_bar.next()
         if self.verbose:
             self.progress_bar.finish()
@@ -94,12 +112,12 @@ class Simulator(SaveMixin):
 
     def add_event(self, event: sim.Event) -> None:
         """
-        Adds event to the sorted stack.
+        Adds event to the sorted queue.
         Avoids calling sort on every iteration by using the bisect package
         :param event: event to insert
         """
-        insert_index = bisect.bisect([event.time for event in self.stack], event.time)
-        self.stack.insert(insert_index, event)
+        insert_index = bisect.bisect([event.time for event in self.event_queue], event.time)
+        self.event_queue.insert(insert_index, event)
 
     def add_trip_to_flow(self, start: int, end: int) -> None:
         """
@@ -130,7 +148,7 @@ class Simulator(SaveMixin):
         """
         return [
             (event.departure_cluster_id, event.arrival_cluster_id, event.scooter.id)
-            for event in self.stack
+            for event in self.event_queue
             if isinstance(event, sim.ScooterArrival)
         ]
 

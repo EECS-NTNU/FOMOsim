@@ -8,10 +8,12 @@ import sim
 import numpy.random as random
 import abc
 
+def get_current_state(station) -> float:
+    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
+
 class SwapAllPolicy(Policy):
     def __init__(self):
-
-        super().__init__(1, 1)
+        super().__init__()
 
     def get_best_action(self, world, vehicle):
         # Choose a random cluster
@@ -45,7 +47,7 @@ class SwapAllPolicy(Policy):
                     and cluster.id not in world.tabu_list
                 ],
                 key=lambda cluster: (
-                    len(cluster.scooters) - cluster.get_current_state()
+                    len(cluster.scooters) - get_current_state(cluster)
                 )
                 / (len(cluster.scooters) + 1),
                 reverse=True,

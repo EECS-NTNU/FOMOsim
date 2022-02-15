@@ -55,7 +55,7 @@ def run_analysis_from_path(
     for world in world_objects:
         # route visualization
         if visualize_route:
-            for event in world.stack:
+            for event in world.event_queue:
                 if isinstance(event, sim.VehicleArrival):
                     event.visualize = True
 

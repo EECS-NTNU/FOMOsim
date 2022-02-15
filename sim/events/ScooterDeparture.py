@@ -54,13 +54,16 @@ class ScooterDeparture(Event):
                     )
                 )
 
-            else:
-                world.state.scooter_in_use(scooter)
-
             # remove scooter from the departure cluster
             departure_cluster.remove_scooter(scooter)
+
+            world.state.scooter_in_use(scooter)
+
         else:
             world.add_event(sim.LostTrip(self.time, self.departure_cluster_id))
 
         # set time of world to this event's time
         super(ScooterDeparture, self).perform(world, **kwargs)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} at time {self.time}, departing from cluster {self.departure_cluster_id}>"

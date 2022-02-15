@@ -27,9 +27,9 @@ class GenerateScooterTrips(Event):
                 )
             )
 
-            # generate departure event and add to world stack
+            # generate departure event and add to world event_queue
             for departure_time in trips_departure_time:
-                # add departure event to the stack
+                # add departure event to the event_queue
                 departure_event = sim.ScooterDeparture(
                     departure_time, departure_cluster.id
                 )
@@ -50,9 +50,9 @@ class GenerateScooterTrips(Event):
                     )
                 )
 
-                # generate arrival event and add to world stack
+                # generate arrival event and add to world event_queue
                 for arrival_time in trips_arrival_time:
-                    # add arrival event to the stack
+                    # add arrival event to the event_queue
                     arrival_event = sim.ScooterArrival(
                         arrival_time,
                         None,

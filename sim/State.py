@@ -18,21 +18,23 @@ class State(SaveMixin):
 
     def __init__(
         self,
-        stations: [Station],
-        depots: [Depot],
-        vehicles: [Vehicle],
+        stations: [Station] = [],
+        depots: [Depot] = [],
+        vehicles: [Vehicle] = [],
+        scooters_in_use: [Location] = [], # scooters in use (not parked at any station)
         distance_matrix=None, # will calculate based on coordinates if not given
     ):
         self.stations = stations
         self.vehicles = vehicles
         self.depots = depots
+        self.scooters_in_use = scooters_in_use
+
         self.locations = self.stations + self.depots
         if distance_matrix:
             self.distance_matrix = distance_matrix
         else:
             self.distance_matrix = self.calculate_distance_matrix()
         self.TRIP_INTENSITY_RATE = 0.1
-        self.scooters_in_use = []
 
     # def __deepcopy__(self, *args):
     #     new_state = State(
@@ -49,6 +51,9 @@ class State(SaveMixin):
 
     def scooter_in_use(self, scooter):
         self.scooters_in_use.append(scooter)
+
+    def remove_used_scooter(self, scooter):
+        self.scooters_in_use.remove(scooter)
 
     def get_used_scooter(self):
         if len(self.scooters_in_use) > 0:
@@ -156,10 +161,11 @@ class State(SaveMixin):
         return refill_time
 
     def __repr__(self):
-        return (
-            f"<State: {len(self.get_scooters())} scooters in {len(self.stations)} "
-            f"stations with {len(self.vehicles)} vehicles>"
-        )
+        string = f"<State: {len(self.get_scooters())} scooters in {len(self.stations)} stations with {len(self.vehicles)} vehicles>\n"
+        for station in self.stations:
+            string += f"{repr(station)}\n"
+        string += f"In use: {self.scooters_in_use}"
+        return string
 
     def get_neighbours(
         self,

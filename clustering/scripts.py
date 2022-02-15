@@ -1,7 +1,7 @@
 """
 Main file for clustering module
 """
-from sim import Vehicle, State
+from sim import Vehicle, State, Bike, Scooter
 import clustering.methods as methods
 import os
 from settings import *
@@ -16,6 +16,7 @@ def scooter_sample_filter(dataframe: pd.DataFrame, sample_size=None):
 def get_initial_state(
     classname,
     sample_size=None,
+    initial_in_use=0,
     number_of_clusters=20,
     initial_location_depot=True,
     number_of_vans=4,
@@ -48,7 +49,7 @@ def get_initial_state(
     depots = methods.generate_depots(number_of_clusters=len(clusters))
 
     # Create state object
-    initial_state = State(clusters, depots, [])
+    initial_state = State(clusters, depots)
 
     # Sample size filtering. Create list of scooter ids to include
     sample_scooters = scooter_sample_filter(entur_dataframe, sample_size)
@@ -73,6 +74,20 @@ def get_initial_state(
         Vehicle(i, current_location, VAN_BATTERY_INVENTORY, VAN_SCOOTER_INVENTORY)
         for i in range(number_of_vans)
     ]
+
+    initial_state.scooters_in_use = []
+    if not FULL_TRIP:
+        if classname == "Bike":
+          initial_state.scooters_in_use = [
+            Bike(0, 0, index+sample_size)
+            for index in range(initial_in_use)
+          ]
+        else:
+          initial_state.scooters_in_use = [
+            Scooter(0, 0, 100, index+sample_size)
+            for index in range(initial_in_use)
+          ]
+
     return initial_state
 
 

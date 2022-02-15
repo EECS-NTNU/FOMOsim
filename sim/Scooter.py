@@ -11,8 +11,8 @@ class Scooter(Location):
         self.battery = battery
         self.battery_change_per_kilometer = 5.0
 
-    def __deepcopy__(self, *args):
-        return Scooter(self.lat, self.lon, self.battery, self.id)
+    # def __deepcopy__(self, *args):
+    #     return Scooter(self.lat, self.lon, self.battery, self.id)
 
     def travel(self, distance):
         self.battery -= distance * self.battery_change_per_kilometer

@@ -21,6 +21,10 @@ import clustering.methods
 import clustering.scripts
 from policies.epsilon_greedy_value_function_policy.helpers import *
 
+def get_current_state(station) -> float:
+    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
+
+
 def compute_and_set_ideal_state(state: sim.State, sample_scooters: list):
     progressbar = Bar(
         "| Computing ideal state", max=len(os.listdir(settings.TEST_DATA_DIRECTORY))
@@ -311,7 +315,9 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
         epsilon,
         value_function,
     ):
-        super().__init__(get_possible_actions_divide, number_of_neighbors)
+        super().__init__()
+        self.get_possible_actions_divide = get_possible_actions_divide
+        self.number_of_neighbors = number_of_neighbors
         self.value_function = value_function
         self.epsilon = epsilon
         self.decision_times = []
@@ -321,7 +327,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
         # Cache current states in state
         current_states, available_scooters = [], []
         for cluster in state.stations:
-            current_states.append(cluster.get_current_state())
+            current_states.append(get_current_state(cluster))
             available_scooters.append(cluster.get_available_scooters())
         return current_states, available_scooters
 

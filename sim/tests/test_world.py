@@ -18,18 +18,18 @@ class WorldTestCase(unittest.TestCase):
         )
 
     def test_run(self):
-        self.world.stack = [sim.Event(time) for time in range(10, 41, 10)]
+        self.world.event_queue = [sim.Event(time) for time in range(10, 41, 10)]
         self.world.run()
 
     def test_add_event(self):
         # Clear initial stack
-        self.world.stack = []
+        self.world.event_queue = []
         shuffled_events = [sim.Event(time) for time in range(10, 41, 10)]
         random.shuffle(shuffled_events)
         for event in shuffled_events:
             self.world.add_event(event)
         self.assertSequenceEqual(
-            [event.time for event in self.world.stack], range(10, 41, 10)
+            [event.time for event in self.world.event_queue], range(10, 41, 10)
         )
 
     def test_run_with_initial_stack(self):
@@ -37,7 +37,7 @@ class WorldTestCase(unittest.TestCase):
 
     def test_tabu_list(self):
         # Clear initial stack
-        self.world.stack = []
+        self.world.event_queue = []
         # Perform Vehicle arrival event
         arrival_event = sim.VehicleArrival(0, 0, False)
         arrival_event.perform(self.world)
@@ -60,7 +60,7 @@ class WorldTestCase(unittest.TestCase):
             ],
         )
         # Perform vehicle next vehicle arrival event
-        self.world.stack.pop().perform(self.world)
+        self.world.event_queue.pop().perform(self.world)
         # Check that the old vehicle location is not in the tabu list
         self.assertNotIn(first_vehicle_location, self.world.tabu_list)
 

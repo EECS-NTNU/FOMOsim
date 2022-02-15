@@ -10,15 +10,15 @@ import abc
 
 class NightShift(Policy):
     def __init__(self):
-        super().__init__(0, 0)
+        super().__init__()
 
     def get_best_action(self, world, vehicle):
         return sim.Action([], [], [], 0)
 
     def initSim(self, sim):
-        sim.stack = [
+        sim.event_queue = [
             event
-            for event in sim.stack
+            for event in sim.event_queue
             if not isinstance(event, sim.VehicleArrival)
         ]
         for cluster in sim.state.stations:

@@ -84,10 +84,3 @@ def add_depots_as_neighbours(state, time, vehicle, max_swaps):
         else [big_depot]
     )
 
-
-def get_battery_deficient_in_clusters(state):
-    # cluster score based on how much deficient of battery the cluster have
-    return [
-        len(cluster.scooters) - cluster.get_current_state()
-        for cluster in state.stations
-    ]

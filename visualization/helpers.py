@@ -344,7 +344,7 @@ def add_cluster_info(state, graph, ax):
     pos = nx.get_node_attributes(graph, "pos")
     # add number of scooters and battery label to nodes
     for i, cluster in enumerate(state.stations):
-        node_info = f"S = {cluster.number_of_scooters()}\nB = {round(cluster.get_current_state(), 1)}"
+        node_info = f"S = {cluster.number_of_scooters()}\n"
         x, y = pos[i]
         ax.annotate(
             node_info, xy=(x, y + 0.03), horizontalalignment="center", fontsize=12

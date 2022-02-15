@@ -12,14 +12,6 @@ class Policy(abc.ABC):
     Base Policy class. Used mainly as an interface for the get best action method
     """
 
-    def __init__(
-        self,
-        get_possible_actions_divide,
-        number_of_neighbors,
-    ):
-        self.get_possible_actions_divide = get_possible_actions_divide
-        self.number_of_neighbors = number_of_neighbors
-
     @abc.abstractmethod
     def get_best_action(self, world, vehicle):
         """

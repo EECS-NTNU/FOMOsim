@@ -13,18 +13,19 @@ from visualization.visualizer import visualize_analysis
 # Set up initial state
 # This is done with a script that reads data from an "entur" snapshot
 state = clustering.scripts.get_initial_state(
-    "Bike",
-    500,
-    5,
-    number_of_vans=1,
+    classname = "Bike",
+    sample_size = 50,
+    number_of_clusters = 5,
+    initial_in_use = 10,
+    number_of_vans = 1,
 )
 
 # Set up first simulator
 simulator = sim.Simulator(
-    10080,
+    100,
     policies.RebalancingPolicy(),
     copy.deepcopy(state),
-    verbose=True,
+    verbose=False,
     visualize=False,
     label="Rebalancing",
 )
@@ -34,7 +35,7 @@ simulator.run()
 
 # Set up second simulator with different policy
 simulator2 = sim.Simulator(
-    10080,
+    40,
     policies.DoNothing(),
     copy.deepcopy(state),
     verbose=True,

@@ -23,7 +23,7 @@ class EventsTests(unittest.TestCase):
                 100, 10, initial_location_depot=False
             ),
         )
-        self.world.stack = []
+        self.world.event_queue = []
         self.vehicle = self.world.state.vehicles[0]
         self.large_world = World(
             40,
@@ -32,7 +32,7 @@ class EventsTests(unittest.TestCase):
                 100, 20, initial_location_depot=False
             ),
         )
-        self.large_world.stack = []
+        self.large_world.event_queue = []
         self.vehicle_large_world = self.large_world.state.vehicles[0]
 
         self.departure_time = 1
@@ -50,7 +50,7 @@ class EventsTests(unittest.TestCase):
         self.assertEqual(departure_event.time, self.world.time)
 
         # Check that a lost trip event is created
-        self.assertIsInstance(self.world.stack.pop(), LostTrip)
+        self.assertIsInstance(self.world.event_queue.pop(), LostTrip)
 
         # create new departure event with scooters in departure cluster
         new_destination = random.choice(
@@ -64,7 +64,7 @@ class EventsTests(unittest.TestCase):
         departure_event = ScooterDeparture(11, new_destination.id)
         departure_event.perform(self.world)
 
-        arrival_event = self.world.stack.pop()
+        arrival_event = self.world.event_queue.pop()
 
         # Check that a ScooterArrival event is created
         self.assertIsInstance(arrival_event, ScooterArrival)
@@ -107,7 +107,7 @@ class EventsTests(unittest.TestCase):
 
     def test_vehicle_arrival(self):
         # Clear stack to check specific vehicle arrival event
-        self.world.stack = []
+        self.world.event_queue = []
         # Choose a random cluster for the vehicle to be in
         arrival_cluster = self.world.state.get_random_cluster(
             exclude=self.vehicle.current_location
@@ -126,7 +126,7 @@ class EventsTests(unittest.TestCase):
         self.assertNotEqual(arrival_cluster.id, self.vehicle.current_location.id)
 
         # Vehicle arrival event created a new vehicle arrival event
-        self.assertEqual(1, len(self.world.stack))
+        self.assertEqual(1, len(self.world.event_queue))
 
     def test_generate_scooter_trips(self):
         generate_trips_event = GenerateScooterTrips(0)
@@ -134,13 +134,13 @@ class EventsTests(unittest.TestCase):
         generate_trips_event.perform(self.large_world)
 
         # check if any trips or GenerateScooterTrip object is created
-        self.assertGreater(len(self.large_world.stack), 0)
+        self.assertGreater(len(self.large_world.event_queue), 0)
 
         # check if world stack contains a GenerateScooterTrips object
         self.assertTrue(
             any(
                 isinstance(event, GenerateScooterTrips)
-                for event in self.large_world.stack
+                for event in self.large_world.event_queue
             )
         )
 
@@ -149,7 +149,7 @@ class EventsTests(unittest.TestCase):
             all(
                 [
                     True if 0 <= event.time <= ITERATION_LENGTH_MINUTES else False
-                    for event in self.large_world.stack
+                    for event in self.large_world.event_queue
                 ]
             )
         )

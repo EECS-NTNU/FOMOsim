@@ -10,7 +10,7 @@ import abc
 
 class RebalancingPolicy(Policy):
     def __init__(self):
-        super().__init__(0, 0)
+        super().__init__()
 
     def get_best_action(self, simulator, vehicle):
         vehicle_has_scooter_inventory = len(vehicle.scooter_inventory) > 0

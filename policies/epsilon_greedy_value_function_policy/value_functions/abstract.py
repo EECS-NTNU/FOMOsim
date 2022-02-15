@@ -20,6 +20,10 @@ class Decorators:
         return return_function
 
 
+def get_current_state(station) -> float:
+    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
+
+
 class ValueFunction(abc.ABC):
     """
     This is the base value function class. It contains methods for creating the state representation and contains the
@@ -271,7 +275,7 @@ class ValueFunction(abc.ABC):
             cache
             if cache is not None
             else (
-                [cluster.get_current_state() for cluster in state.stations],
+                [get_current_state(cluster) for cluster in state.stations],
                 [cluster.get_available_scooters() for cluster in state.stations],
             )
         )  # Use cache if you have it

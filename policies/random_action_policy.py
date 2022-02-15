@@ -2,6 +2,7 @@
 This file contains all the policies used in the thesis.
 """
 import copy
+import math
 
 from policies import Policy, neighbour_filtering
 import sim
@@ -12,7 +13,7 @@ from sim import State, Vehicle
 def get_possible_actions(
     state,
     vehicle: Vehicle,
-    number_of_neighbours,
+    number_of_neighbours=None,
     divide=None,
     exclude=None,
     time=None,
@@ -27,14 +28,17 @@ def get_possible_actions(
     :return: List of Action objects
     """
     actions = []
-    neighbours = decision.neighbour_filtering.filtering_neighbours(
-        state,
-        vehicle,
-        0,
-        0,
-        number_of_neighbours,
-        exclude=exclude,
-    )
+    if number_of_neighbours is None:
+        neighbours = state.stations
+    else:
+        neighbours = neighbour_filtering.filtering_neighbours(
+            state,
+            vehicle,
+            0,
+            0,
+            number_of_neighbours,
+            exclude=exclude,
+        )
     # Return empty action if
     if not vehicle.is_at_depot():
 
@@ -59,22 +63,14 @@ def get_possible_actions(
         # Initiate constraints for battery swap, pick-up and drop-off
         pick_ups = min(
             max(
-                len(vehicle.current_location.scooters)
-                - vehicle.current_location.ideal_state,
+                len(vehicle.current_location.scooters),
                 0,
             ),
             vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory),
             vehicle.battery_inventory,
         )
         swaps = vehicle.get_max_number_of_swaps()
-        drop_offs = max(
-            min(
-                vehicle.current_location.ideal_state
-                - len(vehicle.current_location.scooters),
-                len(vehicle.scooter_inventory),
-            ),
-            0,
-        )
+        drop_offs = len(vehicle.scooter_inventory)
         combinations = []
         # Different combinations of battery swaps, pick-ups, drop-offs and clusters
         for pick_up in get_range(pick_ups):
@@ -85,16 +81,19 @@ def get_possible_actions(
                         and (pick_up + swap) <= vehicle.battery_inventory
                         and (pick_up + swap + drop_off > 0)
                     ):
-                        for (
-                            location
-                        ) in decision.neighbour_filtering.filtering_neighbours(
-                            state,
-                            vehicle,
-                            pick_up,
-                            drop_off,
-                            number_of_neighbours,
-                            exclude=exclude,
-                        ):
+
+                        ngbrs = state.stations
+                        if number_of_neighbours is not None:
+                            ngbrs = neighbour_filtering.filtering_neighbours(
+                                state,
+                                vehicle,
+                                pick_up,
+                                drop_off,
+                                number_of_neighbours,
+                                exclude=exclude,
+                            )
+
+                        for location in ngbrs:
                             combinations.append(
                                 [
                                     max(
@@ -120,7 +119,7 @@ def get_possible_actions(
         none_swappable_scooters_id = [
             scooter.id
             for scooter in vehicle.current_location.scooters
-            if scooter.battery >= 70
+            if isinstance(scooter, sim.Bike) or scooter.battery >= 70
         ]
 
         def choose_pick_up(swaps, pickups):
@@ -152,7 +151,7 @@ def get_possible_actions(
                     > vehicle.battery_inventory_capacity * 0.9
                 ][0]
             actions.append(
-                Action(
+                sim.Action(
                     swappable_scooters_id[:battery_swap],
                     choose_pick_up(battery_swap, pick_up),
                     [scooter.id for scooter in vehicle.scooter_inventory][
@@ -164,12 +163,12 @@ def get_possible_actions(
     return (
         actions
         if len(actions) > 0
-        else [Action([], [], [], neighbour.id) for neighbour in neighbours]
+        else [sim.Action([], [], [], neighbour.id) for neighbour in neighbours]
     )
 
 class RandomActionPolicy(Policy):
-    def __init__(self, get_possible_actions_divide, number_of_neighbors):
-        super().__init__(get_possible_actions_divide, number_of_neighbors)
+    def __init__(self):
+        super().__init__()
 
     def get_best_action(self, world, vehicle):
         # all possible actions in this state
@@ -178,8 +177,8 @@ class RandomActionPolicy(Policy):
             vehicle,
             exclude=world.tabu_list,
             time=world.time,
-            divide=self.get_possible_actions_divide,
-            number_of_neighbours=self.number_of_neighbors,
+            # divide=2,
+            # number_of_neighbours=2,
         )
 
         # pick a random action
