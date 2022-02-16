@@ -6,7 +6,7 @@ from sim.SaveMixin import SaveMixin
 from visualization.visualizer import *
 import numpy as np
 import math
-from settings import STATE_CACHE_DIR, RANDOM_SEED
+from settings import STATE_CACHE_DIR
 import copy
 
 
@@ -25,7 +25,7 @@ class State(SaveMixin):
         rng = None,
     ):
         if rng is None:
-            self.rng = np.random.default_rng(RANDOM_SEED)
+            self.rng = np.random.default_rng(None)
         else:
             self.rng = rng
 

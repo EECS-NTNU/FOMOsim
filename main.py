@@ -14,14 +14,15 @@ from visualization.visualizer import visualize_analysis
 # This is done with a script that reads data from an "entur" snapshot
 state = clustering.scripts.get_initial_state(
     classname = "Scooter",
-    number_of_scooters = 500,
-    number_of_clusters = 10,
+    number_of_scooters = 50,
+    number_of_clusters = 5,
     number_of_vans = 1,
+    random_seed=123,
 )
 
 # Set up first simulator
 simulator = sim.Simulator(
-    1440,
+    10000,
     policies.DoNothing(),
     state,
     verbose=False,
@@ -32,18 +33,18 @@ simulator = sim.Simulator(
 # Run first simulator
 simulator.run()
 
-# Set up initial state
-# This is done with a script that reads data from an "entur" snapshot
+# Set up initial state for simulator 2
 state2 = clustering.scripts.get_initial_state(
     classname = "Scooter",
-    number_of_scooters = 500,
-    number_of_clusters = 10,
+    number_of_scooters = 50,
+    number_of_clusters = 5,
     number_of_vans = 1,
+    random_seed=123,
 )
 
-# Set up first simulator
+# Set up second simulator
 simulator2 = sim.Simulator(
-    1440,
+    10000,
     policies.RandomActionPolicy(),
     state2,
     verbose=False,

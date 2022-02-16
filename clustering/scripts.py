@@ -21,6 +21,7 @@ def get_initial_state(
     number_of_clusters=20,
     initial_location_depot=True,
     number_of_vans=4,
+    random_seed=None,
 ) -> State:
     """
     Main method for setting up a state object based on EnTur data from test_data directory.
@@ -40,7 +41,7 @@ def get_initial_state(
         "test_data/0900-entur-snapshot.csv"
     )
 
-    rng = np.random.default_rng(RANDOM_SEED)
+    rng=np.random.default_rng(random_seed)
 
     # Create clusters
     cluster_labels = methods.cluster_data(rng, entur_dataframe, number_of_clusters)
@@ -55,7 +56,7 @@ def get_initial_state(
     initial_state = State(clusters, depots, rng=rng)
 
     # Sample size filtering. Create list of scooter ids to include
-    sample_scooters = scooter_sample_filter(initial_state.rng, entur_dataframe, number_of_scooters)
+    sample_scooters = scooter_sample_filter(rng, entur_dataframe, number_of_scooters)
 
     # Trip intensity analysis
     methods.compute_and_set_trip_intensity(initial_state, sample_scooters)
