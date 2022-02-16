@@ -164,8 +164,6 @@ class State(SaveMixin):
         string = f"<State: {len(self.get_scooters())} scooters in {len(self.stations)} stations with {len(self.vehicles)} vehicles>\n"
         for station in self.stations:
             string += f"{repr(station)}\n"
-        for depot in self.depots:
-            string += f"{repr(depot)}\n"
         string += f"In use: {self.scooters_in_use}"
         return string
 

@@ -8,13 +8,12 @@ import numpy as np
 import sim
 import clustering.scripts
 import policies
-import policies.fosen_haldorsen
 from visualization.visualizer import visualize_analysis
 
 # Set up initial state
 # This is done with a script that reads data from an "entur" snapshot
 state = clustering.scripts.get_initial_state(
-    classname = "Scooter",
+    classname = "Bike",
     sample_size = 50,
     number_of_clusters = 5,
     initial_in_use = 10,
@@ -24,7 +23,7 @@ state = clustering.scripts.get_initial_state(
 # Set up first simulator
 simulator = sim.Simulator(
     100,
-    policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy = True),
+    policies.RandomActionPolicy(),
     copy.deepcopy(state),
     verbose=False,
     visualize=False,
