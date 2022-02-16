@@ -4,7 +4,6 @@ This file contains the base policy class
 import copy
 
 import sim
-import numpy.random as random
 import abc
 
 class Policy(abc.ABC):

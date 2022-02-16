@@ -102,7 +102,7 @@ def read_bounded_csv_file(
     return raw_data
 
 
-def cluster_data(data: pd.DataFrame, number_of_clusters: int) -> [int]:
+def cluster_data(rng, data: pd.DataFrame, number_of_clusters: int) -> [int]:
     """
     Uses an clustering algorithm to group together scooters
     :param data: geospatial data containing cols ["lat", "lon"]
@@ -112,7 +112,7 @@ def cluster_data(data: pd.DataFrame, number_of_clusters: int) -> [int]:
     # Generate numpy array from dataframe
     coords = data[["lat", "lon"]].values
     # Run k-means algorithm to generate clusters
-    return KMeans(number_of_clusters).fit(coords).labels_
+    return KMeans(number_of_clusters, random_state=rng.integers(0, 1000)).fit(coords).labels_
 
 
 def scooter_movement_analysis(state: State) -> np.ndarray:
@@ -307,6 +307,7 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list):
                 )
                 # Number of scooters arriving to the cluster
                 trip_counter_arrive[cluster.id][index] = len(scooters_arriving_to_the_cluster)
+
         previous_snapshot = current_snapshot
 
     cluster_leave_intensities = np.mean(trip_counter_leave, axis=1)

@@ -29,6 +29,7 @@ class Simulator(SaveMixin):
         **kwargs,
     ):
         super().__init__(**kwargs)
+
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
         self.shift_duration = shift_duration
         self.state = initial_state
@@ -73,13 +74,14 @@ class Simulator(SaveMixin):
     def single_step(self):
         event = self.event_queue.pop(0)
 
-        print()
-        print("Time:", event.time)
-        print(self.state)
+        # print()
+        # print("Time:", event.time)
+        # print(self.state)
 
         event.perform(self)
 
-        print("\n", event)
+        # print("\n", event)
+
         return event
 
     def full_step(self):

@@ -108,7 +108,7 @@ def idealize_state(state):
                     # Remove scooter from old cluster
                     origin_cluster.remove_scooter(scooter)
                     # Add scooter to new cluster
-                    cluster.add_scooter(scooter)
+                    cluster.add_scooter(state.rng, scooter)
 
     return state_rebalanced_ideal_state
 

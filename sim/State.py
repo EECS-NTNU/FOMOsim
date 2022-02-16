@@ -1,4 +1,3 @@
-import random
 from sim.Location import Location
 from sim.Station import Station
 from sim.Depot import Depot
@@ -7,7 +6,7 @@ from sim.SaveMixin import SaveMixin
 from visualization.visualizer import *
 import numpy as np
 import math
-from settings import STATE_CACHE_DIR
+from settings import STATE_CACHE_DIR, RANDOM_SEED
 import copy
 
 
@@ -23,7 +22,13 @@ class State(SaveMixin):
         vehicles: [Vehicle] = [],
         scooters_in_use: [Location] = [], # scooters in use (not parked at any station)
         distance_matrix=None, # will calculate based on coordinates if not given
+        rng = None,
     ):
+        if rng is None:
+            self.rng = np.random.default_rng(RANDOM_SEED)
+        else:
+            self.rng = rng
+
         self.stations = stations
         self.vehicles = vehicles
         self.depots = depots
@@ -151,7 +156,7 @@ class State(SaveMixin):
                 delivery_scooter = vehicle.drop_off(delivery_scooter_id)
 
                 # Adding scooter to current cluster and changing coordinates of scooter
-                vehicle.current_location.add_scooter(delivery_scooter)
+                vehicle.current_location.add_scooter(self.rng, delivery_scooter)
 
         # Moving the state/vehicle from this to next cluster
         vehicle.set_current_location(
@@ -304,7 +309,7 @@ class State(SaveMixin):
 
     def sample(self, sample_size: int):
         # Filter out scooters not in sample
-        sampled_scooter_ids = random.sample(
+        sampled_scooter_ids = self.rng.choice(
             [scooter.id for scooter in self.get_scooters()], sample_size
         )
         for cluster in self.stations:
@@ -315,7 +320,7 @@ class State(SaveMixin):
             ]
 
     def get_random_cluster(self, exclude=None):
-        return random.choice(
+        return rng.choice(
             [cluster for cluster in self.stations if cluster.id != exclude.id]
             if exclude
             else self.stations

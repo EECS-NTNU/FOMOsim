@@ -6,16 +6,17 @@ import clustering.methods as methods
 import os
 from settings import *
 import pandas as pd
+import numpy as np
 
-def scooter_sample_filter(dataframe: pd.DataFrame, sample_size=None):
-    if sample_size:
-        dataframe = dataframe.sample(sample_size)
+def scooter_sample_filter(rng, dataframe: pd.DataFrame, number_of_scooters=None):
+    if number_of_scooters:
+        dataframe = dataframe.sample(number_of_scooters, random_state=rng.integers(0, 1000))
     return dataframe["id"].tolist()
 
 
 def get_initial_state(
     classname,
-    sample_size=None,
+    number_of_scooters=None,
     initial_in_use=0,
     number_of_clusters=20,
     initial_location_depot=True,
@@ -24,7 +25,7 @@ def get_initial_state(
     """
     Main method for setting up a state object based on EnTur data from test_data directory.
     This method saves the state objects and reuse them if a function call is done with the same properties.
-    :param sample_size: number of e-scooters in the instance
+    :param number_of_scooters: number of e-scooters in the instance
     :param number_of_clusters
     :param initial_location_depot: set the initial current location of the vehicles to the depot
     :param number_of_vans: the number of vans to use
@@ -32,15 +33,17 @@ def get_initial_state(
     """
     # If this combination has been requested before we fetch a cached version
     print(
-        f"\nSetup initial state from entur dataset with {number_of_clusters} clusters and {sample_size} scooters"
+        f"\nSetup initial state from entur dataset with {number_of_clusters} clusters and {number_of_scooters} scooters"
     )
     # Get dataframe from EnTur CSV file within boundary
     entur_dataframe = methods.read_bounded_csv_file(
         "test_data/0900-entur-snapshot.csv"
     )
 
+    rng = np.random.default_rng(RANDOM_SEED)
+
     # Create clusters
-    cluster_labels = methods.cluster_data(entur_dataframe, number_of_clusters)
+    cluster_labels = methods.cluster_data(rng, entur_dataframe, number_of_clusters)
 
     # Structure data into objects
     clusters = methods.generate_cluster_objects(classname, entur_dataframe, cluster_labels)
@@ -49,10 +52,10 @@ def get_initial_state(
     depots = methods.generate_depots(number_of_clusters=len(clusters))
 
     # Create state object
-    initial_state = State(clusters, depots)
+    initial_state = State(clusters, depots, rng=rng)
 
     # Sample size filtering. Create list of scooter ids to include
-    sample_scooters = scooter_sample_filter(entur_dataframe, sample_size)
+    sample_scooters = scooter_sample_filter(initial_state.rng, entur_dataframe, number_of_scooters)
 
     # Trip intensity analysis
     methods.compute_and_set_trip_intensity(initial_state, sample_scooters)
@@ -61,8 +64,8 @@ def get_initial_state(
     probability_matrix = methods.scooter_movement_analysis(initial_state)
     initial_state.set_probability_matrix(probability_matrix)
 
-    if sample_size:
-        initial_state.sample(sample_size)
+    if number_of_scooters:
+        initial_state.sample(number_of_scooters)
 
     # Choosing a location as starting cluster for all vehicles
     current_location = (
@@ -79,12 +82,12 @@ def get_initial_state(
     if not FULL_TRIP:
         if classname == "Bike":
           initial_state.scooters_in_use = [
-            Bike(0, 0, index+sample_size)
+            Bike(0, 0, index+number_of_scooters)
             for index in range(initial_in_use)
           ]
         else:
           initial_state.scooters_in_use = [
-            Scooter(0, 0, 100, index+sample_size)
+            Scooter(0, 0, 100, index+number_of_scooters)
             for index in range(initial_in_use)
           ]
 
@@ -92,4 +95,4 @@ def get_initial_state(
 
 
 if __name__ == "__main__":
-    get_initial_state(sample_size=100, number_of_clusters=2)
+    get_initial_state(number_of_scooters=100, number_of_clusters=2)

@@ -6,7 +6,6 @@ import math
 
 from policies import Policy, neighbour_filtering
 import sim
-import numpy.random as random
 import abc
 from sim import State, Vehicle
 
@@ -182,4 +181,4 @@ class RandomActionPolicy(Policy):
         )
 
         # pick a random action
-        return random.choice(possible_actions)
+        return world.state.rng.choice(possible_actions)

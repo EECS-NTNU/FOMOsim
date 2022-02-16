@@ -1,5 +1,3 @@
-import random
-
 from .abstract import *
 from policies.epsilon_greedy_value_function_policy.value_functions.ANN import ANN
 

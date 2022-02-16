@@ -13,38 +13,45 @@ from visualization.visualizer import visualize_analysis
 # Set up initial state
 # This is done with a script that reads data from an "entur" snapshot
 state = clustering.scripts.get_initial_state(
-    classname = "Bike",
-    sample_size = 50,
-    number_of_clusters = 5,
-    initial_in_use = 10,
+    classname = "Scooter",
+    number_of_scooters = 500,
+    number_of_clusters = 10,
     number_of_vans = 1,
 )
 
 # Set up first simulator
 simulator = sim.Simulator(
-    100,
-    policies.RandomActionPolicy(),
-    copy.deepcopy(state),
+    1440,
+    policies.DoNothing(),
+    state,
     verbose=False,
     visualize=False,
-    label="Rebalancing",
+    label="DoNothing",
 )
 
 # Run first simulator
 simulator.run()
 
-# # Set up second simulator with different policy
-# simulator2 = sim.Simulator(
-#     40,
-#     policies.DoNothing(),
-#     copy.deepcopy(state),
-#     verbose=True,
-#     visualize=False,
-#     label="DoNothing",
-# )
+# Set up initial state
+# This is done with a script that reads data from an "entur" snapshot
+state2 = clustering.scripts.get_initial_state(
+    classname = "Scooter",
+    number_of_scooters = 500,
+    number_of_clusters = 10,
+    number_of_vans = 1,
+)
 
-# # Run second simulator
-# simulator2.run()
+# Set up first simulator
+simulator2 = sim.Simulator(
+    1440,
+    policies.RandomActionPolicy(),
+    state2,
+    verbose=False,
+    visualize=False,
+    label="RandomAction",
+)
+
+simulator2.run()
 
 # Visualize results
-visualize_analysis([simulator])
+visualize_analysis([simulator, simulator2])

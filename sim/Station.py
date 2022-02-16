@@ -82,7 +82,7 @@ class Station(Location):
         ).centroid
         return cluster_centroid.x, cluster_centroid.y
 
-    def add_scooter(self, scooter: Scooter):
+    def add_scooter(self, rng, scooter: Scooter):
         matches = [
             cluster_scooter
             for cluster_scooter in self.scooters
@@ -95,8 +95,8 @@ class Station(Location):
         # Adding scooter to scooter list
         self.scooters.append(scooter)
         # Changing coordinates of scooter to this location + some delta
-        delta_lat = np.random.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
-        delta_lon = np.random.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
+        delta_lat = rng.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
+        delta_lon = rng.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
         scooter.set_location(self.get_lat() + delta_lat, self.get_lon() + delta_lon)
 
     def remove_scooter(self, scooter: Scooter):

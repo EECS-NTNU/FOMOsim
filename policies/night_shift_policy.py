@@ -5,7 +5,6 @@ import copy
 
 from policies import Policy
 import sim
-import numpy.random as random
 import abc
 
 class NightShift(Policy):

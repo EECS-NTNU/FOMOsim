@@ -36,7 +36,7 @@ class ScooterArrival(Event):
             self.scooter.travel(self.distance)
 
             # add scooter to the arrived cluster (location is changed in add_scooter method)
-            arrival_cluster.add_scooter(self.scooter)
+            arrival_cluster.add_scooter(world.state.rng, self.scooter)
 
             if FULL_TRIP:
                 # adding the trip to world flow for visualizing purposes

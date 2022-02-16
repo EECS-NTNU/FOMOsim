@@ -31,7 +31,7 @@ class ScooterDeparture(Event):
 
             if FULL_TRIP:
                 # get a arrival cluster from the leave prob distribution
-                arrival_cluster = np.random.choice(
+                arrival_cluster = world.state.rng.choice(
                     world.state.stations, p=departure_cluster.get_leave_distribution()
                 )
 

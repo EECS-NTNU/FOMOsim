@@ -16,14 +16,14 @@ class GenerateScooterTrips(Event):
         for departure_cluster in world.state.stations:
             # poisson process to select number of trips in a iteration
             number_of_trips = round(
-                np.random.poisson(departure_cluster.leave_intensity_per_iteration)
+                world.state.rng.poisson(departure_cluster.leave_intensity_per_iteration)
             )
 
             # generate trip departure times (can be implemented with np.random.uniform if we want decimal times)
             # both functions generate numbers from a discrete uniform distribution
 
             trips_departure_time = sorted(
-                np.random.randint(
+                world.state.rng.integers(
                     self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                 )
             )
@@ -40,13 +40,13 @@ class GenerateScooterTrips(Event):
             for arrival_cluster in world.state.stations:
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(
-                    np.random.poisson(arrival_cluster.arrive_intensity_per_iteration)
+                    world.state.rng.poisson(arrival_cluster.arrive_intensity_per_iteration)
                 )
 
                 # generate trip arrival times (can be implemented with np.random.uniform if we want decimal times)
                 # both functions generate numbers from a discrete uniform distribution
                 trips_arrival_time = sorted(
-                    np.random.randint(
+                    world.state.rng.integers(
                         self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                     )
                 )

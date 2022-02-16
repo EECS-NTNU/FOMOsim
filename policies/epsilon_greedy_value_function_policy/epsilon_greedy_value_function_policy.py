@@ -7,7 +7,6 @@ import os
 from progress.bar import Bar
 import sim
 import numpy as np
-import numpy.random as random
 import abc
 import math
 
@@ -76,9 +75,9 @@ def generate_scenarios(state: sim.State, number_of_scenarios=10000):
         one_scenario = []
         for cluster in state.stations:
             number_of_trips = round(
-                np.random.poisson(cluster.leave_intensity_per_iteration)
+                state.rng.poisson(cluster.leave_intensity_per_iteration)
             )
-            end_cluster_indices = np.random.choice(
+            end_cluster_indices = state.rng.choice(
                 cluster_indices,
                 p=cluster.get_leave_distribution(),
                 size=number_of_trips,
@@ -349,13 +348,13 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
         )
 
         # Epsilon greedy choose an action based on value function
-        if self.epsilon > random.rand():
-            best_action = random.choice(actions)
+        if self.epsilon > world.state.rng.rand():
+            best_action = world.state.rng.choice(actions)
         else:
             # Create list containing all actions and their rewards and values (action, reward, value_function_value)
             action_info = [
                 (
-                    sim.Action([], [], [], random.choice(world.state.locations).id),
+                    sim.Action([], [], [], world.state.rng.choice(world.state.locations).id),
                     -1000,
                     [],
                 )  # No actions bug

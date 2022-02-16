@@ -1,6 +1,5 @@
 import copy
 import unittest
-import random
 
 import numpy as np
 
