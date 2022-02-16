@@ -38,7 +38,7 @@ class RebalancingPolicy(Policy):
                     :number_of_scooters_to_swap
                 ]
             else:
-                # Pick up as many scooters as possible, the min(scooter capacity, deviation from ideal state)
+                # Pick up as many scooters as possible
                 number_of_scooters_to_pick_up = max(
                     min(
                         vehicle.scooter_inventory_capacity

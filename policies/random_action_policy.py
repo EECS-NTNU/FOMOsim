@@ -39,6 +39,7 @@ def get_possible_actions(
             number_of_neighbours,
             exclude=exclude,
         )
+
     # Return empty action if
     if not vehicle.is_at_depot():
 
