@@ -1,5 +1,5 @@
 from sim.Location import Location
-from settings import BATTERY_LIMIT
+from settings import *
 
 class Scooter(Location):
     """
@@ -22,6 +22,9 @@ class Scooter(Location):
 
     def hasBattery(self):
       return True
+
+    def speed(self):
+        return SCOOTER_SPEED
 
     def swap_battery(self):
         self.battery = 100.0

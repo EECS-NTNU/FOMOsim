@@ -1,5 +1,5 @@
 from sim.Location import Location
-
+from settings import *
 
 class Bike(Location):
     """
@@ -17,6 +17,9 @@ class Bike(Location):
 
     def usable(self):
       return True
+
+    def speed(self):
+        return BIKE_SPEED
 
     def hasBattery(self):
       return False

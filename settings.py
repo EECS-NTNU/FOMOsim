@@ -2,14 +2,16 @@
 SIM SETTINGS
 """
 
+# general settings
 FULL_TRIP = True
-
 ITERATION_LENGTH_MINUTES = 20
-BATTERY_LIMIT = 20.0
+GEOSPATIAL_BOUND_NEW = (59.9040, 59.9547, 10.6478, 10.8095) # geographical limits (lat_min, lat_max, long_min, long_max)
+CLUSTER_CENTER_DELTA = 0  # scooters are parked within this distance from a station (set to 0 if parking only at stations)
 
-# GEOSPATIAL DATA
-GEOSPATIAL_BOUND_NEW = (59.9040, 59.9547, 10.6478, 10.8095)
-CLUSTER_CENTER_DELTA = 0.001
+# scooter settings
+BATTERY_LIMIT = 20.0 # scooter is usable if battery is higher than this
+
+# settings for clustering script
 
 # Inventory of vehicle
 VAN_BATTERY_INVENTORY = 170
@@ -19,20 +21,19 @@ VAN_SCOOTER_INVENTORY = 20
 MINUTES_PER_ACTION = 2
 MINUTES_CONSTANT_PER_ACTION = 5
 
-# Speed of service vehicles
+# Speed of vehicles and bikes
 VEHICLE_SPEED = 15
-MINUTES_IN_HOUR = 60
+BIKE_SPEED = 10
+SCOOTER_SPEED = 7 # Speed of scooter ref - Fearnley at al. (2020, section 3.6)
 
-# Speed of scooter ref - Fearnley at al. (2020, section 3.6)
-SCOOTER_SPEED = 7
-
-# Depot parameters
+# Clustering parameters
 MAIN_DEPOT_LOCATION = (59.931794, 10.788314)
 SMALL_DEPOT_LOCATIONS = [
     (59.908009, 10.741604),
     (59.944473, 10.748624),
-    (59.944473, 10.748624),
 ]
+
+# Depot settings
 MAIN_DEPOT_CAPACITY = 10000
 SMALL_DEPOT_CAPACITY = 100
 CHARGE_TIME_PER_BATTERY = 60

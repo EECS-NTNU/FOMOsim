@@ -36,7 +36,7 @@ class Action:
             len(self.battery_swaps) + len(self.pick_ups) + len(self.delivery_scooters)
         ) * MINUTES_PER_ACTION
         travel_duration = (
-            round((distance / VEHICLE_SPEED) * MINUTES_IN_HOUR)
+            round((distance / VEHICLE_SPEED) * 60)
             + MINUTES_CONSTANT_PER_ACTION
         )
         return operation_duration + travel_duration

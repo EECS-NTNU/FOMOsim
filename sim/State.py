@@ -82,6 +82,9 @@ class State(SaveMixin):
                 all_scooters.append(scooter)
         return all_scooters
 
+    def sample_size(self):
+        return len(self.scooters_in_use) + len(self.get_scooters())
+
     def get_distance(self, start_location_id: int, end_location_id: int):
         """
         Calculate distance between two stations

@@ -7,12 +7,13 @@ from scipy import stats
 import settings
 import policies.epsilon_greedy_value_function_policy.settings as epssettings
 import policies.epsilon_greedy_value_function_policy.system_simulation.scripts
-
+import sim
+from progress.bar import Bar
 
 def normalize_to_integers(array, sum_to=1):
     normalized_cluster_ideal_states = sum_to * array / sum(array)
     rests = normalized_cluster_ideal_states - np.floor(normalized_cluster_ideal_states)
-    number_of_ones = round(sum(rests))
+    number_of_ones = int(round(sum(rests)))
     sorted_rests = np.sort(rests)
     return np.array(
         np.floor(normalized_cluster_ideal_states)
@@ -83,7 +84,7 @@ def idealize_state(state):
     for cluster in state_rebalanced_ideal_state.stations:
         # Swap all scooters under 50% battery
         for scooter in cluster.scooters:
-            if scooter.battery < 50:
+            if isinstance(scooter, sim.Scooter) and scooter.battery < 50:
                 scooter.swap_battery()
         # Find scooters possible to pick up
         positive_deviation = len(cluster.get_available_scooters()) - cluster.ideal_state
@@ -120,8 +121,12 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
         for cluster_id in range(len(state_rebalanced_ideal_state.stations))
     }
 
+    progressbar = Bar("| Simulating state outcomes", max=100)
+
     # simulating 100 times
     for i in range(100):
+        progressbar.next()
+
         simulating_state = copy.deepcopy(state_rebalanced_ideal_state)
         # simulates until the end of the day
         for j in range(
@@ -160,7 +165,7 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
     percentile = 1.0
     delta = 0.01
 
-    # loop until he sum of new ideal states is less or equal to the number of scooters in the state
+    # loop until the sum of new ideal states is less or equal to the number of scooters in the state
     while True:
         # setting the new ideal state of the clusters where not all outcomes are greater than ideal state to:
         # ideal state + %-percentile of the difference between ideal state - outcomes
@@ -179,6 +184,7 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
         sum_ideal_state = sum(list(new_ideal_states.values()))
 
         # breaking
+        print(sum_ideal_state, len(state.get_scooters()))
         if sum_ideal_state <= len(state.get_scooters()):
             for cluster_id in new_ideal_states.keys():
                 state.stations[cluster_id].average_number_of_scooters = state.stations[
@@ -186,9 +192,13 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
                 ].ideal_state
                 state.stations[cluster_id].ideal_state = new_ideal_states[cluster_id]
             break
-        elif percentile <= 0:
+        elif (percentile - delta) <= 0:
             raise ValueError(
                 "0%-percentile of ideal state-outcomes are greater than the number of scooters"
             )
         else:
             percentile -= delta
+
+    progressbar.finish()
+
+            

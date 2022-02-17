@@ -50,6 +50,8 @@ def compute_and_set_ideal_state(state: sim.State, sample_scooters: list):
         cluster_ideal_states, sum_to=len(sample_scooters)
     )
 
+    progressbar.finish()
+
     for cluster in state.stations:
         cluster.ideal_state = normalized_cluster_ideal_states[cluster.id]
 
@@ -58,8 +60,6 @@ def compute_and_set_ideal_state(state: sim.State, sample_scooters: list):
 
     # adjusting ideal state by average cluster in- and outflow
     simulate_state_outcomes(state_rebalanced_ideal_state, state)
-
-    progressbar.finish()
 
 
 def generate_scenarios(state: sim.State, number_of_scenarios=10000):
@@ -118,7 +118,7 @@ def get_initial_state(
 
         initial_state = clustering.scripts.get_initial_state(
             "Scooter",
-            sample_size = sample_size,
+            number_of_scooters = sample_size,
             number_of_clusters = number_of_clusters,
             initial_location_depot = initial_location_depot,
             number_of_vans = number_of_vans,
@@ -130,7 +130,7 @@ def get_initial_state(
         entur_dataframe = clustering.methods.read_bounded_csv_file(
             "test_data/0900-entur-snapshot.csv"
         )
-        sample_scooters = clustering.scripts.scooter_sample_filter(entur_dataframe, sample_size)
+        sample_scooters = clustering.scripts.scooter_sample_filter(initial_state.rng, entur_dataframe, sample_size)
 
         # Find the ideal state for each cluster
         compute_and_set_ideal_state(initial_state, sample_scooters)
