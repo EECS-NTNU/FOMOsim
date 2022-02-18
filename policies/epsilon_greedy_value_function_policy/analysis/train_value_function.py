@@ -94,7 +94,7 @@ if __name__ == "__main__":
     import os
 
     SAMPLE_SIZE = 2500
-    NUMBER_OF_CLUSTERS = [10, 20, 30, 50, 75, 100, 200, 300]
+    NUMBER_OF_CLUSTERS = [10, 20, 30, 50]
     decision_times = []
     for num_clusters in NUMBER_OF_CLUSTERS:
         value_function = policies.epsilon_greedy_value_function_policy.value_functions.ANNValueFunction(

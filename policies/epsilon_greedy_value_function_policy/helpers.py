@@ -184,7 +184,6 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
         sum_ideal_state = sum(list(new_ideal_states.values()))
 
         # breaking
-        print(sum_ideal_state, len(state.get_scooters()))
         if sum_ideal_state <= len(state.get_scooters()):
             for cluster_id in new_ideal_states.keys():
                 state.stations[cluster_id].average_number_of_scooters = state.stations[

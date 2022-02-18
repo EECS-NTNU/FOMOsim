@@ -48,7 +48,7 @@ class ANNValueFunction(ValueFunction):
     def use_replay_buffer(self):
         return True
 
-    def train(self, training_input):
+    def train(self, rng, training_input):
         buffer_size = training_input
         if (
             len(self.replay_buffer) < buffer_size
@@ -58,9 +58,9 @@ class ANNValueFunction(ValueFunction):
         buffer_size = min(buffer_size, 64)
         for j in range(2):
             random_sample = (
-                random.sample(self.replay_buffer, buffer_size)
+                rng.choice(self.replay_buffer, buffer_size, replace=False)
                 if j == 0
-                else random.sample(self.replay_buffer_negative, buffer_size)
+                else rng.choice(self.replay_buffer_negative, buffer_size, replace=False)
             )
             # Create training data from random sample
             states, targets = [], []

@@ -26,7 +26,7 @@ def run_analysis_from_path(
     visualize_route=False,
     runs_per_policy=10,
     shift_duration=960,
-    world_attribute="SHIFT_DURATION",
+    world_attribute="shift_duration",
     export_to_excel=False,
     multiprocess=True,
 ):
@@ -122,7 +122,7 @@ def run_analysis(
     save=False,
     baseline_policy_world=None,
     title=None,
-    world_attribute="SHIFT_DURATION",
+    world_attribute="shift_duration",
     export_to_excel=False,
     multiprocess=True,
 ):
@@ -203,7 +203,8 @@ if __name__ == "__main__":
         )
     else:
         run_analysis_from_path(
-            "world_cache/trained_models/LinearValueFunction/c50_s2500/2021-05-27T20:01",
+            "sim_cache/trained_models/ANNValueFunction/c20_s2500/2022-02-18T10:12",
             shift_duration=960,
             runs_per_policy=10,
+            multiprocess=False,
         )

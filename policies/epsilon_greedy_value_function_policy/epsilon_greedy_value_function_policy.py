@@ -180,7 +180,7 @@ def get_possible_actions(
                             [
                                 i
                                 for i in range(
-                                    0, max_int + 1, math.ceil(max_int / divide)
+                                    0, int(max_int + 1), int(math.ceil(max_int / divide))
                                 )
                             ]
                             + [max_int]
@@ -188,7 +188,7 @@ def get_possible_actions(
                     }
                 )
             else:
-                return [i for i in range(max_int + 1)]
+                return [i for i in range(int(max_int + 1))]
 
         # Initiate constraints for battery swap, pick-up and drop-off
         pick_ups = min(
@@ -263,8 +263,8 @@ def get_possible_actions(
             )
 
             return (
-                swappable_scooters_id[swaps : swaps + pick_up]
-                + none_swappable_scooters_id[:number_of_none_swappable_scooters]
+                swappable_scooters_id[int(swaps) : int(swaps + pick_up)]
+                + none_swappable_scooters_id[:int(number_of_none_swappable_scooters)]
             )
 
         # Adding every action. Actions are the IDs of the scooters to be handled.
@@ -287,10 +287,10 @@ def get_possible_actions(
                 ][0]
             actions.append(
                 sim.Action(
-                    swappable_scooters_id[:battery_swap],
+                    swappable_scooters_id[:int(battery_swap)],
                     choose_pick_up(battery_swap, pick_up),
                     [scooter.id for scooter in vehicle.scooter_inventory][
-                        :drop_off
+                        :int(drop_off)
                     ],
                     cluster_id,
                 )
@@ -348,7 +348,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
         )
 
         # Epsilon greedy choose an action based on value function
-        if self.epsilon > world.state.rng.rand():
+        if self.epsilon > world.state.rng.random():
             best_action = world.state.rng.choice(actions)
         else:
             # Create list containing all actions and their rewards and values (action, reward, value_function_value)
@@ -433,9 +433,9 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                 world.disable_training = False
             if not world.disable_training:
                 if self.value_function.use_replay_buffer():
-                    self.value_function.train(epssettings.REPLAY_BUFFER_SIZE)
+                    self.value_function.train(world.state.rng, epssettings.REPLAY_BUFFER_SIZE)
                 else:
-                    self.value_function.train(
+                    self.value_function.train(world.state.rng, 
                         (
                             state_features,
                             reward * epssettings.LOST_TRIP_REWARD,

@@ -4,41 +4,58 @@
 Multiprocessing extension of train_value_function.py
 """
 import os
+import sys
 from multiprocessing import Pool
-
-import decision.value_functions
-import classes
-from analysis.train_value_function import train_value_function
-import clustering.scripts
 import pandas as pd
+
+sys.path.insert(1, os.path.join(sys.path[0], '../../..'))
+
+import policies.epsilon_greedy_value_function_policy.value_functions
+import sim
+from policies.epsilon_greedy_value_function_policy.analysis.train_value_function import train_value_function
+import policies.epsilon_greedy_value_function_policy.settings as annsettings
+import clustering.scripts
 
 
 def training(input_arguments, suffix):
     SAMPLE_SIZE = 2500
     action_interval, number_of_neighbours = input_arguments
-    world_to_analyse = classes.World(
+
+    value_function = policies.epsilon_greedy_value_function_policy.value_functions.ANNValueFunction(
+        0.0001,
+        annsettings.WEIGHT_INITIALIZATION_VALUE,
+        annsettings.DISCOUNT_RATE,
+        annsettings.VEHICLE_INVENTORY_STEP_SIZE,
+        annsettings.LOCATION_REPETITION,
+        annsettings.TRACE_DECAY,
+        [1000, 2000, 100],
+    )
+
+    policy = policies.epsilon_greedy_value_function_policy.EpsilonGreedyValueFunctionPolicy(
+        action_interval,
+        number_of_neighbours,
+        annsettings.EPSILON,
+        value_function,
+    )
+
+    world_to_analyse = sim.Simulator(
         960,
-        None,
-        clustering.scripts.get_initial_state(
+        policy,
+        policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy.get_initial_state(
             SAMPLE_SIZE,
             50,
             number_of_vans=2,
-            number_of_bikes=0,
         ),
         verbose=False,
         visualize=False,
-        MODELS_TO_BE_SAVED=1,
-        TRAINING_SHIFTS_BEFORE_SAVE=50,
-        ANN_LEARNING_RATE=0.0001,
-        ANN_NETWORK_STRUCTURE=[1000, 2000, 100],
-        REPLAY_BUFFER_SIZE=100,
-        NUMBER_OF_NEIGHBOURS=number_of_neighbours,
-        DIVIDE_GET_POSSIBLE_ACTIONS=action_interval,
     )
-    world_to_analyse.policy = world_to_analyse.set_policy(
-        policy_class=decision.EpsilonGreedyValueFunctionPolicy,
-        value_function_class=decision.value_functions.ANNValueFunction,
-    )
+
+    policy.value_function.setup(world_to_analyse.state)
+
+    world_to_analyse.MODELS_TO_BE_SAVED=1
+    world_to_analyse.TRAINING_SHIFTS_BEFORE_SAVE=50
+    world_to_analyse.REPLAY_BUFFER_SIZE=100
+
     for cluster in world_to_analyse.state.stations:
         cluster.scooters = cluster.scooters[: round(len(cluster.scooters) * 0.6)]
     decision_times = [train_value_function(world_to_analyse, save_suffix=f"{suffix}")]

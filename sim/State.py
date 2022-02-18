@@ -313,7 +313,7 @@ class State(SaveMixin):
     def sample(self, sample_size: int):
         # Filter out scooters not in sample
         sampled_scooter_ids = self.rng.choice(
-            [scooter.id for scooter in self.get_scooters()], sample_size
+            [scooter.id for scooter in self.get_scooters()], sample_size, replace=False,
         )
         for cluster in self.stations:
             cluster.scooters = [
