@@ -114,7 +114,7 @@ def idealize_state(state):
     return state_rebalanced_ideal_state
 
 
-SIMULATIONS = 2
+SIMULATIONS = 100
 
 def simulate_state_outcomes(state_rebalanced_ideal_state, state):
     # dict to record the outcomes of available scooters in a cluster after simulation
