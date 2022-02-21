@@ -74,13 +74,15 @@ class Simulator(SaveMixin):
     def single_step(self):
         event = self.event_queue.pop(0)
 
-        # print()
-        # print("Time:", event.time)
-        # print(self.state)
+        if settings.VERBOSE:
+          print()
+          print("Time:", event.time)
+          print(self.state)
 
         event.perform(self)
 
-        # print("\n", event)
+        if settings.VERBOSE:
+            print("\n", event)
 
         return event
 

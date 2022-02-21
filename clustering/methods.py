@@ -12,6 +12,7 @@ from settings import (
     TEST_DATA_DIRECTORY,
     MAIN_DEPOT_LOCATION,
     SMALL_DEPOT_LOCATIONS,
+    TRIP_INTENSITY_FACTOR,
 )
 from progress.bar import Bar
 
@@ -286,6 +287,7 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list):
                 scooters_moving_in_the_cluster = moved_scooters[
                     moved_scooters["cluster_before"] == cluster.id
                 ]
+
                 # Number of scooters leaving the cluster
                 # + number of disappeared scooters likely to leave ( # of disappeared * ratio of leaving)
                 trip_counter_leave[cluster.id][index] = len(
@@ -313,8 +315,8 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list):
     cluster_leave_intensities = np.mean(trip_counter_leave, axis=1)
     cluster_arrive_intensities = np.mean(trip_counter_arrive, axis=1)
     for cluster in state.stations:
-        cluster.leave_intensity_per_iteration = cluster_leave_intensities[cluster.id]
-        cluster.arrive_intensity_per_iteration = cluster_arrive_intensities[cluster.id]
+        cluster.leave_intensity_per_iteration = cluster_leave_intensities[cluster.id] * TRIP_INTENSITY_FACTOR
+        cluster.arrive_intensity_per_iteration = cluster_arrive_intensities[cluster.id] * TRIP_INTENSITY_FACTOR
 
     progress.finish()
 

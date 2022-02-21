@@ -75,11 +75,21 @@ class State(SaveMixin):
         """
         return min(self.stations, key=lambda cluster: cluster.distance_to(lat, lon))
 
+    # parked scooters
     def get_scooters(self):
         all_scooters = []
         for cluster in self.stations:
             for scooter in cluster.scooters:
                 all_scooters.append(scooter)
+        return all_scooters
+
+    # parked and in-use scooters
+    def get_all_scooters(self):
+        all_scooters = []
+        for cluster in self.stations:
+            for scooter in cluster.scooters:
+                all_scooters.append(scooter)
+        all_scooters.extend(self.scooters_in_use)
         return all_scooters
 
     def sample_size(self):

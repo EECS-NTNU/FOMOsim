@@ -3,6 +3,7 @@ SIM SETTINGS
 """
 
 # general settings
+VERBOSE = False
 FULL_TRIP = True
 ITERATION_LENGTH_MINUTES = 20
 GEOSPATIAL_BOUND_NEW = (59.9040, 59.9547, 10.6478, 10.8095) # geographical limits (lat_min, lat_max, long_min, long_max)
@@ -32,6 +33,7 @@ SMALL_DEPOT_LOCATIONS = [
     (59.908009, 10.741604),
     (59.944473, 10.748624),
 ]
+TRIP_INTENSITY_FACTOR = 1
 
 # Depot settings
 MAIN_DEPOT_CAPACITY = 10000

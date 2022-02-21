@@ -18,7 +18,7 @@ class Metric:
 
     def add_analysis_metrics(self, sim):
         self.metrics["average_battery"].append((sim.time, 
-                                                  sum([scooter.battery for scooter in sim.state.get_scooters() if scooter.hasBattery()]) / len(sim.state.get_scooters()))
+                                                  sum([scooter.battery for scooter in sim.state.get_all_scooters() if scooter.hasBattery()]) / len(sim.state.get_all_scooters()))
         )
         self.metrics["total_available_scooters"].append((sim.time, 
             sum(

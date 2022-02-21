@@ -56,7 +56,7 @@ def get_initial_state(
     initial_state = State(clusters, depots, rng=rng)
 
     # Sample size filtering. Create list of scooter ids to include
-    sample_scooters = scooter_sample_filter(rng, entur_dataframe, number_of_scooters)
+    sample_scooters = scooter_sample_filter(rng, entur_dataframe)
 
     # Trip intensity analysis
     methods.compute_and_set_trip_intensity(initial_state, sample_scooters)
