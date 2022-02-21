@@ -114,6 +114,8 @@ def idealize_state(state):
     return state_rebalanced_ideal_state
 
 
+SIMULATIONS = 2
+
 def simulate_state_outcomes(state_rebalanced_ideal_state, state):
     # dict to record the outcomes of available scooters in a cluster after simulation
     simulating_outcomes = {
@@ -121,10 +123,10 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
         for cluster_id in range(len(state_rebalanced_ideal_state.stations))
     }
 
-    progressbar = Bar("| Simulating state outcomes", max=100)
+    progressbar = Bar("| Simulating state outcomes", max=SIMULATIONS)
 
     # simulating 100 times
-    for i in range(100):
+    for i in range(SIMULATIONS):
         progressbar.next()
 
         simulating_state = copy.deepcopy(state_rebalanced_ideal_state)
@@ -167,19 +169,28 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
 
     # loop until the sum of new ideal states is less or equal to the number of scooters in the state
     while True:
-        # setting the new ideal state of the clusters where not all outcomes are greater than ideal state to:
-        # ideal state + %-percentile of the difference between ideal state - outcomes
-        for cluster_id in delta_ideal_state_and_outcomes.keys():
-            quantile_outcomes = round(
-                np.quantile(delta_ideal_state_and_outcomes[cluster_id], percentile)
-            )
+        if (percentile - delta) <= 0:
+            sum_ideal_state = sum(list(new_ideal_states.values()))
 
-            new_ideal_states[cluster_id] = (
-                state_rebalanced_ideal_state.stations[cluster_id].ideal_state
-                + quantile_outcomes
-                if quantile_outcomes > 0
-                else 0
-            )
+            while sum_ideal_state > len(state.get_scooters()):
+                cluster_id = state.rng.choice(list(delta_ideal_state_and_outcomes.keys()))
+                new_ideal_states[cluster_id] -= 1
+                sum_ideal_state = sum(list(new_ideal_states.values()))
+
+        else:
+            # setting the new ideal state of the clusters where not all outcomes are greater than ideal state to:
+            # ideal state + %-percentile of the difference between ideal state - outcomes
+            for cluster_id in delta_ideal_state_and_outcomes.keys():
+                quantile_outcomes = round(
+                    np.quantile(delta_ideal_state_and_outcomes[cluster_id], percentile)
+                )
+
+                new_ideal_states[cluster_id] = (
+                    state_rebalanced_ideal_state.stations[cluster_id].ideal_state
+                    + quantile_outcomes
+                    if quantile_outcomes > 0
+                    else 0
+                )
 
         sum_ideal_state = sum(list(new_ideal_states.values()))
 
@@ -191,12 +202,8 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
                 ].ideal_state
                 state.stations[cluster_id].ideal_state = new_ideal_states[cluster_id]
             break
-        elif (percentile - delta) <= 0:
-            raise ValueError(
-                "0%-percentile of ideal state-outcomes are greater than the number of scooters"
-            )
-        else:
-            percentile -= delta
+
+        percentile -= delta
 
     progressbar.finish()
 

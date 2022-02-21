@@ -12,7 +12,7 @@ from visualization.visualizer import visualize_analysis
 
 SEED = 2
 PERIOD = 960 # 16 hours
-NUMBER_OF_SCOOTERS = 100
+NUMBER_OF_SCOOTERS = 1000
 NUMBER_OF_CLUSTERS = 10
 NUMBER_OF_VANS = 1
 
@@ -39,47 +39,47 @@ simulator = sim.Simulator(
 # Run first simulator
 simulator.run()
 
-# # Set up initial state for simulator 2
-# state2 = clustering.scripts.get_initial_state(
-#     classname = "Scooter",
-#     number_of_scooters = NUMBER_OF_SCOOTERS,
-#     number_of_clusters = NUMBER_OF_CLUSTERS,
-#     number_of_vans = NUMBER_OF_VANS,
-#     random_seed=SEED,
-# )
+# Set up initial state for simulator 2
+state2 = clustering.scripts.get_initial_state(
+    classname = "Scooter",
+    number_of_scooters = NUMBER_OF_SCOOTERS,
+    number_of_clusters = NUMBER_OF_CLUSTERS,
+    number_of_vans = NUMBER_OF_VANS,
+    random_seed=SEED,
+)
 
-# # Set up second simulator
-# simulator2 = sim.Simulator(
-#     PERIOD,
-#     policies.RandomActionPolicy(),
-#     state2,
-#     verbose=False,
-#     visualize=False,
-#     label="RandomAction",
-# )
+# Set up second simulator
+simulator2 = sim.Simulator(
+    PERIOD,
+    policies.RandomActionPolicy(),
+    state2,
+    verbose=False,
+    visualize=False,
+    label="RandomAction",
+)
 
-# simulator2.run()
+simulator2.run()
 
-# # Set up initial state for simulator 3
-# state3 = clustering.scripts.get_initial_state(
-#     classname = "Scooter",
-#     number_of_scooters = NUMBER_OF_SCOOTERS,
-#     number_of_clusters = NUMBER_OF_CLUSTERS,
-#     number_of_vans = NUMBER_OF_VANS,
-#     random_seed=SEED,
-# )
+# Set up initial state for simulator 3
+state3 = clustering.scripts.get_initial_state(
+    classname = "Scooter",
+    number_of_scooters = NUMBER_OF_SCOOTERS,
+    number_of_clusters = NUMBER_OF_CLUSTERS,
+    number_of_vans = NUMBER_OF_VANS,
+    random_seed=SEED,
+)
 
-# # Set up second simulator
-# simulator3 = sim.Simulator(
-#     PERIOD,
-#     policies.RebalancingPolicy(),
-#     state3,
-#     verbose=False,
-#     visualize=False,
-#     label="Rebalancing",
-# )
+# Set up second simulator
+simulator3 = sim.Simulator(
+    PERIOD,
+    policies.RebalancingPolicy(),
+    state3,
+    verbose=False,
+    visualize=False,
+    label="Rebalancing",
+)
 
-# simulator3.run()
+simulator3.run()
 
 # Visualize results
-visualize_analysis([simulator])
+visualize_analysis([simulator, simulator2, simulator3])
