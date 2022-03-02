@@ -26,7 +26,7 @@ class RebalancingPolicy(Policy):
         sample_scooters = clustering.scripts.scooter_sample_filter(simul.state.rng, entur_dataframe, simul.state.sample_size())
         policies.epsilon_greedy_value_function_policy.compute_and_set_ideal_state(simul.state, sample_scooters)
 
-    def get_best_action(self, world, vehicle):
+    def get_best_action(self, simul, vehicle):
         vehicle_has_scooter_inventory = len(vehicle.scooter_inventory) > 0
         if vehicle.is_at_depot():
             scooters_to_deliver = []
@@ -76,9 +76,8 @@ class RebalancingPolicy(Policy):
             return sorted(
                 [
                     cluster
-                    for cluster in world.state.stations
+                    for cluster in simul.state.stations
                     if cluster.id != vehicle.current_location.id
-                    and cluster.id not in world.tabu_list
                 ],
                 key=lambda cluster: len(cluster.get_available_scooters())
                 - cluster.ideal_state,
@@ -92,7 +91,7 @@ class RebalancingPolicy(Policy):
             - number_of_scooters_to_pick_up
             < vehicle.battery_inventory_capacity * 0.1
         ) and not vehicle.is_at_depot():
-            next_location_id = world.state.depots[0].id
+            next_location_id = simul.state.depots[0].id
         else:
             """
             If vehicle has scooter inventory upon arrival,

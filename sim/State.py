@@ -272,7 +272,6 @@ class State(SaveMixin):
         current_vehicle_id: int,
         current_location_id: int,
         next_location_id: int,
-        tabu_list: [int],
         policy: str,
     ):
         visualize_vehicle_routes(
@@ -280,7 +279,6 @@ class State(SaveMixin):
             current_vehicle_id,
             current_location_id,
             next_location_id,
-            tabu_list,
             policy,
         )
 

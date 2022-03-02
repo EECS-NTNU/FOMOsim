@@ -35,7 +35,6 @@ class Simulator(SaveMixin):
         self.state = initial_state
         self.time = 0
         self.event_queue: List[sim.Event] = []
-        self.tabu_list = []
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.vehicles:
             self.event_queue.append(
@@ -182,7 +181,6 @@ class Simulator(SaveMixin):
     #     )
     #     new_sim.time = self.time
     #     new_sim.stack = copy.deepcopy(self.stack)
-    #     new_sim.tabu_list = self.tabu_list.copy()
     #     new_sim.cluster_flow = self.cluster_flow.copy()
     #     new_sim.metrics = copy.deepcopy(self.metrics)
     #     # Set all hyper parameters

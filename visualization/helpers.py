@@ -621,27 +621,6 @@ def add_location_center(locations, ax):
         )
 
 
-def plot_tabu_list(ax, tabu_list):
-    tabu_string = "Locations:\n"
-
-    for tabu in tabu_list:
-        tabu_string += f" - {tabu}\n"
-
-    props = dict(boxstyle="round", facecolor="wheat", pad=0.5, alpha=0.5)
-
-    # place a text box in upper left in axes coords
-    ax.text(
-        0,
-        0.98,
-        tabu_string,
-        transform=ax.transAxes,
-        fontsize=10,
-        horizontalalignment="left",
-        verticalalignment="top",
-        bbox=props,
-    )
-
-
 def plot_smoothed_curve(x, y, ax, color, label, z_order=1):
     x, y = post_process_curve(x, y)
     x_smooth = np.linspace(np.min(x), np.max(x), 1000)

@@ -169,16 +169,15 @@ class RandomActionPolicy(Policy):
     def __init__(self):
         super().__init__()
 
-    def get_best_action(self, world, vehicle):
+    def get_best_action(self, simul, vehicle):
         # all possible actions in this state
         possible_actions = get_possible_actions(
-            world.state,
+            simul.state,
             vehicle,
-            exclude=world.tabu_list,
-            time=world.time,
+            time=simul.time,
             # divide=2,
             # number_of_neighbours=2,
         )
 
         # pick a random action
-        return world.state.rng.choice(possible_actions)
+        return simul.state.rng.choice(possible_actions)

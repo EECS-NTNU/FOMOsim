@@ -14,7 +14,7 @@ class SwapAllPolicy(Policy):
     def __init__(self):
         super().__init__()
 
-    def get_best_action(self, world, vehicle):
+    def get_best_action(self, simul, vehicle):
         # Choose a random cluster
 
         if vehicle.is_at_depot():
@@ -36,14 +36,13 @@ class SwapAllPolicy(Policy):
             vehicle.battery_inventory - number_of_scooters_to_swap
             < vehicle.battery_inventory_capacity * 0.1
         ) and not vehicle.is_at_depot():
-            next_location = world.state.depots[0]
+            next_location = simul.state.depots[0]
         else:
             next_location = sorted(
                 [
                     cluster
-                    for cluster in world.state.stations
+                    for cluster in simul.state.stations
                     if cluster.id != vehicle.current_location.id
-                    and cluster.id not in world.tabu_list
                 ],
                 key=lambda cluster: (
                     len(cluster.scooters) - get_current_state(cluster)

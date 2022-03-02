@@ -330,31 +330,30 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
             available_scooters.append(cluster.get_available_scooters())
         return current_states, available_scooters
 
-    def get_best_action(self, world, vehicle):
+    def get_best_action(self, simul, vehicle):
         # Find all possible actions
         actions = get_possible_actions(
-            world.state,
+            simul.state,
             vehicle,
             divide=self.get_possible_actions_divide,
-            exclude=world.tabu_list,
-            time=world.time,
+            time=simul.time,
             number_of_neighbours=self.number_of_neighbors,
         )
-        state = world.state
+        state = simul.state
         cache = EpsilonGreedyValueFunctionPolicy.get_cache(state)
         # Get state representation of current state
         state_features = self.value_function.get_state_features(
-            world.state, vehicle, cache
+            simul.state, vehicle, cache
         )
 
         # Epsilon greedy choose an action based on value function
-        if self.epsilon > world.state.rng.random():
-            best_action = world.state.rng.choice(actions)
+        if self.epsilon > simul.state.rng.random():
+            best_action = simul.state.rng.choice(actions)
         else:
             # Create list containing all actions and their rewards and values (action, reward, value_function_value)
             action_info = [
                 (
-                    sim.Action([], [], [], world.state.rng.choice(world.state.locations).id),
+                    sim.Action([], [], [], simul.state.rng.choice(simul.state.locations).id),
                     -1000,
                     [],
                 )  # No actions bug
@@ -367,7 +366,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                     vehicle.id
                 )
                 # perform action
-                forward_state.do_action(action, forward_vehicle, world.time)
+                forward_state.do_action(action, forward_vehicle, simul.time)
                 # Simulate the system to generate potential lost trips
                 _, _, lost_demands = policies.epsilon_greedy_value_function_policy.system_simulation.scripts.system_simulate(
                     forward_state
@@ -382,8 +381,8 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                 next_action_actions = get_possible_actions(forward_state,
                     forward_vehicle,
                     divide=self.get_possible_actions_divide,
-                    exclude=world.tabu_list + [action.next_location],
-                    time=world.time
+                    exclude=[action.next_location],
+                    time=simul.time
                     + action.get_action_time(
                         state.get_distance(
                             vehicle.current_location.id,
@@ -429,13 +428,13 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
             best_action, next_state_value, next_state_features = max(
                 action_info, key=lambda pair: pair[1]
             )
-            if not hasattr(world, "disable_training"):
-                world.disable_training = False
-            if not world.disable_training:
+            if not hasattr(simul, "disable_training"):
+                simul.disable_training = False
+            if not simul.disable_training:
                 if self.value_function.use_replay_buffer():
-                    self.value_function.train(world.state.rng, epssettings.REPLAY_BUFFER_SIZE)
+                    self.value_function.train(simul.state.rng, epssettings.REPLAY_BUFFER_SIZE)
                 else:
-                    self.value_function.train(world.state.rng, 
+                    self.value_function.train(simul.state.rng, 
                         (
                             state_features,
                             reward * epssettings.LOST_TRIP_REWARD,

@@ -35,35 +35,6 @@ class WorldTestCase(unittest.TestCase):
     def test_run_with_initial_stack(self):
         self.world.run()
 
-    def test_tabu_list(self):
-        # Clear initial stack
-        self.world.event_queue = []
-        # Perform Vehicle arrival event
-        arrival_event = sim.VehicleArrival(0, 0, False)
-        arrival_event.perform(self.world)
-        vehicle = [vehicle for vehicle in self.world.state.vehicles if vehicle.id == 0][
-            0
-        ]
-        # Record the next location
-        first_vehicle_location = vehicle.current_location.id
-
-        # Check that next vehicle location is in tabu list
-        self.assertIn(first_vehicle_location, self.world.tabu_list)
-        # Check that exclude works in next vehicle location not in possible actions
-        self.assertNotIn(
-            first_vehicle_location,
-            [
-                action.next_location
-                for action in self.world.state.get_possible_actions(
-                    vehicle, number_of_neighbours=10, exclude=self.world.tabu_list
-                )
-            ],
-        )
-        # Perform vehicle next vehicle arrival event
-        self.world.event_queue.pop().perform(self.world)
-        # Check that the old vehicle location is not in the tabu list
-        self.assertNotIn(first_vehicle_location, self.world.tabu_list)
-
     def save_world(self):
         filepath = f"{settings.WORLD_CACHE_DIR}/{self.world.get_filename()}.pickle"
         self.world.save(settings.WORLD_CACHE_DIR)

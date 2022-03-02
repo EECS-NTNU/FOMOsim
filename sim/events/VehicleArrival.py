@@ -30,13 +30,6 @@ class VehicleArrival(Event):
                 "OBS! Something went wrong. The vehicle is not in this state."
             )
 
-        # Remove current vehicle state from tabu list
-        world.tabu_list = [
-            cluster_id
-            for cluster_id in world.tabu_list
-            if cluster_id != vehicle.current_location.id
-        ]
-
         if self.visualize:
             # copy state before action for visualization purposes
             state_before_action = copy.deepcopy(world.state)
@@ -57,7 +50,6 @@ class VehicleArrival(Event):
                 self.vehicle_id,
                 vehicle.current_location.id,
                 action.next_location,
-                world.tabu_list,
                 world.policy.__str__(),
             )
 
@@ -69,10 +61,6 @@ class VehicleArrival(Event):
 
         # perform the best action on the state and send vehicle to new location
         refill_time = world.state.do_action(action, vehicle, world.time)
-
-        # Add next vehicle location to tabu list
-        if not vehicle.is_at_depot():
-            world.tabu_list.append(action.next_location)
 
         action_time = (
             action.get_action_time(

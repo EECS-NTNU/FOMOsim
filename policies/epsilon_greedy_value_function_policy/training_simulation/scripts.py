@@ -31,13 +31,6 @@ def training_simulation(world):
                 world, current_vehicle
             )
 
-            # Remove current vehicle state from tabu list
-            world.tabu_list = [
-                cluster_id
-                for cluster_id in world.tabu_list
-                if cluster_id != current_vehicle.current_location.id
-            ]
-
             action_time = action.get_action_time(
                 world.state.get_distance(
                     current_vehicle.current_location.id, action.next_location
@@ -46,10 +39,6 @@ def training_simulation(world):
 
             # Performing the best action and adding refill_time to action_time
             action_time += world.state.do_action(action, current_vehicle, world.time)
-
-            # Add next vehicle location to tabu list if its not a depot
-            if not current_vehicle.is_at_depot():
-                world.tabu_list.append(action.next_location)
 
             # updating the current vehicle time to the next arrival
             vehicle_times[vehicle_index] += action_time

@@ -11,7 +11,7 @@ class NightShift(Policy):
     def __init__(self):
         super().__init__()
 
-    def get_best_action(self, world, vehicle):
+    def get_best_action(self, simul, vehicle):
         return sim.Action([], [], [], 0)
 
     def initSim(self, simul):

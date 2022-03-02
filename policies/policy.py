@@ -12,10 +12,10 @@ class Policy(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_best_action(self, world, vehicle):
+    def get_best_action(self, simul, vehicle):
         """
         Returns the best action for the input vehicle in the world context
-        :param world: world object that contains the whole world state
+        :param simul: simulator object that contains the whole simulation state
         :param vehicle: the vehicle to perform an action
         :return: the best action according to the policy
         """
@@ -30,6 +30,11 @@ class Policy(abc.ABC):
         pass
 
     def initSim(self, sim):
+        """
+        Function called after sim object is created
+        For initializing stuff that needs access to the initial event queue or state
+        :param sim: simulator object
+        """
         pass
 
     def __repr__(self):

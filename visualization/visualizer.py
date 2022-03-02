@@ -126,13 +126,11 @@ def visualize_vehicle_routes(
     current_vehicle_id=None,
     current_location_id=None,
     next_location_id=None,
-    tabu_list=None,
     policy="",
 ):
     """
     Visualize the vehicle route in a state from a simulation
     :param policy: name of current policy
-    :param tabu_list: current tabulist
     :param current_location_id: vehicles current location id
     :param state: State to display
     :param current_vehicle_id: current vehicle at a cluster
@@ -146,8 +144,6 @@ def visualize_vehicle_routes(
         ],
         fig_title=policy.__str__(),
     )
-
-    plot_tabu_list(ax1, tabu_list)
 
     (
         graph,
