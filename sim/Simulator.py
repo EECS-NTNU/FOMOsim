@@ -24,7 +24,7 @@ class Simulator(SaveMixin):
         policy,
         initial_state,
         verbose=False,
-        visualize=True,
+        visualize=False,
         label=None,
         **kwargs,
     ):

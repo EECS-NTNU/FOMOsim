@@ -36,8 +36,6 @@ simulator = sim.Simulator(
     PERIOD,
     policies.DoNothing(),
     copy.deepcopy(state),
-    verbose=False,
-    visualize=False,
     label="DoNothing",
 )
 
@@ -51,8 +49,6 @@ simulator2 = sim.Simulator(
     PERIOD,
     policies.RandomActionPolicy(),
     copy.deepcopy(state),
-    verbose=False,
-    visualize=False,
     label="RandomAction",
 )
 
@@ -66,8 +62,6 @@ simulator3 = sim.Simulator(
     PERIOD,
     policies.RebalancingPolicy(),
     copy.deepcopy(state),
-    verbose=False,
-    visualize=False,
     label="Rebalancing",
 )
 
