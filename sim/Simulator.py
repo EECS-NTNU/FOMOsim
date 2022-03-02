@@ -172,11 +172,11 @@ class Simulator(SaveMixin):
             directory = f"{settings.SIM_CACHE_DIR}/{cache_directory}"
         super().save(directory, f"-{suffix}")
 
-    # def __deepcopy__(self, *args):
+    # def sloppycopy(self, *args):
     #     new_sim = Simulator(
     #         self.shift_duration,
     #         self.policy,
-    #         copy.deepcopy(self.state),
+    #         self.state.sloppycopy(),
     #         verbose=self.verbose,
     #         visualize=self.visualize,
     #     )

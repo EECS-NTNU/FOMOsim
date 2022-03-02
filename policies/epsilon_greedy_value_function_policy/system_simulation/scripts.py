@@ -4,6 +4,10 @@ File containing the system simulation. The system simulation simulate customer b
 
 import numpy as np
 
+def fast_choice(rng, values):
+    L = len(values)
+    i = rng.integers(0, L)
+    return values[i]
 
 def system_simulate(state):
     """
@@ -20,7 +24,8 @@ def system_simulate(state):
     }
     trips = []
     lost_demand = []
-    scenario = state.rng.choice(state.simulation_scenarios)
+    scenario = fast_choice(state.rng, state.simulation_scenarios)
+
     for start_cluster_id, number_of_trips, end_cluster_indices in scenario:
         start_cluster = state.get_location_by_id(start_cluster_id)
         # if there is more trips than scooters available, the system has lost demand

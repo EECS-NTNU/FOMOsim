@@ -41,18 +41,18 @@ class State(SaveMixin):
             self.distance_matrix = self.calculate_distance_matrix()
         self.TRIP_INTENSITY_RATE = 0.1
 
-    # def __deepcopy__(self, *args):
-    #     new_state = State(
-    #         copy.deepcopy(self.stations),
-    #         copy.deepcopy(self.depots),
-    #         copy.deepcopy(self.vehicles),
-    #         distance_matrix=self.distance_matrix,
-    #     )
-    #     for vehicle in new_state.vehicles:
-    #         vehicle.current_location = new_state.get_location_by_id(
-    #             vehicle.current_location.id
-    #         )
-    #     return new_state
+    def sloppycopy(self, *args):
+        new_state = State(
+            copy.deepcopy(self.stations),
+            copy.deepcopy(self.depots),
+            copy.deepcopy(self.vehicles),
+            distance_matrix=self.distance_matrix,
+        )
+        for vehicle in new_state.vehicles:
+            vehicle.current_location = new_state.get_location_by_id(
+                vehicle.current_location.id
+            )
+        return new_state
 
     def scooter_in_use(self, scooter):
         self.scooters_in_use.append(scooter)

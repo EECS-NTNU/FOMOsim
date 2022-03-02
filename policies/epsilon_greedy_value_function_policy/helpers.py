@@ -129,7 +129,8 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
     for i in range(SIMULATIONS):
         progressbar.next()
 
-        simulating_state = copy.deepcopy(state_rebalanced_ideal_state)
+        simulating_state = state_rebalanced_ideal_state.sloppycopy()
+        simulating_state.simulation_scenarios = state_rebalanced_ideal_state.simulation_scenarios
         # simulates until the end of the day
         for j in range(
             round(
