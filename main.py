@@ -10,23 +10,19 @@ import clustering.scripts
 import policies
 from visualization.visualizer import visualize_analysis
 
+PERIOD = 960 # 16 hours
+
 ###############################################################################
 
 # Set up initial state
 # This is done with a script that reads data from an "entur" snapshot
 
-SEED = 2
-PERIOD = 960 # 16 hours
-NUMBER_OF_SCOOTERS = 1000
-NUMBER_OF_CLUSTERS = 10
-NUMBER_OF_VANS = 1
-
 state = clustering.scripts.get_initial_state(
     classname = "Scooter",
-    number_of_scooters = NUMBER_OF_SCOOTERS,
-    number_of_clusters = NUMBER_OF_CLUSTERS,
-    number_of_vans = NUMBER_OF_VANS,
-    random_seed=SEED,
+    number_of_scooters = 1000,
+    number_of_clusters = 10,
+    number_of_vans = 1,
+    random_seed=1,
 )
 
 ###############################################################################
