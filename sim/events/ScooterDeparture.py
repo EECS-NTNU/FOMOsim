@@ -32,7 +32,7 @@ class ScooterDeparture(Event):
             if FULL_TRIP:
                 # get a arrival cluster from the leave prob distribution
                 arrival_cluster = world.state.rng.choice(
-                    world.state.stations, p=departure_cluster.get_leave_distribution()
+                    world.state.locations, p=departure_cluster.get_leave_distribution(world.state)
                 )
 
                 trip_distance = world.state.get_distance(

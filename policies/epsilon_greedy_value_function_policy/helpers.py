@@ -120,7 +120,7 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
     # dict to record the outcomes of available scooters in a cluster after simulation
     simulating_outcomes = {
         cluster_id: []
-        for cluster_id in range(len(state_rebalanced_ideal_state.stations))
+        for cluster_id in range(len(state_rebalanced_ideal_state.locations))
     }
 
     progressbar = Bar("| Simulating state outcomes", max=SIMULATIONS)
@@ -187,7 +187,7 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
                 )
 
                 new_ideal_states[cluster_id] = (
-                    state_rebalanced_ideal_state.stations[cluster_id].ideal_state
+                    state_rebalanced_ideal_state.locations[cluster_id].ideal_state
                     + quantile_outcomes
                     if quantile_outcomes > 0
                     else 0
@@ -198,10 +198,10 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
         # breaking
         if sum_ideal_state <= len(state.get_scooters()):
             for cluster_id in new_ideal_states.keys():
-                state.stations[cluster_id].average_number_of_scooters = state.stations[
+                state.locations[cluster_id].average_number_of_scooters = state.locations[
                     cluster_id
                 ].ideal_state
-                state.stations[cluster_id].ideal_state = new_ideal_states[cluster_id]
+                state.locations[cluster_id].ideal_state = new_ideal_states[cluster_id]
             break
 
         percentile -= delta

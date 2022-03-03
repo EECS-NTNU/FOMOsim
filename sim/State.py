@@ -1,14 +1,10 @@
-from sim.Location import Location
-from sim.Station import Station
-from sim.Depot import Depot
+import sim
 import clustering.methods
 from sim.SaveMixin import SaveMixin
-from visualization.visualizer import *
 import numpy as np
 import math
-from settings import STATE_CACHE_DIR
+from settings import *
 import copy
-
 
 class State(SaveMixin):
     """
@@ -17,10 +13,10 @@ class State(SaveMixin):
 
     def __init__(
         self,
-        stations: [Station] = [],
-        depots: [Depot] = [],
-        vehicles: [Vehicle] = [],
-        scooters_in_use: [Location] = [], # scooters in use (not parked at any station)
+        stations: [sim.Station] = [],
+        depots: [sim.Depot] = [],
+        vehicles: [sim.Vehicle] = [],
+        scooters_in_use: [sim.Location] = [], # scooters in use (not parked at any station)
         distance_matrix=None, # will calculate based on coordinates if not given
         rng = None,
     ):
@@ -34,7 +30,7 @@ class State(SaveMixin):
         self.depots = depots
         self.scooters_in_use = scooters_in_use
 
-        self.locations = self.stations + self.depots
+        self.locations = self.depots + self.stations
         if distance_matrix:
             self.distance_matrix = distance_matrix
         else:
@@ -53,6 +49,38 @@ class State(SaveMixin):
                 vehicle.current_location.id
             )
         return new_state
+
+    @staticmethod
+    def get_initial_state(bike_class, distance_matrix, main_depot, secondary_depots, number_of_scooters, arrive_intensities, leave_intensities, move_probabilities, number_of_vans, random_seed=None):
+        depots = [sim.Depot(depot_id=main_depot, main_depot=True)]
+        for depot_id in secondary_depots:
+            depots.append(sim.Depot(depot_id=depot_id))
+
+        stations = []
+
+        start_of_ids = len(depots) + len(number_of_scooters)
+
+        for station_id in range(len(number_of_scooters)):
+            if station_id != main_depot and station_id not in secondary_depots:
+                scooters = []
+                for scooter_id in range(number_of_scooters[station_id]):
+                    if bike_class == "Scooter":
+                        scooters.append(sim.Scooter(scooter_id=start_of_ids + scooter_id, battery=100))
+                    else:
+                        scooters.append(sim.Bike(scooter_id=start_of_ids + scooter_id))
+                start_of_ids += number_of_scooters[station_id]
+                stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id]))
+
+        vehicles = []
+        for vehicle_id in range(number_of_vans):
+            vehicles.append(sim.Vehicle(vehicle_id, depots[0], VAN_BATTERY_INVENTORY, VAN_SCOOTER_INVENTORY))
+
+        rng=np.random.default_rng(random_seed)
+            
+        state = State(stations, depots, vehicles, distance_matrix=distance_matrix, rng=rng)
+        state.set_probability_matrix(move_probabilities)
+
+        return state
 
     def scooter_in_use(self, scooter):
         self.scooters_in_use.append(scooter)
@@ -98,8 +126,8 @@ class State(SaveMixin):
     def get_distance(self, start_location_id: int, end_location_id: int):
         """
         Calculate distance between two stations
-        :param start_location_id: Location id
-        :param end_location_id: Location id
+        :param start_location_id: sim.Location id
+        :param end_location_id: sim.Location id
         :return: float - distance in kilometers
         """
         return self.distance_matrix[start_location_id][end_location_id]
@@ -125,7 +153,7 @@ class State(SaveMixin):
             distance_matrix.append(neighbour_distance)
         return distance_matrix
 
-    def do_action(self, action: Action, vehicle: Vehicle, time: int):
+    def do_action(self, action: sim.Action, vehicle: sim.Vehicle, time: int):
         """
         Performs an action on the state -> changing the state
         :param time: at what time the action is performed
@@ -187,7 +215,7 @@ class State(SaveMixin):
 
     def get_neighbours(
         self,
-        location: Location,
+        location: sim.Location,
         number_of_neighbours=None,
         is_sorted=True,
         exclude=None,
@@ -232,64 +260,8 @@ class State(SaveMixin):
         else:
             raise ValueError(f"No locations with id={location_id} where found")
 
-    def visualize(self):
-        visualize_state(self)
-
-    def visualize_clustering(self):
-        visualize_clustering(self.stations)
-
-    def visualize_flow(
-        self,
-        flows: [(int, int, int)],
-    ):
-        visualize_cluster_flow(self, flows)
-
-    def visualize_action(
-        self,
-        vehicle_before_action: Vehicle,
-        current_state: State,
-        vehicle: Vehicle,
-        action: Action,
-        world_time,
-        action_time,
-        scooter_battery: bool,
-        policy: str,
-    ):
-        visualize_action(
-            self,
-            vehicle_before_action,
-            current_state,
-            vehicle,
-            action,
-            world_time,
-            action_time,
-            scooter_battery,
-            policy,
-        )
-
-    def visualize_vehicle_routes(
-        self,
-        current_vehicle_id: int,
-        current_location_id: int,
-        next_location_id: int,
-        policy: str,
-    ):
-        visualize_vehicle_routes(
-            self,
-            current_vehicle_id,
-            current_location_id,
-            next_location_id,
-            policy,
-        )
-
-    def visualize_current_trips(self, trips: [(int, int, int)]):
-        visualize_scooters_on_trip(self, trips)
-
-    def visualize_system_simulation(self, trips):
-        visualize_scooter_simulation(self, trips)
-
     def set_probability_matrix(self, probability_matrix: np.ndarray):
-        if probability_matrix.shape != (len(self.stations), len(self.stations)):
+        if probability_matrix.shape != (len(self.locations), len(self.locations)):
             ValueError(
                 f"The shape of the probability matrix does not match the number of stations in the class:"
                 f" {probability_matrix.shape} != {(len(self.stations), len(self.stations))}"
@@ -337,7 +309,7 @@ class State(SaveMixin):
             else self.stations
         )
 
-    def get_vehicle_by_id(self, vehicle_id: int) -> Vehicle:
+    def get_vehicle_by_id(self, vehicle_id: int) -> sim.Vehicle:
         """
         Returns the vehicle object in the state corresponding to the vehicle id input
         :param vehicle_id: the id of the vehicle to fetch

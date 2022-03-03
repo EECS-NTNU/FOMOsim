@@ -29,7 +29,7 @@ def compute_and_set_ideal_state(state: sim.State, sample_scooters: list):
         "| Computing ideal state", max=len(os.listdir(settings.TEST_DATA_DIRECTORY))
     )
     number_of_scooters_counter = np.zeros(
-        (len(state.stations), len(os.listdir(settings.TEST_DATA_DIRECTORY)))
+        (len(state.locations), len(os.listdir(settings.TEST_DATA_DIRECTORY)))
     )
     for index, file_path in enumerate(sorted(os.listdir(settings.TEST_DATA_DIRECTORY))):
         progressbar.next()
@@ -70,7 +70,7 @@ def generate_scenarios(state: sim.State, number_of_scenarios=10000):
     :return: the scenarios list of (cluster id, number of trips, list of end cluster ids)
     """
     scenarios = []
-    cluster_indices = np.arange(len(state.stations))
+    cluster_indices = np.arange(len(state.locations))
     for i in range(number_of_scenarios):
         one_scenario = []
         for cluster in state.stations:
@@ -79,7 +79,7 @@ def generate_scenarios(state: sim.State, number_of_scenarios=10000):
             )
             end_cluster_indices = state.rng.choice(
                 cluster_indices,
-                p=cluster.get_leave_distribution(),
+                p=cluster.get_leave_distribution(state),
                 size=number_of_trips,
             ).tolist()
             one_scenario.append((cluster.id, number_of_trips, end_cluster_indices))

@@ -136,12 +136,12 @@ def scooter_movement_analysis(state: State) -> np.ndarray:
             initial_state, first_snapshot_data, second_snapshot_data
         )
         # Get list of cluster ids and find number of clusters for dimensions of arrays
-        cluster_labels = [cluster.id for cluster in initial_state.stations]
+        cluster_labels = [cluster.id for cluster in initial_state.locations]
         number_of_clusters = len(cluster_labels)
 
         # Initialize probability_matrix with number of scooters in each cluster
         number_of_scooters = np.array(
-            [[cluster.number_of_scooters() for cluster in initial_state.stations]]
+            [[cluster.number_of_scooters() for cluster in initial_state.locations]]
             * number_of_clusters,
             dtype="float64",
         ).transpose()
@@ -170,6 +170,7 @@ def scooter_movement_analysis(state: State) -> np.ndarray:
             )
 
         # Calculate the probability matrix
+        np.seterr(divide='ignore', invalid='ignore')
         probability_matrix = move_count / number_of_scooters
 
         # Normalize non stay distribution - Same as distribute the disappeared scooter with same distribution
@@ -214,7 +215,7 @@ def scooter_movement_analysis(state: State) -> np.ndarray:
 
 
 def generate_cluster_objects(
-    classname, scooter_data: pd.DataFrame, cluster_labels: list
+        classname, scooter_data: pd.DataFrame, cluster_labels: list, number_of_depots,
 ) -> [Station]:
     """
     Based on cluster labels and scooter data create Scooter and Station objects.
@@ -233,7 +234,7 @@ def generate_cluster_objects(
         cluster_scooters = scooter_data_w_labels[
             scooter_data_w_labels["cluster_labels"] == cluster_label
         ]
-        # Generate scooter objets, using index as ID
+        # Generate scooter objects, using index as ID
         scooters = []
         if classname == "Bike":
           scooters = [
@@ -246,7 +247,7 @@ def generate_cluster_objects(
             for index, row in cluster_scooters.iterrows()
           ]
         # Adding all scooters to cluster to find center location
-        clusters.append(Station(cluster_label, scooters))
+        clusters.append(Station(cluster_label + number_of_depots, scooters))
     return sorted(clusters, key=lambda cluster: cluster.id)
 
 
@@ -261,8 +262,8 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list):
         max=len(os.listdir(TEST_DATA_DIRECTORY)),
     )
     # Fetch all snapshots from test data
-    trip_counter_leave = np.zeros((len(state.stations), len(os.listdir(TEST_DATA_DIRECTORY))))
-    trip_counter_arrive = np.zeros((len(state.stations), len(os.listdir(TEST_DATA_DIRECTORY))))
+    trip_counter_leave = np.zeros((len(state.locations), len(os.listdir(TEST_DATA_DIRECTORY))))
+    trip_counter_arrive = np.zeros((len(state.locations), len(os.listdir(TEST_DATA_DIRECTORY))))
     previous_snapshot = None
     for index, file_path in enumerate(sorted(os.listdir(TEST_DATA_DIRECTORY))):
         progress.next()
@@ -321,19 +322,18 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list):
     progress.finish()
 
 
-def generate_depots(number_of_clusters):
+def generate_depots():
     """
     Generate depot objects
-    :param number_of_clusters: the number of clusters in the state created
     :return: depot objects
     """
     main_depot_lat, main_depot_lon = MAIN_DEPOT_LOCATION
     depots = [
-        Depot(main_depot_lat, main_depot_lon, number_of_clusters, main_depot=True)
+        Depot(main_depot_lat, main_depot_lon, 0, main_depot=True)
     ]
 
     for i, (lat, lon) in enumerate(SMALL_DEPOT_LOCATIONS):
-        depots.append(Depot(lat, lon, i + number_of_clusters + 1, main_depot=False))
+        depots.append(Depot(lat, lon, i + 1, main_depot=False))
 
     return depots
 

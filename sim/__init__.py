@@ -2,7 +2,6 @@ from .Action import Action
 from .Station import Station
 from .Bike import Bike
 from .Scooter import Scooter
-from .State import State
 from .Vehicle import Vehicle
 from .Location import Location
 from .Depot import Depot
@@ -14,3 +13,4 @@ from .events.ScooterDeparture import ScooterDeparture
 from .events.ScooterArrival import ScooterArrival
 from .events.VehicleArrival import VehicleArrival
 from .events.GenerateScooterTrips import GenerateScooterTrips
+from .State import State

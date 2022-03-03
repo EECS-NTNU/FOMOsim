@@ -13,6 +13,9 @@ class Depot(Location):
         self.time = 0
         self.charging = []
 
+    def number_of_scooters(self):
+        return 0
+
     def swap_battery_inventory(self, time, number_of_battery_to_change) -> int:
         self.capacity += self.get_delta_capacity(time)
         self.time = time

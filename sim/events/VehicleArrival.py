@@ -10,9 +10,8 @@ class VehicleArrival(Event):
     Different policies can be applied depending on the policy object in the world object.
     """
 
-    def __init__(self, arrival_time: int, vehicle_id: int, visualize=True):
+    def __init__(self, arrival_time: int, vehicle_id: int):
         super().__init__(arrival_time)
-        self.visualize = visualize
         self.vehicle_id = vehicle_id
 
     def perform(self, world, **kwargs) -> None:
@@ -30,11 +29,6 @@ class VehicleArrival(Event):
                 "OBS! Something went wrong. The vehicle is not in this state."
             )
 
-        if self.visualize:
-            # copy state before action for visualization purposes
-            state_before_action = copy.deepcopy(world.state)
-            vehicle_before_action = copy.deepcopy(vehicle)
-
         arrival_time = 0
         # find the best action from the current world state
         action = world.policy.get_best_action(world, vehicle)
@@ -43,15 +37,6 @@ class VehicleArrival(Event):
 
         if isinstance(action, tuple):
             action, _ = action
-
-        if self.visualize:
-            # visualize vehicle route
-            world.state.visualize_vehicle_routes(
-                self.vehicle_id,
-                vehicle.current_location.id,
-                action.next_location,
-                world.policy.__str__(),
-            )
 
         # clear world flow counter dictionary
         world.clear_flow_dict()
@@ -69,19 +54,6 @@ class VehicleArrival(Event):
             + refill_time
         )
 
-        if self.visualize:
-            # visualize action performed by vehicle
-            state_before_action.visualize_action(
-                vehicle_before_action,
-                world.state,
-                vehicle,
-                action,
-                world.time,
-                action_time,
-                False,
-                world.policy.__str__(),
-            )
-
         # set time of world to this event's time
         super(VehicleArrival, self).perform(world, **kwargs)
 
@@ -89,4 +61,4 @@ class VehicleArrival(Event):
         arrival_time += self.time + action_time
 
         # Add a new Vehicle Arrival event for the next cluster arrival to the world event_queue
-        world.add_event(VehicleArrival(arrival_time, vehicle.id, self.visualize))
+        world.add_event(VehicleArrival(arrival_time, vehicle.id))

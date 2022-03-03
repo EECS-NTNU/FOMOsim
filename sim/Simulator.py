@@ -24,7 +24,6 @@ class Simulator(SaveMixin):
         policy,
         initial_state,
         verbose=False,
-        visualize=False,
         label=None,
         **kwargs,
     ):
@@ -38,21 +37,20 @@ class Simulator(SaveMixin):
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.vehicles:
             self.event_queue.append(
-                sim.VehicleArrival(0, vehicle.id, visualize=visualize)
+                sim.VehicleArrival(0, vehicle.id)
             )
         # Add Generate Scooter Trip event to the event_queue
         self.event_queue.append(sim.GenerateScooterTrips(settings.ITERATION_LENGTH_MINUTES))
         self.cluster_flow = {
             (start, end): 0
-            for start in np.arange(len(self.state.stations))
-            for end in np.arange(len(self.state.stations))
+            for start in np.arange(len(self.state.locations))
+            for end in np.arange(len(self.state.locations))
             if start != end
         }
         self.policy = policy
         policy.initSim(self)
         self.metrics = Metric()
         self.verbose = verbose
-        self.visualize = visualize
         if label is None:
           self.label = self.__class__.__name__
         else:
@@ -177,7 +175,6 @@ class Simulator(SaveMixin):
     #         self.policy,
     #         self.state.sloppycopy(),
     #         verbose=self.verbose,
-    #         visualize=self.visualize,
     #     )
     #     new_sim.time = self.time
     #     new_sim.stack = copy.deepcopy(self.stack)

@@ -56,7 +56,7 @@ class Station(Location):
             return return_function
 
     @Decorators.check_move_probabilities
-    def get_leave_distribution(self):
+    def get_leave_distribution(self, state):
         # Copy list
         distribution = self.move_probabilities.copy()
         if np.sum(distribution[np.arange(len(distribution)) != self.id]) == 0.0:
@@ -64,6 +64,9 @@ class Station(Location):
             distribution = np.ones_like(distribution)
         # Set stay probability to zero
         distribution[self.id] = 0.0
+        # Set probability of going to depot to zero
+        for depot in state.depots:
+            distribution[depot.id] = 0.0
         # Normalize leave distribution
         return distribution / np.sum(distribution)
 
@@ -77,10 +80,13 @@ class Station(Location):
         return len(self.scooters)
 
     def __compute_center(self):
-        cluster_centroid = MultiPoint(
-            list(map(lambda scooter: (scooter.get_location()), self.scooters))
-        ).centroid
-        return cluster_centroid.x, cluster_centroid.y
+        if len(self.scooters) > 0:
+            cluster_centroid = MultiPoint(
+                list(map(lambda scooter: (scooter.get_location()), self.scooters))
+            ).centroid
+            return cluster_centroid.x, cluster_centroid.y
+        else:
+            return 0, 0
 
     def add_scooter(self, rng, scooter: Scooter):
         matches = [
