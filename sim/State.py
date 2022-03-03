@@ -118,6 +118,9 @@ class State(SaveMixin):
             for scooter in cluster.scooters:
                 all_scooters.append(scooter)
         all_scooters.extend(self.scooters_in_use)
+        for vehicle in self.vehicles:
+            all_scooters.extend(vehicle.scooter_inventory)
+            
         return all_scooters
 
     def sample_size(self):
