@@ -219,14 +219,14 @@ class ValueFunction(abc.ABC):
             def filter_scooter_ids(ids, isAvailable=True):
                 if isAvailable:
                     available_filter = (
-                        lambda scooter_id: state.stations[current_location]
+                        lambda scooter_id: state.locations[current_location]
                         .get_scooter_from_id(scooter_id)
                         .battery
                         > BATTERY_LIMIT
                     )
                 else:
                     available_filter = (
-                        lambda scooter_id: state.stations[current_location]
+                        lambda scooter_id: state.locations[current_location]
                         .get_scooter_from_id(scooter_id)
                         .battery
                         < BATTERY_LIMIT
@@ -248,7 +248,7 @@ class ValueFunction(abc.ABC):
                 [
                     (
                         100
-                        - state.stations[current_location]
+                        - state.locations[current_location]
                         .get_scooter_from_id(scooter_id)
                         .battery
                     )
@@ -259,7 +259,7 @@ class ValueFunction(abc.ABC):
                 [
                     (
                         100
-                        - state.stations[current_location]
+                        - state.locations[current_location]
                         .get_scooter_from_id(scooter_id)
                         .battery
                     )

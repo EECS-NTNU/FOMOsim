@@ -24,16 +24,16 @@ def get_current_state(station) -> float:
     return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
 
 
-def compute_and_set_ideal_state(state: sim.State, sample_scooters: list):
+def compute_and_set_ideal_state(state: sim.State, sample_scooters: list, entur_data_dir):
     progressbar = Bar(
-        "| Computing ideal state", max=len(os.listdir(settings.TEST_DATA_DIRECTORY))
+        "| Computing ideal state", max=len(os.listdir(entur_data_dir))
     )
     number_of_scooters_counter = np.zeros(
-        (len(state.locations), len(os.listdir(settings.TEST_DATA_DIRECTORY)))
+        (len(state.locations), len(os.listdir(entur_data_dir)))
     )
-    for index, file_path in enumerate(sorted(os.listdir(settings.TEST_DATA_DIRECTORY))):
+    for index, file_path in enumerate(sorted(os.listdir(entur_data_dir))):
         progressbar.next()
-        current_snapshot = clustering.methods.read_bounded_csv_file(f"{settings.TEST_DATA_DIRECTORY}/{file_path}")
+        current_snapshot = clustering.methods.read_bounded_csv_file(f"{entur_data_dir}/{file_path}")
         current_snapshot = current_snapshot[
             current_snapshot["id"].isin(sample_scooters)
         ]
@@ -88,17 +88,21 @@ def generate_scenarios(state: sim.State, number_of_scenarios=10000):
     return scenarios
 
 def get_initial_state(
-    sample_size=None,
+    entur_data_dir,
+    entur_main_file,
+    bike_class,
+    number_of_scooters=None,
     number_of_clusters=20,
-    save=True,
-    cache=True,
+    save=False,
+    cache=False,
     initial_location_depot=True,
     number_of_vans=4,
+    random_seed=None
 ) -> sim.State:
     """
     Main method for setting up a state object based on EnTur data from test_data directory.
     This method saves the state objects and reuse them if a function call is done with the same properties.
-    :param sample_size: number of e-scooters in the instance
+    :param number_of_scooters: number of e-scooters in the instance
     :param number_of_clusters
     :param save: if the model should save the state
     :param cache: if the model should check for a cached version
@@ -109,7 +113,7 @@ def get_initial_state(
     # If this combination has been requested before we fetch a cached version
     filepath = (
         f"{settings.STATE_CACHE_DIR}/"
-        f"{sim.State.save_path(number_of_clusters, sample_size)}.pickle"
+        f"{sim.State.save_path(number_of_clusters, number_of_scooters)}.pickle"
     )
     if cache and os.path.exists(filepath):
         print(f"\nUsing cached version of state from {filepath}\n")
@@ -117,23 +121,24 @@ def get_initial_state(
     else:
 
         initial_state = clustering.scripts.get_initial_state(
-            "Scooter",
-            number_of_scooters = sample_size,
+            entur_data_dir,
+            entur_main_file,
+            bike_class,
+            number_of_scooters = number_of_scooters,
             number_of_clusters = number_of_clusters,
             initial_location_depot = initial_location_depot,
             number_of_vans = number_of_vans,
+            random_seed = random_seed,
         )
 
         # Generate scenarios
         initial_state.simulation_scenarios = generate_scenarios(initial_state)
 
-        entur_dataframe = clustering.methods.read_bounded_csv_file(
-            "test_data/0900-entur-snapshot.csv"
-        )
-        sample_scooters = clustering.scripts.scooter_sample_filter(initial_state.rng, entur_dataframe, sample_size)
+        entur_dataframe = clustering.methods.read_bounded_csv_file(entur_data_dir + "/" + entur_main_file)
+        sample_scooters = clustering.scripts.scooter_sample_filter(initial_state.rng, entur_dataframe, number_of_scooters)
 
         # Find the ideal state for each cluster
-        compute_and_set_ideal_state(initial_state, sample_scooters)
+        compute_and_set_ideal_state(initial_state, sample_scooters, entur_data_dir)
 
         if save:
             # Cache the state for later

@@ -49,9 +49,6 @@ IMPORTANT PATHS
 STATE_CACHE_DIR = "state_cache"
 SIM_CACHE_DIR = "sim_cache"
 
-# Test data directory
-TEST_DATA_DIRECTORY = "test_data"
-
 """
 VISUALIZATION
 """

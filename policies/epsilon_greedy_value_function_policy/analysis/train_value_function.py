@@ -118,12 +118,16 @@ if __name__ == "__main__":
             960,
             policy,
             policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy.get_initial_state(
-                SAMPLE_SIZE,
-                num_clusters,
-                number_of_vans=2,
+                entur_data_dir = "test_data",
+                entur_main_file = "0900-entur-snapshot.csv",
+                bike_class = "Scooter",
+                number_of_scooters = SAMPLE_SIZE,
+                number_of_clusters = num_clusters,
+                number_of_vans = 2,
+                save = True,
+                cache = True,
             ),
             verbose=False,
-            visualize=False,
         )
 
         policy.value_function.setup(world_to_analyse.state)

@@ -9,7 +9,6 @@ from sim import State, Bike, Scooter, Station
 from sim.Depot import Depot
 from settings import (
     GEOSPATIAL_BOUND_NEW,
-    TEST_DATA_DIRECTORY,
     MAIN_DEPOT_LOCATION,
     SMALL_DEPOT_LOCATIONS,
     TRIP_INTENSITY_FACTOR,
@@ -116,7 +115,7 @@ def cluster_data(rng, data: pd.DataFrame, number_of_clusters: int) -> [int]:
     return KMeans(number_of_clusters, random_state=rng.integers(0, 1000)).fit(coords).labels_
 
 
-def scooter_movement_analysis(state: State) -> np.ndarray:
+def scooter_movement_analysis(state: State, entur_data_dir) -> np.ndarray:
     def get_probability_matrix(
         initial_state: State,
         first_snapshot_data: pd.DataFrame,
@@ -196,14 +195,14 @@ def scooter_movement_analysis(state: State) -> np.ndarray:
 
     progress = Bar(
         "| Computing MPM",
-        max=len(os.listdir(TEST_DATA_DIRECTORY)),
+        max=len(os.listdir(entur_data_dir)),
     )
     # Fetch all snapshots from test data
     probability_matrices = []
     previous_snapshot = None
-    for index, file_path in enumerate(sorted(os.listdir(TEST_DATA_DIRECTORY))):
+    for index, file_path in enumerate(sorted(os.listdir(entur_data_dir))):
         progress.next()
-        current_snapshot = read_bounded_csv_file(f"{TEST_DATA_DIRECTORY}/{file_path}")
+        current_snapshot = read_bounded_csv_file(f"{entur_data_dir}/{file_path}")
         if previous_snapshot is not None:
             probability_matrices.append(
                 get_probability_matrix(state, previous_snapshot, current_snapshot)
@@ -251,7 +250,7 @@ def generate_cluster_objects(
     return sorted(clusters, key=lambda cluster: cluster.id)
 
 
-def compute_and_set_trip_intensity(state: State, sample_scooters: list):
+def compute_and_set_trip_intensity(state: State, sample_scooters: list, entur_data_dir):
     """
     Counts the number of e-scooters leaving each cluster and average over all snapshots to calculate the trip intensity
     :param state: state object
@@ -259,15 +258,15 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list):
     """
     progress = Bar(
         "| Computing trip intensity",
-        max=len(os.listdir(TEST_DATA_DIRECTORY)),
+        max=len(os.listdir(entur_data_dir)),
     )
     # Fetch all snapshots from test data
-    trip_counter_leave = np.zeros((len(state.locations), len(os.listdir(TEST_DATA_DIRECTORY))))
-    trip_counter_arrive = np.zeros((len(state.locations), len(os.listdir(TEST_DATA_DIRECTORY))))
+    trip_counter_leave = np.zeros((len(state.locations), len(os.listdir(entur_data_dir))))
+    trip_counter_arrive = np.zeros((len(state.locations), len(os.listdir(entur_data_dir))))
     previous_snapshot = None
-    for index, file_path in enumerate(sorted(os.listdir(TEST_DATA_DIRECTORY))):
+    for index, file_path in enumerate(sorted(os.listdir(entur_data_dir))):
         progress.next()
-        current_snapshot = read_bounded_csv_file(f"{TEST_DATA_DIRECTORY}/{file_path}")
+        current_snapshot = read_bounded_csv_file(f"{entur_data_dir}/{file_path}")
         current_snapshot = current_snapshot[
             current_snapshot["id"].isin(sample_scooters)
         ]

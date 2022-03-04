@@ -18,6 +18,8 @@ PERIOD = 960 # 16 hours
 
 # This is done with a script that reads data from an "entur" snapshot
 state = clustering.scripts.get_initial_state(
+    entur_data_dir = "test_data",
+    entur_main_file = "0900-entur-snapshot.csv",
     bike_class = "Scooter",
     number_of_scooters = 1000,
     number_of_clusters = 10,
@@ -74,11 +76,23 @@ simulator2.run()
 
 ###############################################################################
 
+# The rebalancing policy needs special information in the state object ("ideal state" calculations)
+# We can use the following function to generate this kind of state object
+state_with_ideal_state = policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy.get_initial_state(
+    entur_data_dir = "test_data",
+    entur_main_file = "0900-entur-snapshot.csv",
+    bike_class = "Scooter",
+    number_of_scooters = 1000,
+    number_of_clusters = 10,
+    number_of_vans = 2,
+    random_seed=1,
+)
+
 # Set up third simulator
 simulator3 = sim.Simulator(
     PERIOD,
     policies.RebalancingPolicy(),
-    copy.deepcopy(state),
+    copy.deepcopy(state_with_ideal_state),
     verbose=True,
     label="Rebalancing",
 )

@@ -17,15 +17,6 @@ class RebalancingPolicy(Policy):
     def __init__(self):
         super().__init__()
 
-    def initSim(self, simul):
-        simul.state.simulation_scenarios = policies.epsilon_greedy_value_function_policy.generate_scenarios(simul.state)
-
-        entur_dataframe = clustering.methods.read_bounded_csv_file(
-            "test_data/0900-entur-snapshot.csv"
-        )
-        sample_scooters = clustering.scripts.scooter_sample_filter(simul.state.rng, entur_dataframe, simul.state.sample_size())
-        policies.epsilon_greedy_value_function_policy.compute_and_set_ideal_state(simul.state, sample_scooters)
-
     def get_best_action(self, simul, vehicle):
         vehicle_has_scooter_inventory = len(vehicle.scooter_inventory) > 0
         if vehicle.is_at_depot():

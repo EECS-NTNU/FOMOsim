@@ -203,7 +203,7 @@ if __name__ == "__main__":
         )
     else:
         run_analysis_from_path(
-            "sim_cache/trained_models/ANNValueFunction/c20_s2500/2022-02-18T10:12",
+            "sim_cache/trained_models/ANNValueFunction/c20_s2500/2022-03-04T11:50",
             shift_duration=960,
             runs_per_policy=10,
             multiprocess=False,

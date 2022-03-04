@@ -15,6 +15,8 @@ def scooter_sample_filter(rng, dataframe: pd.DataFrame, number_of_scooters=None)
 
 
 def get_initial_state(
+    entur_data_dir,
+    entur_main_file,
     bike_class,
     number_of_scooters=None,
     initial_in_use=0,
@@ -37,9 +39,7 @@ def get_initial_state(
         f"\nSetup initial state from entur dataset with {number_of_clusters} clusters and {number_of_scooters} scooters"
     )
     # Get dataframe from EnTur CSV file within boundary
-    entur_dataframe = methods.read_bounded_csv_file(
-        "test_data/0900-entur-snapshot.csv"
-    )
+    entur_dataframe = methods.read_bounded_csv_file(entur_data_dir + "/" + entur_main_file)
 
     rng=np.random.default_rng(random_seed)
 
@@ -59,10 +59,10 @@ def get_initial_state(
     sample_scooters = scooter_sample_filter(rng, entur_dataframe)
 
     # Trip intensity analysis
-    methods.compute_and_set_trip_intensity(initial_state, sample_scooters)
+    methods.compute_and_set_trip_intensity(initial_state, sample_scooters, entur_data_dir)
 
     # Get probability of movement from scooters in a cluster
-    probability_matrix = methods.scooter_movement_analysis(initial_state)
+    probability_matrix = methods.scooter_movement_analysis(initial_state, entur_data_dir)
     initial_state.set_probability_matrix(probability_matrix)
 
     if number_of_scooters:
