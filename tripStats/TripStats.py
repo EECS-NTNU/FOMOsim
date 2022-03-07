@@ -10,5 +10,14 @@ def tripStatsClose():
     tripStatsLogFile.write("\nlogg file closed")
     tripStatsLogFile.close()
 
-def loggTrip():
-    tripStatsLogFile.write("logg called")
+def loggTripStart(time, state):
+    tripStatsLogFile.write("Time " + str(time) + ":")
+    for s in state.locations:
+        tripStatsLogFile.write(" " + str(len(s.scooters)))
+
+    tripStatsLogFile.flush()
+
+def loggTripEnd():
+    tripStatsLogFile.write(" -bike- ==> ")
+    tripStatsLogFile.write(" after \n")
+    tripStatsLogFile.flush()

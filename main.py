@@ -44,9 +44,11 @@ state = sim.State.get_initial_state(
 #    number_of_scooters = [0, 0, 2, 4],
     number_of_scooters = [0, 0, 0, 1],
     arrive_intensities = [0, 0, 2, 5],
-    leave_intensities = [0, 0, 5, 2],
+#    leave_intensities = [0, 0, 5, 2],
+    leave_intensities = [5, 5, 5, 5],
     move_probabilities = np.zeros((4, 4), dtype="float64"),
-    number_of_vans = 2,
+#    number_of_vans = 2,
+    number_of_vans = 0,
     random_seed = 1,
 )
     
@@ -66,6 +68,11 @@ simulators.append(sim.Simulator(
 # Run first simulator
 simulators[-1].run()
 
+tripStatsClose()
+
+print("End of Lasses tripStats testing")
+
+
 ###############################################################################
 
 # Set up second simulator
@@ -80,9 +87,6 @@ simulators.append(sim.Simulator(
 # Run second simulator
 simulators[-1].run()
 
-tripStatsClose()
-
-print("End of Lasses tripStats testing")
 
 
 ###############################################################################

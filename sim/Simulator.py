@@ -78,15 +78,14 @@ class Simulator(SaveMixin):
           print("Time:", event.time)
           print(self.state)
           if settings.TRIP_STATS:
-              print("Lasse TODO log before event")
-              loggTrip()
+            loggTripStart(event.time, self.state)
 
         event.perform(self)
 
         if settings.VERBOSE:
             print("\n", event)
             if settings.TRIP_STATS:
-                print("Lasse TODO log after event")
+                loggTripEnd()
 
 
         return event
