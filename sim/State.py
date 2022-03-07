@@ -51,8 +51,10 @@ class State(SaveMixin):
         return new_state
 
     @staticmethod
-    def get_initial_state(bike_class, distance_matrix, main_depot, secondary_depots, number_of_scooters, arrive_intensities, leave_intensities, move_probabilities, number_of_vans, random_seed=None):
-        depots = [sim.Depot(depot_id=main_depot, main_depot=True)]
+    def get_initial_state(bike_class, distance_matrix, number_of_scooters, leave_intensities, number_of_vans, arrive_intensities, move_probabilities, main_depot = None, secondary_depots = [], random_seed=None):
+        depots = []
+        if main_depot is not None:
+            depots.append(sim.Depot(depot_id=main_depot, main_depot=True))
         for depot_id in secondary_depots:
             depots.append(sim.Depot(depot_id=depot_id))
 
@@ -72,8 +74,11 @@ class State(SaveMixin):
                 stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id]))
 
         vehicles = []
+        start_location = stations[0]
+        if len(depots) > 0:
+            start_location = depots[0]
         for vehicle_id in range(number_of_vans):
-            vehicles.append(sim.Vehicle(vehicle_id, depots[0], VAN_BATTERY_INVENTORY, VAN_SCOOTER_INVENTORY))
+            vehicles.append(sim.Vehicle(vehicle_id, start_location, VAN_BATTERY_INVENTORY, VAN_SCOOTER_INVENTORY))
 
         rng=np.random.default_rng(random_seed)
             
