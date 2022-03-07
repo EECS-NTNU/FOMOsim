@@ -3,8 +3,9 @@ SIM SETTINGS
 """
 
 # general settings
-VERBOSE = False
+VERBOSE = True
 FULL_TRIP = True
+
 ITERATION_LENGTH_MINUTES = 20
 GEOSPATIAL_BOUND_NEW = (59.9040, 59.9547, 10.6478, 10.8095) # geographical limits (lat_min, lat_max, long_min, long_max)
 CLUSTER_CENTER_DELTA = 0  # scooters are parked within this distance from a station (set to 0 if parking only at stations)
@@ -41,6 +42,10 @@ SMALL_DEPOT_CAPACITY = 100
 CHARGE_TIME_PER_BATTERY = 60
 SWAP_TIME_PER_BATTERY = 0.4
 CONSTANT_DEPOT_DURATION = 15
+
+# TripStats settings
+TRIP_STATS = True # Assumes VERBOSE = True (is under general settings on top)
+
 
 """
 IMPORTANT PATHS

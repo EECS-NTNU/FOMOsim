@@ -11,6 +11,8 @@ from sim import Metric
 
 from progress.bar import IncrementalBar
 
+from tripStats.TripStats import *
+
 class Simulator(SaveMixin):
     """
     Class containing all metadata about an instance. This class contains both the state, the policy and parameters.
@@ -75,11 +77,17 @@ class Simulator(SaveMixin):
           print()
           print("Time:", event.time)
           print(self.state)
+          if settings.TRIP_STATS:
+              print("Lasse TODO log before event")
+              loggTrip()
 
         event.perform(self)
 
         if settings.VERBOSE:
             print("\n", event)
+            if settings.TRIP_STATS:
+                print("Lasse TODO log after event")
+
 
         return event
 

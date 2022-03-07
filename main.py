@@ -9,6 +9,7 @@ import sim
 import clustering.scripts
 import policies
 from visualization.visualizer import visualize_analysis
+from tripStats.TripStats import *
 
 PERIOD = 960 # 16 hours
 
@@ -31,7 +32,7 @@ simulators = []
 
 # This is set up manually
 state = sim.State.get_initial_state(
-    bike_class = "Scooter",
+    bike_class = "Bike", # was "Scooter"
     distance_matrix = [
         [0, 4, 2, 3],
         [4, 0, 5, 1],
@@ -40,7 +41,8 @@ state = sim.State.get_initial_state(
     ],
     main_depot = None,
     secondary_depots = [],
-    number_of_scooters = [0, 0, 2, 4],
+#    number_of_scooters = [0, 0, 2, 4],
+    number_of_scooters = [0, 0, 0, 1],
     arrive_intensities = [0, 0, 2, 5],
     leave_intensities = [0, 0, 5, 2],
     move_probabilities = np.zeros((4, 4), dtype="float64"),
@@ -49,6 +51,8 @@ state = sim.State.get_initial_state(
 )
     
 ###############################################################################
+
+tripStatsInit("Oslo")
 
 # Set up first simulator
 simulators.append(sim.Simulator(
@@ -75,6 +79,11 @@ simulators.append(sim.Simulator(
 
 # Run second simulator
 simulators[-1].run()
+
+tripStatsClose()
+
+print("End of Lasses tripStats testing")
+
 
 ###############################################################################
 
@@ -105,4 +114,5 @@ simulators[-1].run()
 ###############################################################################
 
 # Visualize results
+
 visualize_analysis(simulators)
