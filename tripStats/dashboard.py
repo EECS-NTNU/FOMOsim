@@ -1,0 +1,71 @@
+# dashboard.py
+import PySimpleGUI as sg
+import os.path
+from parse import *
+from download import *
+
+###### GUI layout
+json_data_column = [
+    [sg.Text("Choose folder for data-files in JSON-format", font='Lucida', text_color = 'Yellow')],
+    [ sg.Text("Data Folder"),  sg.Input(size=(30, 1), enable_events=True, key="-FOLDER-"), sg.FolderBrowse(), ],
+    [ sg.Listbox( values=[], enable_events=True, size=(40, 30), key="-FILE LIST-")
+    ],
+]
+process_column = [
+    [sg.Text("Select processing", font='Lucida', text_color = 'Yellow', key="-TOUT1-"), sg.Button("Exit")],
+    [sg.Text("Download", size=(40, 1))],
+    [sg.Button("All"), sg.Button("Clear"), sg.Input("From: ", key="-INPUTfrom-"), sg.Input("To: ", key="-INPUTto-")],
+    [sg.Button("Oslo"), sg.Button("Bergen"), sg.Button("Utopia")], 
+    [sg.Text('_'*40)],
+    [sg.Text("Compress", size=(40, 1))],
+    [sg.Text('_'*40)],
+    [sg.Text("Analyze", size=(40, 1))],
+    [sg.Button("CheckAll")],
+    [sg.Text('_'*40)],
+    [sg.Text(size=(40, 1), key="-TOUT2-")],
+]
+layout = [ [ sg.Column(json_data_column), sg.VSeperator(), sg.Column(process_column), ]
+]
+window = sg.Window("FOMO Digital Twin Dashboard 0.1", layout)
+
+folder = "" #starts empty
+while True:
+    event, values = window.read()
+    window["-TOUT1-"].update("Select processing:", font='Lucida', text_color = 'Yellow')
+    if event == "All":
+        print("All-button pressed, fill inn from - to fields")
+        window["-INPUTfrom-"].update("From: -1")
+        window["-INPUTto-"].update("To: 1000")   
+    elif event == "Clear":
+        window["-INPUTfrom-"].update("From: ")
+        window["-INPUTto-"].update("To: ")   
+    elif event == "Oslo":
+        print("values:", values)  # debug 
+        oslo(values["-INPUTfrom-"], values["-INPUTto-"])
+    elif event == "CheckAll":
+        checkAll(folder)
+    elif event == "Exit" or event == sg.WIN_CLOSED:
+        break
+    elif event == "-FOLDER-": # Folder name was filled in, make a list of files in the folder
+        folder = values["-FOLDER-"]
+        try:
+            file_list = os.listdir(folder)
+        except:
+            file_list = []
+        fnames = [
+            f
+            for f in file_list
+            if os.path.isfile(os.path.join(folder, f))
+            and f.lower().endswith((".json"))
+        ]
+        window["-FILE LIST-"].update(fnames)
+        window["-TOUT1-"].update("Choose a data file from the list on left:")
+    elif event == "-FILE LIST-":  # A file was chosen from the listbox
+        try:
+            filepath = os.path.join(values["-FOLDER-"], values["-FILE LIST-"][0])
+            window["-TOUT2-"].update(filepath)
+            print(filepath)
+            summary(filepath)
+        except:
+            print("Exception prcessing file")
+window.close()
