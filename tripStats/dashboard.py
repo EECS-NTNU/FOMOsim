@@ -12,17 +12,21 @@ json_data_column = [
     ],
 ]
 process_column = [
-    [sg.Text("Select processing", font='Lucida', text_color = 'Yellow', key="-TOUT1-"), sg.Button("Exit")],
-    [sg.Text("Download", size=(40, 1))],
-    [sg.Button("All"), sg.Button("Clear"), sg.Input("From: ", key="-INPUTfrom-"), sg.Input("To: ", key="-INPUTto-")],
-    [sg.Button("Oslo"), sg.Button("Bergen"), sg.Button("Utopia")], 
+    [sg.Text("Select processing", font='Lucida', text_color = 'Yellow', key="-TOUT1-")],
+    [sg.Text("Download Oslo trips, 1 = April 2019 ... 35 = February 2022)")],
+    [sg.Button("All Oslo"), sg.Button("Clear"), sg.Input("From: ", key="-INPUTfrom-"), sg.Input("To: ", key="-INPUTto-")],
+    [sg.Button("Download Oslo")],
     [sg.Text('_'*40)],
-    [sg.Text("Compress", size=(40, 1))],
+    [sg.Text("Not implemented")],
+    [sg.Button("Bergen"), sg.Button("Utopia")],
     [sg.Text('_'*40)],
-    [sg.Text("Analyze", size=(40, 1))],
+    [sg.Text("Compress --- not implemented")],
+    [sg.Text('_'*40)],
+    [sg.Text("Analyze", size=(20, 1))],
     [sg.Button("CheckAll")],
     [sg.Text('_'*40)],
     [sg.Text(size=(40, 1), key="-TOUT2-")],
+    [sg.Button("Exit")]
 ]
 layout = [ [ sg.Column(json_data_column), sg.VSeperator(), sg.Column(process_column), ]
 ]
@@ -32,15 +36,15 @@ folder = "" #starts empty
 while True:
     event, values = window.read()
     window["-TOUT1-"].update("Select processing:", font='Lucida', text_color = 'Yellow')
-    if event == "All":
-        print("All-button pressed, fill inn from - to fields")
-        window["-INPUTfrom-"].update("From: -1")
-        window["-INPUTto-"].update("To: 1000")   
+    if event == "All Oslo":
+        print("All-Oslo-button pressed, fill inn from - to fields")
+        window["-INPUTfrom-"].update("From: 1")
+        window["-INPUTto-"].update("To: 35")  # TODO, Magic number, move to loacl settings 
     elif event == "Clear":
         window["-INPUTfrom-"].update("From: ")
         window["-INPUTto-"].update("To: ")   
-    elif event == "Oslo":
-        print("values:", values)  # debug 
+    elif event == "Download Oslo":
+        # print("values:", values)  # debug 
         oslo(values["-INPUTfrom-"], values["-INPUTto-"])
     elif event == "CheckAll":
         checkAll(folder)

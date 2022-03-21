@@ -2,7 +2,6 @@
 import json
 import sys
 import os.path
-import requests
 
 # TODO inn som classe og objekt ??? @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
