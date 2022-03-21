@@ -37,7 +37,7 @@ while True:
     event, values = window.read()
     window["-TOUT1-"].update("Select processing:", font='Lucida', text_color = 'Yellow')
     if event == "All Oslo":
-        print("All-Oslo-button pressed, fill inn from - to fields")
+        print("All-Oslo-button pressed")
         window["-INPUTfrom-"].update("From: 1")
         window["-INPUTto-"].update("To: 35")  # TODO, Magic number, move to loacl settings 
     elif event == "Clear":
