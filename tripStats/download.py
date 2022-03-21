@@ -18,15 +18,15 @@ def oslo(fromIncluded, toIncluded):
         monthNo = 1 + ((i + 2) % 12) # 1 is April
         yearNo = (i + 2)//12 + 2019
         # print(yearNo, monthNo)
-        if monthNo < 10:
+        if monthNo < 10: # refactor into function zeroPad
             monthStr = "0" + str(monthNo)
         else:
             monthStr = str(monthNo)
         address = "https://data.urbansharing.com/oslobysykkel.no/trips/v1/" + str(yearNo) + "/" + monthStr + ".json"
         print(address, "...", end = '')
         data = requests.get(address)
-        dataFileName = "tripData-" + str(i)    
-        dataOut = open("tripStats/data/Oslo/" + dataFileName + ".json", "w")
+        dataFileName = "Oslo-" + str(i)    
+        dataOut = open("tripStats/data/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "w")
         dataOut.write(data.text)
         dataOut.close()
         print(" downloaded")
