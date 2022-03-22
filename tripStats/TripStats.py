@@ -14,7 +14,6 @@ def loggTripStart(time, state):
     tripStatsLogFile.write("Time " + str(time) + ":")
     for s in state.locations:
         tripStatsLogFile.write(" " + str(len(s.scooters)))
-
     tripStatsLogFile.flush()
 
 def loggTripEnd():

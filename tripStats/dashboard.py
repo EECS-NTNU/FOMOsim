@@ -23,7 +23,7 @@ process_column = [
     [sg.Text("Compress --- not implemented")],
     [sg.Text('_'*40)],
     [sg.Text("Analyze", size=(20, 1))],
-    [sg.Button("CheckAll")],
+    [sg.Button("Distance matrix"), sg.Button("Leave and arrive intensity"), sg.Button("Check-Test"),sg.Button("CheckAll")],
     [sg.Text('_'*40)],
     [sg.Text(size=(40, 1), key="-TOUT2-")],
     [sg.Button("Exit")]
@@ -31,6 +31,9 @@ process_column = [
 layout = [ [ sg.Column(json_data_column), sg.VSeperator(), sg.Column(process_column), ]
 ]
 window = sg.Window("FOMO Digital Twin Dashboard 0.1", layout)
+
+
+# checkTest() # placed here during development  CHANGE NAME
 
 folder = "" #starts empty
 while True:
@@ -46,8 +49,15 @@ while True:
     elif event == "Download Oslo":
         # print("values:", values)  # debug 
         oslo(values["-INPUTfrom-"], values["-INPUTto-"])
+    elif event == "Distance matrix":
+        dm = calcDistances("Oslo", "all")    
+    elif event == "Leave and arrive intensity":
+        leaveIntensity, arriveIntensity = calcIntensity("Oslo", "all", 60) #  last param is length of period
+        pass
     elif event == "CheckAll":
         checkAll(folder)
+    elif event == "Check-Test":
+        checkTest()    
     elif event == "Exit" or event == sg.WIN_CLOSED:
         break
     elif event == "-FOLDER-": # Folder name was filled in, make a list of files in the folder
