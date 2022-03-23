@@ -207,6 +207,7 @@ def calcIntensity(city, mode, periodLength):
         for i in range(len(stationMap)):
             leaveFile.write(str(leaveIntensity[i]) + " ") 
             arriveFile.write(str(arriveIntensity[i])+ " ") 
+        print("calcIntensity ends, leave and arrive intensity stored in " + leaveIntenseFileName + " and " + leaveIntenseFileName + "respectively")
         return leaveIntensity, arriveIntensity         
 
     else:
