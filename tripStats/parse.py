@@ -91,8 +91,9 @@ class BikeTrip:
         self.start = start
         self.end = end
         
-def reportStations(stations):
-    stationsMap = open("tripStats/Oslo/stations.txt", "w")
+def reportStations(stations, city):
+    fileName = "tripStats/data/" + city + "/stations.txt"
+    stationsMap = open(fileName, "w")
     count = 0
     for s in stations:
         stationId = f'{count:>5}'+ f'{s.stationId:>6}' + " " + s.longitude + " " + s.latitude + " " + s.stationName + "\n"
@@ -101,57 +102,15 @@ def reportStations(stations):
         count = count + 1
     stationsMap.close()
 
-def checkTest():  # used for code-developmen and testing
+def checkTest():  # TODO prelim used for code-development and testing
+    return
     # storedData = "tripStats/data/Oslo/Oslo-2019-12.json" 
     storedData = "tripStats/data/Utopia/Utopia-Test-1.json" 
     print("Parse data from file: ", storedData, " : ", end= '')
     jsonFile = open(storedData, "r")
     bikeData = json.loads(jsonFile.read())
-    print(len(bikeData), "trips, ", end = '')
+    # print(len(bikeData), "trips, ", end = '')
 
-    stationNo = 0 # station numbers found, counts 0,1,2,...
-    stations = []
-    stationMap = {} # maps from stationId to station number 
-
-    for i in range(len(bikeData)):
-        startId = int(bikeData[i]["start_station_id"])
-        if not startId in stationMap:
-            stationMap[startId] = stationNo
-            stationNo = stationNo + 1
-            startLong = str(bikeData[i]["start_station_longitude"])
-            startLat = str(bikeData[i]["start_station_latitude"])
-            stations.append(Station(bikeData[i]["start_station_id"], startLong, startLat, bikeData[i]["start_station_name"]))
-        
-        endId = int(bikeData[i]["end_station_id"])
-        if not endId in stationMap:
-            stationMap[endId] = stationNo
-            stationNo = stationNo + 1
-            endLong = str(bikeData[i]["end_station_longitude"])
-            endLat = str(bikeData[i]["end_station_latitude"])
-            stations.append(Station(bikeData[i]["end_station_id"], endLong, endLat, bikeData[i]["end_station_name"]))
-
-    print(len(set(stations)), " stations used") # debug
-    reportStations(stations)
- 
-    # calculate distance matrix
-    dist_matrix_km = [] # km in kilometers, integers to comply with main.py
-    for rowNo in range(len(stationMap)):
-        col = 0
-        row = []
-        for col in range(len(stationMap)):
-            # indices = str(rowNo) + " - " + str(col) # was for debug
-            startLong = stations[rowNo].longitude
-            startLat = stations[rowNo].latitude
-            endLong = stations[col].longitude
-            endLat = stations[col].latitude
-            distance_float = geopy.distance.distance((startLat, startLong), (endLat, endLong)).km
-            # print(distance_float) #debug
-            km = round(distance_float)
-            row.append(km)
-            col = col + 1
-        dist_matrix_km.append(row)
-        rowNo = rowNo + 1
-#   
 def calcDistances(city, mode):
     if (city == "Oslo") and (mode == "all"):
         print("distance matrix calculation for stations used in all trips downloaded for Oslo ...")
@@ -186,21 +145,19 @@ def calcDistances(city, mode):
                     stations.append(Station(bikeData[i]["end_station_id"], endLong, endLat, bikeData[i]["end_station_name"]))
             print(".", end='') # TODO replace with progress bar
         print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
-        reportStations(stations)
+        reportStations(stations, city)
         printTime()
         # calculate distance matrix
         dist_matrix_km = [] # km in kilometers, integers to comply with main.py
         dm_fileName = "Oslo-dm-1-35.txt"
         dm_file = open("tripStats/data/Oslo/"+ dm_fileName, "w")
         for rowNo in range(len(stationMap)):
-            col = 0
+            col = 0 
             row = []
             for col in range(len(stationMap)):
-                startLong = stations[rowNo].longitude
-                startLat = stations[rowNo].latitude
-                endLong = stations[col].longitude
-                endLat = stations[col].latitude
-                dm_file.write(str(geopy.distance.distance((startLat, startLong), (endLat, endLong)).km))
+                dm_file.write(str(geopy.distance.distance(
+                    (stations[rowNo].latitude, stations[rowNo].longitude), 
+                    (stations[col].latitude, stations[col].longitude)).km))
                 dm_file.write(" ")
                 col = col + 1
             dist_matrix_km.append(row)
@@ -268,10 +225,11 @@ def calcIntensity(city, mode, periodLength):
 
 def calcMoveProbab(city, mode):
     if (city == "Oslo") and (mode == "all"):
-        print("move probability calculation for all trips downloaded for Oslo ...")
+        print("move probability calculation for all trips downloaded for Oslo ...") # TODO prelim
         printTime()
-        stationMap = {} # maps from stationId to station number 
-        stationsFile = open("tripStats/report/stations.txt", "r")
+        stationMap = {} # maps from stationId to station number
+        stationFileName = "tripStats/" + city + "/stations.txt" 
+        stationsFile = open(stationFileName, "r")
         for line in stationsFile.readlines(): # TODO, used several places, refactor
             words = line.split()
             stationMap[words[1]] = words[0]

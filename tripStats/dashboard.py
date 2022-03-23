@@ -8,22 +8,20 @@ from download import *
 json_data_column = [
     [sg.Text("Choose folder for data-files in JSON-format", font='Lucida', text_color = 'Yellow')],
     [ sg.Text("Data Folder"),  sg.Input(size=(30, 1), enable_events=True, key="-FOLDER-"), sg.FolderBrowse(), ],
-    [ sg.Listbox( values=[], enable_events=True, size=(40, 30), key="-FILE LIST-")
+    [ sg.Listbox( values=[], enable_events=True, size=(40, 10), key="-FILE LIST-")
     ],
 ]
 process_column = [
     [sg.Text("Select processing", font='Lucida', text_color = 'Yellow', key="-TOUT1-")],
     [sg.Text("Download Oslo trips, 1 = April 2019 ... 35 = February 2022)")],
-    [sg.Button("All Oslo"), sg.Button("Clear"), sg.Input("From: ", key="-INPUTfrom-"), sg.Input("To: ", key="-INPUTto-")],
+    [sg.Button("All Oslo"), sg.Button("Clear"), sg.Input("From: ", size=(8), key="-INPUTfrom-"), sg.Input("To: ", size = 6, key="-INPUTto-")],
     [sg.Button("Download Oslo")],
     [sg.Text('_'*40)],
     [sg.Text("Not implemented")],
     [sg.Button("Bergen"), sg.Button("Utopia")],
     [sg.Text('_'*40)],
-    [sg.Text("Compress --- not implemented")],
-    [sg.Text('_'*40)],
     [sg.Text("Analyze", size=(20, 1))],
-    [sg.Button("Distance matrix"), sg.Button("Leave and arrive intensity"), sg.Button("Move probab"), sg.Button("Check-Test"), sg.Button("CheckAll")],
+    [sg.Button("Distance matrix"), sg.Button("Leave and arrive intensity"), sg.Button("Check-Test"),sg.Button("CheckAll")],
     [sg.Text('_'*40)],
     [sg.Text(size=(40, 1), key="-TOUT2-")],
     [sg.Button("Exit")]
@@ -32,8 +30,7 @@ layout = [ [ sg.Column(json_data_column), sg.VSeperator(), sg.Column(process_col
 ]
 window = sg.Window("FOMO Digital Twin Dashboard 0.1", layout)
 
-
-# checkTest() # placed here during development  CHANGE NAME
+checkTest() # TODO prelim placed here for fast debug
 
 folder = "" #starts empty
 while True:
@@ -47,18 +44,17 @@ while True:
         window["-INPUTfrom-"].update("From: ")
         window["-INPUTto-"].update("To: ")   
     elif event == "Download Oslo":
+        # print("values:", values)  # debug 
         oslo(values["-INPUTfrom-"], values["-INPUTto-"])
     elif event == "Distance matrix":
-        calcDistances("Oslo", "all")    
+        dm = calcDistances("Oslo", "all")    
     elif event == "Leave and arrive intensity":
-        calcIntensity("Oslo", "all", 60) #  last param is length of period
+        leaveIntensity, arriveIntensity = calcIntensity("Oslo", "all", 60) #  last param is length of period
+        pass
     elif event == "CheckAll":
         checkAll(folder)
-    elif event == "Move probab":
-        calcMoveProbab("Oslo", "all") 
-        pass   
     elif event == "Check-Test":
-        checkTest()      
+        checkTest()    
     elif event == "Exit" or event == sg.WIN_CLOSED:
         break
     elif event == "-FOLDER-": # Folder name was filled in, make a list of files in the folder
