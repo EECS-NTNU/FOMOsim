@@ -7,8 +7,6 @@ import os.path
 import geopy.distance
 from datetime import datetime
 
-# TODO inn som classe og objekt ??? @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
 def timeInHoursAndMinutes(seconds):
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
@@ -93,10 +91,8 @@ class BikeTrip:
         self.start = start
         self.end = end
         
-    
-
 def reportStations(stations):
-    stationsMap = open("tripStats/report/stations.txt", "w")
+    stationsMap = open("tripStats/Oslo/stations.txt", "w")
     count = 0
     for s in stations:
         stationId = f'{count:>5}'+ f'{s.stationId:>6}' + " " + s.longitude + " " + s.latitude + " " + s.stationName + "\n"
@@ -156,63 +152,6 @@ def checkTest():  # used for code-developmen and testing
         dist_matrix_km.append(row)
         rowNo = rowNo + 1
 #   
-def calcIntensity(city, mode, periodLength):
-    if (city == "Oslo") and (mode == "all"):
-        print("leave and arrive intensity calculation for all trips downloaded for Oslo ...")
-        printTime()
-        stationMap = {} # maps from stationId to station number 
-        stationsFile = open("tripStats/report/stations.txt", "r")
-        for line in stationsFile.readlines():
-            words = line.split()
-            stationMap[words[1]] = words[0]
-    
-        leaveCount = [] # list of leave counts indexed by station number    
-        arriveCount = [] # list of arrive counts indexed by station number
-        for no in range(len(stationMap)):
-            leaveCount.append(0)
-            arriveCount.append(0) # TODO last one reached, + 1 ?
-
-        trips = 0
-        # refactor code below used several places to loop through all OsloFiles, make function, retrn list of filenames    
-        for i in range(1, 35 + 1): # TODO assumes at least 35 trip data files for Oslo # TODO, ugly, magic numbers
-            monthNo = 1 + ((i + 2) % 12) # 1 is April
-            yearNo = (i + 2)//12 + 2019
-            if monthNo < 10: # refactor into function zeroPad
-                monthStr = "0" + str(monthNo)
-            else:
-                monthStr = str(monthNo)    
-            jsonFile = open("tripStats/data/Oslo/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "r")
-            bikeData = json.loads(jsonFile.read())
-            for i in range(len(bikeData)):
-                startNo = int(stationMap[bikeData[i]["start_station_id"]])
-                leaveCount[startNo] = leaveCount[startNo] + 1
-                endNo = int(stationMap[bikeData[i]["end_station_id"]])
-                arriveCount[endNo] = arriveCount[endNo] + 1
-                trips = trips + 1
-            print(".", end='') # TODO replace with progress bar
-  
-        # adjust pr. hour or pr. 20 min, assumes 30 days in all months, and 35 months
-        periods = 35 * 30 * 24 * (60 / periodLength)
-        leaveIntensity = []
-        arriveIntensity = []
-        for i in range(len(stationMap)):
-            leaveIntensity.append(leaveCount[i]/periods)
-            arriveIntensity.append(arriveCount[i]/periods)
-        printTime()
-        print("A total of ", trips, " trips processed")
-        leaveIntenseFileName = "Oslo-li-1-35.txt"
-        leaveFile = open("tripStats/data/Oslo/" + leaveIntenseFileName, "w")
-        arriveIntenseFileName = "Oslo-ai-1-35.txt"
-        arriveFile = open("tripStats/data/Oslo/" + arriveIntenseFileName, "w")
-        for i in range(len(stationMap)):
-            leaveFile.write(str(leaveIntensity[i]) + " ") 
-            arriveFile.write(str(arriveIntensity[i])+ " ") 
-        print("calcIntensity ends, leave and arrive intensity stored in " + leaveIntenseFileName + " and " + leaveIntenseFileName + "respectively")
-        return leaveIntensity, arriveIntensity         
-
-    else:
-        print("*** ERROR: calcIntensity --- illegal parameters")
-
 def calcDistances(city, mode):
     if (city == "Oslo") and (mode == "all"):
         print("distance matrix calculation for stations used in all trips downloaded for Oslo ...")
@@ -227,7 +166,7 @@ def calcDistances(city, mode):
                 monthStr = "0" + str(monthNo)
             else:
                 monthStr = str(monthNo)    
-            jsonFile = open("tripStats/data/Oslo/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "r")
+            jsonFile = open("tripStats/data/Oslo/tripData/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "r")
             bikeData = json.loads(jsonFile.read())
             for i in range(len(bikeData)):
                 startId = int(bikeData[i]["start_station_id"])
@@ -261,11 +200,7 @@ def calcDistances(city, mode):
                 startLat = stations[rowNo].latitude
                 endLong = stations[col].longitude
                 endLat = stations[col].latitude
-                distance_float = geopy.distance.distance((startLat, startLong), (endLat, endLong)).km
-                # print(distance_float) #debug
-                km = round(distance_float)
-                row.append(km)
-                dm_file.write(str(km))
+                dm_file.write(str(geopy.distance.distance((startLat, startLong), (endLat, endLong)).km))
                 dm_file.write(" ")
                 col = col + 1
             dist_matrix_km.append(row)
@@ -273,9 +208,108 @@ def calcDistances(city, mode):
             rowNo = rowNo + 1    
         printTime()
         print("calcDistances ends, stored in " + dm_fileName)
-        return dist_matrix_km
     else:
         print("*** ERROR: calcDistances --- illegal parameters")
+
+def calcIntensity(city, mode, periodLength):
+    if (city == "Oslo") and (mode == "all"):
+        print("leave and arrive intensity calculation for all trips downloaded for Oslo ...")
+        printTime()
+        stationMap = {} # maps from stationId to station number 
+        stationsFile = open("tripStats/report/stations.txt", "r")
+        for line in stationsFile.readlines():
+            words = line.split()
+            stationMap[words[1]] = words[0]
+    
+        leaveCount = [] # list of leave counts indexed by station number    
+        arriveCount = [] # list of arrive counts indexed by station number
+        for no in range(len(stationMap)):
+            leaveCount.append(0)
+            arriveCount.append(0) # TODO last one reached, + 1 ?
+
+        trips = 0
+        # refactor code below used several places to loop through all OsloFiles, make function, retrn list of filenames    
+        for i in range(1, 35 + 1): # TODO assumes at least 35 trip data files for Oslo # TODO, ugly, magic numbers
+            monthNo = 1 + ((i + 2) % 12) # 1 is April
+            yearNo = (i + 2)//12 + 2019
+            if monthNo < 10: # refactor into function zeroPad
+                monthStr = "0" + str(monthNo)
+            else:
+                monthStr = str(monthNo)    
+            jsonFile = open("tripStats/data/Oslo/tripData/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "r")
+            bikeData = json.loads(jsonFile.read())
+            for i in range(len(bikeData)):
+                startNo = int(stationMap[bikeData[i]["start_station_id"]])
+                leaveCount[startNo] = leaveCount[startNo] + 1
+                endNo = int(stationMap[bikeData[i]["end_station_id"]])
+                arriveCount[endNo] = arriveCount[endNo] + 1
+                trips = trips + 1
+            print(".", end='') # TODO replace with progress bar
+  
+        # adjust pr. hour or pr. 20 min, assumes 30 days in all months, and 35 months
+        periods = 35 * 30 * 24 * (60 / periodLength)
+        leaveIntensity = []
+        arriveIntensity = []
+        for i in range(len(stationMap)):
+            leaveIntensity.append(leaveCount[i]/periods)
+            arriveIntensity.append(arriveCount[i]/periods)
+        printTime()
+        print("A total of ", trips, " trips processed")
+        leaveIntenseFileName = "Oslo-li-1-35.txt"
+        leaveFile = open("tripStats/data/Oslo/" + leaveIntenseFileName, "w")
+        arriveIntenseFileName = "Oslo-ai-1-35.txt"
+        arriveFile = open("tripStats/data/Oslo/" + arriveIntenseFileName, "w")
+        for i in range(len(stationMap)):
+            leaveFile.write(str(leaveIntensity[i]) + " ") 
+            arriveFile.write(str(arriveIntensity[i])+ " ") 
+        print("calcIntensity ends, leave and arrive intensity stored in " + leaveIntenseFileName + " and " + arriveIntenseFileName + " respectively")
+    else:
+        print("*** ERROR: calcIntensity --- illegal parameters")
+
+def calcMoveProbab(city, mode):
+    if (city == "Oslo") and (mode == "all"):
+        print("move probability calculation for all trips downloaded for Oslo ...")
+        printTime()
+        stationMap = {} # maps from stationId to station number 
+        stationsFile = open("tripStats/report/stations.txt", "r")
+        for line in stationsFile.readlines(): # TODO, used several places, refactor
+            words = line.split()
+            stationMap[words[1]] = words[0]
+        traffic = []
+        for rowNo in range(len(stationMap)):
+            row = []
+            for col in range(len(stationMap)):
+                row.append(0)
+            traffic.append(row)
+        
+        # refactor code below used several places to loop through all OsloFiles, make function, retrn list of filenames    
+        trips = 0
+        for i in range(1, 35 + 1): # TODO assumes at least 35 trip data files for Oslo # TODO, ugly, magic numbers
+            monthNo = 1 + ((i + 2) % 12) # 1 is April
+            yearNo = (i + 2)//12 + 2019
+            if monthNo < 10: # refactor into function zeroPad
+                monthStr = "0" + str(monthNo)
+            else:
+                monthStr = str(monthNo)    
+            jsonFile = open("tripStats/data/Oslo/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "r")
+            bikeData = json.loads(jsonFile.read())
+            for i in range(len(bikeData)):
+                startNo = int(stationMap[bikeData[i]["start_station_id"]])
+                endNo = int(stationMap[bikeData[i]["end_station_id"]])
+                traffic[startNo][endNo] = traffic[startNo][endNo] + 1 
+                trips = trips + 1  
+            print(".", end='') # TODO replace with progress bar          
+        move_probabilities = []
+        for row in range(len(stationMap)):
+            sumRow = 0
+            probabilitites = []
+            for col in range(len(stationMap)):
+                sumRow = sumRow + traffic[row][col]
+            for col in range(len(stationMap)):
+                probabilitites.append(traffic[row][col]/sumRow)   
+            move_probabilities.append(probabilitites)    
+    else:
+        print("*** ERROR: calcIntensity --- illegal parameters")
 
 ##################################
 # # inspired by https://realpython.com/python-json/

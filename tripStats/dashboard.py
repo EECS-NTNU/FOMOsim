@@ -23,7 +23,7 @@ process_column = [
     [sg.Text("Compress --- not implemented")],
     [sg.Text('_'*40)],
     [sg.Text("Analyze", size=(20, 1))],
-    [sg.Button("Distance matrix"), sg.Button("Leave and arrive intensity"), sg.Button("Check-Test"),sg.Button("CheckAll")],
+    [sg.Button("Distance matrix"), sg.Button("Leave and arrive intensity"), sg.Button("Move probab"), sg.Button("Check-Test"), sg.Button("CheckAll")],
     [sg.Text('_'*40)],
     [sg.Text(size=(40, 1), key="-TOUT2-")],
     [sg.Button("Exit")]
@@ -47,17 +47,18 @@ while True:
         window["-INPUTfrom-"].update("From: ")
         window["-INPUTto-"].update("To: ")   
     elif event == "Download Oslo":
-        # print("values:", values)  # debug 
         oslo(values["-INPUTfrom-"], values["-INPUTto-"])
     elif event == "Distance matrix":
-        dm = calcDistances("Oslo", "all")    
+        calcDistances("Oslo", "all")    
     elif event == "Leave and arrive intensity":
-        leaveIntensity, arriveIntensity = calcIntensity("Oslo", "all", 60) #  last param is length of period
-        pass
+        calcIntensity("Oslo", "all", 60) #  last param is length of period
     elif event == "CheckAll":
         checkAll(folder)
+    elif event == "Move probab":
+        calcMoveProbab("Oslo", "all") 
+        pass   
     elif event == "Check-Test":
-        checkTest()    
+        checkTest()      
     elif event == "Exit" or event == sg.WIN_CLOSED:
         break
     elif event == "-FOLDER-": # Folder name was filled in, make a list of files in the folder

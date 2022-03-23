@@ -1,6 +1,7 @@
 tripStats/logs
-tripStats/data
+tripStats/data/Oslo/tripData
 tripStats/report
+tripStats/data/Utopia
 
 state_cache
 
