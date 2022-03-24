@@ -151,7 +151,8 @@ def calcDistances(city):
         dm_file.write("\n")
         rowNo = rowNo + 1    
     printTime()
-    print("Distances calculated, stored in Distances.txt")
+    print("Distances calculated, stored in Distances.txt and returned thru call")
+    return dist_matrix_km
 
 def readStationMap(city):
     stationMap = {} # maps from stationId to station number 
@@ -164,17 +165,21 @@ def readStationMap(city):
 def analyzeTraffic(city, week):
     if (week < 1) or (week >53):
         print("*** Error: week no must be in range 1..53")
-    print("analyzeTraffic() called for city: " + city) 
+    print("Starts analyzing traffic for city: " + city) 
     printTime() 
+    years = [] # Must count no of "year-instances" of the given week that are analyzed
+
     stationMap = readStationMap(city)
 
     arriveCount = []
     leaveCount = []
-    moveCount= []
+    moveCount = []
+    durations = []
     for station in range(len(stationMap)):
         arriveCount.append([])
         leaveCount.append([])
         moveCount.append([])
+        durations.append([])
         for day in range(7):
             arriveCount[station].append([])
             leaveCount[station].append([])
@@ -183,11 +188,14 @@ def analyzeTraffic(city, week):
                 arriveCount[station][day].append(0)
                 leaveCount[station][day].append(0)
                 stationList = []
-                for i in range(len(stationMap)):
+                for i in range(len(stationMap)): # TODO, can probably be done more compactly
                     stationList.append(0)
+                    durations[station].append([])
                 moveCount[station][day].append(stationList)
 
     trips = 0
+    arrivingBikes = 0
+    leavingBikes = 0
     tripDataPath = "tripStats/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
     for file in fileList:
@@ -195,25 +203,72 @@ def analyzeTraffic(city, week):
         bikeData = json.loads(jsonFile.read())
         for i in range(len(bikeData)):
 
-            weekNo, weekDay = weekNoAndDay(bikeData[i]["ended_at"][0:10])
+            year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
+            years.append(year)
             hour = int(bikeData[i]["ended_at"][11:13])
             endStationNo = 0 #
             if weekNo == week:
                 endStationNo = stationMap[bikeData[i]["end_station_id"]]
                 arriveCount[endStationNo][weekDay][hour] += 1
+                arrivingBikes += 1
 
             # startString = bikeData[i]["started_at"] debug
-            weekNo, weekDay = weekNoAndDay(bikeData[i]["started_at"][0:10])
+            year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
+            years.append(year)
             hour = int(bikeData[i]["started_at"][11:13])
             if weekNo == week:
                 startStationNo = stationMap[bikeData[i]["start_station_id"]]
                 leaveCount[startStationNo][weekDay][hour] += 1
-                moveCount[startStationNo][weekDay][hour][endStationNo] += 1
+                moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
+                leavingBikes += 1
+                durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
             trips = trips + 1
         print(".", end='') # TODO replace with progress bar
-    print(trips, " trips analyzed")
+    avgDuration = []
+    for start in range(len(stationMap)):
+        avgDuration.append([])
+        for end in range(len(stationMap)):
+            avgDuration[start].append([])
+            sumDuration = 0
+            for trip in range(len(durations[start][end])):
+                sumDuration += durations[start][end][trip]
+            avgDuration[start][end] = sumDuration/len(durations)
+    distances = calcDistances(city)
+   
+    speed_matrix = []
+    for start in range(len(stationMap)):
+        speed_matrix.append([])
+        for end in range(len(stationMap)):
+            speed_matrix[start].append(distances[start][end]/(avgDuration[start][end]/3600))
+ 
+    noOfYears = len(set(years))
+    arrive_intensities = []
+    leave_intensities = []
+    move_probabilities= []
+    for station in range(len(stationMap)):
+        arrive_intensities.append([])
+        leave_intensities.append([])
+        move_probabilities.append([])
+        for day in range(7):
+            arrive_intensities[station].append([])
+            leave_intensities[station].append([])
+            move_probabilities[station].append([])
+            for hour in range(24):
+                arrive_intensities[station][day].append(arriveCount[station][day][hour]/noOfYears)
+                leave_intensities[station][day].append(leaveCount[station][day][hour]/noOfYears)
+                move_probabilities[station][day].append([])
+                for endStation in range(len(stationMap)):
+                    movedBikes = moveCount[station][day][hour][endStation]
+                    movedBikesTotal = leaveCount[station][day][hour]
+                    if movedBikesTotal > 0:
+                        move_probabilities[station][day][hour].append(movedBikes/movedBikesTotal)
+                    else:
+                        move_probabilities[station][day][hour].append(0.0)    
+
+    print(trips, " trips analyzed. A total of ", leavingBikes, " bikes left and ", end='')
+    print(arrivingBikes, " bikes arrived during week ", week, " for ", noOfYears, " years")
     printTime()
-    print(".... calculated, stored in Distances.txt")
+    return alt sammen ... 
 
 
 

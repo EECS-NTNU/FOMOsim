@@ -10,10 +10,15 @@
 ## Code
 
 * **parse.py**
-  *  **calcDistance**(_city_) reads all files in subfolder data/_city_
+  * **calcDistance**(_city_) reads all files in subfolder data/_city_
     * Assumes all files are .json files in the correct format
     * Finds all stations used as start or end of a trip
     * Writes stations overview in file _stations.txt_
+  * **analyzeTraffic**(_city, week_)
+    * Reads out all trip data for a given city and week no, counts arriving bikes for all end-stations and leaving bikes and destinations for trips initiated at all start stations. Broken down into weekday and hour
+    * Also records durations of all trips for every startstation/endstation-pair _starting_ in the given week
+    *  
+
 
 * note start and end might be different hour, weekday and weekNo
 

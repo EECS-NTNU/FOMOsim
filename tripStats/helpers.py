@@ -9,10 +9,10 @@ def strip(removeStr, wholeStr):
     else:
         print("*** ERROR could not remove ", removeStr)
 
-def weekNoAndDay(dateString):
+def yearWeekNoAndDay(dateString):
     year, month, day = map(int, dateString.split('-'))
     date1 = date(year, month, day)
-    return int(date1.isocalendar()[1]), date1.weekday()
+    return year, int(date1.isocalendar()[1]), date1.weekday()
 
 
 def timeInHoursAndMinutes(seconds):
