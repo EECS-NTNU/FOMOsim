@@ -5,17 +5,7 @@ from math import dist
 import sys
 import os.path
 import geopy.distance
-from datetime import datetime
-
-def timeInHoursAndMinutes(seconds):
-    m, s = divmod(seconds, 60)
-    h, m = divmod(m, 60)
-    return str(h) + ":" + str(m)
-
-def printTime():
-    now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
-    print("Time =", current_time)
+from helpers import *
 
 def summary(filepath):
     JSON_file = open(filepath, "r")
@@ -111,62 +101,121 @@ def checkTest():  # TODO prelim used for code-development and testing
     bikeData = json.loads(jsonFile.read())
     # print(len(bikeData), "trips, ", end = '')
 
-def calcDistances(city, mode):
-    if (city == "Oslo") and (mode == "all"):
-        print("distance matrix calculation for stations used in all trips downloaded for Oslo ...")
-        printTime() 
-        stationNo = 0 # station numbers found, counts 0,1,2,...
-        stations = []
-        stationMap = {} # maps from stationId to station number 
-        for i in range(1, 35 + 1): # TODO assumes at least 35 trip data files for Oslo # TODO, ugly, magic numbers
-            monthNo = 1 + ((i + 2) % 12) # 1 is April
-            yearNo = (i + 2)//12 + 2019
-            if monthNo < 10: # refactor into function zeroPad
-                monthStr = "0" + str(monthNo)
-            else:
-                monthStr = str(monthNo)    
-            jsonFile = open("tripStats/data/Oslo/tripData/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "r")
-            bikeData = json.loads(jsonFile.read())
-            for i in range(len(bikeData)):
-                startId = int(bikeData[i]["start_station_id"])
-                if not startId in stationMap:
-                    stationMap[startId] = stationNo
-                    stationNo = stationNo + 1
-                    startLong = str(bikeData[i]["start_station_longitude"])
-                    startLat = str(bikeData[i]["start_station_latitude"])
-                    stations.append(Station(bikeData[i]["start_station_id"], startLong, startLat, bikeData[i]["start_station_name"]))
-            
-                endId = int(bikeData[i]["end_station_id"])
-                if not endId in stationMap:
-                    stationMap[endId] = stationNo
-                    stationNo = stationNo + 1
-                    endLong = str(bikeData[i]["end_station_longitude"])
-                    endLat = str(bikeData[i]["end_station_latitude"])
-                    stations.append(Station(bikeData[i]["end_station_id"], endLong, endLat, bikeData[i]["end_station_name"]))
-            print(".", end='') # TODO replace with progress bar
-        print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
-        reportStations(stations, city)
-        printTime()
-        # calculate distance matrix
-        dist_matrix_km = [] # km in kilometers, integers to comply with main.py
-        dm_fileName = "Oslo-dm-1-35.txt"
-        dm_file = open("tripStats/data/Oslo/"+ dm_fileName, "w")
-        for rowNo in range(len(stationMap)):
-            col = 0 
-            row = []
-            for col in range(len(stationMap)):
-                dm_file.write(str(geopy.distance.distance(
-                    (stations[rowNo].latitude, stations[rowNo].longitude), 
-                    (stations[col].latitude, stations[col].longitude)).km))
-                dm_file.write(" ")
-                col = col + 1
-            dist_matrix_km.append(row)
-            dm_file.write("\n")
-            rowNo = rowNo + 1    
-        printTime()
-        print("calcDistances ends, stored in " + dm_fileName)
-    else:
-        print("*** ERROR: calcDistances --- illegal parameters")
+def calcDistances(city):
+    print("calDistance() called for city: " + city) 
+    printTime() 
+
+    stationNo = 0 # station numbers found, counts 0,1,2,...
+    stations = []
+    stationMap = {} # maps from stationId to station number 
+
+    tripDataPath = "tripStats/data/" + city + "/tripData"
+    fileList = os.listdir(tripDataPath)
+    for file in fileList:
+        jsonFile = open(os.path.join(tripDataPath, file), "r")
+        bikeData = json.loads(jsonFile.read())
+        for i in range(len(bikeData)):
+            startId = int(bikeData[i]["start_station_id"])
+            if not startId in stationMap:
+                stationMap[startId] = stationNo
+                stationNo = stationNo + 1
+                startLong = str(bikeData[i]["start_station_longitude"])
+                startLat = str(bikeData[i]["start_station_latitude"])
+                stations.append(Station(bikeData[i]["start_station_id"], startLong, startLat, bikeData[i]["start_station_name"]))
+        
+            endId = int(bikeData[i]["end_station_id"]) # TODO refactor?, code similar for start... and end...
+            if not endId in stationMap:
+                stationMap[endId] = stationNo
+                stationNo = stationNo + 1
+                endLong = str(bikeData[i]["end_station_longitude"])
+                endLat = str(bikeData[i]["end_station_latitude"])
+                stations.append(Station(bikeData[i]["end_station_id"], endLong, endLat, bikeData[i]["end_station_name"]))
+        print(".", end='') # TODO nice, replace with progress bar
+    print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
+    reportStations(stations, city)
+    printTime()
+    # calculate distance matrix
+    dist_matrix_km = [] # km in kilometers, integers to comply with main.py
+    
+    dm_file = open("tripStats/data/" + city + "/Distances.txt", "w")
+    for rowNo in range(len(stationMap)):
+        col = 0 
+        row = []
+        for col in range(len(stationMap)):
+            dm_file.write(str(geopy.distance.distance(
+                (stations[rowNo].latitude, stations[rowNo].longitude), 
+                (stations[col].latitude, stations[col].longitude)).km))
+            dm_file.write(" ")
+            col = col + 1
+        dist_matrix_km.append(row)
+        dm_file.write("\n")
+        rowNo = rowNo + 1    
+    printTime()
+    print("Distances calculated, stored in Distances.txt")
+
+def readStationMap(city):
+    stationMap = {} # maps from stationId to station number 
+    stationsFile = open("tripStats/data/" + city + "/stations.txt", "r")
+    for line in stationsFile.readlines():
+        words = line.split()
+        stationMap[words[1]] = int(words[0])
+    return stationMap
+
+def analyzeTraffic(city, week):
+    if (week < 1) or (week >53):
+        print("*** Error: week no must be in range 1..53")
+    print("analyzeTraffic() called for city: " + city) 
+    printTime() 
+    stationMap = readStationMap(city)
+
+    arriveCount = []
+    leaveCount = []
+    moveCount= []
+    for station in range(len(stationMap)):
+        arriveCount.append([])
+        leaveCount.append([])
+        moveCount.append([])
+        for day in range(7):
+            arriveCount[station].append([])
+            leaveCount[station].append([])
+            moveCount[station].append([])
+            for hour in range(24):
+                arriveCount[station][day].append(0)
+                leaveCount[station][day].append(0)
+                stationList = []
+                for i in range(len(stationMap)):
+                    stationList.append(0)
+                moveCount[station][day].append(stationList)
+
+    trips = 0
+    tripDataPath = "tripStats/data/" + city + "/tripData"
+    fileList = os.listdir(tripDataPath)
+    for file in fileList:
+        jsonFile = open(os.path.join(tripDataPath, file), "r")
+        bikeData = json.loads(jsonFile.read())
+        for i in range(len(bikeData)):
+
+            weekNo, weekDay = weekNoAndDay(bikeData[i]["ended_at"][0:10])
+            hour = int(bikeData[i]["ended_at"][11:13])
+            endStationNo = 0 #
+            if weekNo == week:
+                endStationNo = stationMap[bikeData[i]["end_station_id"]]
+                arriveCount[endStationNo][weekDay][hour] += 1
+
+            # startString = bikeData[i]["started_at"] debug
+            weekNo, weekDay = weekNoAndDay(bikeData[i]["started_at"][0:10])
+            hour = int(bikeData[i]["started_at"][11:13])
+            if weekNo == week:
+                startStationNo = stationMap[bikeData[i]["start_station_id"]]
+                leaveCount[startStationNo][weekDay][hour] += 1
+                moveCount[startStationNo][weekDay][hour][endStationNo] += 1
+            trips = trips + 1
+        print(".", end='') # TODO replace with progress bar
+    print(trips, " trips analyzed")
+    printTime()
+    print(".... calculated, stored in Distances.txt")
+
+
 
 def calcIntensity(city, mode, periodLength):
     if (city == "Oslo") and (mode == "all"):

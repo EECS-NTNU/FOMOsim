@@ -1,14 +1,7 @@
 # download.py
 
 import requests
-
-
-def strip(removeStr, wholeStr):
-    start = wholeStr.find(removeStr)
-    if start == 0:
-        return wholeStr[len(removeStr):len(wholeStr)]
-    else:
-        print("*** ERROR could not remove ", removeStr)
+from helpers import strip 
 
 def oslo(fromIncluded, toIncluded):
 #    print("Oslo called with parameters", fromIncluded, toIncluded) 

@@ -1,8 +1,10 @@
 # dashboard.py
 import PySimpleGUI as sg
 import os.path
+from helpers import *
 from parse import *
 from download import *
+
 
 ###### GUI layout
 json_data_column = [
@@ -21,7 +23,7 @@ process_column = [
     [sg.Button("Bergen"), sg.Button("Utopia")],
     [sg.Text('_'*40)],
     [sg.Text("Analyze", size=(20, 1))],
-    [sg.Button("Distance matrix"), sg.Button("Leave and arrive intensity"), sg.Button("Check-Test"),sg.Button("CheckAll")],
+    [sg.Button("Distance matrix"), sg.Button("Traffic"), sg.Input("Week: ", size=(9), key ="-WEEK-"), sg.Button("Check-Test"), sg.Button("CheckAll")],
     [sg.Text('_'*40)],
     [sg.Text(size=(40, 1), key="-TOUT2-")],
     [sg.Button("Exit")]
@@ -47,9 +49,9 @@ while True:
         # print("values:", values)  # debug 
         oslo(values["-INPUTfrom-"], values["-INPUTto-"])
     elif event == "Distance matrix":
-        dm = calcDistances("Oslo", "all")    
-    elif event == "Leave and arrive intensity":
-        leaveIntensity, arriveIntensity = calcIntensity("Oslo", "all", 60) #  last param is length of period
+        dm = calcDistances("Oslo")    
+    elif event == "Traffic":
+        analyzeTraffic("Oslo", int(strip("Week: ", values["-WEEK-"]))) 
         pass
     elif event == "CheckAll":
         checkAll(folder)

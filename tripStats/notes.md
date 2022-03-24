@@ -1,6 +1,21 @@
 # City-bike trip statistics
 
-* foldername tripStats
+## File structure
+
+* package folder name **tripStats**
+* subfolder **data** contains trip data and more for different cities
+  * **data/Oslo** from Oslo City Bike Data
+  * **data/Utopia** contains various syntetic data for testing
+
+## Code
+
+* **parse.py**
+  *  **calcDistance**(_city_) reads all files in subfolder data/_city_
+    * Assumes all files are .json files in the correct format
+    * Finds all stations used as start or end of a trip
+    * Writes stations overview in file _stations.txt_
+
+* note start and end might be different hour, weekday and weekNo
 
 * distance matrix
   * rounded up or down to nearest km
