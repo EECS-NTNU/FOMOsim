@@ -8,6 +8,7 @@ import numpy as np
 import sim
 import clustering.scripts
 import policies
+import policies.fosen_haldorsen
 from visualization.visualizer import visualize_analysis
 
 PERIOD = 960 # 16 hours
@@ -18,34 +19,52 @@ simulators = []
 
 # Set up initial state
 
-# # This is done with a script that reads data from an "entur" snapshot
-# state = clustering.scripts.get_initial_state(
-#     entur_data_dir = "test_data",
-#     entur_main_file = "0900-entur-snapshot.csv",
-#     bike_class = "Scooter",
-#     number_of_scooters = 1000,
-#     number_of_clusters = 10,
-#     number_of_vans = 2,
-#     random_seed=1,
-# )
+# Lasse: Jeg ser for meg å kalle en funksjon som ligner på følgende:
+# state = lasses_pakke.get_initial_state(datadir="data/oslo", week=12)
 
-# This is set up manually
+# Din funksjon må da sette opp tilstanden ved å bruke sim.State.get_initial_state()
+# Du ser et eksempel på det her:
+
+# Først setter vi opp noen matriser
+arrive_intensities = [] # 3D matrise som indekseres [station][day][hour]
+leave_intensities = []  # 3D matrise som indekseres [station][day][hour]
+move_probabilities = [] # 4D matrise som indekseres [from-station][day][hour][to-station]
+for station in range(4): # eksempelet har 4 stasjoner
+    arrive_intensities.append([])
+    leave_intensities.append([])
+    move_probabilities.append([])
+    for day in range(7):
+        arrive_intensities[station].append([])
+        leave_intensities[station].append([])
+        move_probabilities[station].append([])
+        for hour in range(24):
+            arrive_intensities[station][day].append(2) # fra denne stasjonen på gitt tidspunkt drar det 2 sykler i timer
+            leave_intensities[station][day].append(2)  # fra denne stasjonen på gitt tidspunkt kommer det 2 sykler i timer
+            move_probabilities[station][day].append([1/3, 1/3, 1/3, 1/3]) # sannsynlighetsfordeling for å dra til de forskjellige stasjonene
+            move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
+
 state = sim.State.get_initial_state(
-    bike_class = "Scooter",
-    distance_matrix = [
+    bike_class = "Bike",
+    distance_matrix = [ # km
         [0, 4, 2, 3],
         [4, 0, 5, 1],
         [2, 5, 0, 4],
         [3, 1, 4, 0],
     ],
+    speed_matrix = [ # km/h
+        [15, 15, 15, 15],
+        [15, 15, 15, 15],
+        [15, 15, 15, 15],
+        [15, 15, 15, 15],
+    ],
     main_depot = None,
     secondary_depots = [],
-    number_of_scooters = [0, 0, 2, 4],
-    arrive_intensities = [0, 0, 2, 5],
-    leave_intensities = [0, 0, 5, 2],
-    move_probabilities = np.zeros((4, 4), dtype="float64"),
+    number_of_scooters = [1, 3, 2, 4],
     number_of_vans = 2,
     random_seed = 1,
+    arrive_intensities = arrive_intensities,
+    leave_intensities = leave_intensities,
+    move_probabilities = move_probabilities,
 )
     
 ###############################################################################
@@ -61,46 +80,6 @@ simulators.append(sim.Simulator(
 
 # Run first simulator
 simulators[-1].run()
-
-###############################################################################
-
-# Set up second simulator
-simulators.append(sim.Simulator(
-    PERIOD,
-    policies.RandomActionPolicy(),
-    copy.deepcopy(state),
-    verbose=True,
-    label="RandomAction",
-))
-
-# Run second simulator
-simulators[-1].run()
-
-###############################################################################
-
-# # The rebalancing policy needs special information in the state object ("ideal state" calculations)
-# # We can use the following function to generate this kind of state object
-# state_with_ideal_state = policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy.get_initial_state(
-#     entur_data_dir = "test_data",
-#     entur_main_file = "0900-entur-snapshot.csv",
-#     bike_class = "Scooter",
-#     number_of_scooters = 1000,
-#     number_of_clusters = 10,
-#     number_of_vans = 2,
-#     random_seed=1,
-# )
-
-# # Set up third simulator
-# simulators.append(sim.Simulator(
-#     PERIOD,
-#     policies.RebalancingPolicy(),
-#     copy.deepcopy(state_with_ideal_state),
-#     verbose=True,
-#     label="Rebalancing",
-# ))
-
-# # Run third simulator
-# simulators[-1].run()
 
 ###############################################################################
 

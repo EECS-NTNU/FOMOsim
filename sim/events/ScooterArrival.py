@@ -39,8 +39,6 @@ class ScooterArrival(Event):
             arrival_cluster.add_scooter(world.state.rng, self.scooter)
 
             if FULL_TRIP:
-                # adding the trip to world flow for visualizing purposes
-                world.add_trip_to_flow(self.departure_cluster_id, self.arrival_cluster_id)
                 world.state.remove_used_scooter(self.scooter)
 
         # set time of world to this event's time

@@ -32,7 +32,7 @@ class ScooterDeparture(Event):
             if FULL_TRIP:
                 # get a arrival cluster from the leave prob distribution
                 arrival_cluster = world.state.rng.choice(
-                    world.state.locations, p=departure_cluster.get_leave_distribution(world.state)
+                    world.state.locations, p=departure_cluster.get_leave_distribution(world.state, world.day(), world.hour())
                 )
 
                 trip_distance = world.state.get_distance(
@@ -40,8 +40,13 @@ class ScooterDeparture(Event):
                     arrival_cluster.id,
                 )
 
+                trip_speed = world.state.get_trip_speed(
+                    departure_cluster.id,
+                    arrival_cluster.id,
+                )
+
                 # calculate arrival time
-                arrival_time = self.time + round(trip_distance / scooter.speed() * 60)
+                arrival_time = self.time + round((trip_distance / trip_speed) * 60)
 
                 # create an arrival event for the departed scooter
                 world.add_event(
