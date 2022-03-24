@@ -38,9 +38,6 @@ class VehicleArrival(Event):
         if isinstance(action, tuple):
             action, _ = action
 
-        # clear world flow counter dictionary
-        world.clear_flow_dict()
-
         # Record current location of vehicle to compute action time
         arrival_cluster_id = vehicle.current_location.id
 

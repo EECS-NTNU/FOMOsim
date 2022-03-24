@@ -23,9 +23,6 @@ class Scooter(Location):
     def hasBattery(self):
       return True
 
-    def speed(self):
-        return SCOOTER_SPEED
-
     def swap_battery(self):
         self.battery = 100.0
 

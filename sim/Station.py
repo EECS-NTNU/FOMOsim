@@ -20,6 +20,7 @@ class Station(Location):
         center_location=None,
         move_probabilities=None,
         average_number_of_scooters=None,
+        ideal_state=0
     ):
         self.scooters = scooters
         self.leave_intensity_per_iteration = leave_intensity_per_iteration
@@ -27,7 +28,7 @@ class Station(Location):
         self.average_number_of_scooters = average_number_of_scooters
         super().__init__(
             *(center_location if center_location else self.__compute_center()),
-            cluster_id,
+            cluster_id, ideal_state=ideal_state
         )
         self.move_probabilities = move_probabilities
 
@@ -42,36 +43,19 @@ class Station(Location):
             average_number_of_scooters=self.average_number_of_scooters,
         )
 
-    class Decorators:
-        @classmethod
-        def check_move_probabilities(cls, func):
-            def return_function(self, *args, **kwargs):
-                if self.move_probabilities is not None:
-                    return func(self, *args, **kwargs)
-                else:
-                    raise ValueError(
-                        "Move probabilities matrix not initialized. Please set in the set_move_probabilities function"
-                    )
+    def get_leave_distribution(self, state, day, hour):
+        if self.move_probabilities is None:
+            mp = []
+            for station in range(len(state.locations)):
+                mp.append(1 / len(state.locations))
+            return mp
+        return self.move_probabilities[day % 7][hour % 24]
 
-            return return_function
+    def get_arrive_intensity(self, day, hour):
+        return self.arrive_intensity_per_iteration[day % 7][hour % 24]
 
-    @Decorators.check_move_probabilities
-    def get_leave_distribution(self, state):
-        # Copy list
-        distribution = self.move_probabilities.copy()
-        if np.sum(distribution[np.arange(len(distribution)) != self.id]) == 0.0:
-            # if all leave probabilities are zero, let them all be equally likely
-            distribution = np.ones_like(distribution)
-        # Set stay probability to zero
-        distribution[self.id] = 0.0
-        # Set probability of going to depot to zero
-        for depot in state.depots:
-            distribution[depot.id] = 0.0
-        # Normalize leave distribution
-        return distribution / np.sum(distribution)
-
-    def set_move_probabilities(self, move_probabilities: np.ndarray):
-        self.move_probabilities = move_probabilities
+    def get_leave_intensity(self, day, hour):
+        return self.leave_intensity_per_iteration[day % 7][hour % 24]
 
     def number_of_possible_pickups(self):
         return self.number_of_scooters()
