@@ -90,7 +90,6 @@ simulators.append(sim.Simulator(
 simulators[-1].run()
 
 
-
 ###############################################################################
 
 # # The rebalancing policy needs special information in the state object ("ideal state" calculations)
