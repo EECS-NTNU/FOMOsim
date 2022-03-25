@@ -33,9 +33,7 @@
 ## Notes
 
 * note start and end might be different hour, weekday and weekNo
-
 * distance matrix
   * calcDistances() is time consuming since it reads all trips
-
 * Oslo City Bike data stores longitude and latitude of stations, not altitude.
   * A distancse matrix should be symmetrical if distance is "birds flight" (luftlinje). One-way roads etc. could make it assymmetric. Difference in altitude will give assymmetric travel times, therefore average travel-times give indirectly altitude-information :-)

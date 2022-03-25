@@ -38,7 +38,7 @@ simulators = []
 # This is set up manually
 
 #state = tripStats.get_initial_state("Oslo", 20) # format wanted by Asbjørn
-state = get_initial_state("Oslo", 20) # parse.py will crash in line 250(?) "    return sim.State.get_initial_state("
+state = get_initial_state("Oslo", 30) # parse.py will crash in line 250(?) "    return sim.State.get_initial_state("
 
 state = sim.State.get_initial_state(
     bike_class = "Bike", # was "Scooter"
