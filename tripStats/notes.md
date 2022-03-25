@@ -24,10 +24,9 @@
   * **get_initial_state**(_city, week_)
     * Reads out all trip data for a given city and week no, counts arriving bikes for all end-stations and leaving bikes and destinations for trips initiated at all start stations. Broken down into weekday and hour
     * Also records durations of all trips for every startstation/endstation-pair _starting_ in the given week Calculates average speed matrix for trips in that week in
-    
     * **Status:**
       * jeg må kommentere ut speed_matrix i kallet fra main da min branch har eldre versjon av State
-      * kræsjer der move_probabilites skal plugges inn, kanskje pga. gammel kode, eller for at det brukes numpy der? 
+      * kræsjer der move_probabilites skal plugges inn, kanskje pga. gammel kode, eller for at det brukes numpy der?
 
 ## Notes
 
