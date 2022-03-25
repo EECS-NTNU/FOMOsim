@@ -1,6 +1,9 @@
 # parse.py
 # from importlib.metadata import distribution
 # from shutil import move
+
+import sim
+
 import json
 # from math import dist
 import sys
@@ -111,9 +114,10 @@ def readBikeStartStatus(city):
             bikeStartStatus.append(0)
         for i in range(len(stationData["stations"])):
             station = int(stationData["stations"][i]["station_id"])
-            if station in stationMap:
-                stationNo = stationMap[station]
-                bikeStartStatus[stationNo] = stationData[i]["num_bikes_available"]
+            if str(station) in stationMap:
+                stationNo = stationMap[str(station)]
+                noOfBikes = stationData["stations"][i]["num_bikes_available"]
+                bikeStartStatus[stationNo] = noOfBikes
         return bikeStartStatus
     else:
         print("*** Error: bikeStatus file not available yet") 
