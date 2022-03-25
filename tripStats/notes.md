@@ -2,6 +2,7 @@
 
 ## Til Asbjørn
 
+* Kode-eksemplet du la ut for meg i main.py var svært nyttig!! 
 * Initiell stasjons-status i antall sykler er "hardkodet" til 23 mars 2022 kl. 1513, se **readBikeStartStatus()**
 * funksjonen oslo() i download.py brukes for å laste ned JSON filer for Oslo, de som finnes er nummerert 1 - 35
 * jeg har fjernet dashboard-modulen (GUI), for å levere bare det du ba om

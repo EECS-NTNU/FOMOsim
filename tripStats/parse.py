@@ -206,7 +206,7 @@ def get_initial_state(city, week):
     # Calculate arrive and leave-intensities and move_probabilities
     print(" calculate intensities ", end='')
     noOfYears = len(set(years))
-    arrive_intensities = []
+    arrive_intensities = []  
     leave_intensities = []
     move_probabilities= []
     for station in range(len(stationMap)):
