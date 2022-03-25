@@ -5,66 +5,9 @@ import json
 import sys
 import os.path
 import geopy.distance
-from helpers import *
 
-def summary(filepath):
-    JSON_file = open(filepath, "r")
-    bikeData = json.loads(JSON_file.read())
-    print("Summary of bike trips read from " + filepath)
-    print("* ", len(bikeData), "trips")
-    stations = []
-    stationNames = {} # id to name mapping
-    tripDurations = [] # not sure if this is needed
-    shortestTrip = sys.maxsize
-    longestTrip = 0
-    for i in range(len(bikeData)):
-        startStation_id = int(bikeData[i]["start_station_id"])
-        stations.append(startStation_id)
-        startStation_name = bikeData[i]["start_station_name"]
-        stationNames[startStation_id] = startStation_name
-        endStation_id = int(bikeData[i]["end_station_id"])
-        stations.append(endStation_id)
-        endStation_name = bikeData[i]["end_station_name"]
-        stationNames[endStation_id] = endStation_name
-        duration = bikeData[i]["duration"] # in seconds
-        if duration > longestTrip:
-            longestTrip = duration
-        elif duration < shortestTrip:
-            shortestTrip = duration
-        tripDurations.append(duration)
-
-    print("* ", len(set(stations)), " different stations used")
-    dictionary_items = stationNames.items()
-    sorted_items = sorted(dictionary_items)
-    stationsMap = open("report/stations.txt", "w")
-    count = 0
-    for item in sorted_items:
-        str = f'{count:>5}'+ f'{item[0]:>6}' + "  " + item[1] + "\n"
-        # print(str, end ='')
-        stationsMap.write(str)
-        count = count + 1
-    stationsMap.close()
-
-    print("  - shortest trip was ", timeInHoursAndMinutes(shortestTrip), "(hours:minutes)" )
-    print("  - longest trip was ", timeInHoursAndMinutes(longestTrip), "(hours:minutes)" )
-    print("  - id ==> name mapping stored in report/stations.txt")
-
-def checkAll(folder):
-#    print("checkAll pressed")
-    try:
-        file_list = os.listdir(folder)
-        fnames = [
-            f
-            for f in file_list
-            if os.path.isfile(os.path.join(folder, f))
-            and f.lower().endswith((".json"))
-        ]
-        print("checkAll preliminary solution is summary of all JSON files in folder")
-        for name in fnames:
-            print("checks ", name)
-            summary(os.path.join(folder, name))    
-    except:
-        print("*** USER ERROR *** CheckAll called on empty folder")
+#from helpers import * # works if used from dashboard
+from tripStats.helpers import *  # works if used from main.py
 
 class Station:
     def __init__(self, stationId, longitude, latitude, stationName):
@@ -164,7 +107,25 @@ def readStationMap(city):
         stationMap[words[1]] = int(words[0])
     return stationMap
 
-def analyzeTraffic(city, week):
+def readBikeStartStatus(city):
+    if city == "Oslo":
+        bikeStatusFile = open("tripStats/data/Oslo/stationStatus-23-Mar-1513.json", "r")
+        allStatusData = json.loads(bikeStatusFile.read())
+        stationData = allStatusData["data"]
+        stationMap = readStationMap(city)
+        bikeStartStatus = []
+        for stat in range(len(stationMap)):
+            bikeStartStatus.append(0)
+        for i in range(len(stationData["stations"])):
+            station = int(stationData["stations"][i]["station_id"])
+            if station in stationMap:
+                stationNo = stationMap[station]
+                bikeStartStatus[stationNo] = stationData[i]["num_bikes_available"]
+        return bikeStartStatus
+    else:
+        print("*** Error: bikeStatus file not available yet") 
+
+def getStartState(city, week):
     if (week < 1) or (week >53):
         print("*** Error: week no must be in range 1..53")
     printTime() # performance deubg
@@ -288,109 +249,19 @@ def analyzeTraffic(city, week):
 
     print("\n", trips, "trips analyzed. A total of ", leavingBikes, " bikes left and ", end='')
     print(arrivingBikes, " bikes arrived during week ", week, " for ", noOfYears, " years")
+    bikeStartStatus = readBikeStartStatus(city)
     printTime()
     
-    # return alt sammen ... 
-
-
-
-def calcIntensity(city, mode, periodLength):
-    if (city == "Oslo") and (mode == "all"):
-        print("leave and arrive intensity calculation for all trips downloaded for Oslo ...")
-        printTime()
-        stationMap = {} # maps from stationId to station number 
-        stationsFile = open("tripStats/report/stations.txt", "r")
-        for line in stationsFile.readlines():
-            words = line.split()
-            stationMap[words[1]] = words[0]
-    
-        leaveCount = [] # list of leave counts indexed by station number    
-        arriveCount = [] # list of arrive counts indexed by station number
-        for no in range(len(stationMap)):
-            leaveCount.append(0)
-            arriveCount.append(0) # TODO last one reached, + 1 ?
-
-        trips = 0
-        # refactor code below used several places to loop through all OsloFiles, make function, retrn list of filenames    
-        for i in range(1, 35 + 1): # TODO assumes at least 35 trip data files for Oslo # TODO, ugly, magic numbers
-            monthNo = 1 + ((i + 2) % 12) # 1 is April
-            yearNo = (i + 2)//12 + 2019
-            if monthNo < 10: # refactor into function zeroPad
-                monthStr = "0" + str(monthNo)
-            else:
-                monthStr = str(monthNo)    
-            jsonFile = open("tripStats/data/Oslo/tripData/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "r")
-            bikeData = json.loads(jsonFile.read())
-            for i in range(len(bikeData)):
-                startNo = int(stationMap[bikeData[i]["start_station_id"]])
-                leaveCount[startNo] = leaveCount[startNo] + 1
-                endNo = int(stationMap[bikeData[i]["end_station_id"]])
-                arriveCount[endNo] = arriveCount[endNo] + 1
-                trips = trips + 1
-            print(".", end='') # TODO replace with progress bar
-  
-        # adjust pr. hour or pr. 20 min, assumes 30 days in all months, and 35 months
-        periods = 35 * 30 * 24 * (60 / periodLength)
-        leaveIntensity = []
-        arriveIntensity = []
-        for i in range(len(stationMap)):
-            leaveIntensity.append(leaveCount[i]/periods)
-            arriveIntensity.append(arriveCount[i]/periods)
-        printTime()
-        print("A total of ", trips, " trips processed")
-        leaveIntenseFileName = "Oslo-li-1-35.txt"
-        leaveFile = open("tripStats/data/Oslo/" + leaveIntenseFileName, "w")
-        arriveIntenseFileName = "Oslo-ai-1-35.txt"
-        arriveFile = open("tripStats/data/Oslo/" + arriveIntenseFileName, "w")
-        for i in range(len(stationMap)):
-            leaveFile.write(str(leaveIntensity[i]) + " ") 
-            arriveFile.write(str(arriveIntensity[i])+ " ") 
-        print("calcIntensity ends, leave and arrive intensity stored in " + leaveIntenseFileName + " and " + arriveIntenseFileName + " respectively")
-    else:
-        print("*** ERROR: calcIntensity --- illegal parameters")
-
-def calcMoveProbab(city, mode):
-    if (city == "Oslo") and (mode == "all"):
-        print("move probability calculation for all trips downloaded for Oslo ...") # TODO prelim
-        printTime()
-        stationMap = {} # maps from stationId to station number
-        stationFileName = "tripStats/" + city + "/stations.txt" 
-        stationsFile = open(stationFileName, "r")
-        for line in stationsFile.readlines(): # TODO, used several places, refactor
-            words = line.split()
-            stationMap[words[1]] = words[0]
-        traffic = []
-        for rowNo in range(len(stationMap)):
-            row = []
-            for col in range(len(stationMap)):
-                row.append(0)
-            traffic.append(row)
-        
-        # refactor code below used several places to loop through all OsloFiles, make function, retrn list of filenames    
-        trips = 0
-        for i in range(1, 35 + 1): # TODO assumes at least 35 trip data files for Oslo # TODO, ugly, magic numbers
-            monthNo = 1 + ((i + 2) % 12) # 1 is April
-            yearNo = (i + 2)//12 + 2019
-            if monthNo < 10: # refactor into function zeroPad
-                monthStr = "0" + str(monthNo)
-            else:
-                monthStr = str(monthNo)    
-            jsonFile = open("tripStats/data/Oslo/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "r")
-            bikeData = json.loads(jsonFile.read())
-            for i in range(len(bikeData)):
-                startNo = int(stationMap[bikeData[i]["start_station_id"]])
-                endNo = int(stationMap[bikeData[i]["end_station_id"]])
-                traffic[startNo][endNo] = traffic[startNo][endNo] + 1 
-                trips = trips + 1  
-            print(".", end='') # TODO replace with progress bar          
-        move_probabilities = []
-        for row in range(len(stationMap)):
-            sumRow = 0
-            probabilitites = []
-            for col in range(len(stationMap)):
-                sumRow = sumRow + traffic[row][col]
-            for col in range(len(stationMap)):
-                probabilitites.append(traffic[row][col]/sumRow)   
-            move_probabilities.append(probabilitites)    
-    else:
-        print("*** ERROR: calcIntensity --- illegal parameters")
+    return State.get_initial_state(
+        bike_class = "bike",
+        distance_matrix = distances,
+        speed_matrix = speed_matrix,
+        main_depot = None,
+        secondary_depots = [],
+        number_of_scooters = bikeStartStatus,
+        number_of_vans = 2,
+        random_seed = 1,
+        arrive_intensities = arrive_intensities,
+        leave_intensities = leave_intensities,
+        move_probabilities = move_probabilities,
+    )

@@ -5,7 +5,6 @@ from helpers import *
 from parse import *
 from download import *
 
-
 ###### GUI layout
 json_data_column = [
     [sg.Text("Choose folder for data-files in JSON-format", font='Lucida', text_color = 'Yellow')],
@@ -23,7 +22,7 @@ process_column = [
     [sg.Button("Bergen"), sg.Button("Utopia")],
     [sg.Text('_'*40)],
     [sg.Text("Analyze", size=(20, 1))],
-    [sg.Button("Distance matrix"), sg.Button("Traffic"), sg.Input("Week: ", size=(9), key ="-WEEK-"), sg.Button("Check-Test"), sg.Button("CheckAll")],
+    [sg.Button("Distance matrix"), sg.Button("Traffic"), sg.Input("Week: ", size=(9), key ="-WEEK-")],
     [sg.Text('_'*40)],
     [sg.Text(size=(40, 1), key="-TOUT2-")],
     [sg.Button("Exit")]
@@ -51,12 +50,8 @@ while True:
     elif event == "Distance matrix":
         dm = calcDistances("Oslo")    
     elif event == "Traffic":
-        analyzeTraffic("Oslo", int(strip("Week: ", values["-WEEK-"]))) 
-        pass
-    elif event == "CheckAll":
-        checkAll(folder)
-    elif event == "Check-Test":
-        checkTest()    
+        getStartState("Oslo", int(strip("Week: ", values["-WEEK-"]))) 
+        pass  
     elif event == "Exit" or event == sg.WIN_CLOSED:
         break
     elif event == "-FOLDER-": # Folder name was filled in, make a list of files in the folder
@@ -78,7 +73,6 @@ while True:
             filepath = os.path.join(values["-FOLDER-"], values["-FILE LIST-"][0])
             window["-TOUT2-"].update(filepath)
             print(filepath)
-            summary(filepath)
         except:
             print("Exception prcessing file")
 window.close()

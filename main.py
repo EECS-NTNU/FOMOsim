@@ -7,9 +7,13 @@ import numpy as np
 
 import sim
 import clustering.scripts
+
+#import tripStats
+#from tripStats import *
+from tripStats.parse import getStartState, readBikeStartStatus   # works
+
 import policies
 from visualization.visualizer import visualize_analysis
-from tripStats.TripStats import *
 
 PERIOD = 960 # 16 hours
 
@@ -30,7 +34,13 @@ simulators = []
 #     random_seed=1,
 # )
 
+# state = tripStats.get_initial_state("Oslo", 20)
+
+# *****************WORKS FINE in branch tripStats 
 # This is set up manually
+
+state = getStartState("Oslo", 20)
+
 state = sim.State.get_initial_state(
     bike_class = "Bike", # was "Scooter"
     distance_matrix = [
@@ -54,8 +64,6 @@ state = sim.State.get_initial_state(
     
 ###############################################################################
 
-tripStatsInit("Oslo")
-
 # Set up first simulator
 simulators.append(sim.Simulator(
     PERIOD,
@@ -67,11 +75,6 @@ simulators.append(sim.Simulator(
 
 # Run first simulator
 simulators[-1].run()
-
-tripStatsClose()
-
-print("End of Lasses tripStats testing")
-
 
 ###############################################################################
 
