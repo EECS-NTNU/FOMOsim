@@ -3,7 +3,7 @@ SIM SETTINGS
 """
 
 # general settings
-VERBOSE = True
+VERBOSE = False
 FULL_TRIP = True
 
 ITERATION_LENGTH_MINUTES = 20
@@ -42,9 +42,6 @@ SMALL_DEPOT_CAPACITY = 100
 CHARGE_TIME_PER_BATTERY = 60
 SWAP_TIME_PER_BATTERY = 0.4
 CONSTANT_DEPOT_DURATION = 15
-
-# TripStats settings
-TRIP_STATS = True # Assumes VERBOSE = True (is under general settings on top)
 
 
 """

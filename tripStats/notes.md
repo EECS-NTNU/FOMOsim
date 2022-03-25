@@ -2,8 +2,9 @@
 
 ## Til Asbjørn
 
-* Jeg har ikke helt snøring på moduler, from, import m.m., må derfor desverre (via kommentering) bruke to ulike varianter av import fra tripStats i parse.py
 * Initiell stasjons-status i antall sykler er "hardkodet" til 23 mars 2022 kl. 1513, se **readBikeStartStatus()**
+* funksjonen oslo() i download.py brukes for å laste ned JSON filer for Oslo, de som finnes er nummerert 1 - 35
+* jeg har fjernet dashboard-modulen (GUI), for å levere bare det du ba om
 
 ## File structure
 
@@ -26,7 +27,8 @@
     * Also records durations of all trips for every startstation/endstation-pair _starting_ in the given week Calculates average speed matrix for trips in that week in
     * **Status:**
       * jeg må kommentere ut speed_matrix i kallet fra main da min branch har eldre versjon av State
-      * kræsjer der move_probabilites skal plugges inn, kanskje pga. gammel kode, eller for at det brukes numpy der?
+      * kræsjer der move_probabilites skal plugges inn, men fikk det i orden ved å kopiere over til numpy-array
+        * TODO, bør kanskje bruke numpy fra starten av !?
 
 ## Notes
 

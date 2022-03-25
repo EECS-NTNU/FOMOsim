@@ -1,17 +1,12 @@
 # parse.py
-# from importlib.metadata import distribution
-# from shutil import move
-
 import sim
-
 import json
-# from math import dist
 import sys
 import os.path
 import geopy.distance
 import numpy as np
 
-#from helpers import * # works if used from dashboard
+#from helpers import * # works when used from dashboard
 from tripStats.helpers import *  # works if used from main.py
 
 class Station:
@@ -35,15 +30,11 @@ def reportStations(stations, city):
     count = 0
     for s in stations:
         stationId = f'{count:>5}'+ f'{s.stationId:>6}' + " " + s.longitude + " " + s.latitude + " " + s.stationName + "\n"
-        # print(stationId, end ='')
         stationsMap.write(stationId)
         count = count + 1
     stationsMap.close()
 
 def calcDistances(city):
-    # print("calDistance() called for city: " + city) 
-    # printTime() 
-
     stationNo = 0 # station numbers found, counts 0,1,2,...
     stations = []
     stationMap = {} # maps from stationId to station number 
@@ -72,10 +63,7 @@ def calcDistances(city):
         print(".", end='') # TODO nice, replace with progress bar
     # print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
     reportStations(stations, city)
-    # printTime()
-    # calculate distance matrix
-    dist_matrix_km = [] # km in kilometers, integers to comply with main.py
-    
+    dist_matrix_km = [] # km in kilometers
     dm_file = open("tripStats/data/" + city + "/Distances.txt", "w")
     for rowNo in range(len(stationMap)):
         col = 0 
@@ -91,7 +79,6 @@ def calcDistances(city):
         dist_matrix_km.append(row)
         dm_file.write("\n")
         rowNo = rowNo + 1    
-    # printTime()
     # print("Distances calculated, stored in Distances.txt and returned thru call")
     return dist_matrix_km
 
@@ -126,7 +113,7 @@ def get_initial_state(city, week):
     if (week < 1) or (week >53):
         print("*** Error: week no must be in range 1..53")
     printTime() # performance deubg
-    print("Starts analyzing traffic for city: " + city + " :", end='') 
+    print("Starts analyzing traffic for city: " + city + " : ", end='') 
     years = [] # Must count no of "year-instances" of the given week that are analyzed
     stationMap = readStationMap(city)
 

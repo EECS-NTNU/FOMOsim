@@ -4,14 +4,12 @@ import requests
 from helpers import strip 
 
 def oslo(fromIncluded, toIncluded):
-#    print("Oslo called with parameters", fromIncluded, toIncluded) 
     first = int(strip("From:", fromIncluded))
     last = int(strip("To:", toIncluded))
     for i in range(first, last + 1):
         monthNo = 1 + ((i + 2) % 12) # 1 is April
         yearNo = (i + 2)//12 + 2019
-        # print(yearNo, monthNo)
-        if monthNo < 10: # refactor into function zeroPad
+        if monthNo < 10:  
             monthStr = "0" + str(monthNo)
         else:
             monthStr = str(monthNo)
