@@ -1,9 +1,11 @@
 import copy
-
+import settings
+import policies.fosen_haldorsen.heuristic_manager as hm
+import sim
 
 class Route:
 
-    def __init__(self, starting_st, vehicle, hour, time_hor=25):
+    def __init__(self, starting_st, vehicle, day, hour, time_hor=25):
         self.starting_station = starting_st
         self.stations = [starting_st]
         self.length = 0
@@ -12,6 +14,7 @@ class Route:
         self.time_horizon = time_hor
         self.vehicle = vehicle
         self.handling_time = 0.5
+        self.day = day
         self.hour = hour
 
     def add_station(self, station, added_station_time):
@@ -21,16 +24,25 @@ class Route:
 
     def generate_extreme_decisions(self, policy='greedy'):
         swap, bat_load, flat_load, bat_unload, flat_unload = (0, 0, 0, 0, 0)
-        if not self.starting_station.depot:
+        if not isinstance(self.starting_station, sim.Depot):
             if policy == 'greedy':
-                bat_load = max(0, min(self.starting_station.current_charged_bikes, self.vehicle.available_bike_capacity(),
-                                      self.starting_station.current_charged_bikes - self.starting_station.get_ideal_state(self.hour)))
-                bat_unload = max(0, min(self.vehicle.current_charged_bikes, self.starting_station.available_parking(),
-                                 self.starting_station.get_ideal_state(self.hour) - self.starting_station.current_charged_bikes))
-                flat_load = min(self.starting_station.current_flat_bikes, self.vehicle.available_bike_capacity())
-                flat_unload = min(self.vehicle.current_flat_bikes, self.starting_station.available_parking())
-                swap = min(self.vehicle.current_batteries,
-                           self.starting_station.current_flat_bikes + self.vehicle.current_flat_bikes)
+                # convert from new sim
+                starting_station_current_charged_bikes = len(self.starting_station.get_available_scooters())
+                vehicle_available_bike_capacity = self.vehicle.scooter_inventory_capacity - len(self.vehicle.scooter_inventory)
+                vehicle_current_charged_bikes = len(self.vehicle.scooter_inventory)
+                starting_station_available_parking = self.starting_station.capacity - len(self.starting_station.scooters)
+                starting_station_current_flat_bikes = len(self.starting_station.get_swappable_scooters(settings.BATTERY_LIMIT))
+                vehicle_current_flat_bikes = 0
+                vehicle_current_batteries = self.vehicle.battery_inventory
+
+                bat_load = max(0, min(starting_station_current_charged_bikes, vehicle_available_bike_capacity,
+                                      starting_station_current_charged_bikes - self.starting_station.get_ideal_state(self.day, self.hour)))
+                bat_unload = max(0, min(vehicle_current_charged_bikes, starting_station_available_parking,
+                                 self.starting_station.get_ideal_state(self.day, self.hour) - starting_station_current_charged_bikes))
+                flat_load = min(starting_station_current_flat_bikes, vehicle_available_bike_capacity)
+                flat_unload = min(vehicle_current_flat_bikes, starting_station_available_parking)
+                swap = min(vehicle_current_batteries,
+                           starting_station_current_flat_bikes + vehicle_current_flat_bikes)
         # Q_B, Q_CCL, Q_FCL, Q_CCU, Q_FCU
         self.upper_extremes = [swap, bat_load, flat_load, bat_unload, flat_unload]
 
@@ -40,8 +52,9 @@ class GenerateRoutePattern:
     flexibility = 3
     average_handling_time = 6
 
-    def __init__(self, starting_st, stations, vehicle, hour, init_branching=8, criticality=True, dynamic=True,
-                 crit_weights=(0.2, 0.1, 0.5, 0.2)):
+    def __init__(self, simul, starting_st, stations, vehicle, init_branching=8, criticality=True, dynamic=True,
+                 crit_weights=None):
+        self.simul = simul
         self.starting_station = starting_st
         self.time_horizon = 25
         self.vehicle = vehicle
@@ -49,18 +62,19 @@ class GenerateRoutePattern:
         self.patterns = None
         self.all_stations = stations
         self.init_branching = init_branching
-        self.hour = hour
         self.criticality = criticality
         self.dynamic = dynamic
         self.w_drive, self.w_dev, self.w_viol, self.w_net = crit_weights
 
+    def get_station_car_travel_time(self, station, end_st_id):
+        return self.simul.state.get_distance(station.id, end_st_id) / settings.VEHICLE_SPEED
+
     def get_columns(self):
         finished_routes = list()
-        construction_routes = [Route(self.starting_station, self.vehicle, self.hour)]
+        construction_routes = [Route(self.starting_station, self.vehicle, self.simul.day(), self.simul.hour())]
         while construction_routes:
             for col in construction_routes:
                 if col.length < (self.time_horizon - GenerateRoutePattern.flexibility):
-
                     if not self.criticality:
                         cand_scores = col.starting_station.get_candidate_stations(
                             self.all_stations, tabu_list=[c.id for c in col.stations], max_candidates=9)
@@ -75,8 +89,8 @@ class GenerateRoutePattern:
                                 first = False
                                 if len(col.stations) == 1:
                                     first = True
-                                driving_time = col.stations[-1].get_station_car_travel_time(st.id)
-                                score = st.get_criticality_score(self.vehicle, self.time_horizon, self.hour,
+                                driving_time = self.get_station_car_travel_time(col.stations[-1], st.id)
+                                score = hm.get_criticality_score(self.simul, st, self.vehicle, self.time_horizon, 
                                                                  driving_time, self.w_viol,
                                                                  self.w_drive, self.w_dev, self.w_net, first)
                                 cand_scores.append([st, driving_time, score])

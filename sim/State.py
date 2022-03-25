@@ -200,7 +200,6 @@ class State(SaveMixin):
             vehicle.add_battery_inventory(batteries_to_swap)
 
         else:
-            # Perform all pickups
             for pick_up_scooter_id in action.pick_ups:
                 pick_up_scooter = vehicle.current_location.get_scooter_from_id(
                     pick_up_scooter_id

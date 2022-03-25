@@ -1,19 +1,20 @@
+import sim
 
 class ParameterSub:
 
     def __init__(self, route, vehicle, pattern, customer_arrivals, L_CS, L_FS, base_violations, V_0, D_O, base_deviations,
-                 weights, hour):
+                 weights, day, hour):
         # Sets
         self.stations = [i for i in range(len(route.stations))]
         self.charging_stations = list()
         self.non_charging_stations = list()
         self.depot_index = None
         for i in range(1, len(route.stations)):  # Don't include start station in subsets
-            if route.stations[i].charging_station:
-                self.charging_stations.append(i)
-            else:
-                self.non_charging_stations.append(i)
-            if route.stations[i].depot:
+            # if route.stations[i].charging_station:
+            #     self.charging_stations.append(i)
+            # else:
+            self.non_charging_stations.append(i)
+            if isinstance(route.stations[i], sim.Depot):
                 self.depot_index = i
         self.stations += [len(route.stations)]
 
@@ -26,24 +27,28 @@ class ParameterSub:
         self.Q_FCU = pattern[4]
 
         # Station specific
-        self.Q_S = [station.station_cap for station in route.stations] + [0]
+        self.Q_S = [station.capacity for station in route.stations] + [0]
         self.L_CS = L_CS + [0]
         self.L_FS = L_FS + [0]
         self.I_IC = [customer_arrivals[i][0] for i in range(len(customer_arrivals))] + [0]
         self.I_IF = [customer_arrivals[i][1] for i in range(len(customer_arrivals))] + [0]
         self.I_OC = [customer_arrivals[i][2] for i in range(len(customer_arrivals))] + [0]
-        self.O = [station.get_ideal_state(hour) for station in route.stations] + [0]
+        self.O = [station.get_ideal_state(day, hour) for station in route.stations] + [0]
 
         # Vehicle specific
-        self.Q_BV = vehicle.battery_capacity
-        self.Q_CV = vehicle.bike_capacity + self.Q_CCL + self.Q_FCL - max(0, self.Q_CCU + self.Q_FCU)
-        if route.stations[0].depot:
+        self.Q_BV = vehicle.battery_inventory_capacity
+        self.Q_CV = vehicle.scooter_inventory_capacity + self.Q_CCL + self.Q_FCL - max(0, self.Q_CCU + self.Q_FCU)
+        if isinstance(route.stations[0], sim.Depot):
             self.depot_index = 0
-            self.L_BV = vehicle.battery_capacity
+            self.L_BV = vehicle.battery_inventory_capacity
         else:
-            self.L_BV = vehicle.current_batteries - self.Q_B
-        self.L_CV = vehicle.current_charged_bikes + self.Q_CCL - self.Q_CCU
-        self.L_FV = vehicle.current_flat_bikes + self.Q_FCL - self.Q_FCU
+            self.L_BV = vehicle.battery_inventory - self.Q_B
+
+        vehicle_current_charged_bikes = len(vehicle.scooter_inventory)
+        vehicle_current_flat_bikes = 0
+
+        self.L_CV = vehicle_current_charged_bikes + self.Q_CCL - self.Q_CCU
+        self.L_FV = vehicle_current_flat_bikes + self.Q_FCL - self.Q_FCU
 
         # Base Violations
         self.V = base_violations + [0]
@@ -51,8 +56,8 @@ class ParameterSub:
         self.R_O = 0
         self.D = base_deviations + [0]
         self.D_O = D_O
-        if route.stations[0].charging_station:
-            self.R_O = max(0, self.Q_FCU - self.Q_FCL)
+        # if route.stations[0].charging_station:
+        #     self.R_O = max(0, self.Q_FCU - self.Q_FCL)
 
         # Weights
         self.W_V, self.W_R, self.W_D, self.W_N, self.W_L = weights

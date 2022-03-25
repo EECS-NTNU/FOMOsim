@@ -77,7 +77,7 @@ state = sim.State.get_initial_state(
 # Set up first simulator
 simulators.append(sim.Simulator(
     PERIOD,
-    policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
+    policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
     copy.deepcopy(state),
     verbose=True,
     label="FosenHaldorsen",

@@ -1,17 +1,86 @@
-from Input.preprocess import get_index
-from Subproblem.model_manager import ModelManager
-from Subproblem.generate_route_pattern import GenerateRoutePattern
+from policies.fosen_haldorsen.Subproblem.model_manager import ModelManager
+from policies.fosen_haldorsen.Subproblem.generate_route_pattern import GenerateRoutePattern
 import numpy as np
-from MasterProblem.master_params import MasterParameters
-from MasterProblem.master_model import run_master_model
+from policies.fosen_haldorsen.MasterProblem.master_params import MasterParameters
+from policies.fosen_haldorsen.MasterProblem.master_model import run_master_model
+import settings
+import sim
 
+def get_index(station_id, stations):
+    for i in range(len(stations)):
+        if stations[i].id == station_id:
+            return i
+
+def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, w_viol, w_drive, w_dev, w_net, first_station):
+    # converting values from new simulator
+    vehicle_current_batteries = vehicle.battery_inventory
+    incoming_flat_bike_rate_plus_incoming_charged_bike_rate = location.get_arrive_intensity(simul.day(), simul.hour())
+    location_incoming_charged_bike_rate = location.get_arrive_intensity(simul.day(), simul.hour())
+    demand_per_hour = location.get_leave_intensity(simul.day(), simul.hour())
+    location_current_charged_bikes = len(location.get_available_scooters())
+    location_current_flat_bikes = len(location.get_swappable_scooters(settings.BATTERY_LIMIT))
+    vehicle_current_station_current_charged_bikes = len(vehicle.current_location.get_available_scooters())
+    location_get_incoming_charged_rate = location.get_arrive_intensity(simul.day(), simul.hour())
+    location_get_outgoing_customer_rate = location.get_leave_intensity(simul.day(), simul.hour())
+    location_available_parking = location.capacity - len(location.scooters)
+    vehicle_available_bike_capacity = vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory)
+
+    # ------- Time to violation -------
+    if vehicle.battery_inventory_capacity == 0 and isinstance(location, sim.Depot):
+        return -100000
+    if isinstance(location, sim.Depot) and vehicle_current_batteries < 2:
+        return 100000
+    time_to_starvation = 10000
+    time_to_congestion = 10000
+    # Time to congestion
+    # Ensure that denominator != 0
+    if (incoming_flat_bike_rate_plus_incoming_charged_bike_rate - demand_per_hour != 0):
+        t_cong = (location.station_cap - location_current_charged_bikes - location_current_flat_bikes)/(
+            (incoming_flat_bike_rate_plus_incoming_charged_bike_rate -
+             demand_per_hour) / 60)
+        if t_cong > 0:
+            time_to_congestion = t_cong
+    # Time to starvation
+    # Ensure that denominator != 0
+    if (demand_per_hour - location_incoming_charged_bike_rate) != 0:
+        t_starv = location_current_charged_bikes / ((demand_per_hour
+                    - location_incoming_charged_bike_rate) / 60)
+        if t_starv > 0:
+            time_to_starvation = t_starv
+    time_to_violation = min(time_to_starvation, time_to_congestion)
+    if (vehicle_current_station_current_charged_bikes - vehicle.current_location.get_ideal_state(simul.day(), simul.hour())) > 0 and (incoming_flat_bike_rate_plus_incoming_charged_bike_rate -
+             demand_per_hour) > 0 and first_station and location_current_charged_bikes > location.get_ideal_state(simul.day(), simul.hour()):
+        return -10000
+    # ------- Deviation at time horizon  -------
+    # Starving station
+    if demand_per_hour - location_incoming_charged_bike_rate > 0:
+        charged_at_t = location_current_charged_bikes - (demand_per_hour -
+                location_incoming_charged_bike_rate) * min(time_horizon, time_to_starvation)
+        if location.get_ideal_state(simul.day(), simul.hour()) - charged_at_t > 0 and first_station and (vehicle.current_charged_bikes < 2 and (
+                vehicle_current_batteries < 2 or location_current_flat_bikes < 2)):
+            return -10000
+    # Congesting station
+    elif demand_per_hour - location_incoming_charged_bike_rate < 0:
+        charged_at_t = location_current_charged_bikes + (location_incoming_charged_bike_rate
+                - demand_per_hour) * min(time_horizon, time_to_congestion)
+        if location_available_parking == 0 and first_station and vehicle_available_bike_capacity < 2:
+            return -10000
+    else:
+        charged_at_t = location_current_charged_bikes
+    dev = abs(location.get_ideal_state(simul.day(), simul.hour()) - charged_at_t)
+    net = abs(location_get_incoming_charged_rate - location_get_outgoing_customer_rate)
+    return - w_viol * time_to_violation - w_drive * driving_time + w_dev * dev + w_net * net
+
+def get_station_car_travel_time(state, station, end_st_id):
+    return state.get_distance(station.id, end_st_id) / settings.VEHICLE_SPEED
 
 class HeuristicManager:
 
     time_h = 25
 
-    def __init__(self, vehicles, station_full_set, hour, no_scenarios=1, init_branching=7, weights=None,
+    def __init__(self, simul, vehicles, station_full_set, no_scenarios=1, init_branching=3, weights=None,
                  criticality=True, writer=None, crit_weights=None):
+        self.simul = simul
         self.no_scenarios = no_scenarios
         self.customer_arrival_scenarios = list()
         self.vehicles = vehicles
@@ -20,7 +89,6 @@ class HeuristicManager:
         self.subproblem_scores = list()
         self.master_solution = None
         self.init_branching = init_branching
-        self.hour = hour
         self.weights = weights
         self.criticality = criticality
         self.crit_weights = crit_weights
@@ -40,12 +108,12 @@ class HeuristicManager:
         self.run_master_problem()
 
     def run_vehicle_subproblems(self, vehicle):
-        gen = GenerateRoutePattern(vehicle.current_station, self.station_set, vehicle,
-                                   self.hour, init_branching=self.init_branching, criticality=self.criticality,
+        gen = GenerateRoutePattern(self.simul, vehicle.current_location, self.station_set, vehicle,
+                                   init_branching=self.init_branching, criticality=self.criticality,
                                    crit_weights=self.crit_weights)
         gen.get_columns()
         self.route_patterns.append(gen)
-        model_man = ModelManager(vehicle, self.hour)
+        model_man = ModelManager(vehicle, self.simul)
         route_scores = list()
         for route in gen.finished_gen_routes:
             route_full_set_index = [get_index(st.id, self.station_set) for st in route.stations]
@@ -94,17 +162,21 @@ class HeuristicManager:
         for i in range(self.no_scenarios):
             scenario = list()
             for station in self.station_set:
-                c1_times = HeuristicManager.poisson_simulation(station.get_incoming_charged_rate(self.hour) / 60, HeuristicManager.time_h)
-                c2_times = HeuristicManager.poisson_simulation(station.get_incoming_flat_rate(self.hour) / 60, HeuristicManager.time_h)
-                c3_times = HeuristicManager.poisson_simulation(station.get_outgoing_customer_rate(self.hour) / 60, HeuristicManager.time_h)
+                station_get_incoming_charged_rate = station.get_arrive_intensity(self.simul.day(), self.simul.hour())
+                station_get_incoming_flat_rate = station.get_arrive_intensity(self.simul.day(), self.simul.hour())
+                station_get_outgoing_customer_rate = station.get_leave_intensity(self.simul.day(), self.simul.hour())
+
+                c1_times = HeuristicManager.poisson_simulation(self.simul.state.rng, station_get_incoming_charged_rate / 60, HeuristicManager.time_h)
+                c2_times = HeuristicManager.poisson_simulation(self.simul.state.rng, station_get_incoming_flat_rate / 60, HeuristicManager.time_h)
+                c3_times = HeuristicManager.poisson_simulation(self.simul.state.rng, station_get_outgoing_customer_rate / 60, HeuristicManager.time_h)
                 scenario.append([c1_times, c2_times, c3_times])
             self.customer_arrival_scenarios.append(scenario)
 
     @staticmethod
-    def poisson_simulation(intensity_rate, time_steps):
+    def poisson_simulation(rng, intensity_rate, time_steps):
         times = list()
         for t in range(time_steps):
-            arrival = np.random.poisson(intensity_rate)
+            arrival = rng.poisson(intensity_rate)
             for i in range(arrival):
                 times.append(t)
         return times

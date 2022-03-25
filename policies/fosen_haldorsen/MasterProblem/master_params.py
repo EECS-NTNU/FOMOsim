@@ -1,6 +1,7 @@
 import numpy as np
-from Input.preprocess import get_index
-
+import sim
+import policies.fosen_haldorsen.heuristic_manager as hm
+import settings
 
 class MasterParameters:
 
@@ -13,7 +14,7 @@ class MasterParameters:
         self.stations = [i for i in range(len(station_objects))]
         self.swap_stations = list()
         for i in range(len(station_objects)):
-            if not station_objects[i].depot:
+            if not isinstance(station_objects[i], sim.Depot):
                 self.swap_stations.append(i)
         self.vehicles = [i for i in range(len(self.route_pattern))]
         self.routes = [[i for i in range(len(gen.finished_gen_routes))] for gen in self.route_pattern]
@@ -34,14 +35,14 @@ class MasterParameters:
         self.pattern_fcu = list()
         self.set_pattern()
 
-        self.vehicle_bike_caps = [gen.vehicle.bike_capacity for gen in self.route_pattern]
-        self.station_caps = [station.station_cap for station in station_objects]
-        self.init_battery_load = [gen.vehicle.current_batteries for gen in self.route_pattern]
-        self.init_charged_bike_load = [gen.vehicle.current_charged_bikes for gen in self.route_pattern]
-        self.init_flat_bike_load = [gen.vehicle.current_flat_bikes for gen in self.route_pattern]
+        self.vehicle_bike_caps = [gen.vehicle.scooter_inventory_capacity for gen in self.route_pattern]
+        self.station_caps = [station.capacity for station in station_objects]
+        self.init_battery_load = [gen.vehicle.battery_inventory for gen in self.route_pattern]
+        self.init_charged_bike_load = [len(gen.vehicle.scooter_inventory) for gen in self.route_pattern]
+        self.init_flat_bike_load = [0 for gen in self.route_pattern]
 
-        self.init_charged_station_load = [station.current_charged_bikes for station in station_objects]
-        self.init_flat_station_load = [station.current_flat_bikes for station in station_objects]
+        self.init_charged_station_load = [len(station.get_available_scooters()) for station in station_objects]
+        self.init_flat_station_load = [len(station.get_swappable_scooters(settings.BATTERY_LIMIT)) for station in station_objects]
 
         # self.print_master_params()
 
@@ -72,11 +73,11 @@ class MasterParameters:
     """
     def create_A_matrix(self):
         for gen in self.route_pattern:
-            self.starting_stations.append(get_index(gen.finished_gen_routes[0].stations[0].id, self.station_objects))
+            self.starting_stations.append(hm.get_index(gen.finished_gen_routes[0].stations[0].id, self.station_objects))
             v_row = list()
             for route in gen.finished_gen_routes:
                 next_station = route.stations[1]
-                index = get_index(next_station.id, self.station_objects)
+                index = hm.get_index(next_station.id, self.station_objects)
                 i_array = np.zeros(len(self.station_objects))
                 i_array[index] = 1
                 v_row.append(i_array)

@@ -1,15 +1,16 @@
-from Subproblem.parameters_subproblem import ParameterSub
-from Subproblem.subproblem_model import run_model
-
+from policies.fosen_haldorsen.Subproblem.parameters_subproblem import ParameterSub
+from policies.fosen_haldorsen.Subproblem.subproblem_model import run_model
+import settings
+import sim
 
 class ModelManager:
 
     time_horizon = 25
 
-    def __init__(self, vehicle, hour):
+    def __init__(self, vehicle, simul):
         self.vehicle = vehicle
         self.scores = list()
-        self.hour = hour
+        self.simul = simul
 
     def run_one_subproblem(self, route, route_full_set_index, pattern, customer_scenario, weights):
         customer_arrivals = ModelManager.arrivals_after_visit(route, route_full_set_index, customer_scenario)
@@ -23,16 +24,14 @@ class ModelManager:
             st_L_CS, st_L_FS = ModelManager.get_base_inventory(route.stations[i], route.station_visits[i],
                                                                customer_scenario[route_full_set_index[i]])
             if i == 0:
-                V_0, D_0 = ModelManager.get_base_violations(route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i],
-                                                            self.hour, pattern=pattern)
-            st_viol, st_dev = ModelManager.get_base_violations(route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i],
-                                                               self.hour)
+                V_0, D_0 = ModelManager.get_base_violations(self.simul, route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i],
+                                                            pattern=pattern)
+            st_viol, st_dev = ModelManager.get_base_violations(self.simul, route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i])
             L_CS.append(st_L_CS)
             L_FS.append(st_L_FS)
             base_viol.append(st_viol)
             base_dev.append(st_dev)
-        params = ParameterSub(route, self.vehicle, pattern, customer_arrivals, L_CS, L_FS, base_viol, V_0, D_0, base_dev,
-                              weights, self.hour)
+        params = ParameterSub(route, self.vehicle, pattern, customer_arrivals, L_CS, L_FS, base_viol, V_0, D_0, base_dev, weights, self.simul.day(), self.simul.hour())
         return run_model(params)
 
     """
@@ -65,9 +64,12 @@ class ModelManager:
     """
     @staticmethod
     def get_base_inventory(station, visit_time_float, customer_arrivals=None):
+        station_current_charged_bikes = len(station.get_available_scooters())
+        station_current_flat_bikes = len(station.get_swappable_scooters(settings.BATTERY_LIMIT))
+
         visit_time = int(visit_time_float)
-        L_CS = station.current_charged_bikes
-        L_FS = station.current_flat_bikes
+        L_CS = station_current_charged_bikes
+        L_FS = station_current_flat_bikes
         incoming_charged_bike_times = customer_arrivals[0]
         incoming_flat_bike_times = customer_arrivals[1]
         outgoing_charged_bike_times = customer_arrivals[2]
@@ -75,19 +77,19 @@ class ModelManager:
             c1 = incoming_charged_bike_times.count(i)
             c2 = incoming_flat_bike_times.count(i)
             c3 = outgoing_charged_bike_times.count(i)
-            L_CS = max(0, min(station.station_cap - L_FS, L_CS + c1 - c3))
-            L_FS = min(station.station_cap - L_CS, L_FS + c2)
+            L_CS = max(0, min(station.capacity - L_FS, L_CS + c1 - c3))
+            L_FS = min(station.capacity - L_CS, L_FS + c2)
         return L_CS, L_FS
 
     """
     Returning base violations from time of visit to time horizon. Assuming optimal sequencing of customer arrivals
     """
     @staticmethod
-    def get_base_violations(station, visit_inventory_charged, visit_inventory_flat, customer_arrivals, hour, pattern=None):
+    def get_base_violations(simul, station, visit_inventory_charged, visit_inventory_flat, customer_arrivals, pattern=None):
         incoming_charged_bikes = customer_arrivals[0]
         incoming_flat_bikes = customer_arrivals[1]
         outgoing_charged_bikes = customer_arrivals[2]
-        if station.depot:
+        if isinstance(station, sim.Depot):
             return 0, 0
         if pattern:
             starvation = abs(min(0, visit_inventory_charged + pattern[0] - pattern[1] + pattern[3]
@@ -95,14 +97,14 @@ class ModelManager:
             congestion = max(0, visit_inventory_charged + visit_inventory_flat + incoming_charged_bikes
                              + incoming_flat_bikes - pattern[1] + pattern[3] - pattern[2] + pattern[4]
                              - min(visit_inventory_charged + incoming_charged_bikes, outgoing_charged_bikes)
-                             - station.station_cap)
+                             - station.capacity)
             dev = abs(visit_inventory_charged + pattern[0] - pattern[1] + pattern[3] + incoming_charged_bikes
-                      - outgoing_charged_bikes + starvation - congestion - station.get_ideal_state(hour))
+                      - outgoing_charged_bikes + starvation - congestion - station.get_ideal_state(simul.day(), simul.hour()))
         else:
             starvation = abs(min(0, visit_inventory_charged + incoming_charged_bikes - outgoing_charged_bikes))
             congestion = max(0, visit_inventory_charged + visit_inventory_flat + incoming_charged_bikes
                              + incoming_flat_bikes - min(visit_inventory_charged + incoming_charged_bikes,
-                                                         outgoing_charged_bikes) - station.station_cap)
+                                                         outgoing_charged_bikes) - station.capacity)
             dev = abs(visit_inventory_charged + incoming_charged_bikes
-                      - outgoing_charged_bikes + starvation - congestion - station.get_ideal_state(hour))
+                      - outgoing_charged_bikes + starvation - congestion - station.get_ideal_state(simul.day(), simul.hour()))
         return starvation + congestion, dev
