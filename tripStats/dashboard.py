@@ -1,6 +1,9 @@
 # dashboard.py
 import PySimpleGUI as sg
 import os.path
+
+from matplotlib.pyplot import get
+
 from helpers import *
 from parse import *
 from download import *
@@ -31,8 +34,6 @@ layout = [ [ sg.Column(json_data_column), sg.VSeperator(), sg.Column(process_col
 ]
 window = sg.Window("FOMO Digital Twin Dashboard 0.1", layout)
 
-checkTest() # TODO prelim placed here for fast debug
-
 folder = "" #starts empty
 while True:
     event, values = window.read()
@@ -50,7 +51,7 @@ while True:
     elif event == "Distance matrix":
         dm = calcDistances("Oslo")    
     elif event == "Traffic":
-        getStartState("Oslo", int(strip("Week: ", values["-WEEK-"]))) 
+        state = get_initial_state("Oslo", int(strip("Week: ", values["-WEEK-"]))) 
         pass  
     elif event == "Exit" or event == sg.WIN_CLOSED:
         break

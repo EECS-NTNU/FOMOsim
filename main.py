@@ -8,9 +8,7 @@ import numpy as np
 import sim
 import clustering.scripts
 
-#import tripStats
-#from tripStats import *
-from tripStats.parse import getStartState, readBikeStartStatus   # works
+from tripStats.parse import get_initial_state 
 
 import policies
 from visualization.visualizer import visualize_analysis
@@ -39,7 +37,8 @@ simulators = []
 # *****************WORKS FINE in branch tripStats 
 # This is set up manually
 
-state = getStartState("Oslo", 20)
+#state = tripStats.get_initial_state("Oslo", 20) # format wanted by Asbjørn
+state = get_initial_state("Oslo", 20) # parse.py will crash in line 250(?) "    return sim.State.get_initial_state("
 
 state = sim.State.get_initial_state(
     bike_class = "Bike", # was "Scooter"

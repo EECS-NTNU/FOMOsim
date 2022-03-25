@@ -1,10 +1,12 @@
 # parse.py
 # from importlib.metadata import distribution
+# from shutil import move
 import json
 # from math import dist
 import sys
 import os.path
 import geopy.distance
+import numpy as np
 
 #from helpers import * # works if used from dashboard
 from tripStats.helpers import *  # works if used from main.py
@@ -34,15 +36,6 @@ def reportStations(stations, city):
         stationsMap.write(stationId)
         count = count + 1
     stationsMap.close()
-
-def checkTest():  # TODO prelim used for code-development and testing
-    return
-    # storedData = "tripStats/data/Oslo/Oslo-2019-12.json" 
-    storedData = "tripStats/data/Utopia/Utopia-Test-1.json" 
-    print("Parse data from file: ", storedData, " : ", end= '')
-    jsonFile = open(storedData, "r")
-    bikeData = json.loads(jsonFile.read())
-    # print(len(bikeData), "trips, ", end = '')
 
 def calcDistances(city):
     # print("calDistance() called for city: " + city) 
@@ -125,7 +118,7 @@ def readBikeStartStatus(city):
     else:
         print("*** Error: bikeStatus file not available yet") 
 
-def getStartState(city, week):
+def get_initial_state(city, week):
     if (week < 1) or (week >53):
         print("*** Error: week no must be in range 1..53")
     printTime() # performance deubg
@@ -252,10 +245,12 @@ def getStartState(city, week):
     bikeStartStatus = readBikeStartStatus(city)
     printTime()
     
-    return State.get_initial_state(
+    moveProbab_np = np.array(move_probabilities)
+
+    return sim.State.get_initial_state(
         bike_class = "bike",
         distance_matrix = distances,
-        speed_matrix = speed_matrix,
+#        speed_matrix = speed_matrix, ## crashes since my branch has an old version of State.py
         main_depot = None,
         secondary_depots = [],
         number_of_scooters = bikeStartStatus,
@@ -263,5 +258,5 @@ def getStartState(city, week):
         random_seed = 1,
         arrive_intensities = arrive_intensities,
         leave_intensities = leave_intensities,
-        move_probabilities = move_probabilities,
+        move_probabilities = moveProbab_np,
     )
