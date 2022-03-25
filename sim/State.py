@@ -103,6 +103,10 @@ class State(SaveMixin):
 
         return state
 
+    def set_ideal_state(self, ideal_state):
+        for st in self.locations:
+            st.ideal_state = ideal_state[st.id]
+
     def scooter_in_use(self, scooter):
         self.scooters_in_use.append(scooter)
 

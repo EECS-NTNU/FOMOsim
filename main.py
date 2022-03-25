@@ -10,6 +10,7 @@ import clustering.scripts
 import policies
 import policies.fosen_haldorsen
 from visualization.visualizer import visualize_analysis
+from ideal_state.evenly_distributed_ideal_state import evenly_distributed_ideal_state
 
 PERIOD = 960 # 16 hours
 
@@ -29,23 +30,19 @@ simulators = []
 arrive_intensities = [] # 3D matrise som indekseres [station][day][hour]
 leave_intensities = []  # 3D matrise som indekseres [station][day][hour]
 move_probabilities = [] # 4D matrise som indekseres [from-station][day][hour][to-station]
-ideal_state = [] # 3D matrise som indekseres [station][day][hour]
 for station in range(4): # eksempelet har 4 stasjoner
     arrive_intensities.append([])
     leave_intensities.append([])
     move_probabilities.append([])
-    ideal_state.append([])
     for day in range(7):
         arrive_intensities[station].append([])
         leave_intensities[station].append([])
         move_probabilities[station].append([])
-        ideal_state[station].append([])
         for hour in range(24):
             arrive_intensities[station][day].append(2) # fra denne stasjonen på gitt tidspunkt drar det 2 sykler i timer
             leave_intensities[station][day].append(2)  # fra denne stasjonen på gitt tidspunkt kommer det 2 sykler i timer
             move_probabilities[station][day].append([1/3, 1/3, 1/3, 1/3]) # sannsynlighetsfordeling for å dra til de forskjellige stasjonene
             move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
-            ideal_state[station][day].append(8 // 4) # ideal state settes til en jevn fordeling av sykler på alle stasjoner
 
 state = sim.State.get_initial_state(
     bike_class = "Scooter",
@@ -69,18 +66,51 @@ state = sim.State.get_initial_state(
     arrive_intensities = arrive_intensities,
     leave_intensities = leave_intensities,
     move_probabilities = move_probabilities,
-    ideal_state = ideal_state,
 )
     
 ###############################################################################
+# calculate ideal state
 
-# Set up first simulator
+ideal_state = evenly_distributed_ideal_state(state)
+state.set_ideal_state(ideal_state)
+
+###############################################################################
+
+# Set up simulator
 simulators.append(sim.Simulator(
     PERIOD,
     policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
     copy.deepcopy(state),
     verbose=True,
     label="FosenHaldorsen",
+))
+
+# Run first simulator
+simulators[-1].run()
+
+###############################################################################
+
+# Set up simulator
+simulators.append(sim.Simulator(
+    PERIOD,
+    policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
+    copy.deepcopy(state),
+    verbose=True,
+    label="Greedy",
+))
+
+# Run first simulator
+simulators[-1].run()
+
+###############################################################################
+
+# Set up simulator
+simulators.append(sim.Simulator(
+    PERIOD,
+    policies.RebalancingPolicy(),
+    copy.deepcopy(state),
+    verbose=True,
+    label="Rebalancing",
 ))
 
 # Run first simulator
