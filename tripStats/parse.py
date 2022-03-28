@@ -5,6 +5,7 @@ import sys
 import os.path
 import geopy.distance
 import numpy as np
+import settings
 
 #from helpers import * # works when used from dashboard
 from tripStats.helpers import *  # works if used from main.py
@@ -198,10 +199,10 @@ def get_initial_state(city, week):
         speed_matrix.append([])
         for end in range(len(stationMap)):
             averageDuration = avgDuration[start][end]
-            if averageDuration > 0:
+            if averageDuration > 0 and start != end:
                 speed_matrix[start].append(distances[start][end]/(averageDuration/3600))
             else:
-                speed_matrix[start].append(0.0)
+                speed_matrix[start].append(settings.SCOOTER_SPEED)
  
     # Calculate arrive and leave-intensities and move_probabilities
     print(" calculate intensities ", end='')
@@ -234,14 +235,12 @@ def get_initial_state(city, week):
     print("\n", trips, "trips analyzed. A total of ", leavingBikes, " bikes left and ", end='')
     print(arrivingBikes, " bikes arrived during week ", week, " for ", noOfYears, " years")
     bikeStartStatus = readBikeStartStatus(city)
-    printTime()
-    
-    # moveProbab_np = np.array(move_probabilities)
+    printTime() # performance debug
 
     return sim.State.get_initial_state(
         bike_class = "bike",
         distance_matrix = distances,
-#        speed_matrix = speed_matrix, ## crashes since my branch has an old version of State.py
+        speed_matrix = speed_matrix, 
         main_depot = None,
         secondary_depots = [],
         number_of_scooters = bikeStartStatus,

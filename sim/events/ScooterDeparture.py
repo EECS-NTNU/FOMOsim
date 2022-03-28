@@ -31,10 +31,18 @@ class ScooterDeparture(Event):
 
             if FULL_TRIP:
                 # get a arrival cluster from the leave prob distribution
-                arrival_cluster = world.state.rng.choice(
-                    world.state.locations, p=departure_cluster.get_leave_distribution(world.state, world.day(), world.hour())
-                )
 
+                p=departure_cluster.get_leave_distribution(world.state, world.day(), world.hour())
+                sum = 0.0
+                for i in range(len(p)):
+                    sum += p[i]
+                p_normalized = []
+                for i in range(len(p)):
+                    if sum > 0:
+                        p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
+                    else:
+                        p_normalized.append(1/len(p))
+                arrival_cluster = world.state.rng.choice(world.state.locations, p = p_normalized)
                 trip_distance = world.state.get_distance(
                     departure_cluster.id,
                     arrival_cluster.id,
