@@ -1,5 +1,6 @@
 tripStats/logs
 tripStats/data/Oslo/tripData
+tripStats/data/Oslo/*.txt
 tripStats/report
 tripStats/data/Utopia
 
