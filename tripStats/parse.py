@@ -236,7 +236,7 @@ def get_initial_state(city, week):
     bikeStartStatus = readBikeStartStatus(city)
     printTime()
     
-    moveProbab_np = np.array(move_probabilities)
+    # moveProbab_np = np.array(move_probabilities)
 
     return sim.State.get_initial_state(
         bike_class = "bike",
@@ -249,5 +249,5 @@ def get_initial_state(city, week):
         random_seed = 1,
         arrive_intensities = arrive_intensities,
         leave_intensities = leave_intensities,
-        move_probabilities = moveProbab_np,
+        move_probabilities = move_probabilities,
     )

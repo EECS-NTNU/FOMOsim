@@ -37,31 +37,31 @@ simulators = []
 # *****************WORKS FINE in branch tripStats 
 # This is set up manually
 
-calcDistances("Oslo")  # got utf-8 error from stations.txt ()
+# calcDistances("Oslo")  # got utf-8 error from stations.txt ()
 
 #state = tripStats.get_initial_state("Oslo", 20) # format wanted by Asbjørn
 state = get_initial_state("Oslo", 30) # parse.py will crash in line 250(?) "    return sim.State.get_initial_state("
 
-state = sim.State.get_initial_state(
-    bike_class = "Bike", # was "Scooter"
-    distance_matrix = [
-        [0, 4, 2, 3],
-        [4, 0, 5, 1],
-        [2, 5, 0, 4],
-        [3, 1, 4, 0],
-    ],
-    main_depot = None,
-    secondary_depots = [],
-#    number_of_scooters = [0, 0, 2, 4],
-    number_of_scooters = [0, 0, 0, 1],
-    arrive_intensities = [0, 0, 2, 5],
-#    leave_intensities = [0, 0, 5, 2],
-    leave_intensities = [5, 5, 5, 5],
-    move_probabilities = np.zeros((4, 4), dtype="float64"),
-#    number_of_vans = 2,
-    number_of_vans = 0,
-    random_seed = 1,
-)
+# state = sim.State.get_initial_state(
+#     bike_class = "Bike", # was "Scooter"
+#     distance_matrix = [
+#         [0, 4, 2, 3],
+#         [4, 0, 5, 1],
+#         [2, 5, 0, 4],
+#         [3, 1, 4, 0],
+#     ],
+#     main_depot = None,
+#     secondary_depots = [],
+# #    number_of_scooters = [0, 0, 2, 4],
+#     number_of_scooters = [0, 0, 0, 1],
+#     arrive_intensities = [0, 0, 2, 5],
+# #    leave_intensities = [0, 0, 5, 2],
+#     leave_intensities = [5, 5, 5, 5],
+#     move_probabilities = np.zeros((4, 4), dtype="float64"),
+# #    number_of_vans = 2,
+#     number_of_vans = 0,
+#     random_seed = 1,
+# )
     
 ###############################################################################
 
