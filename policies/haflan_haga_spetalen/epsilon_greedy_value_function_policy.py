@@ -11,14 +11,14 @@ import abc
 import math
 
 from policies import Policy
-import policies.epsilon_greedy_value_function_policy.settings as epssettings
+import policies.haflan_haga_spetalen.settings as epssettings
 import policies.neighbour_filtering
-import policies.epsilon_greedy_value_function_policy.system_simulation.scripts
+import policies.haflan_haga_spetalen.system_simulation.scripts
 import settings
 import clustering
 import clustering.methods
 import clustering.scripts
-from policies.epsilon_greedy_value_function_policy.helpers import *
+from policies.haflan_haga_spetalen.helpers import *
 
 def get_current_state(station) -> float:
     return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
@@ -373,7 +373,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                 # perform action
                 forward_state.do_action(action, forward_vehicle, simul.time)
                 # Simulate the system to generate potential lost trips
-                _, _, lost_demands = policies.epsilon_greedy_value_function_policy.system_simulation.scripts.system_simulate(
+                _, _, lost_demands = policies.haflan_haga_spetalen.system_simulation.scripts.system_simulate(
                     forward_state
                 )
                 # Record lost trip rewards

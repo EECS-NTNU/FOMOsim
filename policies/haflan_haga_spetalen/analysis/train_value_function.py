@@ -14,12 +14,12 @@ sys.path.insert(1, os.path.join(sys.path[0], '../../..'))
 import sim
 import clustering.scripts
 import policies
-import policies.epsilon_greedy_value_function_policy
-import policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy
-import policies.epsilon_greedy_value_function_policy.settings as annsettings
-import policies.epsilon_greedy_value_function_policy.value_functions
+import policies.haflan_haga_spetalen
+import policies.haflan_haga_spetalen.epsilon_greedy_value_function_policy
+import policies.haflan_haga_spetalen.settings as annsettings
+import policies.haflan_haga_spetalen.value_functions
 
-import policies.epsilon_greedy_value_function_policy.training_simulation.scripts
+import policies.haflan_haga_spetalen.training_simulation.scripts
 from progress.bar import IncrementalBar
 
 def get_train_directory(simulator, suffix=None):
@@ -76,7 +76,7 @@ def train_value_function(
         if shift != number_of_shifts:
             if scenario_training:
                 # scenario training is a faster simulation engine used when learning
-                policies.epsilon_greedy_value_function_policy.training_simulation.scripts.training_simulation(policy_world)
+                policies.haflan_haga_spetalen.training_simulation.scripts.training_simulation(policy_world)
             else:
                 # Train using event based simulation engine
                 policy_world.run()
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     NUMBER_OF_CLUSTERS = [10, 20, 30, 50]
     decision_times = []
     for num_clusters in NUMBER_OF_CLUSTERS:
-        value_function = policies.epsilon_greedy_value_function_policy.value_functions.ANNValueFunction(
+        value_function = policies.haflan_haga_spetalen.value_functions.ANNValueFunction(
             0.0001,
             annsettings.WEIGHT_INITIALIZATION_VALUE,
             annsettings.DISCOUNT_RATE,
@@ -107,7 +107,7 @@ if __name__ == "__main__":
             [1000, 2000, 1000, 200],
         )
 
-        policy = policies.epsilon_greedy_value_function_policy.EpsilonGreedyValueFunctionPolicy(
+        policy = policies.haflan_haga_spetalen.EpsilonGreedyValueFunctionPolicy(
             annsettings.DIVIDE_GET_POSSIBLE_ACTIONS,
             annsettings.NUMBER_OF_NEIGHBOURS,
             annsettings.EPSILON,
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         world_to_analyse = sim.Simulator(
             960,
             policy,
-            policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy.get_initial_state(
+            policies.haflan_haga_spetalen.epsilon_greedy_value_function_policy.get_initial_state(
                 entur_data_dir = "test_data",
                 entur_main_file = "0900-entur-snapshot.csv",
                 bike_class = "Scooter",

@@ -11,8 +11,6 @@ import clustering
 import clustering.methods
 import clustering.scripts
 
-import policies.epsilon_greedy_value_function_policy
-
 class RebalancingPolicy(Policy):
     def __init__(self):
         super().__init__()

@@ -5,8 +5,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 import settings
-import policies.epsilon_greedy_value_function_policy.settings as epssettings
-import policies.epsilon_greedy_value_function_policy.system_simulation.scripts
+import policies.haflan_haga_spetalen.settings as epssettings
+import policies.haflan_haga_spetalen.system_simulation.scripts
 import sim
 from progress.bar import Bar
 
@@ -138,7 +138,7 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state):
                 / settings.ITERATION_LENGTH_MINUTES
             )
         ):
-            policies.epsilon_greedy_value_function_policy.system_simulation.scripts.system_simulate(simulating_state)
+            policies.haflan_haga_spetalen.system_simulation.scripts.system_simulate(simulating_state)
 
         # recording the available scooters in every cluster after a day
         for cluster in simulating_state.stations:

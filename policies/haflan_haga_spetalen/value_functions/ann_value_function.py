@@ -1,5 +1,5 @@
 from .abstract import *
-from policies.epsilon_greedy_value_function_policy.value_functions.ANN import ANN
+from policies.haflan_haga_spetalen.value_functions.ANN import ANN
 
 
 class ANNValueFunction(ValueFunction):

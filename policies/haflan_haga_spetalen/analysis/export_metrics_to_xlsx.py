@@ -1,10 +1,10 @@
 """
 General methods for exporting results for evaluation to excel
 """
-import policies.epsilon_greedy_value_function_policy.analysis.evaluate_policies
-import policies.epsilon_greedy_value_function_policy.settings as annsettings
+import policies.haflan_haga_spetalen.analysis.evaluate_policies
+import policies.haflan_haga_spetalen.settings as annsettings
 import sim
-import policies.epsilon_greedy_value_function_policy.settings as annsettings
+import policies.haflan_haga_spetalen.settings as annsettings
 import pandas as pd
 import os
 from openpyxl import load_workbook
