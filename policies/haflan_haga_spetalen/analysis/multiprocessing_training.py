@@ -10,10 +10,10 @@ import pandas as pd
 
 sys.path.insert(1, os.path.join(sys.path[0], '../../..'))
 
-import policies.epsilon_greedy_value_function_policy.value_functions
+import policies.haflan_haga_spetalen.value_functions
 import sim
-from policies.epsilon_greedy_value_function_policy.analysis.train_value_function import train_value_function
-import policies.epsilon_greedy_value_function_policy.settings as annsettings
+from policies.haflan_haga_spetalen.analysis.train_value_function import train_value_function
+import policies.haflan_haga_spetalen.settings as annsettings
 import clustering.scripts
 
 
@@ -21,7 +21,7 @@ def training(input_arguments, suffix):
     SAMPLE_SIZE = 2500
     action_interval, number_of_neighbours = input_arguments
 
-    value_function = policies.epsilon_greedy_value_function_policy.value_functions.ANNValueFunction(
+    value_function = policies.haflan_haga_spetalen.value_functions.ANNValueFunction(
         0.0001,
         annsettings.WEIGHT_INITIALIZATION_VALUE,
         annsettings.DISCOUNT_RATE,
@@ -31,7 +31,7 @@ def training(input_arguments, suffix):
         [1000, 2000, 100],
     )
 
-    policy = policies.epsilon_greedy_value_function_policy.EpsilonGreedyValueFunctionPolicy(
+    policy = policies.haflan_haga_spetalen.EpsilonGreedyValueFunctionPolicy(
         action_interval,
         number_of_neighbours,
         annsettings.EPSILON,
@@ -41,7 +41,7 @@ def training(input_arguments, suffix):
     world_to_analyse = sim.Simulator(
         960,
         policy,
-        policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy.get_initial_state(
+        policies.haflan_haga_spetalen.epsilon_greedy_value_function_policy.get_initial_state(
             entur_data_dir = "test_data",
             entur_main_file = "0900-entur-snapshot.csv",
             bike_class = "Scooter",

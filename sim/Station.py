@@ -5,7 +5,6 @@ from sim.Location import Location
 from settings import CLUSTER_CENTER_DELTA, BATTERY_LIMIT
 import copy
 
-
 class Station(Location):
     """
     Station class representing a collection of e-scooters. Contains all customer behaviour data.
@@ -20,7 +19,8 @@ class Station(Location):
         center_location=None,
         move_probabilities=None,
         average_number_of_scooters=None,
-        ideal_state=0
+        ideal_state=None,
+        capacity=float("inf"),
     ):
         self.scooters = scooters
         self.leave_intensity_per_iteration = leave_intensity_per_iteration
@@ -31,6 +31,7 @@ class Station(Location):
             cluster_id, ideal_state=ideal_state
         )
         self.move_probabilities = move_probabilities
+        self.capacity = capacity
 
     def sloppycopy(self, *args):
         return Station(
@@ -56,6 +57,12 @@ class Station(Location):
 
     def get_leave_intensity(self, day, hour):
         return self.leave_intensity_per_iteration[day % 7][hour % 24]
+
+    def get_ideal_state(self, day, hour):
+        if self.ideal_state:
+            return self.ideal_state[day % 7][hour % 24]
+        else:
+            return 0
 
     def number_of_possible_pickups(self):
         return self.number_of_scooters()
@@ -129,7 +136,7 @@ class Station(Location):
                 f"matching on id {scooter_id} in Station {self.id}"
             )
         else:
-            raise ValueError(f"No scooters with id={scooter_id} where found")
+            raise ValueError(f"No scooters with id={scooter_id} were found")
 
     def __repr__(self):
         return (

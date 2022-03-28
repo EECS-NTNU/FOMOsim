@@ -11,81 +11,18 @@ import abc
 import math
 
 from policies import Policy
-import policies.epsilon_greedy_value_function_policy.settings as epssettings
+import policies.haflan_haga_spetalen.settings as epssettings
 import policies.neighbour_filtering
-import policies.epsilon_greedy_value_function_policy.system_simulation.scripts
+import policies.haflan_haga_spetalen.system_simulation.scripts
 import settings
 import clustering
 import clustering.methods
 import clustering.scripts
-from policies.epsilon_greedy_value_function_policy.helpers import *
+from policies.haflan_haga_spetalen.helpers import *
 
 def get_current_state(station) -> float:
     return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
 
-
-def compute_and_set_ideal_state(state: sim.State, sample_scooters: list, entur_data_dir):
-    progressbar = Bar(
-        "| Computing ideal state", max=len(os.listdir(entur_data_dir))
-    )
-    number_of_scooters_counter = np.zeros(
-        (len(state.locations), len(os.listdir(entur_data_dir)))
-    )
-    for index, file_path in enumerate(sorted(os.listdir(entur_data_dir))):
-        progressbar.next()
-        current_snapshot = clustering.methods.read_bounded_csv_file(f"{entur_data_dir}/{file_path}")
-        current_snapshot = current_snapshot[
-            current_snapshot["id"].isin(sample_scooters)
-        ]
-        current_snapshot["cluster"] = [
-            state.get_cluster_by_lat_lon(row["lat"], row["lon"]).id
-            for index, row in current_snapshot.iterrows()
-        ]
-        for cluster in state.stations:
-            number_of_scooters_counter[cluster.id][index] = len(
-                current_snapshot[current_snapshot["cluster"] == cluster.id]
-            )
-    cluster_ideal_states = np.mean(number_of_scooters_counter, axis=1)
-    normalized_cluster_ideal_states = normalize_to_integers(
-        cluster_ideal_states, sum_to=len(sample_scooters)
-    )
-
-    progressbar.finish()
-
-    for cluster in state.stations:
-        cluster.ideal_state = normalized_cluster_ideal_states[cluster.id]
-
-    # setting number of scooters to ideal state
-    state_rebalanced_ideal_state = idealize_state(state)
-
-    # adjusting ideal state by average cluster in- and outflow
-    simulate_state_outcomes(state_rebalanced_ideal_state, state)
-
-
-def generate_scenarios(state: sim.State, number_of_scenarios=10000):
-    """
-    Generate system simulation scenarios. This is used to speed up the training simulation
-    :param state: new state
-    :param number_of_scenarios: how many scenarios to generate
-    :return: the scenarios list of (cluster id, number of trips, list of end cluster ids)
-    """
-    scenarios = []
-    cluster_indices = np.arange(len(state.locations))
-    for i in range(number_of_scenarios):
-        one_scenario = []
-        for cluster in state.stations:
-            number_of_trips = round(
-                state.rng.poisson(cluster.leave_intensity_per_iteration)
-            )
-            end_cluster_indices = state.rng.choice(
-                cluster_indices,
-                p=cluster.get_leave_distribution(state),
-                size=number_of_trips,
-            ).tolist()
-            one_scenario.append((cluster.id, number_of_trips, end_cluster_indices))
-
-        scenarios.append(one_scenario)
-    return scenarios
 
 def get_initial_state(
     entur_data_dir,
@@ -373,7 +310,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                 # perform action
                 forward_state.do_action(action, forward_vehicle, simul.time)
                 # Simulate the system to generate potential lost trips
-                _, _, lost_demands = policies.epsilon_greedy_value_function_policy.system_simulation.scripts.system_simulate(
+                _, _, lost_demands = policies.haflan_haga_spetalen.system_simulation.scripts.system_simulate(
                     forward_state
                 )
                 # Record lost trip rewards

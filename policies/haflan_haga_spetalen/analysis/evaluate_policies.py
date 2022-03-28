@@ -16,8 +16,8 @@ import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../../..'))
 
 import sim
-import policies.epsilon_greedy_value_function_policy.value_functions
-import policies.epsilon_greedy_value_function_policy.analysis.export_metrics_to_xlsx
+import policies.haflan_haga_spetalen.value_functions
+import policies.haflan_haga_spetalen.analysis.export_metrics_to_xlsx
 from visualization.visualizer import visualize_analysis
 
 
@@ -183,7 +183,7 @@ def run_analysis(
             world_result.save_world()
 
     if export_to_excel:
-        policies.epsilon_greedy_value_function_policy.analysis.export_metrics_to_xlsx.metrics_to_xlsx(instances)
+        policies.haflan_haga_spetalen.analysis.export_metrics_to_xlsx.metrics_to_xlsx(instances)
 
     return instances
 
