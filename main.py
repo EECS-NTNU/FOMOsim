@@ -11,7 +11,9 @@ import clustering.scripts
 from tripStats.parse import get_initial_state, calcDistances
 
 import policies
+import policies.fosen_haldorsen
 from visualization.visualizer import visualize_analysis
+import ideal_state
 
 PERIOD = 960 # 16 hours
 
@@ -21,51 +23,102 @@ simulators = []
 
 # Set up initial state
 
-# # This is done with a script that reads data from an "entur" snapshot
+# Lasse: Jeg ser for meg å kalle en funksjon som ligner på følgende:
+# state = lasses_pakke.get_initial_state(datadir="data/oslo", week=12)
+
+# Din funksjon må da sette opp tilstanden ved å bruke sim.State.get_initial_state()
+# Du ser et eksempel på det her:
+
+# Først setter vi opp noen matriser
+arrive_intensities = [] # 3D matrise som indekseres [station][day][hour]
+leave_intensities = []  # 3D matrise som indekseres [station][day][hour]
+move_probabilities = [] # 4D matrise som indekseres [from-station][day][hour][to-station]
+for station in range(4): # eksempelet har 4 stasjoner
+    arrive_intensities.append([])
+    leave_intensities.append([])
+    move_probabilities.append([])
+    for day in range(7):
+        arrive_intensities[station].append([])
+        leave_intensities[station].append([])
+        move_probabilities[station].append([])
+        for hour in range(24):
+            arrive_intensities[station][day].append(2) # fra denne stasjonen på gitt tidspunkt drar det 2 sykler i timer
+            leave_intensities[station][day].append(2)  # fra denne stasjonen på gitt tidspunkt kommer det 2 sykler i timer
+            move_probabilities[station][day].append([1/3, 1/3, 1/3, 1/3]) # sannsynlighetsfordeling for å dra til de forskjellige stasjonene
+            move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
+
+state = sim.State.get_initial_state(
+    bike_class = "Scooter",
+    distance_matrix = [ # km
+        [0, 4, 2, 3],
+        [4, 0, 5, 1],
+        [2, 5, 0, 4],
+        [3, 1, 4, 0],
+    ],
+    speed_matrix = [ # km/h
+        [15, 15, 15, 15],
+        [15, 15, 15, 15],
+        [15, 15, 15, 15],
+        [15, 15, 15, 15],
+    ],
+    main_depot = None,
+    secondary_depots = [],
+    number_of_scooters = [2, 1, 2, 3],
+    number_of_vans = 2,
+    random_seed = 1,
+    arrive_intensities = arrive_intensities,
+    leave_intensities = leave_intensities,
+    move_probabilities = move_probabilities,
+)
+    
 # state = clustering.scripts.get_initial_state(
-#     entur_data_dir = "test_data",
-#     entur_main_file = "0900-entur-snapshot.csv",
-#     bike_class = "Scooter",
-#     number_of_scooters = 1000,
+#     "test_data",
+#     "0900-entur-snapshot.csv",
+#     "Scooter",
+#     number_of_scooters = 2500,
 #     number_of_clusters = 10,
 #     number_of_vans = 2,
-#     random_seed=1,
-# )
-
-# state = tripStats.get_initial_state("Oslo", 20)
-
-# *****************WORKS FINE in branch tripStats 
-# This is set up manually
-
-# calcDistances("Oslo")  # got utf-8 error from stations.txt ()
-
-#state = tripStats.get_initial_state("Oslo", 20) # format wanted by Asbjørn
-state = get_initial_state("Oslo", 30) # parse.py will crash in line 250(?) "    return sim.State.get_initial_state("
-
-# state = sim.State.get_initial_state(
-#     bike_class = "Bike", # was "Scooter"
-#     distance_matrix = [
-#         [0, 4, 2, 3],
-#         [4, 0, 5, 1],
-#         [2, 5, 0, 4],
-#         [3, 1, 4, 0],
-#     ],
-#     main_depot = None,
-#     secondary_depots = [],
-# #    number_of_scooters = [0, 0, 2, 4],
-#     number_of_scooters = [0, 0, 0, 1],
-#     arrive_intensities = [0, 0, 2, 5],
-# #    leave_intensities = [0, 0, 5, 2],
-#     leave_intensities = [5, 5, 5, 5],
-#     move_probabilities = np.zeros((4, 4), dtype="float64"),
-# #    number_of_vans = 2,
-#     number_of_vans = 0,
 #     random_seed = 1,
 # )
-    
+
+###############################################################################
+# calculate ideal state
+
+ideal_state = ideal_state.evenly_distributed_ideal_state(state)
+state.set_ideal_state(ideal_state)
+#ideal_state.haflan_haga_spetalen_ideal_state(state)
+
 ###############################################################################
 
-# Set up first simulator
+# # Set up simulator
+# simulators.append(sim.Simulator(
+#     PERIOD,
+#     policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
+#     copy.deepcopy(state),
+#     verbose=True,
+#     label="FosenHaldorsen",
+# ))
+
+# # Run first simulator
+# simulators[-1].run()
+
+###############################################################################
+
+# # Set up simulator
+# simulators.append(sim.Simulator(
+#     PERIOD,
+#     policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
+#     copy.deepcopy(state),
+#     verbose=True,
+#     label="Greedy",
+# ))
+
+# # Run first simulator
+# simulators[-1].run()
+
+###############################################################################
+
+# Set up simulator
 simulators.append(sim.Simulator(
     PERIOD,
     policies.DoNothing(),
@@ -79,44 +132,18 @@ simulators[-1].run()
 
 ###############################################################################
 
-# Set up second simulator
+# Set up simulator
 simulators.append(sim.Simulator(
     PERIOD,
-    policies.RandomActionPolicy(),
+    policies.RebalancingPolicy(),
     copy.deepcopy(state),
     verbose=True,
-    label="RandomAction",
+    label="Rebalancing",
 ))
 
-# Run second simulator
+# Run first simulator
 simulators[-1].run()
 
-
-###############################################################################
-
-# # The rebalancing policy needs special information in the state object ("ideal state" calculations)
-# # We can use the following function to generate this kind of state object
-# state_with_ideal_state = policies.epsilon_greedy_value_function_policy.epsilon_greedy_value_function_policy.get_initial_state(
-#     entur_data_dir = "test_data",
-#     entur_main_file = "0900-entur-snapshot.csv",
-#     bike_class = "Scooter",
-#     number_of_scooters = 1000,
-#     number_of_clusters = 10,
-#     number_of_vans = 2,
-#     random_seed=1,
-# )
-
-# # Set up third simulator
-# simulators.append(sim.Simulator(
-#     PERIOD,
-#     policies.RebalancingPolicy(),
-#     copy.deepcopy(state_with_ideal_state),
-#     verbose=True,
-#     label="Rebalancing",
-# ))
-
-# # Run third simulator
-# simulators[-1].run()
 
 ###############################################################################
 

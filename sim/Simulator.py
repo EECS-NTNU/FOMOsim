@@ -41,12 +41,6 @@ class Simulator(SaveMixin):
             )
         # Add Generate Scooter Trip event to the event_queue
         self.event_queue.append(sim.GenerateScooterTrips(settings.ITERATION_LENGTH_MINUTES))
-        self.cluster_flow = {
-            (start, end): 0
-            for start in np.arange(len(self.state.locations))
-            for end in np.arange(len(self.state.locations))
-            if start != end
-        }
         self.policy = policy
         policy.initSim(self)
         self.metrics = Metric()
@@ -103,6 +97,12 @@ class Simulator(SaveMixin):
         if self.verbose:
             self.progress_bar.finish()
 
+    def day(self):
+        return (self.time // (60*24)) % 7
+
+    def hour(self):
+        return (self.time // 60) % 24
+
     def get_remaining_time(self) -> int:
         """
         Computes the remaining time by taking the difference between the shift duration
@@ -119,28 +119,6 @@ class Simulator(SaveMixin):
         """
         insert_index = bisect.bisect([event.time for event in self.event_queue], event.time)
         self.event_queue.insert(insert_index, event)
-
-    def add_trip_to_flow(self, start: int, end: int) -> None:
-        """
-        Adds a trip from start to end for cluster flow
-        :param start: departure cluster
-        :param end: arrival cluster
-        """
-        self.cluster_flow[(start, end)] += 1
-
-    def get_cluster_flow(self) -> [(int, int, int)]:
-        """
-        Get all flows between cluster since last vehicle arrival
-        :return: list: tuple (start, end, flow) flow from departure cluster to arrival cluster
-        """
-        return [(start, end, flow) for (start, end), flow in self.cluster_flow.items()]
-
-    def clear_flow_dict(self) -> None:
-        """
-        Clears the cluster flow dict
-        """
-        for key in self.cluster_flow.keys():
-            self.cluster_flow[key] = 0
 
     def get_scooters_on_trip(self) -> [(int, int, int)]:
         """
@@ -178,7 +156,6 @@ class Simulator(SaveMixin):
     #     )
     #     new_sim.time = self.time
     #     new_sim.stack = copy.deepcopy(self.stack)
-    #     new_sim.cluster_flow = self.cluster_flow.copy()
     #     new_sim.metrics = copy.deepcopy(self.metrics)
     #     # Set all hyper parameters
     #     for parameter in HyperParameters().__dict__.keys():

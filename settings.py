@@ -25,7 +25,6 @@ MINUTES_CONSTANT_PER_ACTION = 5
 
 # Speed of vehicles and bikes
 VEHICLE_SPEED = 15
-BIKE_SPEED = 10
 SCOOTER_SPEED = 7 # Speed of scooter ref - Fearnley at al. (2020, section 3.6)
 
 # Clustering parameters

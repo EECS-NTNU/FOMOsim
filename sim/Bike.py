@@ -18,9 +18,6 @@ class Bike(Location):
     def usable(self):
       return True
 
-    def speed(self):
-        return BIKE_SPEED
-
     def hasBattery(self):
       return False
 

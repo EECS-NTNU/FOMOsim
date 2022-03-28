@@ -172,6 +172,11 @@ def scooter_movement_analysis(state: State, entur_data_dir) -> np.ndarray:
         np.seterr(divide='ignore', invalid='ignore')
         probability_matrix = move_count / number_of_scooters
 
+        for x in range(len(initial_state.locations)):
+            for y in range(len(initial_state.locations)):
+                if np.isnan(probability_matrix[x][y]):
+                    probability_matrix[x][y] = 0
+
         # Normalize non stay distribution - Same as distribute the disappeared scooter with same distribution
         for cluster_id in cluster_labels:
             # Calculate probability of a scooter leaving the cluster
@@ -191,6 +196,7 @@ def scooter_movement_analysis(state: State, entur_data_dir) -> np.ndarray:
                 out=np.zeros_like(leaving_probabilities),
                 where=np.sum(leaving_probabilities) != 0,
             )
+
         return probability_matrix
 
     progress = Bar(
@@ -210,8 +216,28 @@ def scooter_movement_analysis(state: State, entur_data_dir) -> np.ndarray:
         previous_snapshot = current_snapshot
     progress.finish()
     # Compute mean
-    return np.mean(probability_matrices, axis=0)
+    pm = np.mean(probability_matrices, axis=0)
 
+    move_probabilities = []
+    for cluster_id in range(len(state.locations)):
+        move_probabilities.append([])
+        for day in range(7):
+            move_probabilities[cluster_id].append([])
+            for hour in range(24):
+                distribution = pm[cluster_id]
+                if np.sum(distribution[np.arange(len(distribution)) != cluster_id]) == 0.0:
+                    # if all leave probabilities are zero, let them all be equally likely
+                    distribution = np.ones_like(distribution)
+                # Set stay probability to zero
+                distribution[cluster_id] = 0.0
+                # Set probability of going to depot to zero
+                for depot in state.depots:
+                    distribution[depot.id] = 0.0
+                # Normalize leave distribution
+                norm = distribution / np.sum(distribution)
+                move_probabilities[cluster_id][day].append(norm)
+
+    return move_probabilities
 
 def generate_cluster_objects(
         classname, scooter_data: pd.DataFrame, cluster_labels: list, number_of_depots,
@@ -315,8 +341,16 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list, entur_da
     cluster_leave_intensities = np.mean(trip_counter_leave, axis=1)
     cluster_arrive_intensities = np.mean(trip_counter_arrive, axis=1)
     for cluster in state.stations:
-        cluster.leave_intensity_per_iteration = cluster_leave_intensities[cluster.id] * TRIP_INTENSITY_FACTOR
-        cluster.arrive_intensity_per_iteration = cluster_arrive_intensities[cluster.id] * TRIP_INTENSITY_FACTOR
+        # set all days and hour the same
+        # TODO: update to support days and hours
+        cluster.leave_intensity_per_iteration = []
+        cluster.arrive_intensity_per_iteration = []
+        for day in range(7):
+            cluster.leave_intensity_per_iteration.append([])
+            cluster.arrive_intensity_per_iteration.append([])
+            for hour in range(24):
+                cluster.leave_intensity_per_iteration[day].append(cluster_leave_intensities[cluster.id] * TRIP_INTENSITY_FACTOR)
+                cluster.arrive_intensity_per_iteration[day].append(cluster_arrive_intensities[cluster.id] * TRIP_INTENSITY_FACTOR)
 
     progress.finish()
 

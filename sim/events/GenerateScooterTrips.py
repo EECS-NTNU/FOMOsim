@@ -16,7 +16,7 @@ class GenerateScooterTrips(Event):
         for departure_cluster in world.state.stations:
             # poisson process to select number of trips in a iteration
             number_of_trips = round(
-                world.state.rng.poisson(departure_cluster.leave_intensity_per_iteration)
+                world.state.rng.poisson(departure_cluster.get_leave_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
             )
 
             # generate trip departure times (can be implemented with np.random.uniform if we want decimal times)
@@ -40,7 +40,7 @@ class GenerateScooterTrips(Event):
             for arrival_cluster in world.state.stations:
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(
-                    world.state.rng.poisson(arrival_cluster.arrive_intensity_per_iteration)
+                    world.state.rng.poisson(arrival_cluster.get_arrive_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
                 )
 
                 # generate trip arrival times (can be implemented with np.random.uniform if we want decimal times)

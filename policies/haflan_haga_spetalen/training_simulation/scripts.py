@@ -1,8 +1,8 @@
 from settings import ITERATION_LENGTH_MINUTES
 
-import policies.epsilon_greedy_value_function_policy.settings as annsettings
+import policies.haflan_haga_spetalen.settings as annsettings
 
-import policies.epsilon_greedy_value_function_policy.system_simulation.scripts
+import policies.haflan_haga_spetalen.system_simulation.scripts
 
 def training_simulation(world):
     """
@@ -67,7 +67,7 @@ def training_simulation(world):
 
         else:
             # performing a scooter trips simulation
-            _, _, lost_demands = policies.epsilon_greedy_value_function_policy.system_simulation.scripts.system_simulate(world.state)
+            _, _, lost_demands = policies.haflan_haga_spetalen.system_simulation.scripts.system_simulate(world.state)
             lost_demand = (
                 sum(map(lambda lost_trips: lost_trips[0], lost_demands))
                 if len(lost_demands) > 0

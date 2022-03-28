@@ -63,7 +63,7 @@ def get_initial_state(
 
     # Get probability of movement from scooters in a cluster
     probability_matrix = methods.scooter_movement_analysis(initial_state, entur_data_dir)
-    initial_state.set_probability_matrix(probability_matrix)
+    initial_state.set_move_probabilities(probability_matrix)
 
     if number_of_scooters:
         initial_state.sample(number_of_scooters)

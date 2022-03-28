@@ -18,6 +18,7 @@ class State(SaveMixin):
         vehicles: [sim.Vehicle] = [],
         scooters_in_use: [sim.Location] = [], # scooters in use (not parked at any station)
         distance_matrix=None, # will calculate based on coordinates if not given
+        speed_matrix=None,
         rng = None,
     ):
         if rng is None:
@@ -35,6 +36,15 @@ class State(SaveMixin):
             self.distance_matrix = distance_matrix
         else:
             self.distance_matrix = self.calculate_distance_matrix()
+        if speed_matrix:
+            self.speed_matrix = speed_matrix
+        else:
+            self.speed_matrix = []
+            for a in range(len(self.locations)):
+                self.speed_matrix.append([])
+                for b in range(len(self.locations)):
+                    self.speed_matrix[a].append(SCOOTER_SPEED)
+
         self.TRIP_INTENSITY_RATE = 0.1
 
     def sloppycopy(self, *args):
@@ -51,7 +61,7 @@ class State(SaveMixin):
         return new_state
 
     @staticmethod
-    def get_initial_state(bike_class, distance_matrix, number_of_scooters, leave_intensities, number_of_vans, arrive_intensities, move_probabilities, main_depot = None, secondary_depots = [], random_seed=None):
+    def get_initial_state(bike_class, distance_matrix, number_of_scooters, number_of_vans, leave_intensities, arrive_intensities = None, move_probabilities = None, main_depot = None, secondary_depots = [], ideal_state = None, random_seed=None, speed_matrix=None):
         depots = []
         if main_depot is not None:
             depots.append(sim.Depot(depot_id=main_depot, main_depot=True))
@@ -62,7 +72,14 @@ class State(SaveMixin):
 
         start_of_ids = len(depots) + len(number_of_scooters)
 
+        if arrive_intensities is None:
+            arrive_intensities = leave_intensities
+
         for station_id in range(len(number_of_scooters)):
+            istate = None
+            if ideal_state:
+                istate = ideal_state[station_id]
+
             if station_id != main_depot and station_id not in secondary_depots:
                 scooters = []
                 for scooter_id in range(number_of_scooters[station_id]):
@@ -71,7 +88,7 @@ class State(SaveMixin):
                     else:
                         scooters.append(sim.Bike(scooter_id=start_of_ids + scooter_id))
                 start_of_ids += number_of_scooters[station_id]
-                stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id]))
+                stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], ideal_state=istate))
 
         vehicles = []
         start_location = stations[0]
@@ -82,10 +99,17 @@ class State(SaveMixin):
 
         rng=np.random.default_rng(random_seed)
             
-        state = State(stations, depots, vehicles, distance_matrix=distance_matrix, rng=rng)
-        state.set_probability_matrix(move_probabilities)
+        state = State(stations, depots, vehicles, distance_matrix=distance_matrix, speed_matrix=speed_matrix, rng=rng)
 
         return state
+
+    def set_move_probabilities(self, move_probabilities):
+        for st in self.locations:
+            st.move_probabilities = move_probabilities[st.id]
+
+    def set_ideal_state(self, ideal_state):
+        for st in self.locations:
+            st.ideal_state = ideal_state[st.id]
 
     def scooter_in_use(self, scooter):
         self.scooters_in_use.append(scooter)
@@ -140,6 +164,9 @@ class State(SaveMixin):
         """
         return self.distance_matrix[start_location_id][end_location_id]
 
+    def get_trip_speed(self, start_location_id: int, end_location_id: int):
+        return self.speed_matrix[start_location_id][end_location_id]
+
     def get_distance_to_all_clusters(self, location_id):
         return self.distance_matrix[location_id][: len(self.stations)]
 
@@ -181,7 +208,6 @@ class State(SaveMixin):
             vehicle.add_battery_inventory(batteries_to_swap)
 
         else:
-            # Perform all pickups
             for pick_up_scooter_id in action.pick_ups:
                 pick_up_scooter = vehicle.current_location.get_scooter_from_id(
                     pick_up_scooter_id
@@ -267,15 +293,6 @@ class State(SaveMixin):
             )
         else:
             raise ValueError(f"No locations with id={location_id} where found")
-
-    def set_probability_matrix(self, probability_matrix: np.ndarray):
-        if probability_matrix.shape != (len(self.locations), len(self.locations)):
-            ValueError(
-                f"The shape of the probability matrix does not match the number of stations in the class:"
-                f" {probability_matrix.shape} != {(len(self.stations), len(self.stations))}"
-            )
-        for cluster in self.stations:
-            cluster.set_move_probabilities(probability_matrix[cluster.id])
 
     def save_state(self):
         super().save(STATE_CACHE_DIR)
