@@ -40,9 +40,9 @@ class State(SaveMixin):
             self.speed_matrix = speed_matrix
         else:
             self.speed_matrix = []
-            for a in range(len(stations)):
+            for a in range(len(self.locations)):
                 self.speed_matrix.append([])
-                for b in range(len(stations)):
+                for b in range(len(self.locations)):
                     self.speed_matrix[a].append(SCOOTER_SPEED)
 
         self.TRIP_INTENSITY_RATE = 0.1
@@ -102,6 +102,10 @@ class State(SaveMixin):
         state = State(stations, depots, vehicles, distance_matrix=distance_matrix, speed_matrix=speed_matrix, rng=rng)
 
         return state
+
+    def set_move_probabilities(self, move_probabilities):
+        for st in self.locations:
+            st.move_probabilities = move_probabilities[st.id]
 
     def set_ideal_state(self, ideal_state):
         for st in self.locations:
