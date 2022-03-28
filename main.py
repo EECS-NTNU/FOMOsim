@@ -8,7 +8,7 @@ import numpy as np
 import sim
 import clustering.scripts
 
-from tripStats.parse import get_initial_state 
+from tripStats.parse import get_initial_state, calcDistances
 
 import policies
 from visualization.visualizer import visualize_analysis
@@ -36,6 +36,8 @@ simulators = []
 
 # *****************WORKS FINE in branch tripStats 
 # This is set up manually
+
+calcDistances("Oslo")  # got utf-8 error from stations.txt ()
 
 #state = tripStats.get_initial_state("Oslo", 20) # format wanted by Asbjørn
 state = get_initial_state("Oslo", 30) # parse.py will crash in line 250(?) "    return sim.State.get_initial_state("
