@@ -92,7 +92,7 @@ def readStationMap(city):
     return stationMap
 
 def readBikeStartStatus(city):
-    if city == "Oslo":
+    if city == "Oslo" or city == "Utopia":
         bikeStatusFile = open("tripStats/data/Oslo/stationStatus-23-Mar-1513.json", "r")
         allStatusData = json.loads(bikeStatusFile.read())
         stationData = allStatusData["data"]
@@ -107,13 +107,14 @@ def readBikeStartStatus(city):
                 noOfBikes = stationData["stations"][i]["num_bikes_available"]
                 bikeStartStatus[stationNo] = noOfBikes
         return bikeStartStatus
-    else:
-        print("*** Error: bikeStatus file not available yet") 
 
 def get_initial_state(city, week):
-    if (week < 1) or (week >53):
+    if city == "Oslo" and ( (week < 1) or (week > 53)):
         print("*** Error: week no must be in range 1..53")
+    elif city == "Utopia" and (week != 48):
+        print("*** Error: week must be 48")
     printTime() # performance deubg
+
     print("Starts analyzing traffic for city: " + city + " : ", end='') 
     years = [] # Must count no of "year-instances" of the given week that are analyzed
     stationMap = readStationMap(city)
@@ -157,6 +158,7 @@ def get_initial_state(city, week):
         bikeData = json.loads(jsonFile.read())
         for i in range(len(bikeData)):
             year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
+            # print(" ", weekNo, end= "") # debug
             years.append(year)
             hour = int(bikeData[i]["ended_at"][11:13])
             endStationNo = 0 #
@@ -230,7 +232,7 @@ def get_initial_state(city, week):
                     if movedBikesTotal > 0:
                         move_probabilities[station][day][hour].append(movedBikes/movedBikesTotal)
                     else:
-                        move_probabilities[station][day][hour].append(0.0) # TODO check this, should set all to zero of np traffic !?
+                        move_probabilities[station][day][hour].append(0.0) # TODO check this, should set all to zero if no traffic !?
 
     print("\n", trips, "trips analyzed. A total of ", leavingBikes, " bikes left and ", end='')
     print(arrivingBikes, " bikes arrived during week ", week, " for ", noOfYears, " years")
