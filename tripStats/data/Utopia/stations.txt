@@ -1,0 +1,6 @@
+    0   421 10.751397 59.928058 Alexander Kiellands Plass
+    1   493 10.7615858 59.9243639 Sofienbergparken nordvest
+    2   620 10.7346377 59.9238336 Bislettgata
+    3   443 10.751824 59.910178 Sjøsiden ved trappen
+    4   527 10.752292 59.9123341 Biskop Gunnerus' gate
+    5   442 10.75101 59.92251 Vulkan

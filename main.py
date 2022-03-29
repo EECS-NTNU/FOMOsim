@@ -16,6 +16,7 @@ from visualization.visualizer import visualize_analysis
 import ideal_state
 
 from tripStats.helpers import printTime
+from GUI.dashboard import GUI_main
 
 PERIOD = 960 # 16 hours
 
@@ -26,6 +27,9 @@ simulators = []
 # Set up initial state
 
 # calcDistances(city = "Oslo") # To ensure that station.txt is available
+
+GUI_main()
+
 printTime()
 print(" * get_initial_state()")
 
