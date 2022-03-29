@@ -25,7 +25,6 @@ simulators = []
 
 # Set up initial state
 
-# calcDistances(city = "Oslo") # To ensure that station.txt is available
 printTime()
 print(" * get_initial_state()")
 

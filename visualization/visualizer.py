@@ -342,7 +342,8 @@ def visualize_analysis(instances, title=None):
     :return: plot for the analysis
     """
     # generate plot and subplots
-    fig = plt.figure(figsize=(20, 9.7))
+    #     fig = plt.figure(figsize=(20, 9.7))
+    fig = plt.figure(figsize=(8, 6))
 
     # creating subplots
     spec = gridspec.GridSpec(figure=fig, ncols=2, nrows=2)
