@@ -61,7 +61,7 @@ def calcDistances(city):
                 endLong = str(bikeData[i]["end_station_longitude"])
                 endLat = str(bikeData[i]["end_station_latitude"])
                 stations.append(Station(bikeData[i]["end_station_id"], endLong, endLat, bikeData[i]["end_station_name"]))
-        print(".", end='') # TODO nice, replace with progress bar
+        # print(".", end='') # TODO nice, replace with progress bar
     # print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
     reportStations(stations, city)
     dist_matrix_km = [] # km in kilometers
@@ -113,21 +113,21 @@ def get_initial_state(city, week):
         print("*** Error: week no must be in range 1..53")
     elif city == "Utopia" and (week != 48):
         print("*** Error: week must be 48")
-    printTime() # performance deubg
+    # printTime() # performance deubg
 
-    print("Starts analyzing traffic for city: " + city + " : ", end='') 
+    # print("Starts analyzing traffic for city: " + city + " : ", end='') 
     years = [] # Must count no of "year-instances" of the given week that are analyzed
     stationMap = readStationMap(city)
 
     # initialize main datastructures
-    print("init main datastructures", end='')
+    # print("init main datastructures ", end='')
     arriveCount = []
     leaveCount = []
     moveCount = []
     durations = []
     for station in range(len(stationMap)):
-        if station % 20 == 0:
-            print(".", end='')
+        # if station % 20 == 0:
+        #     print(".", end='')
         arriveCount.append([])
         leaveCount.append([])
         moveCount.append([])
@@ -147,7 +147,7 @@ def get_initial_state(city, week):
 
     # process all stored trips for given city, and count trips and store durations
     # for the given week number
-    print("process all stored trips", end='')
+    #print("process all stored trips ", end='')
     trips = 0
     arrivingBikes = 0
     leavingBikes = 0
@@ -176,10 +176,10 @@ def get_initial_state(city, week):
                 leavingBikes += 1
                 durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
             trips = trips + 1
-        print(".", end='') # TODO replace with progress bar
+        # print(".", end='') # TODO replace with progress bar
     
     # Calculate average durations
-    print("calculate avg trip durations ", end='')
+    # print("calculate avg trip durations ", end='')
     avgDuration = []
     for start in range(len(stationMap)):
         avgDuration.append([])
@@ -191,11 +191,11 @@ def get_initial_state(city, week):
             avgDuration[start][end] = sumDuration/len(durations)
 
     # Calculate distance
-    print(" calculate all possible distances ", end='')
+    # print(" calculate all possible distances ", end='')
     distances = calcDistances(city)  
 
     # Calculate speed matrix
-    print(" calculate speed matrix ", end='')
+    # print(" calculate speed matrix ", end='')
     speed_matrix = []
     for start in range(len(stationMap)):
         speed_matrix.append([])
@@ -207,7 +207,7 @@ def get_initial_state(city, week):
                 speed_matrix[start].append(settings.SCOOTER_SPEED)
  
     # Calculate arrive and leave-intensities and move_probabilities
-    print(" calculate intensities ", end='')
+    # print(" calculate intensities ", end='')
     noOfYears = len(set(years))
     arrive_intensities = []  
     leave_intensities = []
@@ -235,9 +235,9 @@ def get_initial_state(city, week):
                         move_probabilities[station][day][hour].append(0.0) # TODO check this, should set all to zero if no traffic !?
 
     print("\n", trips, "trips analyzed. A total of ", leavingBikes, " bikes left and ", end='')
-    print(arrivingBikes, " bikes arrived during week ", week, " for ", noOfYears, " years")
+    print(arrivingBikes, " bikes arrived during week ", week, " for ", noOfYears, " years in city ", city)
     bikeStartStatus = readBikeStartStatus(city)
-    printTime() # performance debug
+    # printTime() # performance debug
 
     return sim.State.get_initial_state(
         bike_class = "bike",
