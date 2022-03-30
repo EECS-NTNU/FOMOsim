@@ -1,4 +1,5 @@
-# dashboard.py
+#!/bin/python3
+# # dashboard.py
 import PySimpleGUI as sg
 
 import copy
@@ -10,11 +11,15 @@ from tripStats.parse import calcDistances, get_initial_state
 
 import ideal_state  
 
+import beepy
+
 policyMenu = ["Do nothing", "bbb", "cccc"]
 
 ###### GUI layout
 dashboardColumn = [
     [sg.Text("Preparation and set up ", font='Lucida', text_color = 'Yellow')],
+    [sg.Text("User feedback: ", font="Helvetica 14"), sg.Text("Set up simulation", font="Helvetica 14", size=(30, 1), text_color = "spring green", key="-FEEDBACK-")],
+    [sg.Text('_'*40)],
     [sg.Text("Download Oslo trips, 1 = April 2019 ... 35 = February 2022)")],
     [sg.Button("All Oslo"), sg.Button("Clear"), sg.Input("From: ", key="-INPUTfrom-", size=8), 
         sg.Input("To: ", key="-INPUTto-", size = 6)],
@@ -23,10 +28,9 @@ dashboardColumn = [
     [sg.Text("Select city (Oslo is default)")],
     [sg.Radio("Oslo", "RADIO1", key = "-OSLO-"), sg.Radio("Bergen", "RADIO1", key = "-BERGEN-"), 
         sg.Radio("Utopia", "RADIO1", key = "-UTOPIA-")], 
-    [sg.Button("Find stations and distances"), sg.Text(size=(30, 1), key="-CITY-STATUS-", text_color = "Red")],
+    [sg.Button("Find stations and distances")],
     [sg.Text('_'*40)],
     [sg.Button("Set initial state"), sg.Input("Week no: ", key="-WEEK-", size=12)],
-    [sg.Text(size=(30, 1), key="-SIMULATE-SETUP-", text_color = "Red")],
     [sg.Text('_'*40)],
     [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(20, 5), key="-POLICIES-")],
     [sg.Button("Simulate")],
@@ -34,13 +38,17 @@ dashboardColumn = [
     [sg.Button("Exit")]
 ]
 statusColumn = [
-    [sg.Text("Simulation status", font='Lucida', text_color = 'Yellow', key="-TOUT1-")],
+    [sg.Text("Simulation status", font='Lucida', text_color = 'Yellow')],
     [sg.Text('_'*40)],
     [sg.Text("Visualize")],
     [sg.Text('_'*40)],
 ]
 layout = [ [sg.Column(dashboardColumn), sg.VSeperator(), sg.Column(statusColumn) ] ]
 window = sg.Window("FOMO Digital Twin Dashboard 0.1", layout)
+
+def userError(string):
+    window["-FEEDBACK-"].update("You must set an initial state", text_color = "dark orange")
+    beepy.beep(sound="error")
 
 DURATION = 960 # change to input-field with default value
 
@@ -61,6 +69,7 @@ def GUI_main():
     state = sim.State()
     while True:
         GUI_event, GUI_values= window.read()
+        window["-FEEDBACK-"].update(" ") # clear user feedback field
         if GUI_event == "All Oslo":
             print("All-Oslo-button pressed")
             window["-INPUTfrom-"].update("From: 1")
@@ -72,12 +81,12 @@ def GUI_main():
             oslo(GUI_values["-INPUTfrom-"], GUI_values["-INPUTto-"])
         elif GUI_event == "Find stations and distances":
             if GUI_values["-OSLO-"]:
-                window["-CITY-STATUS-"].update("City OK", text_color = "LightGreen")
+                window["-FEEDBACK-"].update("City OK", text_color = "LightGreen")
                 calcDistances("Oslo")
             elif GUI_values["-BERGEN-"]:
-                window["-CITY-STATUS-"].update("City not yet implemented", text_color = "red") 
+                window["-FEEDBACK-"].update("City not yet implemented", text_color = "") 
             elif GUI_values["-UTOPIA-"]:
-                window["-CITY-STATUS-"].update("City OK", text_color = "LightGreen") 
+                window["-FEEDBACK-"].update("City OK", text_color = "LightGreen") 
                 calcDistances("Utopia")
             else:
                 print("*** Error: wrong value from Radiobutton")         
@@ -100,8 +109,7 @@ def GUI_main():
                 state.set_ideal_state(new_ideal_state)
         elif GUI_event == "Simulate":
             if len(state.stations) == 0:
-                print("You must set an initial state")
-                window["-SIMULATE-SETUP-"].update("You must set an initial state", text_color = "red") 
+                userError("You must set an initial state")
             else:
                 startSimulation(simPolicy, state)
                 state = sim.State()
