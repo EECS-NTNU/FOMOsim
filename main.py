@@ -37,24 +37,25 @@ else:
     printTime()
     print(" * get_initial_state()")
 
-    state = get_initial_state(city = "Oslo", week=12)
+#    state = get_initial_state(city = "Oslo", week=12)
 
-    # state = clustering.scripts.get_initial_state(
-    #     "test_data",
-    #     "0900-entur-snapshot.csv",
-    #     "Scooter",
-    #     number_of_scooters = 2500,
-    #     number_of_clusters = 10,
-    #     number_of_vans = 2,
-    #     random_seed = 1,
-    # )
+    state = clustering.scripts.get_initial_state(
+        "test_data",
+        "0900-entur-snapshot.csv",
+        "Scooter",
+        number_of_scooters = 2500,
+        number_of_clusters = 10,
+        number_of_vans = 2,
+        random_seed = 1,
+    )
 
     ###############################################################################
     # calculate ideal state
 
-    ideal_state = ideal_state.evenly_distributed_ideal_state(state)
-    state.set_ideal_state(ideal_state)
-    #ideal_state.haflan_haga_spetalen_ideal_state(state)
+    # ideal_state = ideal_state.evenly_distributed_ideal_state(state)
+    # state.set_ideal_state(ideal_state)
+    
+    ideal_state.haflan_haga_spetalen_ideal_state(state)
 
     ###############################################################################
 
