@@ -65,6 +65,7 @@ else:
     #     policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
     #     copy.deepcopy(state),
     #     verbose=True,
+    
     #     label="FosenHaldorsen",
     # ))
 

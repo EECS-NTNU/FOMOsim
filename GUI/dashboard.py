@@ -27,7 +27,7 @@ dashboardColumn = [
     [sg.Button("All Oslo"), sg.Button("Clear"), sg.Input("From: ", key="-INPUTfrom-", size=8), 
         sg.Input("To: ", key="-INPUTto-", size = 6), sg.Button("Download Oslo")],
     [sg.Text('_'*40)],
-    [sg.Text("Select city (Oslo is default)")],
+    [sg.Text("Select city (Oslo is default, only relevant for F & H)")],
     [sg.Radio("Oslo", "RADIO1", key = "-OSLO-"), sg.Radio("Bergen", "RADIO1", key = "-BERGEN-"), 
         sg.Radio("Utopia", "RADIO1", key = "-UTOPIA-"), sg.Button("Find stations and distances")],
     [sg.Text('_'*40)],
@@ -78,7 +78,6 @@ def startSimulation(simPolicy, state):
             verbose=True,
             label="DoNothing",
         )
-        metrics = simulator.metrics.get_all_metrics()
     elif simPolicy == "Rebalancing":
         simulator = sim.Simulator( 
             DURATION,
@@ -114,7 +113,9 @@ def startSimulation(simPolicy, state):
 
 def GUI_main():
     simPolicy = "" 
-    state = sim.State()
+    state = sim.State() # all three set initially empty
+    savedInitialState = sim.State()
+    savedIdealState = sim.State()
     task = [] # TODO, only one task allowed in queue at the moment
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
                          # updating field -SIM-MSG- or -STATE-MSG- before starting long operation
@@ -125,12 +126,6 @@ def GUI_main():
         if len(task) > 0: ###### handling of lengthy operations is done in a two-stage process to be able to give message
             if not readyForTask:
                 readyForTask = True
-            elif task[0] == "Sim":
-                startSimulation(simPolicy, state) # TODO, change to task[1] and task[2]
-                state = sim.State() # to ensure state is reset before new simulation
-                window["-SIM-MSG-"].update("")
-                task = []
-                readyForTask = False
             elif task[0] == "Init state-HHS": # TODO try to make general for several cities and methods
                 state = clustering.scripts.get_initial_state(
                     "test_data",
@@ -143,32 +138,61 @@ def GUI_main():
                 )
                 window["-STATE-MSG-"].update("HHS ==> OK")
                 userFeedback_OK("Initial state set OK")
+                savedInitialState = state
+                if len(savedIdealState.stations) > 0 : # it exists, and must be cleared
+                    savedIdealState = sim.State()
+                print("initial state saved")
                 beepy.beep(sound="ping")
                 task = []
                 readyForTask = False
             elif task[0] == "Init state-FH": # TODO try to make general for several cities and methods
+                print("FH init-sate: ")
+                printTime()
                 state = get_initial_state(task[1], week = task[2])
                 window["-STATE-MSG-"].update("FH ==> OK")
                 userFeedback_OK("Initial state set OK")
+                savedInitialState = state
+                if len(savedIdealState.stations) > 0 : # it exists, and must be cleared
+                    savedIdealState = sim.State()
+                print(" ", end="")
+                printTime()
                 beepy.beep(sound="ping")
                 task = []
                 readyForTask = False
             elif task[0] == "Ideal":
                 if task[2] == "HHS":
-                    ideal_state.haflan_haga_spetalen_ideal_state(task[1])
-                elif task[2] == "FH":
-                    print("FH ideal-sate:")
+                    print("HHS ideal-sate:")
                     printTime()
+                    ideal_state.haflan_haga_spetalen_ideal_state(task[1])
+                    savedIdealState = task[1]
+                    printTime()
+                elif task[2] == "FH":
                     newIdeal_state = ideal_state.evenly_distributed_ideal_state(task[1])
                     task[1].set_ideal_state(newIdeal_state) # TODO, had to go via newIdeal_statevariable due to import-trouble !???
-                    printTime()
+                    savedIdealState = task[1]
                 else:
                     print("*** Error in task: Ideal")
+                window["-CALC-MSG-"].update(task[2] + " ==> OK", text_color="cyan")
                 task = []
                 readyForTask = False
-                window["-CALC-MSG-"].update("")
+
                 userFeedback_OK("Ideal state calculated OK")
                 beepy.beep(sound="ping")
+
+            elif task[0] == "Sim":
+                if len(savedIdealState.stations) > 0 :
+                    state = savedIdealState
+                    print("simulates from IDEAL state")
+                elif len(savedInitialState.stations) > 0:
+                    state = savedInitialState
+                    print("simulates from INIT state")
+                else:
+                    print("*** ERROR: state not available")
+                startSimulation(simPolicy, state) # TODO, change to task[1] and task[2]
+                state = sim.State() # to ensure state is reset before new simulation
+                window["-SIM-MSG-"].update("")
+                task = []
+                readyForTask = False
                 
         # window["-FEEDBACK-"].update(" ") # clear user feedback field # TODO, must be handled differently after timeout in main GUI loop
         
@@ -204,7 +228,7 @@ def GUI_main():
                 else:
                     weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
                 task = ["Init state-FH", "Oslo", weekNo]    
-                window["-STATE-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
+                window["-STATE-MSG-"].update("Lengthy operation started ... (4 - 5 minutes)", text_color="cyan")
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
                 window["-WEEK-"].update("Week no: 48") # Only week with traffic at the moment for Utopia
                 task = ["Init state-FH", "Utopia", 48]    
@@ -215,28 +239,36 @@ def GUI_main():
                 userError("You must select a city")
             idealStateMethod = "FH"
             window["-IDEAL-METHOD-"].update("Fosen & Haldorsen")
+            window["-CALC-MSG-"].update("")
+
         if GUI_event == "Haflan, Haga & Spetalen": # handled here since it is relativelu quick
             task = ["Init state-HHS"] 
             window["-WEEK-"].update("Week no: -na-")
             window["-IDEAL-METHOD-"].update("Haflan, Haga & Spetalen")
+            window["-OSLO-"].update(True) # entur data are from Oslo
+            window["-UTOPIA-"].update(False)
+            window["-CALC-MSG-"].update("")
             window["-STATE-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
             idealStateMethod = "HHS"
 
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Calculate":
-            task = ["Ideal", state, idealStateMethod]
-            window["-CALC-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
+            task = ["Ideal", savedInitialState, idealStateMethod]
+            if idealStateMethod == "HHS":
+                window["-CALC-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
 
         ###### SIMULATE GUI PART
         elif GUI_event == "Simulate":
+            if len(savedIdealState.stations) > 0 :
+                state = savedIdealState # it exists
+            elif len(savedInitialState.stations) > 0 :
+                state = savedInitialState
             if len(state.stations) == 0:
-                userError("You must set an initial state")
+                userError("You must set an initial (or ideal) state")
             elif simPolicy == "":
                 userError("You must select a policy")
             else:
                 task =["Sim", simPolicy, state]
-                # startSimulation(simPolicy, state)
-                # state = sim.State() # to ensure state is set before new simulation
                 window["-WEEK-"].update("Week no: ") # TODO, usikker på denne, henger igjen
                 window["-SIM-MSG-"].update("Lengthy operation started ...  (see progress in terminal)", text_color="cyan")
         
