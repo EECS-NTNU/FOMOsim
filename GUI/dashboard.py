@@ -39,8 +39,8 @@ dashboardColumn = [
     [sg.Text("Method for calculating ideal state: "), sg.Text("...", key="-IDEAL-METHOD-")],
     [sg.Button("Calculate"), sg.Text("", key="-CALC-MSG-")], 
     [sg.Text('_'*40)],
-    [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(20, 4), key="-POLICIES-")],
-    [sg.Button("Simulate"), sg.Text("Hours: 16", size = 11, key="-HOURS-"), sg.Text("", key="-SIM-MSG-")],    
+    [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"), sg.Text("Hours: 16", size = 11, key="-HOURS-")],
+    [sg.Button("Simulate"), sg.Button("Simulate all"), sg.Text("", key="-SIM-MSG-")],    
 ]
 statusColumn = [
     [sg.Text("Simulation status", font='Lucida', text_color = 'Yellow')],
@@ -193,6 +193,17 @@ def GUI_main():
                 window["-SIM-MSG-"].update("")
                 task = []
                 readyForTask = False
+
+            elif task[0] == "Sim all":
+                printTime()
+                stateCopy = task[1]
+                for pol in range(len(policyMenu)):
+                    state = stateCopy
+                    print("Start simulation with policy: ", end="")
+                    print(policyMenu[pol])
+                    startSimulation(policyMenu[pol], state)   
+                printTime()
+                task = []
                 
         # window["-FEEDBACK-"].update(" ") # clear user feedback field # TODO, must be handled differently after timeout in main GUI loop
         
@@ -226,9 +237,13 @@ def GUI_main():
                     weekNo = 53
                     window["-WEEK-"].update("Week no: 53") 
                 else:
-                    weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
-                task = ["Init state-FH", "Oslo", weekNo]    
-                window["-STATE-MSG-"].update("Lengthy operation started ... (4 - 5 minutes)", text_color="cyan")
+                    if GUI_values["-WEEK-"] == "Week no: -na-":
+                        window["-WEEK-"].update("Week no: ")
+                        userError("You must select a week no")
+                    else:    
+                        weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
+                        task = ["Init state-FH", "Oslo", weekNo]    
+                        window["-STATE-MSG-"].update("Lengthy operation started ... (4 - 5 minutes)", text_color="cyan")
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
                 window["-WEEK-"].update("Week no: 48") # Only week with traffic at the moment for Utopia
                 task = ["Init state-FH", "Utopia", 48]    
@@ -253,10 +268,12 @@ def GUI_main():
 
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Calculate":
-            task = ["Ideal", savedInitialState, idealStateMethod]
-            if idealStateMethod == "HHS":
-                window["-CALC-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
-
+            if len(savedInitialState.stations) > 0 :
+                task = ["Ideal", savedInitialState, idealStateMethod]
+                if idealStateMethod == "HHS":
+                    window["-CALC-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
+            else:
+                userError("You must set an initial state")
         ###### SIMULATE GUI PART
         elif GUI_event == "Simulate":
             if len(savedIdealState.stations) > 0 :
@@ -268,10 +285,14 @@ def GUI_main():
             elif simPolicy == "":
                 userError("You must select a policy")
             else:
-                task =["Sim", simPolicy, state]
+                task = ["Sim", simPolicy, state]
                 window["-WEEK-"].update("Week no: ") # TODO, usikker på denne, henger igjen
                 window["-SIM-MSG-"].update("Lengthy operation started ...  (see progress in terminal)", text_color="cyan")
-        
+        elif GUI_event == "Simulate all":
+            # TODO use same error checking as above, refactor 
+            pass
+            task = ["Sim all", state]
+
         ###### TODO review under here
         if GUI_values["-POLICIES-"] != []:
             simPolicy = GUI_values["-POLICIES-"][0]
