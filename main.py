@@ -34,10 +34,7 @@ simulators = []
 if settings.USER_INTERFACE_MODE == "GUI":
     GUI_main()
 else:
-    printTime()
-    print(" * get_initial_state()")
-
-#    state = get_initial_state(city = "Oslo", week=12)
+    # state = get_initial_state(city = "Oslo", week=12)
 
     state = clustering.scripts.get_initial_state(
         "test_data",
@@ -88,9 +85,6 @@ else:
 
     ###############################################################################
 
-    printTime()
-    print(" * sim do nothing")
-
     # Set up simulator
     simulators.append(sim.Simulator(
         PERIOD,
@@ -105,9 +99,6 @@ else:
 
     ###############################################################################
 
-    printTime()
-    print(" * sim rebalancing")
-
     # Set up simulator
     simulators.append(sim.Simulator(
         PERIOD,
@@ -120,12 +111,8 @@ else:
     # Run first simulator
     simulators[-1].run()
 
-
     ###############################################################################
 
     # Visualize results
-    printTime()
-    print(" * start visualize")
     visualize_analysis(simulators)
 
-    printTime()
