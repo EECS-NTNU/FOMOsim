@@ -25,3 +25,24 @@ def printTime():
 
 def readTime():
     return datetime.now().strftime("%H:%M:%S")
+ 
+def write(file, words): # writes list of words to file and flush
+    for i in range(len(words)):
+        file.write(words[i] + " ")
+    file.write("\n")    
+    file.flush()    
+
+# def tripStatsClose():
+#     tripStatsLogFile.write("\nlogg file closed")
+#     tripStatsLogFile.close()
+
+# def loggTripStart(time, state):
+#     tripStatsLogFile.write("Time " + str(time) + ":")
+#     for s in state.locations:
+#         tripStatsLogFile.write(" " + str(len(s.scooters)))
+#     tripStatsLogFile.flush()
+
+# def loggTripEnd():
+#     tripStatsLogFile.write(" -bike- ==> ")
+#     tripStatsLogFile.write(" after \n")
+#     tripStatsLogFile.flush()

@@ -31,9 +31,8 @@ simulators = []
 # calcDistances(city = "Oslo") # To ensure that station.txt is available
 # TODO skriv som assume i interface
 
-if settings.USER_INTERFACE_MODE == "GUI":
-    GUI_main()
-else:
+if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
+
     # state = get_initial_state(city = "Oslo", week=12)
 
     state = clustering.scripts.get_initial_state(
