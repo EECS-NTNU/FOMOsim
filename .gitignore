@@ -1,4 +1,10 @@
 tripStats/data/Oslo/tripData
+tripStats/data/Oslo/*.txt
+tripStats/data/Utopia/*.txt
+tripStats/results
+tripStats/scripts
+tripStats/plots
+data/tripData
 
 state_cache
 

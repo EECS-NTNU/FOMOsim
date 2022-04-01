@@ -28,7 +28,8 @@ def readTime():
  
 def write(file, words): # writes list of words to file and flush
     for i in range(len(words)):
-        file.write(words[i] + " ")
+        file.write(words[i])
+        file.write(" ") 
     file.write("\n")    
     file.flush()    
 

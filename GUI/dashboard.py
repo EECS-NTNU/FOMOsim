@@ -17,11 +17,10 @@ import PySimpleGUI as sg
 import beepy
 
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
-
 scriptFile = open("tripStats/scripts/sessionLog.txt", "w")
 resultsFile = open("tripStats/results/results.txt", "w")
 
-###### GUI layout
+################################ GUI LAYOUT CODE
 colWidth = 55
 dashboardColumn = [
     [sg.Text("Prep. and set up ", font='Lucida', text_color = 'Yellow'), sg.VSeparator(), 
@@ -77,6 +76,7 @@ def runAllPolicies(state, duration): # TODO bare alle som kan starte i samme sta
     pass
 
 def startSimulation(simPolicy, state):
+    simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # make empty Simulator for scope
     if simPolicy == "Do-nothing": 
         simulator = sim.Simulator( 
             DURATION,
@@ -118,120 +118,116 @@ def startSimulation(simPolicy, state):
     metrics = simulator.metrics.get_all_metrics()
     beepy.beep(sound="ready")
 
-def doCommand(command):
-    pass
+def doCommand(task, savedInitialState, savedIdealState):
+    if task[0] == "Init-state-FH": # TODO try to make general for several cities and methods
+        write(scriptFile, ["Init-state-FH", task[1], str(task[2])])
+        print("FH init-state: ") # TODO change these to session-log
+        printTime()
+        state = get_initial_state(task[1], week = task[2])
+        window["-STATE-MSG-"].update("FH ==> OK")
+        userFeedback_OK("Initial state set OK")
+        savedInitialState = state
+        if len(savedIdealState.stations) > 0 : # if it exists, it must be cleared
+            savedIdealState = sim.State()
+        print(" ", end="")
+        printTime()
+    elif task[0] == "Init-state-HHS": # TODO try to make general for several cities and methods
+        write(scriptFile, ["Init-state-HHS"])
+        state = clustering.scripts.get_initial_state(
+            "test_data",
+            "0900-entur-snapshot.csv",
+            "Scooter",
+            number_of_scooters = 2500,
+            number_of_clusters = 10,
+            number_of_vans = 2,
+            random_seed = 1,
+        )
+        window["-STATE-MSG-"].update("HHS ==> OK")
+        userFeedback_OK("Initial state set OK")
+        savedInitialState = state
+        if len(savedIdealState.stations) > 0 : # it exists, and must be cleared
+            savedIdealState = sim.State()
+        print("initial state saved")
+    elif task[0] == "Ideal-state":
+        if task[2] == "HHS":
+            write(scriptFile, ["Ideal-state", "HHS"])
+            print("HHS ideal-state:")
+            printTime()
+            ideal_state.haflan_haga_spetalen_ideal_state(task[1])
+            savedIdealState = task[1]
+            printTime()
+        elif task[2] == "FH":
+            write(scriptFile, ["Ideal-state", "FH"])
+            newIdeal_state = ideal_state.evenly_distributed_ideal_state(task[1])
+            task[1].set_ideal_state(newIdeal_state) # TODO, had to (try again?) go via newIdeal_state variable due to import-trouble !???
+            savedIdealState = task[1]
+        else:
+            print("*** Error in task: Ideal")
+        window["-CALC-MSG-"].update(task[2] + " ==> OK", text_color="cyan")
+        userFeedback_OK("Ideal state calculated OK")
+
+    elif task[0] == "Sim":
+        fromState = ""
+        if len(savedIdealState.stations) > 0 :
+            state = savedIdealState
+            fromState = "IDEAL"
+            print("simulates from IDEAL state")
+        elif len(savedInitialState.stations) > 0:
+            fromState = "INIT"
+            state = savedInitialState
+            print("simulates from INIT state")
+        else:
+            print("*** ERROR: state not available")
+        write(scriptFile, ["Sim", fromState, task[1]] )    
+        startSimulation(task[2], state) # TODO, change to task[1] and task[2]
+        state = sim.State() # to ensure state is reset before new simulation
+        window["-SIM-MSG-"].update("")
+
+    elif task[0] == "Sim-all":
+        scriptFile.write("Sim" + " " + " not ready ---")    
+        printTime()
+        stateCopy = task[1]
+        for pol in range(len(policyMenu)):
+            state = stateCopy
+            print("Start simulation with policy: ", end="")
+            print(policyMenu[pol])
+            startSimulation(policyMenu[pol], state)   
+        printTime()
+    return savedInitialState, savedIdealState
 
 def replayScript(fileName):
+    state = sim.State() # all three set initially empty
+    savedInitialState = sim.State()
+    savedIdealState = sim.State()
     script = open(fileName, "r")
     lines = script.readlines()
+    command = []
     for i in range(len(lines)):
-        doCommand(lines[i])
-
+        for word in lines[i].split():
+             command.append(word)
+        savedInitialState, savedIdealState = doCommand(command, savedInitialState, savedIdealState)
+        command = []
+  
 def GUI_main():
     simPolicy = "" 
     state = sim.State() # all three set initially empty
     savedInitialState = sim.State()
     savedIdealState = sim.State()
+
     task = [] # TODO, only one task allowed in queue at the moment
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
                          # updating field -SIM-MSG- or -STATE-MSG- before starting long operation
     idealStateMethod = ""
     while True:
         GUI_event, GUI_values= window.read(timeout = 200) # waits 200 millisecs before looking in taskQueue
-        # print("*", end="")
         if len(task) > 0: ###### handling of lengthy operations is done in a two-stage process to be able to give message
             if not readyForTask:
                 readyForTask = True
-            elif task[0] == "Init-state-FH": # TODO try to make general for several cities and methods
-                write(scriptFile, ["Init-state-FH", task[1], str(task[2])])
-                print("FH init-state: ") # TODO change these to session-log
-                printTime()
-                state = get_initial_state(task[1], week = task[2])
-                window["-STATE-MSG-"].update("FH ==> OK")
-                userFeedback_OK("Initial state set OK")
-                savedInitialState = state
-                if len(savedIdealState.stations) > 0 : # if it exists, it must be cleared
-                    savedIdealState = sim.State()
-                print(" ", end="")
-                printTime()
+            else:
+                savedInitialState, savedIdealState = doCommand(task, savedInitialState, savedIdealState)
+                readyForTask = False
+                task = []   
                 beepy.beep(sound="ping")
-                task = []
-                readyForTask = False
-            elif task[0] == "Init-state-HHS": # TODO try to make general for several cities and methods
-                write(scriptFile, ["Init-state-HHS"])
-                state = clustering.scripts.get_initial_state(
-                    "test_data",
-                    "0900-entur-snapshot.csv",
-                    "Scooter",
-                    number_of_scooters = 2500,
-                    number_of_clusters = 10,
-                    number_of_vans = 2,
-                    random_seed = 1,
-                )
-                window["-STATE-MSG-"].update("HHS ==> OK")
-                userFeedback_OK("Initial state set OK")
-                savedInitialState = state
-                if len(savedIdealState.stations) > 0 : # it exists, and must be cleared
-                    savedIdealState = sim.State()
-                print("initial state saved")
-                beepy.beep(sound="ping")
-                task = []
-                readyForTask = False
-
-            elif task[0] == "Ideal":
-                if task[2] == "HHS":
-                    write(scriptFile, ["Ideal-state", "HHS"])
-                    print("HHS ideal-state:")
-                    printTime()
-                    ideal_state.haflan_haga_spetalen_ideal_state(task[1])
-                    savedIdealState = task[1]
-                    printTime()
-                elif task[2] == "FH":
-                    write(scriptFile, ["Ideal-state", "FH"])
-                    newIdeal_state = ideal_state.evenly_distributed_ideal_state(task[1])
-                    task[1].set_ideal_state(newIdeal_state) # TODO, had to (try again?) go via newIdeal_state variable due to import-trouble !???
-                    savedIdealState = task[1]
-                else:
-                    print("*** Error in task: Ideal")
-                window["-CALC-MSG-"].update(task[2] + " ==> OK", text_color="cyan")
-                task = []
-                readyForTask = False
-
-                userFeedback_OK("Ideal state calculated OK")
-                beepy.beep(sound="ping")
-
-            elif task[0] == "Sim":
-                fromState = ""
-                if len(savedIdealState.stations) > 0 :
-                    state = savedIdealState
-                    fromState = "IDEAL"
-                    print("simulates from IDEAL state")
-                elif len(savedInitialState.stations) > 0:
-                    fromState = "INIT"
-                    state = savedInitialState
-                    print("simulates from INIT state")
-                else:
-                    print("*** ERROR: state not available")
-                write(scriptFile, ["Sim", fromState, simPolicy] )    
-                startSimulation(simPolicy, state) # TODO, change to task[1] and task[2]
-                state = sim.State() # to ensure state is reset before new simulation
-                window["-SIM-MSG-"].update("")
-                task = []
-                readyForTask = False
-
-            elif task[0] == "Sim-all":
-                scriptFile.write("Sim" + " " + " not ready ---")    
-                printTime()
-                stateCopy = task[1]
-                for pol in range(len(policyMenu)):
-                    state = stateCopy
-                    print("Start simulation with policy: ", end="")
-                    print(policyMenu[pol])
-                    startSimulation(policyMenu[pol], state)   
-                printTime()
-                task = []
-                
-        # window["-FEEDBACK-"].update(" ") # clear user feedback field # TODO, must be handled differently after timeout in main GUI loop
         
         ###### DOWNLOAD GUI PART
         if GUI_event == "All Oslo":
@@ -294,9 +290,13 @@ def GUI_main():
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Calculate":
             if len(savedInitialState.stations) > 0 :
-                task = ["Ideal", savedInitialState, idealStateMethod]
+                # task = ["Ideal-state", savedInitialState, idealStateMethod]
+                task = ["Ideal-state", "FH"]
                 if idealStateMethod == "HHS":
                     window["-CALC-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
+                    task = ["Ideal-state", "HHS"]
+                else:
+                    task = ["Ideal-state", "FH"]
             else:
                 userError("You must set an initial state")
         ###### SIMULATE GUI PART
