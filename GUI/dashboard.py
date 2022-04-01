@@ -20,7 +20,8 @@ policyMenu = ["Do nothing", "Rebalancing", "Fosen & Haldorsen", "F & H Greedy"]
 
 ###### GUI layout
 dashboardColumn = [
-    [sg.Text("Preparation and set up ", font='Lucida', text_color = 'Yellow'), sg.VSeparator(), sg.Button("Exit")],
+    [sg.Text("Prep. and set up ", font='Lucida', text_color = 'Yellow'), sg.VSeparator(), 
+        sg.Button("Fast-Track", button_color = "forest green"), sg.Button("Asbjørn", button_color="snow4"), sg.Button("Exit")],
     [sg.Text("Set up simulation", font="Helvetica 14", size=(30, 1), text_color = "spring green", key="-FEEDBACK-")],
     [sg.Text('_'*40)],
     [sg.Text("Download Oslo trips, 1 = April 2019 ... 35 = February 2022)")],
@@ -31,7 +32,7 @@ dashboardColumn = [
     [sg.Radio("Oslo", "RADIO1", key = "-OSLO-"), sg.Radio("Bergen", "RADIO1", key = "-BERGEN-"), 
         sg.Radio("Utopia", "RADIO1", key = "-UTOPIA-"), sg.Button("Find stations and distances")],
     [sg.Text('_'*40)],
-    [sg.Text("Set initial state")],
+    [sg.Text("Set initial state"), sg.Button("main.py-small-test-case")],
     [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
         sg.Button("Haflan, Haga & Spetalen")],
     [sg.Text("", key = "-STATE-MSG-")],
@@ -40,7 +41,8 @@ dashboardColumn = [
     [sg.Button("Calculate"), sg.Text("", key="-CALC-MSG-")], 
     [sg.Text('_'*40)],
     [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"), sg.Text("Hours: 16", size = 11, key="-HOURS-")],
-    [sg.Button("Simulate"), sg.Button("Simulate all"), sg.Text("", key="-SIM-MSG-")],    
+    [sg.Button("Simulate"), sg.Button("Simulate all"), sg.Button("Script")],
+    [sg.Text("", key="-SIM-MSG-")],    
 ]
 statusColumn = [
     [sg.Text("Simulation status", font='Lucida', text_color = 'Yellow')],
@@ -126,6 +128,20 @@ def GUI_main():
         if len(task) > 0: ###### handling of lengthy operations is done in a two-stage process to be able to give message
             if not readyForTask:
                 readyForTask = True
+            elif task[0] == "Init state-FH": # TODO try to make general for several cities and methods
+                print("FH init-state: ") # TODO change these to session-log
+                printTime()
+                state = get_initial_state(task[1], week = task[2])
+                window["-STATE-MSG-"].update("FH ==> OK")
+                userFeedback_OK("Initial state set OK")
+                savedInitialState = state
+                if len(savedIdealState.stations) > 0 : # if it exists, it must be cleared
+                    savedIdealState = sim.State()
+                print(" ", end="")
+                printTime()
+                beepy.beep(sound="ping")
+                task = []
+                readyForTask = False
             elif task[0] == "Init state-HHS": # TODO try to make general for several cities and methods
                 state = clustering.scripts.get_initial_state(
                     "test_data",
@@ -145,30 +161,17 @@ def GUI_main():
                 beepy.beep(sound="ping")
                 task = []
                 readyForTask = False
-            elif task[0] == "Init state-FH": # TODO try to make general for several cities and methods
-                print("FH init-sate: ")
-                printTime()
-                state = get_initial_state(task[1], week = task[2])
-                window["-STATE-MSG-"].update("FH ==> OK")
-                userFeedback_OK("Initial state set OK")
-                savedInitialState = state
-                if len(savedIdealState.stations) > 0 : # it exists, and must be cleared
-                    savedIdealState = sim.State()
-                print(" ", end="")
-                printTime()
-                beepy.beep(sound="ping")
-                task = []
-                readyForTask = False
+
             elif task[0] == "Ideal":
                 if task[2] == "HHS":
-                    print("HHS ideal-sate:")
+                    print("HHS ideal-state:")
                     printTime()
                     ideal_state.haflan_haga_spetalen_ideal_state(task[1])
                     savedIdealState = task[1]
                     printTime()
                 elif task[2] == "FH":
                     newIdeal_state = ideal_state.evenly_distributed_ideal_state(task[1])
-                    task[1].set_ideal_state(newIdeal_state) # TODO, had to go via newIdeal_statevariable due to import-trouble !???
+                    task[1].set_ideal_state(newIdeal_state) # TODO, had to (try again?) go via newIdeal_state variable due to import-trouble !???
                     savedIdealState = task[1]
                 else:
                     print("*** Error in task: Ideal")
@@ -220,15 +223,14 @@ def GUI_main():
         ###### SELECT CITY GUI PART     
         elif GUI_event == "Find stations and distances":
             if GUI_values["-OSLO-"]:
-                window["-FEEDBACK-"].update("City OK", text_color = "")
-                calcDistances("Oslo")
+                calcDistances("Oslo") # TODO, should ideally be handled like time-consuming tasks
             elif GUI_values["-BERGEN-"]:
                 userError("Bergen not yet implemented") 
             elif GUI_values["-UTOPIA-"]:
-                window["-FEEDBACK-"].update("City OK", text_color = "LightGreen") 
                 calcDistances("Utopia")
             else:
                 print("*** Error: wrong value from Radiobutton")         
+            window["-FEEDBACK-"].update("City OK", text_color = "LightGreen") 
         
         ###### INIT STATE GUI PART
         elif GUI_event == "Fosen & Haldorsen":
@@ -243,7 +245,7 @@ def GUI_main():
                     else:    
                         weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
                         task = ["Init state-FH", "Oslo", weekNo]    
-                        window["-STATE-MSG-"].update("Lengthy operation started ... (4 - 5 minutes)", text_color="cyan")
+                        window["-STATE-MSG-"].update("Lengthy operation started ... (4 - 6 minutes)", text_color="cyan")
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
                 window["-WEEK-"].update("Week no: 48") # Only week with traffic at the moment for Utopia
                 task = ["Init state-FH", "Utopia", 48]    
