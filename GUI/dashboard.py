@@ -3,7 +3,6 @@
 import copy
 import policies
 import policies.fosen_haldorsen
-# import policies.haflan_haga_spetalen # TODO ??? gives error
 import sim
 import clustering.scripts
 
@@ -12,13 +11,28 @@ import ideal_state.haflan_haga_spetalen
  
 from tripStats.download import *
 from tripStats.parse import calcDistances, get_initial_state
-from tripStats.helpers import printTime, readTime, write
+from tripStats.helpers import * 
 import PySimpleGUI as sg
 import beepy
 
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
-scriptFile = open("tripStats/scripts/sessionLog.txt", "w")
+loggFile = open("tripStats/loggfiles/sessionLog.txt", "w")
+scriptFile = open("tripStats/scripts/sessionScript.txt", "w")
 resultsFile = open("tripStats/results/results.txt", "w")
+
+class Session:
+    def __init__(self, sessionName):
+        self.name = sessionName
+        self.startTime = ""
+        self.endTime = ""
+        self.state = sim.State() # TODO see if these three can be replaced by = []
+        self.initState = sim.State()
+        self.initStateType = "" # is "", "FH" or "HHS"
+        self.idealState = sim.State()
+        self.idealStateType = "" # is "", "FH" or "HHS" # TODO, redundant, since ideal state must be of same kind as init ?
+        self.simPolicy = ""
+    def saveState(self, filename):
+        print("SaveState called for " + self.name + "at" + self.startTime)
 
 ################################ GUI LAYOUT CODE
 colWidth = 55
@@ -67,16 +81,12 @@ def userFeedback_OK(string):
 def userFeedbackClear():
     window["-FEEDBACK-"].update("")
 
+################################ SIMULATION STATE
+policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 DURATION = 960 # change to input-field with default value
 
-def runAllPolicies(state, duration): # TODO bare alle som kan starte i samme state på samme data !!!???
-    # må ta kopi av state, starte på samme gir riktigere sammenlikning og raskere oppstart 
-    # - rapporter tid brukt i simlator, i GUI!, og på fil
-    # - flere simuleringer på en fil, dvs. for en sesjon
-    pass
-
 def startSimulation(simPolicy, state):
-    simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # make empty Simulator for scope
+    simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
     if simPolicy == "Do-nothing": 
         simulator = sim.Simulator( 
             DURATION,
@@ -109,8 +119,7 @@ def startSimulation(simPolicy, state):
             verbose=True,
             label="Greedy",
         )
-    print("Sim time: ")
-    printTime()
+    write(loggFile, ["Sim-policy:", simPolicy, "Started:", dateAndTimeStr()])
     window["-START-TIME-"].update("Start: " + readTime())
     simulator.run()
     window["-END-TIME-"].update("End:" + readTime())
@@ -118,131 +127,114 @@ def startSimulation(simPolicy, state):
     metrics = simulator.metrics.get_all_metrics()
     beepy.beep(sound="ready")
 
-def doCommand(task, savedInitialState, savedIdealState):
-    if task[0] == "Init-state-FH": # TODO try to make general for several cities and methods
-        write(scriptFile, ["Init-state-FH", task[1], str(task[2])])
-        print("FH init-state: ") # TODO change these to session-log
-        printTime()
-        state = get_initial_state(task[1], week = task[2])
-        window["-STATE-MSG-"].update("FH ==> OK")
+def doCommand(session, task):
+    if task[0] == "Init-state-FH" or task[0] == "Init-state-HHS":
+        if task[0] == "Init-state-FH":
+            write(scriptFile, ["Init-state-FH", task[1], task[2]])
+            print("FH init-state: ") # TODO change these to session-log
+            printTime()
+            session.initState = get_initial_state(task[1], week = int(task[2]))
+            session.initStateType = "FH"
+        elif task[0] == "Init-state-HHS": 
+            write(scriptFile, ["Init-state-HHS"])
+            session.initState = clustering.scripts.get_initial_state(
+                "test_data",
+                "0900-entur-snapshot.csv",
+                "Scooter",
+                number_of_scooters = 2500,
+                number_of_clusters = 10,
+                number_of_vans = 2,
+                random_seed = 1,
+            )
+            session.initStateType = "HHS"
+        window["-STATE-MSG-"].update(session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
-        savedInitialState = state
-        if len(savedIdealState.stations) > 0 : # if it exists, it must be cleared
-            savedIdealState = sim.State()
-        print(" ", end="")
+        session.idealState = sim.State() # ideaLstate must be cleared, if it exist or not
+        session.idealStateType = ""
         printTime()
-    elif task[0] == "Init-state-HHS": # TODO try to make general for several cities and methods
-        write(scriptFile, ["Init-state-HHS"])
-        state = clustering.scripts.get_initial_state(
-            "test_data",
-            "0900-entur-snapshot.csv",
-            "Scooter",
-            number_of_scooters = 2500,
-            number_of_clusters = 10,
-            number_of_vans = 2,
-            random_seed = 1,
-        )
-        window["-STATE-MSG-"].update("HHS ==> OK")
-        userFeedback_OK("Initial state set OK")
-        savedInitialState = state
-        if len(savedIdealState.stations) > 0 : # it exists, and must be cleared
-            savedIdealState = sim.State()
         print("initial state saved")
+
     elif task[0] == "Ideal-state":
-        if task[2] == "HHS":
-            write(scriptFile, ["Ideal-state", "HHS"])
-            print("HHS ideal-state:")
-            printTime()
-            ideal_state.haflan_haga_spetalen_ideal_state(task[1])
-            savedIdealState = task[1]
-            printTime()
-        elif task[2] == "FH":
-            write(scriptFile, ["Ideal-state", "FH"])
-            newIdeal_state = ideal_state.evenly_distributed_ideal_state(task[1])
-            task[1].set_ideal_state(newIdeal_state) # TODO, had to (try again?) go via newIdeal_state variable due to import-trouble !???
-            savedIdealState = task[1]
+        if session.initStateType == "": # an initial state does NOT exist
+            userError("Cannot calculate ideal state without an initial state")
         else:
-            print("*** Error in task: Ideal")
-        window["-CALC-MSG-"].update(task[2] + " ==> OK", text_color="cyan")
-        userFeedback_OK("Ideal state calculated OK")
+            if session.initStateType == "HHS": # OK to make ideal-HHS from init-HS
+                state = session.initState # via local variable to be sure initState is not destroyed (?)
+                ideal_state.haflan_haga_spetalen_ideal_state(state)
+                session.idealState = state
+            if session.initStateType =="FH":
+                state = session.initState
+                newIdeal_state = ideal_state.evenly_distributed_ideal_state(state)
+                session.idealState = newIdeal_state # TODO, probably clumsy, had to (try again?) go via newIdeal_state variable due to import-trouble !???
+            write(scriptFile, ["Ideal-state"])
+            window["-CALC-MSG-"].update(session.initStateType + " ==> OK", text_color="cyan")
+            userFeedback_OK("Ideal state calculated OK")
 
     elif task[0] == "Sim":
-        fromState = ""
-        if len(savedIdealState.stations) > 0 :
-            state = savedIdealState
+        fromState = ""  
+        if not session.idealStateType == "": 
+            session.state = session.idealState 
             fromState = "IDEAL"
-            print("simulates from IDEAL state")
-        elif len(savedInitialState.stations) > 0:
+        elif not session.initStateType == "":
+            session.state = session.initState 
             fromState = "INIT"
-            state = savedInitialState
-            print("simulates from INIT state")
         else:
-            print("*** ERROR: state not available")
-        write(scriptFile, ["Sim", fromState, task[1]] )    
-        startSimulation(task[2], state) # TODO, change to task[1] and task[2]
-        state = sim.State() # to ensure state is reset before new simulation
+            userError("You must set an initial (or ideal) state before simulation")
+        if not fromState == "":
+            policy = task[1]
+            # write("simulates from" + fromState + " state")
+            write(scriptFile, ["Sim", policy] )
+            print("*** Debug-plan: tap out used state to check that several simulations in a row start from same state")    
+            startSimulation(policy, session.state)
         window["-SIM-MSG-"].update("")
 
-    elif task[0] == "Sim-all":
-        scriptFile.write("Sim" + " " + " not ready ---")    
-        printTime()
-        stateCopy = task[1]
-        for pol in range(len(policyMenu)):
-            state = stateCopy
-            print("Start simulation with policy: ", end="")
-            print(policyMenu[pol])
-            startSimulation(policyMenu[pol], state)   
-        printTime()
-    return savedInitialState, savedIdealState
-
-def replayScript(fileName):
-    state = sim.State() # all three set initially empty
-    savedInitialState = sim.State()
-    savedIdealState = sim.State()
+def replayScript(session, fileName):
+    session.name += "-FROM:"
+    session.name += fileName
     script = open(fileName, "r")
     lines = script.readlines()
     command = []
     for i in range(len(lines)):
         for word in lines[i].split():
              command.append(word)
-        savedInitialState, savedIdealState = doCommand(command, savedInitialState, savedIdealState)
+        doCommand(session, command) 
         command = []
   
 def GUI_main():
-    simPolicy = "" 
-    state = sim.State() # all three set initially empty
-    savedInitialState = sim.State()
-    savedIdealState = sim.State()
-
+    session = Session("GUI_main_session") 
     task = [] # TODO, only one task allowed in queue at the moment
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
                          # updating field -SIM-MSG- or -STATE-MSG- before starting long operation
-    idealStateMethod = ""
     while True:
         GUI_event, GUI_values= window.read(timeout = 200) # waits 200 millisecs before looking in taskQueue
         if len(task) > 0: ###### handling of lengthy operations is done in a two-stage process to be able to give message
             if not readyForTask:
                 readyForTask = True
             else:
-                savedInitialState, savedIdealState = doCommand(task, savedInitialState, savedIdealState)
+                doCommand(session, task) # TODO opprett session passende sted
                 readyForTask = False
                 task = []   
                 beepy.beep(sound="ping")
         
         ###### DOWNLOAD GUI PART
-        if GUI_event == "All Oslo":
+        if GUI_event == "Fast-Track":
+            session = Session("Fast-Track-session")
+            replayScript(session, "tripStats/scripts/script.txt")
+            pass
+
+        elif GUI_event == "All Oslo":
             window["-INPUTfrom-"].update("From: 1")
             window["-INPUTto-"].update("To: 35")  # TODO, Magic number, move to local settings ?? 
         elif GUI_event == "Clear":
             window["-INPUTfrom-"].update("From: ")
             window["-INPUTto-"].update("To: ")   
-        elif GUI_event == "Download Oslo":
+        elif GUI_event == "Download Oslo": # TODO, should maybe be handled like time-consuming tasks, or give warning
             oslo(GUI_values["-INPUTfrom-"], GUI_values["-INPUTto-"])
 
         ###### SELECT CITY GUI PART     
         elif GUI_event == "Find stations and distances":
             if GUI_values["-OSLO-"]:
-                calcDistances("Oslo") # TODO, should ideally be handled like time-consuming tasks
+                calcDistances("Oslo") # TODO, should maybe be handled like time-consuming tasks, or give warning
             elif GUI_values["-BERGEN-"]:
                 userError("Bergen not yet implemented") 
             elif GUI_values["-UTOPIA-"]:
@@ -254,7 +246,7 @@ def GUI_main():
         ###### INIT STATE GUI PART
         elif GUI_event == "Fosen & Haldorsen":
             if GUI_values["-OSLO-"]:
-                if GUI_values["-WEEK-"] == "Week no: ":
+                if GUI_values["-WEEK-"] == "Week no: ": # TODO, improve code, make function, reuse
                     weekNo = 53
                     window["-WEEK-"].update("Week no: 53") 
                 else:
@@ -263,17 +255,16 @@ def GUI_main():
                         userError("You must select a week no")
                     else:    
                         weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
-                        task = ["Init-state-FH", "Oslo", weekNo]    
+                        task = ["Init-state-FH", "Oslo", str(weekNo)]    
                         window["-STATE-MSG-"].update("Lengthy operation started ... (4 - 6 minutes)", text_color="cyan")
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
                 window["-WEEK-"].update("Week no: 48") # Only week with traffic at the moment for Utopia
-                task = ["Init-state-FH", "Utopia", 48]    
+                task = ["Init-state-FH", "Utopia", "48"]    
                 window["-STATE-MSG-"].update("short operation started ...", text_color="cyan")
             elif GUI_values["-BERGEN-"]:
                 userError("Bergen not yet implemented")
             else:
                 userError("You must select a city")
-            idealStateMethod = "FH"
             window["-IDEAL-METHOD-"].update("Fosen & Haldorsen")
             window["-CALC-MSG-"].update("")
 
@@ -285,40 +276,24 @@ def GUI_main():
             window["-UTOPIA-"].update(False)
             window["-CALC-MSG-"].update("")
             window["-STATE-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
-            idealStateMethod = "HHS"
 
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Calculate":
-            if len(savedInitialState.stations) > 0 :
-                # task = ["Ideal-state", savedInitialState, idealStateMethod]
-                task = ["Ideal-state", "FH"]
-                if idealStateMethod == "HHS":
-                    window["-CALC-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
-                    task = ["Ideal-state", "HHS"]
-                else:
-                    task = ["Ideal-state", "FH"]
-            else:
-                userError("You must set an initial state")
+            task = ["Ideal-state"]
+            if session.idealStateType == "HHS":
+                window["-CALC-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
+
         ###### SIMULATE GUI PART
         elif GUI_event == "Simulate":
-            if len(savedIdealState.stations) > 0 :
-                state = savedIdealState # it exists
-            elif len(savedInitialState.stations) > 0 :
-                state = savedInitialState
-            if len(state.stations) == 0:
-                userError("You must set an initial (or ideal) state")
-            elif simPolicy == "":
+            if simPolicy == "":
                 userError("You must select a policy")
             else:
-                task = ["Sim", simPolicy, state]
-                window["-WEEK-"].update("Week no: ") # TODO, usikker på denne, henger igjen
-                window["-SIM-MSG-"].update("Lengthy operation started ...  (see progress in terminal)", text_color="cyan")
-        elif GUI_event == "Simulate all":
-            # TODO use same error checking as above, refactor 
-            task = ["Sim-all", state]
+                task = ["Sim", simPolicy]
+                # window["-WEEK-"].update("Week no: ") # TODO, usikker på denne, henger igjen
+                window["-SIM-MSG-"].update("Simulation started ...  (see progress in terminal)", text_color="cyan")
 
         elif GUI_event == "Replay script":
-            replayScript("tripStats/scripts/script.txt")
+            replayScript(session, "tripStats/scripts/script.txt")
 
         ###### TODO review under here
         if GUI_values["-POLICIES-"] != []:

@@ -35,6 +35,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # state = get_initial_state(city = "Oslo", week=12)
 
+    # This is frm Haflan Haga and Spetalen
     state = clustering.scripts.get_initial_state(
         "test_data",
         "0900-entur-snapshot.csv",

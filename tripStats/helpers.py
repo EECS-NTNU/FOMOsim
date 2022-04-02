@@ -23,6 +23,9 @@ def timeInHoursAndMinutes(seconds):
 def printTime():
     print("Time =", datetime.now().strftime("%H:%M:%S"))
 
+def dateAndTimeStr():
+    return datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+
 def readTime():
     return datetime.now().strftime("%H:%M:%S")
  
