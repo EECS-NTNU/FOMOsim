@@ -1,5 +1,0 @@
-Sim-policy: Rebalancing Started: 2022-04-02-12:31:09 
-Sim-policy: Do-nothing Started: 2022-04-02-12:31:12 
-Sim-policy: F&H-Greedy Started: 2022-04-02-12:31:45 
-Sim-policy: Rebalancing Started: 2022-04-02-12:32:13 
-Sim-policy: Do-nothing Started: 2022-04-02-12:32:16 
