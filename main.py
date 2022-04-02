@@ -9,14 +9,16 @@ import settings
 import sim
 import clustering.scripts
 
-from tripStats.parse import calcDistances, get_initial_state
+# import GUI.dashboard
+
+# from tripStats.parse import calcDistances, get_initial_state
 
 import policies
 import policies.fosen_haldorsen
 from visualization.visualizer import visualize_analysis
 import ideal_state
 
-from tripStats.helpers import printTime
+# from tripStats.helpers import printTime
 
 from GUI.dashboard import GUI_main
 

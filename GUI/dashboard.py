@@ -119,11 +119,14 @@ def startSimulation(simPolicy, state):
             verbose=True,
             label="Greedy",
         )
-    write(loggFile, ["Sim-policy:", simPolicy, "Started:", dateAndTimeStr()])
+    write(loggFile, ["Simulation-start:", simPolicy, dateAndTimeStr()])
     window["-START-TIME-"].update("Start: " + readTime())
+    start = datetime.now()
     simulator.run()
+    end = datetime.now()
+    duration = end - start
     window["-END-TIME-"].update("End:" + readTime())
-    printTime()
+    write(loggFile, ["Simulation-end:", dateAndTimeStr(), "usedTime (s):", str(duration.total_seconds())])
     metrics = simulator.metrics.get_all_metrics()
     beepy.beep(sound="ready")
 
@@ -131,9 +134,8 @@ def doCommand(session, task):
     if task[0] == "Init-state-FH" or task[0] == "Init-state-HHS":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
-            print("FH init-state: ") # TODO change these to session-log
-            printTime()
-            session.initState = get_initial_state(task[1], week = int(task[2]))
+            session.initState, loggText = get_initial_state(task[1], week = int(task[2]))
+            # TODO retur  av loggText var fordi jeg ikke fikk til å bruke dashboard.loggFile fra denne fila
             session.initStateType = "FH"
         elif task[0] == "Init-state-HHS": 
             write(scriptFile, ["Init-state-HHS"])
@@ -146,13 +148,13 @@ def doCommand(session, task):
                 number_of_vans = 2,
                 random_seed = 1,
             )
+            loggText = [] # not used in this case
             session.initStateType = "HHS"
         window["-STATE-MSG-"].update(session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
         session.idealState = sim.State() # ideaLstate must be cleared, if it exist or not
         session.idealStateType = ""
-        printTime()
-        print("initial state saved")
+        write(loggFile, [task[0], "finished:", dateAndTimeStr()] + loggText) 
 
     elif task[0] == "Ideal-state":
         if session.initStateType == "": # an initial state does NOT exist
@@ -182,9 +184,8 @@ def doCommand(session, task):
             userError("You must set an initial (or ideal) state before simulation")
         if not fromState == "":
             policy = task[1]
-            # write("simulates from" + fromState + " state")
             write(scriptFile, ["Sim", policy] )
-            print("*** Debug-plan: tap out used state to check that several simulations in a row start from same state")    
+            write(loggFile, ["*** Debug-plan: tap out used state to check that several simulations in a row start from same state"])    
             startSimulation(policy, session.state)
         window["-SIM-MSG-"].update("")
 
@@ -214,7 +215,7 @@ def GUI_main():
                 doCommand(session, task) # TODO opprett session passende sted
                 readyForTask = False
                 task = []   
-                beepy.beep(sound="ping")
+                # beepy.beep(sound="ping") # TODO copy to after lengthy operations, but smulation-end has its own sound
         
         ###### DOWNLOAD GUI PART
         if GUI_event == "Fast-Track":
@@ -285,10 +286,10 @@ def GUI_main():
 
         ###### SIMULATE GUI PART
         elif GUI_event == "Simulate":
-            if simPolicy == "":
+            if session.simPolicy == "":
                 userError("You must select a policy")
             else:
-                task = ["Sim", simPolicy]
+                task = ["Sim", session.simPolicy]
                 # window["-WEEK-"].update("Week no: ") # TODO, usikker på denne, henger igjen
                 window["-SIM-MSG-"].update("Simulation started ...  (see progress in terminal)", text_color="cyan")
 
@@ -297,7 +298,8 @@ def GUI_main():
 
         ###### TODO review under here
         if GUI_values["-POLICIES-"] != []:
-            simPolicy = GUI_values["-POLICIES-"][0]
+            session.simPolicy = GUI_values["-POLICIES-"][0]
+            userFeedbackClear()
         if GUI_event == "Asbjørn":
             window.close()
             return False    
