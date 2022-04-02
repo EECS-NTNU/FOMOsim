@@ -4,7 +4,7 @@ tripStats/data/Utopia/*.txt
 tripStats/results
 tripStats/scripts
 tripStats/plots
-tripStats/loggFiles
+tripStats/loggfiles
 data/tripData
 
 state_cache
