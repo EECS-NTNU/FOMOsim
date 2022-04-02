@@ -169,6 +169,7 @@ def doCommand(session, task):
                 newIdeal_state = ideal_state.evenly_distributed_ideal_state(state)
                 session.idealState = newIdeal_state # TODO, probably clumsy, had to (try again?) go via newIdeal_state variable due to import-trouble !???
             write(scriptFile, ["Ideal-state"])
+            write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
             window["-CALC-MSG-"].update(session.initStateType + " ==> OK", text_color="cyan")
             userFeedback_OK("Ideal state calculated OK")
 
@@ -185,7 +186,8 @@ def doCommand(session, task):
         if not fromState == "":
             policy = task[1]
             write(scriptFile, ["Sim", policy] )
-            write(loggFile, ["*** Debug-plan: tap out used state to check that several simulations in a row start from same state"])    
+            write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()]) 
+            # TODO Debug-plan: tap out used state to check that several simulations in a row start from same state"])    
             startSimulation(policy, session.state)
         window["-SIM-MSG-"].update("")
 
@@ -200,7 +202,18 @@ def replayScript(session, fileName):
              command.append(word)
         doCommand(session, command) 
         command = []
-  
+
+def bigOsloTest():
+    session = Session("bigOsloTest")
+    for week in range(6):
+        command = ["Init-state-FH", "Oslo", str(week+1)]
+        doCommand(session, command)
+        command = ["Ideal-state"]
+        doCommand(session, command)
+        command = ["Sim", "Rebalancing"]
+        doCommand(session, command)
+
+
 def GUI_main():
     session = Session("GUI_main_session") 
     task = [] # TODO, only one task allowed in queue at the moment
@@ -219,9 +232,9 @@ def GUI_main():
         
         ###### DOWNLOAD GUI PART
         if GUI_event == "Fast-Track":
-            session = Session("Fast-Track-session")
-            replayScript(session, "tripStats/scripts/script.txt")
-            pass
+            bigOsloTest()
+            # session = Session("Fast-Track-session")
+            # replayScript(session, "tripStats/scripts/script.txt")
 
         elif GUI_event == "All Oslo":
             window["-INPUTfrom-"].update("From: 1")
