@@ -1,0 +1,30 @@
+Init-state-FH finished: 2022-04-02-22:14:20 trips: 5393496 left: 12652 arrived: 12655 week: 1 years: 4 city: Oslo 
+Ideal-state finished: 2022-04-02-22:14:20 
+Sim Rebalancing finished: 2022-04-02-22:14:20 
+Simulation-start: Rebalancing 2022-04-02-22:15:30 
+Simulation-end: 2022-04-02-22:15:34 usedTime (s): 3.546143 
+Init-state-FH finished: 2022-04-02-22:20:22 trips: 5393496 left: 12123 arrived: 12124 week: 2 years: 4 city: Oslo 
+Ideal-state finished: 2022-04-02-22:20:22 
+Sim Rebalancing finished: 2022-04-02-22:20:22 
+Simulation-start: Rebalancing 2022-04-02-22:21:34 
+Simulation-end: 2022-04-02-22:21:37 usedTime (s): 3.118403 
+Init-state-FH finished: 2022-04-02-22:26:22 trips: 5393496 left: 12833 arrived: 12832 week: 3 years: 4 city: Oslo 
+Ideal-state finished: 2022-04-02-22:26:22 
+Sim Rebalancing finished: 2022-04-02-22:26:23 
+Simulation-start: Rebalancing 2022-04-02-22:27:32 
+Simulation-end: 2022-04-02-22:27:36 usedTime (s): 3.599745 
+Init-state-FH finished: 2022-04-02-22:32:21 trips: 5393496 left: 11091 arrived: 11092 week: 4 years: 4 city: Oslo 
+Ideal-state finished: 2022-04-02-22:32:21 
+Sim Rebalancing finished: 2022-04-02-22:32:22 
+Simulation-start: Rebalancing 2022-04-02-22:33:31 
+Simulation-end: 2022-04-02-22:33:34 usedTime (s): 3.421967 
+Init-state-FH finished: 2022-04-02-22:38:20 trips: 5393496 left: 10774 arrived: 10773 week: 5 years: 4 city: Oslo 
+Ideal-state finished: 2022-04-02-22:38:20 
+Sim Rebalancing finished: 2022-04-02-22:38:20 
+Simulation-start: Rebalancing 2022-04-02-22:39:30 
+Simulation-end: 2022-04-02-22:39:32 usedTime (s): 2.815854 
+Init-state-FH finished: 2022-04-02-22:44:17 trips: 5393496 left: 13869 arrived: 13871 week: 6 years: 4 city: Oslo 
+Ideal-state finished: 2022-04-02-22:44:17 
+Sim Rebalancing finished: 2022-04-02-22:44:17 
+Simulation-start: Rebalancing 2022-04-02-22:45:27 
+Simulation-end: 2022-04-02-22:45:30 usedTime (s): 3.534704 

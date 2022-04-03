@@ -1,0 +1,11 @@
+Init-state-FH Utopia 48 
+Sim Do-nothing 
+Sim Rebalancing 
+Sim Fosen&Haldorsen 
+Sim F&H-Greedy 
+Ideal-state 
+Sim Do-nothing 
+Sim Rebalancing 
+Sim Fosen&Haldorsen 
+Sim F&H-Greedy 
+Init-state-HHS 

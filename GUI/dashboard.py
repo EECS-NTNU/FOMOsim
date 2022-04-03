@@ -16,9 +16,9 @@ import PySimpleGUI as sg
 import beepy
 
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
-loggFile = open("tripStats/loggfiles/sessionLog.txt", "w")
-scriptFile = open("tripStats/scripts/sessionScript.txt", "w")
-resultsFile = open("tripStats/results/results.txt", "w")
+loggFile = open("GUI/loggFiles/sessionLog.txt", "w")
+scriptFile = open("GUI/scripts/sessionScript.txt", "w")
+resultsFile = open("GUI/results/results.txt", "w")
 
 class Session:
     def __init__(self, sessionName):
@@ -49,10 +49,9 @@ dashboardColumn = [
     [sg.Radio("Oslo", "RADIO1", key = "-OSLO-"), sg.Radio("Bergen", "RADIO1", key = "-BERGEN-"), 
         sg.Radio("Utopia", "RADIO1", key = "-UTOPIA-"), sg.Button("Find stations and distances")],
     [sg.Text('_'*colWidth)],
-    [sg.Text("Set initial state"), sg.Button("main.py-small-test-case")],
+    [sg.Text("Set initial state"), sg.Text("", key = "-STATE-MSG-")],
     [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
         sg.Button("Haflan, Haga & Spetalen")],
-    [sg.Text("", key = "-STATE-MSG-")],
     [sg.Text('_'*colWidth)],
     [sg.Text("Method for calculating ideal state: "), sg.Text("...", key="-IDEAL-METHOD-")],
     [sg.Button("Calculate"), sg.Text("", key="-CALC-MSG-")], 
@@ -131,7 +130,23 @@ def startSimulation(simPolicy, state):
     beepy.beep(sound="ready")
 
 def doCommand(session, task):
-    if task[0] == "Init-state-FH" or task[0] == "Init-state-HHS":
+
+    if task[0] == "Find-stations":
+        write(scriptFile, ["Find-stations", task[1]])
+        calcDistances(task[1])
+        window["-FEEDBACK-"].update("City OK", text_color = "LightGreen") 
+        if task[1] == "Oslo":
+            beepy.beep(sound="ping")
+        write(loggFile, [task[0], "finished:", dateAndTimeStr(), "city:", task[1]])
+
+    elif task[0] == "Download-Oslo":
+        write(scriptFile, ["Download-Oslo", task[1], task[2]])
+        oslo(task[1], task[2])
+        write(loggFile, [task[0], "finished:", dateAndTimeStr(), "fromWeek:", task[1], "toWeek:", task[2]])
+        window["-FEEDBACK-"].update("Tripdata downloaded", text_color = "LightGreen")
+        beepy.beep(sound="ping")
+
+    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
             session.initState, loggText = get_initial_state(task[1], week = int(task[2]))
@@ -154,7 +169,9 @@ def doCommand(session, task):
         userFeedback_OK("Initial state set OK")
         session.idealState = sim.State() # ideaLstate must be cleared, if it exist or not
         session.idealStateType = ""
-        write(loggFile, [task[0], "finished:", dateAndTimeStr()] + loggText) 
+        write(loggFile, [task[0], "finished:", dateAndTimeStr()] + loggText)
+        beepy.beep(sound="ping")
+
 
     elif task[0] == "Ideal-state":
         if session.initStateType == "": # an initial state does NOT exist
@@ -172,6 +189,7 @@ def doCommand(session, task):
             write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
             window["-CALC-MSG-"].update(session.initStateType + " ==> OK", text_color="cyan")
             userFeedback_OK("Ideal state calculated OK")
+            beepy.beep(sound="ping")
 
     elif task[0] == "Sim":
         fromState = ""  
@@ -228,11 +246,14 @@ def GUI_main():
                 doCommand(session, task) # TODO opprett session passende sted
                 readyForTask = False
                 task = []   
-                # beepy.beep(sound="ping") # TODO copy to after lengthy operations, but smulation-end has its own sound
         
         ###### DOWNLOAD GUI PART
         if GUI_event == "Fast-Track":
-            bigOsloTest()
+            userError("No code currently placed in FastTrack")
+            pass
+            #-------------
+            # bigOsloTest()
+            #-------------            
             # session = Session("Fast-Track-session")
             # replayScript(session, "tripStats/scripts/script.txt")
 
@@ -243,19 +264,21 @@ def GUI_main():
             window["-INPUTfrom-"].update("From: ")
             window["-INPUTto-"].update("To: ")   
         elif GUI_event == "Download Oslo": # TODO, should maybe be handled like time-consuming tasks, or give warning
-            oslo(GUI_values["-INPUTfrom-"], GUI_values["-INPUTto-"])
+            task = ["Download-Oslo", GUI_values["-INPUTfrom-"], GUI_values["-INPUTto-"]]
+            window["-FEEDBACK-"].update("Lengthy operation started (see terminal)", text_color="cyan") 
 
         ###### SELECT CITY GUI PART     
         elif GUI_event == "Find stations and distances":
             if GUI_values["-OSLO-"]:
-                calcDistances("Oslo") # TODO, should maybe be handled like time-consuming tasks, or give warning
+                task = ["Find-stations", "Oslo"]
+                window["-FEEDBACK-"].update("Lengthy operation started ...", text_color="cyan")
             elif GUI_values["-BERGEN-"]:
                 userError("Bergen not yet implemented") 
             elif GUI_values["-UTOPIA-"]:
-                calcDistances("Utopia")
+                task = ["Find-stations", "Utopia"]
+                window["-FEEDBACK-"].update("short operation started ...", text_color="cyan")
             else:
                 print("*** Error: wrong value from Radiobutton")         
-            window["-FEEDBACK-"].update("City OK", text_color = "LightGreen") 
         
         ###### INIT STATE GUI PART
         elif GUI_event == "Fosen & Haldorsen":
@@ -281,7 +304,6 @@ def GUI_main():
                 userError("You must select a city")
             window["-IDEAL-METHOD-"].update("Fosen & Haldorsen")
             window["-CALC-MSG-"].update("")
-
         if GUI_event == "Haflan, Haga & Spetalen": # handled here since it is relativelu quick
             task = ["Init-state-HHS"] 
             window["-WEEK-"].update("Week no: -na-")
@@ -294,7 +316,7 @@ def GUI_main():
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Calculate":
             task = ["Ideal-state"]
-            if session.idealStateType == "HHS":
+            if session.initStateType == "HHS":
                 window["-CALC-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
 
         ###### SIMULATE GUI PART
@@ -314,6 +336,7 @@ def GUI_main():
             session.simPolicy = GUI_values["-POLICIES-"][0]
             userFeedbackClear()
         if GUI_event == "Asbjørn":
+            print("Leaves GUI-dashboard-code, continues in main.py")
             window.close()
             return False    
         if GUI_event == "Exit" or GUI_event == sg.WIN_CLOSED:
