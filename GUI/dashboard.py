@@ -1,6 +1,7 @@
 # dashboard.py
 
 import copy
+import numpy as np
 import policies
 import policies.fosen_haldorsen
 import sim
@@ -12,7 +13,10 @@ import ideal_state.haflan_haga_spetalen
 from tripStats.download import *
 from tripStats.parse import calcDistances, get_initial_state
 from tripStats.helpers import * 
+
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import PySimpleGUI as sg
+import matplotlib
 import beepy
 
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
@@ -66,7 +70,8 @@ statusColumn = [
     [sg.Text("Simulation progress:"), sg.Text("",key="-START-TIME-"), sg.Text("",key="-END-TIME-")],
     [sg.Button("Timestamp and save session results"), sg.Button("Save session as script")],
     [sg.Text('_'*50)],
-    [sg.Text("Visualize")],
+    [sg.Text("Visualize"), sg.Canvas(key='-CANVAS-')],
+    [sg.Button("Test-1")],
     [sg.Text('_'*50)],
 ]
 layout = [ [sg.Column(dashboardColumn), sg.VSeperator(), sg.Column(statusColumn) ] ]
@@ -247,7 +252,7 @@ def GUI_main():
                 readyForTask = False
                 task = []   
         
-        ###### DOWNLOAD GUI PART
+        ###### SPECIAL BUTTONS GUI PART
         if GUI_event == "Fast-Track":
             userError("No code currently placed in FastTrack")
             pass
@@ -256,7 +261,14 @@ def GUI_main():
             #-------------            
             # session = Session("Fast-Track-session")
             # replayScript(session, "tripStats/scripts/script.txt")
+        elif GUI_event == "Asbjørn":
+            print("Leaves GUI-dashboard-code, continues in main.py")
+            window.close()
+            return False    
+        elif GUI_event == "Exit" or GUI_event == sg.WIN_CLOSED:
+            return True
 
+        ###### DOWNLOAD GUI PART
         elif GUI_event == "All Oslo":
             window["-INPUTfrom-"].update("From: 1")
             window["-INPUTto-"].update("To: 35")  # TODO, Magic number, move to local settings ?? 
@@ -304,7 +316,7 @@ def GUI_main():
                 userError("You must select a city")
             window["-IDEAL-METHOD-"].update("Fosen & Haldorsen")
             window["-CALC-MSG-"].update("")
-        if GUI_event == "Haflan, Haga & Spetalen": # handled here since it is relativelu quick
+        elif GUI_event == "Haflan, Haga & Spetalen": # handled here since it is relativelu quick
             task = ["Init-state-HHS"] 
             window["-WEEK-"].update("Week no: -na-")
             window["-IDEAL-METHOD-"].update("Haflan, Haga & Spetalen")
@@ -331,14 +343,24 @@ def GUI_main():
         elif GUI_event == "Replay script":
             replayScript(session, "tripStats/scripts/script.txt")
 
-        ###### TODO review under here
+        elif GUI_event == "Test-1":
+            # ------------------------------- START OF YOUR MATPLOTLIB CODE -------------------------------
+
+            fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+            t = np.arange(0, 3, .01)
+            fig.add_subplot(111).plot(t, 2 * np.sin(2 * np.pi * t))
+
+            # ------------------------------- END OF YOUR MATPLOTLIB CODE -------------------------------
+
+            # ------------------------------- Beginning of Matplotlib helper code -----------------------
+            matplotlib.use('TkAgg')
+            def draw_figure(canvas, figure):
+                figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
+                figure_canvas_agg.draw()
+                figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
+                return figure_canvas_agg
+
+            draw_figure(window['-CANVAS-'].TKCanvas, fig)
         if GUI_values["-POLICIES-"] != []:
             session.simPolicy = GUI_values["-POLICIES-"][0]
             userFeedbackClear()
-        if GUI_event == "Asbjørn":
-            print("Leaves GUI-dashboard-code, continues in main.py")
-            window.close()
-            return False    
-        if GUI_event == "Exit" or GUI_event == sg.WIN_CLOSED:
-            return True
-            # was break
