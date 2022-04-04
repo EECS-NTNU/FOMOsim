@@ -19,6 +19,9 @@ import PySimpleGUI as sg
 import matplotlib
 import beepy
 
+matplotlib.use('TkAgg')
+
+
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 loggFile = open("GUI/loggFiles/sessionLog.txt", "w")
 scriptFile = open("GUI/scripts/sessionScript.txt", "w")
@@ -42,7 +45,7 @@ class Session:
 colWidth = 55
 dashboardColumn = [
     [sg.Text("Prep. and set up ", font='Lucida', text_color = 'Yellow'), sg.VSeparator(), 
-        sg.Button("Fast-Track", button_color = "forest green"), sg.Button("Asbjørn", button_color="snow4"), sg.Button("Exit")],
+        sg.Button("Fast-Track", button_color = "forest green"), sg.Button("main.py", button_color="snow4"), sg.Button("Exit")],
     [sg.Text("Set up simulation", font="Helvetica 14", size=(30, 1), text_color = "spring green", key="-FEEDBACK-")],
     [sg.Text('_'*colWidth)],
     [sg.Text("Download Oslo trips, 1 = April 2019 ... 35 = February 2022)")],
@@ -70,8 +73,8 @@ statusColumn = [
     [sg.Text("Simulation progress:"), sg.Text("",key="-START-TIME-"), sg.Text("",key="-END-TIME-")],
     [sg.Button("Timestamp and save session results"), sg.Button("Save session as script")],
     [sg.Text('_'*50)],
-    [sg.Text("Visualize"), sg.Canvas(key='-CANVAS-')],
-    [sg.Button("Test-1")],
+    [sg.Text("Visualize")],
+    [sg.Button("Test-1"), sg.Button("Test-2"), sg.Button("Test-3"), sg.Button("Test-4")],
     [sg.Text('_'*50)],
 ]
 layout = [ [sg.Column(dashboardColumn), sg.VSeperator(), sg.Column(statusColumn) ] ]
@@ -85,7 +88,6 @@ def userFeedback_OK(string):
 def userFeedbackClear():
     window["-FEEDBACK-"].update("")
 
-################################ SIMULATION STATE
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 DURATION = 960 # change to input-field with default value
 
@@ -236,6 +238,38 @@ def bigOsloTest():
         command = ["Sim", "Rebalancing"]
         doCommand(session, command)
 
+#########################################
+
+def openVisual1():
+    layout = [[sg.Text("Summary of parameters set is displayed here")], [sg.Canvas(key='-CANVAS-')]]
+    window = sg.Window("FOMO visualization", layout, finalize=True)
+    fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
+    t = np.arange(0, 3, .01)
+    fig.add_subplot(111).plot(t, 2 * np.sin(2 * np.pi * t))
+
+    def draw_figure(canvas, figure):
+        figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
+        figure_canvas_agg.draw()
+        figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
+        return figure_canvas_agg
+
+    draw_figure(window['-CANVAS-'].TKCanvas, fig)
+    while True:
+        event, values = window.read()
+        if event == "Exit" or event == sg.WIN_CLOSED:
+            break
+    window.close()
+
+def openVisual2():
+    openVisual1()
+    
+def openVisual3():
+    openVisual1()
+    
+def openVisual4():
+    openVisual1()
+
+######################################
 
 def GUI_main():
     session = Session("GUI_main_session") 
@@ -261,7 +295,7 @@ def GUI_main():
             #-------------            
             # session = Session("Fast-Track-session")
             # replayScript(session, "tripStats/scripts/script.txt")
-        elif GUI_event == "Asbjørn":
+        elif GUI_event == "main.py":
             print("Leaves GUI-dashboard-code, continues in main.py")
             window.close()
             return False    
@@ -344,23 +378,14 @@ def GUI_main():
             replayScript(session, "tripStats/scripts/script.txt")
 
         elif GUI_event == "Test-1":
-            # ------------------------------- START OF YOUR MATPLOTLIB CODE -------------------------------
+            openVisual1()
+        elif GUI_event == "Test-2":
+            openVisual2()
+        elif GUI_event == "Test-3":
+            openVisual3()
+        elif GUI_event == "Test-4":
+            openVisual4()
 
-            fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-            t = np.arange(0, 3, .01)
-            fig.add_subplot(111).plot(t, 2 * np.sin(2 * np.pi * t))
-
-            # ------------------------------- END OF YOUR MATPLOTLIB CODE -------------------------------
-
-            # ------------------------------- Beginning of Matplotlib helper code -----------------------
-            matplotlib.use('TkAgg')
-            def draw_figure(canvas, figure):
-                figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
-                figure_canvas_agg.draw()
-                figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
-                return figure_canvas_agg
-
-            draw_figure(window['-CANVAS-'].TKCanvas, fig)
         if GUI_values["-POLICIES-"] != []:
             session.simPolicy = GUI_values["-POLICIES-"][0]
             userFeedbackClear()
