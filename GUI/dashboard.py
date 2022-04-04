@@ -14,17 +14,11 @@ from tripStats.download import *
 from tripStats.parse import calcDistances, get_initial_state
 from tripStats.helpers import * 
 
-# from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
 import PySimpleGUI as sg
+# import PySimpleGUIQt as sg; use('qt5agg')  ## Lasse needs this on his linux computer
 import matplotlib.pyplot as plt
 import beepy
 
-# matplotlib.get_backend()
-# matplotlib.use('QtAgg')
-
-# try this alone
-# https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Two_Windows.py
 
 
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
