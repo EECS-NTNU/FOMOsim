@@ -14,17 +14,17 @@ from tripStats.download import *
 from tripStats.parse import calcDistances, get_initial_state
 from tripStats.helpers import * 
 
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+# from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 import PySimpleGUI as sg
-import matplotlib
+import matplotlib.pyplot as plt
 import beepy
 
-matplotlib.get_backend()
-matplotlib.use('QtAgg')
+# matplotlib.get_backend()
+# matplotlib.use('QtAgg')
 
 # try this alone
-https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Two_Windows.py
+# https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Two_Windows.py
 
 
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
@@ -246,26 +246,14 @@ def bigOsloTest():
 #########################################
 
 def openVisual1():
-    layout = [[sg.Text("Summary of parameters set is displayed here")], [sg.Canvas(key='-CANVAS-')]]
-    window = sg.Window("FOMO visualization", layout, finalize=True)
-    fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-    t = np.arange(0, 3, .01)
-    fig.add_subplot(111).plot(t, 2 * np.sin(2 * np.pi * t))
+    def draw_plot():
+        plt.plot([0.1, 0.2, 0.5, 0.7])
+        # plt.show(block=False)
+        plt.show() 
 
-    def draw_figure(canvas, figure):
-        figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
-        figure_canvas_agg.draw()
-        figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
-        return figure_canvas_agg
+    draw_plot()
 
-    draw_figure(window['-CANVAS-'].TKCanvas, fig)
-    while True:
-        event, values = window.read()
-        if event == "Exit" or event == sg.WIN_CLOSED:
-            break
-    fig.canvas.draw()
-    window.close()
-
+  
 def openVisual2():
     openVisual1()
     
