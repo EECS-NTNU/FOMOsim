@@ -15,11 +15,16 @@ from tripStats.parse import calcDistances, get_initial_state
 from tripStats.helpers import * 
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import PySimpleGUI as sg
 import matplotlib
 import beepy
 
-matplotlib.use('TkAgg')
+matplotlib.get_backend()
+matplotlib.use('QtAgg')
+
+# try this alone
+https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Two_Windows.py
 
 
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
@@ -258,6 +263,7 @@ def openVisual1():
         event, values = window.read()
         if event == "Exit" or event == sg.WIN_CLOSED:
             break
+    fig.canvas.draw()
     window.close()
 
 def openVisual2():
