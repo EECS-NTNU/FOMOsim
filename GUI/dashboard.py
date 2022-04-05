@@ -3,8 +3,6 @@
 import copy
 import numpy as np
 
-import matplotlib
-
 import policies
 import policies.fosen_haldorsen
 import sim
@@ -19,12 +17,8 @@ from tripStats.helpers import *
 
 import PySimpleGUI as sg
 
-#import PySimpleGUIQt as sg
-# matplotlib.use('qt5agg')  ## Lasse needs this on his linux computer
 import matplotlib.pyplot as plt
 import beepy
-
-
 
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 loggFile = open("GUI/loggFiles/sessionLog.txt", "w")
@@ -257,16 +251,27 @@ def openVisual1():
         plt.show() 
 
     draw_plot()
-
   
 def openVisual2():
-    openVisual1()
+    plt.plot([1, 2, 3, 4], [1, 4, 9, 3])
+    plt.show()
     
 def openVisual3():
-    openVisual1()
-    
+    plt.plot([1, 2, 3, 4], [1, 4, 9, 3])
+    plt.show()
 def openVisual4():
-    openVisual1()
+    print("Visual Test 4, accumulated traffic during 53 weeks in Oslo")
+    osloTripsFile = open("GUI/results/sessionLog-Oslo-Init-1-53.txt", "r")
+    textLines = osloTripsFile.readlines()
+    data = []
+    for i in range(len(textLines)):
+        line = []
+        for word in textLines[i].split():
+             line.append(word)
+        data.append(int(line[6]))  
+    plt.plot(data)
+    plt.show()
+    pass
 
 ######################################
 
