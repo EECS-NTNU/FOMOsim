@@ -2,6 +2,9 @@
 
 import copy
 import numpy as np
+
+import matplotlib
+
 import policies
 import policies.fosen_haldorsen
 import sim
@@ -15,7 +18,9 @@ from tripStats.parse import calcDistances, get_initial_state
 from tripStats.helpers import * 
 
 import PySimpleGUI as sg
-# import PySimpleGUIQt as sg; use('qt5agg')  ## Lasse needs this on his linux computer
+
+#import PySimpleGUIQt as sg
+# matplotlib.use('qt5agg')  ## Lasse needs this on his linux computer
 import matplotlib.pyplot as plt
 import beepy
 
@@ -90,6 +95,11 @@ def userFeedbackClear():
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 DURATION = 960 # change to input-field with default value
 
+def dumpMetrics(metric):
+    print("dumpMetrics called")
+    metricsCopy = metric
+    pass
+
 def startSimulation(simPolicy, state):
     simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
     if simPolicy == "Do-nothing": 
@@ -131,8 +141,9 @@ def startSimulation(simPolicy, state):
     end = datetime.now()
     duration = end - start
     window["-END-TIME-"].update("End:" + readTime())
-    write(loggFile, ["Simulation-end:", dateAndTimeStr(), "usedTime (s):", str(duration.total_seconds())])
+    write(loggFile, ["Simulation-end:", dateAndTimeStr(), "usedTime(s):", str(duration.total_seconds())])
     metrics = simulator.metrics.get_all_metrics()
+    dumpMetrics(metrics)
     beepy.beep(sound="ready")
 
 def doCommand(session, task):
@@ -210,9 +221,9 @@ def doCommand(session, task):
         if not fromState == "":
             policy = task[1]
             write(scriptFile, ["Sim", policy] )
-            write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()]) 
             # TODO Debug-plan: tap out used state to check that several simulations in a row start from same state"])    
             startSimulation(policy, session.state)
+            write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()]) 
         window["-SIM-MSG-"].update("")
 
 def replayScript(session, fileName):
