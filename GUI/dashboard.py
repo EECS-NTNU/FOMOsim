@@ -217,7 +217,7 @@ def doCommand(session, task):
             session.state = session.initState 
             fromState = "INIT"
         else:
-            userError("You must set an initial (or ideal) state before simulation")
+            userError("You must set an initial (or ideal) state")
         if not fromState == "":
             policy = task[1]
             write(scriptFile, ["Sim", policy] )
@@ -387,4 +387,3 @@ def GUI_main():
 
         if GUI_values["-POLICIES-"] != []:
             session.simPolicy = GUI_values["-POLICIES-"][0]
-            userFeedbackClear()
