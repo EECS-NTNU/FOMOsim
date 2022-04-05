@@ -328,6 +328,7 @@ def GUI_main():
         ###### INIT STATE GUI PART
         elif GUI_event == "Fosen & Haldorsen":
             if GUI_values["-OSLO-"]:
+                weekNo = 0
                 if GUI_values["-WEEK-"] == "Week no: ": # TODO, improve code, make function, reuse
                     weekNo = 53
                     window["-WEEK-"].update("Week no: 53") 
@@ -337,8 +338,9 @@ def GUI_main():
                         userError("You must select a week no")
                     else:    
                         weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
-                        task = ["Init-state-FH", "Oslo", str(weekNo)]    
-                        window["-STATE-MSG-"].update("Lengthy operation started ... (4 - 6 minutes)", text_color="cyan")
+                if weekNo != 0 :
+                    task = ["Init-state-FH", "Oslo", str(weekNo)]    
+                    window["-STATE-MSG-"].update("Lengthy operation started ... (4 - 6 minutes)", text_color="cyan")
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
                 window["-WEEK-"].update("Week no: 48") # Only week with traffic at the moment for Utopia
                 task = ["Init-state-FH", "Utopia", "48"]    
