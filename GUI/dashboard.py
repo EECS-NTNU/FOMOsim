@@ -3,8 +3,6 @@
 import copy
 import numpy as np
 
-import matplotlib
-
 import policies
 import policies.fosen_haldorsen
 import sim
@@ -19,12 +17,8 @@ from tripStats.helpers import *
 
 import PySimpleGUI as sg
 
-#import PySimpleGUIQt as sg
-# matplotlib.use('qt5agg')  ## Lasse needs this on his linux computer
 import matplotlib.pyplot as plt
 import beepy
-
-
 
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 loggFile = open("GUI/loggFiles/sessionLog.txt", "w")
