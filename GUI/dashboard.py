@@ -2,6 +2,7 @@
 
 import copy
 import numpy as np
+import os
 
 import policies
 import policies.fosen_haldorsen
@@ -71,7 +72,12 @@ statusColumn = [
     [sg.Text("Simulation progress:"), sg.Text("",key="-START-TIME-"), sg.Text("",key="-END-TIME-")],
     [sg.Button("Timestamp and save session results"), sg.Button("Save session as script")],
     [sg.Text('_'*50)],
-    [sg.Text("Visualize")],
+    [sg.Text("Visualization of results (not ready)", font='Lucida', text_color = 'Yellow')],
+    [sg.Text("Choose folder for fomo results files")],
+    [sg.Text("Specify results Folder:")],  
+    [sg.Input(size=(42, 1), enable_events=True, key="-FOLDER-"), sg.FolderBrowse()],
+    [sg.Listbox( values=[], enable_events=True, size=(40, 10), key="-FILE LIST-")],
+    [sg.Checkbox ('Option 1', key='check_value1'), sg.Checkbox ('Option 2',key='check_value2'), sg.Checkbox ('Grid',key='check_value2')],
     [sg.Button("Test-1"), sg.Button("Test-2"), sg.Button("Test-3"), sg.Button("Test-4")],
     [sg.Text('_'*50)],
 ]
@@ -90,7 +96,7 @@ policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # mu
 DURATION = 960 # change to input-field with default value
 
 def dumpMetrics(metric):
-    print("dumpMetrics called")
+    # print("dumpMetrics called")
     metricsCopy = metric
     pass
 
@@ -220,7 +226,7 @@ def doCommand(session, task):
             write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()]) 
         window["-SIM-MSG-"].update("")
 
-def replayScript(session, fileName):
+def doScript(session, fileName):
     session.name += "-FROM:"
     session.name += fileName
     script = open(fileName, "r")
@@ -231,6 +237,37 @@ def replayScript(session, fileName):
              command.append(word)
         doCommand(session, command) 
         command = []
+
+def replayScript(): 
+    session = Session("Replay")
+    layout = [[sg.Text("Select script:", key="new")],
+        [sg.Button("Load scripts"), sg.Button("Confirm")],
+        [sg.Listbox( values=[], enable_events=True, size=(40, 10), key="-FILE LIST-")]
+    ]
+    window = sg.Window("FOMO - select script", layout, modal=True)
+    file_list = os.listdir("GUI/scripts")
+
+    while True:
+        event, values = window.read()
+        if event == "Load scripts":
+            fnames = [
+                f
+                for f in file_list
+                if os.path.isfile(os.path.join("GUI/scripts", f))
+                and f.lower().endswith((".txt"))
+            ]
+            window["-FILE LIST-"].update(fnames)
+        elif event == "-FILE LIST-":  # A file was chosen from the listbox
+            if len(values["-FILE LIST-"]) > 0:
+                filepath = os.path.join("GUI/scripts", values["-FILE LIST-"][0])
+        elif event == "Confirm":
+            print(filepath)
+            doScript(session,filepath)
+            break 
+        elif event == "Exit" or event == sg.WIN_CLOSED:
+            break
+    window.close()
+
 
 def bigOsloTest():
     session = Session("bigOsloTest")
@@ -381,7 +418,22 @@ def GUI_main():
                 window["-SIM-MSG-"].update("Simulation started ...  (see progress in terminal)", text_color="cyan")
 
         elif GUI_event == "Replay script":
-            replayScript(session, "tripStats/scripts/script.txt")
+            replayScript()
+
+        #####################################################
+        elif GUI_event == "-FOLDER-": # Folder name was filled in, make a list of files in the folder
+            folder = GUI_values["-FOLDER-"]
+            try:
+                file_list = os.listdir(folder)
+            except:
+                file_list = []
+            fnames = [
+                f
+                for f in file_list
+                if os.path.isfile(os.path.join(folder, f))
+                and f.lower().endswith((".txt"))
+            ]
+            window["-FILE LIST-"].update(fnames)
 
         elif GUI_event == "Test-1":
             openVisual1()
