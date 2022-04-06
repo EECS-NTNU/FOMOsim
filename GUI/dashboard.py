@@ -261,7 +261,7 @@ def replayScript():
             if len(values["-FILE LIST-"]) > 0:
                 filepath = os.path.join("GUI/scripts", values["-FILE LIST-"][0])
         elif event == "Confirm":
-            print(filepath)
+            # print(filepath)
             doScript(session,filepath)
             break 
         elif event == "Exit" or event == sg.WIN_CLOSED:
