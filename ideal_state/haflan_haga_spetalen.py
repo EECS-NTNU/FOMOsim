@@ -221,13 +221,12 @@ def simulate_state_outcomes(state_rebalanced_ideal_state, state, day, hour):
                 quantile_outcomes = round(
                     np.quantile(delta_ideal_state_and_outcomes[cluster_id], percentile)
                 )
-                # TODO, this code gave typeError can only concatenate list (not "int") to list. 220331-Lasse    
-                # new_ideal_states[cluster_id] = (
-                #     state_rebalanced_ideal_state.locations[cluster_id].ideal_state
-                #     + quantile_outcomes
-                #     if quantile_outcomes > 0
-                #     else 0
-                # )
+                new_ideal_states[cluster_id] = (
+                    state_rebalanced_ideal_state.locations[cluster_id].ideal_state
+                    + quantile_outcomes
+                    if quantile_outcomes > 0
+                    else 0
+                )
 
                 # TODO, tried to fix wit this, also crash 220331-Lasse
                 # new_ideal_states[cluster_id].append(
