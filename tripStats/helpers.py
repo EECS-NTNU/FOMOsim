@@ -1,6 +1,7 @@
 # helpers.py
 
 from datetime import datetime, date
+from GUI import loggFile
 
 def strip(removeStr, wholeStr):
     start = wholeStr.find(removeStr)
@@ -13,7 +14,6 @@ def yearWeekNoAndDay(dateString):
     year, month, day = map(int, dateString.split('-'))
     date1 = date(year, month, day)
     return year, int(date1.isocalendar()[1]), date1.weekday()
-
 
 def timeInHoursAndMinutes(seconds):
     m, s = divmod(seconds, 60)
@@ -35,6 +35,19 @@ def write(file, words): # writes list of words to file and flush
         file.write(" ") 
     file.write("\n")    
     file.flush()    
+
+def loggLocations(state):
+    words = []
+    for loc in range(len(state.locations)):
+        atLocation = []
+        for sco in range(len(state.locations[loc].scooters)):
+            scooterId = "ID-" + str(state.locations[loc].scooters[sco].id)
+            scooterBatteryStat = str(state.locations[loc].scooters[sco].battery)
+            atLocation.append(scooterId)
+            atLocation.append(scooterBatteryStat)
+        words = ["Location:", str(loc)]
+        words += atLocation        
+        write(loggFile, words)    
 
 # def tripStatsClose():
 #     tripStatsLogFile.write("\nlogg file closed")

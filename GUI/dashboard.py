@@ -11,20 +11,19 @@ import clustering.scripts
 
 import ideal_state.evenly_distributed_ideal_state
 import ideal_state.haflan_haga_spetalen
- 
-from tripStats.download import *
-from tripStats.parse import calcDistances, get_initial_state
-from tripStats.helpers import * 
+
+import GUI
+
+from GUI import * 
+
+import tripStats 
+
+from tripStats.helpers import *
 
 import PySimpleGUI as sg
 
 import matplotlib.pyplot as plt
 import beepy
-
-policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
-loggFile = open("GUI/loggFiles/sessionLog.txt", "w")
-scriptFile = open("GUI/scripts/sessionScript.txt", "w")
-resultsFile = open("GUI/results/results.txt", "w")
 
 class Session:
     def __init__(self, sessionName):
@@ -58,12 +57,13 @@ dashboardColumn = [
     [sg.Text("Set initial state"), sg.Text("", key = "-STATE-MSG-")],
     [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
         sg.Button("Haflan, Haga & Spetalen")],
+    [sg.Button("Test state")],    
     [sg.Text('_'*colWidth)],
     [sg.Text("Method for calculating ideal state: "), sg.Text("...", key="-IDEAL-METHOD-")],
     [sg.Button("Calculate"), sg.Text("", key="-CALC-MSG-")], 
     [sg.Text('_'*colWidth)],
     [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"), sg.Text("Hours: 16", size = 11, key="-HOURS-")],
-    [sg.Button("Simulate"), sg.Button("Simulate all"), sg.Button("Replay script")],
+    [sg.Button("Simulate"), sg.Button("Replay script")],
     [sg.Text("", key="-SIM-MSG-")],    
 ]
 statusColumn = [
@@ -146,6 +146,101 @@ def startSimulation(simPolicy, state):
     dumpMetrics(metrics)
     beepy.beep(sound="ready")
 
+
+def smallCircle(session):
+    arrive_intensities = [] # 3D matrise som indekseres [station][day][hour]
+    leave_intensities = []  # 3D matrise som indekseres [station][day][hour]
+    move_probabilities = [] # 4D matrise som indekseres [from-station][day][hour][to-station]
+    for station in range(4): # eksempelet har 4 stasjoner
+        arrive_intensities.append([])
+        leave_intensities.append([])
+        move_probabilities.append([])
+        for day in range(7):
+            arrive_intensities[station].append([])
+            leave_intensities[station].append([])
+            move_probabilities[station].append([])
+            for hour in range(24):
+                arrive_intensities[station][day].append(1) # fra denne stasjonen på gitt tidspunkt drar det 1 sykkel i timen 
+                leave_intensities[station][day].append(1)  # fra denne stasjonen på gitt tidspunkt kommer det 1 sykkel i timen
+                move_probabilities[station][day].append([1/3, 1/3, 1/3, 1/3]) # sannsynlighetsfordeling for å dra til de forskjellige stasjonene
+                move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
+
+    state = sim.State.get_initial_state(
+                bike_class = "Scooter",
+                distance_matrix = [ # km
+                    [0, 2, 2, 2],
+                    [2, 0, 2, 2],
+                    [2, 2, 0, 2],
+                    [2, 2, 2, 0],
+                ],
+                speed_matrix = [ # km/h
+                    [10, 10, 10, 10],
+                    [10, 10, 10, 10],
+                    [10, 10, 10, 10],
+                    [10, 10, 10, 10]
+                ],
+                main_depot = None,
+                secondary_depots = [],
+                number_of_scooters = [2, 2, 2, 2],
+                number_of_vans = 2,
+                random_seed = 1,
+                arrive_intensities = arrive_intensities,
+                leave_intensities = leave_intensities,
+                move_probabilities = move_probabilities,
+            )
+    session.initState = state
+    pass        
+
+def manualInitState(session, testName):
+    if testName == "Small-Circle":
+        smallCircle(session)
+        pass
+
+
+# def manualInitState(testName):
+#     arrive_intensities = [] # 3D matrise som indekseres [station][day][hour]
+#     leave_intensities = []  # 3D matrise som indekseres [station][day][hour]
+#     move_probabilities = [] # 4D matrise som indekseres [from-station][day][hour][to-station]
+#     for station in range(4): # eksempelet har 4 stasjoner
+#         arrive_intensities.append([])
+#         leave_intensities.append([])
+#         move_probabilities.append([])
+#         for day in range(7):
+#             arrive_intensities[station].append([])
+#             leave_intensities[station].append([])
+#             move_probabilities[station].append([])
+#             for hour in range(24):
+#                 arrive_intensities[station][day].append(2) # fra denne stasjonen på gitt tidspunkt drar det 2 sykler i timer
+#                 leave_intensities[station][day].append(2)  # fra denne stasjonen på gitt tidspunkt kommer det 2 sykler i timer
+#                 move_probabilities[station][day].append([1/3, 1/3, 1/3, 1/3]) # sannsynlighetsfordeling for å dra til de forskjellige stasjonene
+#                 move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
+
+#     print("Init-manual" + " " + testName)
+#     state = sim.State.get_initial_state(
+#                 bike_class = "Scooter",
+#                 distance_matrix = [ # km
+#                     [0, 4, 2, 3],
+#                     [4, 0, 5, 1],
+#                     [2, 5, 0, 4],
+#                     [3, 1, 4, 0],
+#                 ],
+#                 speed_matrix = [ # km/h
+#                     [15, 15, 15, 15],
+#                     [15, 15, 15, 15],
+#                     [15, 15, 15, 15],
+#                     [15, 15, 15, 15],
+#                 ],
+#                 main_depot = None,
+#                 secondary_depots = [],
+#                 number_of_scooters = [2, 1, 2, 3],
+#                 number_of_vans = 2,
+#                 random_seed = 1,
+#                 arrive_intensities = arrive_intensities,
+#                 leave_intensities = leave_intensities,
+#                 move_probabilities = move_probabilities,
+#             )
+#     return state
+
 def doCommand(session, task):
 
     if task[0] == "Find-stations":
@@ -163,7 +258,7 @@ def doCommand(session, task):
         window["-FEEDBACK-"].update("Tripdata downloaded", text_color = "LightGreen")
         beepy.beep(sound="ping")
 
-    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS":
+    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-manual":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
             session.initState, loggText = get_initial_state(task[1], week = int(task[2]))
@@ -182,6 +277,11 @@ def doCommand(session, task):
             )
             loggText = [] # not used in this case
             session.initStateType = "HHS"
+        elif task[0] == "Init-manual":
+            loggText = [] # not used in this case
+            manualInitState(session, task[1])
+            session.initStateType = "manual"
+
         window["-STATE-MSG-"].update(session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
         session.idealState = sim.State() # ideaLstate must be cleared, if it exist or not
@@ -401,7 +501,8 @@ def GUI_main():
             window["-UTOPIA-"].update(False)
             window["-CALC-MSG-"].update("")
             window["-STATE-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
-
+        elif GUI_event == "Test state":
+            task = ["Init-manual", "Small-Circle"]
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Calculate":
             task = ["Ideal-state"]
