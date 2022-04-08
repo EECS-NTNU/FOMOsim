@@ -11,7 +11,7 @@ from sim import Metric
 
 from progress.bar import IncrementalBar
 
-from tripStats.helpers import loggLocations
+from tripStats.helpers import loggTime, loggLocations, loggEvent
 
 class Simulator(SaveMixin):
     """
@@ -70,10 +70,12 @@ class Simulator(SaveMixin):
         if settings.VERBOSE:
           print()
           print("Time:", event.time)
+          loggTime(event.time)
           print(self.state)
-          loggLocations(self.state) # TODO, under development
+          loggLocations(self.state)
 
         event.perform(self)
+        loggEvent(event)
 
         if settings.VERBOSE:
             print("\n", event)

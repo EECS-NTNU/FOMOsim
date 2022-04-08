@@ -62,7 +62,8 @@ dashboardColumn = [
     [sg.Text("Method for calculating ideal state: "), sg.Text("...", key="-IDEAL-METHOD-")],
     [sg.Button("Calculate"), sg.Text("", key="-CALC-MSG-")], 
     [sg.Text('_'*colWidth)],
-    [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"), sg.Text("Hours: 16", size = 11, key="-HOURS-")],
+    [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"), 
+        sg.Text("Hours: 1", size = 11, key="-HOURS-")],
     [sg.Button("Simulate"), sg.Button("Replay script")],
     [sg.Text("", key="-SIM-MSG-")],    
 ]
@@ -93,7 +94,7 @@ def userFeedbackClear():
     window["-FEEDBACK-"].update("")
 
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
-DURATION = 960 # change to input-field with default value
+DURATION = 180 # TODO change to input-field with default value
 
 def dumpMetrics(metric):
     # print("dumpMetrics called")
@@ -181,7 +182,8 @@ def smallCircle(session):
                 ],
                 main_depot = None,
                 secondary_depots = [],
-                number_of_scooters = [2, 2, 2, 2],
+#                number_of_scooters = [2, 2, 2, 2],
+                number_of_scooters = [1, 1, 1, 1],
                 number_of_vans = 2,
                 random_seed = 1,
                 arrive_intensities = arrive_intensities,
