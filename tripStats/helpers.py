@@ -41,22 +41,16 @@ def loggTime(time):
     write(trafficLogg, words)    
 
 def loggLocations(state):
+    write(trafficLogg, ["Locations:", str(len(state.locations))])
     for loc in range(len(state.locations)):
-        words = []        
-        atLocation = []
-        noOfScooters = len(state.locations[loc].scooters)
-        total = ["NoScooters:", str(noOfScooters)] 
+        words = [str(loc), str(len(state.locations[loc].scooters))]
         for sco in range(len(state.locations[loc].scooters)):
             scooterId = "ID-" + str(state.locations[loc].scooters[sco].id)
             scooterBatteryStat = str(state.locations[loc].scooters[sco].battery)
-            atLocation.append(scooterId)
-            atLocation.append(scooterBatteryStat)
-        words = ["Location:", str(loc)]
-        words += total
-        words += atLocation        
+            words.append(scooterId)
+            words.append(scooterBatteryStat)      
         write(trafficLogg, words)
-
-    words = []
+    words = []    
     for i in range(len(state.scooters_in_use)):
         words.append(str(state.scooters_in_use[i].id))
     if len(words) > 0:
