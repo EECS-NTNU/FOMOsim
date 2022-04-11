@@ -42,7 +42,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
         "test_data",
         "0900-entur-snapshot.csv",
         "Scooter",
-        number_of_scooters = 2500,
+        number_of_scooters = 250,
         number_of_clusters = 10,
         number_of_vans = 2,
         random_seed = 1,

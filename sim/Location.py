@@ -7,7 +7,7 @@ class Location:
     Base location class. All classes representing a geographic position inherit from the Location class
     """
 
-    def __init__(self, lat: float, lon: float, location_id: int, ideal_state = 0):
+    def __init__(self, lat: float, lon: float, location_id: int, ideal_state = None):
         self.lat = lat
         self.lon = lon
         self.id = location_id
