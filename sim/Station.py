@@ -22,14 +22,14 @@ class Station(Location):
         ideal_state=None,
         capacity=float("inf"),
     ):
+        super().__init__(
+            *(center_location if center_location else self.__compute_center(scooters)),
+            cluster_id, ideal_state=ideal_state
+        )
         self.scooters = scooters
         self.leave_intensity_per_iteration = leave_intensity_per_iteration
         self.arrive_intensity_per_iteration = arrive_intensity_per_iteration
         self.average_number_of_scooters = average_number_of_scooters
-        super().__init__(
-            *(center_location if center_location else self.__compute_center()),
-            cluster_id, ideal_state=ideal_state
-        )
         self.move_probabilities = move_probabilities
         self.capacity = capacity
 
@@ -70,10 +70,10 @@ class Station(Location):
     def number_of_scooters(self):
         return len(self.scooters)
 
-    def __compute_center(self):
-        if len(self.scooters) > 0:
+    def __compute_center(self, scooters):
+        if len(scooters) > 0:
             cluster_centroid = MultiPoint(
-                list(map(lambda scooter: (scooter.get_location()), self.scooters))
+                list(map(lambda scooter: (scooter.get_location()), scooters))
             ).centroid
             return cluster_centroid.x, cluster_centroid.y
         else:

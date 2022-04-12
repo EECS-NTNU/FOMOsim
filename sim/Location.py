@@ -12,6 +12,7 @@ class Location:
         self.lon = lon
         self.id = location_id
         self.ideal_state = ideal_state
+        self.scooters = []
 
     def get_lat(self):
         return self.lat
@@ -25,6 +26,21 @@ class Location:
     def remove_location(self):
         self.lon = None
         self.lat = None
+
+    def get_ideal_state(self, day, hour):
+        return 0
+
+    def get_arrive_intensity(self, day, hour):
+        return 0
+
+    def get_leave_intensity(self, day, hour):
+        return 0
+
+    def get_available_scooters(self):
+        return []
+
+    def get_swappable_scooters(self, battery_limit=70):
+        return []
 
     def set_location(self, lat: float, lon: float):
         lat_min, lat_max, lon_min, lon_max = GEOSPATIAL_BOUND_NEW
