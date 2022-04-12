@@ -9,7 +9,7 @@ class Scooter(Location):
     def __init__(self, lat: float = 0, lon: float = 0, battery: float = 100.0, scooter_id: int = 0):
         super().__init__(lat, lon, scooter_id)
         self.battery = battery
-        self.battery_change_per_kilometer = 5.0
+        self.battery_change_per_kilometer = BATTERY_CHANGE_PER_KM
 
     def sloppycopy(self, *args):
         return Scooter(self.lat, self.lon, self.battery, self.id)

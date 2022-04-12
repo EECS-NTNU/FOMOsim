@@ -10,7 +10,7 @@ import sim
 import clustering.scripts
 
 import ideal_state.evenly_distributed_ideal_state
-import ideal_state.haflan_haga_spetalen
+import ideal_state.outflow_ideal_state
  
 from tripStats.download import *
 from tripStats.parse import calcDistances, get_initial_state
@@ -196,7 +196,7 @@ def doCommand(session, task):
         else:
             if session.initStateType == "HHS": # OK to make ideal-HHS from init-HS
                 state = session.initState # via local variable to be sure initState is not destroyed (?)
-                ideal_state.haflan_haga_spetalen_ideal_state(state)
+                ideal_state.outflow_ideal_state(state)
                 session.idealState = state
             if session.initStateType =="FH":
                 state = session.initState

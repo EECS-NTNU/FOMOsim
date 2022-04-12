@@ -1,2 +1,2 @@
 from .evenly_distributed_ideal_state import evenly_distributed_ideal_state
-from .haflan_haga_spetalen import haflan_haga_spetalen_ideal_state
+from .outflow_ideal_state import outflow_ideal_state
