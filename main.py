@@ -42,8 +42,8 @@ PERIOD = get_time(0, 16)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
-    #state, _ = tripStats.parse.get_initial_state(city="Oslo", week=WEEK)
-    state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 10, number_of_vans = 2, random_seed = 1)
+    state, _ = tripStats.parse.get_initial_state(city="Oslo", week=WEEK)
+    #state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 10, number_of_vans = 2, random_seed = 1)
 
     ###############################################################################
     # calculate ideal state
@@ -56,7 +56,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Set up simulator
     simulators.append(sim.Simulator(
         PERIOD,
-        policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
+        policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
         copy.deepcopy(state),
         verbose=True,
         start_time = get_time(day=START_DAY, hour=START_HOUR),

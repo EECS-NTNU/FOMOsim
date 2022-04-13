@@ -196,8 +196,8 @@ def doCommand(session, task):
         else:
             if session.initStateType == "HHS": # OK to make ideal-HHS from init-HS
                 state = session.initState # via local variable to be sure initState is not destroyed (?)
-                ideal_state.outflow_ideal_state(state)
-                session.idealState = state
+                newIdeal_state = ideal_state.outflow_ideal_state(state)
+                session.idealState = newIdeal_state
             if session.initStateType =="FH":
                 state = session.initState
                 newIdeal_state = ideal_state.evenly_distributed_ideal_state(state)
