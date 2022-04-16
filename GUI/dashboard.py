@@ -14,7 +14,8 @@ import ideal_state.haflan_haga_spetalen
 
 import GUI
 
-from GUI import * 
+from GUI import *
+# from sim.events.LostTrip import LostTrip 
 
 import tripStats 
 
@@ -366,6 +367,7 @@ def openVisual2():
             self.toStation = -1
     traffic = open("GUI/loggFiles/traffic-2.txt", "r")
     trips = []
+    lostTrips = 0
     allBikes = {}
     bikesParked = []
     bikesParkedPrevious = []
@@ -428,6 +430,9 @@ def openVisual2():
         elif words[0] == "Arrival-at-time:":
             lastArrival = int(words[3])
             lastArrivalTime = int(words[1])    
+        elif words[0] == "LostTrip-at-time:" :
+            lostTrips += 1
+
         lineNo +=1
 
     xValues = []
@@ -435,7 +440,7 @@ def openVisual2():
     for t in range(len(trips)):
         xValues.append(trips[t].endTime)
         yValues.append(trips[t].toStation)    
-    print(str(len(trips)) + " trips arrived" )    
+    print(str(len(trips)) + " trips arrived " + str(lostTrips) + " trips lost" )    
     plt.plot(xValues, yValues)
     plt.show()
     
