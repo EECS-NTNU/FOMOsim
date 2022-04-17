@@ -1,47 +1,16 @@
 # dashboard.py
+"""
+GUI dashboard using PySimpleGUI
+"""
 
-import copy
-import numpy as np
 import os
-
-import policies
-import policies.fosen_haldorsen
-import sim
-import clustering.scripts
-
-import ideal_state.evenly_distributed_ideal_state
-import ideal_state.haflan_haga_spetalen
-
-import GUI
-
-from GUI import *
-# from sim.events.LostTrip import LostTrip 
-
-import tripStats 
-
-from tripStats.helpers import *
-from tripStats.download import *
-from tripStats.parse import *
-
-
 import PySimpleGUI as sg
-
-import matplotlib.pyplot as plt
 import beepy
 
-class Session:
-    def __init__(self, sessionName):
-        self.name = sessionName
-        self.startTime = ""
-        self.endTime = ""
-        self.state = sim.State() # TODO see if these three can be replaced by = []
-        self.initState = sim.State()
-        self.initStateType = "" # is "", "FH" or "HHS"
-        self.idealState = sim.State()
-        self.idealStateType = "" # is "", "FH" or "HHS" # TODO, redundant, since ideal state must be of same kind as init ?
-        self.simPolicy = ""
-    def saveState(self, filename):
-        print("SaveState called for " + self.name + "at" + self.startTime)
+from tripStats.helpers import strip
+from tripStats.analyze import openVisual1, openVisual2, openVisual3, openVisual4
+
+from GUI.script import Session, doCommand, replayScript, policyMenu
 
 ################################ GUI LAYOUT CODE
 colWidth = 55
@@ -61,10 +30,11 @@ dashboardColumn = [
     [sg.Text("Set initial state"), sg.Text("", key = "-STATE-MSG-")],
     [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
         sg.Button("Haflan, Haga & Spetalen")],
-    [sg.Button("Test state")],    
     [sg.Text('_'*colWidth)],
     [sg.Text("Method for calculating ideal state: "), sg.Text("...", key="-IDEAL-METHOD-")],
     [sg.Button("Calculate"), sg.Text("", key="-CALC-MSG-")], 
+    [sg.Text('_'*colWidth)],
+    [sg.Button("Test state"), sg.Button("Store state"), sg.Input("State-name: ", key ="-NAME-", size = 30)],    
     [sg.Text('_'*colWidth)],
     [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"), 
         sg.Text("Hours: 1", size = 11, key="-HOURS-")],
@@ -81,9 +51,10 @@ statusColumn = [
     [sg.Text("Choose folder for fomo results files")],
     [sg.Text("Specify results Folder:")],  
     [sg.Input(size=(42, 1), enable_events=True, key="-FOLDER-"), sg.FolderBrowse()],
-    [sg.Listbox( values=[], enable_events=True, size=(40, 10), key="-FILE LIST-")],
+    [sg.Listbox( values=[], enable_events=True, size=(30, 8), key="-FILE LIST-")],
+    [sg.Text("The following checkboxes are still not implemented")],
     [sg.Checkbox ('Option 1', key='check_value1'), sg.Checkbox ('Option 2',key='check_value2'), sg.Checkbox ('Grid',key='check_value2')],
-    [sg.Button("Test-1"), sg.Button("Test-2"), sg.Button("Test-3"), sg.Button("Test-4")],
+    [sg.Button("Test-1"), sg.Button("Test-2"), sg.Button("Test-3"), sg.Button("Trips/week-Oslo")],
     [sg.Text('_'*50)],
 ]
 layout = [ [sg.Column(dashboardColumn), sg.VSeperator(), sg.Column(statusColumn) ] ]
@@ -92,377 +63,26 @@ window = sg.Window("FOMO Digital Twin Dashboard 0.2", layout)
 def userError(string):
     window["-FEEDBACK-"].update(string, text_color = "dark orange")
     beepy.beep(sound="error")
+
 def userFeedback_OK(string):
     window["-FEEDBACK-"].update(string, text_color = "LightGreen")
+
 def userFeedbackClear():
     window["-FEEDBACK-"].update("")
 
-policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
-DURATION = 43200 # 43200 = 24 * 60 * 30, ca en måned. TODO change to input-field with default value
+def updateField(field, string):
+    window[field].update(string) # color not given, will be kept
 
-def dumpMetrics(metric):
-    # print("dumpMetrics called")
-    metricsCopy = metric
-    pass
+def updateFieldOK(field, string):
+    window[field].update(string, text_color = "LightGreen")    
 
-def startSimulation(simPolicy, state):
-    simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
-    if simPolicy == "Do-nothing": 
-        simulator = sim.Simulator( 
-            DURATION,
-            policies.DoNothing(),
-            copy.deepcopy(state),
-            verbose=True,
-            label="DoNothing",
-        )
-    elif simPolicy == "Rebalancing":
-        simulator = sim.Simulator( 
-            DURATION,
-            policies.RebalancingPolicy(),
-            copy.deepcopy(state),
-            verbose=True,
-            label="Rebalancing",
-        )
-    elif simPolicy == "Fosen&Haldorsen":
-        simulator = sim.Simulator(
-            DURATION,
-            policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
-            copy.deepcopy(state),
-            verbose=True,
-            label="FosenHaldorsen",
-        )
-    elif simPolicy == "F&H-Greedy":
-        simulator = sim.Simulator(
-            DURATION,
-            policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
-            copy.deepcopy(state),
-            verbose=True,
-            label="Greedy",
-        )
-    write(loggFile, ["Simulation-start:", simPolicy, dateAndTimeStr()])
-    window["-START-TIME-"].update("Start: " + readTime())
-    start = datetime.now()
-    simulator.run()
-    end = datetime.now()
-    duration = end - start
-    window["-END-TIME-"].update("End:" + readTime())
-    write(loggFile, ["Simulation-end:", dateAndTimeStr(), "usedTime(s):", str(duration.total_seconds())])
-    metrics = simulator.metrics.get_all_metrics()
-    dumpMetrics(metrics)
-    beepy.beep(sound="ready")
+def updateFieldDone(field, string):
+    window[field].update(string, text_color = "Cyan")
 
-
-def smallCircle(session):
-    arrive_intensities = [] # 3D matrise som indekseres [station][day][hour]
-    leave_intensities = []  # 3D matrise som indekseres [station][day][hour]
-    move_probabilities = [] # 4D matrise som indekseres [from-station][day][hour][to-station]
-    for station in range(4): # eksempelet har 4 stasjoner
-        arrive_intensities.append([])
-        leave_intensities.append([])
-        move_probabilities.append([])
-        for day in range(7):
-            arrive_intensities[station].append([])
-            leave_intensities[station].append([])
-            move_probabilities[station].append([])
-            for hour in range(24):
-                arrive_intensities[station][day].append(1) # fra denne stasjonen på gitt tidspunkt drar det 1 sykkel i timen 
-                leave_intensities[station][day].append(1)  # fra denne stasjonen på gitt tidspunkt kommer det 1 sykkel i timen
-                move_probabilities[station][day].append([1/3, 1/3, 1/3, 1/3]) # sannsynlighetsfordeling for å dra til de forskjellige stasjonene
-                move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
-
-    state = sim.State.get_initial_state(
-                bike_class = "Scooter",
-                distance_matrix = [ # km
-                    [0, 2, 2, 2],
-                    [2, 0, 2, 2],
-                    [2, 2, 0, 2],
-                    [2, 2, 2, 0],
-                ],
-                speed_matrix = [ # km/h
-                    [10, 10, 10, 10],
-                    [10, 10, 10, 10],
-                    [10, 10, 10, 10],
-                    [10, 10, 10, 10]
-                ],
-                main_depot = None,
-                secondary_depots = [],
-#                number_of_scooters = [2, 2, 2, 2],
-                number_of_scooters = [1, 1, 1, 1],
-                number_of_vans = 2,
-                random_seed = 1,
-                arrive_intensities = arrive_intensities,
-                leave_intensities = leave_intensities,
-                move_probabilities = move_probabilities,
-            )
-    session.initState = state
-    pass        
-
-def manualInitState(session, testName):
-    if testName == "Small-Circle":
-        smallCircle(session)
-
-def doCommand(session, task):
-
-    if task[0] == "Find-stations":
-        write(scriptFile, ["Find-stations", task[1]])
-        calcDistances(task[1])
-        window["-FEEDBACK-"].update("City OK", text_color = "LightGreen") 
-        if task[1] == "Oslo":
-            beepy.beep(sound="ping")
-        write(loggFile, [task[0], "finished:", dateAndTimeStr(), "city:", task[1]])
-
-    elif task[0] == "Download-Oslo":
-        write(scriptFile, ["Download-Oslo", task[1], task[2]])
-        oslo(task[1], task[2])
-        write(loggFile, [task[0], "finished:", dateAndTimeStr(), "fromWeek:", task[1], "toWeek:", task[2]])
-        window["-FEEDBACK-"].update("Tripdata downloaded", text_color = "LightGreen")
-        beepy.beep(sound="ping")
-
-    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-manual":
-        if task[0] == "Init-state-FH":
-            write(scriptFile, ["Init-state-FH", task[1], task[2]])
-            session.initState, loggText = get_initial_state(task[1], week = int(task[2]))
-            # TODO retur  av loggText var fordi jeg ikke fikk til å bruke dashboard.loggFile fra denne fila
-            session.initStateType = "FH"
-        elif task[0] == "Init-state-HHS": 
-            write(scriptFile, ["Init-state-HHS"])
-            session.initState = clustering.scripts.get_initial_state(
-                "test_data",
-                "0900-entur-snapshot.csv",
-                "Scooter",
-                number_of_scooters = 2500,
-                number_of_clusters = 10,
-                number_of_vans = 2,
-                random_seed = 1,
-            )
-            loggText = [] # not used in this case
-            session.initStateType = "HHS"
-        elif task[0] == "Init-manual":
-            loggText = [] # not used in this case
-            manualInitState(session, task[1])
-            session.initStateType = "manual"
-
-        window["-STATE-MSG-"].update(session.initStateType + " ==> OK")
-        userFeedback_OK("Initial state set OK")
-        session.idealState = sim.State() # ideaLstate must be cleared, if it exist or not
-        session.idealStateType = ""
-        write(loggFile, [task[0], "finished:", dateAndTimeStr()] + loggText)
-        beepy.beep(sound="ping")
-
-
-    elif task[0] == "Ideal-state":
-        if session.initStateType == "": # an initial state does NOT exist
-            userError("Cannot calculate ideal state without an initial state")
-        else:
-            if session.initStateType == "HHS": # OK to make ideal-HHS from init-HS
-                state = session.initState # via local variable to be sure initState is not destroyed (?)
-                ideal_state.haflan_haga_spetalen_ideal_state(state)
-                session.idealState = state
-            if session.initStateType =="FH":
-                state = session.initState
-                newIdeal_state = ideal_state.evenly_distributed_ideal_state(state)
-                session.idealState = newIdeal_state # TODO, probably clumsy, had to (try again?) go via newIdeal_state variable due to import-trouble !???
-            write(scriptFile, ["Ideal-state"])
-            write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
-            window["-CALC-MSG-"].update(session.initStateType + " ==> OK", text_color="cyan")
-            userFeedback_OK("Ideal state calculated OK")
-            beepy.beep(sound="ping")
-
-    elif task[0] == "Sim":
-        fromState = ""  
-        if not session.idealStateType == "": 
-            session.state = session.idealState 
-            fromState = "IDEAL"
-        elif not session.initStateType == "":
-            session.state = session.initState 
-            fromState = "INIT"
-        else:
-            userError("You must set an initial (or ideal) state")
-        if not fromState == "":
-            policy = task[1]
-            write(scriptFile, ["Sim", policy] )
-            # TODO Debug-plan: tap out used state to check that several simulations in a row start from same state"])    
-            startSimulation(policy, session.state)
-            write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()]) 
-        window["-SIM-MSG-"].update("")
-
-def doScript(session, fileName):
-    session.name += "-FROM:"
-    session.name += fileName
-    script = open(fileName, "r")
-    lines = script.readlines()
-    command = []
-    for i in range(len(lines)):
-        for word in lines[i].split():
-             command.append(word)
-        doCommand(session, command) 
-        command = []
-
-def replayScript(): 
-    session = Session("Replay")
-    layout = [[sg.Text("Select script:", key="new")],
-        [sg.Button("Load scripts"), sg.Button("Confirm")],
-        [sg.Listbox( values=[], enable_events=True, size=(40, 10), key="-FILE LIST-")]
-    ]
-    window = sg.Window("FOMO - select script", layout, modal=True)
-    file_list = os.listdir("GUI/scripts")
-
-    while True:
-        event, values = window.read()
-        if event == "Load scripts":
-            fnames = [
-                f
-                for f in file_list
-                if os.path.isfile(os.path.join("GUI/scripts", f))
-                and f.lower().endswith((".txt"))
-            ]
-            window["-FILE LIST-"].update(fnames)
-        elif event == "-FILE LIST-":  # A file was chosen from the listbox
-            if len(values["-FILE LIST-"]) > 0:
-                filepath = os.path.join("GUI/scripts", values["-FILE LIST-"][0])
-        elif event == "Confirm":
-            # print(filepath)
-            doScript(session,filepath)
-            break 
-        elif event == "Exit" or event == sg.WIN_CLOSED:
-            break
-    window.close()
-
-
-def bigOsloTest():
-    session = Session("bigOsloTest")
-    for week in range(6):
-        command = ["Init-state-FH", "Oslo", str(week+1)]
-        doCommand(session, command)
-        command = ["Ideal-state"]
-        doCommand(session, command)
-        command = ["Sim", "Rebalancing"]
-        doCommand(session, command)
+def updateFieldOperation(field, string):
+    updateFieldDone(field, string)      
 
 #########################################
-
-def openVisual1():
-    def draw_plot():
-        plt.plot([0.1, 0.2, 0.5, 0.7])
-        # plt.show(block=False)
-        plt.show() 
-
-    draw_plot()
-  
-def openVisual2():
-    # TODO bikes is used also for scooters
-    class Trip:
-        def __init__(self, startTime, endTime, fromStation, toStation):
-            self.startTime = startTime
-            self.endTime = endTime
-            self.fromStation = fromStation
-            self.toStation = toStation     
-
-    class Bike:
-        def __init__(self, id):
-            self.id = id
-            self.startTime = -1
-            self.endTime = -1
-            self.fromStation = -1
-            self.toStation = -1
-    traffic = open("GUI/loggFiles/traffic-2.txt", "r")
-    trips = []
-    lostTrips = 0
-    allBikes = {}
-    bikesParked = []
-    bikesParkedPrevious = []
-    lastDeparture = -1
-    lastDepartureTime = -1
-    lastArrival = -1
-    lastArrivalTime = -1
-
-    lines = traffic.readlines()
-    lineNo = 0
-    while lineNo < len(lines):
-        words = lines[lineNo].split()
-        if words[0] == "Time:" :
-            time = words[1]
-        elif words[0] == "Locations:" :
-            noOfLocs = int(words[1])
-            bikesParked = []
-            for loc in range(noOfLocs):
-                lineNo +=1
-                words = lines[lineNo].split()
-                bikes = int(words[1])
-                for i in range(bikes):
-                    bikeId = words[2 + 2*i]
-                    if allBikes.get(bikeId) == None:
-                        allBikes[bikeId] = Bike(bikeId)
-                        allBikes[bikeId].fromStation = words[0]
-                    bikesParked.append(bikeId)
-
-            if lastDeparture >= 0 : # find bike used in last departure
-                usedBike = set(bikesParkedPrevious) - set(bikesParked)
-                if len(list(usedBike)) > 0 :
-                    allBikes[list(usedBike)[0]].fromStation = str(lastDeparture)
-                    allBikes[list(usedBike)[0]].startTime = str(lastDepartureTime)
-                else:
-                    print("lost trip at station" + str(lastDeparture) + " at time " + str(lastDepartureTime))
-                lastDeparture = -1
-            elif lastArrival >= 0 : # find bike that arrived  
-                usedBike = set(bikesParked) - set(bikesParkedPrevious)
-                if len(list(usedBike)) > 0 :
-                    allBikes[list(usedBike)[0]].toStation = str(lastArrival)
-                    allBikes[list(usedBike)[0]].endTime = str(lastArrivalTime)
-                    trips.append(Trip(allBikes[list(usedBike)[0]].startTime, allBikes[list(usedBike)[0]].endTime,
-                                allBikes[list(usedBike)[0]].fromStation, allBikes[list(usedBike)[0]].toStation))
-
-            bikesParkedPrevious = bikesParked
-        elif words[0] == "Departure-at-time:" :
-            lastDepartureTime = int(words[1])
-            lastDeparture = int(words[3])
-            #### må bruke koden for å finne hvilken sykkel ble brukt, er gitt av endring i bikesParked 
-            # fra n til neste gang, og det kan sjekkes mot departedfrom, IKKE HELT LETT , se på tid 40-48 sist
-        elif words[0] == "In-use:" :
-            pass
-            # check that all in the in-use list have got a fromStation
-            for bike in range(len(words) - 1):
-                bikeId = "ID-" + words[bike+1]
-                #print("Bike in use is no " + str(bikeId) + " left-station: " + str(allBikes[bikeId].fromStation)
-                #    + " at-time: " + str(allBikes[bikeId].startTime))
-            # bikesUsed.append(words[1]) # TODO extend to handle more than one bike in use
-            pass
-        elif words[0] == "Arrival-at-time:":
-            lastArrival = int(words[3])
-            lastArrivalTime = int(words[1])    
-        elif words[0] == "LostTrip-at-time:" :
-            lostTrips += 1
-
-        lineNo +=1
-
-    xValues = []
-    yValues = []
-    for t in range(len(trips)):
-        xValues.append(trips[t].endTime)
-        yValues.append(trips[t].toStation)    
-    print(str(len(trips)) + " trips arrived " + str(lostTrips) + " trips lost" )    
-    plt.plot(xValues, yValues)
-    plt.show()
-    
-def openVisual3():
-    plt.plot([1, 2, 3, 4], [1, 4, 9, 3])
-    plt.show()
-
-def openVisual4():
-    print("Visual Test 4, accumulated traffic during 53 weeks in Oslo")
-    osloTripsFile = open("GUI/results/sessionLog-Oslo-Init-1-53.txt", "r")
-    textLines = osloTripsFile.readlines()
-    data = []
-    for i in range(len(textLines)):
-        line = []
-        for word in textLines[i].split():
-             line.append(word)
-        data.append(int(line[6]))  
-    plt.plot(data)
-    plt.show()
-    pass
-
-######################################
 
 def GUI_main():
     session = Session("GUI_main_session") 
@@ -470,7 +90,8 @@ def GUI_main():
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
                          # updating field -SIM-MSG- or -STATE-MSG- before starting long operation
     while True:
-        GUI_event, GUI_values= window.read(timeout = 200) # waits 200 millisecs before looking in taskQueue
+        GUI_event, GUI_values= window.read(timeout = 100) # waits 100 millisecs before looking in taskQueue
+#        GUI_event, GUI_values= window.read() 
         if len(task) > 0: ###### handling of lengthy operations is done in a two-stage process to be able to give message
             if not readyForTask:
                 readyForTask = True
@@ -482,7 +103,6 @@ def GUI_main():
         ###### SPECIAL BUTTONS GUI PART
         if GUI_event == "Fast-Track":
             userError("No code currently placed in FastTrack")
-            pass
             #-------------
             # bigOsloTest()
             #-------------            
@@ -510,12 +130,12 @@ def GUI_main():
         elif GUI_event == "Find stations and distances":
             if GUI_values["-OSLO-"]:
                 task = ["Find-stations", "Oslo"]
-                window["-FEEDBACK-"].update("Lengthy operation started ...", text_color="cyan")
+                updateFieldOperation("-FEEDBACK-", "Lengthy operation started ...") 
             elif GUI_values["-BERGEN-"]:
                 userError("Bergen not yet implemented") 
             elif GUI_values["-UTOPIA-"]:
                 task = ["Find-stations", "Utopia"]
-                window["-FEEDBACK-"].update("short operation started ...", text_color="cyan")
+                updateFieldOperation("-FEEDBACK-", "short operation started ...")
             else:
                 print("*** Error: wrong value from Radiobutton")         
         
@@ -534,11 +154,11 @@ def GUI_main():
                         weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
                 if weekNo != 0 :
                     task = ["Init-state-FH", "Oslo", str(weekNo)]    
-                    window["-STATE-MSG-"].update("Lengthy operation started ... (4 - 6 minutes)", text_color="cyan")
+                    updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (4 - 6 minutes)") 
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
                 window["-WEEK-"].update("Week no: 48") # Only week with traffic at the moment for Utopia
                 task = ["Init-state-FH", "Utopia", "48"]    
-                window["-STATE-MSG-"].update("short operation started ...", text_color="cyan")
+                updateFieldOperation("-STATE-MSG-", "short operation started ...") 
             elif GUI_values["-BERGEN-"]:
                 userError("Bergen not yet implemented")
             else:
@@ -560,7 +180,10 @@ def GUI_main():
             task = ["Ideal-state"]
             if session.initStateType == "HHS":
                 window["-CALC-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
-
+        elif GUI_event == "Test state":
+            task = ["Init-manual", "Small-Circle"]
+        elif GUI_event == "Store state":
+            pass
         ###### SIMULATE GUI PART
         elif GUI_event == "Simulate":
             if session.simPolicy == "":
@@ -594,7 +217,7 @@ def GUI_main():
             openVisual2()
         elif GUI_event == "Test-3":
             openVisual3()
-        elif GUI_event == "Test-4":
+        elif GUI_event == "Trips/week-Oslo":
             openVisual4()
 
         if GUI_values["-POLICIES-"] != []:

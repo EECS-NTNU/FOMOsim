@@ -1,14 +1,12 @@
 # parse.py
 import sim
 import json
-import sys
 import os.path
 import geopy.distance
-import numpy as np
 import settings
 
-from tripStats.helpers import *  # works if used from main.py
-# from GUI.dashboard import loggFile  # TODO, gives circular import ???
+from tripStats.helpers import yearWeekNoAndDay  # works if used from main.py
+# from GUI.dashboard import loggFile  # TODO, gives circular import ! understand how
 
 class Station:
     def __init__(self, stationId, longitude, latitude, stationName):
@@ -185,7 +183,7 @@ def get_initial_state(city, week):
 
     # Calculate distance
     # print(" calculate all possible distances ", end='')
-    distances = calcDistances(city)  
+    distances = calcDistances(city)
 
     # Calculate speed matrix
     # print(" calculate speed matrix ", end='')

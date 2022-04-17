@@ -1,32 +1,28 @@
-#!/bin/python3
+# !/bin/python3
+"""
+FOMO simulator main program
+"""
 
 import copy
-import time
-import numpy as np
 
 import settings
 import sim
 import clustering.scripts
-
-import GUI
 
 import policies
 import policies.fosen_haldorsen
 from visualization.visualizer import visualize_analysis
 import ideal_state
 
+
 from GUI.dashboard import GUI_main
 
-PERIOD = 960 # 16 hours
+PERIOD = 960  # 16 hours
 
 simulators = []
 
 ###############################################################################
-
 # Set up initial state
-
-# calcDistances(city = "Oslo") # To ensure that station.txt is available
-# TODO skriv som assume i interface
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
@@ -48,7 +44,6 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # ideal_state = ideal_state.evenly_distributed_ideal_state(state)
     # state.set_ideal_state(ideal_state)
-    
     ideal_state.haflan_haga_spetalen_ideal_state(state)
 
     ###############################################################################
@@ -59,7 +54,6 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     #     policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
     #     copy.deepcopy(state),
     #     verbose=True,
-    
     #     label="FosenHaldorsen",
     # ))
 
@@ -112,4 +106,3 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # Visualize results
     visualize_analysis(simulators)
-

@@ -72,10 +72,10 @@ def loggEvent(event):
         write(trafficLogg, ["Arrival-at-time:", time, "at:", toLocation ])
     elif words[0] == "<LostTrip":
         time = words[3][0:len(words[3])-1]
-        write(trafficLogg, ["LostTrip-at-time:", time]) 
+        write(trafficLogg, ["LostTrip-at-time:", time])
     else:
         pass
-        print("*** ERROR: Tried to logg unknown event ??? ") 
+        print("*** ERROR: Tried to logg unknown event ??? ")
         
 
 # def tripStatsClose():
