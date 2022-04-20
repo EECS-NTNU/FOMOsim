@@ -25,6 +25,7 @@ class Simulator(SaveMixin):
         shift_duration: int,
         policy,
         initial_state,
+        start_time = 0,
         verbose=False,
         label=None,
         **kwargs,
@@ -32,17 +33,17 @@ class Simulator(SaveMixin):
         super().__init__(**kwargs)
 
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
-        self.shift_duration = shift_duration
+        self.shift_duration = start_time + shift_duration
         self.state = initial_state
-        self.time = 0
+        self.time = start_time
         self.event_queue: List[sim.Event] = []
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.vehicles:
             self.event_queue.append(
-                sim.VehicleArrival(0, vehicle.id)
+                sim.VehicleArrival(self.time, vehicle.id)
             )
         # Add Generate Scooter Trip event to the event_queue
-        self.event_queue.append(sim.GenerateScooterTrips(settings.ITERATION_LENGTH_MINUTES))
+        self.event_queue.append(sim.GenerateScooterTrips(start_time + settings.ITERATION_LENGTH_MINUTES))
         self.policy = policy
         policy.initSim(self)
         self.metrics = Metric()

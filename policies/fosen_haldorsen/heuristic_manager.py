@@ -17,6 +17,7 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
     incoming_flat_bike_rate_plus_incoming_charged_bike_rate = location.get_arrive_intensity(simul.day(), simul.hour())
     location_incoming_charged_bike_rate = location.get_arrive_intensity(simul.day(), simul.hour())
     demand_per_hour = location.get_leave_intensity(simul.day(), simul.hour())
+    vehicle_current_charged_bikes = len(vehicle.scooter_inventory)
     location_current_charged_bikes = len(location.get_available_scooters())
     location_current_flat_bikes = len(location.get_swappable_scooters(settings.BATTERY_LIMIT))
     vehicle_current_station_current_charged_bikes = len(vehicle.current_location.get_available_scooters())
@@ -35,7 +36,7 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
     # Time to congestion
     # Ensure that denominator != 0
     if (incoming_flat_bike_rate_plus_incoming_charged_bike_rate - demand_per_hour != 0):
-        t_cong = (location.station_cap - location_current_charged_bikes - location_current_flat_bikes)/(
+        t_cong = (location.capacity - location_current_charged_bikes - location_current_flat_bikes)/(
             (incoming_flat_bike_rate_plus_incoming_charged_bike_rate -
              demand_per_hour) / 60)
         if t_cong > 0:
@@ -56,7 +57,7 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
     if demand_per_hour - location_incoming_charged_bike_rate > 0:
         charged_at_t = location_current_charged_bikes - (demand_per_hour -
                 location_incoming_charged_bike_rate) * min(time_horizon, time_to_starvation)
-        if location.get_ideal_state(simul.day(), simul.hour()) - charged_at_t > 0 and first_station and (vehicle.current_charged_bikes < 2 and (
+        if location.get_ideal_state(simul.day(), simul.hour()) - charged_at_t > 0 and first_station and (vehicle_current_charged_bikes < 2 and (
                 vehicle_current_batteries < 2 or location_current_flat_bikes < 2)):
             return -10000
     # Congesting station

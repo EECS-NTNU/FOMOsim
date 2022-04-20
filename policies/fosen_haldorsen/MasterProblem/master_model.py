@@ -104,4 +104,5 @@ def run_master_model(parameters):
         return m
 
     except GurobiError:
-            print(GurobiError.message)
+        print("\nGurobi error\n")
+        print(GurobiError.message)
