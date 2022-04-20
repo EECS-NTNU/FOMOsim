@@ -11,7 +11,7 @@ import PySimpleGUI as sg
 
 import sim
 import clustering.scripts
-import ideal_state.haflan_haga_spetalen
+import ideal_state.outflow_ideal_state
 import policies
 import policies.fosen_haldorsen
 
