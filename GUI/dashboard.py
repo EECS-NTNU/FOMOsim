@@ -6,7 +6,7 @@ GUI dashboard using PySimpleGUI
 import os
 import PySimpleGUI as sg
 import beepy
-
+import tripStats
 from tripStats.helpers import strip
 from tripStats.analyze import openVisual1, openVisual2, openVisual3, openVisual4
 
