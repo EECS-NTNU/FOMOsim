@@ -2,19 +2,17 @@
 """
 FOMO simulator main program
 """
-
 import copy
 
 import settings
 import sim
-import clustering.scripts
+# import clustering.scripts
 import tripStats.parse
 
 import policies
 import policies.fosen_haldorsen
 from visualization.visualizer import visualize_analysis
 import ideal_state
-
 
 from GUI.dashboard import GUI_main
 

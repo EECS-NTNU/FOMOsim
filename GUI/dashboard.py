@@ -1,88 +1,15 @@
 # dashboard.py
-"""
-GUI dashboard using PySimpleGUI
-"""
 
 import os
 import PySimpleGUI as sg
-import beepy
-import tripStats
+
+# import tripStats
 from tripStats.helpers import strip
 from tripStats.analyze import openVisual1, openVisual2, openVisual3, openVisual4
 
-from GUI.script import Session, doCommand, replayScript, policyMenu
-
-################################ GUI LAYOUT CODE
-colWidth = 55
-dashboardColumn = [
-    [sg.Text("Prep. and set up ", font='Lucida', text_color = 'Yellow'), sg.VSeparator(), 
-        sg.Button("Fast-Track", button_color = "forest green"), sg.Button("main.py", button_color="snow4"), sg.Button("Exit")],
-    [sg.Text("Set up simulation", font="Helvetica 14", size=(30, 1), text_color = "spring green", key="-FEEDBACK-")],
-    [sg.Text('_'*colWidth)],
-    [sg.Text("Download Oslo trips, 1 = April 2019 ... 35 = February 2022)")],
-    [sg.Button("All Oslo"), sg.Button("Clear"), sg.Input("From: ", key="-INPUTfrom-", size=8), 
-        sg.Input("To: ", key="-INPUTto-", size = 6), sg.Button("Download Oslo")],
-    [sg.Text('_'*colWidth)],
-    [sg.Text("Select city (Oslo is default, only relevant for F & H)")],
-    [sg.Radio("Oslo", "RADIO1", key = "-OSLO-"), sg.Radio("Bergen", "RADIO1", key = "-BERGEN-"), 
-        sg.Radio("Utopia", "RADIO1", key = "-UTOPIA-"), sg.Button("Find stations and distances")],
-    [sg.Text('_'*colWidth)],
-    [sg.Text("Set initial state"), sg.Text("", key = "-STATE-MSG-")],
-    [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
-        sg.Button("Haflan, Haga & Spetalen")],
-    [sg.Text('_'*colWidth)],
-    [sg.Text("Method for calculating ideal state: "), sg.Text("...", key="-IDEAL-METHOD-")],
-    [sg.Button("Calculate"), sg.Text("", key="-CALC-MSG-")], 
-    [sg.Text('_'*colWidth)],
-    [sg.Button("Test state"), sg.Button("Store state"), sg.Input("State-name: ", key ="-NAME-", size = 30)],    
-    [sg.Text('_'*colWidth)],
-    [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"), 
-        sg.Text("Hours: 1", size = 11, key="-HOURS-")],
-    [sg.Button("Simulate"), sg.Button("Replay script")],
-    [sg.Text("", key="-SIM-MSG-")],    
-]
-statusColumn = [
-    [sg.Text("Simulation status", font='Lucida', text_color = 'Yellow')],
-    [sg.Text('_'*50)],
-    [sg.Text("Simulation progress:"), sg.Text("",key="-START-TIME-"), sg.Text("",key="-END-TIME-")],
-    [sg.Button("Timestamp and save session results"), sg.Button("Save session as script")],
-    [sg.Text('_'*50)],
-    [sg.Text("Visualization of results (not ready)", font='Lucida', text_color = 'Yellow')],
-    [sg.Text("Choose folder for fomo results files")],
-    [sg.Text("Specify results Folder:")],  
-    [sg.Input(size=(42, 1), enable_events=True, key="-FOLDER-"), sg.FolderBrowse()],
-    [sg.Listbox( values=[], enable_events=True, size=(30, 8), key="-FILE LIST-")],
-    [sg.Text("The following checkboxes are still not implemented")],
-    [sg.Checkbox ('Option 1', key='check_value1'), sg.Checkbox ('Option 2',key='check_value2'), sg.Checkbox ('Grid',key='check_value2')],
-    [sg.Button("Test-1"), sg.Button("Test-2"), sg.Button("Test-3"), sg.Button("Trips/week-Oslo")],
-    [sg.Text('_'*50)],
-]
-layout = [ [sg.Column(dashboardColumn), sg.VSeperator(), sg.Column(statusColumn) ] ]
-window = sg.Window("FOMO Digital Twin Dashboard 0.2", layout)
-
-def userError(string):
-    window["-FEEDBACK-"].update(string, text_color = "dark orange")
-    beepy.beep(sound="error")
-
-def userFeedback_OK(string):
-    window["-FEEDBACK-"].update(string, text_color = "LightGreen")
-
-def userFeedbackClear():
-    window["-FEEDBACK-"].update("")
-
-def updateField(field, string):
-    window[field].update(string) # color not given, will be kept
-
-def updateFieldOK(field, string):
-    window[field].update(string, text_color = "LightGreen")    
-
-def updateFieldDone(field, string):
-    window[field].update(string, text_color = "Cyan")
-
-def updateFieldOperation(field, string):
-    updateFieldDone(field, string)      
-
-#########################################
+from GUI.script import Session, doCommand, replayScript
+from GUI.GUI_layout import window
+from GUI.GUIhelpers import *
 
 def GUI_main():
     session = Session("GUI_main_session") 

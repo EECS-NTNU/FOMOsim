@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 import beepy
 import PySimpleGUI as sg
+from numpy import DataSource
 
 import sim
 import clustering.scripts
@@ -22,9 +23,9 @@ from tripStats.helpers import write, dateAndTimeStr, readTime
 from tripStats.parse import calcDistances, get_initial_state
 
 from GUI import loggFile, scriptFile, trafficLogg
+from GUI.GUIhelpers import *
 # from GUI.dashboard import  updateFieldOK, userError, userFeedback_OK
-
-
+ 
 class Session:
     def __init__(self, sessionName):
         self.name = sessionName
@@ -40,7 +41,6 @@ class Session:
     def saveState(self, filename):
         print("SaveState called for " + self.name + "at" + self.startTime)
 
-
 # DURATION = 43200 # 43200 = 24 * 60 * 30, ca en måned. TODO change to input-field with default value
 # DURATION = 960 # 16 hours
 
@@ -50,7 +50,6 @@ policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # mu
 
 
 def doCommand(session, task):
-    from GUI.dashboard import updateField, updateFieldOK, userFeedback_OK, updateFieldDone, userError
 
     if task[0] == "Find-stations":
         write(scriptFile, ["Find-stations", task[1]])
