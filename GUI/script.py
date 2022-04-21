@@ -98,23 +98,52 @@ def doCommand(session, task):
         beepy.beep(sound="ping")
 
 
-    elif task[0] == "Ideal-state":
+    elif task[0] == "Ideal-state-outflow": # TODO, refactor code in this and next elif
         if session.initStateType == "": # an initial state does NOT exist
             userError("Cannot calculate ideal state without an initial state")
         else:
-            if session.initStateType == "HHS": # OK to make ideal-HHS from init-HS
-                state = session.initState # via local variable to be sure initState is not destroyed (?)
-                ideal_state.haflan_haga_spetalen_ideal_state(state)
-                session.idealState = state
-            if session.initStateType =="FH":
+            if session.initStateType == "HHS" or session.initStateType =="FH": 
+                state = session.initState # via local variable to ensure initState is not destroyed
+                session.idealState = ideal_state.outflow_ideal_state(state)
+            else:
+                print("*** Error: initStatType invalid") # TODO extend code above to accept init state of type TEST
+            write(scriptFile, ["Ideal-state-outflow"])
+            write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
+            updateFieldDone("-CALC-MSG-", session.initStateType + " ==> outflow ==> OK") 
+            userFeedback_OK("Ideal state outflow calculated OK")
+            beepy.beep(sound="ping")
+    elif task[0] == "Ideal-state-evenly-distributed":        
+            if session.initStateType == "HHS" or session.initStateType =="FH": 
                 state = session.initState
                 newIdeal_state = ideal_state.evenly_distributed_ideal_state(state)
                 session.idealState = newIdeal_state # TODO, probably clumsy, had to (try again?) go via newIdeal_state variable due to import-trouble !???
-            write(scriptFile, ["Ideal-state"])
+            else:
+                print("*** Error: initStateType invalid") # TODO extend code above to accept init state of type TEST
+            write(scriptFile, ["Ideal-state-evenly-distributed"])
             write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
-            updateFieldDone("-CALC-MSG-", session.initStateType + " ==> OK") 
-            userFeedback_OK("Ideal state calculated OK")
+            updateFieldDone("-CALC-MSG-", session.initStateType + " ==> evenly ==> OK") 
+            userFeedback_OK("Ideal state evenly calculated OK")
             beepy.beep(sound="ping")
+
+
+
+    # TODO KEEP THIS CODE until I know that both Ideal methods can be used on both/all init-state-methods
+    # elif task[0] == "Ideal-state-outflow":
+    #     if session.initStateType == "": # an initial state does NOT exist
+    #         userError("Cannot calculate ideal state without an initial state")
+    #     else:
+    #         if session.initStateType == "HHS": # OK to make ideal-HHS from init-HS TODO - check if they can be intermixed now
+    #             state = session.initState # via local variable to ensure initState is not destroyed
+    #             session.idealState = ideal_state.outflow_ideal_state(state)
+    #         if session.initStateType =="FH":
+    #             state = session.initState
+    #             newIdeal_state = ideal_state.evenly_distributed_ideal_state(state)
+    #             session.idealState = newIdeal_state # TODO, probably clumsy, had to (try again?) go via newIdeal_state variable due to import-trouble !???
+    #         write(scriptFile, ["Ideal-state"])
+    #         write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
+    #         updateFieldDone("-CALC-MSG-", session.initStateType + " ==> OK") 
+    #         userFeedback_OK("Ideal state calculated OK")
+    #         beepy.beep(sound="ping")
 
     elif task[0] == "Sim":
         fromState = ""  

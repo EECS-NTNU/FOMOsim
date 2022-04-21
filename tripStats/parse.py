@@ -5,8 +5,7 @@ import os.path
 import geopy.distance
 import settings
 
-from tripStats.helpers import yearWeekNoAndDay  # works if used from main.py
-# from GUI.dashboard import loggFile  # TODO, gives circular import ! understand how
+from tripStats.helpers import yearWeekNoAndDay 
 
 class Station:
     def __init__(self, stationId, longitude, latitude, stationName):
@@ -111,8 +110,11 @@ def get_initial_state(city, week):
         print("*** Error: week no must be in range 1..53")
     elif city == "Utopia" and (week != 48):
         print("*** Error: week must be 48")
+    elif not (city == "Oslo" or city == "Utopia"):
+        print("*** Error: given city not implemented ", city)    
 
-    # print("Starts analyzing traffic for city: " + city + " : ", end='') 
+    print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) 
+        + ", setting up datastructures ... ", end='') 
     years = [] # Must count no of "year-instances" of the given week that are analyzed
     stationMap = readStationMap(city)
     arriveCount = []
@@ -137,8 +139,7 @@ def get_initial_state(city, week):
                     durations[station].append([])
                 moveCount[station][day].append(stationList)
 
-    # process all stored trips for given city, and count trips and store durations
-    # for the given week number
+    # process all stored trips for given city, count trips and store durations for the given week number
     trips = 0
     arrivingBikes = 0
     leavingBikes = 0
@@ -167,7 +168,7 @@ def get_initial_state(city, week):
                 leavingBikes += 1
                 durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
             trips = trips + 1
-        # print(".", end='') # TODO replace with progress bar
+        print(".", end='') # TODO replace with progress bar
     
     # Calculate average durations
     # print("calculate avg trip durations ", end='')
@@ -229,7 +230,7 @@ def get_initial_state(city, week):
     bikeStartStatus = readBikeStartStatus(city)
 
     return sim.State.get_initial_state(
-        bike_class = "bike",
+        bike_class = "Scooter", # TODO helpers.loggLoction will crash if Bike is used here
         distance_matrix = distances,
         speed_matrix = speed_matrix, 
         main_depot = None,

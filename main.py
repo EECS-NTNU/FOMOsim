@@ -6,7 +6,7 @@ import copy
 
 import settings
 import sim
-# import clustering.scripts
+import clustering.scripts
 import tripStats.parse
 
 import policies

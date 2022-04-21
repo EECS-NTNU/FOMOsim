@@ -2,17 +2,22 @@
 
 import os
 import PySimpleGUI as sg
+import matplotlib # TODO MARK-C
 
 # import tripStats
-from tripStats.helpers import strip
+from tripStats.helpers import dateAndTimeStr, strip, write
 from tripStats.analyze import openVisual1, openVisual2, openVisual3, openVisual4
 
+from GUI import loggFile
 from GUI.script import Session, doCommand, replayScript
 from GUI.GUI_layout import window
 from GUI.GUIhelpers import *
 
 def GUI_main():
-    session = Session("GUI_main_session") 
+    matplotlib.use("TkAgg") # TODO MARK-C
+
+    session = Session("GUI_main_session")
+    write(loggFile, ["Session-start:", dateAndTimeStr()]) 
     task = [] # TODO, only one task allowed in queue at the moment
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
                          # updating field -SIM-MSG- or -STATE-MSG- before starting long operation
@@ -90,12 +95,12 @@ def GUI_main():
                 userError("Bergen not yet implemented")
             else:
                 userError("You must select a city")
-            window["-IDEAL-METHOD-"].update("Fosen & Haldorsen")
+            # window["-IDEAL-METHOD-"].update("Fosen & Haldorsen") TODO discuss-A
             window["-CALC-MSG-"].update("")
         elif GUI_event == "Haflan, Haga & Spetalen": # handled here since it is relativelu quick
             task = ["Init-state-HHS"] 
             window["-WEEK-"].update("Week no: -na-")
-            window["-IDEAL-METHOD-"].update("Haflan, Haga & Spetalen")
+            # window["-IDEAL-METHOD-"].update("Haflan, Haga & Spetalen") TODO discuss-A
             window["-OSLO-"].update(True) # entur data are from Oslo
             window["-UTOPIA-"].update(False)
             window["-CALC-MSG-"].update("")
@@ -103,10 +108,14 @@ def GUI_main():
         elif GUI_event == "Test state":
             task = ["Init-manual", "Small-Circle"]
         ###### IDEAL STATE GUI PART   
-        elif GUI_event == "Calculate":
-            task = ["Ideal-state"]
+        elif GUI_event == "Evenly distributed":
+            task = ["Ideal-state-evenly-distributed"]
             if session.initStateType == "HHS":
-                window["-CALC-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
+                updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
+        elif GUI_event == "Outflow":
+            task = ["Ideal-state-outflow"]
+            if session.initStateType == "FH":
+                updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
         elif GUI_event == "Test state":
             task = ["Init-manual", "Small-Circle"]
         elif GUI_event == "Store state":
