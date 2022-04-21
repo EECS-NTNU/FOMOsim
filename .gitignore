@@ -138,3 +138,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+GUI/loggFiles/sessionLog.txt
+GUI/loggFiles/sessionLog.txt
