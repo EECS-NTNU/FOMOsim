@@ -1,11 +1,12 @@
 # dashboard.py
 
 import os
+import socket
 import PySimpleGUI as sg
 import matplotlib # TODO MARK-C
 
 # import tripStats
-from tripStats.helpers import dateAndTimeStr, strip, write
+from tripStats.helpers import dateAndTimeStr, strip, write, fixComputerName
 from tripStats.analyze import openVisual1, openVisual2, openVisual3, openVisual4
 
 from GUI import loggFile
@@ -17,7 +18,8 @@ def GUI_main():
     matplotlib.use("TkAgg") # TODO MARK-C
 
     session = Session("GUI_main_session")
-    write(loggFile, ["Session-start:", dateAndTimeStr()]) 
+    betterName = fixComputerName(socket.gethostname())
+    write(loggFile, ["Session-start:", session.name, dateAndTimeStr(), "Computer:", betterName]) 
     task = [] # TODO, only one task allowed in queue at the moment
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
                          # updating field -SIM-MSG- or -STATE-MSG- before starting long operation
@@ -105,8 +107,12 @@ def GUI_main():
             window["-UTOPIA-"].update(False)
             window["-CALC-MSG-"].update("")
             window["-STATE-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
-        elif GUI_event == "Test state":
-            task = ["Init-manual", "Small-Circle"]
+        elif GUI_event == "Test state": # TODO not implemented
+            task = ["Init-test-state", "Small-Circle"]
+        elif GUI_event == "Load state":
+            task = ["Load-state"] # TODO not implemented
+
+
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Evenly distributed":
             task = ["Ideal-state-evenly-distributed"]

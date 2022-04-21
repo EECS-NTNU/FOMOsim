@@ -73,10 +73,18 @@ def loggEvent(event):
     elif words[0] == "<LostTrip":
         time = words[3][0:len(words[3])-1]
         write(trafficLogg, ["LostTrip-at-time:", time])
+    elif words[0] == "<VehicleArrival":
+        time = words[3][0:len(words[3])-1]
+        write(trafficLogg, ["VehicleArrival-at-time:", time])
     else:
         pass
         print("*** ERROR: Tried to logg unknown event ??? ")
         
+def fixComputerName(string):
+    if string == "LAPTOP-SBB45R3V":
+        return string + "(Lasse-PC1)"
+    else:
+        return string + "(better name needed?)"    
 
 # def tripStatsClose():
 #     tripStatsLogFile.write("\nlogg file closed")
