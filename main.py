@@ -37,7 +37,6 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # calculate ideal state
 
-
     #ideal_state = ideal_state.evenly_distributed_ideal_state(state)
     ideal_state = ideal_state.outflow_ideal_state(state)
     state.set_ideal_state(ideal_state)

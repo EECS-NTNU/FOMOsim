@@ -72,11 +72,15 @@ class Simulator(SaveMixin):
           print()
           print("Time:", event.time)
           print(self.state)
-        loggTime(event.time)
-        loggLocations(self.state)
+
+        if settings.TRAFFIC_LOGGING:
+            loggTime(event.time)
+            loggLocations(self.state)
 
         event.perform(self)
-        loggEvent(event)
+
+        if settings.TRAFFIC_LOGGING:
+            loggEvent(event)
 
         if settings.VERBOSE:
             print("\n", event)
