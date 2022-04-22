@@ -16,15 +16,12 @@ import ideal_state.outflow_ideal_state
 import policies
 import policies.fosen_haldorsen
 
-# import GUI.dashboard
-
 from tripStats.download import oslo
 from tripStats.helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
 from tripStats.parse import calcDistances, get_initial_state
 
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *
-# from GUI.dashboard import  updateFieldOK, userError, userFeedback_OK
  
 class Session:
     def __init__(self, sessionName):
@@ -41,11 +38,7 @@ class Session:
     def saveState(self, filename):
         print("SaveState called for " + self.name + "at" + self.startTime) #### TODO not difference simulated time and measured simulator exec time
 
-# DURATION = 43200 # 43200 = 24 * 60 * 30, ca en måned. TODO change to input-field with default value
-# DURATION = 960 # 16 hours
-# DURATION = 180  # 3 hours  # TODO move this to GUI and log in session.log
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
-
 
 def doCommand(session, task):
 
@@ -62,7 +55,7 @@ def doCommand(session, task):
         write(loggFile, [task[0], "finished:", dateAndTimeStr(), "fromWeek:", task[1], "toWeek:", task[2]])
         userFeedback_OK("Tripdata downloaded")
         beepy.beep(sound="ping")
-    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-manual":
+    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-test-state":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
             session.initState, loggText = get_initial_state(task[1], week = int(task[2]))
@@ -239,7 +232,7 @@ def smallCircle(session):
                 move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
 
     state = sim.State.get_initial_state(
-                bike_class = "Bike", # or Scooter
+                bike_class = "Scooter", # TODO logging code will crash if Bike is used
                 distance_matrix = [ # km
                     [0, 2, 2, 2],
                     [2, 0, 2, 2],
@@ -263,7 +256,6 @@ def smallCircle(session):
                 move_probabilities = move_probabilities,
             )
     session.initState = state
-    pass        
 
 def manualInitState(session, testName):
     if testName == "Small-Circle":

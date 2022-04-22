@@ -2,6 +2,8 @@
 # 
 import matplotlib.pyplot as plt
 
+from GUI.GUIhelpers import userError 
+
 
 def openVisual1():
     def draw_plot():
@@ -11,7 +13,7 @@ def openVisual1():
 
     draw_plot()
   
-def openVisual2():
+def openVisual2(resultFile):
     # TODO bikes is used also for scooters
     class Trip:
         def __init__(self, startTime, endTime, fromStation, toStation):
@@ -27,7 +29,10 @@ def openVisual2():
             self.endTime = -1
             self.fromStation = -1
             self.toStation = -1
-    traffic = open("GUI/loggFiles/traffic-2.txt", "r")
+    if resultFile == "":
+        userError("empty resultFile")
+        return
+    traffic = open(resultFile, "r")
     trips = []
     lostTrips = 0
     allBikes = {}
@@ -108,9 +113,10 @@ def openVisual2():
     completedTrips = len(trips)
     totalTrips = completedTrips + lostTrips    
     print("#trips: " + str(totalTrips) + ", ", end='')
-    print("%.1f" % ((completedTrips/totalTrips)*100), end = '')
-    print("% completed, TPS: ", end = '')
-    print("%.1f" % (totalTrips/secondsUsed) )    
+    if totalTrips > 0:
+        print("%.1f"%((completedTrips/totalTrips)*100), "% completed,", end = '')
+    if secondsUsed > 0:
+        print(" TPS: ", "%.1f" % (totalTrips/secondsUsed) )    
     plt.plot(xValues, yValues)
     plt.show()
     

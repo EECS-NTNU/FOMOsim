@@ -31,6 +31,8 @@ PERIOD = get_time(0, 16)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
+    settings.TRAFFIC_LOGGING = False # since it slows down simulation a lot
+
     state, _ = tripStats.parse.get_initial_state(city="Oslo", week=WEEK)
     #state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 10, number_of_vans = 2, random_seed = 1)
 

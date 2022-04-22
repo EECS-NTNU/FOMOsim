@@ -23,6 +23,7 @@ def GUI_main():
     task = [] # TODO, only one task allowed in queue at the moment
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
                          # updating field -SIM-MSG- or -STATE-MSG- before starting long operation
+    resultFile = ""                     
     while True:
         GUI_event, GUI_values= window.read(timeout = 100) # waits 100 millisecs before looking in taskQueue
 #        GUI_event, GUI_values= window.read() 
@@ -114,7 +115,6 @@ def GUI_main():
         elif GUI_event == "Load state":
             task = ["Load-state"] # TODO not implemented
 
-
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Evenly distributed":
             task = ["Ideal-state-evenly-distributed"]
@@ -128,6 +128,7 @@ def GUI_main():
             task = ["Init-manual", "Small-Circle"]
         elif GUI_event == "Store state":
             pass
+
         ###### SIMULATE GUI PART
         elif GUI_event == "Simulate":
             if session.simPolicy == "":
@@ -159,12 +160,12 @@ def GUI_main():
                 if os.path.isfile(os.path.join(folder, f))
                 and f.lower().endswith((".txt"))
             ]
-            window["-FILE LIST-"].update(fnames)
+            window["-RESULT-FILES-"].update(fnames)
 
         elif GUI_event == "Test-1":
             openVisual1()
         elif GUI_event == "Test-2":
-            openVisual2()
+            openVisual2(resultFile)
         elif GUI_event == "Test-3":
             openVisual3()
         elif GUI_event == "Trips/week-Oslo":
@@ -172,3 +173,6 @@ def GUI_main():
 
         if GUI_values["-POLICIES-"] != []:
             session.simPolicy = GUI_values["-POLICIES-"][0]
+        if GUI_values["-RESULT-FILES-"] != []:
+            resultFile = GUI_values["-FOLDER-"] + "/" + GUI_values["-RESULT-FILES-"][0]
+            
