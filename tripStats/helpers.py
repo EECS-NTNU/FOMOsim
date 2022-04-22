@@ -1,9 +1,10 @@
 # helpers.py
+import shutil
 
 from datetime import datetime, date
-from GUI import trafficLogg
+from GUI import trafficLogg, trafficLoggDir
 
-def strip(removeStr, wholeStr):
+def strip(removeStr, wholeStr): # strips from front
     start = wholeStr.find(removeStr)
     if start == 0:
         return wholeStr[len(removeStr):len(wholeStr)]
@@ -24,7 +25,7 @@ def printTime():
     print("Time =", datetime.now().strftime("%H:%M:%S"))
 
 def dateAndTimeStr():
-    return datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+    return datetime.now().strftime("%Y-%m-%d-%H_%M_%S") # : between H and M, and M and S replaced by _ to allow use in filenames
 
 def readTime():
     return datetime.now().strftime("%H:%M:%S")
@@ -35,6 +36,9 @@ def write(file, words): # writes list of words to file and flush
         file.write(" ") 
     file.write("\n")    
     file.flush()    
+
+def saveTrafficLogg(timeStamp):
+    shutil.copy(trafficLoggDir + "traffic.txt", trafficLoggDir + "traffic_" + timeStamp + ".txt")
 
 def loggTime(time):
     words = ["Time: ", str(time)]       
@@ -91,17 +95,5 @@ def fixComputerName(string):
 def get_duration(days, hour): # was get_time in Asbjørns recent main.py
     return 60*24*days + 60*hour
 
-# def tripStatsClose():
-#     tripStatsLogFile.write("\nlogg file closed")
-#     tripStatsLogFile.close()
 
-# def loggTripStart(time, state):
-#     tripStatsLogFile.write("Time " + str(time) + ":")
-#     for s in state.locations:
-#         tripStatsLogFile.write(" " + str(len(s.scooters)))
-#     tripStatsLogFile.flush()
 
-# def loggTripEnd():
-#     tripStatsLogFile.write(" -bike- ==> ")
-#     tripStatsLogFile.write(" after \n")
-#     tripStatsLogFile.flush()

@@ -19,10 +19,10 @@ import policies.fosen_haldorsen
 # import GUI.dashboard
 
 from tripStats.download import oslo
-from tripStats.helpers import write, dateAndTimeStr, readTime
+from tripStats.helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
 from tripStats.parse import calcDistances, get_initial_state
 
-from GUI import loggFile, scriptFile, trafficLogg
+from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *
 # from GUI.dashboard import  updateFieldOK, userError, userFeedback_OK
  
@@ -39,13 +39,11 @@ class Session:
         self.simPolicy = ""
 
     def saveState(self, filename):
-        print("SaveState called for " + self.name + "at" + self.startTime)
+        print("SaveState called for " + self.name + "at" + self.startTime) #### TODO not difference simulated time and measured simulator exec time
 
 # DURATION = 43200 # 43200 = 24 * 60 * 30, ca en måned. TODO change to input-field with default value
 # DURATION = 960 # 16 hours
-
-DURATION = 180  # 3 hours  # TODO move this to GUI and log in session.log
-
+# DURATION = 180  # 3 hours  # TODO move this to GUI and log in session.log
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 
 
@@ -58,14 +56,12 @@ def doCommand(session, task):
         if task[1] == "Oslo":
             beepy.beep(sound="ping")
         write(loggFile, [task[0], "finished:", dateAndTimeStr(), "city:", task[1]])
-
     elif task[0] == "Download-Oslo":
         write(scriptFile, ["Download-Oslo", task[1], task[2]])
         oslo(task[1], task[2])
         write(loggFile, [task[0], "finished:", dateAndTimeStr(), "fromWeek:", task[1], "toWeek:", task[2]])
         userFeedback_OK("Tripdata downloaded")
         beepy.beep(sound="ping")
-
     elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-manual":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
@@ -96,8 +92,6 @@ def doCommand(session, task):
         session.idealStateType = ""
         write(loggFile, [task[0], "finished:", dateAndTimeStr()] + loggText)
         beepy.beep(sound="ping")
-
-
     elif task[0] == "Ideal-state-outflow": # TODO, refactor code in this and next elif
         if session.initStateType == "": # an initial state does NOT exist
             userError("Cannot calculate ideal state without an initial state")
@@ -124,8 +118,6 @@ def doCommand(session, task):
             updateFieldDone("-CALC-MSG-", session.initStateType + " ==> evenly ==> OK") 
             userFeedback_OK("Ideal state evenly calculated OK")
             beepy.beep(sound="ping")
-
-
 
     # TODO KEEP THIS CODE until I know that both Ideal methods can be used on both/all init-state-methods
     # elif task[0] == "Ideal-state-outflow":
@@ -156,11 +148,12 @@ def doCommand(session, task):
         else:
             userError("You must set an initial (or ideal) state")
         if not fromState == "":
+            session.startTime = dateAndTimeStr()
             policy = task[1]
             write(scriptFile, ["Sim", policy, task[2], task[3]] )
             # TODO Debug-plan: tap out used state to check that several simulations in a row start from same state"])    
-            startSimulation(policy, session.state, simDuration=int(task[2]), startTime=int(task[3]))
-            write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()]) 
+            startSimulation(session.startTime, policy, session.state, startTime=int(task[2]), simDuration=int(task[3]))
+            write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()])
         updateField("-SIM-MSG-", "")
 
 def dumpMetrics(metric):
@@ -168,8 +161,8 @@ def dumpMetrics(metric):
     metricsCopy = metric
     pass
 
-def startSimulation(simPolicy, state, startTime, simDuration):
-    from GUI.dashboard import updateField
+def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
+    # from GUI.dashboard import updateField
     simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
     if simPolicy == "Do-nothing": 
         simulator = sim.Simulator( 
@@ -205,7 +198,7 @@ def startSimulation(simPolicy, state, startTime, simDuration):
             copy.deepcopy(state),
             verbose=True,
             start_time = startTime,
-            label="Greedy",
+            label="F&H-Greedy",
         )
     simulationDescr =  ["Simulation-start:", dateAndTimeStr(), "simPolicy:", simPolicy, 
         "simDuration:", str(simDuration), "startTime:", str(startTime), ] 
@@ -220,6 +213,9 @@ def startSimulation(simPolicy, state, startTime, simDuration):
     updateField("-END-TIME-", "End:" + readTime())
     write(loggFile, ["Simulation-end:", dateAndTimeStr(), "usedTime(s):", seconds ])
     write(trafficLogg, ["usedTime(s):", seconds ])
+    saveTrafficLogg(timeStamp) # save and reset traffic-file with timeStamp of start in filename
+    trafficLogg.seek(0)
+    trafficLogg.truncate()
     metrics = simulator.metrics.get_all_metrics()
     dumpMetrics(metrics)
     beepy.beep(sound="ready")
