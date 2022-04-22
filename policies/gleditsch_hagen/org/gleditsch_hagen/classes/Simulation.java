@@ -42,7 +42,7 @@ public class Simulation {
 
       try {
         HashMap<Integer, Station> stationMap = new HashMap<>();
-        System.out.println("Stations:");
+        //System.out.println("Stations:");
         for(FomoStation s : stations) {
           Station station = new Station(s.id + 1);
           station.setLoad(s.bikes.size());
@@ -50,20 +50,20 @@ public class Simulation {
           station.setBikeReturnedMedian(0, s.arriveIntensity);
           station.setBikeWantedMedian(0, s.leaveIntensity);
           station.setOptimalState(0, s.idealState);
-          System.out.println("  id: " + (s.id + 1));
-          System.out.println("  load: " + s.bikes.size());
-          System.out.println("  cap: " + s.capacity);
-          System.out.println("  arrive: " + s.arriveIntensity);
-          System.out.println("  leave: " + s.leaveIntensity);
-          System.out.println("  ideal: " + s.idealState);
-          System.out.println("  distances: ");
+          //System.out.println("  id: " + (s.id + 1));
+          //System.out.println("  load: " + s.bikes.size());
+          //System.out.println("  cap: " + s.capacity);
+          //System.out.println("  arrive: " + s.arriveIntensity);
+          //System.out.println("  leave: " + s.leaveIntensity);
+          //System.out.println("  ideal: " + s.idealState);
+          //System.out.println("  distances: ");
           for(Map.Entry<Long, Double> entry : s.distances.entrySet()) {
             Long d = entry.getKey() + 1;
             double t = entry.getValue() * 15;
             station.addDistanceToStationHashmap(d.intValue(), t);
-            System.out.println("    dest: " + d + " dist: " + t);
+            //System.out.println("    dest: " + d + " dist: " + t);
           }
-          System.out.println();
+          //System.out.println();
           stationMap.put(s.id + 1, station);
         }
 
@@ -77,11 +77,11 @@ public class Simulation {
         stationsList.addAll(stationMap.values());
         v.setClusterStationList(stationsList);
         vehicleMap.put(vehicle.id + 1, v);
-        System.out.println("\nVehicle:");
-        System.out.println("  id: " + (vehicle.id + 1));
-        System.out.println("  cap: " + vehicle.capacity);
-        System.out.println("  load: " + vehicle.bikes.size());
-        System.out.println("  location: " + (vehicle.currentStation + 1));
+        //System.out.println("\nVehicle:");
+        //System.out.println("  id: " + (vehicle.id + 1));
+        //System.out.println("  cap: " + vehicle.capacity);
+        //System.out.println("  load: " + vehicle.bikes.size());
+        //System.out.println("  location: " + (vehicle.currentStation + 1));
 
         Input input = new Input(stationMap, vehicleMap);
         input.setSimulationStartTime(0);
