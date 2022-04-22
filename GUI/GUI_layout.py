@@ -25,7 +25,7 @@ dashboardColumn = [
     [sg.Button("Evenly distributed"), sg.Button("Outflow"), sg.Text("", key="-CALC-MSG-")], 
     [sg.Text('_'*colWidth)],
     [sg.Input("Start-day: 2", key="-START-D-", size = 11), sg.Input("Start-hour: 8", key="-START-H-", size = 12), 
-        sg.Input("#days: 0", key="-NUM-DAYS-", size = 9), sg.Input("#hours: 16", key="-NUM-HOURS-", size = 10)],
+        sg.Input("#days: 0", key="-NUM-DAYS-", size = 9), sg.Input("#hours: 1", key="-NUM-HOURS-", size = 10)],
     [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"), 
         sg.Button("Simulate"), sg.Button("Replay script")],
     [sg.Text("", key="-SIM-MSG-")],    

@@ -228,7 +228,7 @@ def get_initial_state(city, week):
 
     loggText = ["trips:", str(trips), "left:", str(leavingBikes), "arrived:", str(arrivingBikes), "week:", str(week), "years:", str(noOfYears), "city:", city]
     bikeStartStatus = readBikeStartStatus(city)
-
+    print(" ") # newline in terminal 
     return sim.State.get_initial_state(
         bike_class = "Scooter", # TODO helpers.loggLoction will crash if Bike is used here
         distance_matrix = distances,
