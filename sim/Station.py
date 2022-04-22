@@ -20,7 +20,7 @@ class Station(Location):
         move_probabilities=None,
         average_number_of_scooters=None,
         ideal_state=None,
-        capacity=float("inf"),
+        capacity=1000000000,
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(scooters)),
