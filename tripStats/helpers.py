@@ -83,8 +83,13 @@ def loggEvent(event):
 def fixComputerName(string):
     if string == "LAPTOP-SBB45R3V":
         return string + "(Lasse-PC1)"
+    elif string =="DESKTOP-CTHMSMJ":
+        return string + "(Lasse-PC2)"
     else:
         return string + "(better name needed?)"    
+
+def get_duration(days, hour): # was get_time in Asbjørns recent main.py
+    return 60*24*days + 60*hour
 
 # def tripStatsClose():
 #     tripStatsLogFile.write("\nlogg file closed")

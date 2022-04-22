@@ -85,7 +85,7 @@ def doCommand(session, task):
             )
             loggText = [] # not used in this case
             session.initStateType = "HHS"
-        elif task[0] == "Init-manual":
+        elif task[0] == "Init-test-state":
             loggText = [] # not used in this case
             manualInitState(session, task[1])
             session.initStateType = "manual"
@@ -157,9 +157,9 @@ def doCommand(session, task):
             userError("You must set an initial (or ideal) state")
         if not fromState == "":
             policy = task[1]
-            write(scriptFile, ["Sim", policy] )
+            write(scriptFile, ["Sim", policy, task[2], task[3]] )
             # TODO Debug-plan: tap out used state to check that several simulations in a row start from same state"])    
-            startSimulation(policy, session.state)
+            startSimulation(policy, session.state, simDuration=int(task[2]), startTime=int(task[3]))
             write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()]) 
         updateField("-SIM-MSG-", "")
 
@@ -168,42 +168,47 @@ def dumpMetrics(metric):
     metricsCopy = metric
     pass
 
-def startSimulation(simPolicy, state):
+def startSimulation(simPolicy, state, startTime, simDuration):
     from GUI.dashboard import updateField
     simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
     if simPolicy == "Do-nothing": 
         simulator = sim.Simulator( 
-            DURATION,
+            simDuration,
             policies.DoNothing(),
             copy.deepcopy(state),
             verbose=True,
+            start_time = startTime,
             label="DoNothing",
         )
     elif simPolicy == "Rebalancing":
         simulator = sim.Simulator( 
-            DURATION,
+            simDuration,
             policies.RebalancingPolicy(),
             copy.deepcopy(state),
             verbose=True,
+            start_time = startTime,
             label="Rebalancing",
         )
     elif simPolicy == "Fosen&Haldorsen":
         simulator = sim.Simulator(
-            DURATION,
+            simDuration,
             policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
             copy.deepcopy(state),
             verbose=True,
-            label="FosenHaldorsen",
+            start_time = startTime,
+            label="Fosen&Haldorsen",
         )
     elif simPolicy == "F&H-Greedy":
         simulator = sim.Simulator(
-            DURATION,
+            simDuration,
             policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
             copy.deepcopy(state),
             verbose=True,
+            start_time = startTime,
             label="Greedy",
         )
-    simulationDescr =  ["Simulation-start:", simPolicy, dateAndTimeStr()] 
+    simulationDescr =  ["Simulation-start:", dateAndTimeStr(), "simPolicy:", simPolicy, 
+        "simDuration:", str(simDuration), "startTime:", str(startTime), ] 
     write(loggFile, simulationDescr)
     write(trafficLogg, simulationDescr)
     updateField("-START-TIME-", "Start: " + readTime())
@@ -238,7 +243,7 @@ def smallCircle(session):
                 move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
 
     state = sim.State.get_initial_state(
-                bike_class = "Scooter",
+                bike_class = "Bike", # or Scooter
                 distance_matrix = [ # km
                     [0, 2, 2, 2],
                     [2, 0, 2, 2],

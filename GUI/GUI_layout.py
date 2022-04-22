@@ -19,14 +19,15 @@ dashboardColumn = [
     [sg.Text("Set initial state"), sg.Text("", key = "-STATE-MSG-")],
     [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
         sg.Button("Haflan, Haga & Spetalen")],
-    [ sg.Button("Save state"), sg.Input("Name: ", key ="-NAME-", size = 25), sg.Button("Load test state")],    
+    [ sg.Button("Test state"), sg.Button("Save state"), sg.Input("Name: ", key ="-NAME-", size = 25), sg.Button("Load test state")],    
     [sg.Text('_'*colWidth)],
     [sg.Text("Calculate ideal state"), sg.Text("", key="-IDEAL-METHOD-")],
     [sg.Button("Evenly distributed"), sg.Button("Outflow"), sg.Text("", key="-CALC-MSG-")], 
     [sg.Text('_'*colWidth)],
+    [sg.Input("Start-day: 2", key="-START-D-", size = 12), sg.Input("Start-hour: 8", key="-START-H-", size = 12), 
+        sg.Input("#days: 0", key="-NUM-DAYS-", size = 10), sg.Input("#hours: 16", key="-NUM-HOURS-", size = 10)],
     [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"), 
-        sg.Text("Hours: 1", size = 11, key="-HOURS-")],
-    [sg.Text("Start-day: INPUT-felt"), sg.Text("Start-hour: INPUT-felt"), sg.Button("Simulate"), sg.Button("Replay script")],
+        sg.Button("Simulate"), sg.Button("Replay script")],
     [sg.Text("", key="-SIM-MSG-")],    
 ]
 statusColumn = [

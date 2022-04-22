@@ -6,7 +6,7 @@ import PySimpleGUI as sg
 import matplotlib # TODO MARK-C
 
 # import tripStats
-from tripStats.helpers import dateAndTimeStr, strip, write, fixComputerName
+from tripStats.helpers import dateAndTimeStr, strip, write, fixComputerName, get_duration
 from tripStats.analyze import openVisual1, openVisual2, openVisual3, openVisual4
 
 from GUI import loggFile
@@ -107,8 +107,10 @@ def GUI_main():
             window["-UTOPIA-"].update(False)
             window["-CALC-MSG-"].update("")
             window["-STATE-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
-        elif GUI_event == "Test state": # TODO not implemented
-            task = ["Init-test-state", "Small-Circle"]
+        elif GUI_event == "Test state": 
+            task = ["Init-test-state", "Small-Circle"] # TODO not implemented ???
+        elif GUI_event == "Save state":
+            task = ["Save-state"] # TODO not implemented
         elif GUI_event == "Load state":
             task = ["Load-state"] # TODO not implemented
 
@@ -131,9 +133,15 @@ def GUI_main():
             if session.simPolicy == "":
                 userError("You must select a policy")
             else:
-                task = ["Sim", session.simPolicy]
+                startDay = int(strip("Start-day:", GUI_values["-START-D-"]))
+                startHour = int(strip("Start-hour:", GUI_values["-START-H-"]))
+                numDays = int(strip("#days:", GUI_values["-NUM-DAYS-"]))
+                numHours = int(strip("#hours:", GUI_values["-NUM-HOURS-"]))
+                period = get_duration(numDays, numHours)
+                startTime = (24*startDay + startHour)*60                
+                task = ["Sim", session.simPolicy, str(startTime), str(period)]
                 # window["-WEEK-"].update("Week no: ") # TODO, usikker på denne, henger igjen
-                window["-SIM-MSG-"].update("Simulation started ...  (see progress in terminal)", text_color="cyan")
+                updateFieldOperation("-SIM-MSG-", "Simulation started ...  (see progress in terminal)")
 
         elif GUI_event == "Replay script":
             replayScript()

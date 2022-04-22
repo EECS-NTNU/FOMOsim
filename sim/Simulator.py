@@ -71,9 +71,9 @@ class Simulator(SaveMixin):
         if settings.VERBOSE:
           print()
           print("Time:", event.time)
-          loggTime(event.time)
           print(self.state)
-          loggLocations(self.state)
+        loggTime(event.time)
+        loggLocations(self.state)
 
         event.perform(self)
         loggEvent(event)
