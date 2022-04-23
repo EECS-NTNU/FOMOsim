@@ -111,6 +111,7 @@ def GUI_main():
         elif GUI_event == "Load state":
             task = ["Load-state"] # TODO not implemented
 
+
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Evenly distributed":
             task = ["Ideal-state-evenly-distributed"]
