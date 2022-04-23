@@ -15,6 +15,7 @@ from visualization.visualizer import visualize_analysis
 import ideal_state
 
 from GUI.dashboard import GUI_main
+from tripStats.helpers import dateAndTimeStr
 
 simulators = []
 
@@ -43,6 +44,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ideal_state = ideal_state.outflow_ideal_state(state)
     state.set_ideal_state(ideal_state)
     ###############################################################################
+
+    print("before 3 simulations", dateAndTimeStr)
 
     # Set up simulator
     simulators.append(sim.Simulator(
@@ -88,6 +91,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     simulators[-1].run()
 
     ###############################################################################
+
+    print("after 3 simulations", dateAndTimeStr)
 
     # Visualize results
     visualize_analysis(simulators)
