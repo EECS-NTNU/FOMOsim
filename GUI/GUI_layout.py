@@ -19,7 +19,7 @@ dashboardColumn = [
     [sg.Text("Set initial state"), sg.Text("", key = "-STATE-MSG-")],
     [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
         sg.Button("Haflan, Haga & Spetalen")],
-    [ sg.Button("Test state"), sg.Button("Save state"), sg.Input("Name: ", key ="-NAME-", size = 25), sg.Button("Load test state")],    
+    [ sg.Button("Test state"), sg.Button("Save state"), sg.Input("Name: ", key ="-INPUTname-", size = 25), sg.Button("Load test state")],    
     [sg.Text('_'*colWidth)],
     [sg.Text("Calculate ideal state"), sg.Text("", key="-IDEAL-METHOD-")],
     [sg.Button("Evenly distributed"), sg.Button("Outflow"), sg.Text("", key="-CALC-MSG-")], 

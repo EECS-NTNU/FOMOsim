@@ -6,6 +6,7 @@ GUI dashboard functions
 import copy
 import os
 from datetime import datetime
+import json
 import beepy
 import PySimpleGUI as sg
 from numpy import DataSource
@@ -85,6 +86,10 @@ def doCommand(session, task):
         session.idealStateType = ""
         write(loggFile, [task[0], "finished:", dateAndTimeStr()] + loggText)
         beepy.beep(sound="ping")
+    elif task[0] == "Save-state":
+        testSaveFile = open("testJSON.txt", "w")
+        json.dump(session.initState.__dict__, fp=testSaveFile)
+        pass    
     elif task[0] == "Ideal-state-outflow": # TODO, refactor code in this and next elif
         if session.initStateType == "": # an initial state does NOT exist
             userError("Cannot calculate ideal state without an initial state")
@@ -111,25 +116,6 @@ def doCommand(session, task):
             updateFieldDone("-CALC-MSG-", session.initStateType + " ==> evenly ==> OK") 
             userFeedback_OK("Ideal state evenly calculated OK")
             beepy.beep(sound="ping")
-
-    # TODO KEEP THIS CODE until I know that both Ideal methods can be used on both/all init-state-methods
-    # elif task[0] == "Ideal-state-outflow":
-    #     if session.initStateType == "": # an initial state does NOT exist
-    #         userError("Cannot calculate ideal state without an initial state")
-    #     else:
-    #         if session.initStateType == "HHS": # OK to make ideal-HHS from init-HS TODO - check if they can be intermixed now
-    #             state = session.initState # via local variable to ensure initState is not destroyed
-    #             session.idealState = ideal_state.outflow_ideal_state(state)
-    #         if session.initStateType =="FH":
-    #             state = session.initState
-    #             newIdeal_state = ideal_state.evenly_distributed_ideal_state(state)
-    #             session.idealState = newIdeal_state # TODO, probably clumsy, had to (try again?) go via newIdeal_state variable due to import-trouble !???
-    #         write(scriptFile, ["Ideal-state"])
-    #         write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
-    #         updateFieldDone("-CALC-MSG-", session.initStateType + " ==> OK") 
-    #         userFeedback_OK("Ideal state calculated OK")
-    #         beepy.beep(sound="ping")
-
     elif task[0] == "Sim":
         fromState = ""  
         if not session.idealStateType == "": 

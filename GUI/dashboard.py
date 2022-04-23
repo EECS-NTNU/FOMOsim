@@ -16,13 +16,11 @@ from GUI.GUIhelpers import *
 
 def GUI_main():
     matplotlib.use("TkAgg") # TODO MARK-C
-
     session = Session("GUI_main_session")
     betterName = fixComputerName(socket.gethostname())
     write(loggFile, ["Session-start:", session.name, dateAndTimeStr(), "Computer:", betterName]) 
     task = [] # TODO, only one task allowed in queue at the moment
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
-                         # updating field -SIM-MSG- or -STATE-MSG- before starting long operation
     resultFile = ""                     
     while True:
         GUI_event, GUI_values= window.read(timeout = 100) # waits 100 millisecs before looking in taskQueue
@@ -38,7 +36,6 @@ def GUI_main():
         ###### SPECIAL BUTTONS GUI PART
         if GUI_event == "Fast-Track":
             userError("No code currently placed in FastTrack")
-            #-------------
             # bigOsloTest()
             #-------------            
             # session = Session("Fast-Track-session")
@@ -52,14 +49,14 @@ def GUI_main():
 
         ###### DOWNLOAD GUI PART
         elif GUI_event == "All Oslo":
-            window["-INPUTfrom-"].update("From: 1")
-            window["-INPUTto-"].update("To: 35")  # TODO, Magic number, move to local settings ?? 
+            updateField("-INPUTfrom-", "From: 1")
+            updateField("-INPUTto-", "To: 35")  # TODO, Magic number, move to local settings ? 
         elif GUI_event == "Clear":
-            window["-INPUTfrom-"].update("From: ")
-            window["-INPUTto-"].update("To: ")   
+            updateField("-INPUTfrom-", "From: ")
+            updateField("-INPUTto-", "To: ")   
         elif GUI_event == "Download Oslo": # TODO, should maybe be handled like time-consuming tasks, or give warning
             task = ["Download-Oslo", GUI_values["-INPUTfrom-"], GUI_values["-INPUTto-"]]
-            window["-FEEDBACK-"].update("Lengthy operation started (see terminal)", text_color="cyan") 
+            updateFieldOperation("-FEEDBACK-", "Lengthy operation started (see terminal)") 
 
         ###### SELECT CITY GUI PART     
         elif GUI_event == "Find stations and distances":
@@ -80,10 +77,10 @@ def GUI_main():
                 weekNo = 0
                 if GUI_values["-WEEK-"] == "Week no: ": # TODO, improve code, make function, reuse
                     weekNo = 53
-                    window["-WEEK-"].update("Week no: 53") 
+                    updateField("-WEEK-", "Week no: 53") 
                 else:
                     if GUI_values["-WEEK-"] == "Week no: -na-":
-                        window["-WEEK-"].update("Week no: ")
+                        updateField("-WEEK-", "Week no: ")
                         userError("You must select a week no")
                     else:    
                         weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
@@ -91,27 +88,26 @@ def GUI_main():
                     task = ["Init-state-FH", "Oslo", str(weekNo)]    
                     updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (4 - 6 minutes)") 
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
-                window["-WEEK-"].update("Week no: 48") # Only week with traffic at the moment for Utopia
+                updateField("-WEEK-", "Week no: 48") # Only week with traffic at the moment for Utopia
                 task = ["Init-state-FH", "Utopia", "48"]    
                 updateFieldOperation("-STATE-MSG-", "short operation started ...") 
             elif GUI_values["-BERGEN-"]:
                 userError("Bergen not yet implemented")
             else:
                 userError("You must select a city")
-            # window["-IDEAL-METHOD-"].update("Fosen & Haldorsen") TODO discuss-A
-            window["-CALC-MSG-"].update("")
+            updateField("-CALC-MSG-", "")
         elif GUI_event == "Haflan, Haga & Spetalen": # handled here since it is relativelu quick
             task = ["Init-state-HHS"] 
-            window["-WEEK-"].update("Week no: -na-")
-            # window["-IDEAL-METHOD-"].update("Haflan, Haga & Spetalen") TODO discuss-A
+            updateField("-WEEK-","Week no: -na-")
             window["-OSLO-"].update(True) # entur data are from Oslo
             window["-UTOPIA-"].update(False)
-            window["-CALC-MSG-"].update("")
-            window["-STATE-MSG-"].update("Lengthy operation started ... (see progress in terminal)", text_color="cyan")
+            updateField("-CALC-MSG-","")
+            updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (see progress in terminal)")
         elif GUI_event == "Test state": 
-            task = ["Init-test-state", "Small-Circle"] # TODO not implemented ???
+            task = ["Init-test-state", "Small-Circle"] 
         elif GUI_event == "Save state":
-            task = ["Save-state"] # TODO not implemented
+            fileName = strip("Name: ", GUI_values["-INPUTname-"])
+            task = ["Save-state", fileName]
         elif GUI_event == "Load state":
             task = ["Load-state"] # TODO not implemented
 
@@ -124,11 +120,7 @@ def GUI_main():
             task = ["Ideal-state-outflow"]
             if session.initStateType == "FH":
                 updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
-        elif GUI_event == "Test state":
-            task = ["Init-manual", "Small-Circle"]
-        elif GUI_event == "Store state":
-            pass
-
+    
         ###### SIMULATE GUI PART
         elif GUI_event == "Simulate":
             if session.simPolicy == "":
