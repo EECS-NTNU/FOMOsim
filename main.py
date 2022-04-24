@@ -25,7 +25,7 @@ def get_time(day, hour):
 WEEK = 30
 START_DAY = 2
 START_HOUR = 8
-PERIOD = get_time(0, 16)
+PERIOD = get_time(0, 16) # *** TESTING 16 crashet, 4 var OK, 8 ok, 12 OK (2 timer) , 16
 
 ###############################################################################
 # Set up initial state
@@ -45,7 +45,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     state.set_ideal_state(ideal_state)
     ###############################################################################
 
-    print("before 3 simulations", dateAndTimeStr)
+    print("before 3 simulations" + dateAndTimeStr())
 
     # Set up simulator
     simulators.append(sim.Simulator(
@@ -92,7 +92,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     ###############################################################################
 
-    print("after 3 simulations", dateAndTimeStr)
+    print("after 3 simulations" + dateAndTimeStr())
 
     # Visualize results
     visualize_analysis(simulators)
