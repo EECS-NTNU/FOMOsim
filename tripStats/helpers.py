@@ -87,10 +87,12 @@ def loggEvent(event):
 def fixComputerName(string):
     if string == "LAPTOP-SBB45R3V":
         return string + "(Lasse-PC1)"
-    elif string =="DESKTOP-CTHMSMJ":
+    elif string == "DESKTOP-CTHMSMJ":
         return string + "(Lasse-PC2)"
+    elif string == "lasse-PC":
+        return "Lasse-PC3"
     else:
-        return string + "(better name needed?)"    
+        return string + "(unknown)"    
 
 def get_duration(days, hour): # was get_time in Asbjørns recent main.py
     return 60*24*days + 60*hour

@@ -6,7 +6,7 @@ GUI dashboard functions
 import copy
 import os
 from datetime import datetime
-import json
+import jsonpickle
 import beepy
 import PySimpleGUI as sg
 from numpy import DataSource
@@ -31,7 +31,7 @@ class Session:
         self.endTime = ""
         self.state = sim.State()  # TODO see if these three can be replaced by = []
         self.initState = sim.State()
-        self.initStateType = ""  # is "", "FH" or "HHS"
+        self.initStateType = ""  # is "", "FH", "HHS", "manual", "loaded"
         self.idealState = sim.State()
         self.idealStateType = ""  # is "", "FH" or "HHS" # TODO, redundant, since ideal state must be of same kind as init ?
         self.simPolicy = ""
@@ -56,7 +56,9 @@ def doCommand(session, task):
         write(loggFile, [task[0], "finished:", dateAndTimeStr(), "fromWeek:", task[1], "toWeek:", task[2]])
         userFeedback_OK("Tripdata downloaded")
         beepy.beep(sound="ping")
-    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-test-state":
+   
+    #### INIT STATE handling
+    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-test-state" or task[0] == "Load-state":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
             session.initState, loggText = get_initial_state(task[1], week = int(task[2]))
@@ -77,19 +79,28 @@ def doCommand(session, task):
             session.initStateType = "HHS"
         elif task[0] == "Init-test-state":
             loggText = [] # not used in this case
-            manualInitState(session, task[1])
+            manualInitState(session, task[1]) # second param opens for several different
             session.initStateType = "manual"
-
+        elif task[0] == "Load-state":
+            print(" -- load state only from saved.json (preliminary) --")
+            loggText = [] # not used in this case
+            loadStateFile = open("saved.json", "r")
+            string = loadStateFile.read()
+            session.initState = jsonpickle.decode(string)
+            session.initStateType = "loaded"     
         updateField("-STATE-MSG-", session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
-        session.idealState = sim.State() # ideaLstate must be cleared, if it exist or not
+        session.idealState = sim.State() # idealState must be cleared, if it exist or not
         session.idealStateType = ""
         write(loggFile, [task[0], "finished:", dateAndTimeStr()] + loggText)
         beepy.beep(sound="ping")
     elif task[0] == "Save-state":
-        testSaveFile = open("testJSON.txt", "w")
-        json.dump(session.initState.__dict__, fp=testSaveFile)
-        pass    
+        savedStateFile = open(task[1] + ".json", "w")
+        savedStateFile.write(jsonpickle.encode(session.initState)) # TODO I think it is not complete, rng value missing etc. ? Not complet
+        savedStateFile.close()
+        # print(json.dumps(session.initState, default=lambda o: o.__dict__, sort_keys=True, indent=3)) // This was close
+   
+    #### IDEAL STATE handling
     elif task[0] == "Ideal-state-outflow": # TODO, refactor code in this and next elif
         if session.initStateType == "": # an initial state does NOT exist
             userError("Cannot calculate ideal state without an initial state")

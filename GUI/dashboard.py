@@ -111,6 +111,7 @@ def GUI_main():
         elif GUI_event == "Load state":
             task = ["Load-state"] # TODO not implemented
 
+
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Evenly distributed":
             task = ["Ideal-state-evenly-distributed"]
@@ -133,7 +134,6 @@ def GUI_main():
                 period = get_duration(numDays, numHours)
                 startTime = (24*startDay + startHour)*60                
                 task = ["Sim", session.simPolicy, str(startTime), str(period)]
-                # window["-WEEK-"].update("Week no: ") # TODO, usikker på denne, henger igjen
                 updateFieldOperation("-SIM-MSG-", "Simulation started ...  (see progress in terminal)")
 
         elif GUI_event == "Replay script":
