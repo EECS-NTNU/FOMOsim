@@ -42,6 +42,8 @@ class Session:
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 
 def doCommand(session, task):
+    if len(task) == 0:
+        return
 
     if task[0] == "Find-stations":
         write(scriptFile, ["Find-stations", task[1]])
@@ -269,8 +271,7 @@ def bigOsloTest():
         doCommand(session, command)
 
 def doScript(session, fileName):
-    session.name += "-FROM:"
-    session.name += fileName
+    write(loggFile, ["Script-started:", fileName, dateAndTimeStr()]) 
     script = open(fileName, "r")
     lines = script.readlines()
     command = []
@@ -280,7 +281,7 @@ def doScript(session, fileName):
         doCommand(session, command) 
         command = []
 
-def replayScript(): 
+def replayScript(): # subwindow for selecting 
     session = Session("Replay")
     layout = [[sg.Text("Select script:", key="new")],
         [sg.Button("Load scripts"), sg.Button("Confirm")],
