@@ -90,7 +90,8 @@ def readStationMap(city):
 
 def readBikeStartStatus(city):
     if city == "Oslo" or city == "Utopia":
-        bikeStatusFile = open("tripStats/data/Oslo/stationStatus-23-Mar-1513.json", "r")
+#        bikeStatusFile = open("tripStats/data/Oslo/stationStatus-23-Mar-1513.json", "r")
+        bikeStatusFile = open("tripStats/data/Oslo/stationStatus-26-Apr-1140.json", "r")
         allStatusData = json.loads(bikeStatusFile.read())
         stationData = allStatusData["data"]
         stationMap = readStationMap(city)
@@ -103,7 +104,7 @@ def readBikeStartStatus(city):
                 stationNo = stationMap[str(station)]
                 noOfBikes = stationData["stations"][i]["num_bikes_available"]
                 bikeStartStatus[stationNo] = noOfBikes
-        return bikeStartStatus
+    return bikeStartStatus
 
 def get_initial_state(city, week):
     if city == "Oslo" and ( (week < 1) or (week > 53)):
@@ -228,7 +229,11 @@ def get_initial_state(city, week):
 
     loggText = ["trips:", str(trips), "left:", str(leavingBikes), "arrived:", str(arrivingBikes), "week:", str(week), "years:", str(noOfYears), "city:", city]
     bikeStartStatus = readBikeStartStatus(city)
-    print(" ") # newline in terminal 
+    print(" ") # newline in terminal
+    totalBikes = 0
+    for i in range(len(bikeStartStatus)):
+        totalBikes += bikeStartStatus[i]
+    print("Total number of bikes: ", totalBikes) 
     return sim.State.get_initial_state(
         bike_class = "Scooter", # TODO helpers.loggLoction will crash if Bike is used here
         distance_matrix = distances,
