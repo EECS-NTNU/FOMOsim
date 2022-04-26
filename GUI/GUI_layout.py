@@ -3,6 +3,11 @@ import PySimpleGUI as sg
 
 colWidth = 55
 policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
+simOptions = [
+    [sg.Checkbox('Logg traffic', key='-LOGG-TRAFFIC-')], 
+    [sg.Checkbox('Option-1 (na)', key='-SIM-OPT-1-')],
+    [sg.Checkbox('Option-2 (na)', key='-SIM-OPT-2-')],
+]
 dashboardColumn = [
     [sg.Text("Prep. and set up ", font='Lucida', text_color = 'Yellow'), sg.VSeparator(), 
         sg.Button("Fast-Track", button_color = "forest green"), sg.Button("main.py", button_color="snow4"), sg.Button("Exit")],
@@ -17,22 +22,22 @@ dashboardColumn = [
         sg.Radio("Utopia", "RADIO1", key = "-UTOPIA-"), sg.Button("Find stations and distances")],
     [sg.Text('_'*colWidth)],
     [sg.Text("Set initial state"), sg.Text("", key = "-STATE-MSG-")],
-    [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
+    [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: 17", key="-WEEK-", size=12), sg.VSeparator(), 
         sg.Button("Haflan, Haga & Spetalen")],
-    [ sg.Button("Test state"), sg.Button("Save state"), sg.Input("Name: ", key ="-INPUTname-", size = 25), sg.Button("Load state")],    
-    [sg.Text('_'*colWidth)],
+    [ sg.Button("Test state")],   
     [sg.Text("Calculate ideal state"), sg.Text("", key="-IDEAL-METHOD-")],
     [sg.Button("Evenly distributed"), sg.Button("Outflow"), sg.Text("", key="-CALC-MSG-")], 
     [sg.Text('_'*colWidth)],
-    [sg.Input("Start-day: 2", key="-START-D-", size = 11), sg.Input("Start-hour: 8", key="-START-H-", size = 12), 
-        sg.Input("#days: 0", key="-NUM-DAYS-", size = 9), sg.Input("#hours: 1", key="-NUM-HOURS-", size = 10)],
-    [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"), 
-        sg.Button("Simulate"), sg.Button("Replay script")],
-    [sg.Text("", key="-SIM-MSG-")],    
+    [sg.Button("Save state"), sg.Input("Name: Oslo17out", key ="-INPUTname-", size = 25), sg.Button("Load state")],  
+    [sg.Text('_'*colWidth)],
+    [sg.Input("Start-day: 1", key="-START-D-", size = 11), sg.Input("Start-hour: 12", key="-START-H-", size = 12), 
+        sg.Input("#days: 0", key="-NUM-DAYS-", size = 9), sg.Input("#hours: 2", key="-NUM-HOURS-", size = 10)],
+    [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 4), key="-POLICIES-"),
+        sg.VSeperator(), sg.Column(simOptions)]
 ]
 statusColumn = [
-    [sg.Text("Simulation status", font='Lucida', text_color = 'Yellow')],
-    [sg.Text('_'*50)],
+    [sg.Text("Simulation", font='Lucida', text_color = 'Yellow'), sg.Text("", key="-SIM-MSG-")],
+    [sg.Button("Simulate"), sg.Button("Replay script")],
     [sg.Text("Simulation progress:"), sg.Text("",key="-START-TIME-"), sg.Text("",key="-END-TIME-")],
     [sg.Button("Timestamp and save session results"), sg.Button("Save session as script")],
     [sg.Text('_'*50)],
@@ -40,7 +45,7 @@ statusColumn = [
     [sg.Text("Choose folder for fomo results files")],
     [sg.Text("Find and set results folder:")],  
     [sg.Input(size=(42, 1), enable_events=True, key="-FOLDER-"), sg.FolderBrowse()],
-    [sg.Listbox( values=[], enable_events=True, size=(30, 8), key="-RESULT-FILES-")],
+    [sg.Listbox( values=[], enable_events=True, size=(30, 6), key="-RESULT-FILES-")],
     [sg.Text("The following checkboxes are still not implemented")],
     [sg.Checkbox ('Option 1', key='check_value1'), sg.Checkbox ('Option 2',key='check_value2'), sg.Checkbox ('Grid',key='check_value2')],
     [sg.Button("Test-1"), sg.Button("Test-2"), sg.Button("Test-3"), sg.Button("Trips/week-Oslo")],

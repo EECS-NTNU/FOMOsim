@@ -5,6 +5,8 @@ import socket
 import PySimpleGUI as sg
 import matplotlib # TODO MARK-C
 
+import settings
+
 # import tripStats
 from tripStats.helpers import dateAndTimeStr, strip, write, fixComputerName, get_duration
 from tripStats.analyze import openVisual1, openVisual2, openVisual3, openVisual4
@@ -132,7 +134,11 @@ def GUI_main():
                 numDays = int(strip("#days:", GUI_values["-NUM-DAYS-"]))
                 numHours = int(strip("#hours:", GUI_values["-NUM-HOURS-"]))
                 period = get_duration(numDays, numHours)
-                startTime = (24*startDay + startHour)*60                
+                startTime = (24*startDay + startHour)*60 
+                if GUI_values["-LOGG-TRAFFIC-"] == True:
+                    settings.TRAFFIC_LOGGING = True
+                else:
+                    settings.TRAFFIC_LOGGING = False                
                 task = ["Sim", session.simPolicy, str(startTime), str(period)]
                 updateFieldOperation("-SIM-MSG-", "Simulation started ...  (see progress in terminal)")
 

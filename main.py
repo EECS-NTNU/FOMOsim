@@ -22,10 +22,10 @@ simulators = []
 def get_time(day, hour):
     return 60*24*day + 60*hour
 
-WEEK = 30
-START_DAY = 2
-START_HOUR = 8
-PERIOD = get_time(0, 16) # *** TESTING 16 crashet, 4 var OK, 8 ok, 12 OK (2 timer) , 16
+WEEK = 17 # 30
+START_DAY = 1 # 2
+START_HOUR = 12 # 8
+PERIOD = get_time(0, 12) # 16 
 
 ###############################################################################
 # Set up initial state

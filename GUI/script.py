@@ -86,7 +86,7 @@ def doCommand(session, task):
         elif task[0] == "Load-state":
             print(" -- load state only from saved.json (preliminary) --")
             loggText = [] # not used in this case
-            loadStateFile = open("saved.json", "r")
+            loadStateFile = open("Oslo17out.json", "r")
             string = loadStateFile.read()
             session.initState = jsonpickle.decode(string)
             session.initStateType = "loaded"     
