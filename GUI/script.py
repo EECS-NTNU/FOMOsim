@@ -5,6 +5,7 @@ GUI dashboard functions
 """
 import copy
 import os
+import zipfile
 from datetime import datetime
 import jsonpickle
 import beepy
@@ -33,7 +34,7 @@ class Session:
         self.initState = sim.State()
         self.initStateType = ""  # is "", "FH", "HHS", "manual", "loaded"
         self.idealState = sim.State()
-        self.idealStateType = ""  # is "", "FH" or "HHS" # TODO, redundant, since ideal state must be of same kind as init ?
+        self.idealStateType = ""  # is "", "evenly" or "outflow"
         self.simPolicy = ""
 
     def saveState(self, filename):
@@ -60,11 +61,13 @@ def doCommand(session, task):
         beepy.beep(sound="ping")
    
     #### INIT STATE handling
-    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-test-state" or task[0] == "Load-state":
+    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-test-state":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
+            print("before reading" + dateAndTimeStr())
             session.initState, loggText = get_initial_state(task[1], week = int(task[2]))
-            # TODO retur  av loggText var fordi jeg ikke fikk til å bruke dashboard.loggFile fra denne fila
+            print("after reading" + dateAndTimeStr())
+            # TODO retur  av loggText var fordi jeg ikke fikk til å bruke dashboard.loggFile fra denne fila TODO FIXIT
             session.initStateType = "FH"
         elif task[0] == "Init-state-HHS": 
             write(scriptFile, ["Init-state-HHS"])
@@ -83,24 +86,12 @@ def doCommand(session, task):
             loggText = [] # not used in this case
             manualInitState(session, task[1]) # second param opens for several different
             session.initStateType = "manual"
-        elif task[0] == "Load-state":
-            print(" -- load state only from saved.json (preliminary) --")
-            loggText = [] # not used in this case
-            loadStateFile = open("Oslo17out.json", "r")
-            string = loadStateFile.read()
-            session.initState = jsonpickle.decode(string)
-            session.initStateType = "loaded"     
         updateField("-STATE-MSG-", session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
         session.idealState = sim.State() # idealState must be cleared, if it exist or not
         session.idealStateType = ""
         write(loggFile, [task[0], "finished:", dateAndTimeStr()] + loggText)
         beepy.beep(sound="ping")
-    elif task[0] == "Save-state":
-        savedStateFile = open(task[1] + ".json", "w")
-        savedStateFile.write(jsonpickle.encode(session.initState)) # TODO I think it is not complete, rng value missing etc. ? Not complet
-        savedStateFile.close()
-        # print(json.dumps(session.initState, default=lambda o: o.__dict__, sort_keys=True, indent=3)) // This was close
    
     #### IDEAL STATE handling
     elif task[0] == "Ideal-state-outflow": # TODO, refactor code in this and next elif
@@ -110,6 +101,7 @@ def doCommand(session, task):
             if session.initStateType == "HHS" or session.initStateType =="FH": 
                 state = session.initState # via local variable to ensure initState is not destroyed
                 session.idealState = ideal_state.outflow_ideal_state(state)
+                session.idealStateType = "outflow"
             else:
                 print("*** Error: initStatType invalid") # TODO extend code above to accept init state of type TEST
             write(scriptFile, ["Ideal-state-outflow"])
@@ -122,6 +114,7 @@ def doCommand(session, task):
                 state = session.initState
                 newIdeal_state = ideal_state.evenly_distributed_ideal_state(state)
                 session.idealState = newIdeal_state # TODO, probably clumsy, had to (try again?) go via newIdeal_state variable due to import-trouble !???
+                session.idealStateType = "evenly"
             else:
                 print("*** Error: initStateType invalid") # TODO extend code above to accept init state of type TEST
             write(scriptFile, ["Ideal-state-evenly-distributed"])
@@ -129,6 +122,35 @@ def doCommand(session, task):
             updateFieldDone("-CALC-MSG-", session.initStateType + " ==> evenly ==> OK") 
             userFeedback_OK("Ideal state evenly calculated OK")
             beepy.beep(sound="ping")
+
+    elif task[0] == "Save-state": # saves ideal state if it exists, otherwise from init state
+        savedStateFile = open(task[1] + ".json", "w")
+        if session.idealStateType == "outflow" or session.idealStateType == "evenly":
+            savedStateFile.write(jsonpickle.encode(session.idealState))  
+            savedStateFile.close()
+            write(loggFile, ["Save-state-from-ideal-state:", session.idealStateType])
+        else: # saves init state
+            savedStateFile.write(jsonpickle.encode(session.initState)) 
+            savedStateFile.close()
+            write(loggFile, ["Save-state-from-init-state:", session.initStateType])
+        write(scriptFile, ["Save-state"])
+
+    elif task[0] == "Load-state":
+        print(" -- load state only from Oslo17.json (preliminary) --")
+        print("before" + dateAndTimeStr())
+        # loggText = [] # not used in this case
+        loadStateFile = open("Oslo17out.json", "r") # from JSON alternative
+        string = loadStateFile.read()
+        # with zipfile.ZipFile("Oslo17out.zip", mode = "r") as archive:
+        #     string = archive.read("Oslo17out.json")
+        session.initState = jsonpickle.decode(string)
+        session.initStateType = "loaded"  
+        print("after" + dateAndTimeStr())
+
+        write(scriptFile, ["Load-state"])   
+        write(loggFile, ["Loaded-state"])
+        beepy.beep(sound="ping")
+
     elif task[0] == "Sim":
         fromState = ""  
         if not session.idealStateType == "": 

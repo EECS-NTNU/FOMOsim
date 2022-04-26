@@ -45,7 +45,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     state.set_ideal_state(ideal_state)
     ###############################################################################
 
-    print("before 3 simulations" + dateAndTimeStr())
+    print("before main.py simulations: " + dateAndTimeStr())
 
     # Set up simulator
     simulators.append(sim.Simulator(
@@ -92,7 +92,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     ###############################################################################
 
-    print("after 3 simulations" + dateAndTimeStr())
+    print("after main.py simulations: " + dateAndTimeStr())
 
     # Visualize results
     visualize_analysis(simulators)

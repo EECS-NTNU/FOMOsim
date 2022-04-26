@@ -36,12 +36,14 @@ def GUI_main():
                 task = []   
         
         ###### SPECIAL BUTTONS GUI PART
-        if GUI_event == "Fast-Track":
+        if GUI_event == "Fast-Track":  
             userError("No code currently placed in FastTrack")
             # bigOsloTest()
             #-------------            
             # session = Session("Fast-Track-session")
             # replayScript(session, "tripStats/scripts/script.txt")
+
+
         elif GUI_event == "main.py":
             print("Leaves GUI-dashboard-code, continues in main.py")
             window.close()
