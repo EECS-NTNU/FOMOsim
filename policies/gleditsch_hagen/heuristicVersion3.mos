@@ -1,0 +1,209 @@
+
+
+! This file is the mathematical model of the sub-problem the bicycle reposisioning problem
+! Created by Marte Dybendal Gleditsch and Kristine Hagen
+! December 2017
+! ------------------------------------------------------------------------------
+
+model subproblem
+
+options explterm
+!options noimplicit
+
+uses "mmxprs";
+uses "mmsystem";
+
+!DATA FILES
+parameters
+	DataFileTimeDependentInput 		= 'timeDependentInput.txt';
+	DataFileFixedInput 				= 'fixedInput.txt';
+end-parameters
+
+!SETS
+
+declarations
+	Stations:		set of integer;
+	Vehicles:		set of integer;
+	Routes:			set of integer;
+end-declarations
+
+initializations from DataFileFixedInput
+	Stations;
+	Vehicles;
+end-initializations
+
+finalize(Stations);
+finalize(Vehicles);
+
+
+!FIXED INPUT PARAMETERS
+
+declarations
+	simulation: 				integer;
+end-declarations
+
+initializations from DataFileFixedInput
+	simulation;
+end-initializations
+
+
+
+!TIME DEPENDENT INPUT PARAMETERS
+
+declarations
+	intRep:										array(Stations, Vehicles, Routes) of integer;
+	starvationPrevented:						array(Vehicles, Routes) 	of real;
+	congestionPrevented:						array(Vehicles, Routes) 	of real;
+	deviationImproved:							array(Vehicles, Routes)		of real;
+	deviationReward:							array(Vehicles, Routes) 	of real;
+	drivingTimePenalty:							array(Vehicles, Routes) 	of real;
+	weightViolation: 														real;
+	weightDeviation: 														real;
+	weightReward: 															real;
+	weightDeviationReward: 													real;
+	weightDrivingTimePenalty: 												real;
+	totalViolationsIfNoVisit:												real;
+	totalDeviationIfNoVisit:												real;
+end-declarations
+
+initializations from DataFileTimeDependentInput
+	intRep;
+	starvationPrevented;
+	congestionPrevented;
+	deviationImproved;
+	deviationReward;
+	drivingTimePenalty;
+	weightViolation;
+	weightDeviation;
+	weightReward;
+	weightDeviationReward;
+	weightDrivingTimePenalty;
+	totalViolationsIfNoVisit;
+	totalDeviationIfNoVisit;
+end-initializations
+
+!VARIABLES
+
+declarations
+	intRepLambda:			dynamic array(Vehicles, Routes)				of mpvar;
+end-declarations
+
+forall (vv in Vehicles, rr in Routes | sum(ii in Stations) intRep(ii,vv,rr) > 0) do
+	create(intRepLambda(vv,rr));
+	intRepLambda(vv,rr) is_binary;
+end-do	
+
+
+!------------CONSTRAINTS-------------
+
+declarations
+	maxRoutes:					dynamic array(Vehicles)					of linctr;
+	oneVisitForEachStation:		dynamic array(Stations)					of linctr;					
+end-declarations
+
+
+!Hver bil kan bare kjøre én rute
+forall (vv in Vehicles) do
+	maxRoutes(vv) := 
+		sum(rr in Routes) intRepLambda(vv,rr) = 1;
+end-do
+
+
+
+!Hver stasjon kan bare besøkes én gang
+forall (ii in Stations) do
+	oneVisitForEachStation(ii) :=
+		sum(vv in Vehicles, rr in Routes) intRep(ii,vv,rr)*intRepLambda(vv,rr) <= 1;
+end-do
+
+
+
+
+!------------------------ OBJECTIVES--------------------------------
+
+declarations
+	violationsPrevented: 			linctr;
+	totalDeviationImproved: 		linctr;
+	totalReward:					linctr;
+	Objective:						linctr;
+end-declarations
+	
+violationsPrevented := 
+	sum(vv in Vehicles, rr in Routes) ((congestionPrevented(vv,rr) + starvationPrevented(vv,rr))*intRepLambda(vv,rr));
+
+totalDeviationImproved := 
+	sum(vv in Vehicles, rr in Routes)deviationImproved(vv,rr)*intRepLambda(vv,rr);
+	
+totalReward :=
+	- weightDeviationReward * sum(vv in Vehicles, rr in Routes) (deviationReward(vv,rr)*intRepLambda(vv,rr))
+	+ weightDrivingTimePenalty*sum(vv in Vehicles, rr in Routes) drivingTimePenalty(vv,rr)*intRepLambda(vv,rr);
+
+Objective := 
+	weightViolation*(totalViolationsIfNoVisit - violationsPrevented)
+	+ weightDeviation*(totalDeviationIfNoVisit - totalDeviationImproved)
+	+ weightReward*totalReward;
+	
+minimize(Objective);
+
+fopen("outputRoutesXpress.txt",F_OUTPUT);
+
+	forall (vv in Vehicles, rr in Routes | getsol(intRepLambda(vv,rr)) > 0.1) do
+
+		!Vehicle id
+		if(vv < 0.1) then
+			write(0);
+		else
+			write(vv);
+		end-if
+		write(" ");
+			
+		!Route number
+		write(rr);
+			
+		writeln;
+		
+	end-do
+fclose(F_OUTPUT);
+	
+	
+fopen("outputObjectiveXpress.txt",F_OUTPUT);
+
+	writeln(getsol(Objective));
+
+fclose(F_OUTPUT);
+
+
+
+end-model
+
+
+!PRINT
+
+
+	
+
+
+
+
+
+
+forall (vv in Vehicles, rr in Routes | getsol(intRepLambda(vv,rr)) > 0.1) do
+	writeln("Vehicle " + vv + " drives route: " + rr);
+end-do
+
+writeln("Violations: " + (getsol(totalViolationsIfNoVisit) - getsol(violationsPrevented)));
+writeln("Violations if no visit: " + getsol(totalViolationsIfNoVisit));
+writeln("Violations prevented: " + getsol(violationsPrevented));
+forall (vv in Vehicles, rr in Routes | getsol(intRepLambda(vv,rr)) > 0.5) do
+	writeln("con/star prevented for vehicle " + vv + " route " + rr + ": " + getsol(congestionPrevented(vv,rr)) + "/" + getsol(starvationPrevented(vv,rr)));
+end-do
+writeln;
+writeln("Deviations: " + (getsol(totalDeviationIfNoVisit) - getsol(totalDeviationImproved)));
+writeln("Reward: " + getsol(totalReward));
+
+
+
+
+
+
+

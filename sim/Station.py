@@ -20,7 +20,7 @@ class Station(Location):
         move_probabilities=None,
         average_number_of_scooters=None,
         ideal_state=None,
-        capacity=float("inf"),
+        capacity=1000000000,
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(scooters)),
@@ -144,4 +144,4 @@ class Station(Location):
         )
 
     def __str__(self):
-        return f"Station {self.id}"
+        return f"Station {self.id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_ideal_state(0, 8):3d} Scooters {len(self.scooters):3d}"

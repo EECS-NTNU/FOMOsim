@@ -1,0 +1,933 @@
+! This file is the mathematical model of the sub-problem the bicycle reposisioning problem
+! Created by Marte Dybendal Gleditsch and Kristine Hagen
+! December 2017
+! ------------------------------------------------------------------------------
+
+model subproblem
+
+options explterm
+!options noimplicit
+
+uses "mmxprs";
+uses "mmsystem";
+
+!DATA FILES
+parameters
+	DataFileFixedInput 				= 'fixedInput.txt';
+	DataFileTimeDependentInput 		= 'timeDependentInput.txt';
+end-parameters
+
+!SETS
+declarations
+	artificialStation:			integer;
+	nVehicles:					integer;
+	maxVisits: 					integer; 
+end-declarations
+
+initializations from DataFileFixedInput
+	artificialStation;
+end-initializations
+
+initializations from DataFileTimeDependentInput
+	maxVisits;
+end-initializations
+
+declarations
+	Stations:		set of integer;
+	Vehicles:		set of integer;
+	Visits:			set of integer;
+	StarvationStations: set of integer;
+	CongestionStations:	set of integer;
+end-declarations
+
+initializations from DataFileFixedInput
+	Stations;
+	Vehicles;
+end-initializations
+
+initializations from DataFileTimeDependentInput
+	StarvationStations;
+	CongestionStations;
+end-initializations
+
+Visits := 1 .. maxVisits;
+
+finalize(Stations);
+finalize(Vehicles);
+finalize(Visits);
+finalize(StarvationStations);
+finalize(CongestionStations);
+
+!FIXED INPUT PARAMETERS
+
+declarations
+	stationsCapacities: 		array(Stations) 	of integer;
+	vehicleParkingTime:  							real;
+	unitHandlingTime:  								real;
+	vehicleCapacity: 			array(Vehicles) 	of integer;	
+	visitInterval: integer;
+	drivingTime:  							array(Stations, Stations) 	of real;
+	simulation: 											integer;
+end-declarations
+
+
+initializations from DataFileFixedInput
+	stationsCapacities;
+	vehicleParkingTime;
+	unitHandlingTime;
+	vehicleCapacity;	
+	visitInterval;
+	drivingTime;
+	simulation;
+end-initializations
+
+
+
+!TIME DEPENDENT INPUT PARAMETERS
+
+declarations
+	vehicleInitialStation: 					array(Vehicles) 			of integer;
+	vehicleRemainingTimeToInitialStation: 	array(Vehicles) 			of real;
+	vehicleInitialLoad: 					array(Vehicles) 			of integer;
+	stationsInitialLoad:  					array(Stations) 			of real;
+	stationDemand:  						array(Stations) 			of real;
+	M:																	real;
+	optimalState:				            array(Stations)		        of real;
+	lengthOfPlanningHorizon:						real;
+	weightViolation: real;
+	weightDeviation: real;
+	weightReward: real;
+	weightDeviationReward: real;
+	weightDrivingTimePenalty: real;
+end-declarations
+
+initializations from DataFileTimeDependentInput
+	vehicleInitialStation;
+	vehicleRemainingTimeToInitialStation;
+	vehicleInitialLoad;
+	stationsInitialLoad;
+	stationDemand;
+	optimalState;
+	lengthOfPlanningHorizon;
+	weightViolation;
+	weightDeviation;
+	weightReward;
+	weightDeviationReward;
+	weightDrivingTimePenalty;
+end-initializations
+
+!VARIABLES
+
+declarations
+	flow:							dynamic array(Stations, Visits, Stations, Visits, Vehicles)		of mpvar;
+	visitTime:						dynamic array(Stations, Visits)									of mpvar;
+	remainingTimeToFinalStation:	dynamic array(Vehicles)											of mpvar;
+	loadingQuantity:				dynamic array(Stations, Visits, Vehicles)						of mpvar;
+	unloadingQuantity:				dynamic array(Stations, Visits, Vehicles)						of mpvar;
+	loadAtStation:					dynamic array(Stations, Visits)									of mpvar;
+	loadAtVehicle:					dynamic array(Stations, Visits, Vehicles)						of mpvar;
+	congestion:						dynamic array(Stations, Visits)									of mpvar;
+	starvation:						dynamic array(Stations, Visits)									of mpvar;
+	deltaFull:						dynamic array(Stations, Visits)									of mpvar;
+	deltaEmpty:						dynamic array(Stations, Visits)									of mpvar;
+	deltaFullHorizon:				dynamic array(Stations)											of mpvar;
+	deltaEmptyHorizon:				dynamic array(Stations)											of mpvar;
+	congestionBeforeHorizon:		dynamic array(Stations)											of mpvar;
+	starvationBeforeHorizon:		dynamic array(Stations)											of mpvar;
+	congestionAfterHorizon:			dynamic array(Stations)											of mpvar;
+	starvationAfterHorizon:			dynamic array(Stations)											of mpvar;
+	inventoryAtHorizon:				dynamic array(Stations)											of mpvar;
+	inventoryAtHorizonVehicle:		dynamic array(Vehicles)											of mpvar;
+	gamma:							dynamic array(Stations)											of mpvar;
+	delta:							dynamic array(Stations, Visits)									of mpvar;
+	theta:							dynamic array(Stations, Visits)									of mpvar;
+	deviation:						dynamic array(Stations)											of mpvar;
+	deviationReward:				dynamic array(Stations)											of mpvar;
+	sigmaLow:						dynamic array(Vehicles)											of mpvar;	
+	sigmaHigh:						dynamic array(Vehicles)											of mpvar;	
+	timePenalty:					dynamic array(Vehicles)											of mpvar;
+end-declarations
+	
+forall (ii in Stations, mm in Visits, jj in Stations, nn in Visits, vv in Vehicles | ii<> artificialStation and ii<>jj) do
+	if (jj <> vehicleInitialStation(vv))then
+		create(flow(ii, mm, jj, nn, vv));
+		flow(ii,mm,jj,nn,vv) is_binary;
+	elif (nn <> 1) then
+		create(flow(ii, mm, jj, nn, vv));
+		flow(ii,mm,jj,nn,vv) is_binary;
+	end-if
+end-do
+
+forall (ii in Stations, mm in Visits) do
+	create(visitTime(ii, mm));
+	create(deltaFull(ii,mm));
+	deltaFull(ii,mm) is_binary;
+	create(deltaEmpty(ii,mm));
+	deltaEmpty(ii,mm) is_binary;
+	create(delta(ii,mm));
+	delta(ii,mm) is_binary;
+	
+	if(ii <> artificialStation)then
+		create(loadAtStation(ii, mm));
+		create(congestion(ii, mm));
+		create(starvation(ii, mm));
+		create(theta(ii,mm));
+		theta(ii,mm) is_binary;
+	end-if	
+end-do
+
+
+
+forall (vv in Vehicles) do
+	create(remainingTimeToFinalStation(vv));
+	remainingTimeToFinalStation(vv) is_free;
+	create(inventoryAtHorizonVehicle(vv));
+	create(sigmaLow(vv));
+	sigmaLow(vv) is_binary;
+	create(sigmaHigh(vv));
+	sigmaHigh(vv) is_binary;
+	create(timePenalty(vv));
+end-do
+
+forall (ii in Stations, mm in Visits, vv in Vehicles | ii <> artificialStation) do
+	create(loadingQuantity(ii,mm,vv));
+	loadingQuantity(ii,mm,vv) is_integer;
+	create(unloadingQuantity(ii,mm,vv));
+	unloadingQuantity(ii,mm,vv) is_integer;
+	create(loadAtVehicle(ii,mm,vv));
+	loadAtVehicle(ii,mm,vv) is_integer;
+end-do
+
+forall (ii in Stations) do
+	create(congestionBeforeHorizon(ii));
+	create(starvationBeforeHorizon(ii));
+	create(congestionAfterHorizon(ii));		
+	create(starvationAfterHorizon(ii));	
+	create(inventoryAtHorizon(ii));	
+	create(gamma(ii));
+	gamma(ii) is_binary;
+	create(deltaFullHorizon(ii));
+	deltaFullHorizon(ii)is_binary;
+	create(deltaEmptyHorizon(ii));
+	deltaEmptyHorizon(ii) is_binary;
+	create(deviation(ii));
+	if(ii <> artificialStation) then 
+		create(deviationReward(ii));
+	end-if 	
+end-do
+
+
+!CONSTRAINTS
+
+declarations
+	singleVisit:			dynamic array(Stations, Visits)					of linctr;
+	initialTime1:			dynamic array(Vehicles)							of linctr;
+	initialTime2:			dynamic array(Vehicles)							of linctr;
+	endTime1:				dynamic array(Stations, Visits, Vehicles)		of linctr;
+	endTime2:				dynamic array(Stations, Visits, Vehicles)		of linctr;
+	timeHorizon:			dynamic array(Stations, Visits)					of linctr;
+	violationsBeforeVistit:	dynamic array(Stations)							of linctr;
+	violations1:				dynamic array(Stations, Visits)					of linctr;
+	violations2:				dynamic array(Stations, Visits)					of linctr;
+	violationIfCongestion1:	dynamic array(Stations, Visits)					of linctr;
+	violationIfCongestion2:	dynamic array(Stations, Visits)					of linctr;
+	violationIfStarvation1:	dynamic array(Stations, Visits)					of linctr;
+	violationIfStarvation2:	dynamic array(Stations, Visits)					of linctr;
+	violationIfCongestionHorizon1:	dynamic array(Stations)					of linctr;
+	violationIfCongestionHorizon2:	dynamic array(Stations)					of linctr;
+	violationIfStarvationHorizon1:	dynamic array(Stations)					of linctr;
+	violationIfStarvationHorizon2:	dynamic array(Stations)					of linctr;
+	violationIfCongestionHorizon3:	dynamic array(Stations, Visits)					of linctr;
+	violationIfStarvationHorizon3:	dynamic array(Stations, Visits)					of linctr;
+	violationIfCongestionHorizon4:	dynamic array(Stations, Visits)					of linctr;
+	violationIfStarvationHorizon4:	dynamic array(Stations, Visits)					of linctr;
+	safetyMargins1:			dynamic array(Stations, Visits)					of linctr;
+	safetyMargins2:			dynamic array(Stations, Visits)					of linctr;
+	startStation:			dynamic array(Vehicles)							of linctr;
+	finalStation:			dynamic array(Vehicles)							of linctr;
+	flowCon:				dynamic array(Vehicles, Stations, Visits)		of linctr;
+	stationVisitOnlyOnce1:	dynamic array(Stations, Visits)					of linctr;
+	stationVisitOnlyOnce2:	dynamic array(Stations, Visits)					of linctr;
+	initialVehicleLoad:		dynamic array(Vehicles)							of linctr;
+	vehicleLoadBalance1:	dynamic array(Stations, Visits, Stations, Visits, Vehicles)	of linctr;
+	vehicleLoadBalance2:	dynamic array(Stations, Visits, Stations, Visits, Vehicles)	of linctr;
+	unloading1:				dynamic array(Stations, Visits, Vehicles)		of linctr;
+	unloading2:				dynamic array(Stations, Visits, Vehicles)		of linctr;
+	loading:				dynamic array(Stations, Visits, Vehicles)		of linctr;
+	capacityVehicle: 		dynamic array(Vehicles) 						of linctr;
+	capacityStation:		dynamic array(Stations, Visits)					of linctr;
+	visitSequence:			dynamic array(Stations, Visits)					of linctr;
+	timeIfVisit:			dynamic array(Stations, Visits)					of linctr;
+	ascenario1:				dynamic array(Stations)							of linctr;
+	bscenario1:				dynamic array(Stations)							of linctr;
+	ascenario2:				dynamic array(Stations, Visits)							of linctr;
+	bscenario2:				dynamic array(Stations, Visits)							of linctr;
+	ascenario3:				dynamic array(Stations, Visits)							of linctr;
+	bscenario3:				dynamic array(Stations, Visits)							of linctr;
+	binary1:				dynamic array(Stations, Visits)					of linctr;
+	binary2:				dynamic array(Stations, Visits)					of linctr;
+	binary3:				dynamic array(Stations, Visits)					of linctr;
+	binary4:				dynamic array(Stations, Visits)					of linctr;	
+	binary5:				dynamic array(Stations, Visits)					of linctr;
+	binary6:				dynamic array(Stations, Visits)					of linctr;
+	binary7:				dynamic array(Stations)							of linctr;
+	maxInventory:			dynamic array(Stations)							of linctr;
+	violation1:				dynamic array(Stations)							of linctr;
+	violation2:				dynamic array(Stations)							of linctr;
+	violation3:				dynamic array(Stations)							of linctr;
+	violation4:				dynamic array(Stations)							of linctr;
+	deviationCon1:			dynamic array(Stations)							of linctr;
+	deviationCon2:			dynamic array(Stations)							of linctr;
+	Con1:					dynamic array(Stations)							of linctr;
+	Con2:					dynamic array(Stations)							of linctr;
+	deltaEnd:				dynamic array(Visits)							of linctr;
+	horizonVehicle1:		dynamic array(Stations, Visits, Stations, Visits, Vehicles)		of linctr;
+	horizonVehicle2:		dynamic array(Stations, Visits, Stations, Visits, Vehicles)		of linctr;
+	rewardIfAfterHorizon:	dynamic array(Stations)								of linctr;
+	deviationRev1: 			dynamic array(Stations)								of linctr;
+	deviationRev2: 			dynamic array(Stations)								of linctr;
+	sigmaH:				dynamic array(Vehicles)								of linctr;
+	sigmaL:				dynamic array(Vehicles)								of linctr;
+	lowVisit:				dynamic array(StarvationStations, Visits, Vehicles)	of linctr;
+	penalty:				dynamic array(Vehicles) 							of linctr;
+	test: 	linctr;
+	test2: 	linctr;
+end-declarations
+
+
+!-----REWARD FUNCTIONS-----------
+
+
+forall (ii in Stations) do
+	!Only reward if station is visited after horizon
+	M := stationsCapacities(ii);
+	!(5.51)
+	rewardIfAfterHorizon(ii) :=
+		deviationReward(ii) <= sum(mm in Visits)delta(ii,mm)*M;
+	!(5.52)
+	deviationRev2(ii):= 
+		deviationReward(ii) <= deviation(ii);
+end-do	
+
+
+forall (vv in Vehicles) do
+	!(5.53)
+	!SigmaLow is 1 if inventory level at vehicle v is below visitInterval at time horizon
+	SigmaL(vv) :=
+		inventoryAtHorizonVehicle(vv) >= visitInterval-visitInterval*sigmaLow(vv);
+	!(5.54)
+	!SigmaHigh is 1 if inventory level at vehicle v is above (capacity-visitInterval) at time horizon
+	SigmaH(vv) :=
+		inventoryAtHorizonVehicle(vv) <= vehicleCapacity(vv)-visitInterval+visitInterval*sigmaHigh(vv);
+	!(5.57)
+	!only penalty if after timehorizon
+	penalty(vv) :=
+		 timePenalty(vv) >= remainingTimeToFinalStation(vv);
+end-do
+
+!(5.55)
+forall(ii in StarvationStations, mm in Visits, vv in Vehicles) do
+	lowVisit(ii,mm,vv) :=
+		flow(ii,mm,artificialStation,1,vv) <= (1-sigmaLow(vv)) + (1-delta(ii,mm));
+end-do
+
+!(5.56)
+forall(ii in CongestionStations, mm in Visits, vv in Vehicles) do
+	highVisit(ii,mm,vv) :=
+		flow(ii,mm,artificialStation,1,vv) <= (1-sigmaHigh(vv)) + (1-delta(ii,mm));
+end-do
+
+
+
+!-----ROUTING CONSTRAINTS-----------
+
+forall (vv in Vehicles ) do
+	!(5.1)
+	startStation(vv) :=
+		sum(jj in Stations, nn in Visits) flow(vehicleInitialStation(vv),1,jj,nn,vv) = 1;
+	!(5.2)
+	finalStation(vv) :=
+		sum(ii in Stations, mm in Visits) flow(ii,mm,artificialStation,1,vv) = 1;
+end-do
+
+forall (vv in Vehicles, jj in Stations, nn in Visits | jj <> artificialStation) do
+	if(jj=vehicleInitialStation(vv) and nn<>1) then
+		!(5.3)
+		flowCon(vv,jj,nn) :=
+			sum(ii in Stations, mm in Visits) flow(ii,mm,jj,nn,vv) - sum(ii in Stations, mm in Visits) flow(jj,nn,ii,mm,vv) = 0;
+			elif (jj <> vehicleInitialStation(vv)) then 
+		!(5.4)	
+		flowCon(vv,jj,nn) :=
+			sum(ii in Stations, mm in Visits) flow(ii,mm,jj,nn,vv) - sum(ii in Stations, mm in Visits) flow(jj,nn,ii,mm,vv) = 0;
+	end-if
+end-do
+
+forall (ii in Stations, mm in Visits| ii<>artificialStation) do
+	!(5.5)
+	stationVisitOnlyOnce1(ii,mm) :=
+		sum(jj in Stations, nn in Visits, vv in Vehicles) flow(ii,mm,jj,nn,vv) <= 1;
+	stationVisitOnlyOnce2(ii,mm) :=
+		sum(jj in Stations, nn in Visits, vv in Vehicles) flow(jj,nn,ii,mm,vv) <= 1;
+end-do
+
+
+!------------VEHICLE LOADING CONSTRAINTS ----------------------
+
+forall (vv in Vehicles ) do
+	!(5.6)
+	initialVehicleLoad(vv) :=
+		loadAtVehicle(vehicleInitialStation(vv),1,vv) - unloadingQuantity(vehicleInitialStation(vv),1,vv) + loadingQuantity(vehicleInitialStation(vv),1,vv) = vehicleInitialLoad(vv);
+end-do
+
+forall (ii in Stations, mm in Visits, jj in Stations, nn in Visits, vv in Vehicles | ii <> artificialStation and jj <> artificialStation) do
+	!(5.7)
+	vehicleLoadBalance1(ii,mm,jj,nn,vv) :=
+		loadAtVehicle(ii,mm,vv) + unloadingQuantity(jj,nn,vv) - loadingQuantity(jj,nn,vv) - loadAtVehicle(jj,nn,vv) - vehicleCapacity(vv)*(1 - flow(ii,mm,jj,nn,vv)) <= 0;
+	vehicleLoadBalance2(ii,mm,jj,nn,vv) :=
+		loadAtVehicle(ii,mm,vv) + unloadingQuantity(jj,nn,vv) - loadingQuantity(jj,nn,vv) - loadAtVehicle(jj,nn,vv) + vehicleCapacity(vv)*(1 - flow(ii,mm,jj,nn,vv)) >= 0;
+end-do
+
+forall (ii in Stations, mm in Visits, vv in Vehicles | ii <> artificialStation) do
+	!(5.8)
+	unloading1(ii,mm,vv) :=	
+		unloadingQuantity(ii,mm,vv) <= loadAtVehicle(ii,mm,vv);
+	unloading2(ii,mm,vv) :=
+		loadAtVehicle(ii,mm,vv) <= sum(jj in Stations, nn in Visits)vehicleCapacity(vv)*flow(ii,mm,jj,nn,vv);
+	!(5.9)
+	loading(ii,mm,vv) :=
+		loadAtVehicle(ii,mm,vv) <= sum(jj in Stations, nn in Visits)vehicleCapacity(vv)*flow(ii,mm,jj,nn,vv) - loadingQuantity(ii,mm,vv);
+end-do
+
+
+forall (ii in Stations, mm in Visits | ii<>artificialStation) do
+	!(5.10)
+	safetyMargins1(ii,mm) :=
+		0 <= loadAtStation(ii,mm) + sum(vv in Vehicles)(loadingQuantity(ii,mm,vv)-unloadingQuantity(ii,mm,vv));
+	safetyMargins2(ii,mm) :=
+		loadAtStation(ii,mm) + sum(vv in Vehicles)(loadingQuantity(ii,mm,vv)-unloadingQuantity(ii,mm,vv)) <= stationsCapacities(ii);	
+end-do	
+
+forall (ii in Stations, mm in Visits, jj in Stations, nn in Visits, vv in Vehicles) do
+	M := vehicleCapacity(vv);
+	!(5.49)
+	horizonVehicle1(ii,mm,jj,nn,vv) :=
+		inventoryAtHorizonVehicle(vv) >= loadAtVehicle(ii,mm,vv)-(2-delta(jj,nn)+delta(ii,mm)-flow(ii,mm,jj,nn,vv))*M;
+	!(5.50)	
+	horizonVehicle2(ii,mm,jj,nn,vv) :=
+		inventoryAtHorizonVehicle(vv) <= loadAtVehicle(ii,mm,vv)+(2-delta(jj,nn)+delta(ii,mm)-flow(ii,mm,jj,nn,vv))*M;
+end-do
+
+
+
+!------------------------TIME CONSTRAINTS-------------------
+
+
+forall (ii in Stations, mm in Visits, jj in Stations, nn in Visits | jj <> artificialStation and ii <> artificialStation) do
+	!(5.13)
+	M := lengthOfPlanningHorizon + unitHandlingTime*minlist(max(ww in Vehicles) vehicleCapacity(ww), max(ss in Stations) stationsCapacities(ss)) + vehicleParkingTime + max(kk in Stations)drivingTime(kk, ii)+unitHandlingTime*minlist(max(ww in Vehicles)vehicleCapacity(ww),stationsCapacities(ii))+ vehicleParkingTime + drivingTime(ii,jj);
+	visitTimeConstraint(ii,mm,jj,nn) := 
+		visitTime(ii,mm) + unitHandlingTime*(sum(vv in Vehicles)(loadingQuantity(ii,mm,vv) + unloadingQuantity(ii,mm,vv))) + vehicleParkingTime + drivingTime(ii,jj) - visitTime(jj,nn) - M*(1 - sum(vv in Vehicles)flow(ii,mm,jj,nn,vv)) <= 0;
+end-do
+
+forall (ii in Stations, mm in Visits | mm <> 1) do
+	!(5.14)
+	M :=lengthOfPlanningHorizon + unitHandlingTime*minlist(max(ww in Vehicles) vehicleCapacity(ww), max(ss in Stations) stationsCapacities(ss)) + vehicleParkingTime + max(kk in Stations)drivingTime(kk, ii)
+	+ sum(ww in Vehicles) (unitHandlingTime*minlist(max(aa in Vehicles)vehicleCapacity(aa),stationsCapacities(ii)))+ vehicleParkingTime;
+	singleVisit(ii,mm) := 
+		visitTime(ii,mm)-(visitTime(ii,mm-1)+sum (vv in Vehicles) (unitHandlingTime*(loadingQuantity(ii,mm-1,vv)+unloadingQuantity(ii, mm-1, vv)))+vehicleParkingTime)+M*(1-sum(jj in Stations, nn in Visits, vv in Vehicles)flow(ii,mm,jj,nn,vv)) >= 0;
+end-do
+
+forall (vv in Vehicles ) do
+	!(5.15)
+	initialTime1(vv) := 
+		visitTime(vehicleInitialStation(vv),1) >= vehicleRemainingTimeToInitialStation(vv);
+	initialTime2(vv) := 
+		visitTime(vehicleInitialStation(vv),1) <= vehicleRemainingTimeToInitialStation(vv);
+end-do
+
+forall (ii in Stations, mm in Visits, vv in Vehicles | ii <> artificialStation) do
+	!(5.57)
+	M := lengthOfPlanningHorizon + max(jj in Stations, kk in Stations)(drivingTime(jj,kk)) + vehicleParkingTime + unitHandlingTime*minlist(vehicleCapacity(vv), max(jj in Stations)stationsCapacities(jj));
+	endTime1(ii,mm,vv) :=
+		remainingTimeToFinalStation(vv)-visitTime(ii,mm)+lengthOfPlanningHorizon - M*(1-flow(ii,mm,artificialStation,1,vv)) <= 0;
+	endTime2(ii,mm,vv) :=
+		remainingTimeToFinalStation(vv)-visitTime(ii,mm)+lengthOfPlanningHorizon + M*(1-flow(ii,mm,artificialStation,1,vv))>= 0;
+end-do
+
+forall (ii in Stations, mm in Visits | ii <> artificialStation) do
+	!(5.16)
+	M :=  max(jj in Stations)(drivingTime(jj,ii)) + vehicleParkingTime + unitHandlingTime*minlist(max(vv in Vehicles)vehicleCapacity(vv), max(kk in Stations)stationsCapacities(kk));
+	timeHorizon(ii,mm) := 
+		visitTime(ii,mm) - lengthOfPlanningHorizon - M*(sum(vv in Vehicles)flow(ii,mm,artificialStation,1,vv))<=0;
+	!(5.17)
+	M := lengthOfPlanningHorizon + max(jj in Stations)(drivingTime(jj,ii)) + vehicleParkingTime + unitHandlingTime*minlist(max(vv in Vehicles)vehicleCapacity(vv), max(kk in Stations)stationsCapacities(kk));
+	timeIfVisit(ii,mm) :=
+		visitTime(ii,mm) <= M*(sum(jj in Stations, nn in Visits, vv in Vehicles) flow(ii,mm,jj,nn,vv));
+end-do
+
+forall (ii in Stations, mm in Visits | mm <> 1) do
+	!(5.18) 
+	M := lengthOfPlanningHorizon + max(jj in Stations)(drivingTime(jj,ii)) + vehicleParkingTime + unitHandlingTime*minlist(max(vv in Vehicles)vehicleCapacity(vv), max(kk in Stations)stationsCapacities(kk));
+	visitSequence(ii,mm) := 
+		visitTime(ii,mm) <= M*(sum(jj in Stations, nn in Visits, vv in Vehicles)flow(ii,mm-1,jj,nn,vv));
+end-do
+
+
+
+
+
+!------------------------VIOLATION AND LOADING-------------------
+
+forall (ii in Stations | ii <> artificialStation) do
+	!(5.11)
+	violationsBeforeVistit(ii) := 
+		loadAtStation(ii,1)-stationDemand(ii)*visitTime(ii,1)-starvation(ii,1)+congestion(ii,1) = stationsInitialLoad(ii);
+end-do
+
+forall (ii in Stations, mm in Visits | mm <> 1) do
+	!(5.12)
+	violations1(ii,mm) :=
+		loadAtStation(ii,mm-1)+sum(vv in Vehicles)(loadingQuantity(ii,mm-1,vv)-unloadingQuantity(ii,mm-1,vv))
+		+stationDemand(ii)*(visitTime(ii,mm)-visitTime(ii,mm-1))
+		+starvation(ii,mm)-congestion(ii,mm) >= loadAtStation(ii,mm) - 1000*(1-sum(jj in Stations, nn in Visits, vv in Vehicles)flow(ii,mm,jj,nn,vv));
+	violations2(ii,mm) :=
+		loadAtStation(ii,mm-1)+sum(vv in Vehicles)(loadingQuantity(ii,mm-1,vv)-unloadingQuantity(ii,mm-1,vv))
+		+stationDemand(ii)*(visitTime(ii,mm)-visitTime(ii,mm-1))
+		+starvation(ii,mm)-congestion(ii,mm) <= loadAtStation(ii,mm) + 1000*(1-sum(jj in Stations, nn in Visits, vv in Vehicles)flow(ii,mm,jj,nn,vv));
+end-do
+
+forall (ii in Stations, mm in Visits | ii<>artificialStation) do
+	!(5.40)
+	M := abs(stationDemand(ii))*(lengthOfPlanningHorizon + max(jj in Stations)(drivingTime(jj,ii)) + vehicleParkingTime + unitHandlingTime*minlist(max(vv in Vehicles)vehicleCapacity(vv), max(kk in Stations)stationsCapacities(kk)));
+	violationIfCongestion1(ii,mm) :=
+		loadAtStation(ii,mm)-stationsCapacities(ii)*deltaFull(ii,mm) >= 0;
+	violationIfCongestion2(ii,mm) :=
+		congestion(ii,mm) - M*deltaFull(ii,mm) <= 0;	
+	!(5.41)
+	violationIfStarvation1(ii,mm) :=
+		loadAtStation(ii,mm) + stationsCapacities(ii)*deltaEmpty(ii,mm) <= stationsCapacities(ii);
+	violationIfStarvation2(ii,mm) := 
+		starvation(ii,mm)-M*deltaEmpty(ii,mm) <= 0;	
+end-do 
+
+
+!-----------------CAPACITIES------------
+
+forall (ii in Stations, mm in Visits | ii<>artificialStation) do
+	capacityStation(ii,mm) :=
+		loadAtStation(ii,mm) <= stationsCapacities(ii);
+end-do
+
+ 
+!Deviations
+
+forall(ii in Stations) do
+	!(5.46)
+	deviationCon1(ii) :=
+		deviation(ii) >= optimalState(ii)-inventoryAtHorizon(ii);
+	!(5.47)	
+	deviationCon2(ii) :=
+		deviation(ii) >= inventoryAtHorizon(ii)-optimalState(ii);
+end-do
+
+
+
+!-----------BINARY RESTRICTIONS-------------------
+
+!Delta = 1 if last visit is after time horizon
+forall (ii in Stations, mm in Visits | ii <> artificialStation) do
+	M := lengthOfPlanningHorizon + max(jj in Stations)(drivingTime(jj,ii)) + vehicleParkingTime + unitHandlingTime*minlist(max(vv in Vehicles)vehicleCapacity(vv), max(kk in Stations)stationsCapacities(kk));
+	!(5.30)
+	binary1(ii,mm):=
+		visitTime(ii,mm)<=lengthOfPlanningHorizon + M*delta(ii,mm);
+	!(5.31)	
+	binary2(ii,mm):=
+		visitTime(ii,mm)>=lengthOfPlanningHorizon+0.001 - M*(1-delta(ii,mm));		
+end-do
+
+forall (mm in Visits) do
+	deltaEnd(mm) :=
+		delta(artificialStation, mm) = 1;
+end-do
+
+!Theta = 1 if visit (im) is last visit for station i
+forall(ii in Stations, mm in Visits) do
+	
+	if (mm <> maxVisits) then
+		!(5.32)
+		binary3(ii,mm) := 
+			sum(jj in Stations, nn in Visits, vv in Vehicles)flow(ii,mm,jj,nn,vv) <= sum(jj in Stations, nn in Visits, vv in Vehicles) flow(ii,mm+1,jj,nn,vv)+ theta(ii,mm);
+		!(5.33)
+		binary4(ii,mm) := 
+			sum(jj in Stations, nn in Visits, vv in Vehicles)flow(ii,mm,jj,nn,vv) >= sum(jj in Stations, nn in Visits, vv in Vehicles) flow(ii,mm+1,jj,nn,vv)+ theta(ii,mm);
+	else		
+		!(5.34)
+		binary5(ii,mm) := 
+			sum(jj in Stations, nn in Visits, vv in Vehicles)flow(ii,mm,jj,nn,vv)>=theta(ii,mm);
+		!(5.35)
+		binary6(ii,mm) := 
+			sum(jj in Stations, nn in Visits, vv in Vehicles)flow(ii,mm,jj,nn,vv)<=theta(ii,mm);
+	end-if	
+end-do
+
+
+!Gamma = 1 if station i gets a visit
+forall (ii in Stations) do
+	!(5.36)
+	binary7(ii):=
+		gamma(ii) = sum(jj in Stations, nn in Visits, vv in Vehicles)flow(ii,1,jj,nn,vv);
+end-do
+
+
+
+!CAPACITY
+forall (ii in Stations) do
+	maxInventory(ii) := 
+		inventoryAtHorizon(ii) <= stationsCapacities(ii);
+end-do			
+
+
+!Scenario 1: (no visits)
+forall (ii in Stations | ii <> artificialStation) do
+	M := 1000;
+	!(5.37)
+	ascenario1(ii) :=
+		inventoryAtHorizon(ii) <= stationsInitialLoad(ii)+stationDemand(ii)*lengthOfPlanningHorizon
+		-congestionBeforeHorizon(ii)+ starvationBeforeHorizon(ii) + M*gamma(ii);
+	bscenario1(ii) :=
+		inventoryAtHorizon(ii) >= stationsInitialLoad(ii)+stationDemand(ii)*lengthOfPlanningHorizon
+		-congestionBeforeHorizon(ii)+ starvationBeforeHorizon(ii) - M*gamma(ii);
+end-do	
+
+
+!Scenario 2: (last visit before horizon)
+forall (ii in Stations, mm in Visits | ii <> artificialStation) do
+	M := 1000;
+	!(5.38)
+	ascenario2(ii,mm) :=
+		inventoryAtHorizon(ii) >= loadAtStation(ii,mm)+ sum(vv in Vehicles) (loadingQuantity(ii,mm,vv)- unloadingQuantity(ii,mm,vv)) 
+		+ stationDemand(ii)*(lengthOfPlanningHorizon-visitTime(ii,mm)) + starvationBeforeHorizon(ii)-congestionBeforeHorizon(ii)
+		- M*(delta(ii,mm)+1-theta(ii,mm));
+	bscenario2(ii,mm) :=
+		inventoryAtHorizon(ii) <= loadAtStation(ii,mm)+ sum(vv in Vehicles) (loadingQuantity(ii,mm,vv)- unloadingQuantity(ii,mm,vv)) 
+		+ stationDemand(ii)*(lengthOfPlanningHorizon-visitTime(ii,mm)) + starvationBeforeHorizon(ii)-congestionBeforeHorizon(ii)
+		+ M*(delta(ii,mm)+1-theta(ii,mm));
+end-do	
+
+!Scenario 3: (last visit after horizon)
+forall (ii in Stations, mm in Visits | ii <> artificialStation) do
+	M := 1100;
+	!(5.39)
+	ascenario3(ii,mm) :=
+		inventoryAtHorizon(ii) >= -starvationAfterHorizon(ii) +congestionAfterHorizon(ii) + loadAtStation(ii,mm)
+		- stationDemand(ii)*(visitTime(ii,mm)-lengthOfPlanningHorizon) 
+		- M*(2-delta(ii,mm)-theta(ii,mm));
+	bscenario3(ii,mm) :=
+		inventoryAtHorizon(ii) <= (starvation(ii,mm)-starvationAfterHorizon(ii)) - (congestion(ii,mm)-congestionAfterHorizon(ii)) + loadAtStation(ii,mm)
+		- stationDemand(ii)*(visitTime(ii,mm)-lengthOfPlanningHorizon) + congestion(ii,mm)-starvation(ii,mm)
+		+ M*(2-delta(ii,mm)-theta(ii,mm));
+end-do
+
+
+!Only violation before horizon if inventory at horizon = 0
+
+forall (ii in Stations| ii<>artificialStation) do
+	M := abs(stationDemand(ii))*(lengthOfPlanningHorizon + max(jj in Stations)(drivingTime(jj,ii)) + vehicleParkingTime + unitHandlingTime*minlist(max(vv in Vehicles)vehicleCapacity(vv), max(kk in Stations)stationsCapacities(kk)));
+	!violationIfCongestion1(ii,mm) :=
+	!(A.35)
+	violationIfStarvationHorizon1(ii) :=
+		inventoryAtHorizon(ii) + stationsCapacities(ii)*deltaEmptyHorizon(ii) <= stationsCapacities(ii); !deltaEmpty blir 0 hvis inventory at horizon > 0
+	violationIfStarvationHorizon2(ii) := 
+		starvationBeforeHorizon(ii) - M*deltaEmptyHorizon(ii) <= 0; !deltaEmpty blir 1 hvis violationBeforeHorizon > 0
+	!(A.37)
+	violationifCongestionHorizon1(ii) :=
+		inventoryAtHorizon(ii)-stationsCapacities(ii)*deltaFullHorizon(ii) >= 0; !deltaFull blir 0 hvis inventory at horizon < capacity
+	violationIfCongestionHorizon2(ii) :=
+		congestionBeforeHorizon(ii) - M*deltaFullHorizon(ii) <= 0;	!deltaFull blir 1 hvis congestionBeforeHorizon > 0	
+end-do 
+
+!Only violations before horizon if last visit is before horizon
+
+forall (ii in Stations) do
+	violation1(ii) :=
+		congestionBeforeHorizon(ii) <= M*(1-sum(mm in Visits)delta(ii,mm));
+	violation2(ii) :=
+		starvationBeforeHorizon(ii) <= M*(1-sum(mm in Visits)delta(ii,mm));
+end-do
+
+forall (ii in Stations) do
+	M := 1000; 
+	Con1(ii) :=
+		starvationAfterHorizon(ii) <= M*sum(mm in Visits)theta(ii,mm);
+	Con2(ii) :=
+		congestionAfterHorizon(ii) <= M*sum(mm in Visits)theta(ii,mm);
+end-do
+
+!V^F = 0 if last visit is before horizon
+
+forall (ii in Stations) do
+M:= 1010;
+	!(5.42)
+	violation1(ii) :=
+		congestionAfterHorizon(ii) <= M*sum(mm in Visits)delta(ii,mm);
+	!(5.43)
+	violation2(ii) :=
+		starvationAfterHorizon(ii) <= M*sum(mm in Visits)delta(ii,mm);
+end-do
+
+!Scenario 3: congestion only if full or empty
+
+forall (ii in Stations, mm in Visits| ii<>artificialStation) do
+	M := abs(stationDemand(ii))*(lengthOfPlanningHorizon + max(jj in Stations)(drivingTime(jj,ii)) + vehicleParkingTime + unitHandlingTime*minlist(max(vv in Vehicles)vehicleCapacity(vv), max(kk in Stations)stationsCapacities(kk)));
+	!(A.36)
+	violationIfStarvationHorizon3(ii,mm) := 
+		starvation(ii,mm)-starvationAfterHorizon(ii) - M*(deltaEmptyHorizon(ii)-theta(ii,mm)-delta(ii,mm)+2) <= 0;	
+	!(A.38)
+	violationIfCongestionHorizon3(ii,mm) :=
+		congestion(ii,mm) - congestionAfterHorizon(ii) - M*(deltaFullHorizon(ii)-theta(ii,mm)-delta(ii,mm)+2) <= 0;
+	!(5.44)
+	violationIfCongestionHorizon4(ii,mm) :=
+		congestionAfterHorizon(ii) - M*(2-theta(ii,mm)-delta(ii,mm)) <= congestion(ii,mm);		
+	!(5.45)
+	violationIfStarvationHorizon4(ii,mm) := 
+		starvationAfterHorizon(ii) - M*(2-(theta(ii,mm)+delta(ii,mm))) <= starvation(ii,mm);	
+end-do 
+
+
+
+!------------------------ OBJECTIVES--------------------------------
+
+declarations
+	Objective1:		linctr;
+	violations11: 	linctr;
+	deviation1: 	linctr;
+	totalReward:	linctr;
+end-declarations
+	
+violations11 := 
+	sum(ii in Stations, mm in Visits)starvation(ii,mm)
+	+ sum(ii in Stations, mm in Visits)congestion(ii,mm)
+	+ sum(ii in Stations) starvationBeforeHorizon(ii)
+	+ sum(ii in Stations) congestionBeforeHorizon(ii)
+	- sum(ii in Stations) starvationAfterHorizon(ii)
+	- sum(ii in Stations) congestionAfterHorizon(ii);
+
+	
+deviation1 := 
+	sum(ii in Stations)deviation(ii);
+	
+totalReward :=
+	-weightDeviationReward*sum(ii in Stations) deviationReward(ii)
+	+ weightDrivingTimePenalty*sum(vv in Vehicles) timePenalty(vv);
+
+Objective1 := 
+	weightViolation*violations11
+	+ weightDeviation*deviation1
+	+ weightReward*totalReward;
+	
+minimize(Objective1);
+
+
+
+!PRINT TO FILE IKKE ENDRE!!!!!!
+
+fopen("outputRoutesXpress.txt",F_OUTPUT);
+			
+		forall (ii in Stations, mm in Visits | getsol(sum(jj in Stations, nn in Visits, vv in Vehicles)flow(ii,mm,jj,nn,vv)) > 0.1) do
+		
+			!getsol(sum(vv in Vehicles)loadingQuantity(ii,mm,vv)) > 0.1 or getsol(sum(vv in Vehicles)unloadingQuantity(ii,mm,vv))>0.1) do
+			
+			!Station
+			write(ii);
+			write(" ");
+			
+			!Load
+			if (sum(vv in Vehicles)getsol(loadingQuantity(ii,mm, vv)) > 0.1) then
+				write(getsol(sum(vv in Vehicles)loadingQuantity(ii,mm, vv)));
+			elif (sum(vv in Vehicles)getsol(unloadingQuantity(ii,mm, vv)) > 0.1) then
+				write(-getsol(sum(vv in Vehicles)unloadingQuantity(ii,mm, vv)));
+			else
+				write("0");	
+			end-if
+			write(" ");
+			
+			!Time
+			if (getsol(visitTime(ii,mm))<0.1) then 
+				write(0.0);
+			else	
+				write(getsol(visitTime(ii,mm)));
+			end-if
+			write(" ");
+			
+			!Vehicle
+			ww := sum(jj in Stations, nn in Visits, vv in Vehicles) (getsol(flow(ii,mm,jj,nn,vv))*vv);
+			if(ww < 0.1) then
+				write(0);
+			else
+				write(ww);
+			end-if
+			write(" ");
+			
+			!Next stationId
+			if (sum(jj in Stations, nn in Visits, vv in Vehicles) (getsol(flow(ii,mm,jj,nn,vv))*jj) < 0.1) then
+				write(0);
+			else 
+				write(sum(jj in Stations, nn in Visits, vv in Vehicles) (getsol(flow(ii,mm,jj,nn,vv))*jj));	
+			end-if
+			write(" ");
+	
+			!Time next stationVisit
+			if (sum (jj in Stations, nn in Visits, vv in Vehicles) getsol(flow(ii,mm,jj,nn,vv))*getsol(visitTime(jj,nn))<0.1) then 
+				write(0.0);
+			else	
+				write(sum (jj in Stations, nn in Visits, vv in Vehicles) getsol(flow(ii,mm,jj,nn,vv))*getsol(visitTime(jj,nn)));
+			end-if
+			write(" ");
+			
+			!First station
+			first := 0;
+			forall (vv in Vehicles) do
+				if (ii = vehicleInitialStation(vv)) then
+					if (mm =1) then
+						write("1");
+						first := 1;
+					end-if	
+				end-if
+			end-do
+			
+			if (first = 0) then
+				write("0");
+			end-if
+			
+			writeln;
+		
+		end-do
+		
+fclose(F_OUTPUT);
+
+
+fopen("outputObjectiveXpress.txt",F_OUTPUT);
+		writeln(getsol(Objective1));
+
+fclose(F_OUTPUT);
+
+
+	forall (ii in Stations, jj in Stations, mm in Visits, nn in Visits, vv in Vehicles | getsol(flow(ii,mm,jj,nn,vv)) > 0.1) do
+		writeln('x(' + ii + ',' + mm + ',' + jj + ',' + nn + ',' + vv + ') = ' + getsol(flow(ii,mm,jj,nn,vv)));
+	end-do
+
+end-model
+
+
+
+
+	!PRINT
+	
+	
+	forall (ii in Stations, mm in Visits,vv in Vehicles | getsol(unloadingQuantity(ii,mm,vv))>0.1) do
+		writeln('unloading from station ' + ii +': -' + getsol(unloadingQuantity(ii,mm,vv)));
+	end-do
+	
+	forall (ii in Stations, mm in Visits,vv in Vehicles | getsol(loadingQuantity(ii,mm,vv))>0.1) do
+		writeln('loading to station ' + ii + ',: ' + getsol(loadingQuantity(ii,mm,vv)));
+	end-do
+	
+
+writeln('Violations: ' + getsol(violations11));
+writeln('deviation: ' + getsol(deviation1));	
+writeln('Reward: ' + getsol(totalReward));
+writeln('Objective value: ' + getsol(Objective1));
+writeln;
+
+forall(vv in Vehicles) do
+	writeln('Remaining time to final station: ' + getsol(remainingTimeToFinalStation(vv)));
+	writeln('Penalty time for station ' + vv + ': ' + getsol(timePenalty(vv)));
+end-do
+
+	
+	forall (ii in Stations | ii<> artificialStation) do
+		writeln;
+		writeln('STATION ' + ii +':');
+		writeln("Initial load: " + stationsInitialLoad(ii));
+		writeln("Load at horizon: " + getsol(inventoryAtHorizon(ii)));
+		writeln("Deviation: " + getsol(deviation(ii)));
+		
+		!Scenario 1
+		if (getsol(gamma(ii))<0.5) then
+			writeln("No visits");
+			if(getsol(starvationBeforeHorizon(ii))>0.001) then
+				writeln('Starvation before horizon: ' + getsol(starvationBeforeHorizon(ii)));
+			elif (getsol(congestionBeforeHorizon(ii))>0.001) then
+				writeln('Congestion before horizon: ' + getsol(congestionBeforeHorizon(ii)));
+			else
+				writeln("No violations before horizon");
+			end-if	
+		
+		!Scenario 2 or 3
+		elif(getsol(gamma(ii))>0.5) then
+			forall (mm in Visits) do
+				if(sum(jj in Stations, nn in Visits, vv in Vehicles) getsol(flow(ii,mm,jj,nn,vv))> 0.1) then
+					writeln("-----------------");
+					writeln("Visit nr. " + mm);
+					writeln("Visit time: " + getsol(visitTime(ii,mm)));
+					if(mm = 1) then
+						writeln('Demand before visit: ' + getsol(visitTime(ii,mm))*stationDemand(ii)); 
+					elif (getsol(visitTime(ii,mm))=0) then
+						writeln('Demand before visit: ' + (getsol(visitTime(ii,mm)))*stationDemand(ii)); 	
+					else
+						writeln('Demand before visit: ' + (getsol(visitTime(ii,mm))-getsol(visitTime(ii,mm-1)))*stationDemand(ii)); 	
+					end-if
+					writeln('Station load when starting visit ' + mm + ' : ' + getsol(loadAtStation(ii,mm))); 
+					if (sum(vv in Vehicles) getsol(loadingQuantity(ii,mm,vv)) > 0.1) then
+						writeln('Quantity loaded to station: ' + sum(vv in Vehicles)getsol(loadingQuantity(ii,mm,vv)));
+					elif (sum(vv in Vehicles)getsol(unloadingQuantity(ii,mm,vv)) > 0.1) then
+						writeln('Quantity unloaded from station: ' + sum(vv in Vehicles)getsol(unloadingQuantity(ii,mm,vv)));
+					end-if
+					
+					
+					!If not last visit and before T
+					if (getsol(theta(ii,mm)) < 0.5 and getsol(delta(ii,mm)) < 0.5) then 		
+						if(getsol(starvation(ii,mm))>0.001) then
+							writeln('Starvation: ' + getsol(starvation(ii,mm)));
+						elif(getsol(congestion(ii,mm))>0.001) then
+							writeln('Congestion: ' + getsol(congestion(ii,mm)));
+						end-if	
+					
+					!If last visit before T
+					elif (getsol(theta(ii,mm)) > 0.5 and getsol(delta(ii,mm)) < 0.5) then 
+						if(getsol(starvation(ii,mm))>0.001) then
+							writeln('Starvation: ' + getsol(starvation(ii,mm)));
+						elif(getsol(congestion(ii,mm))>0.001) then
+							writeln('Congestion: ' + getsol(congestion(ii,mm)));
+						end-if	
+						if(getsol(starvationBeforeHorizon(ii))>0.001) then
+							writeln('Starvation before horizon: ' + getsol(starvationBeforeHorizon(ii)));
+						elif (getsol(congestionBeforeHorizon(ii))>0.001) then
+							writeln('Congestion before horizon: ' + getsol(congestionBeforeHorizon(ii)));
+						else
+							writeln("No violations before horizon");
+						end-if	
+					
+					!If last visit is after T
+					elif(getsol(theta(ii,mm)) > 0.5 and getsol(delta(ii,mm)) > 0.5) then
+						if(getsol(starvation(ii,mm))>0.001) then
+							writeln('Starvation: ' + getsol(starvation(ii,mm)));
+						elif(getsol(congestion(ii,mm))>0.001) then
+							writeln('Congestion: ' + getsol(congestion(ii,mm)));
+						end-if	
+						if(getsol(starvationAfterHorizon(ii))>0.001) then
+							writeln('Starvation After horizon: ' + getsol(starvationAfterHorizon(ii)));
+						elif(getsol(congestionAfterHorizon(ii))>0.001) then
+							writeln('Congestion After horizon: ' + getsol(congestionAfterHorizon(ii)));
+						end-if
+					end-if
+				end-if	
+			end-do
+		end-if
+		
+		
+	end-do
+
+	
+	
+end-model

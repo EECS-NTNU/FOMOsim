@@ -1,14 +1,11 @@
 # parse.py
 import sim
 import json
-import sys
 import os.path
 import geopy.distance
-import numpy as np
 import settings
 
-from tripStats.helpers import *  # works if used from main.py
-# from GUI.dashboard import loggFile  # TODO, gives circular import ???
+from tripStats.helpers import yearWeekNoAndDay 
 
 class Station:
     def __init__(self, stationId, longitude, latitude, stationName):
@@ -93,7 +90,8 @@ def readStationMap(city):
 
 def readBikeStartStatus(city):
     if city == "Oslo" or city == "Utopia":
-        bikeStatusFile = open("tripStats/data/Oslo/stationStatus-23-Mar-1513.json", "r")
+#        bikeStatusFile = open("tripStats/data/Oslo/stationStatus-23-Mar-1513.json", "r")
+        bikeStatusFile = open("tripStats/data/Oslo/stationStatus-26-Apr-1140.json", "r")
         allStatusData = json.loads(bikeStatusFile.read())
         stationData = allStatusData["data"]
         stationMap = readStationMap(city)
@@ -106,15 +104,18 @@ def readBikeStartStatus(city):
                 stationNo = stationMap[str(station)]
                 noOfBikes = stationData["stations"][i]["num_bikes_available"]
                 bikeStartStatus[stationNo] = noOfBikes
-        return bikeStartStatus
+    return bikeStartStatus
 
 def get_initial_state(city, week):
     if city == "Oslo" and ( (week < 1) or (week > 53)):
         print("*** Error: week no must be in range 1..53")
     elif city == "Utopia" and (week != 48):
         print("*** Error: week must be 48")
+    elif not (city == "Oslo" or city == "Utopia"):
+        print("*** Error: given city not implemented ", city)    
 
-    # print("Starts analyzing traffic for city: " + city + " : ", end='') 
+    print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) 
+        + ", setting up datastructures ... ", end='') 
     years = [] # Must count no of "year-instances" of the given week that are analyzed
     stationMap = readStationMap(city)
     arriveCount = []
@@ -139,8 +140,7 @@ def get_initial_state(city, week):
                     durations[station].append([])
                 moveCount[station][day].append(stationList)
 
-    # process all stored trips for given city, and count trips and store durations
-    # for the given week number
+    # process all stored trips for given city, count trips and store durations for the given week number
     trips = 0
     arrivingBikes = 0
     leavingBikes = 0
@@ -169,7 +169,7 @@ def get_initial_state(city, week):
                 leavingBikes += 1
                 durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
             trips = trips + 1
-        # print(".", end='') # TODO replace with progress bar
+        print(".", end='') # TODO replace with progress bar
     
     # Calculate average durations
     # print("calculate avg trip durations ", end='')
@@ -185,7 +185,7 @@ def get_initial_state(city, week):
 
     # Calculate distance
     # print(" calculate all possible distances ", end='')
-    distances = calcDistances(city)  
+    distances = calcDistances(city)
 
     # Calculate speed matrix
     # print(" calculate speed matrix ", end='')
@@ -229,9 +229,13 @@ def get_initial_state(city, week):
 
     loggText = ["trips:", str(trips), "left:", str(leavingBikes), "arrived:", str(arrivingBikes), "week:", str(week), "years:", str(noOfYears), "city:", city]
     bikeStartStatus = readBikeStartStatus(city)
-
+    print(" ") # newline in terminal
+    totalBikes = 0
+    for i in range(len(bikeStartStatus)):
+        totalBikes += bikeStartStatus[i]
+    print("Total number of bikes: ", totalBikes) 
     return sim.State.get_initial_state(
-        bike_class = "bike",
+        bike_class = "Scooter", # TODO helpers.loggLoction will crash if Bike is used here
         distance_matrix = distances,
         speed_matrix = speed_matrix, 
         main_depot = None,

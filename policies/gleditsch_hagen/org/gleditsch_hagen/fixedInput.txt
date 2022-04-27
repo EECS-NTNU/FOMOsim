@@ -1,0 +1,39 @@
+artificialStation: 0
+visitInterval: 0
+loadInterval: 12
+simulation: 0
+pricingProblem: 0
+
+Stations : [
+1
+2
+3
+4
+0
+]
+
+stationsCapacities : [
+10
+10
+10
+10
+0
+]
+vehicleParkingTime: 2.0
+unitHandlingTime: 0.25
+
+Vehicles : [
+1
+]
+
+vehicleCapacity : [
+20
+]
+
+drivingTime : [
+0.0 30.0 30.0 30.0 0
+30.0 0.0 30.0 30.0 0
+30.0 30.0 0.0 30.0 0
+30.0 30.0 30.0 0.0 0
+0 0 0 0 0
+]

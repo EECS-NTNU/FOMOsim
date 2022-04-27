@@ -90,14 +90,8 @@ class RebalancingPolicy(Policy):
             If, however, you are in the depot, you should do the opposite as the depot does not
             change the scooter inventory.
             """
-            visit_positive_deviation_cluster_next = (
-                vehicle_has_scooter_inventory
-                if not vehicle.is_at_depot()
-                else not vehicle_has_scooter_inventory
-            )
-            next_location_id = get_next_location_id(
-                visit_positive_deviation_cluster_next
-            )
+            visit_positive_deviation_cluster_next = (len(vehicle.scooter_inventory) + len(scooters_to_pickup) - len(scooters_to_deliver)) <= 0
+            next_location_id = get_next_location_id(visit_positive_deviation_cluster_next)
 
         return sim.Action(
             scooters_to_swap,

@@ -11,6 +11,8 @@ from sim import Metric
 
 from progress.bar import IncrementalBar
 
+from tripStats.helpers import loggTime, loggLocations, loggEvent
+
 class Simulator(SaveMixin):
     """
     Class containing all metadata about an instance. This class contains both the state, the policy and parameters.
@@ -38,7 +40,7 @@ class Simulator(SaveMixin):
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.vehicles:
             self.event_queue.append(
-                sim.VehicleArrival(self.time, vehicle.id)
+                sim.VehicleArrival(self.time, vehicle)
             )
         # Add Generate Scooter Trip event to the event_queue
         self.event_queue.append(sim.GenerateScooterTrips(start_time + settings.ITERATION_LENGTH_MINUTES))
@@ -70,8 +72,17 @@ class Simulator(SaveMixin):
           print()
           print("Time:", event.time)
           print(self.state)
+          print()
+          print(event)
+
+        if settings.TRAFFIC_LOGGING:
+            loggTime(event.time)
+            loggLocations(self.state)
 
         event.perform(self)
+
+        if settings.TRAFFIC_LOGGING:
+            loggEvent(event)
 
         if settings.VERBOSE:
             print("\n", event)
