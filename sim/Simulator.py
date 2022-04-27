@@ -11,6 +11,8 @@ from sim import Metric
 
 from progress.bar import IncrementalBar
 
+from tripStats.helpers import loggTime, loggLocations, loggEvent
+
 class Simulator(SaveMixin):
     """
     Class containing all metadata about an instance. This class contains both the state, the policy and parameters.
@@ -73,7 +75,17 @@ class Simulator(SaveMixin):
           print()
           print(event)
 
+        if settings.TRAFFIC_LOGGING:
+            loggTime(event.time)
+            loggLocations(self.state)
+
         event.perform(self)
+
+        if settings.TRAFFIC_LOGGING:
+            loggEvent(event)
+
+        if settings.VERBOSE:
+            print("\n", event)
 
         return event
 

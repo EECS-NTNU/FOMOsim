@@ -1,18 +1,13 @@
 #!/bin/python3
-
+"""
+FOMO simulator main program
+"""
 import copy
-import time
-# from progress.bar import IncrementalBar
-import numpy as np
 
 import settings
 import sim
 import clustering.scripts
 import tripStats.parse
-
-# import GUI.dashboard
-
-# from tripStats.parse import calcDistances, get_initial_state
 
 import policies
 import policies.fosen_haldorsen
@@ -20,9 +15,8 @@ import policies.gleditsch_hagen
 from visualization.visualizer import visualize_analysis
 import ideal_state
 
-# from tripStats.helpers import printTime
-
 from GUI.dashboard import GUI_main
+from tripStats.helpers import dateAndTimeStr
 
 simulators = []
 
@@ -35,11 +29,7 @@ START_HOUR = 8
 PERIOD = get_time(4)
 
 ###############################################################################
-
 # Set up initial state
-
-# calcDistances(city = "Oslo") # To ensure that station.txt is available
-# TODO skriv som assume i interface
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
@@ -52,6 +42,23 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ideal_state = ideal_state.evenly_distributed_ideal_state(state)
     #ideal_state = ideal_state.outflow_ideal_state(state)
     state.set_ideal_state(ideal_state)
+
+    ###############################################################################
+
+    print("before main.py simulations: " + dateAndTimeStr())
+
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="Fosen&Haldorsen",
+    ))
+
+    # Run first simulator
+    simulators[-1].run()
 
     ###############################################################################
 
@@ -84,6 +91,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     simulators[-1].run()
 
     ###############################################################################
+
+    print("after main.py simulations: " + dateAndTimeStr())
 
     # Visualize results
     visualize_analysis(simulators)

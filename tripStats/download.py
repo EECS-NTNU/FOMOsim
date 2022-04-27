@@ -1,6 +1,7 @@
 # download.py
 
 import requests
+
 from tripStats.helpers import strip 
 
 def oslo(fromIncluded, toIncluded):
