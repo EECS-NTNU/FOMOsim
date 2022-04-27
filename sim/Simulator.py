@@ -38,7 +38,7 @@ class Simulator(SaveMixin):
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.vehicles:
             self.event_queue.append(
-                sim.VehicleArrival(self.time, vehicle.id)
+                sim.VehicleArrival(self.time, vehicle)
             )
         # Add Generate Scooter Trip event to the event_queue
         self.event_queue.append(sim.GenerateScooterTrips(start_time + settings.ITERATION_LENGTH_MINUTES))
@@ -70,11 +70,10 @@ class Simulator(SaveMixin):
           print()
           print("Time:", event.time)
           print(self.state)
+          print()
+          print(event)
 
         event.perform(self)
-
-        if settings.VERBOSE:
-            print("\n", event)
 
         return event
 

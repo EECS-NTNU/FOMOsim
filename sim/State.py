@@ -195,6 +195,10 @@ class State(SaveMixin):
         :param vehicle: Vehicle to perform this action
         :param action: Action - action to be performed on the state
         """
+        if VERBOSE:
+            print(action)
+            print("\n")
+
         refill_time = 0
         if vehicle.is_at_depot():
             batteries_to_swap = min(
@@ -242,8 +246,10 @@ class State(SaveMixin):
 
     def __repr__(self):
         string = f"<State: {len(self.get_scooters())} scooters in {len(self.stations)} stations with {len(self.vehicles)} vehicles>\n"
-        for station in self.stations:
-            string += f"{repr(station)}\n"
+        for station in self.locations:
+            string += f"{str(station)}\n"
+        for vehicle in self.vehicles:
+            string += f"{str(vehicle)}\n"
         string += f"In use: {self.scooters_in_use}"
         return string
 
