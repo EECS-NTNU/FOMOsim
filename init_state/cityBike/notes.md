@@ -9,7 +9,7 @@
 
 ## File structure
 
-* package folder name **tripStats**
+* package folder name **init_state.cityBike**
 * subfolder **data** contains trip data and more for different cities
   * **data/Oslo** from Oslo City Bike Data
     * subfolder **tripData** stores all dowloaded tripData

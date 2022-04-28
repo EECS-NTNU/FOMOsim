@@ -13,14 +13,14 @@ import PySimpleGUI as sg
 from numpy import DataSource
 
 import sim
-import clustering.scripts
+import init_state.entur.scripts
 import ideal_state.outflow_ideal_state
 import policies
 import policies.fosen_haldorsen
 
-from tripStats.download import oslo
-from tripStats.helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
-from tripStats.parse import calcDistances, get_initial_state
+from init_state.cityBike.download import oslo
+from init_state.cityBike.helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
+from init_state.cityBike.parse import calcDistances, get_initial_state
 
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *

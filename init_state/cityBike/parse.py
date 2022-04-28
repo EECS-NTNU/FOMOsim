@@ -5,7 +5,7 @@ import os.path
 import geopy.distance
 import settings
 
-from tripStats.helpers import yearWeekNoAndDay 
+from init_state.cityBike.helpers import yearWeekNoAndDay 
 
 class Station:
     def __init__(self, stationId, longitude, latitude, stationName):
@@ -23,7 +23,7 @@ class BikeTrip:
         self.end = end
         
 def reportStations(stations, city):
-    fileName = "tripStats/data/" + city + "/stations.txt"
+    fileName = "init_state.cityBike/data/" + city + "/stations.txt"
     stationsMap = open(fileName, "w")
     count = 0
     for s in stations:
@@ -37,7 +37,7 @@ def calcDistances(city):
     stations = []
     stationMap = {} # maps from stationId to station number 
 
-    tripDataPath = "tripStats/data/" + city + "/tripData"
+    tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
     for file in fileList:
         jsonFile = open(os.path.join(tripDataPath, file), "r")
@@ -62,7 +62,7 @@ def calcDistances(city):
     # print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
     reportStations(stations, city)
     dist_matrix_km = [] # km in kilometers
-    dm_file = open("tripStats/data/" + city + "/Distances.txt", "w")
+    dm_file = open("init_state.cityBike/data/" + city + "/Distances.txt", "w")
     for rowNo in range(len(stationMap)):
         col = 0 
         row = []
@@ -82,7 +82,7 @@ def calcDistances(city):
 
 def readStationMap(city):
     stationMap = {} # maps from stationId to station number 
-    stationsFile = open("tripStats/data/" + city + "/stations.txt", "r")
+    stationsFile = open("init_state/cityBike/data/" + city + "/stations.txt", "r")
     for line in stationsFile.readlines():
         words = line.split()
         stationMap[words[1]] = int(words[0])
@@ -90,8 +90,8 @@ def readStationMap(city):
 
 def readBikeStartStatus(city):
     if city == "Oslo" or city == "Utopia":
-#        bikeStatusFile = open("tripStats/data/Oslo/stationStatus-23-Mar-1513.json", "r")
-        bikeStatusFile = open("tripStats/data/Oslo/stationStatus-26-Apr-1140.json", "r")
+#        bikeStatusFile = open("init_state.cityBike/data/Oslo/stationStatus-23-Mar-1513.json", "r")
+        bikeStatusFile = open("init_state.cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
         allStatusData = json.loads(bikeStatusFile.read())
         stationData = allStatusData["data"]
         stationMap = readStationMap(city)
@@ -144,7 +144,7 @@ def get_initial_state(city, week):
     trips = 0
     arrivingBikes = 0
     leavingBikes = 0
-    tripDataPath = "tripStats/data/" + city + "/tripData"
+    tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
     for file in fileList:
         jsonFile = open(os.path.join(tripDataPath, file), "r")

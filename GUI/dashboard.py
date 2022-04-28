@@ -7,9 +7,9 @@ import matplotlib # TODO MARK-C
 
 import settings
 
-# import tripStats
-from tripStats.helpers import dateAndTimeStr, strip, write, fixComputerName, get_duration
-from tripStats.analyze import openVisual1, openVisual2, openVisual3, openVisual4
+# import init_state.cityBike
+from init_state.cityBike.helpers import dateAndTimeStr, strip, write, fixComputerName, get_duration
+from init_state.cityBike.analyze import openVisual1, openVisual2, openVisual3, openVisual4
 
 from GUI import loggFile
 from GUI.script import Session, doCommand, replayScript

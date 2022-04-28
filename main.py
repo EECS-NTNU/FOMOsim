@@ -6,8 +6,7 @@ import copy
 
 import settings
 import sim
-import clustering.scripts
-import tripStats.parse
+import init_state
 
 import policies
 import policies.fosen_haldorsen
@@ -16,7 +15,7 @@ from visualization.visualizer import visualize_analysis
 import ideal_state
 
 from GUI.dashboard import GUI_main
-from tripStats.helpers import dateAndTimeStr
+from init_state.cityBike.helpers import dateAndTimeStr
 
 simulators = []
 
@@ -33,8 +32,8 @@ PERIOD = get_time(4)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
-    #state, _ = tripStats.parse.get_initial_state(city="Oslo", week=WEEK)
-    state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Bike", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    # state, _ = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK)
+    state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Bike", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
 
     ###############################################################################
     # calculate ideal state
@@ -126,3 +125,4 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # Visualize results
     visualize_analysis(simulators)
+

@@ -2,7 +2,7 @@
 Main file for clustering module
 """
 from sim import Vehicle, State, Bike, Scooter
-import clustering.methods as methods
+import init_state.entur.methods as methods
 import os
 from settings import *
 import pandas as pd

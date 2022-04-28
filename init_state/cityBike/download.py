@@ -2,7 +2,7 @@
 
 import requests
 
-from tripStats.helpers import strip 
+from init_state.cityBike.helpers import strip 
 
 def oslo(fromIncluded, toIncluded):
     first = int(strip("From:", fromIncluded))
@@ -18,7 +18,7 @@ def oslo(fromIncluded, toIncluded):
         print(address, "...", end = '')
         data = requests.get(address)
         dataFileName = "Oslo-" + str(i)    
-        dataOut = open("tripStats/data/Oslo/tripData/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "w")
+        dataOut = open("init_state.cityBike/data/Oslo/tripData/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "w")
         dataOut.write(data.text)
         dataOut.close()
         print(" downloaded")

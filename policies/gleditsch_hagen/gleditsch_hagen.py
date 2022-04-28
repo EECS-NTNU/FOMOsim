@@ -5,7 +5,10 @@ from jpype.types import *
 from policies import Policy
 import sim
 
-jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','/opt/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
+# linux
+# jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','/opt/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
+# Lasse PC1
+jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','C:/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
 
 import java.util.ArrayList
 from org.gleditsch_hagen.classes import Simulation,FomoAction,FomoStation,FomoVehicle

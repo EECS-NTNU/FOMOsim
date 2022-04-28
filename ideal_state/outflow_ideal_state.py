@@ -1,4 +1,3 @@
-import clustering.scripts
 import sim
 from progress.bar import Bar
 import os

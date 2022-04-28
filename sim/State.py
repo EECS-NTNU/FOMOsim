@@ -1,5 +1,5 @@
 import sim
-import clustering.methods
+import init_state
 from sim.SaveMixin import SaveMixin
 import numpy as np
 import math
