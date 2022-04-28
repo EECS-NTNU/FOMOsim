@@ -5,7 +5,7 @@ from jpype.types import *
 from policies import Policy
 import sim
 
-jpype.startJVM(classpath = ['jars/gs-core-1.3/gs-core-1.3.jar','jars/gs-algo-1.3/gs-algo-1.3.jar','jars/gs-ui-1.3/gs-ui-1.3.jar','jars/javafx-sdk-18/lib/javafx.graphics.jar','jars/poi-bin-5.2.2/poi-5.2.2.jar','jars/poi-bin-5.2.2/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','/opt/xpressmp/lib/xprm.jar','/home/djupdal/research/fomo/policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
+jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3/gs-core-1.3.jar','jars/gs-algo-1.3/gs-algo-1.3.jar','jars/gs-ui-1.3/gs-ui-1.3.jar','jars/javafx-sdk-18/lib/javafx.graphics.jar','jars/poi-bin-5.2.2/poi-5.2.2.jar','jars/poi-bin-5.2.2/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','/opt/xpressmp/lib/xprm.jar','/home/djupdal/research/fomo/policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
 
 import java.util.ArrayList
 from org.gleditsch_hagen.classes import Simulation,FomoAction,FomoStation,FomoVehicle

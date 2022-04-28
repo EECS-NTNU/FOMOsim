@@ -79,7 +79,7 @@ class RebalancingPolicy(Policy):
             - number_of_scooters_to_swap
             - number_of_scooters_to_pick_up
             < vehicle.battery_inventory_capacity * 0.1
-        ) and not vehicle.is_at_depot():
+        ) and not vehicle.is_at_depot() and (len(simul.state.depots) > 0):
             next_location_id = simul.state.depots[0].id
         else:
             """
