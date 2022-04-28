@@ -67,7 +67,7 @@ def training_simulation(world):
 
         else:
             # performing a scooter trips simulation
-            _, _, lost_demands = policies.haflan_haga_spetalen.system_simulation.scripts.system_simulate(world.state)
+            _, _, lost_demands = policies.haflan_haga_spetalen.system_simulation.scripts.system_simulate(world.state, world.day(), world.hour())
             lost_demand = (
                 sum(map(lambda lost_trips: lost_trips[0], lost_demands))
                 if len(lost_demands) > 0

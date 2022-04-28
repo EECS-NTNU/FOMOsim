@@ -81,12 +81,13 @@ class ANNValueFunction(ValueFunction):
     def estimate_value(
         self,
         state: sim.State,
+        day, hour, 
         vehicle: sim.Vehicle,
         time: int,
     ):
 
         return self.estimate_value_from_state_features(
-            self.get_state_features(state, vehicle, time)
+            self.get_state_features(state, day, hour, vehicle, time)
         )
 
     def estimate_value_from_state_features(self, state_features: [float]):
@@ -111,16 +112,17 @@ class ANNValueFunction(ValueFunction):
     def get_next_state_features(
         self,
         state: sim.State,
+        day, hour, 
         vehicle: sim.Vehicle,
         action: sim.Action,
         cache=None,  # current_states, available_scooters = cache
     ):
-        return self.convert_next_state_features(state, vehicle, action, cache)
+        return self.convert_next_state_features(state, day, hour, vehicle, action, cache)
 
     def get_state_features(
-        self, state: sim.State, vehicle: sim.Vehicle, cache=None
+        self, state: sim.State, day, hour, vehicle: sim.Vehicle, cache=None
     ):
-        return self.convert_state_to_features(state, vehicle, cache=cache)
+        return self.convert_state_to_features(state, day, hour, vehicle, cache=cache)
 
     def __str__(self):
         return f"ANNValueFunction - {self.shifts_trained}"

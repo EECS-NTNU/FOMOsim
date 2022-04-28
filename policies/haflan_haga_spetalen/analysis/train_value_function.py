@@ -18,6 +18,7 @@ import policies.haflan_haga_spetalen
 import policies.haflan_haga_spetalen.epsilon_greedy_value_function_policy
 import policies.haflan_haga_spetalen.settings as annsettings
 import policies.haflan_haga_spetalen.value_functions
+import ideal_state
 
 import policies.haflan_haga_spetalen.training_simulation.scripts
 from progress.bar import IncrementalBar
@@ -88,6 +89,8 @@ def train_value_function(
 
     return sum(training_times) / number_of_shifts
 
+def get_time(day=0, hour=0, minute=0):
+    return 24*60*day + 60*hour + minute
 
 if __name__ == "__main__":
     import pandas as pd
@@ -114,19 +117,16 @@ if __name__ == "__main__":
             value_function,
         )
 
+        state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+        state.simulation_scenarios = policies.haflan_haga_spetalen.generate_scenarios(state)
+        istate = ideal_state.evenly_distributed_ideal_state(state)
+        state.set_ideal_state(istate)
+
         world_to_analyse = sim.Simulator(
             960,
             policy,
-            policies.haflan_haga_spetalen.epsilon_greedy_value_function_policy.get_initial_state(
-                entur_data_dir = "test_data",
-                entur_main_file = "0900-entur-snapshot.csv",
-                bike_class = "Scooter",
-                number_of_scooters = SAMPLE_SIZE,
-                number_of_clusters = num_clusters,
-                number_of_vans = 2,
-                save = True,
-                cache = True,
-            ),
+            state,
+            start_time = get_time(day=1, hour=7),
             verbose=False,
         )
 

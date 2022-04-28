@@ -122,6 +122,7 @@ class ValueFunction(abc.ABC):
     def get_state_features(
         self,
         state: sim.State,
+        day, hour, 
         vehicle: sim.Vehicle,
         cache=None,  # current_states, available_scooters = cache
     ):
@@ -132,6 +133,7 @@ class ValueFunction(abc.ABC):
     def get_next_state_features(
         self,
         state: sim.State,
+        day, hour,
         vehicle: sim.Vehicle,
         action: sim.Action,
         cache=None,  # current_states, available_scooters = cache
@@ -146,6 +148,7 @@ class ValueFunction(abc.ABC):
     def create_features(
         self,
         state,
+        day, hour,
         vehicle,
         action=None,
         cache=None,
@@ -155,7 +158,7 @@ class ValueFunction(abc.ABC):
 
         # Fetch all normalized scooter state representations
         negative_deviations, battery_deficiency = ValueFunction.get_normalized_lists(
-            state,
+            state, day, hour, 
             cache,
             current_location=vehicle.current_location.id if is_next_action else None,
             action=action,
@@ -167,11 +170,12 @@ class ValueFunction(abc.ABC):
     def convert_state_to_features(
         self,
         state: sim.State,
+        day, hour,
         vehicle: sim.Vehicle,
         cache=None,
     ):
         return self.create_features(
-            state,
+            state, day, hour, 
             vehicle,
             action=None,
             cache=cache,
@@ -181,9 +185,9 @@ class ValueFunction(abc.ABC):
         self.shifts_trained = shifts_trained
 
     @Decorators.check_setup
-    def convert_next_state_features(self, state, vehicle, action, cache=None):
+    def convert_next_state_features(self, state, day, hour, vehicle, action, cache=None):
         return self.create_features(
-            state,
+            state, day, hour, 
             vehicle,
             action=action,
             cache=cache,
@@ -212,7 +216,7 @@ class ValueFunction(abc.ABC):
 
     @staticmethod
     def get_normalized_lists(
-        state, cache=None, current_location=None, action=None
+        state, day, hour, cache=None, current_location=None, action=None
     ) -> ([int], [int]):
         if current_location is not None and action is not None:
 
@@ -283,14 +287,14 @@ class ValueFunction(abc.ABC):
         for i, cluster in enumerate(state.stations):
             deviation = (
                 len(available_scooters[i])
-                - cluster.ideal_state
+                - cluster.get_ideal_state(day, hour)
                 + (
                     scooters_added_in_current_cluster
                     if cluster.id == current_location
                     else 0
                 )  # Add available scooters from action
             )
-            negative_deviations.append(min(deviation, 0) / (cluster.ideal_state + 1))
+            negative_deviations.append(min(deviation, 0) / (cluster.get_ideal_state(day, hour) + 1))
             battery_deficiency.append(
                 (
                     len(cluster.scooters)
@@ -301,7 +305,7 @@ class ValueFunction(abc.ABC):
                         else 0
                     )
                 )
-                / (cluster.average_number_of_scooters + 1)
+                / (cluster.get_ideal_state(day, hour) + 1)
             )
 
         def range_one_hot(cluster_list):
