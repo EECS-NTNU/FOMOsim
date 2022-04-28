@@ -833,17 +833,17 @@ fopen("outputRoutesXpress.txt",F_OUTPUT);
 		
 		!Vehicle
 		ww := sum(jj in Stations, nn in Visits, vv in Vehicles) (getsol(flow(ii,mm,jj,nn,vv))*vv);
-		if(ww <= 0.1) then
+		if(ww < 0.1) then
 			write(0);
-		elif (ww <= 1.1) then 
+		elif (ww < 1.1) then 
 			write(1);
-		elif (ww <= 2.1) then
+		elif (ww < 2.1) then
 			write(2);
-		elif (ww <= 3.1) then 
+		elif (ww < 3.1) then 
 			write(3);
-		elif (ww <= 4.1) then 
+		elif (ww < 4.1) then 
 			write(4);
-		elif (ww <= 5.1) then
+		elif (ww < 5.1) then
 			write(5);
 		else
 			write(ww);
@@ -851,7 +851,7 @@ fopen("outputRoutesXpress.txt",F_OUTPUT);
 		write(" ");
 		
 		!Next stationId
-		if (sum(jj in Stations, nn in Visits, vv in Vehicles) (getsol(flow(ii,mm,jj,nn,vv))*jj) <= 0.1) then
+		if (sum(jj in Stations, nn in Visits, vv in Vehicles) (getsol(flow(ii,mm,jj,nn,vv))*jj) < 0.1) then
 			write(0);
 		else 
 			write(sum(jj in Stations, nn in Visits, vv in Vehicles) (getsol(flow(ii,mm,jj,nn,vv))*jj));	

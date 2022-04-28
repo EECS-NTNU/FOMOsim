@@ -24,69 +24,8 @@ def get_current_state(station) -> float:
     return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
 
 
-def get_initial_state(
-    entur_data_dir,
-    entur_main_file,
-    bike_class,
-    number_of_scooters=None,
-    number_of_clusters=20,
-    save=False,
-    cache=False,
-    initial_location_depot=True,
-    number_of_vans=4,
-    random_seed=None
-) -> sim.State:
-    """
-    Main method for setting up a state object based on EnTur data from test_data directory.
-    This method saves the state objects and reuse them if a function call is done with the same properties.
-    :param number_of_scooters: number of e-scooters in the instance
-    :param number_of_clusters
-    :param save: if the model should save the state
-    :param cache: if the model should check for a cached version
-    :param initial_location_depot: set the initial current location of the vehicles to the depot
-    :param number_of_vans: the number of vans to use
-    :return:
-    """
-    # If this combination has been requested before we fetch a cached version
-    filepath = (
-        f"{settings.STATE_CACHE_DIR}/"
-        f"{sim.State.save_path(number_of_clusters, number_of_scooters)}.pickle"
-    )
-    if cache and os.path.exists(filepath):
-        print(f"\nUsing cached version of state from {filepath}\n")
-        initial_state = sim.State.load(filepath)
-    else:
-
-        initial_state = clustering.scripts.get_initial_state(
-            entur_data_dir,
-            entur_main_file,
-            bike_class,
-            number_of_scooters = number_of_scooters,
-            number_of_clusters = number_of_clusters,
-            initial_location_depot = initial_location_depot,
-            number_of_vans = number_of_vans,
-            random_seed = random_seed,
-        )
-
-        # Generate scenarios
-        initial_state.simulation_scenarios = generate_scenarios(initial_state)
-
-        entur_dataframe = clustering.methods.read_bounded_csv_file(entur_data_dir + "/" + entur_main_file)
-        sample_scooters = clustering.scripts.scooter_sample_filter(initial_state.rng, entur_dataframe, number_of_scooters)
-
-        # Find the ideal state for each cluster
-        compute_and_set_ideal_state(initial_state, sample_scooters, entur_data_dir)
-
-        if save:
-            # Cache the state for later
-            initial_state.save_state()
-            print("Setup state completed\n")
-
-    return initial_state
-
-
 def get_possible_actions(
-    state,
+    state, day, hour,
     vehicle: sim.Vehicle,
     number_of_neighbours,
     divide=None,
@@ -136,7 +75,7 @@ def get_possible_actions(
         pick_ups = min(
             max(
                 len(vehicle.current_location.scooters)
-                - vehicle.current_location.ideal_state,
+                - vehicle.current_location.get_ideal_state(day, hour),
                 0,
             ),
             vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory),
@@ -145,7 +84,7 @@ def get_possible_actions(
         swaps = vehicle.get_max_number_of_swaps()
         drop_offs = max(
             min(
-                vehicle.current_location.ideal_state
+                vehicle.current_location.get_ideal_state(day, hour)
                 - len(vehicle.current_location.scooters),
                 len(vehicle.scooter_inventory),
             ),
@@ -275,7 +214,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
     def get_best_action(self, simul, vehicle):
         # Find all possible actions
         actions = get_possible_actions(
-            simul.state,
+            simul.state, simul.day(), simul.hour(), 
             vehicle,
             divide=self.get_possible_actions_divide,
             time=simul.time,
@@ -285,7 +224,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
         cache = EpsilonGreedyValueFunctionPolicy.get_cache(state)
         # Get state representation of current state
         state_features = self.value_function.get_state_features(
-            simul.state, vehicle, cache
+            simul.state, simul.day(), simul.hour(), vehicle, cache
         )
 
         # Epsilon greedy choose an action based on value function
@@ -311,7 +250,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                 forward_state.do_action(action, forward_vehicle, simul.time)
                 # Simulate the system to generate potential lost trips
                 _, _, lost_demands = policies.haflan_haga_spetalen.system_simulation.scripts.system_simulate(
-                    forward_state
+                    forward_state, simul.day(), simul.hour()
                 )
                 # Record lost trip rewards
                 reward = (
@@ -320,8 +259,8 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                     else 0
                 )
                 # Find all actions after taking the action moving the state to s_{t+1}
-                next_action_actions = get_possible_actions(forward_state,
-                    forward_vehicle,
+                next_action_actions = get_possible_actions(forward_state, simul.day(), simul.hour(),
+                    forward_vehicle, 
                     divide=self.get_possible_actions_divide,
                     exclude=[action.next_location],
                     time=simul.time
@@ -339,6 +278,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                     # Generate the features for this new state after the action
                     next_state_features = self.value_function.get_next_state_features(
                         forward_state,
+                        simul.day(), simul.hour(), 
                         forward_vehicle,
                         next_state_action,
                         cache,

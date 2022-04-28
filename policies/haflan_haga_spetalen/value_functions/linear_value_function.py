@@ -55,11 +55,12 @@ class LinearValueFunction(ValueFunction):
     def estimate_value(
         self,
         state,
+        day, hour, 
         vehicle,
         time,
     ):
         return self.estimate_value_from_state_features(
-            self.get_state_features(state, vehicle)
+            self.get_state_features(state, day, hour, vehicle)
         )
 
     def estimate_value_from_state_features(self, state_features: [float]):
@@ -101,17 +102,18 @@ class LinearValueFunction(ValueFunction):
 
         return [1] + state_features + locations_features_combination
 
-    def get_state_features(self, state, vehicle, cache=None):
-        return self.convert_state_to_features(state, vehicle, cache=cache)
+    def get_state_features(self, state, day, hour, vehicle, cache=None):
+        return self.convert_state_to_features(state, day, hour, vehicle, cache=cache)
 
     def get_next_state_features(
         self,
         state: sim.State,
+        day, hour, 
         vehicle: sim.Vehicle,
         action: sim.Action,
         cache=None,  # current_states, available_scooters = cache
     ):
-        return self.convert_next_state_features(state, vehicle, action, cache)
+        return self.convert_next_state_features(state, day, hour, vehicle, action, cache)
 
     def __str__(self):
         return f"LinearValueFunction - {self.shifts_trained}"

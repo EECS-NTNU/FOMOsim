@@ -1,3 +1,2 @@
 from .epsilon_greedy_value_function_policy import EpsilonGreedyValueFunctionPolicy
-from .epsilon_greedy_value_function_policy import compute_and_set_ideal_state
-from .epsilon_greedy_value_function_policy import generate_scenarios
+from .scenarios import generate_scenarios

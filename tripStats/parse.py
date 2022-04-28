@@ -235,7 +235,7 @@ def get_initial_state(city, week):
         totalBikes += bikeStartStatus[i]
     print("Total number of bikes: ", totalBikes) 
     return sim.State.get_initial_state(
-        bike_class = "Scooter", # TODO helpers.loggLoction will crash if Bike is used here
+        bike_class = "Bike", # TODO helpers.loggLoction will crash if Bike is used here
         distance_matrix = distances,
         speed_matrix = speed_matrix, 
         main_depot = None,
