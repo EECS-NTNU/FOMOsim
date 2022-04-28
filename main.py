@@ -33,8 +33,8 @@ PERIOD = get_time(4)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
-    state, _ = tripStats.parse.get_initial_state(city="Oslo", week=WEEK)
-    #state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Bike", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    #state, _ = tripStats.parse.get_initial_state(city="Oslo", week=WEEK)
+    state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Bike", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
 
     ###############################################################################
     # calculate ideal state
@@ -47,18 +47,18 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     print("before main.py simulations: " + dateAndTimeStr())
 
-    # Set up simulator
-    simulators.append(sim.Simulator(
-        PERIOD,
-        policies.haflan_haga_spetalen.EpsilonGreedyValueFunctionPolicy(),
-        copy.deepcopy(state),
-        verbose=True,
-        start_time = get_time(day=START_DAY, hour=START_HOUR),
-        label="Haflan&Haga&Spetalen",
-    ))
+    # # Set up simulator
+    # simulators.append(sim.Simulator(
+    #     PERIOD,
+    #     policies.haflan_haga_spetalen.EpsilonGreedyValueFunctionPolicy(),
+    #     copy.deepcopy(state),
+    #     verbose=True,
+    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
+    #     label="Haflan&Haga&Spetalen",
+    # ))
 
-    # Run first simulator
-    simulators[-1].run()
+    # # Run first simulator
+    # simulators[-1].run()
 
     ###############################################################################
 
@@ -104,6 +104,21 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # Run first simulator
     simulators[-1].run()
+
+    ###############################################################################
+
+    # # Set up simulator
+    # simulators.append(sim.Simulator(
+    #     PERIOD,
+    #     policies.gleditsch_hagen.GleditschHagenPolicy(),
+    #     copy.deepcopy(state),
+    #     verbose=True,
+    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
+    #     label="Rebalancing",
+    # ))
+
+    # # Run first simulator
+    # simulators[-1].run()
 
     ###############################################################################
 
