@@ -23,7 +23,7 @@ class BikeTrip:
         self.end = end
         
 def reportStations(stations, city):
-    fileName = "init_state.cityBike/data/" + city + "/stations.txt"
+    fileName = "init_state/cityBike/data/" + city + "/stations.txt"
     stationsMap = open(fileName, "w")
     count = 0
     for s in stations:
@@ -62,7 +62,7 @@ def calcDistances(city):
     # print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
     reportStations(stations, city)
     dist_matrix_km = [] # km in kilometers
-    dm_file = open("init_state.cityBike/data/" + city + "/Distances.txt", "w")
+    dm_file = open("init_state/cityBike/data/" + city + "/Distances.txt", "w")
     for rowNo in range(len(stationMap)):
         col = 0 
         row = []
@@ -91,7 +91,7 @@ def readStationMap(city):
 def readBikeStartStatus(city):
     if city == "Oslo" or city == "Utopia":
 #        bikeStatusFile = open("init_state.cityBike/data/Oslo/stationStatus-23-Mar-1513.json", "r")
-        bikeStatusFile = open("init_state.cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
+        bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
         allStatusData = json.loads(bikeStatusFile.read())
         stationData = allStatusData["data"]
         stationMap = readStationMap(city)
@@ -225,7 +225,11 @@ def get_initial_state(city, week):
                     if movedBikesTotal > 0:
                         move_probabilities[station][day][hour].append(movedBikes/movedBikesTotal)
                     else:
-                        move_probabilities[station][day][hour].append(0.0) # TODO check this, should set all to zero if no traffic !?
+                        pass
+                        # equalProb = 1.0/len(stationMap)    
+                        # move_probabilities[station][day][hour].append(equalProb)
+                        move_probabilities[station][day][hour].append(0.0)
+                        # fiks til 1 delt på antall stasjoner issue 8 ... move_probabilities[station][day][hour].append(0.0) # TODO check this, should set all to zero if no traffic !? 
 
     loggText = ["trips:", str(trips), "left:", str(leavingBikes), "arrived:", str(arrivingBikes), "week:", str(week), "years:", str(noOfYears), "city:", city]
     bikeStartStatus = readBikeStartStatus(city)

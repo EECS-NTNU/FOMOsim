@@ -7,7 +7,7 @@ import sim
 
 # linux
 # jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','/opt/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
-# Lasse PC1
+# Lasse PC1, PC2, PC3
 jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','C:/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
 
 import java.util.ArrayList
