@@ -15,9 +15,9 @@ import policies.haflan_haga_spetalen.settings as epssettings
 import policies.neighbour_filtering
 import policies.haflan_haga_spetalen.system_simulation.scripts
 import settings
-import clustering
-import clustering.methods
-import clustering.scripts
+import init_state.entur
+import init_state.entur.methods
+import init_state.entur.scripts
 from policies.haflan_haga_spetalen.helpers import *
 
 def get_current_state(station) -> float:

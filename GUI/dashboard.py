@@ -43,7 +43,6 @@ def GUI_main():
             # session = Session("Fast-Track-session")
             # replayScript(session, "tripStats/scripts/script.txt")
 
-
         elif GUI_event == "main.py":
             print("Leaves GUI-dashboard-code, continues in main.py")
             window.close()
@@ -114,7 +113,6 @@ def GUI_main():
             task = ["Save-state", fileName]
         elif GUI_event == "Load state":
             task = ["Load-state"] # TODO not implemented
-
 
         ###### IDEAL STATE GUI PART   
         elif GUI_event == "Evenly distributed":

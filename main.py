@@ -11,6 +11,7 @@ import init_state
 import policies
 import policies.fosen_haldorsen
 import policies.gleditsch_hagen
+import policies.haflan_haga_spetalen
 from visualization.visualizer import visualize_analysis
 import ideal_state
 
@@ -25,8 +26,8 @@ def get_time(day=0, hour=0, minute=0):
 WEEK = 30
 START_DAY = 2
 START_HOUR = 8
-PERIOD = get_time(4)
-
+# PERIOD = get_time(4)
+PERIOD = get_time(hour=1)
 
 
 ###############################################################################
@@ -34,8 +35,10 @@ PERIOD = get_time(4)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
-    # state, _ = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK)
-    state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Bike", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    # state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv",
+    #    "Bike", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK,
+        bike_class="Bike", number_of_vans=1, random_seed=1)
 
     ###############################################################################
     # calculate ideal state
@@ -76,7 +79,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Run first simulator
     simulators[-1].run()
 
-    ###############################################################################
+    # ###############################################################################
 
     # Set up simulator
     simulators.append(sim.Simulator(
@@ -91,7 +94,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Run first simulator
     simulators[-1].run()
 
-    ###############################################################################
+    # ###############################################################################
 
     # Set up simulator
     simulators.append(sim.Simulator(
@@ -106,7 +109,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Run first simulator
     simulators[-1].run()
 
-    ###############################################################################
+    # ###############################################################################
 
     # # Set up simulator
     # simulators.append(sim.Simulator(

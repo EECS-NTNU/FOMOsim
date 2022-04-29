@@ -64,14 +64,13 @@ def doCommand(session, task):
     elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-test-state":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
-            print("before reading" + dateAndTimeStr())
-            session.initState, loggText = get_initial_state(task[1], week = int(task[2]))
-            print("after reading" + dateAndTimeStr())
-            # TODO retur  av loggText var fordi jeg ikke fikk til å bruke dashboard.loggFile fra denne fila TODO FIXIT
+            # print("before reading" + dateAndTimeStr())
+            session.initState = get_initial_state(task[1], week = int(task[2]))
+            # print("after reading" + dateAndTimeStr())
             session.initStateType = "FH"
         elif task[0] == "Init-state-HHS": 
             write(scriptFile, ["Init-state-HHS"])
-            session.initState = clustering.scripts.get_initial_state(
+            session.initState = init_state.entur.scripts.get_initial_state(
                 "test_data",
                 "0900-entur-snapshot.csv",
                 "Scooter",
@@ -80,17 +79,15 @@ def doCommand(session, task):
                 number_of_vans = 2,
                 random_seed = 1,
             )
-            loggText = [] # not used in this case
             session.initStateType = "HHS"
         elif task[0] == "Init-test-state":
-            loggText = [] # not used in this case
             manualInitState(session, task[1]) # second param opens for several different
             session.initStateType = "manual"
         updateField("-STATE-MSG-", session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
         session.idealState = sim.State() # idealState must be cleared, if it exist or not
         session.idealStateType = ""
-        write(loggFile, [task[0], "finished:", dateAndTimeStr()] + loggText)
+        write(loggFile, [task[0], "finished:", dateAndTimeStr()])
         beepy.beep(sound="ping")
    
     #### IDEAL STATE handling

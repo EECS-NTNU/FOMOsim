@@ -5,7 +5,9 @@ import os.path
 import geopy.distance
 import settings
 
-from init_state.cityBike.helpers import yearWeekNoAndDay 
+from GUI import loggFile
+
+from init_state.cityBike.helpers import yearWeekNoAndDay, write, dateAndTimeStr 
 
 class Station:
     def __init__(self, stationId, longitude, latitude, stationName):
@@ -109,7 +111,7 @@ def readBikeStartStatus(city):
                 bikeStartStatus[stationNo] = noOfBikes
     return bikeStartStatus
 
-def get_initial_state(city, week):
+def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
     if city == "Oslo" and ( (week < 1) or (week > 53)):
         print("*** Error: week no must be in range 1..53")
     elif city == "Utopia" and (week != 48):
@@ -175,7 +177,6 @@ def get_initial_state(city, week):
         print(".", end='') # TODO replace with progress bar
     
     # Calculate average durations
-    # print("calculate avg trip durations ", end='')
     avgDuration = []
     for start in range(len(stationMap)):
         avgDuration.append([])
@@ -187,11 +188,9 @@ def get_initial_state(city, week):
             avgDuration[start][end] = sumDuration/len(durations)
 
     # Calculate distance
-    # print(" calculate all possible distances ", end='')
     distances = calcDistances(city)
 
     # Calculate speed matrix
-    # print(" calculate speed matrix ", end='')
     speed_matrix = []
     for start in range(len(stationMap)):
         speed_matrix.append([])
@@ -203,7 +202,6 @@ def get_initial_state(city, week):
                 speed_matrix[start].append(settings.SCOOTER_SPEED)
  
     # Calculate arrive and leave-intensities and move_probabilities
-    # print(" calculate intensities ", end='')
     noOfYears = len(set(years))
     arrive_intensities = []  
     leave_intensities = []
@@ -231,23 +229,23 @@ def get_initial_state(city, week):
                         equalProb = 1.0/len(stationMap)    
                         move_probabilities[station][day][hour].append(equalProb)
 
-    loggText = ["trips:", str(trips), "left:", str(leavingBikes), "arrived:", str(arrivingBikes), "week:", str(week), "years:", str(noOfYears), "city:", city]
     bikeStartStatus = readBikeStartStatus(city)
     print(" ") # newline in terminal
     totalBikes = 0
     for i in range(len(bikeStartStatus)):
         totalBikes += bikeStartStatus[i]
-    print("Total number of bikes: ", totalBikes) 
+    write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "left:", str(leavingBikes), 
+        "arrived:", str(arrivingBikes), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
     return sim.State.get_initial_state(
-        bike_class = "Bike", # TODO helpers.loggLoction will crash if Bike is used here
+        bike_class = bike_class, 
         distance_matrix = distances,
         speed_matrix = speed_matrix, 
         main_depot = None,
         secondary_depots = [],
         number_of_scooters = bikeStartStatus,
-        number_of_vans = 2,
-        random_seed = 1,
+        number_of_vans = number_of_vans,
+        random_seed = random_seed,
         arrive_intensities = arrive_intensities,
         leave_intensities = leave_intensities,
         move_probabilities = move_probabilities,
-    ), loggText
+    )
