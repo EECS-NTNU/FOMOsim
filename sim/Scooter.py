@@ -11,9 +11,6 @@ class Scooter(Location):
         self.battery = battery
         self.battery_change_per_kilometer = BATTERY_CHANGE_PER_KM
 
-    def sloppycopy(self, *args):
-        return Scooter(self.lat, self.lon, self.battery, self.id)
-
     def travel(self, distance):
         self.battery -= distance * self.battery_change_per_kilometer
 

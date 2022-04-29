@@ -59,7 +59,8 @@ def train_value_function(
     for shift in range(number_of_shifts + 1):
         # Start timer for computational time analysis
         start = time.time()
-        policy_world = copy.deepcopy(world)
+        policy_world = world.sloppycopy()
+        policy_world.state.simulation_scenarios = world.state.simulation_scenarios
         # Update shifts trained counter
         policy_world.policy.value_function.update_shifts_trained(shift)
         if epsilon_decay and shift > 0:
@@ -117,16 +118,20 @@ if __name__ == "__main__":
             value_function,
         )
 
+        duration = get_time(hour=16)
+        start_time = get_time(day=1, hour=7)
+        end_time = start_time + duration
+
         state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
-        state.simulation_scenarios = policies.haflan_haga_spetalen.generate_scenarios(state)
+        state.simulation_scenarios = policies.haflan_haga_spetalen.generate_scenarios(state, start_time, end_time)
         istate = ideal_state.evenly_distributed_ideal_state(state)
         state.set_ideal_state(istate)
 
         world_to_analyse = sim.Simulator(
-            960,
+            duration,
             policy,
             state,
-            start_time = get_time(day=1, hour=7),
+            start_time = start_time,
             verbose=False,
         )
 

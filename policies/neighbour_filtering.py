@@ -4,7 +4,7 @@ File containing the important neighbour filtering schema used to reduce the acti
 
 
 def filtering_neighbours(
-    state,
+    state, day, hour,
     vehicle,
     pick_up,
     delivery,
@@ -19,9 +19,9 @@ def filtering_neighbours(
             for cluster in state.stations
             if cluster.id != vehicle.current_location.id
             and cluster.id not in exclude
-            and len(cluster.get_available_scooters()) > 0
+            and len(cluster.get_available_scooters()) - cluster.get_ideal_state(day, hour) > 0
         ],
-        key=lambda cluster: len(cluster.get_available_scooters()),
+        key=lambda cluster: len(cluster.get_available_scooters()) - cluster.get_ideal_state(day, hour),
         reverse=True,
     )
 
@@ -31,9 +31,9 @@ def filtering_neighbours(
             for cluster in state.stations
             if cluster.id != vehicle.current_location.id
             and cluster.id not in exclude
-            and len(cluster.get_available_scooters()) < 0
+            and len(cluster.get_available_scooters()) - cluster.get_ideal_state(day, hour) < 0
         ],
-        key=lambda cluster: len(cluster.get_available_scooters()),
+        key=lambda cluster: len(cluster.get_available_scooters()) - cluster.get_ideal_state(day, hour),
     )
 
     has_more_capacity = (
@@ -43,14 +43,18 @@ def filtering_neighbours(
 
     if has_inventory:
         if has_more_capacity and len(clusters_positive_deviation) > 0:
-            return clusters_negative_deviation[: number_of_neighbours - 1] + [
+            returnval = clusters_negative_deviation[: number_of_neighbours - 1] + [
                 clusters_positive_deviation[0]
             ]
         else:
-            return clusters_negative_deviation[:number_of_neighbours]
+            returnval = clusters_negative_deviation[:number_of_neighbours]
     else:
-        return clusters_positive_deviation[:number_of_neighbours]
+        returnval = clusters_positive_deviation[:number_of_neighbours]
 
+    if len(returnval) > 0:
+        return returnval
+    else:
+        return [ cluster for cluster in state.stations if cluster.id != vehicle.current_location.id and cluster.id not in exclude ]
 
 def add_depots_as_neighbours(state, time, vehicle, max_swaps):
     """
@@ -84,3 +88,15 @@ def add_depots_as_neighbours(state, time, vehicle, max_swaps):
         else [big_depot]
     )
 
+
+# def get_deviation_ideal_state(state, day, hour):
+#     # cluster score based on deviation
+#     return [cluster.get_ideal_state(day, hour) - len(cluster.scooters) for cluster in state.stations]
+
+
+# def get_battery_deficient_in_clusters(state):
+#     # cluster score based on how much deficient of battery the cluster have
+#     return [
+#         len(cluster.scooters) - cluster.get_current_state()
+#         for cluster in state.stations
+#     ]

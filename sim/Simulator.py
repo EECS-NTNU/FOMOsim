@@ -159,17 +159,16 @@ class Simulator(SaveMixin):
             directory = f"{settings.SIM_CACHE_DIR}/{cache_directory}"
         super().save(directory, f"-{suffix}")
 
-    # def sloppycopy(self, *args):
-    #     new_sim = Simulator(
-    #         self.shift_duration,
-    #         self.policy,
-    #         self.state.sloppycopy(),
-    #         verbose=self.verbose,
-    #     )
-    #     new_sim.time = self.time
-    #     new_sim.stack = copy.deepcopy(self.stack)
-    #     new_sim.metrics = copy.deepcopy(self.metrics)
-    #     # Set all hyper parameters
-    #     for parameter in HyperParameters().__dict__.keys():
-    #         setattr(new_sim, parameter, getattr(self, parameter))
-    #     return new_sim
+    def sloppycopy(self, *args):
+        new_sim = Simulator(
+            0,
+            self.policy,
+            self.state.sloppycopy(),
+            self.time,
+            self.verbose,
+            self.label,
+        )
+        new_sim.shift_duration = self.shift_duration
+        new_sim.event_queue = copy.deepcopy(self.event_queue)
+        new_sim.metrics = copy.deepcopy(self.metrics)
+        return new_sim

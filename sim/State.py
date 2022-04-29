@@ -48,16 +48,25 @@ class State(SaveMixin):
         self.TRIP_INTENSITY_RATE = 0.1
 
     def sloppycopy(self, *args):
+        stationscopy = []
+        for s in self.stations:
+            stationscopy.append(s.sloppycopy())
+
         new_state = State(
-            copy.deepcopy(self.stations),
+            stationscopy,
             copy.deepcopy(self.depots),
             copy.deepcopy(self.vehicles),
+            copy.deepcopy(self.scooters_in_use),
             distance_matrix=self.distance_matrix,
+            speed_matrix=self.speed_matrix,
+            rng = self.rng,
         )
+
         for vehicle in new_state.vehicles:
             vehicle.current_location = new_state.get_location_by_id(
                 vehicle.current_location.id
             )
+
         return new_state
 
     @staticmethod

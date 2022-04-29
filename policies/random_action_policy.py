@@ -10,7 +10,7 @@ import abc
 from sim import State, Vehicle
 
 def get_possible_actions(
-    state,
+    state, day, hour,
     vehicle: Vehicle,
     number_of_neighbours=None,
     divide=None,
@@ -31,7 +31,7 @@ def get_possible_actions(
         neighbours = state.stations
     else:
         neighbours = neighbour_filtering.filtering_neighbours(
-            state,
+            state, day, hour, 
             vehicle,
             0,
             0,
@@ -84,7 +84,7 @@ def get_possible_actions(
                         ngbrs = state.stations
                         if number_of_neighbours is not None:
                             ngbrs = neighbour_filtering.filtering_neighbours(
-                                state,
+                                state, day, hour, 
                                 vehicle,
                                 pick_up,
                                 drop_off,
@@ -172,7 +172,7 @@ class RandomActionPolicy(Policy):
     def get_best_action(self, simul, vehicle):
         # all possible actions in this state
         possible_actions = get_possible_actions(
-            simul.state,
+            simul.state, simul.day(), simul.hour(), 
             vehicle,
             time=simul.time,
             # divide=2,
