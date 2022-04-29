@@ -49,38 +49,38 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     ###############################################################################
 
-    # # Set up simulator
-    # simul = sim.Simulator.load("sim_cache/entur_scooter_10_500.pickle")
+    # Set up simulator
+    simul = sim.Simulator.load("sim_cache/entur_scooter_10_500.pickle")
 
-    # hhsstate = copy.deepcopy(state)
-    # hhsstate.simulation_scenarios = simul.state.simulation_scenarios
+    hhsstate = copy.deepcopy(state)
+    hhsstate.simulation_scenarios = simul.state.simulation_scenarios
 
-    # simul.init(
-    #     PERIOD, 
-    #     hhsstate,
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="HHS",
-    # )
-    # simulators.append(simul)
+    simul.init(
+        PERIOD, 
+        hhsstate,
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="HHS",
+    )
+    simulators.append(simul)
 
-    # # Run simulator
-    # simulators[-1].run()
+    # Run simulator
+    simulators[-1].run()
 
     # ###############################################################################
 
-    # # Set up simulator
-    # simulators.append(sim.Simulator(
-    #     PERIOD,
-    #     policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
-    #     copy.deepcopy(state),
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="FH",
-    # ))
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="FH",
+    ))
 
-    # # Run simulator
-    # simulators[-1].run()
+    # Run simulator
+    simulators[-1].run()
 
     # ###############################################################################
 
@@ -144,18 +144,18 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # ###############################################################################
 
-    # # Set up simulator
-    # simulators.append(sim.Simulator(
-    #     PERIOD,
-    #     policies.gleditsch_hagen.GleditschHagenPolicy(),
-    #     copy.deepcopy(state),
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="GH",
-    # ))
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.gleditsch_hagen.GleditschHagenPolicy(),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="GH",
+    ))
 
-    # # Run simulator
-    # simulators[-1].run()
+    # Run simulator
+    simulators[-1].run()
 
     ###############################################################################
 

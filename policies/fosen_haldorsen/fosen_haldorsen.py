@@ -123,8 +123,8 @@ class FosenHaldorsenPolicy(Policy):
     def update_decision(self, simul, vehicle, station, pattern, next_station):
         Q_B, Q_CCL, Q_FCL, Q_CCU, Q_FCU = pattern[0], pattern[1], pattern[2], pattern[3], pattern[4]
 
-        scooters_to_swap = [ scooter.id for scooter in station.get_swappable_scooters()[0:int(Q_B)] ]
         scooters_to_pickup = [ scooter.id for scooter in station.scooters[0:int(Q_CCL+Q_FCL)] ]
+        scooters_to_swap = [ scooter.id for scooter in station.get_swappable_scooters() if scooter.id not in scooters_to_pickup ]
         scooters_to_deliver = [ scooter.id for scooter in vehicle.scooter_inventory[0:int(Q_CCU+Q_FCU)] ]
 
         # vehicle.change_battery_bikes(-Q_CCU + Q_CCL)
@@ -138,6 +138,9 @@ class FosenHaldorsenPolicy(Policy):
         #     station.change_flat_load(-Q_FCL + Q_FCU - Q_B)
         # if station.depot:
         #     vehicle.current_batteries = vehicle.battery_capacity
+
+        scooters_to_swap = scooters_to_swap[0:int(Q_B)]
+        scooters_to_pickup = scooters_to_pickup[0:(vehicle.battery_inventory-len(scooters_to_swap))]
 
         return sim.Action(
             scooters_to_swap,
