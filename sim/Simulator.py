@@ -61,6 +61,40 @@ class Simulator(SaveMixin):
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
 
+    def init(
+        self,
+        shift_duration: int,
+        initial_state,
+        start_time = 0,
+        verbose=False,
+        label=None,
+    ):
+        self.shift_duration = start_time + shift_duration
+        self.state = initial_state
+        self.time = start_time
+        self.event_queue: List[sim.Event] = []
+        # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
+        for vehicle in self.state.vehicles:
+            self.event_queue.append(
+                sim.VehicleArrival(self.time, vehicle)
+            )
+        # Add Generate Scooter Trip event to the event_queue
+        self.event_queue.append(sim.GenerateScooterTrips(start_time + settings.ITERATION_LENGTH_MINUTES))
+        self.metrics = Metric()
+        self.verbose = verbose
+        if label is None:
+          self.label = self.__class__.__name__
+        else:
+          self.label = label
+        if verbose:
+            self.progress_bar = IncrementalBar(
+                "Running Sim",
+                check_tty=False,
+                max=round(shift_duration / settings.ITERATION_LENGTH_MINUTES) + 1,
+                color=settings.WHITE,
+                suffix="%(percent)d%% - ETA %(eta)ds",
+            )
+
     def __repr__(self):
         string = f"<Sim with {self.time} of {self.shift_duration} elapsed. {len(self.event_queue)} events in event_queue>"
         return string
@@ -148,16 +182,14 @@ class Simulator(SaveMixin):
         return settings.DISCOUNT_RATE ** (self.time / 60)
 
     def get_filename(self):
-        return (
-            f"{self.created_at}_Sim_T_e{self.time}_t_{self.shift_duration}_"
-            f"S_c{len(self.state.stations)}_s{len(self.state.get_scooters())}"
-        )
+        if label is not None:
+            return label
+        else:
+            return "sim"
 
-    def save_sim(self, cache_directory=None, suffix=""):
-        directory = settings.SIM_CACHE_DIR
-        if cache_directory:
-            directory = f"{settings.SIM_CACHE_DIR}/{cache_directory}"
-        super().save(directory, f"-{suffix}")
+    def save_sim(self, filename):
+        directory = f"{settings.SIM_CACHE_DIR}/{filename}"
+        super().save(directory)
 
     def sloppycopy(self, *args):
         new_sim = Simulator(

@@ -3,7 +3,7 @@ from progress.bar import Bar
 import sim
 import numpy as np
 
-def generate_scenarios(state: sim.State, start_time, end_time, number_of_scenarios=10000):
+def generate_scenarios(state: sim.State, start_time = 0, end_time = 7*24*60, number_of_scenarios=10000):
     """
     Generate system simulation scenarios. This is used to speed up the training simulation
     :param state: new state

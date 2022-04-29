@@ -8,6 +8,7 @@ class Bike(Location):
 
     def __init__(self, lat: float = 0, lon: float = 0, scooter_id: int = 0):
         super().__init__(lat, lon, scooter_id)
+        self.battery = 100.0
 
     def travel(self, distance):
       pass

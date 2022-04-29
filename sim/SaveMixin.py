@@ -14,9 +14,7 @@ class SaveMixin(abc.ABC):
 
     def save(self, directory: str, suffix=""):
         # If there is no world_cache directory, create it
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        with open(f"{directory}/{self.get_filename()}{suffix}.pickle", "wb") as file:
+        with open(f"{directory}.pickle", "wb") as file:
             pickle.dump(self, file)
 
     @classmethod

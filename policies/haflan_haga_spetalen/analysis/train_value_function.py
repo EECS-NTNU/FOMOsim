@@ -19,19 +19,13 @@ import policies.haflan_haga_spetalen.epsilon_greedy_value_function_policy
 import policies.haflan_haga_spetalen.settings as annsettings
 import policies.haflan_haga_spetalen.value_functions
 import ideal_state
+import tripStats.parse
 
 import policies.haflan_haga_spetalen.training_simulation.scripts
 from progress.bar import IncrementalBar
 
-def get_train_directory(simulator, suffix=None):
-    suffix = suffix if suffix else f"{simulator.created_at}"
-    return (
-        f"trained_models/{simulator.policy.value_function.__repr__()}/"
-        f"c{len(simulator.state.stations)}_s{len(simulator.state.get_scooters())}/{suffix}"
-    )
-
 def train_value_function(
-    world, save_suffix="", scenario_training=True, epsilon_decay=True
+    world, filename="trained", scenario_training=True, epsilon_decay=True
 ):
     """
     Main method for training any value function attached to world object
@@ -68,11 +62,8 @@ def train_value_function(
             policy_world.policy.epsilon -= (
                 annsettings.INITIAL_EPSILON - annsettings.FINAL_EPSILON
             ) / number_of_shifts
-        if shift % world.TRAINING_SHIFTS_BEFORE_SAVE == 0:
-            # Save model for intervals set by training parameters
-            policy_world.save_sim(
-                cache_directory=get_train_directory(policy_world, save_suffix), suffix=shift
-            )
+        if shift == number_of_shifts:
+            policy_world.save_sim(filename)
 
         # avoid running the world after the last model is saved
         if shift != number_of_shifts:
@@ -88,6 +79,8 @@ def train_value_function(
         # stop timer
         training_times.append(time.time() - start)
 
+    print("\n")
+
     return sum(training_times) / number_of_shifts
 
 def get_time(day=0, hour=0, minute=0):
@@ -97,59 +90,58 @@ if __name__ == "__main__":
     import pandas as pd
     import os
 
-    SAMPLE_SIZE = 2500
-    NUMBER_OF_CLUSTERS = [10, 20, 30, 50]
-    decision_times = []
-    for num_clusters in NUMBER_OF_CLUSTERS:
-        value_function = policies.haflan_haga_spetalen.value_functions.ANNValueFunction(
-            0.0001,
-            annsettings.WEIGHT_INITIALIZATION_VALUE,
-            annsettings.DISCOUNT_RATE,
-            annsettings.VEHICLE_INVENTORY_STEP_SIZE,
-            annsettings.LOCATION_REPETITION,
-            annsettings.TRACE_DECAY,
-            [1000, 2000, 1000, 200],
-        )
-
-        policy = policies.haflan_haga_spetalen.EpsilonGreedyValueFunctionPolicy(
-            annsettings.DIVIDE_GET_POSSIBLE_ACTIONS,
-            annsettings.NUMBER_OF_NEIGHBOURS,
-            annsettings.EPSILON,
-            value_function,
-        )
-
-        duration = get_time(hour=16)
-        start_time = get_time(day=1, hour=7)
-        end_time = start_time + duration
-
-        state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
-        state.simulation_scenarios = policies.haflan_haga_spetalen.generate_scenarios(state, start_time, end_time)
-        istate = ideal_state.evenly_distributed_ideal_state(state)
-        state.set_ideal_state(istate)
-
-        world_to_analyse = sim.Simulator(
-            duration,
-            policy,
-            state,
-            start_time = start_time,
-            verbose=False,
-        )
-
-        policy.value_function.setup(world_to_analyse.state)
-
-        world_to_analyse.MODELS_TO_BE_SAVED=1
-        world_to_analyse.TRAINING_SHIFTS_BEFORE_SAVE=10
-        world_to_analyse.REPLAY_BUFFER_SIZE=64
-        
-        decision_times.append(train_value_function(world_to_analyse))
-
-    df = pd.DataFrame(
-        decision_times,
-        index=NUMBER_OF_CLUSTERS,
-        columns=["Avg. time per shift"],
+    value_function = policies.haflan_haga_spetalen.value_functions.ANNValueFunction(
+        0.0001,
+        annsettings.WEIGHT_INITIALIZATION_VALUE,
+        annsettings.DISCOUNT_RATE,
+        annsettings.VEHICLE_INVENTORY_STEP_SIZE,
+        annsettings.LOCATION_REPETITION,
+        annsettings.TRACE_DECAY,
+        [1000, 2000, 1000, 200],
     )
 
-    if not os.path.exists("computational_study"):
-        os.makedirs("computational_study")
+    policy = policies.haflan_haga_spetalen.EpsilonGreedyValueFunctionPolicy(
+        annsettings.DIVIDE_GET_POSSIBLE_ACTIONS,
+        annsettings.NUMBER_OF_NEIGHBOURS,
+        annsettings.EPSILON,
+        value_function,
+    )
 
-    df.to_excel("computational_study/training_time_clusters_shift_short.xlsx")
+    duration = get_time(hour=16)
+    start_time = get_time(day=1, hour=7)
+    end_time = start_time + duration
+
+    ###############################################################################
+    # get initial state
+
+    #state, _ = tripStats.parse.get_initial_state(city="Oslo", week=30)
+    state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 500, number_of_clusters = 10, number_of_vans = 1, random_seed = 1)
+
+    ###############################################################################
+    # calculate ideal state
+
+    istate = ideal_state.evenly_distributed_ideal_state(state)
+    state.set_ideal_state(istate)
+
+    ###############################################################################
+    # generate scenarios
+
+    state.simulation_scenarios = policies.haflan_haga_spetalen.generate_scenarios(state)
+
+    ###############################################################################
+
+    world_to_analyse = sim.Simulator(
+        duration,
+        policy,
+        state,
+        start_time = start_time,
+        verbose=False,
+    )
+
+    policy.value_function.setup(world_to_analyse.state)
+
+    world_to_analyse.MODELS_TO_BE_SAVED=1
+    world_to_analyse.TRAINING_SHIFTS_BEFORE_SAVE=10
+    world_to_analyse.REPLAY_BUFFER_SIZE=64
+
+    train_value_function(world_to_analyse, filename="entur_scooter_10_500")

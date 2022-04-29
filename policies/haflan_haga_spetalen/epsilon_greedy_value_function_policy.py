@@ -135,7 +135,7 @@ def get_possible_actions(
         none_swappable_scooters_id = [
             scooter.id
             for scooter in vehicle.current_location.scooters
-            if scooter.battery >= 70
+            if isinstance(scooter, sim.Bike) or (scooter.battery >= 70)
         ]
 
         def choose_pick_up(swaps, pickups):

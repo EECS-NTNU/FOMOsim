@@ -231,7 +231,7 @@ class State(SaveMixin):
                 # Remove scooter from current cluster
                 vehicle.current_location.remove_scooter(pick_up_scooter)
             # Perform all battery swaps
-            for battery_swap_scooter_id in action.battery_swaps:
+            for battery_swap_scooter_id in action.battery_swaps[:vehicle.battery_inventory]:
                 battery_swap_scooter = vehicle.current_location.get_scooter_from_id(
                     battery_swap_scooter_id
                 )
