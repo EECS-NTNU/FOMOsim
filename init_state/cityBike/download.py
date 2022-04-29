@@ -1,5 +1,6 @@
 # download.py
 
+import os
 import requests
 
 from init_state.cityBike.helpers import strip 
@@ -17,8 +18,10 @@ def oslo(fromIncluded, toIncluded):
         address = "https://data.urbansharing.com/oslobysykkel.no/trips/v1/" + str(yearNo) + "/" + monthStr + ".json"
         print(address, "...", end = '')
         data = requests.get(address)
-        dataFileName = "Oslo-" + str(i)    
-        dataOut = open("init_state.cityBike/data/Oslo/tripData/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "w")
+        dataFileName = "Oslo-" + str(i)
+        if not os.path.isdir("init_state/cityBike/data/Oslo/tripData"):
+            os.mkdir("init_state/cityBike/data/Oslo/tripData")
+        dataOut = open("init_state/cityBike/data/Oslo/tripData/Oslo-" + str(yearNo) + "-" + monthStr  + ".json", "w")
         dataOut.write(data.text)
         dataOut.close()
         print(" downloaded")
