@@ -27,6 +27,8 @@ START_DAY = 2
 START_HOUR = 8
 PERIOD = get_time(4)
 
+
+
 ###############################################################################
 # Set up initial state
 

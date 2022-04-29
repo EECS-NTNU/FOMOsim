@@ -39,27 +39,30 @@ def calcDistances(city):
 
     tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
-    for file in fileList:
-        jsonFile = open(os.path.join(tripDataPath, file), "r")
-        bikeData = json.loads(jsonFile.read())
-        for i in range(len(bikeData)):
-            startId = int(bikeData[i]["start_station_id"])
-            if not startId in stationMap:
-                stationMap[startId] = stationNo
-                stationNo = stationNo + 1
-                startLong = str(bikeData[i]["start_station_longitude"])
-                startLat = str(bikeData[i]["start_station_latitude"])
-                stations.append(Station(bikeData[i]["start_station_id"], startLong, startLat, bikeData[i]["start_station_name"]))
-        
-            endId = int(bikeData[i]["end_station_id"]) # TODO refactor?, code similar for start... and end...
-            if not endId in stationMap:
-                stationMap[endId] = stationNo
-                stationNo = stationNo + 1
-                endLong = str(bikeData[i]["end_station_longitude"])
-                endLat = str(bikeData[i]["end_station_latitude"])
-                stations.append(Station(bikeData[i]["end_station_id"], endLong, endLat, bikeData[i]["end_station_name"]))
-        # print(".", end='') # TODO nice, replace with progress bar
-    # print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
+    if len(fileList) == 0:
+        print("*** Error: you must download city data" )
+    else:    
+        for file in fileList:
+            jsonFile = open(os.path.join(tripDataPath, file), "r")
+            bikeData = json.loads(jsonFile.read())
+            for i in range(len(bikeData)):
+                startId = int(bikeData[i]["start_station_id"])
+                if not startId in stationMap:
+                    stationMap[startId] = stationNo
+                    stationNo = stationNo + 1
+                    startLong = str(bikeData[i]["start_station_longitude"])
+                    startLat = str(bikeData[i]["start_station_latitude"])
+                    stations.append(Station(bikeData[i]["start_station_id"], startLong, startLat, bikeData[i]["start_station_name"]))
+            
+                endId = int(bikeData[i]["end_station_id"]) # TODO refactor?, code similar for start... and end...
+                if not endId in stationMap:
+                    stationMap[endId] = stationNo
+                    stationNo = stationNo + 1
+                    endLong = str(bikeData[i]["end_station_longitude"])
+                    endLat = str(bikeData[i]["end_station_latitude"])
+                    stations.append(Station(bikeData[i]["end_station_id"], endLong, endLat, bikeData[i]["end_station_name"]))
+            # print(".", end='') # TODO nice, replace with progress bar
+        # print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
     reportStations(stations, city)
     dist_matrix_km = [] # km in kilometers
     dm_file = open("init_state/cityBike/data/" + city + "/Distances.txt", "w")
@@ -225,11 +228,8 @@ def get_initial_state(city, week):
                     if movedBikesTotal > 0:
                         move_probabilities[station][day][hour].append(movedBikes/movedBikesTotal)
                     else:
-                        pass
-                        # equalProb = 1.0/len(stationMap)    
-                        # move_probabilities[station][day][hour].append(equalProb)
-                        move_probabilities[station][day][hour].append(0.0)
-                        # fiks til 1 delt på antall stasjoner issue 8 ... move_probabilities[station][day][hour].append(0.0) # TODO check this, should set all to zero if no traffic !? 
+                        equalProb = 1.0/len(stationMap)    
+                        move_probabilities[station][day][hour].append(equalProb)
 
     loggText = ["trips:", str(trips), "left:", str(leavingBikes), "arrived:", str(arrivingBikes), "week:", str(week), "years:", str(noOfYears), "city:", city]
     bikeStartStatus = readBikeStartStatus(city)
