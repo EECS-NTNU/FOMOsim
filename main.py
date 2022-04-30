@@ -6,18 +6,18 @@ import copy
 
 import settings
 import sim
-import clustering.scripts
-import tripStats.parse
+import init_state
 
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
+import policies.haflan_haga_spetalen
 from visualization.visualizer import visualize_analysis
 import ideal_state
 
 from GUI.dashboard import GUI_main
-from tripStats.helpers import dateAndTimeStr
+from init_state.cityBike.helpers import dateAndTimeStr
 
 simulators = []
 
@@ -27,7 +27,8 @@ def get_time(day=0, hour=0, minute=0):
 WEEK = 30
 START_DAY = 2
 START_HOUR = 8
-PERIOD = get_time(4)
+PERIOD = get_time(day=4)
+
 
 ###############################################################################
 # Set up initial state
@@ -37,8 +38,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # get initial state
 
-    #state, _ = tripStats.parse.get_initial_state(city="Oslo", week=WEEK)
-    state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    #state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike", number_of_vans=1, random_seed=1)
 
     ###############################################################################
     # calculate ideal state
@@ -97,7 +98,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Run simulator
     simulators[-1].run()
 
-    ###############################################################################
+    # ###############################################################################
 
     # Set up simulator
     simulators.append(sim.Simulator(
@@ -112,7 +113,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Run simulator
     simulators[-1].run()
 
-    ###############################################################################
+    # ###############################################################################
 
     # Set up simulator
     simulators.append(sim.Simulator(
@@ -127,7 +128,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Run simulator
     simulators[-1].run()
 
-    ###############################################################################
+    # ###############################################################################
 
     # # Set up simulator
     # simulators.append(sim.Simulator(
@@ -146,3 +147,4 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # Visualize results
     visualize_analysis(simulators)
+

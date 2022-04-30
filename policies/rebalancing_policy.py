@@ -5,11 +5,11 @@ import copy
 
 from policies import Policy
 import sim
-import abc
+# import abc
 
-import clustering
-import clustering.methods
-import clustering.scripts
+# import init_state
+import init_state.entur.methods
+import init_state.entur.scripts
 
 class RebalancingPolicy(Policy):
     def __init__(self):

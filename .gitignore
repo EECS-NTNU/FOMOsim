@@ -1,10 +1,9 @@
-tripStats/data/Oslo/tripData
-tripStats/data/Oslo/*.txt
-tripStats/data/Utopia/*.txt
-tripStats/results
-tripStats/scripts
-tripStats/plots
-tripStats/loggfiles
+init_state/cityBike/data/Oslo/tripData
+init_state/cityBike/data/Oslo/*.txt
+init_state/cityBike/data/Utopia/*.txt
+GUI/scripts
+GUI/results
+GUI/loggfiles
 data/tripData
 
 state_cache
