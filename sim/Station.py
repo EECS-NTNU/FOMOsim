@@ -36,12 +36,14 @@ class Station(Location):
     def sloppycopy(self, *args):
         return Station(
             self.id,
-            self.scooters.sloppycopy(),
-            center_location=self.get_location(),
-            move_probabilities=self.move_probabilities,
+            copy.deepcopy(self.scooters),
             leave_intensity_per_iteration=self.leave_intensity_per_iteration,
             arrive_intensity_per_iteration=self.arrive_intensity_per_iteration,
+            center_location=self.get_location(),
+            move_probabilities=self.move_probabilities,
             average_number_of_scooters=self.average_number_of_scooters,
+            ideal_state=self.ideal_state,
+            capacity=self.capacity,
         )
 
     def get_leave_distribution(self, state, day, hour):

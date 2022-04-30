@@ -43,9 +43,9 @@ public class Run {
     public static void main(String[] args) {
       ArrayList<FomoStation> stations = new ArrayList<>();
 
-      int stationCounter = 0;
-      int bikeCounter = 0;
-      int vehicleCounter = 0;
+      long stationCounter = 0;
+      long bikeCounter = 0;
+      long vehicleCounter = 0;
 
       for(int s = 0; s < 4; s++) {
         FomoStation station = new FomoStation(stationCounter++, 10, 3, 4, 5);
@@ -68,15 +68,15 @@ public class Run {
 
       System.out.println("Got Action:");
       System.out.println("  Swaps:");
-      for(Integer id : action.batterySwaps) {
+      for(Long id : action.batterySwaps) {
         System.out.println("    " + id);
       }
       System.out.println("  PickUps:");
-      for(Integer id : action.pickUps) {
+      for(Long id : action.pickUps) {
         System.out.println("    " + id);
       }
       System.out.println("  Deliveries:");
-      for(Integer id : action.deliveryScooters) {
+      for(Long id : action.deliveryScooters) {
         System.out.println("    " + id);
       }
       System.out.println("  Next station: " + action.nextLocation);

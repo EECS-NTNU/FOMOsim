@@ -17,7 +17,7 @@ def training_simulation(world):
     vehicle_cluster_features = [None] * len(world.state.vehicles)
     next_is_vehicle_action = True
     # list of vehicle times for next arrival
-    vehicle_times = [0] * len(world.state.vehicles)
+    vehicle_times = [world.time] * len(world.state.vehicles)
 
     while world.time < world.shift_duration:
         if next_is_vehicle_action:

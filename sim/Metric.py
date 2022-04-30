@@ -8,6 +8,7 @@ class Metric:
     def __init__(self):
         self.metrics = {}
 
+        self.max_time = 0
         self.metrics["average_battery"] = []
         self.metrics["total_available_scooters"] = []
 
@@ -15,6 +16,8 @@ class Metric:
         if metric not in self.metrics:
             self.metrics[metric] = []
         self.metrics.get(metric, []).append((sim.time, value))
+        if(sim.time > self.max_time):
+            self.max_time = sim.time
 
     def add_analysis_metrics(self, sim):
         self.metrics["average_battery"].append((sim.time, 
@@ -28,6 +31,8 @@ class Metric:
                 ]
             )
         ))
+        if(sim.time > self.max_time):
+            self.max_time = sim.time
 
     def timeline(self, metric="average_battery"):
         return [item[0] for item in metrics[metric]]

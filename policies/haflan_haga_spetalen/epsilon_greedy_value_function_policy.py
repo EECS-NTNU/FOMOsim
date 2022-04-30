@@ -43,7 +43,7 @@ def get_possible_actions(
     """
     actions = []
     neighbours = policies.neighbour_filtering.filtering_neighbours(
-        state,
+        state, day, hour, 
         vehicle,
         0,
         0,
@@ -103,7 +103,7 @@ def get_possible_actions(
                         for (
                             location
                         ) in policies.neighbour_filtering.filtering_neighbours(
-                            state,
+                            state, day, hour, 
                             vehicle,
                             pick_up,
                             drop_off,
@@ -135,7 +135,7 @@ def get_possible_actions(
         none_swappable_scooters_id = [
             scooter.id
             for scooter in vehicle.current_location.scooters
-            if scooter.battery >= 70
+            if isinstance(scooter, sim.Bike) or (scooter.battery >= 70)
         ]
 
         def choose_pick_up(swaps, pickups):
@@ -242,7 +242,8 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
             reward = 0
             for action in actions:
                 # look one action ahead
-                forward_state: sim.State = copy.deepcopy(state)
+                forward_state: sim.State = state.sloppycopy()
+                forward_state.simulation_scenarios = state.simulation_scenarios
                 forward_vehicle: sim.Vehicle = forward_state.get_vehicle_by_id(
                     vehicle.id
                 )

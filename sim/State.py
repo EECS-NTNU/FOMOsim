@@ -48,16 +48,25 @@ class State(SaveMixin):
         self.TRIP_INTENSITY_RATE = 0.1
 
     def sloppycopy(self, *args):
+        stationscopy = []
+        for s in self.stations:
+            stationscopy.append(s.sloppycopy())
+
         new_state = State(
-            copy.deepcopy(self.stations),
+            stationscopy,
             copy.deepcopy(self.depots),
             copy.deepcopy(self.vehicles),
+            copy.deepcopy(self.scooters_in_use),
             distance_matrix=self.distance_matrix,
+            speed_matrix=self.speed_matrix,
+            rng = self.rng,
         )
+
         for vehicle in new_state.vehicles:
             vehicle.current_location = new_state.get_location_by_id(
                 vehicle.current_location.id
             )
+
         return new_state
 
     @staticmethod
@@ -222,7 +231,7 @@ class State(SaveMixin):
                 # Remove scooter from current cluster
                 vehicle.current_location.remove_scooter(pick_up_scooter)
             # Perform all battery swaps
-            for battery_swap_scooter_id in action.battery_swaps:
+            for battery_swap_scooter_id in action.battery_swaps[:vehicle.battery_inventory]:
                 battery_swap_scooter = vehicle.current_location.get_scooter_from_id(
                     battery_swap_scooter_id
                 )

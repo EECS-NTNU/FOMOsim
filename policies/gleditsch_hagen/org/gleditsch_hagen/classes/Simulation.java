@@ -44,9 +44,9 @@ public class Simulation {
         HashMap<Integer, Station> stationMap = new HashMap<>();
         //System.out.println("Stations:");
         for(FomoStation s : stations) {
-          Station station = new Station(s.id + 1);
+          Station station = new Station((int)s.id + 1);
           station.setLoad(s.bikes.size());
-          station.setCapacity(s.capacity);
+          station.setCapacity((int)s.capacity);
           station.setBikeReturnedMedian(0, s.arriveIntensity);
           station.setBikeWantedMedian(0, s.leaveIntensity);
           station.setOptimalState(0, s.idealState);
@@ -64,19 +64,19 @@ public class Simulation {
             //System.out.println("    dest: " + d + " dist: " + t);
           }
           //System.out.println();
-          stationMap.put(s.id + 1, station);
+          stationMap.put((int)s.id + 1, station);
         }
 
         HashMap<Integer, Vehicle> vehicleMap = new HashMap<>();
-        Vehicle v = new Vehicle(vehicle.id + 1);
-        v.setCapacity(vehicle.capacity);
+        Vehicle v = new Vehicle((int)vehicle.id + 1);
+        v.setCapacity((int)vehicle.capacity);
         v.setLoad(vehicle.bikes.size());
-        v.setNextStation(vehicle.currentStation + 1);
+        v.setNextStation((int)vehicle.currentStation + 1);
         v.setTimeToNextStation(0);
         ArrayList<Station> stationsList = new ArrayList<>();
         stationsList.addAll(stationMap.values());
         v.setClusterStationList(stationsList);
-        vehicleMap.put(vehicle.id + 1, v);
+        vehicleMap.put((int)vehicle.id + 1, v);
         //System.out.println("\nVehicle:");
         //System.out.println("  id: " + (vehicle.id + 1));
         //System.out.println("  cap: " + vehicle.capacity);
