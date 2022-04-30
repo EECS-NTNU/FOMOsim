@@ -27,7 +27,8 @@ WEEK = 30
 START_DAY = 2
 START_HOUR = 8
 # PERIOD = get_time(4)
-PERIOD = get_time(hour=2)
+# PERIOD = get_time(hour=2)
+PERIOD = get_time(day=4)
 
 
 ###############################################################################
