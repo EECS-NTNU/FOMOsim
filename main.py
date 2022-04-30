@@ -43,8 +43,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # calculate ideal state
 
-    ideal_state = ideal_state.evenly_distributed_ideal_state(state)
-    #ideal_state = ideal_state.outflow_ideal_state(state)
+    # ideal_state = ideal_state.evenly_distributed_ideal_state(state)
+    ideal_state = ideal_state.outflow_ideal_state(state)
     state.set_ideal_state(ideal_state)
 
     ###############################################################################
@@ -70,6 +70,22 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     simulators.append(sim.Simulator(
         PERIOD,
         policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="F&H- Greedy",
+    ))
+
+    # Run first simulator
+    simulators[-1].run()
+
+
+    ###############################################################################
+
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
         copy.deepcopy(state),
         verbose=True,
         start_time = get_time(day=START_DAY, hour=START_HOUR),
