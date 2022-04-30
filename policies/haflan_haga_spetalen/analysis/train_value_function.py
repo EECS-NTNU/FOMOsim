@@ -115,7 +115,7 @@ if __name__ == "__main__":
     # get initial state
 
     #state, _ = tripStats.parse.get_initial_state(city="Oslo", week=30)
-    state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 500, number_of_clusters = 10, number_of_vans = 1, random_seed = 1)
+    state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
 
     ###############################################################################
     # calculate ideal state
@@ -144,4 +144,4 @@ if __name__ == "__main__":
     world_to_analyse.TRAINING_SHIFTS_BEFORE_SAVE=10
     world_to_analyse.REPLAY_BUFFER_SIZE=64
 
-    train_value_function(world_to_analyse, filename="entur_scooter_10_500")
+    train_value_function(world_to_analyse, filename="entur_scooter_5_250")

@@ -4,15 +4,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class FomoStation {
-  public int id;
-  public ArrayList<Integer> bikes = new ArrayList<>();
-  public int capacity;
+  public long id;
+  public ArrayList<Long> bikes = new ArrayList<>();
+  public long capacity;
   public double leaveIntensity;
   public double arriveIntensity;
-  public int idealState;
+  public long idealState;
   public HashMap<Long, Double> distances = new HashMap<>();
 
-  public FomoStation(int id, int capacity, double leaveIntensity, double arriveIntensity, int idealState) {
+  public FomoStation(long id, long capacity, double leaveIntensity, double arriveIntensity, long idealState) {
     this.id = id;
     this.capacity = capacity;
     this.idealState = idealState;

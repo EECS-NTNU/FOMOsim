@@ -58,8 +58,6 @@ class FosenHaldorsenPolicy(Policy):
 
             swaps = min(vehicle_current_batteries, vehicle_current_location_current_flat_bikes)
 
-            scooters_to_swap = [scooter.id for scooter in vehicle.current_location.get_swappable_scooters()[0:swaps]]
-
             bat_load, bat_unload, flat_load, flat_unload = (0, 0, 0, 0)
             if vehicle_current_station_current_charged_bikes - vehicle.current_location.get_ideal_state(simul.day(), simul.hour()) > 0:
                 bat_load = max(0, min(vehicle_current_station_current_charged_bikes,
@@ -72,6 +70,10 @@ class FosenHaldorsenPolicy(Policy):
                                  min(vehicle_current_charged_bikes, vehicle_current_location_available_parking,
                                      vehicle.current_location.get_ideal_state(simul.day(), simul.hour()) - vehicle_current_station_current_charged_bikes))
                 scooters_to_deliver = [scooter.id for scooter in vehicle.scooter_inventory[0:bat_unload]]
+
+            scooters_to_swap = [scooter.id for scooter in vehicle.current_location.get_swappable_scooters() if scooter.id not in scooters_to_pickup ][0:swaps]
+
+            scooters_to_pickup = scooters_to_pickup[0:(vehicle.battery_inventory-len(scooters_to_swap))]
 
             # if vehicle.current_location.charging_station:
             #     flat_unload = min(vehicle.current_flat_bikes, vehicle_current_location.available_parking)
