@@ -27,8 +27,8 @@ WEEK = 30
 START_DAY = 2
 START_HOUR = 8
 # PERIOD = get_time(4)
-PERIOD = get_time(hour=2)
-# PERIOD = get_time(day=4)
+#PERIOD = get_time(hour=2)
+PERIOD = get_time(day=4)
 
 
 ###############################################################################
@@ -36,10 +36,10 @@ PERIOD = get_time(hour=2)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
-    # state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv",
-    #    "Bike", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
-    state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK,
-        bike_class="Bike", number_of_vans=1, random_seed=1)
+    state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv",
+       "Bike", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    # state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK,
+    #     bike_class="Bike", number_of_vans=1, random_seed=1)
 
     ###############################################################################
     # calculate ideal state
@@ -52,14 +52,45 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     print("before main.py simulations: " + dateAndTimeStr())
 
+    # # Set up simulator
+    # simulators.append(sim.Simulator(
+    #     PERIOD,
+    #     policies.haflan_haga_spetalen.EpsilonGreedyValueFunctionPolicy(),
+    #     copy.deepcopy(state),
+    #     verbose=True,
+    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
+    #     label="Haflan&Haga&Spetalen",
+    # ))
+
+    # # Run first simulator
+    # simulators[-1].run()
+
+    # ###############################################################################
+
     # Set up simulator
     simulators.append(sim.Simulator(
         PERIOD,
-        policies.haflan_haga_spetalen.EpsilonGreedyValueFunctionPolicy(),
+        policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
         copy.deepcopy(state),
         verbose=True,
         start_time = get_time(day=START_DAY, hour=START_HOUR),
-        label="Haflan&Haga&Spetalen",
+        label="F&H- Greedy",
+    ))
+
+    # Run first simulator
+    simulators[-1].run()
+
+
+    ###############################################################################
+
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="Fosen&Haldorsen",
     ))
 
     # Run first simulator
@@ -67,79 +98,48 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # ###############################################################################
 
-    # # Set up simulator
-    # simulators.append(sim.Simulator(
-    #     PERIOD,
-    #     policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
-    #     copy.deepcopy(state),
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="F&H- Greedy",
-    # ))
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.DoNothing(),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="DoNothing",
+    ))
 
-    # # Run first simulator
-    # simulators[-1].run()
-
-
-    # ###############################################################################
-
-    # # Set up simulator
-    # simulators.append(sim.Simulator(
-    #     PERIOD,
-    #     policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
-    #     copy.deepcopy(state),
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="Fosen&Haldorsen",
-    # ))
-
-    # # Run first simulator
-    # simulators[-1].run()
-
-    # # ###############################################################################
-
-    # # Set up simulator
-    # simulators.append(sim.Simulator(
-    #     PERIOD,
-    #     policies.DoNothing(),
-    #     copy.deepcopy(state),
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="DoNothing",
-    # ))
-
-    # # Run first simulator
-    # simulators[-1].run()
-
-    # # ###############################################################################
-
-    # # Set up simulator
-    # simulators.append(sim.Simulator(
-    #     PERIOD,
-    #     policies.RebalancingPolicy(),
-    #     copy.deepcopy(state),
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="Rebalancing",
-    # ))
-
-    # # Run first simulator
-    # simulators[-1].run()
+    # Run first simulator
+    simulators[-1].run()
 
     # ###############################################################################
 
-    # # Set up simulator
-    # simulators.append(sim.Simulator(
-    #     PERIOD,
-    #     policies.gleditsch_hagen.GleditschHagenPolicy(),
-    #     copy.deepcopy(state),
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="GH-Rebalancing",
-    # ))
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.RebalancingPolicy(),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="Rebalancing",
+    ))
 
-    # # Run first simulator
-    # simulators[-1].run()
+    # Run first simulator
+    simulators[-1].run()
+
+    ###############################################################################
+
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.gleditsch_hagen.GleditschHagenPolicy(),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="GH-Rebalancing",
+    ))
+
+    # Run first simulator
+    simulators[-1].run()
 
     ###############################################################################
 
