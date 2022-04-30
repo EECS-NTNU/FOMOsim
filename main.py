@@ -52,18 +52,18 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     print("before main.py simulations: " + dateAndTimeStr())
 
-    # # # Set up simulator
-    # # simulators.append(sim.Simulator(
-    # #     PERIOD,
-    # #     policies.haflan_haga_spetalen.EpsilonGreedyValueFunctionPolicy(),
-    # #     copy.deepcopy(state),
-    # #     verbose=True,
-    # #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    # #     label="Haflan&Haga&Spetalen",
-    # # ))
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.haflan_haga_spetalen.EpsilonGreedyValueFunctionPolicy(),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="Haflan&Haga&Spetalen",
+    ))
 
-    # # # Run first simulator
-    # # simulators[-1].run()
+    # Run first simulator
+    simulators[-1].run()
 
     # ###############################################################################
 
@@ -128,18 +128,18 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # ###############################################################################
 
-    # Set up simulator
-    simulators.append(sim.Simulator(
-        PERIOD,
-        policies.gleditsch_hagen.GleditschHagenPolicy(),
-        copy.deepcopy(state),
-        verbose=True,
-        start_time = get_time(day=START_DAY, hour=START_HOUR),
-        label="GH-Rebalancing",
-    ))
+    # # Set up simulator
+    # simulators.append(sim.Simulator(
+    #     PERIOD,
+    #     policies.gleditsch_hagen.GleditschHagenPolicy(),
+    #     copy.deepcopy(state),
+    #     verbose=True,
+    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
+    #     label="GH-Rebalancing",
+    # ))
 
-    # Run first simulator
-    simulators[-1].run()
+    # # Run first simulator
+    # simulators[-1].run()
 
     ###############################################################################
 
