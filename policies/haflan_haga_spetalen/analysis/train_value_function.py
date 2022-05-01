@@ -12,14 +12,13 @@ import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../../..'))
 
 import sim
-import clustering.scripts
+import init_state
 import policies
 import policies.haflan_haga_spetalen
 import policies.haflan_haga_spetalen.epsilon_greedy_value_function_policy
 import policies.haflan_haga_spetalen.settings as annsettings
 import policies.haflan_haga_spetalen.value_functions
 import ideal_state
-import tripStats.parse
 
 import policies.haflan_haga_spetalen.training_simulation.scripts
 from progress.bar import IncrementalBar
@@ -114,8 +113,8 @@ if __name__ == "__main__":
     ###############################################################################
     # get initial state
 
-    #state, _ = tripStats.parse.get_initial_state(city="Oslo", week=30)
-    state = clustering.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    #state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=1, random_seed=1)
 
     ###############################################################################
     # calculate ideal state
