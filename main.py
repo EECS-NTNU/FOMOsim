@@ -27,6 +27,8 @@ def get_time(day=0, hour=0, minute=0):
 WEEK = 30
 START_DAY = 2
 START_HOUR = 8
+# PERIOD = get_time(4)
+#PERIOD = get_time(hour=2)
 PERIOD = get_time(day=4)
 
 
@@ -44,8 +46,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # calculate ideal state
 
-    ideal_state = ideal_state.evenly_distributed_ideal_state(state)
-    #ideal_state = ideal_state.outflow_ideal_state(state)
+    # ideal_state = ideal_state.evenly_distributed_ideal_state(state)
+    ideal_state = ideal_state.outflow_ideal_state(state)
     state.set_ideal_state(ideal_state)
 
     ###############################################################################
@@ -83,7 +85,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Run simulator
     simulators[-1].run()
 
-    ###############################################################################
+    # ###############################################################################
 
     # Set up simulator
     simulators.append(sim.Simulator(
@@ -92,7 +94,23 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
         copy.deepcopy(state),
         verbose=True,
         start_time = get_time(day=START_DAY, hour=START_HOUR),
-        label="FH_Greedy",
+        label="F&H-Greedy",
+    ))
+
+    # Run first simulator
+    simulators[-1].run()
+
+
+    ###############################################################################
+
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="Fosen&Haldorsen",
     ))
 
     # Run simulator
@@ -128,7 +146,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Run simulator
     simulators[-1].run()
 
-    # ###############################################################################
+    ###############################################################################
 
     # # Set up simulator
     # simulators.append(sim.Simulator(

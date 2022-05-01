@@ -443,7 +443,7 @@ def visualize_loss(losses: [[float]]):
 def heatmap():
     import folium
     import sim
-    import clustering.scripts
+    import init_state.entur.scripts
     from folium.plugins import HeatMap
 
     map_hooray = folium.Map(location=[59.925586, 10.730721], zoom_start=13)
