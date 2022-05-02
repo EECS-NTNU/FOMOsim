@@ -372,17 +372,22 @@ def visualize_analysis(instances, title=None):
     for i, instance in enumerate(instances):
         metrics = instance.metrics.get_all_metrics()
 
+        # lost demand
+        x = [instance.metrics.min_time]
         if len(metrics.get("lost_demand", [])) > 0:
-            x = [item[0] for item in metrics["lost_demand"]]
-            x.append(instance.metrics.max_time)
-            y = []
-            last = 0
+            x.extend([item[0] for item in metrics["lost_demand"]])
+        x.append(instance.metrics.max_time)
+
+        y = [0]
+        last = 0
+        if len(metrics.get("lost_demand", [])) > 0:
             for item in metrics["lost_demand"]:
-                y.append(last + item[1])
                 last += item[1]
-            y.append(last)
-            
-            ax1.plot(x, y, c=COLORS[i], label=instance.label)
+                y.append(last)
+        y.append(last)
+
+        ax1.plot(x, y, c=COLORS[i], label=instance.label)
+
         if len(metrics["total_available_scooters"]) > 0:
             x = [item[0] for item in metrics["total_available_scooters"]]
             y = [item[1] for item in metrics["total_available_scooters"]]

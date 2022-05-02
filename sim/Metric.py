@@ -8,6 +8,7 @@ class Metric:
     def __init__(self):
         self.metrics = {}
 
+        self.min_time = 0
         self.max_time = 0
         self.metrics["average_battery"] = []
         self.metrics["total_available_scooters"] = []
@@ -16,6 +17,8 @@ class Metric:
         if metric not in self.metrics:
             self.metrics[metric] = []
         self.metrics.get(metric, []).append((sim.time, value))
+        if((self.min_time == 0) or (self.min_time > sim.time)):
+            self.min_time = sim.time
         if(sim.time > self.max_time):
             self.max_time = sim.time
 
@@ -31,6 +34,8 @@ class Metric:
                 ]
             )
         ))
+        if((self.min_time == 0) or (self.min_time > sim.time)):
+            self.min_time = sim.time
         if(sim.time > self.max_time):
             self.max_time = sim.time
 
