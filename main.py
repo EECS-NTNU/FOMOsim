@@ -28,8 +28,8 @@ WEEK = 30
 START_DAY = 2
 START_HOUR = 8
 # PERIOD = get_time(4)
-#PERIOD = get_time(hour=2)
-PERIOD = get_time(day=4)
+# PERIOD = get_time(hour=12)
+PERIOD = get_time(day=2)
 
 
 ###############################################################################
@@ -40,35 +40,35 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # get initial state
 
-    state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
-    #state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike", number_of_vans=1, random_seed=1)
+    #state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike", number_of_vans=1, random_seed=1)
 
     ###############################################################################
     # calculate ideal state
 
-    # ideal_state = ideal_state.evenly_distributed_ideal_state(state)
-    ideal_state = ideal_state.outflow_ideal_state(state)
+    ideal_state = ideal_state.evenly_distributed_ideal_state(state)
+    #ideal_state = ideal_state.outflow_ideal_state(state)
     state.set_ideal_state(ideal_state)
 
     ###############################################################################
 
-    # Set up simulator
-    simul = sim.Simulator.load("sim_cache/entur_scooter_5_250.pickle")
+    # # Set up simulator
+    # simul = sim.Simulator.load("sim_cache/entur_scooter_5_250.pickle")
 
-    hhsstate = copy.deepcopy(state)
-    hhsstate.simulation_scenarios = simul.state.simulation_scenarios
+    # hhsstate = copy.deepcopy(state)
+    # hhsstate.simulation_scenarios = simul.state.simulation_scenarios
 
-    simul.init(
-        PERIOD, 
-        hhsstate,
-        verbose=True,
-        start_time = get_time(day=START_DAY, hour=START_HOUR),
-        label="HHS",
-    )
-    simulators.append(simul)
+    # simul.init(
+    #     PERIOD, 
+    #     hhsstate,
+    #     verbose=True,
+    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
+    #     label="HHS",
+    # )
+    # simulators.append(simul)
 
-    # Run simulator
-    simulators[-1].run()
+    # # Run simulator
+    # simulators[-1].run()
 
     ###############################################################################
 
@@ -146,9 +146,9 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Run simulator
     simulators[-1].run()
 
-    ###############################################################################
+    ##############################################################################
 
-    # # Set up simulator
+    # Set up simulator
     # simulators.append(sim.Simulator(
     #     PERIOD,
     #     policies.gleditsch_hagen.GleditschHagenPolicy(),
@@ -158,7 +158,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     #     label="GH",
     # ))
 
-    # # Run simulator
+    # Run simulator
     # simulators[-1].run()
 
     ###############################################################################
