@@ -28,9 +28,11 @@ class GleditschHagenPolicy(Policy):
                 station.distances.put(d.id, simul.state.get_distance(s.id, d.id))
             stations.add(station)
 
-        vehicle = FomoVehicle(vehicle.id, vehicle.scooter_inventory_capacity, vehicle.current_location.id)
+        vhc = FomoVehicle(vehicle.id, vehicle.scooter_inventory_capacity, vehicle.current_location.id)
+        for b in vehicle.scooter_inventory:
+            vhc.bikes.add(b.id)
 
-        fomoAction = Simulation.policy(stations, vehicle)
+        fomoAction = Simulation.policy(stations, vhc)
 
         battery_swaps = []
         for b in fomoAction.batterySwaps:
