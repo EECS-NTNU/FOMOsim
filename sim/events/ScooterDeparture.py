@@ -54,7 +54,11 @@ class ScooterDeparture(Event):
                 )
 
                 # calculate arrival time
-                arrival_time = self.time + round((trip_distance / trip_speed) * 60)
+
+                if trip_speed == 0.0:
+                    pass
+                else:
+                    arrival_time = self.time + round((trip_distance / trip_speed) * 60)
 
                 # create an arrival event for the departed scooter
                 world.add_event(
