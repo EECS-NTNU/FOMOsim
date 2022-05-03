@@ -6,6 +6,8 @@ import math
 from settings import *
 import copy
 
+from init_state.cityBike.helpers import loggWrite
+
 class State(SaveMixin):
     """
     Container class for the whole state of all clusters. Data concerning the interplay between clusters are stored here
@@ -174,6 +176,8 @@ class State(SaveMixin):
         return self.distance_matrix[start_location_id][end_location_id]
 
     def get_trip_speed(self, start_location_id: int, end_location_id: int):
+        # print("from: ", str(start_location_id), " to: ", str(end_location_id))
+        loggWrite(["from: ", str(start_location_id), " to: ", str(end_location_id)])
         return self.speed_matrix[start_location_id][end_location_id]
 
     def get_distance_to_all_clusters(self, location_id):
