@@ -75,6 +75,14 @@ def calcDistances(city):
             dist = geopy.distance.distance(
                 (stations[rowNo].latitude, stations[rowNo].longitude), 
                 (stations[col].latitude, stations[col].longitude)).km
+            if dist == 0.0 and rowNo != col:
+                print("*** NOTE: Distance between two stations is zero ", end ="") 
+                if (rowNo == 92 and col == 142) or (col == 92 and rowNo == 142):
+                    print(" -- adjusted for the case Oslo - Problemveien")
+                    dist = 0.060 # 60 meters, not very relevant, but > 0.0 is important 
+                else:
+                    print("*** UNKNOWN, set to 1 km by guessing")
+                    dist = 1.0
             row.append(dist)
             dm_file.write(str(dist))
             dm_file.write(" ")
@@ -176,6 +184,9 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
             trips = trips + 1
         print(".", end='') # TODO replace with progress bar
     
+    # Calculate distance
+    distances = calcDistances(city)
+
     # Calculate average durations
     avgDuration = []
     for start in range(len(stationMap)):
@@ -183,9 +194,16 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
         for end in range(len(stationMap)):
             avgDuration[start].append([])
             sumDuration = 0
+            noOfTrips = 0
             for trip in range(len(durations[start][end])):
-                sumDuration += durations[start][end][trip]
-            avgDuration[start][end] = sumDuration/len(durations)
+                tripDuration = durations[start][end][trip]
+                noOfTrips += 1
+                sumDuration += tripDuration     
+            if noOfTrips > 0:
+                avgDuration[start][end] = sumDuration/noOfTrips
+            else:
+                avgDuration[start][end] = (distances[start][end]/settings.SCOOTER_SPEED)*3600
+                # TODO check this  
 
     # Calculate distance
     distances = calcDistances(city)
@@ -197,10 +215,19 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
         for end in range(len(stationMap)):
             averageDuration = avgDuration[start][end]
             if averageDuration > 0 and start != end:
-                speed_matrix[start].append(distances[start][end]/(averageDuration/3600))
+                if distances[start][end] == 0:
+                    print("*** distance == 0  --  BUG?   start &end: ", str(start), " ", str(end))
+                    speed = settings.SCOOTER_SPEED # default
+                else:    
+                    speed = distances[start][end]/(averageDuration/3600)
+                if speed == 0.0 or speed > 100.0:
+                    print("*** BUG speed == 0 CHECK")
+                speed_matrix[start].append(speed)
             else:
                 speed_matrix[start].append(settings.SCOOTER_SPEED)
  
+
+
     # Calculate arrive and leave-intensities and move_probabilities
     noOfYears = len(set(years))
     arrive_intensities = []  
