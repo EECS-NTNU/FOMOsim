@@ -1,3 +1,5 @@
+ import socket
+
 import jpype
 import jpype.imports
 from jpype.types import *
@@ -5,10 +7,13 @@ from jpype.types import *
 from policies import Policy
 import sim
 
-# linux
-# jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','/opt/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
-# Lasse PC1, PC2, PC3
-jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','C:/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
+computerName = socket.gethostname()
+if computerName == "LAPTOP-SBB45R3V" or  computerName == "DESKTOP-CTHMSMJ" or  computerName == "lasse-PC":
+    # Lasse PC1, PC2, PC3
+    jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','C:/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
+else:
+    # linux
+    jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','/opt/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
 
 import java.util.ArrayList
 from org.gleditsch_hagen.classes import Simulation,FomoAction,FomoStation,FomoVehicle
