@@ -51,8 +51,8 @@ def calcDistances(city):
             jsonFile = open(os.path.join(tripDataPath, file), "r")
             bikeData = json.loads(jsonFile.read())
 
+            print(jsonFile.name, " ") # Debug
             for i in range(len(bikeData)):
-                print(jsonFile.name, " ")
                 # TODO DEBUG Brugata                
                 if bikeData[i]["start_station_id"] == "Brugata" or bikeData[i]["start_station_id"] == "Brugata":
                     print(jsonFile.name)
