@@ -28,6 +28,7 @@ def reportStations(stations, city):
     fileName = "init_state/cityBike/data/" + city + "/stations.txt"
     stationsMap = open(fileName, "w")
     count = 0
+    stations.sort(key=lambda x: x.stationName) 
     for s in stations:
         stationId = f'{count:>5}'+ f'{s.stationId:>6}' + " " + s.longitude + " " + s.latitude + " " + s.stationName + "\n"
         stationsMap.write(stationId)
@@ -45,9 +46,12 @@ def calcDistances(city):
         print("*** Error: you must download city data" )
     else:    
         for file in fileList:
+            # NOTE we read all stored trip-data to find all "possible" stations. If there are stations that
+            # are taken out of operation, we should remove them
             jsonFile = open(os.path.join(tripDataPath, file), "r")
             bikeData = json.loads(jsonFile.read())
             for i in range(len(bikeData)):
+
                 startId = int(bikeData[i]["start_station_id"])
                 if not startId in stationMap:
                     stationMap[startId] = stationNo
@@ -55,7 +59,6 @@ def calcDistances(city):
                     startLong = str(bikeData[i]["start_station_longitude"])
                     startLat = str(bikeData[i]["start_station_latitude"])
                     stations.append(Station(bikeData[i]["start_station_id"], startLong, startLat, bikeData[i]["start_station_name"]))
-            
                 endId = int(bikeData[i]["end_station_id"]) # TODO refactor?, code similar for start... and end...
                 if not endId in stationMap:
                     stationMap[endId] = stationNo
