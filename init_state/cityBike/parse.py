@@ -55,7 +55,7 @@ def calcDistances(city):
             for i in range(len(bikeData)):
                 # TODO DEBUG Brugata                
                 if bikeData[i]["start_station_id"] == "Brugata" or bikeData[i]["start_station_id"] == "Brugata":
-                    print(jsonFile.name)
+                    print("****** Brugata found !!!", jsonFile.name)
 
                 startId = int(bikeData[i]["start_station_id"])
                 if not startId in stationMap:
@@ -73,6 +73,7 @@ def calcDistances(city):
                     stations.append(Station(bikeData[i]["end_station_id"], endLong, endLat, bikeData[i]["end_station_name"]))
             # print(".", end='') # TODO nice, replace with progress bar
         # print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
+        
     reportStations(stations, city)
     dist_matrix_km = [] # km in kilometers
     dm_file = open("init_state/cityBike/data/" + city + "/Distances.txt", "w")
@@ -85,7 +86,7 @@ def calcDistances(city):
                 (stations[col].latitude, stations[col].longitude)).km
             if dist == 0.0 and rowNo != col:
                 print("*** NOTE: Distance between two stations is zero ", end ="") 
-                if (rowNo == 14 and col == 15) or (col == 15 and rowNo == 14): # TODO, this is VERY FAR FROM ROBUST
+                if (rowNo == 14 and col == 15) or (col == 14 and rowNo == 15): # TODO, this is VERY FAR FROM ROBUST
                     print(" -- adjusted for the case Oslo - Problemveien")
                     dist = 0.060 # 60 meters, not very relevant, but > 0.0 is important 
                 else:
