@@ -50,10 +50,12 @@ def calcDistances(city):
             # are taken out of operation, we should remove them
             jsonFile = open(os.path.join(tripDataPath, file), "r")
             bikeData = json.loads(jsonFile.read())
-            for i in range(len(bikeData)):
 
+            for i in range(len(bikeData)):
+                print(jsonFile.name, " ")
+                # TODO DEBUG Brugata                
                 if bikeData[i]["start_station_id"] == "Brugata" or bikeData[i]["start_station_id"] == "Brugata":
-                    print(file.name)
+                    print(jsonFile.name)
 
                 startId = int(bikeData[i]["start_station_id"])
                 if not startId in stationMap:
@@ -83,11 +85,11 @@ def calcDistances(city):
                 (stations[col].latitude, stations[col].longitude)).km
             if dist == 0.0 and rowNo != col:
                 print("*** NOTE: Distance between two stations is zero ", end ="") 
-                if (rowNo == 92 and col == 142) or (col == 92 and rowNo == 142):
+                if (rowNo == 14 and col == 15) or (col == 15 and rowNo == 14): # TODO, this is VERY FAR FROM ROBUST
                     print(" -- adjusted for the case Oslo - Problemveien")
                     dist = 0.060 # 60 meters, not very relevant, but > 0.0 is important 
                 else:
-                    print("*** UNKNOWN, set to 1 km by guessing")
+                    print("*** UNKNOWN, set to 1 km by guessing", rowNo, "", col)
                     dist = 1.0
             row.append(dist)
             dm_file.write(str(dist))
