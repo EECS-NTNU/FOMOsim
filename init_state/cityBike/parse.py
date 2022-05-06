@@ -52,6 +52,9 @@ def calcDistances(city):
             bikeData = json.loads(jsonFile.read())
             for i in range(len(bikeData)):
 
+                if bikeData[i]["start_station_id"] == "Brugata" or bikeData[i]["start_station_id"] == "Brugata":
+                    print(file.name)
+
                 startId = int(bikeData[i]["start_station_id"])
                 if not startId in stationMap:
                     stationMap[startId] = stationNo
