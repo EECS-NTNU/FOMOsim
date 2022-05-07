@@ -28,7 +28,7 @@ def reportStations(stations, city):
     fileName = "init_state/cityBike/data/" + city + "/stations.txt"
     stationsMap = open(fileName, "w")
     count = 0
-    stations.sort(key=lambda x: x.stationName) 
+    stations.sort(key=lambda x: x.stationId) 
     for s in stations:
         stationId = f'{count:>5}'+ f'{s.stationId:>6}' + " " + s.longitude + " " + s.latitude + " " + s.stationName + "\n"
         stationsMap.write(stationId)
@@ -51,12 +51,7 @@ def calcDistances(city):
             jsonFile = open(os.path.join(tripDataPath, file), "r")
             bikeData = json.loads(jsonFile.read())
 
-            print(jsonFile.name, " ") # Debug
             for i in range(len(bikeData)):
-                # TODO DEBUG Brugata                
-                if bikeData[i]["start_station_id"] == "Brugata" or bikeData[i]["end_station_id"] == "Brugata":
-                    print("****** Brugata found !!!", jsonFile.name)
-
                 startId = int(bikeData[i]["start_station_id"])
                 if not startId in stationMap:
                     stationMap[startId] = stationNo
