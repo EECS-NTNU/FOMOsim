@@ -82,7 +82,7 @@ def calcDistances(city):
                 (stations[col].latitude, stations[col].longitude)).km
             if dist == 0.0 and rowNo != col:
                 print("*** NOTE: Distance between two stations is zero ", end ="") 
-                if (rowNo == 14 and col == 15) or (col == 14 and rowNo == 15): # TODO, this is VERY FAR FROM ROBUST
+                if (rowNo == 249 and col == 250) or (col == 249 and rowNo == 250): # TODO, this is VERY FAR FROM ROBUST
                     print(" -- adjusted for the case Oslo - Problemveien")
                     dist = 0.060 # 60 meters, not very relevant, but > 0.0 is important 
                 else:
