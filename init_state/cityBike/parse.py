@@ -28,7 +28,7 @@ def reportStations(stations, city):
     fileName = "init_state/cityBike/data/" + city + "/stations.txt"
     stationsMap = open(fileName, "w")
     count = 0
-    stations.sort(key=lambda x: x.stationId) 
+    stations.sort(key=lambda x: int(x.stationId)) 
     for s in stations:
         stationId = f'{count:>5}'+ f'{s.stationId:>6}' + " " + s.longitude + " " + s.latitude + " " + s.stationName + "\n"
         stationsMap.write(stationId)
@@ -82,7 +82,7 @@ def calcDistances(city):
                 (stations[col].latitude, stations[col].longitude)).km
             if dist == 0.0 and rowNo != col:
                 print("*** NOTE: Distance between two stations is zero ", end ="") 
-                if (rowNo == 249 and col == 250) or (col == 249 and rowNo == 250): # TODO, this is VERY FAR FROM ROBUST
+                if (rowNo == 231 and col == 232) or (col == 231 and rowNo == 232): # TODO, this is VERY FAR FROM ROBUST
                     print(" -- adjusted for the case Oslo - Problemveien")
                     dist = 0.060 # 60 meters, not very relevant, but > 0.0 is important 
                 else:
