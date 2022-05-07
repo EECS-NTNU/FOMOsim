@@ -54,7 +54,7 @@ def calcDistances(city):
             print(jsonFile.name, " ") # Debug
             for i in range(len(bikeData)):
                 # TODO DEBUG Brugata                
-                if bikeData[i]["start_station_id"] == "Brugata" or bikeData[i]["start_station_id"] == "Brugata":
+                if bikeData[i]["start_station_id"] == "Brugata" or bikeData[i]["end_station_id"] == "Brugata":
                     print("****** Brugata found !!!", jsonFile.name)
 
                 startId = int(bikeData[i]["start_station_id"])
@@ -65,6 +65,7 @@ def calcDistances(city):
                     startLat = str(bikeData[i]["start_station_latitude"])
                     stations.append(Station(bikeData[i]["start_station_id"], startLong, startLat, bikeData[i]["start_station_name"]))
                 endId = int(bikeData[i]["end_station_id"]) # TODO refactor?, code similar for start... and end...
+
                 if not endId in stationMap:
                     stationMap[endId] = stationNo
                     stationNo = stationNo + 1
