@@ -3,6 +3,7 @@ from sim import Event
 from settings import *
 import numpy as np
 
+from init_state.cityBike.helpers import loggWrite
 
 class ScooterDeparture(Event):
     """
@@ -54,7 +55,13 @@ class ScooterDeparture(Event):
                 )
 
                 # calculate arrival time
-                arrival_time = self.time + round((trip_distance / trip_speed) * 60)
+
+                if trip_speed == 0.0:
+                    pass # debug issue10
+                    arrival_time = self.time + 10 # debug
+                    loggWrite("arrival_time set by debug code")
+                else:
+                    arrival_time = self.time + round((trip_distance / trip_speed) * 60)
 
                 # create an arrival event for the departed scooter
                 world.add_event(

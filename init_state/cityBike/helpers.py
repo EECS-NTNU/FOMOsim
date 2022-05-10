@@ -37,6 +37,9 @@ def write(file, words): # writes list of words to file and flush
     file.write("\n")    
     file.flush()    
 
+def loggWrite(words):
+    write(trafficLogg, words)
+
 def saveTrafficLogg(timeStamp):
     shutil.copy(trafficLoggDir + "traffic.txt", trafficLoggDir + "traffic_" + timeStamp + ".txt")
 
