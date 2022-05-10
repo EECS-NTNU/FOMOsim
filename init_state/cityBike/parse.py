@@ -1,4 +1,6 @@
 # parse.py
+
+import operator
 import sim
 import json
 import os.path
@@ -15,6 +17,10 @@ class Station:
         self.longitude = longitude
         self.latitude = latitude
         self.stationName = stationName
+    def __lt__(self, other):
+        return self.stationId < other.stationId
+    def toString(self):
+        return f'{self.stationId:>6}' + " " + self.longitude + " " + self.latitude + " " + self.stationName
 
 class BikeTrip:
     def __init__(self, startTime, endTime, duration, start, end):
@@ -24,22 +30,21 @@ class BikeTrip:
         self.start = start
         self.end = end
         
-def reportStations(stations, city):
+def reportStations(stationsDict, city):
     fileName = "init_state/cityBike/data/" + city + "/stations.txt"
-    stationsMap = open(fileName, "w")
+    stationsDescr = open(fileName, "w")
     count = 0
-    stations.sort(key=lambda x: int(x.stationId)) 
-    for s in stations:
-        stationId = f'{count:>5}'+ f'{s.stationId:>6}' + " " + s.longitude + " " + s.latitude + " " + s.stationName + "\n"
-        stationsMap.write(stationId)
+    for s in sorted(stationsDict, key = stationsDict.get):
+        stationIdText = f'{count:>5}'+ stationsDict[s].toString() + "\n"
+        stationsDescr.write(stationIdText)
         count = count + 1
-    stationsMap.close()
+    stationsDescr.close()
 
 def calcDistances(city):
     stationNo = 0 # station numbers found, counts 0,1,2,...
-    stations = []
     stationMap = {} # maps from stationId to station number 
-
+    no2id = [] # list that maps from stationNo to stationId
+    stationsData = {}
     tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
     if len(fileList) == 0:
@@ -49,28 +54,49 @@ def calcDistances(city):
             # NOTE we read all stored trip-data to find all "possible" stations. If there are stations that
             # are taken out of operation, we should remove them
             jsonFile = open(os.path.join(tripDataPath, file), "r")
+            print(jsonFile.name) # debug
             bikeData = json.loads(jsonFile.read())
 
             for i in range(len(bikeData)):
                 startId = int(bikeData[i]["start_station_id"])
-                if not startId in stationMap:
+                startLong = str(bikeData[i]["start_station_longitude"])
+                startLat = str(bikeData[i]["start_station_latitude"])
+                startName = bikeData[i]["start_station_name"]
+                if not startId in stationMap: # first entry for this station
                     stationMap[startId] = stationNo
+                    no2id.append(startId)
                     stationNo = stationNo + 1
-                    startLong = str(bikeData[i]["start_station_longitude"])
-                    startLat = str(bikeData[i]["start_station_latitude"])
-                    stations.append(Station(bikeData[i]["start_station_id"], startLong, startLat, bikeData[i]["start_station_name"]))
-                endId = int(bikeData[i]["end_station_id"]) # TODO refactor?, code similar for start... and end...
+                    stationsData[startId] = Station(startId, startLong, startLat, startName)
+                else: # we already have a Station-object for startId, will check if data are changed and report such changes
+                    if stationsData[startId].longitude != startLong or stationsData[startId].latitude != startLat:
+                        stationsData[startId].longitude = startLong
+                        stationsData[startId].latitude = startLat
+                        print("* position of station ", startId, "was changed")
+                    if stationsData[startId].stationName != startName:
+                        stationsData[startId].stationName = startName        
+                        print("* name of station ", startId, "was changed")
 
+                endId = int(bikeData[i]["end_station_id"])
+                endLong = str(bikeData[i]["end_station_longitude"])
+                endLat = str(bikeData[i]["end_station_latitude"])
+                endName = bikeData[i]["end_station_name"]
                 if not endId in stationMap:
                     stationMap[endId] = stationNo
+                    no2id.append(endId)
                     stationNo = stationNo + 1
-                    endLong = str(bikeData[i]["end_station_longitude"])
-                    endLat = str(bikeData[i]["end_station_latitude"])
-                    stations.append(Station(bikeData[i]["end_station_id"], endLong, endLat, bikeData[i]["end_station_name"]))
-            # print(".", end='') # TODO nice, replace with progress bar
-        # print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
+                    stationsData[endId] = Station(endId, endLong, endLat, endName)
+                else: # we already have a Station-object for endId, will check if data are changed and report such changes
+                    if stationsData[endId].longitude != endLong or stationsData[endId].latitude != endLat:
+                        stationsData[endId].longitude = endLong
+                        stationsData[endId].latitude = endLat
+                        print("* position of station ", endId, "was changed")
+                    if stationsData[endId].stationName != endName:
+                        stationsData[endId].stationName = endName        
+                        print("* name of station ", endId, "was changed")                    
+                    
+        print("A total of ", len(set(stationsData)), " stations used, reported on stations.txt")
         
-    reportStations(stations, city)
+    reportStations(stationsData, city)
     dist_matrix_km = [] # km in kilometers
     dm_file = open("init_state/cityBike/data/" + city + "/Distances.txt", "w")
     for rowNo in range(len(stationMap)):
@@ -78,11 +104,11 @@ def calcDistances(city):
         row = []
         for col in range(len(stationMap)):
             dist = geopy.distance.distance(
-                (stations[rowNo].latitude, stations[rowNo].longitude), 
-                (stations[col].latitude, stations[col].longitude)).km
+                (stationsData[no2id[rowNo]].latitude, stationsData[no2id[rowNo]].longitude), 
+                (stationsData[no2id[col]].latitude, stationsData[no2id[col]].longitude)).km
             if dist == 0.0 and rowNo != col:
                 print("*** NOTE: Distance between two stations is zero ", end ="") 
-                if (rowNo == 231 and col == 232) or (col == 231 and rowNo == 232): # TODO, this is VERY FAR FROM ROBUST
+                if (rowNo == 618 and col == 619) or (col == 618 and rowNo == 619): # TODO, this is VERY FAR FROM ROBUST, and applies only to Oslo
                     print(" -- adjusted for the case Oslo - Problemveien")
                     dist = 0.060 # 60 meters, not very relevant, but > 0.0 is important 
                 else:
