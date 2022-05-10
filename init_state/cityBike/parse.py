@@ -49,7 +49,6 @@ def reportStations(stationsList, city):
 def calcDistances(city):
     stationNo = 0 # station numbers found, counts 0,1,2,...
     stationMap = {} # maps from stationId to station number 
-    no2id = [] # list that maps from stationNo to stationId
     stationsData = {}
     tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
@@ -70,7 +69,6 @@ def calcDistances(city):
                 startName = bikeData[i]["start_station_name"]
                 if not startId in stationMap: # first entry for this station
                     stationMap[startId] = stationNo
-                    no2id.append(startId)
                     stationNo = stationNo + 1
                     stationsData[startId] = Station(startId, startLong, startLat, startName)
                 else: # we already have a Station-object for startId, will check if data are changed and report such changes
@@ -81,8 +79,9 @@ def calcDistances(city):
                         stationsData[startId].latitude = startLat
                         print("* position of station ", startId, "was moved ", "%.2f" % moveDist, "km")
                     if stationsData[startId].stationName != startName:
-                        stationsData[startId].stationName = startName        
-                        print("* name of station ", startId, "was changed")
+                        stationsData[startId].stationName = startName
+                        if startId == 486:        
+                            print("* name of station ", startId, "was changed")
 
                 endId = int(bikeData[i]["end_station_id"])
                 endLong = str(bikeData[i]["end_station_longitude"])
@@ -90,7 +89,6 @@ def calcDistances(city):
                 endName = bikeData[i]["end_station_name"]
                 if not endId in stationMap:
                     stationMap[endId] = stationNo
-                    no2id.append(endId)
                     stationNo = stationNo + 1
                     stationsData[endId] = Station(endId, endLong, endLat, endName)
                 else: # we already have a Station-object for endId, will check if data are changed and report such changes
@@ -102,8 +100,9 @@ def calcDistances(city):
                         print("* position of station ", endId, "was moved ", "%.2f" % moveDist, "km")
 
                     if stationsData[endId].stationName != endName:
-                        stationsData[endId].stationName = endName        
-                        print("* name of station ", endId, "was changed")                    
+                        stationsData[endId].stationName = endName 
+                        if endId == 486:       
+                            print("* name of station ", endId, "was changed")                    
                     
         print("A total of ", len(set(stationsData)), " stations used, reported on stations.txt")
 
