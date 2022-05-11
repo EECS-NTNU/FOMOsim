@@ -328,9 +328,9 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
 
     bikeStartStatus = readBikeStartStatus(city)
     dockStartStatus = readDockStartStatus(city)
-    for i in range(len(dockStartStatus)):
-        print(dockStartStatus[i], " ", end="")
-    print(" ") # newline in terminal
+    # for i in range(len(dockStartStatus)):
+    #     print(dockStartStatus[i], " ", end="")
+    # print(" ") # newline in terminal
     totalBikes = 0
     for i in range(len(bikeStartStatus)):
         totalBikes += bikeStartStatus[i]

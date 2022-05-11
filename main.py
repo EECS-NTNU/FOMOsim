@@ -29,7 +29,7 @@ START_DAY = 2
 START_HOUR = 8
 # PERIOD = get_time(4)
 # PERIOD = get_time(hour=12)
-PERIOD = get_time(day=4)
+PERIOD = get_time(day=2)
 
 
 ###############################################################################
@@ -72,18 +72,18 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     ###############################################################################
 
-    # # Set up simulator
-    # simulators.append(sim.Simulator(
-    #     PERIOD,
-    #     policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
-    #     copy.deepcopy(state),
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="FH",
-    # ))
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="FH",
+    ))
 
-    # # Run simulator
-    # simulators[-1].run()
+    # Run simulator
+    simulators[-1].run()
 
     # ###############################################################################
 
@@ -102,33 +102,33 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # ###############################################################################
 
-    # # Set up simulator
-    # simulators.append(sim.Simulator(
-    #     PERIOD,
-    #     policies.DoNothing(),
-    #     copy.deepcopy(state),
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="DoNothing",
-    # ))
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.DoNothing(),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="DoNothing",
+    ))
 
-    # # Run simulator
-    # simulators[-1].run()
+    # Run simulator
+    simulators[-1].run()
 
     # # ###############################################################################
 
-    # # Set up simulator
-    # simulators.append(sim.Simulator(
-    #     PERIOD,
-    #     policies.RebalancingPolicy(),
-    #     copy.deepcopy(state),
-    #     verbose=True,
-    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
-    #     label="Rebalancing",
-    # ))
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.RebalancingPolicy(),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="Rebalancing",
+    ))
 
-    # # Run simulator
-    # simulators[-1].run()
+    # Run simulator
+    simulators[-1].run()
 
     ##############################################################################
 
