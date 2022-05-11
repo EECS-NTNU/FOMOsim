@@ -78,13 +78,11 @@ def calcDistances(city):
                             (startLat, startLong)).km
                         stationsData[startId].longitude = startLong
                         stationsData[startId].latitude = startLat
-                        if startId == 507: # TODO SORRY lots of debug code around here 
-                            print("* position of station ", startId, "was moved ", "%.3f" % moveDist, "km")
+                        print("* position of station ", startId, "was moved ", "%.3f" % moveDist, "km")
                     if stationsData[startId].stationName != startName:
                         oldName = stationsData[startId].stationName
                         stationsData[startId].stationName = startName
-                        if startId == 486:        
-                            print("* name of station ", startId, "was changed from", oldName, " to ", startName )
+                        print("* name of station ", startId, "was changed from", oldName, " to ", startName )
 
                 endId = int(bikeData[i]["end_station_id"])
                 endLong = str(bikeData[i]["end_station_longitude"])
@@ -100,14 +98,12 @@ def calcDistances(city):
                             (endLat, endLong)).km
                         stationsData[endId].longitude = endLong
                         stationsData[endId].latitude = endLat
-                        if endId == 507:
-                            print("* position of station ", endId, "was moved ", "%.3f" % moveDist, "km")
+                        print("* position of station ", endId, "was moved ", "%.3f" % moveDist, "km")
 
                     if stationsData[endId].stationName != endName:
                         oldName = stationsData[endId].stationName
                         stationsData[endId].stationName = endName 
-                        if endId == 486:       
-                            print("* name of station ", endId, "was changed from ", oldName, "to ", endName)                    
+                        print("* name of station ", endId, "was changed from ", oldName, "to ", endName)                    
                     
         print("A total of ", len(set(stationsData)), " stations used, reported on stations.txt")
 
@@ -246,13 +242,6 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                 moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
                 leavingBikes += 1
                 durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
-                # debug
-                # if startStationNo == 4 and endStationNo == 84:
-                #     print("4-84-duration: ", bikeData[i]["duration"], "at time: ", bikeData[i]["started_at"])
-                # debug
-                # if startStationNo == 252 and endStationNo == 255:
-                #     print("252-255-duration: ", bikeData[i]["duration"], "at time: ", bikeData[i]["started_at"])
-
             trips = trips + 1
         print(".", end='') # TODO replace with progress bar
     
@@ -296,8 +285,6 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
             else:
                 speed_matrix[start].append(settings.SCOOTER_SPEED)
  
-
-
     # Calculate arrive and leave-intensities and move_probabilities
     noOfYears = len(set(years))
     arrive_intensities = []  
