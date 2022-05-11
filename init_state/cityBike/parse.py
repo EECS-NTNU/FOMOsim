@@ -1,4 +1,6 @@
 # parse.py
+
+import operator
 import sim
 import json
 import os.path
@@ -15,6 +17,10 @@ class Station:
         self.longitude = longitude
         self.latitude = latitude
         self.stationName = stationName
+    def __lt__(self, other):
+        return self.stationId < other.stationId
+    def toString(self):
+        return f'{self.stationId:>6}' + " " + self.longitude + " " + self.latitude + " " + self.stationName
 
 class BikeTrip:
     def __init__(self, startTime, endTime, duration, start, end):
@@ -24,22 +30,26 @@ class BikeTrip:
         self.start = start
         self.end = end
         
-def reportStations(stations, city):
+def sortStations(stationsDict):
+    stationsList = []
+    for s in sorted(stationsDict, key = stationsDict.get):
+        stationsList.append(stationsDict[s])
+    return stationsList
+
+def reportStations(stationsList, city):
     fileName = "init_state/cityBike/data/" + city + "/stations.txt"
-    stationsMap = open(fileName, "w")
+    stationsDescr = open(fileName, "w")
     count = 0
-    stations.sort(key=lambda x: int(x.stationId)) 
-    for s in stations:
-        stationId = f'{count:>5}'+ f'{s.stationId:>6}' + " " + s.longitude + " " + s.latitude + " " + s.stationName + "\n"
-        stationsMap.write(stationId)
+    for s in range(len(stationsList)):
+        stationIdText = f'{count:>5}'+ stationsList[s].toString() + "\n"
+        stationsDescr.write(stationIdText)
         count = count + 1
-    stationsMap.close()
+    stationsDescr.close()
 
 def calcDistances(city):
     stationNo = 0 # station numbers found, counts 0,1,2,...
-    stations = []
     stationMap = {} # maps from stationId to station number 
-
+    stationsData = {}
     tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
     if len(fileList) == 0:
@@ -49,45 +59,79 @@ def calcDistances(city):
             # NOTE we read all stored trip-data to find all "possible" stations. If there are stations that
             # are taken out of operation, we should remove them
             jsonFile = open(os.path.join(tripDataPath, file), "r")
+            print(jsonFile.name) # debug
             bikeData = json.loads(jsonFile.read())
 
             for i in range(len(bikeData)):
                 startId = int(bikeData[i]["start_station_id"])
-                if not startId in stationMap:
+                startLong = str(bikeData[i]["start_station_longitude"])
+                startLat = str(bikeData[i]["start_station_latitude"])
+                startName = bikeData[i]["start_station_name"]
+                if not startId in stationMap: # first entry for this station
                     stationMap[startId] = stationNo
                     stationNo = stationNo + 1
-                    startLong = str(bikeData[i]["start_station_longitude"])
-                    startLat = str(bikeData[i]["start_station_latitude"])
-                    stations.append(Station(bikeData[i]["start_station_id"], startLong, startLat, bikeData[i]["start_station_name"]))
-                endId = int(bikeData[i]["end_station_id"]) # TODO refactor?, code similar for start... and end...
+                    stationsData[startId] = Station(startId, startLong, startLat, startName)
+                else: # we already have a Station-object for startId, will check if data are changed and report such changes
+                    if stationsData[startId].longitude != startLong or stationsData[startId].latitude != startLat:
+                        moveDist = geopy.distance.distance((stationsData[startId].latitude, stationsData[startId].longitude), 
+                            (startLat, startLong)).km
+                        stationsData[startId].longitude = startLong
+                        stationsData[startId].latitude = startLat
+                        print("* position of station ", startId, "was moved ", "%.2f" % moveDist, "km")
+                    if stationsData[startId].stationName != startName:
+                        stationsData[startId].stationName = startName
+                        if startId == 486:        
+                            print("* name of station ", startId, "was changed")
 
+                endId = int(bikeData[i]["end_station_id"])
+                endLong = str(bikeData[i]["end_station_longitude"])
+                endLat = str(bikeData[i]["end_station_latitude"])
+                endName = bikeData[i]["end_station_name"]
                 if not endId in stationMap:
                     stationMap[endId] = stationNo
                     stationNo = stationNo + 1
-                    endLong = str(bikeData[i]["end_station_longitude"])
-                    endLat = str(bikeData[i]["end_station_latitude"])
-                    stations.append(Station(bikeData[i]["end_station_id"], endLong, endLat, bikeData[i]["end_station_name"]))
-            # print(".", end='') # TODO nice, replace with progress bar
-        # print("A total of ", len(set(stations)), " stations used, reported on stations.txt")
-        
-    reportStations(stations, city)
+                    stationsData[endId] = Station(endId, endLong, endLat, endName)
+                else: # we already have a Station-object for endId, will check if data are changed and report such changes
+                    if stationsData[endId].longitude != endLong or stationsData[endId].latitude != endLat:
+                        moveDist = geopy.distance.distance((stationsData[endId].latitude, stationsData[endId].longitude), 
+                            (endLat, endLong)).km
+                        stationsData[endId].longitude = endLong
+                        stationsData[endId].latitude = endLat
+                        print("* position of station ", endId, "was moved ", "%.2f" % moveDist, "km")
+
+                    if stationsData[endId].stationName != endName:
+                        stationsData[endId].stationName = endName 
+                        if endId == 486:       
+                            print("* name of station ", endId, "was changed")                    
+                    
+        print("A total of ", len(set(stationsData)), " stations used, reported on stations.txt")
+
+    stationsList = sortStations(stationsData)    
+    reportStations(stationsList, city)
+
     dist_matrix_km = [] # km in kilometers
     dm_file = open("init_state/cityBike/data/" + city + "/Distances.txt", "w")
     for rowNo in range(len(stationMap)):
         col = 0 
         row = []
         for col in range(len(stationMap)):
-            dist = geopy.distance.distance(
-                (stations[rowNo].latitude, stations[rowNo].longitude), 
-                (stations[col].latitude, stations[col].longitude)).km
+            dist = geopy.distance.distance((stationsList[rowNo].latitude, stationsList[rowNo].longitude), 
+                (stationsList[col].latitude, stationsList[col].longitude)).km
+ 
+            # dist = geopy.distance.distance(
+            #     (stationsData[no2id[rowNo]].latitude, stationsData[no2id[rowNo]].longitude), 
+            #     (stationsData[no2id[col]].latitude, stationsData[no2id[col]].longitude)).km
+ 
+            # if rowNo == 4 and col == 84:
+            #     print(" case: 4 -- 84:")
+            #     print(stationsData[no2id[rowNo]].longitude, " ", stationsData[no2id[rowNo]].latitude, 
+            #         " ", stationsData[no2id[col]].longitude, " ", stationsData[no2id[col]].latitude)
+            #     print("dist: ", dist)
+           
             if dist == 0.0 and rowNo != col:
-                print("*** NOTE: Distance between two stations is zero ", end ="") 
-                if (rowNo == 231 and col == 232) or (col == 231 and rowNo == 232): # TODO, this is VERY FAR FROM ROBUST
-                    print(" -- adjusted for the case Oslo - Problemveien")
-                    dist = 0.060 # 60 meters, not very relevant, but > 0.0 is important 
-                else:
-                    print("*** UNKNOWN, set to 1 km by guessing", rowNo, "", col)
-                    dist = 1.0
+                print("*** ERROR: Distance between two stations is zero", end ="") 
+                print(" --- set to 1 km by guessing", rowNo, "", col)
+                dist = 1.0
             row.append(dist)
             dm_file.write(str(dist))
             dm_file.write(" ")
@@ -133,7 +177,7 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
         print("*** Error: given city not implemented ", city)    
 
     print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) 
-        + ", setting up datastructures ... ", end='') 
+        + ", setting up datastructures ... ") 
     years = [] # Must count no of "year-instances" of the given week that are analyzed
     stationMap = readStationMap(city)
     arriveCount = []
@@ -186,6 +230,13 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                 moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
                 leavingBikes += 1
                 durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
+                # debug
+                if startStationNo == 4 and endStationNo == 84:
+                    print("4-84-duration: ", bikeData[i]["duration"], "at time: ", bikeData[i]["started_at"])
+                # debug
+                # if startStationNo == 252 and endStationNo == 255:
+                #     print("252-255-duration: ", bikeData[i]["duration"], "at time: ", bikeData[i]["started_at"])
+
             trips = trips + 1
         print(".", end='') # TODO replace with progress bar
     
@@ -210,9 +261,6 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                 avgDuration[start][end] = (distances[start][end]/settings.SCOOTER_SPEED)*3600
                 # TODO check this  
 
-    # Calculate distance
-    distances = calcDistances(city)
-
     # Calculate speed matrix
     speed_matrix = []
     for start in range(len(stationMap)):
@@ -226,7 +274,8 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                 else:    
                     speed = distances[start][end]/(averageDuration/3600)
                 if speed == 0.0 or speed > 100.0:
-                    print("*** BUG speed == 0 CHECK")
+                    print("*** BUG speed == 0 or > 100: avg duration: ", averageDuration, " distance: ", distances[start][end], end="")
+                    print(" from: " + str(start) + " to: " + str(end) + " speed: " + str(speed))
                 speed_matrix[start].append(speed)
             else:
                 speed_matrix[start].append(settings.SCOOTER_SPEED)
