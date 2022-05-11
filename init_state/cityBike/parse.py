@@ -59,7 +59,7 @@ def calcDistances(city):
             # NOTE we read all stored trip-data to find all "possible" stations. If there are stations that
             # are taken out of operation, we should remove them
             jsonFile = open(os.path.join(tripDataPath, file), "r")
-            print(jsonFile.name) # debug
+            # print(jsonFile.name) # debug
             bikeData = json.loads(jsonFile.read())
 
             for i in range(len(bikeData)):
@@ -77,11 +77,13 @@ def calcDistances(city):
                             (startLat, startLong)).km
                         stationsData[startId].longitude = startLong
                         stationsData[startId].latitude = startLat
-                        print("* position of station ", startId, "was moved ", "%.2f" % moveDist, "km")
+                        if startId == 507: # TODO SORRY lots of debug code around here 
+                            print("* position of station ", startId, "was moved ", "%.3f" % moveDist, "km")
                     if stationsData[startId].stationName != startName:
+                        oldName = stationsData[startId].stationName
                         stationsData[startId].stationName = startName
                         if startId == 486:        
-                            print("* name of station ", startId, "was changed")
+                            print("* name of station ", startId, "was changed from", oldName, " to ", startName )
 
                 endId = int(bikeData[i]["end_station_id"])
                 endLong = str(bikeData[i]["end_station_longitude"])
@@ -97,12 +99,14 @@ def calcDistances(city):
                             (endLat, endLong)).km
                         stationsData[endId].longitude = endLong
                         stationsData[endId].latitude = endLat
-                        print("* position of station ", endId, "was moved ", "%.2f" % moveDist, "km")
+                        if endId == 507:
+                            print("* position of station ", endId, "was moved ", "%.3f" % moveDist, "km")
 
                     if stationsData[endId].stationName != endName:
+                        oldName = stationsData[endId].stationName
                         stationsData[endId].stationName = endName 
                         if endId == 486:       
-                            print("* name of station ", endId, "was changed")                    
+                            print("* name of station ", endId, "was changed from ", oldName, "to ", endName)                    
                     
         print("A total of ", len(set(stationsData)), " stations used, reported on stations.txt")
 
@@ -117,17 +121,7 @@ def calcDistances(city):
         for col in range(len(stationMap)):
             dist = geopy.distance.distance((stationsList[rowNo].latitude, stationsList[rowNo].longitude), 
                 (stationsList[col].latitude, stationsList[col].longitude)).km
- 
-            # dist = geopy.distance.distance(
-            #     (stationsData[no2id[rowNo]].latitude, stationsData[no2id[rowNo]].longitude), 
-            #     (stationsData[no2id[col]].latitude, stationsData[no2id[col]].longitude)).km
- 
-            # if rowNo == 4 and col == 84:
-            #     print(" case: 4 -- 84:")
-            #     print(stationsData[no2id[rowNo]].longitude, " ", stationsData[no2id[rowNo]].latitude, 
-            #         " ", stationsData[no2id[col]].longitude, " ", stationsData[no2id[col]].latitude)
-            #     print("dist: ", dist)
-           
+            dist = round(dist, 3)    
             if dist == 0.0 and rowNo != col:
                 print("*** ERROR: Distance between two stations is zero", end ="") 
                 print(" --- set to 1 km by guessing", rowNo, "", col)
@@ -156,17 +150,38 @@ def readBikeStartStatus(city):
         bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
         allStatusData = json.loads(bikeStatusFile.read())
         stationData = allStatusData["data"]
-        stationMap = readStationMap(city)
+        id2no = readStationMap(city)
         bikeStartStatus = []
-        for stat in range(len(stationMap)):
+        for stat in range(len(id2no)): # make list of correct length, fill values below for those found
             bikeStartStatus.append(0)
         for i in range(len(stationData["stations"])):
-            station = int(stationData["stations"][i]["station_id"])
-            if str(station) in stationMap:
-                stationNo = stationMap[str(station)]
+            stationId = stationData["stations"][i]["station_id"]
+            if stationId in id2no:
+                stationNo = id2no[stationId]
                 noOfBikes = stationData["stations"][i]["num_bikes_available"]
                 bikeStartStatus[stationNo] = noOfBikes
+    else:
+        print("*** Error - given city not implemented")
     return bikeStartStatus
+
+def readDockStartStatus(city):
+    if city == "Oslo":
+        bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
+        allStatusData = json.loads(bikeStatusFile.read())
+        stationData = allStatusData["data"]
+        id2no = readStationMap(city)
+        dockStartStatus = []
+        for stat in range(len(id2no)): # make list of correct length, fill values below for those found
+            dockStartStatus.append(0)
+        for i in range(len(stationData["stations"])):
+            stationId = stationData["stations"][i]["station_id"]
+            if stationId in id2no:
+                stationNo = id2no[stationId]
+                noOfDocks = stationData["stations"][i]["num_docks_available"]
+                dockStartStatus[stationNo] = noOfDocks
+    else:
+        print("*** Error - given city not implemented")
+    return dockStartStatus
 
 def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
     if city == "Oslo" and ( (week < 1) or (week > 53)):
@@ -231,8 +246,8 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                 leavingBikes += 1
                 durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
                 # debug
-                if startStationNo == 4 and endStationNo == 84:
-                    print("4-84-duration: ", bikeData[i]["duration"], "at time: ", bikeData[i]["started_at"])
+                # if startStationNo == 4 and endStationNo == 84:
+                #     print("4-84-duration: ", bikeData[i]["duration"], "at time: ", bikeData[i]["started_at"])
                 # debug
                 # if startStationNo == 252 and endStationNo == 255:
                 #     print("252-255-duration: ", bikeData[i]["duration"], "at time: ", bikeData[i]["started_at"])
@@ -311,6 +326,9 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                         move_probabilities[station][day][hour].append(equalProb)
 
     bikeStartStatus = readBikeStartStatus(city)
+    dockStartStatus = readDockStartStatus(city)
+    for i in range(len(dockStartStatus)):
+        print(dockStartStatus[i], " ", end="")
     print(" ") # newline in terminal
     totalBikes = 0
     for i in range(len(bikeStartStatus)):
