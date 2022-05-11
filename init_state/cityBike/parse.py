@@ -121,7 +121,7 @@ def calcDistances(city):
         for col in range(len(stationMap)):
             dist = geopy.distance.distance((stationsList[rowNo].latitude, stationsList[rowNo].longitude), 
                 (stationsList[col].latitude, stationsList[col].longitude)).km
-            dist = round(dist, 3)    
+            dist = round(dist, 2)    
             if dist == 0.0 and rowNo != col:
                 print("*** ERROR: Distance between two stations is zero", end ="") 
                 print(" --- set to 1 km by guessing", rowNo, "", col)
