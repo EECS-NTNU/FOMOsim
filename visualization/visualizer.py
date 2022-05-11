@@ -2,13 +2,16 @@
 Methods for visualizing different aspects of the system.
 """
 
-
-from sim import Action, Scooter, State, Vehicle
+import datetime
+from sim import Action, Scooter, State, Vehicle, Metric
 from visualization.helpers import *
 import matplotlib.pyplot as plt
 import copy
 from itertools import cycle
+import matplotlib.dates as mdates
 
+def totime(ts, startdate):
+    return datetime.datetime.fromtimestamp(startdate.timestamp() + ts * 60)
 
 def visualize_clustering(clusters):
     """
@@ -335,7 +338,7 @@ def visualize_scooter_simulation(
     plt.show()
 
 
-def visualize_analysis(instances, title=None):
+def visualize_analysis(instances, title=None, week=1):
     """
     :param instances: world instances to analyse
     :param title: plot title
@@ -369,37 +372,40 @@ def visualize_analysis(instances, title=None):
     ax2.yaxis.tick_right()
     ax2.yaxis.set_label_position("right")
 
-    for i, instance in enumerate(instances):
-        metrics = instance.metrics.get_all_metrics()
+    weektext = "2022 " + str(week) + " 1 00:00"
+    startdate=datetime.datetime.strptime(weektext, "%Y %W %w %H:%M")
+
+    for i, insts in enumerate(instances):
+        if type(insts) is list:
+            metric = Metric.merge_metrics([instance.metrics for instance in insts])
+        else:
+            metric = insts.metrics
 
         # lost demand
-        x = [instance.metrics.min_time]
-        if len(metrics.get("lost_demand", [])) > 0:
-            x.extend([item[0] for item in metrics["lost_demand"]])
-        x.append(instance.metrics.max_time)
-
+        x = [totime(metric.min_time, startdate)]
         y = [0]
-        last = 0
-        if len(metrics.get("lost_demand", [])) > 0:
-            for item in metrics["lost_demand"]:
-                last += item[1]
-                y.append(last)
-        y.append(last)
+        if "lost_demand" in metric.metrics:
+            x.extend([totime(item[0], startdate) for item in metric.metrics["lost_demand"]])
+            y.extend([item[1] for item in metric.metrics["lost_demand"]])
+        x.append(totime(metric.max_time, startdate))
+        y.append(y[-1])
+        ax1.plot(x, y, c=COLORS[i], label=insts[0].label)
 
-        ax1.plot(x, y, c=COLORS[i], label=instance.label)
+        # available scooters
+        x = [totime(item[0], startdate) for item in metric.metrics["total_available_scooters"]]
+        y = [item[1] for item in metric.metrics["total_available_scooters"]]
+        ax2.plot(x, y, c=COLORS[i], label=insts[0].label)
 
-        if len(metrics["total_available_scooters"]) > 0:
-            x = [item[0] for item in metrics["total_available_scooters"]]
-            y = [item[1] for item in metrics["total_available_scooters"]]
-            ax2.plot(x, y, c=COLORS[i], label=instance.label)
-        if len(metrics["average_battery"]) > 0:
-            x = [item[0] for item in metrics["average_battery"]]
-            y = [item[1] for item in metrics["average_battery"]]
-            ax4.plot(x, y, c=COLORS[i], label=instance.label)
+        # average battery
+        x = [totime(item[0], startdate) for item in metric.metrics["average_battery"]]
+        y = [item[1] for item in metric.metrics["average_battery"]]
+        ax4.plot(x, y, c=COLORS[i], label=insts[0].label)
 
     for subplot in subplots:
         subplot.legend()
         subplot.set_ylim(ymin=0)
+        subplot.xaxis.set_major_formatter(mdates.DateFormatter("%a %H:%M"))
+        subplot.xaxis.set_minor_formatter(mdates.DateFormatter("%a %H:%M"))
     if title is not None:
         fig.suptitle(
             title,

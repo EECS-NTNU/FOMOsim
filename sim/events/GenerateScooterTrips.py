@@ -65,4 +65,4 @@ class GenerateScooterTrips(Event):
 
         world.add_event(GenerateScooterTrips(self.time + ITERATION_LENGTH_MINUTES))
 
-        super(GenerateScooterTrips, self).perform(world, add_metric=False)
+        super(GenerateScooterTrips, self).perform(world)

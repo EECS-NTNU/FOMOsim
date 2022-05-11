@@ -11,7 +11,7 @@ class LostTrip(Event):
         self.location_id = location_id
 
     def perform(self, world, **kwargs) -> None:
-        world.metrics.add_metric(world, "lost_demand", 1)
+        world.metrics.add_aggregate_metric(world, "lost_demand", 1)
 #        if world.verbose:
 #            print(f"LT: {self.location_id} at {self.time}")
         super(LostTrip, self).perform(world, **kwargs)

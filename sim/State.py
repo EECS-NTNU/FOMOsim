@@ -100,19 +100,24 @@ class State(SaveMixin):
                         scooters.append(sim.Bike(scooter_id=start_of_ids + scooter_id))
                 start_of_ids += number_of_scooters[station_id]
                 stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], ideal_state=istate))
+                
+        state = State(stations, depots, [], distance_matrix=distance_matrix, speed_matrix=speed_matrix)
 
-        vehicles = []
-        start_location = stations[0]
-        if len(depots) > 0:
-            start_location = depots[0]
-        for vehicle_id in range(number_of_vans):
-            vehicles.append(sim.Vehicle(vehicle_id, start_location, VAN_BATTERY_INVENTORY, VAN_SCOOTER_INVENTORY))
-
-        rng=np.random.default_rng(random_seed)
-            
-        state = State(stations, depots, vehicles, distance_matrix=distance_matrix, speed_matrix=speed_matrix, rng=rng)
+        state.set_num_vans(number_of_vans)
+        state.set_seed(random_seed)
 
         return state
+
+    def set_seed(self, seed):
+        self.rng = np.random.default_rng(seed)
+
+    def set_num_vans(self, number_of_vans):
+        self.vehicles = []
+        start_location = self.stations[0]
+        if len(self.depots) > 0:
+            start_location = self.depots[0]
+        for vehicle_id in range(number_of_vans):
+            self.vehicles.append(sim.Vehicle(vehicle_id, start_location, VAN_BATTERY_INVENTORY, VAN_SCOOTER_INVENTORY))
 
     def set_move_probabilities(self, move_probabilities):
         for st in self.locations:

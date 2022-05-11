@@ -121,6 +121,8 @@ class Simulator(SaveMixin):
         if settings.VERBOSE:
             print("\n", event)
 
+        self.metrics.add_analysis_metrics(self)
+
         return event
 
     def full_step(self):

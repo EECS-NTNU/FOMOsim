@@ -1,13 +1,12 @@
 import sim
 from progress.bar import Bar
 import os
+import sys
 import numpy as np
 import copy
 import settings
 import math
 import policies
-
-MIN_IDEAL_STATE = 5
 
 def outflow_ideal_state(state):
     # initialize ideal_state matrix
@@ -23,25 +22,19 @@ def outflow_ideal_state(state):
         for hour in range(24):
             # set ideal state to net outflow of bikes
             total_ideal_state = 0
-            num_zero = 0
+
             for st in state.stations:
                 outflow = st.get_leave_intensity(day, hour) - st.get_arrive_intensity(day, hour)
-                if outflow >= 0:
-                    ideal_state[st.id][day][hour] = outflow
-                    total_ideal_state += outflow
+                if outflow > 0:
+                    ideal_state[st.id][day][hour] = 2
+                    total_ideal_state += 2
                 else:
-                    ideal_state[st.id][day][hour] = 0
-                    num_zero += 1
+                    ideal_state[st.id][day][hour] = 1
+                    total_ideal_state += 1
 
             # scale ideal states so that sum is close to total number of scooters
-            if total_ideal_state > 0:
-                scale_factor = (len(state.get_all_scooters()) - (num_zero * MIN_IDEAL_STATE)) / total_ideal_state
-                for st in state.stations:
-                    ideal_state[st.id][day][hour] = int(ideal_state[st.id][day][hour] * scale_factor)
-
-            # make sure all stations have at least MIN_IDEAL_STATE
+            scale_factor = len(state.get_all_scooters()) / total_ideal_state
             for st in state.stations:
-                if ideal_state[st.id][day][hour] < MIN_IDEAL_STATE:
-                    ideal_state[st.id][day][hour] = MIN_IDEAL_STATE
+                ideal_state[st.id][day][hour] = int(ideal_state[st.id][day][hour] * scale_factor)
 
     return ideal_state
