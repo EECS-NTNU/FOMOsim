@@ -52,6 +52,7 @@ def calcDistances(city):
     stationsData = {}
     tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
+    fileList.sort() # needed to get linux and windows behave similarly
     if len(fileList) == 0:
         print("*** Error: you must download city data" )
     else:    
@@ -121,7 +122,7 @@ def calcDistances(city):
         for col in range(len(stationMap)):
             dist = geopy.distance.distance((stationsList[rowNo].latitude, stationsList[rowNo].longitude), 
                 (stationsList[col].latitude, stationsList[col].longitude)).km
-            dist = round(dist, 2)    
+            dist = round(dist, 3)    
             if dist == 0.0 and rowNo != col:
                 print("*** ERROR: Distance between two stations is zero", end ="") 
                 print(" --- set to 1 km by guessing", rowNo, "", col)
