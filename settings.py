@@ -9,6 +9,7 @@ USER_INTERFACE_MODE = "GUI" # uses GUI from dashboard.py under tripStats
 VERBOSE = False
 FULL_TRIP = True
 TRAFFIC_LOGGING = False
+REPORT_CHANGES = False # if True, changes in station position or name are reported in terminal
 
 ITERATION_LENGTH_MINUTES = 20
 GEOSPATIAL_BOUND_NEW = (59.9040, 59.9547, 10.6478, 10.8095) # geographical limits (lat_min, lat_max, long_min, long_max)

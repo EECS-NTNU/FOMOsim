@@ -77,6 +77,7 @@ def GUI_main():
         ###### INIT STATE GUI PART
         elif GUI_event == "Fosen & Haldorsen":
             if GUI_values["-OSLO-"]:
+                userFeedbackClear()
                 weekNo = 0
                 if GUI_values["-WEEK-"] == "Week no: ": # TODO, improve code, make function, reuse
                     weekNo = 53
@@ -91,6 +92,7 @@ def GUI_main():
                     task = ["Init-state-FH", "Oslo", str(weekNo)]    
                     updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (4 - 6 minutes)") 
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
+                userFeedbackClear()
                 updateField("-WEEK-", "Week no: 48") # Only week with traffic at the moment for Utopia
                 task = ["Init-state-FH", "Utopia", "48"]    
                 updateFieldOperation("-STATE-MSG-", "short operation started ...") 

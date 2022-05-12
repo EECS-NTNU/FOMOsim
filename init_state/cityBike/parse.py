@@ -10,6 +10,7 @@ import settings
 from GUI import loggFile
 
 from init_state.cityBike.helpers import yearWeekNoAndDay, write, dateAndTimeStr 
+from init_state.cityBike.analyze import plotSpeeds
 
 class Station:
     def __init__(self, stationId, longitude, latitude, stationName):
@@ -60,7 +61,6 @@ def calcDistances(city):
             # NOTE we read all stored trip-data to find all "possible" stations. If there are stations that
             # are taken out of operation, we should remove them
             jsonFile = open(os.path.join(tripDataPath, file), "r")
-            # print(jsonFile.name) # debug
             bikeData = json.loads(jsonFile.read())
 
             for i in range(len(bikeData)):
@@ -72,17 +72,19 @@ def calcDistances(city):
                     stationMap[startId] = stationNo
                     stationNo = stationNo + 1
                     stationsData[startId] = Station(startId, startLong, startLat, startName)
-                else: # we already have a Station-object for startId, will check if data are changed and report such changes
+                else: # we already have a Station-object for startId, will check if data are changed and eventually report such changes
                     if stationsData[startId].longitude != startLong or stationsData[startId].latitude != startLat:
                         moveDist = geopy.distance.distance((stationsData[startId].latitude, stationsData[startId].longitude), 
                             (startLat, startLong)).km
                         stationsData[startId].longitude = startLong
                         stationsData[startId].latitude = startLat
-                        print("* position of station ", startId, "was moved ", "%.3f" % moveDist, "km")
+                        if settings.REPORT_CHANGES:
+                            print("* position of station ", startId, "was moved ", "%.3f" % moveDist, "km")
                     if stationsData[startId].stationName != startName:
                         oldName = stationsData[startId].stationName
                         stationsData[startId].stationName = startName
-                        print("* name of station ", startId, "was changed from", oldName, " to ", startName )
+                        if settings.REPORT_CHANGES:
+                            print("* name of station ", startId, "was changed from", oldName, " to ", startName )
 
                 endId = int(bikeData[i]["end_station_id"])
                 endLong = str(bikeData[i]["end_station_longitude"])
@@ -98,12 +100,14 @@ def calcDistances(city):
                             (endLat, endLong)).km
                         stationsData[endId].longitude = endLong
                         stationsData[endId].latitude = endLat
-                        print("* position of station ", endId, "was moved ", "%.3f" % moveDist, "km")
+                        if settings.REPORT_CHANGES:
+                            print("* position of station ", endId, "was moved ", "%.3f" % moveDist, "km")
 
                     if stationsData[endId].stationName != endName:
                         oldName = stationsData[endId].stationName
                         stationsData[endId].stationName = endName 
-                        print("* name of station ", endId, "was changed from ", oldName, "to ", endName)                    
+                        if settings.REPORT_CHANGES:
+                            print("* name of station ", endId, "was changed from ", oldName, "to ", endName)                    
                     
         print("A total of ", len(set(stationsData)), " stations used, reported on stations.txt")
 
@@ -267,6 +271,7 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                 # TODO check this  
 
     # Calculate speed matrix
+  
     speed_matrix = []
     for start in range(len(stationMap)):
         speed_matrix.append([])
@@ -284,7 +289,7 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                 speed_matrix[start].append(speed)
             else:
                 speed_matrix[start].append(settings.SCOOTER_SPEED)
- 
+         
     # Calculate arrive and leave-intensities and move_probabilities
     noOfYears = len(set(years))
     arrive_intensities = []  
@@ -323,6 +328,7 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
         totalBikes += bikeStartStatus[i]
     write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "left:", str(leavingBikes), 
         "arrived:", str(arrivingBikes), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
+
     return sim.State.get_initial_state(
         bike_class = bike_class, 
         distance_matrix = distances,

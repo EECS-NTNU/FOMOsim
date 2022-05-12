@@ -137,3 +137,7 @@ def openVisual4():
     plt.plot(data)
     plt.show()
     pass
+
+def plotSpeeds(list):
+    plt.hist(list, bins=25)
+    plt.show()
