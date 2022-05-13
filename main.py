@@ -13,7 +13,9 @@ import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
 
-from visualization.visualizer import visualize_analysis
+from progress.bar import Bar
+
+from visualization.visualizer import visualize_analysis, visualize_end, visualize_lost_demand, save_lost_demand_csv
 import ideal_state
 
 from GUI.dashboard import GUI_main
@@ -22,6 +24,7 @@ from init_state.cityBike.helpers import dateAndTimeStr
 def get_time(day=0, hour=0, minute=0):
     return 24*60*day + 60*hour + minute
 
+#WEEK = 1
 #WEEK = 28
 WEEK = 33
 START_DAY = 0
@@ -38,7 +41,7 @@ def run_sim(state, period, policy, start_time, label, seed):
         PERIOD,
         policy, 
         local_state,
-        verbose=True,
+        verbose=False,
         start_time = start_time,
         label=label,
     )
@@ -66,30 +69,52 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     ###############################################################################
 
+    # simulations = []
+
+    # xvalues = [0, 1, 2, 4, 8]
+
+    # progress = Bar(
+    #     "Running",
+    #     max = len(xvalues) * RUNS,
+    # )
+
+    # for num_vans in xvalues:
+    #     state.set_num_vans(num_vans)
+
+    #     sims = []
+    
+    #     for run in range(RUNS):
+    #         sims.append(run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "Greedy", run))
+    #         progress.next()
+
+    #     simulations.append(sims)
+        
+    # progress.finish()
+
+    # # Visualize results
+    # visualize_end(simulations, xvalues, title=("Week " + str(WEEK)), week=WEEK)
+
+    ###############################################################################
+
     donothings = []
     randoms = []
     rebalancings = []
     
+    state.set_num_vans(8)
+
+    progress = Bar(
+        "Running",
+        max = RUNS,
+    )
+
     for run in range(RUNS):
         donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),          start_time, "DoNothing",   run))
         randoms.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(), start_time, "Random",      run))
-        rebalancings.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),  start_time, "Rebalancing", run))
+        rebalancings.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),  start_time, "Greedy", run))
+        progress.next()
 
-    ##############################################################################
-
-    num_vans = 2
-
-    state.set_num_vans(num_vans)
-
-    randoms2 = []
-    rebalancings2 = []
-    
-    for run in range(RUNS):
-        randoms2.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(), start_time, "Random " + str(num_vans) + " vans",      run))
-        rebalancings2.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),  start_time, "Rebalancing " + str(num_vans) + " vans", run))
-
-    ##############################################################################
-
+    progress.finish()
+        
     # Visualize results
-    visualize_analysis([donothings, randoms, rebalancings, randoms2, rebalancings2], title=("Week " + str(WEEK)), week=WEEK)
-
+    visualize_lost_demand([donothings, randoms, rebalancings], title=("Week " + str(WEEK)), week=WEEK)
+    save_lost_demand_csv([donothings, randoms, rebalancings], title=("Week " + str(WEEK)), week=WEEK)
