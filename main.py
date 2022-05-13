@@ -31,7 +31,6 @@ START_HOUR = 8
 # PERIOD = get_time(hour=12)
 PERIOD = get_time(day=2)
 
-
 ###############################################################################
 # Set up initial state
 

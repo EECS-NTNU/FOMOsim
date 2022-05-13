@@ -65,7 +65,7 @@ def doCommand(session, task):
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
             # print("before reading" + dateAndTimeStr())
-            session.initState = get_initial_state(task[1], week = int(task[2]))
+            session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vans=1, random_seed=1) # TODO, hardwired, not good, fix 
             # print("after reading" + dateAndTimeStr())
             session.initStateType = "FH"
         elif task[0] == "Init-state-HHS": 
