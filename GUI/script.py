@@ -250,7 +250,7 @@ def smallCircle(session):
                 move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
 
     state = sim.State.get_initial_state(
-                bike_class = "Scooter", # TODO logging code will crash if Bike is used
+                bike_class = "Scooter", # TODO logging code will crash if Bike is used TODO test again
                 distance_matrix = [ # km
                     [0, 2, 2, 2],
                     [2, 0, 2, 2],
@@ -267,7 +267,7 @@ def smallCircle(session):
                 secondary_depots = [],
 #                number_of_scooters = [2, 2, 2, 2],
                 number_of_scooters = [1, 1, 1, 1],
-                number_of_vans = 2,
+                number_of_vans = 1,
                 random_seed = 1,
                 arrive_intensities = arrive_intensities,
                 leave_intensities = leave_intensities,

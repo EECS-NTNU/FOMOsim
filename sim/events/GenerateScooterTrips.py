@@ -1,5 +1,6 @@
 import sim
 from sim import Event
+import settings
 from settings import *
 import numpy as np
 
@@ -35,6 +36,8 @@ class GenerateScooterTrips(Event):
                     departure_time, departure_cluster.id
                 )
                 world.add_event(departure_event)
+                if settings.TRAFFIC_LOGGING:
+                        print("***PRELIM ", departure_time)
 
         if not FULL_TRIP:
             for arrival_cluster in world.state.stations:
