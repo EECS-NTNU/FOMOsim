@@ -84,7 +84,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     #     sims = []
     
     #     for run in range(RUNS):
-    #         sims.append(run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "Greedy", run))
+    #         #sims.append(run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy", run))
+    #         sims.append(run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "HHS-Greedy", run))
     #         progress.next()
 
     #     simulations.append(sims)
@@ -98,6 +99,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     donothings = []
     randoms = []
+    fhs = []
     rebalancings = []
     
     state.set_num_vans(8)
@@ -108,13 +110,13 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     )
 
     for run in range(RUNS):
-        donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),          start_time, "DoNothing",   run))
-        randoms.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(), start_time, "Random",      run))
-        rebalancings.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),  start_time, "Greedy", run))
+        donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),                                       start_time, "DoNothing",  run))
+        randoms.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
+        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
+        rebalancings.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy", run))
         progress.next()
 
     progress.finish()
         
     # Visualize results
-    visualize_lost_demand([donothings, randoms, rebalancings], title=("Week " + str(WEEK)), week=WEEK)
-    save_lost_demand_csv([donothings, randoms, rebalancings], title=("Week " + str(WEEK)), week=WEEK)
+    visualize_lost_demand([donothings, randoms, rebalancings, fhs], title=("Week " + str(WEEK)), week=WEEK)

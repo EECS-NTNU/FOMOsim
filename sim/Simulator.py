@@ -102,13 +102,6 @@ class Simulator(SaveMixin):
     def single_step(self):
         event = self.event_queue.pop(0)
 
-        if settings.VERBOSE:
-          print()
-          print("Time:", event.time)
-          print(self.state)
-          print()
-          print(event)
-
         if settings.TRAFFIC_LOGGING:
             loggTime(event.time)
             loggLocations(self.state)
@@ -117,9 +110,6 @@ class Simulator(SaveMixin):
 
         if settings.TRAFFIC_LOGGING:
             loggEvent(event)
-
-        if settings.VERBOSE:
-            print("\n", event)
 
         self.metrics.add_analysis_metrics(self)
 

@@ -213,10 +213,6 @@ class State(SaveMixin):
         :param vehicle: Vehicle to perform this action
         :param action: Action - action to be performed on the state
         """
-        if VERBOSE:
-            print(action)
-            print("\n")
-
         refill_time = 0
         if vehicle.is_at_depot():
             batteries_to_swap = min(

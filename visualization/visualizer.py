@@ -364,7 +364,7 @@ def visualize_analysis(instances, title=None, week=1):
             spec[i],
             x_label=x_label,
             y_label=y_label,
-            plot_title=plot_title,
+#            plot_title=plot_title,
         )
         subplots.append(ax)
 

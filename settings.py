@@ -6,7 +6,6 @@ SIM SETTINGS
 
 #USER_INTERFACE_MODE = "GUI" # uses GUI from dashboard.py under tripStats
 USER_INTERFACE_MODE = "CMD" # uses normal code in main.py 
-VERBOSE = False
 FULL_TRIP = True
 TRAFFIC_LOGGING = False
 
