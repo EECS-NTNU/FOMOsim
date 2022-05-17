@@ -1,9 +1,9 @@
+import numpy as np
 import sim
 from sim import Event
 import settings
 from settings import *
-import numpy as np
-
+from init_state.cityBike.helpers import storeDepartures   
 
 class GenerateScooterTrips(Event):
     """
@@ -28,6 +28,8 @@ class GenerateScooterTrips(Event):
                     self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                 )
             )
+            if settings.TRAFFIC_LOGGING:
+                storeDepartures(trips_departure_time) 
 
             # generate departure event and add to world event_queue
             for departure_time in trips_departure_time:
@@ -36,8 +38,7 @@ class GenerateScooterTrips(Event):
                     departure_time, departure_cluster.id
                 )
                 world.add_event(departure_event)
-                if settings.TRAFFIC_LOGGING:
-                        print("***PRELIM ", departure_time)
+
 
         if not FULL_TRIP:
             for arrival_cluster in world.state.stations:
