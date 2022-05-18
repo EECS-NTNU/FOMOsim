@@ -63,19 +63,18 @@ def loggLocations(state):
     if len(words) > 0:
         write(trafficLogg, ["In-use:"] + words)        
 
-storedDepartures = []
-def storeDepartures(timelist):
+def loggDepartures(timelist):
+    loggMsg = ["Trips-generated-for:"]
     for t in timelist:
-        storedDepartures.append(str(t))
+        loggMsg.append(str(t))
+    write(trafficLogg, loggMsg)    
 
 def loggEvent(event, times=[]):
     string = event.__repr__()
     words = string.split()
     if words[0] == "<GenerateScooterTrips":
         time = words[3][0:len(words[3])-1]
-        write(trafficLogg, ["GenerateTrips-at-time:", time, "Departures_at:"])
-        write(trafficLogg, storedDepartures) 
-        storedDepartures = []
+        write(trafficLogg, ["0-to-many-was-generated-at-time:", time])
     elif words[0] == "<ScooterDeparture":
         time = words[3][0:len(words[3])-1]
         fromLocation = words[7][0:len(words[7])-1]

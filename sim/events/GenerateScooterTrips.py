@@ -3,7 +3,7 @@ import sim
 from sim import Event
 import settings
 from settings import *
-from init_state.cityBike.helpers import storeDepartures   
+from init_state.cityBike.helpers import loggDepartures
 
 class GenerateScooterTrips(Event):
     """
@@ -28,8 +28,8 @@ class GenerateScooterTrips(Event):
                     self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                 )
             )
-            if settings.TRAFFIC_LOGGING:
-                storeDepartures(trips_departure_time) 
+            if settings.TRAFFIC_LOGGING and len(trips_departure_time) > 0:
+                loggDepartures(trips_departure_time) 
 
             # generate departure event and add to world event_queue
             for departure_time in trips_departure_time:
