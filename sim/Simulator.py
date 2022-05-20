@@ -31,35 +31,9 @@ class Simulator(SaveMixin):
         **kwargs,
     ):
         super().__init__(**kwargs)
-
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
-        self.shift_duration = start_time + shift_duration
-        self.state = initial_state
-        self.time = start_time
-        self.event_queue: List[sim.Event] = []
-        # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
-        for vehicle in self.state.vehicles:
-            self.event_queue.append(
-                sim.VehicleArrival(self.time, vehicle)
-            )
-        # Add Generate Scooter Trip event to the event_queue
-        self.event_queue.append(sim.GenerateScooterTrips(start_time + settings.ITERATION_LENGTH_MINUTES))
         self.policy = policy
-        policy.init_sim(self)
-        self.metrics = Metric()
-        self.verbose = verbose
-        if label is None:
-          self.label = self.__class__.__name__
-        else:
-          self.label = label
-        if verbose:
-            self.progress_bar = IncrementalBar(
-                "Running Sim",
-                check_tty=False,
-                max=round(shift_duration / settings.ITERATION_LENGTH_MINUTES) + 1,
-                color=settings.WHITE,
-                suffix="%(percent)d%% - ETA %(eta)ds",
-            )
+        self.init(shift_duration, initial_state, start_time, verbose, label)
 
     def init(
         self,
@@ -94,6 +68,8 @@ class Simulator(SaveMixin):
                 color=settings.WHITE,
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
+
+        self.policy.init_sim(self)
 
     def __repr__(self):
         string = f"<Sim with {self.time} of {self.shift_duration} elapsed. {len(self.event_queue)} events in event_queue>"
@@ -141,14 +117,6 @@ class Simulator(SaveMixin):
     def hour(self):
         return (self.time // 60) % 24
 
-    def get_remaining_time(self) -> int:
-        """
-        Computes the remaining time by taking the difference between the shift duration
-        and the current time of the sim object.
-        :return: the remaining time as a float
-        """
-        return self.shift_duration - self.time
-
     def add_event(self, event: sim.Event) -> None:
         """
         Adds event to the sorted queue.
@@ -157,21 +125,6 @@ class Simulator(SaveMixin):
         """
         insert_index = bisect.bisect([event.time for event in self.event_queue], event.time)
         self.event_queue.insert(insert_index, event)
-
-    def get_scooters_on_trip(self) -> [(int, int, int)]:
-        """
-        Get all scooters that are currently out on a trip
-        :return: list of all scooters that are out on a trip
-        """
-        return [
-            (event.departure_cluster_id, event.arrival_cluster_id, event.scooter.id)
-            for event in self.event_queue
-            if isinstance(event, sim.ScooterArrival)
-        ]
-
-    def get_discount(self):
-        # Divide by 60 as there is 60 minutes in an hour. We want this number in hours to avoid big numbers is the power
-        return settings.DISCOUNT_RATE ** (self.time / 60)
 
     def get_filename(self):
         if label is not None:
