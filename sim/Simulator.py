@@ -45,7 +45,7 @@ class Simulator(SaveMixin):
         # Add Generate Scooter Trip event to the event_queue
         self.event_queue.append(sim.GenerateScooterTrips(start_time + settings.ITERATION_LENGTH_MINUTES))
         self.policy = policy
-        policy.initSim(self)
+        policy.init_sim(self)
         self.metrics = Metric()
         self.verbose = verbose
         if label is None:

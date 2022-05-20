@@ -12,111 +12,140 @@ import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
-
-from progress.bar import Bar
-
-from visualization.visualizer import visualize_analysis, visualize_end, visualize_lost_demand, save_lost_demand_csv
+import policies.haflan_haga_spetalen
+from visualization.visualizer import visualize_lost_demand
 import ideal_state
 
 from GUI.dashboard import GUI_main
 from init_state.cityBike.helpers import dateAndTimeStr
 
+simulators = []
+
 def get_time(day=0, hour=0, minute=0):
     return 24*60*day + 60*hour + minute
 
-#WEEK = 1
-#WEEK = 28
-WEEK = 33
-START_DAY = 0
-START_HOUR = 0
-PERIOD = get_time(day=7)
-RUNS = 10
+WEEK = 30
+START_DAY = 2
+START_HOUR = 8
+# PERIOD = get_time(4)
+# PERIOD = get_time(hour=12)
+PERIOD = get_time(day=1)
 
-def run_sim(state, period, policy, start_time, label, seed):
-    local_state = copy.deepcopy(state)
-    local_state.set_seed(seed)
-
-    # Set up simulator
-    simul = sim.Simulator(
-        PERIOD,
-        policy, 
-        local_state,
-        verbose=False,
-        start_time = start_time,
-        label=label,
-    )
-
-    # Run simulator
-    simul.run()
-    return simul
+###############################################################################
+# Set up initial state
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
-
-    start_time = get_time(day=START_DAY, hour=START_HOUR)
 
     ###############################################################################
     # get initial state
 
-    #state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Bike", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
-    state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike", number_of_vans=1, random_seed=1)
+    state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
+    #state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike", number_of_vans=1, random_seed=1)
 
     ###############################################################################
     # calculate ideal state
 
-    #ideal_state = ideal_state.evenly_distributed_ideal_state(state)
-    ideal_state = ideal_state.outflow_ideal_state(state)
+    ideal_state = ideal_state.evenly_distributed_ideal_state(state)
+    #ideal_state = ideal_state.outflow_ideal_state(state)
     state.set_ideal_state(ideal_state)
 
     ###############################################################################
 
-    # simulations = []
+    # # Set up simulator
+    # simul = sim.Simulator.load("sim_cache/entur_scooter_5_250.pickle")
 
-    # xvalues = [0, 1, 2, 4, 8]
+    # hhsstate = copy.deepcopy(state)
+    # hhsstate.simulation_scenarios = simul.state.simulation_scenarios
 
-    # progress = Bar(
-    #     "Running",
-    #     max = len(xvalues) * RUNS,
+    # simul.init(
+    #     PERIOD, 
+    #     hhsstate,
+    #     verbose=True,
+    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
+    #     label="HHS",
     # )
+    # simulators.append(simul)
 
-    # for num_vans in xvalues:
-    #     state.set_num_vans(num_vans)
-
-    #     sims = []
-    
-    #     for run in range(RUNS):
-    #         #sims.append(run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy", run))
-    #         sims.append(run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "HHS-Greedy", run))
-    #         progress.next()
-
-    #     simulations.append(sims)
-        
-    # progress.finish()
-
-    # # Visualize results
-    # visualize_end(simulations, xvalues, title=("Week " + str(WEEK)), week=WEEK)
+    # # Run simulator
+    # simulators[-1].run()
 
     ###############################################################################
 
-    donothings = []
-    randoms = []
-    fhs = []
-    rebalancings = []
-    
-    state.set_num_vans(8)
+    # # Set up simulator
+    # simulators.append(sim.Simulator(
+    #     PERIOD,
+    #     policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
+    #     copy.deepcopy(state),
+    #     verbose=True,
+    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
+    #     label="FH",
+    # ))
 
-    progress = Bar(
-        "Running",
-        max = RUNS,
-    )
+    # # Run simulator
+    # simulators[-1].run()
 
-    for run in range(RUNS):
-        donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),                                       start_time, "DoNothing",  run))
-        randoms.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
-        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
-        rebalancings.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy", run))
-        progress.next()
+    # # ###############################################################################
 
-    progress.finish()
-        
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="F&H-Greedy",
+    ))
+
+    # Run first simulator
+    simulators[-1].run()
+
+    # ###############################################################################
+
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.DoNothing(),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="DoNothing",
+    ))
+
+    # Run simulator
+    simulators[-1].run()
+
+    # # ###############################################################################
+
+    # Set up simulator
+    simulators.append(sim.Simulator(
+        PERIOD,
+        policies.RebalancingPolicy(),
+        copy.deepcopy(state),
+        verbose=True,
+        start_time = get_time(day=START_DAY, hour=START_HOUR),
+        label="Rebalancing",
+    ))
+
+    # Run simulator
+    simulators[-1].run()
+
+    ##############################################################################
+
+    # Set up simulator
+    # simulators.append(sim.Simulator(
+    #     PERIOD,
+    #     policies.gleditsch_hagen.GleditschHagenPolicy(),
+    #     copy.deepcopy(state),
+    #     verbose=True,
+    #     start_time = get_time(day=START_DAY, hour=START_HOUR),
+    #     label="GH",
+    # ))
+
+    # Run simulator
+    # simulators[-1].run()
+
+    ###############################################################################
+
     # Visualize results
-    visualize_lost_demand([donothings, randoms, rebalancings, fhs], title=("Week " + str(WEEK)), week=WEEK)
+    visualize_lost_demand(simulators, title=("Week " + str(WEEK)), week=WEEK)
+

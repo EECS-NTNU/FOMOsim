@@ -455,8 +455,10 @@ def visualize_lost_demand(instances, title=None, week=1):
     for i, insts in enumerate(instances):
         if type(insts) is list:
             metric = Metric.merge_metrics([instance.metrics for instance in insts])
+            label = insts[0].label
         else:
             metric = insts.metrics
+            label = insts.label
 
         # lost demand
         x = [totime(metric.min_time, startdate)]
@@ -466,7 +468,7 @@ def visualize_lost_demand(instances, title=None, week=1):
             y.extend([item[1] for item in metric.metrics["lost_demand"]])
         x.append(totime(metric.max_time, startdate))
         y.append(y[-1])
-        ax1.plot(x, y, c=COLORS[i], label=insts[0].label)
+        ax1.plot(x, y, c=COLORS[i], label=label)
 
     for subplot in subplots:
         subplot.legend()

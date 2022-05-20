@@ -14,7 +14,7 @@ class DoNothing(Policy):
     def get_best_action(self, simul, vehicle):
         return sim.Action([], [], [], 0)
 
-    def initSim(self, simul):
+    def init_sim(self, simul):
         # Empty the vehicle arrival events in the event_queue
         simul.event_queue = [
             event

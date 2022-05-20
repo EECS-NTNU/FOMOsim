@@ -80,7 +80,7 @@ class ScooterDeparture(Event):
             world.state.scooter_in_use(scooter)
 
         else:
-            world.add_event(sim.LostTrip(self.time, self.departure_cluster_id))
+            world.metrics.add_aggregate_metric(world, "lost_demand", 1)
 
         # set time of world to this event's time
         super(ScooterDeparture, self).perform(world, **kwargs)
