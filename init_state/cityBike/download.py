@@ -25,4 +25,3 @@ def oslo(fromIncluded, toIncluded):
         dataOut.write(data.text)
         dataOut.close()
         print(" downloaded")
-    print("Finito")

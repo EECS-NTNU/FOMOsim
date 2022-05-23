@@ -7,7 +7,6 @@ import matplotlib # TODO MARK-C
 
 import settings
 
-# import init_state.cityBike
 from init_state.cityBike.helpers import dateAndTimeStr, strip, write, fixComputerName, get_duration
 from init_state.cityBike.analyze import openVisual1, openVisual2, openVisual3, openVisual4
 

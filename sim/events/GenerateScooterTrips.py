@@ -29,7 +29,7 @@ class GenerateScooterTrips(Event):
                 )
             )
             if settings.TRAFFIC_LOGGING and len(trips_departure_time) > 0:
-                loggDepartures(trips_departure_time) 
+                loggDepartures(departure_cluster.id, trips_departure_time) 
 
             # generate departure event and add to world event_queue
             for departure_time in trips_departure_time:
