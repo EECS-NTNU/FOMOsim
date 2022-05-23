@@ -64,7 +64,7 @@ class AnalysisTests(unittest.TestCase):
         # running test instances and exporting them to excel
         analysis.evaluate_policies.run_analysis_from_path(
             "world_cache/test_models",
-            shift_duration=10,
+            duration=10,
             export_to_excel=True,
             runs_per_policy=1,
         )

@@ -13,7 +13,7 @@ from settings import (
 class DepotTests(unittest.TestCase):
     def setUp(self) -> None:
         self.world = sim.World(
-            shift_duration=VAN_BATTERY_INVENTORY * SWAP_TIME_PER_BATTERY + 1,
+            duration=VAN_BATTERY_INVENTORY * SWAP_TIME_PER_BATTERY + 1,
             policy=decision.SwapAllPolicy(),
             initial_state=clustering.scripts.get_initial_state(
                 sample_size=100, number_of_clusters=10, initial_location_depot=True

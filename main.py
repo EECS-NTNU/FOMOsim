@@ -52,11 +52,11 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # Set up simulator
     simulator = sim.Simulator(
-        get_time(day=7),
-        policy,
-        state,
-        verbose=True,
+        initial_state = state,
+        policy = policy,
         start_time = get_time(day=2, hour=8),
+        duration = get_time(day=7),
+        verbose = True,
     )
 
     ###############################################################################

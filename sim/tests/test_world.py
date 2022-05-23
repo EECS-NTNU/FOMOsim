@@ -39,7 +39,7 @@ class WorldTestCase(unittest.TestCase):
         filepath = f"{settings.WORLD_CACHE_DIR}/{self.world.get_filename()}.pickle"
         self.world.save(settings.WORLD_CACHE_DIR)
         file_world = sim.World.load(filepath)
-        file_world.shift_duration = 2
+        file_world.duration = 2
         file_world.run()
         os.remove(filepath)
         return file_world

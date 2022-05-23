@@ -25,8 +25,8 @@ def run_analysis_from_path(
     path: str,
     visualize_route=False,
     runs_per_policy=10,
-    shift_duration=960,
-    world_attribute="shift_duration",
+    duration=960,
+    world_attribute="duration",
     export_to_excel=False,
     multiprocess=True,
 ):
@@ -35,7 +35,7 @@ def run_analysis_from_path(
     :param path: string path of folder with models to analyse
     :param visualize_route: is route should vi visualized
     :param runs_per_policy: how many runs to do for every model
-    :param shift_duration: length of shift
+    :param duration: length of shift
     :param world_attribute: Attribute to label models in end chart
     :param export_to_excel: if excel export
     :param multiprocess: true if method use multiprocessing
@@ -60,7 +60,7 @@ def run_analysis_from_path(
                     event.visualize = True
 
         # Always rollout for 8 hours
-        world.shift_duration = shift_duration
+        world.duration = duration
 
         # Do not learn anything more when during evaluation
         world.disable_training = True
@@ -122,7 +122,7 @@ def run_analysis(
     save=False,
     baseline_policy_world=None,
     title=None,
-    world_attribute="shift_duration",
+    world_attribute="duration",
     export_to_excel=False,
     multiprocess=True,
 ):
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     else:
         run_analysis_from_path(
             "sim_cache/trained_models/ANNValueFunction/c20_s2500/2022-03-04T11:50",
-            shift_duration=960,
+            duration=960,
             runs_per_policy=10,
             multiprocess=False,
         )

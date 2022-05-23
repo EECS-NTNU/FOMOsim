@@ -22,7 +22,7 @@ class Simulator(SaveMixin):
 
     def __init__(
         self,
-        shift_duration: int,
+        duration: int,
         policy,
         initial_state,
         start_time = 0,
@@ -33,17 +33,17 @@ class Simulator(SaveMixin):
         super().__init__(**kwargs)
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
         self.policy = policy
-        self.init(shift_duration, initial_state, start_time, verbose, label)
+        self.init(duration, initial_state, start_time, verbose, label)
 
     def init(
         self,
-        shift_duration: int,
+        duration: int,
         initial_state,
         start_time = 0,
         verbose=False,
         label=None,
     ):
-        self.shift_duration = start_time + shift_duration
+        self.duration = start_time + duration
         self.state = initial_state
         self.time = start_time
         self.event_queue: List[sim.Event] = []
@@ -64,7 +64,7 @@ class Simulator(SaveMixin):
             self.progress_bar = IncrementalBar(
                 "Running Sim",
                 check_tty=False,
-                max=round(shift_duration / settings.ITERATION_LENGTH_MINUTES) + 1,
+                max=round(duration / settings.ITERATION_LENGTH_MINUTES) + 1,
                 color=settings.WHITE,
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
@@ -72,7 +72,7 @@ class Simulator(SaveMixin):
         self.policy.init_sim(self)
 
     def __repr__(self):
-        string = f"<Sim with {self.time} of {self.shift_duration} elapsed. {len(self.event_queue)} events in event_queue>"
+        string = f"<Sim with {self.time} of {self.duration} elapsed. {len(self.event_queue)} events in event_queue>"
         return string
 
     def single_step(self):
@@ -104,7 +104,7 @@ class Simulator(SaveMixin):
         The sim object uses a queue initialized with vehicle arrival events and a GenerateScooterTrips event.
         It then pops events from this queue. The queue is always sorted in by the time of the events.
         """
-        while self.time < self.shift_duration:
+        while self.time < self.duration:
             self.full_step()
             if self.verbose:
                 self.progress_bar.next()
@@ -145,7 +145,7 @@ class Simulator(SaveMixin):
             self.verbose,
             self.label,
         )
-        new_sim.shift_duration = self.shift_duration
+        new_sim.duration = self.duration
         new_sim.event_queue = copy.deepcopy(self.event_queue)
         new_sim.metrics = copy.deepcopy(self.metrics)
         return new_sim
