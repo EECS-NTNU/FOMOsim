@@ -4,14 +4,26 @@ Methods for visualizing different aspects of the system.
 
 import datetime
 from sim import Action, Scooter, State, Vehicle, Metric
-from visualization.helpers import *
 import matplotlib.pyplot as plt
 import copy
 from itertools import cycle
 import matplotlib.dates as mdates
+from matplotlib import gridspec
+
+from settings import COLORS
 
 def totime(ts, startdate):
     return datetime.datetime.fromtimestamp(startdate.timestamp() + ts * 60)
+
+def create_plot_with_axis_labels(fig, spec, x_label, y_label, plot_title):
+    """
+    Creates subplot with axis label and plot title
+    """
+    ax = fig.add_subplot(spec)
+    ax.set_xlabel(x_label, labelpad=10, fontsize=12)
+    ax.set_ylabel(y_label, labelpad=10, fontsize=12)
+    ax.set_title(plot_title, fontsize=14)
+    return ax
 
 def visualize_lost_demand(instances, title=None, week=1):
     """
