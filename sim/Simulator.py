@@ -57,7 +57,7 @@ class Simulator(SaveMixin):
         self.metrics = Metric()
         self.verbose = verbose
         if label is None:
-          self.label = self.__class__.__name__
+          self.label = self.policy.__class__.__name__
         else:
           self.label = label
         if verbose:

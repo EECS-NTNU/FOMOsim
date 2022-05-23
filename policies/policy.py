@@ -8,7 +8,7 @@ import abc
 
 class Policy(abc.ABC):
     """
-    Base Policy class. Used mainly as an interface for the get best action method
+    Base Policy class
     """
 
     @abc.abstractmethod
@@ -17,7 +17,7 @@ class Policy(abc.ABC):
         Returns the best action for the input vehicle in the world context
         :param simul: simulator object that contains the whole simulation state
         :param vehicle: the vehicle to perform an action
-        :return: the best action according to the policy
+        :return: the best action according to the policy (instance of the Action class in sim/Action.py)
         """
         pass
 
