@@ -71,7 +71,7 @@ def GUI_main():
                 task = ["Find-stations", "Utopia"]
                 updateFieldOperation("-FEEDBACK-", "short operation started ...")
             else:
-                print("*** Error: wrong value from Radiobutton")         
+                userError("You must select a city") 
         
         ###### INIT STATE GUI PART
         elif GUI_event == "Fosen & Haldorsen":

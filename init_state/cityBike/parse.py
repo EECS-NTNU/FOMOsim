@@ -134,7 +134,7 @@ def calcDistances(city):
         dist_matrix_km.append(row)
         dm_file.write("\n")
         rowNo = rowNo + 1    
-    # print("Distances calculated, stored in Distances.txt and returned thru call")
+    print("Distances calculated, stored in Distances.txt and returned thru call")
     return dist_matrix_km
 
 def readStationMap(city):
@@ -166,6 +166,7 @@ def readBikeStartStatus(city):
     return bikeStartStatus
 
 def readDockStartStatus(city):
+    dockStartStatus = []
     if city == "Oslo":
         bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
         allStatusData = json.loads(bikeStatusFile.read())
@@ -180,8 +181,10 @@ def readDockStartStatus(city):
                 stationNo = id2no[stationId]
                 noOfDocks = stationData["stations"][i]["num_docks_available"]
                 dockStartStatus[stationNo] = noOfDocks
+    elif city == "Utopia":             
+        print("*** Error - readDockStartStatus not implemented for Utopia")
     else:
-        print("*** Error - given city not implemented")
+        print("*** Error - readDockStartStatus not implemented for given city")
     return dockStartStatus
 
 def get_initial_state(city, week, bike_class, number_of_vans, random_seed):

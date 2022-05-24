@@ -74,7 +74,7 @@ def loggEvent(event, times=[]):
     words = string.split()
     if words[0] == "<GenerateScooterTrips":
         pass
-        # time = words[3][0:len(words[3])-1] # note, not reported since it is covered by loggDepartures
+        # time = words[3][0:len(words[3])-1] # NOTE This event not longer reported since it is covered by loggDepartures
         # write(trafficLogg, ["0-to-many-was-generated-at-time:", time])
     elif words[0] == "<ScooterDeparture":
         time = words[3][0:len(words[3])-1]
