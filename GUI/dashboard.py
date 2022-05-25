@@ -20,7 +20,7 @@ def GUI_main():
     session = Session("GUI_main_session")
     betterName = fixComputerName(socket.gethostname())
     write(loggFile, ["Session-start:", session.name, dateAndTimeStr(), "Computer:", betterName]) 
-    task = [] # TODO, only one task allowed in queue at the moment
+    task = [] # TODO, currently only one task allowed in queue 
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
     resultFile = ""                     
     while True:
