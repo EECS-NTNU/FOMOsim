@@ -9,7 +9,7 @@ USER_INTERFACE_MODE = "CMD" # uses normal code in main.py
 FULL_TRIP = True
 TRAFFIC_LOGGING = False
 
-ITERATION_LENGTH_MINUTES = 20
+ITERATION_LENGTH_MINUTES = 60
 GEOSPATIAL_BOUND_NEW = (59.9040, 59.9547, 10.6478, 10.8095) # geographical limits (lat_min, lat_max, long_min, long_max)
 CLUSTER_CENTER_DELTA = 0  # scooters are parked within this distance from a station (set to 0 if parking only at stations)
 

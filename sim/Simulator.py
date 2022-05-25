@@ -53,7 +53,7 @@ class Simulator(SaveMixin):
                 sim.VehicleArrival(self.time, vehicle)
             )
         # Add Generate Scooter Trip event to the event_queue
-        self.event_queue.append(sim.GenerateScooterTrips(start_time + settings.ITERATION_LENGTH_MINUTES))
+        self.event_queue.append(sim.GenerateScooterTrips(start_time))
         self.metrics = Metric()
         self.verbose = verbose
         if label is None:
