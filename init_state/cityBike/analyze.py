@@ -7,22 +7,27 @@ import matplotlib.pyplot as plt
 from GUI.GUIhelpers import userError 
 
 def openVisual1():
-    perStation = True
+    # perStation = True
+    allStations = True
     stationId2NameMap = {} # ma storing stationNames, key is stationId  
+    stationIdList = []
     stationsFile = open("init_state/cityBike/data/Oslo/stations.txt", "r")
     for line in stationsFile.readlines():
         words = line.split()
         stationId = words[1]
+        stationIdList.append(int(stationId))
         stationName = words[4] 
         for i in range(len(words) - 5):
             stationName += ("_" + words[i+5]) 
         stationId2NameMap[stationId] = stationName
 
-    if perStation:
+#    if perStation:
         # stationList = [377, 386, 391, 483]
-        stationList = [377, 386]
-        print("*** TODO REFACTOR CODE")
-        for s in stationList:
+        # stationList = [377, 386]
+        # print("*** TODO REFACTOR CODE")
+        # for s in stationList:
+    if allStations:
+        for s in stationIdList:
             starts = []
             ends = []
             for h in range(24):
