@@ -34,6 +34,13 @@ PERIOD = get_time(day=2)
 ###############################################################################
 # Set up initial state
 
+
+# TEMP steffen spørsmål
+from init_state.cityBike.analyze import openVisual1
+openVisual1()
+
+
+
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     ###############################################################################
