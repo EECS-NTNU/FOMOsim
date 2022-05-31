@@ -272,7 +272,7 @@ def generate_cluster_objects(
             for index, row in cluster_scooters.iterrows()
           ]
         # Adding all scooters to cluster to find center location
-        clusters.append(Station(cluster_label + number_of_depots, scooters, capacity=10))
+        clusters.append(Station(cluster_label + number_of_depots, scooters))
     return sorted(clusters, key=lambda cluster: cluster.id)
 
 

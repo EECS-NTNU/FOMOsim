@@ -43,14 +43,12 @@ def us_ideal_state(state):
                 arrive = st.get_arrive_intensity(day, hour)
 
                 diff = 1
-                for ideal in range(cap):
+                for ideal in range(cap+1):
                     next_diff = abs(poisson_gt(ideal, leave) - poisson_ge(cap - ideal, arrive))
                     if next_diff > diff:
                         ideal = ideal - 1
                         break
                     diff = next_diff
-
-                print(ideal)
 
                 ideal_state[st.id][day][hour] = ideal
 

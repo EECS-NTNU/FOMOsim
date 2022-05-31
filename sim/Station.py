@@ -2,7 +2,7 @@ from shapely.geometry import MultiPoint
 import numpy as np
 from sim.Scooter import Scooter
 from sim.Location import Location
-from settings import CLUSTER_CENTER_DELTA, BATTERY_LIMIT
+from settings import CLUSTER_CENTER_DELTA, BATTERY_LIMIT, DEFAULT_STATION_CAPACITY
 import copy
 
 class Station(Location):
@@ -20,7 +20,7 @@ class Station(Location):
         move_probabilities=None,
         average_number_of_scooters=None,
         ideal_state=None,
-        capacity=1000000000,
+        capacity=DEFAULT_STATION_CAPACITY,
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(scooters)),
