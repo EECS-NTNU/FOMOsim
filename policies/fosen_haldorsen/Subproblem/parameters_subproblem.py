@@ -33,7 +33,7 @@ class ParameterSub:
         self.I_IC = [customer_arrivals[i][0] for i in range(len(customer_arrivals))] + [0]
         self.I_IF = [customer_arrivals[i][1] for i in range(len(customer_arrivals))] + [0]
         self.I_OC = [customer_arrivals[i][2] for i in range(len(customer_arrivals))] + [0]
-        self.O = [station.get_ideal_state(day, hour) for station in route.stations] + [0]
+        self.O = [station.get_target_state(day, hour) for station in route.stations] + [0]
 
         # Vehicle specific
         self.Q_BV = vehicle.battery_inventory_capacity

@@ -14,7 +14,7 @@ from numpy import DataSource
 
 import sim
 import init_state.entur.scripts
-import ideal_state.outflow_ideal_state
+import target_state.outflow_target_state
 import policies
 import policies.fosen_haldorsen
 
@@ -97,7 +97,7 @@ def doCommand(session, task):
         else:
             if session.initStateType == "HHS" or session.initStateType =="FH": 
                 state = session.initState # via local variable to ensure initState is not destroyed
-                session.idealState = ideal_state.outflow_ideal_state(state)
+                session.idealState = target_state.outflow_target_state(state)
                 session.idealStateType = "outflow"
             else:
                 print("*** Error: initStatType invalid") # TODO extend code above to accept init state of type TEST
@@ -109,7 +109,7 @@ def doCommand(session, task):
     elif task[0] == "Ideal-state-evenly-distributed":        
             if session.initStateType == "HHS" or session.initStateType =="FH": 
                 state = session.initState
-                newIdeal_state = ideal_state.evenly_distributed_ideal_state(state)
+                newIdeal_state = target_state.evenly_distributed_target_state(state)
                 session.idealState = newIdeal_state # TODO, probably clumsy, had to (try again?) go via newIdeal_state variable due to import-trouble !???
                 session.idealStateType = "evenly"
             else:

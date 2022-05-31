@@ -23,22 +23,23 @@ def poisson_ge(k, l):
 def poisson_gt(k, l):
     return 1 - poisson_le(k, l)
 
-def us_ideal_state(state):
-    # initialize ideal_state matrix
-    ideal_state = []
+def us_target_state(state):
+    # initialize target_state matrix
+    target_state = []
     for st in state.locations:
-        ideal_state.append([])
+        target_state.append([])
         for day in range(7):
-            ideal_state[st.id].append([])
+            target_state[st.id].append([])
             for hour in range(24):
-                ideal_state[st.id][day].append(0)
+                target_state[st.id][day].append(0)
 
     for day in range(7):
         for hour in range(24):
-            total_ideal_state = 0
-
             for st in state.stations:
                 cap = st.capacity
+                if cap > 50:
+                    cap = 50
+
                 leave = st.get_leave_intensity(day, hour)
                 arrive = st.get_arrive_intensity(day, hour)
 
@@ -50,6 +51,6 @@ def us_ideal_state(state):
                         break
                     diff = next_diff
 
-                ideal_state[st.id][day][hour] = ideal
+                target_state[st.id][day][hour] = ideal
 
-    return ideal_state
+    return target_state

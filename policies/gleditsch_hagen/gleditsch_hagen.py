@@ -26,7 +26,7 @@ class GleditschHagenPolicy(Policy):
         stations = java.util.ArrayList()
 
         for s in simul.state.locations:
-            station = FomoStation(s.id, s.capacity, s.get_leave_intensity(simul.day(), simul.hour()), s.get_arrive_intensity(simul.day(), simul.hour()), s.get_ideal_state(simul.day(), simul.hour()))
+            station = FomoStation(s.id, s.capacity, s.get_leave_intensity(simul.day(), simul.hour()), s.get_arrive_intensity(simul.day(), simul.hour()), s.get_target_state(simul.day(), simul.hour()))
             for b in s.scooters:
                 station.bikes.add(b.id)
             for d in simul.state.locations:

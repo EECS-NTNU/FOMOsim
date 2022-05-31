@@ -1,1 +1,2 @@
-from .visualizer import visualize_lost_demand
+from .visualizer import visualize_starvation
+from .visualizer import visualize_congestion

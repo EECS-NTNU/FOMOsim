@@ -15,8 +15,8 @@ import policies.gleditsch_hagen
 
 from progress.bar import Bar
 
-from visualization.visualizer import visualize_analysis, visualize_end, visualize_lost_demand, save_lost_demand_csv
-import ideal_state
+from visualization.visualizer import visualize_end, visualize_starvation, visualize_congestion, save_lost_demand_csv
+import target_state
 
 from GUI.dashboard import GUI_main
 from init_state.cityBike.helpers import dateAndTimeStr
@@ -29,8 +29,8 @@ def get_time(day=0, hour=0, minute=0):
 WEEK = 33
 START_DAY = 0
 START_HOUR = 0
-PERIOD = get_time(day=7)
-RUNS = 10
+PERIOD = get_time(day=1)
+RUNS = 5
 
 def run_sim(state, period, policy, start_time, label, seed):
     local_state = copy.deepcopy(state)
@@ -63,9 +63,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # calculate ideal state
 
-    #ideal_state = ideal_state.evenly_distributed_ideal_state(state)
-    ideal_state = ideal_state.outflow_ideal_state(state)
-    state.set_ideal_state(ideal_state)
+    tstate = target_state.outflow_target_state(state)
+    state.set_target_state(tstate)
 
     ###############################################################################
 
@@ -102,21 +101,35 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     fhs = []
     rebalancings = []
     
+    randoms2 = []
+    fhs2 = []
+    rebalancings2 = []
+    
     state.set_num_vans(8)
 
     progress = Bar(
         "Running",
-        max = RUNS,
+        max = RUNS*2,
     )
 
     for run in range(RUNS):
         donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),                                       start_time, "DoNothing",  run))
-        randoms.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
-        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
+#        randoms.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
+#        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
         rebalancings.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy", run))
+        progress.next()
+
+    target_state = target_state.us_target_state(state)
+    state.set_target_state(target_state)
+
+    for run in range(RUNS):
+#        randoms2.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
+#        fhs2.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
+        rebalancings2.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy US", run))
         progress.next()
 
     progress.finish()
         
     # Visualize results
-    visualize_lost_demand([donothings, randoms, rebalancings, fhs], title=("Week " + str(WEEK)), week=WEEK)
+    visualize_starvation([donothings, rebalancings, rebalancings2], title=("Week " + str(WEEK)), week=WEEK)
+    visualize_congestion([donothings, rebalancings, rebalancings2], title=("Week " + str(WEEK)), week=WEEK)

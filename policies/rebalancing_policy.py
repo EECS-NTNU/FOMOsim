@@ -48,7 +48,7 @@ class RebalancingPolicy(Policy):
                         - len(vehicle.scooter_inventory),
                         vehicle.battery_inventory,
                         len(vehicle.current_location.scooters)
-                        - vehicle.current_location.get_ideal_state(simul.day(), simul.hour()),
+                        - vehicle.current_location.get_target_state(simul.day(), simul.hour()),
                     ),
                     0,
                 ))
@@ -71,7 +71,7 @@ class RebalancingPolicy(Policy):
                     if cluster.id not in tabu_list
                 ],
                 key=lambda cluster: len(cluster.get_available_scooters())
-                - cluster.get_ideal_state(simul.day(), simul.hour()),
+                - cluster.get_target_state(simul.day(), simul.hour()),
                 reverse=is_finding_positive_deviation,
             )[0].id
 

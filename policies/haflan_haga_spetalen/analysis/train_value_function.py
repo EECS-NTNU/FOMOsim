@@ -18,7 +18,7 @@ import policies.haflan_haga_spetalen
 import policies.haflan_haga_spetalen.epsilon_greedy_value_function_policy
 import policies.haflan_haga_spetalen.settings as annsettings
 import policies.haflan_haga_spetalen.value_functions
-import ideal_state
+import target_state
 
 import policies.haflan_haga_spetalen.training_simulation.scripts
 from progress.bar import IncrementalBar
@@ -119,8 +119,8 @@ if __name__ == "__main__":
     ###############################################################################
     # calculate ideal state
 
-    istate = ideal_state.evenly_distributed_ideal_state(state)
-    state.set_ideal_state(istate)
+    istate = target_state.evenly_distributed_target_state(state)
+    state.set_target_state(istate)
 
     ###############################################################################
     # generate scenarios

@@ -36,9 +36,9 @@ class Route:
                 vehicle_current_batteries = self.vehicle.battery_inventory
 
                 bat_load = max(0, min(starting_station_current_charged_bikes, vehicle_available_bike_capacity,
-                                      starting_station_current_charged_bikes - self.starting_station.get_ideal_state(self.day, self.hour)))
+                                      starting_station_current_charged_bikes - self.starting_station.get_target_state(self.day, self.hour)))
                 bat_unload = max(0, min(vehicle_current_charged_bikes, starting_station_available_parking,
-                                 self.starting_station.get_ideal_state(self.day, self.hour) - starting_station_current_charged_bikes))
+                                 self.starting_station.get_target_state(self.day, self.hour) - starting_station_current_charged_bikes))
                 flat_load = min(starting_station_current_flat_bikes, vehicle_available_bike_capacity)
                 flat_unload = min(vehicle_current_flat_bikes, starting_station_available_parking)
                 swap = min(vehicle_current_batteries,

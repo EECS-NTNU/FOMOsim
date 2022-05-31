@@ -49,15 +49,15 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
         if t_starv > 0:
             time_to_starvation = t_starv
     time_to_violation = min(time_to_starvation, time_to_congestion)
-    if (vehicle_current_station_current_charged_bikes - vehicle.current_location.get_ideal_state(simul.day(), simul.hour())) > 0 and (incoming_flat_bike_rate_plus_incoming_charged_bike_rate -
-             demand_per_hour) > 0 and first_station and location_current_charged_bikes > location.get_ideal_state(simul.day(), simul.hour()):
+    if (vehicle_current_station_current_charged_bikes - vehicle.current_location.get_target_state(simul.day(), simul.hour())) > 0 and (incoming_flat_bike_rate_plus_incoming_charged_bike_rate -
+             demand_per_hour) > 0 and first_station and location_current_charged_bikes > location.get_target_state(simul.day(), simul.hour()):
         return -10000
     # ------- Deviation at time horizon  -------
     # Starving station
     if demand_per_hour - location_incoming_charged_bike_rate > 0:
         charged_at_t = location_current_charged_bikes - (demand_per_hour -
                 location_incoming_charged_bike_rate) * min(time_horizon, time_to_starvation)
-        if location.get_ideal_state(simul.day(), simul.hour()) - charged_at_t > 0 and first_station and (vehicle_current_charged_bikes < 2 and (
+        if location.get_target_state(simul.day(), simul.hour()) - charged_at_t > 0 and first_station and (vehicle_current_charged_bikes < 2 and (
                 vehicle_current_batteries < 2 or location_current_flat_bikes < 2)):
             return -10000
     # Congesting station
@@ -68,7 +68,7 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
             return -10000
     else:
         charged_at_t = location_current_charged_bikes
-    dev = abs(location.get_ideal_state(simul.day(), simul.hour()) - charged_at_t)
+    dev = abs(location.get_target_state(simul.day(), simul.hour()) - charged_at_t)
     net = abs(location_get_incoming_charged_rate - location_get_outgoing_customer_rate)
     return - w_viol * time_to_violation - w_drive * driving_time + w_dev * dev + w_net * net
 

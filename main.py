@@ -5,7 +5,7 @@ FOMO simulator main program
 
 import settings
 import init_state
-import ideal_state
+import target_state
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
@@ -33,11 +33,11 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # calculate ideal state
 
-    # ideal_state = ideal_state.evenly_distributed_ideal_state(state)
-    # ideal_state = ideal_state.outflow_ideal_state(state)
-    ideal_state = ideal_state.us_ideal_state(state)
+    # target_state = target_state.evenly_distributed_target_state(state)
+    # target_state = target_state.outflow_target_state(state)
+    target_state = target_state.us_target_state(state)
 
-    state.set_ideal_state(ideal_state)
+    state.set_target_state(target_state)
 
     ###############################################################################
 
@@ -68,4 +68,5 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
 
     # Visualize results
-    visualization.visualize_lost_demand([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    visualization.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    visualization.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)

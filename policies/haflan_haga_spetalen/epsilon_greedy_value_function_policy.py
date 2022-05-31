@@ -75,7 +75,7 @@ def get_possible_actions(
         pick_ups = min(
             max(
                 len(vehicle.current_location.scooters)
-                - vehicle.current_location.get_ideal_state(day, hour),
+                - vehicle.current_location.get_target_state(day, hour),
                 0,
             ),
             vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory),
@@ -84,7 +84,7 @@ def get_possible_actions(
         swaps = vehicle.get_max_number_of_swaps()
         drop_offs = max(
             min(
-                vehicle.current_location.get_ideal_state(day, hour)
+                vehicle.current_location.get_target_state(day, hour)
                 - len(vehicle.current_location.scooters),
                 len(vehicle.scooter_inventory),
             ),
