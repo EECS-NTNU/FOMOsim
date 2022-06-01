@@ -1,5 +1,4 @@
 import sim
-from progress.bar import Bar
 import os
 import sys
 import numpy as np
@@ -23,6 +22,18 @@ def poisson_ge(k, l):
 def poisson_gt(k, l):
     return 1 - poisson_le(k, l)
 
+def p_starvation(arrive, leave, target, cap):
+    val = poisson_le(target, leave)
+    for i in range(1, cap - target):
+        val += poisson(target + i, leave) * poisson_ge(i, arrive)
+    return 1 - val
+
+def p_congestion(arrive, leave, target, cap):
+    val = poisson_le(cap - target, arrive)
+    for i in range(1, target):
+        val += poisson(cap - target + i, arrive) * poisson_ge(i, leave)
+    return 1 - val
+
 def us_target_state(state):
     # initialize target_state matrix
     target_state = []
@@ -37,20 +48,22 @@ def us_target_state(state):
         for hour in range(24):
             for st in state.stations:
                 cap = st.capacity
-                if cap > 50:
-                    cap = 50
-
                 leave = st.get_leave_intensity(day, hour)
                 arrive = st.get_arrive_intensity(day, hour)
 
-                diff = 1
-                for ideal in range(cap+1):
-                    next_diff = abs(poisson_gt(ideal, leave) - poisson_ge(cap - ideal, arrive))
-                    if next_diff > diff:
-                        ideal = ideal - 1
-                        break
-                    diff = next_diff
+                min_diff = 1
+                min_target = 0
+                prev_diff = 1
+                for target in range(cap+1):
+                    diff = abs(p_starvation(arrive, leave, target, cap) - p_congestion(arrive, leave, target, cap))
+                    if diff < min_diff:
+                        min_diff = diff
+                        min_target = target
+                    if prev_diff < diff:
+                        # this should be safe, because p_starvation is always decreasing, and p_congestion is always increasing
+                        break 
+                    prev_diff = diff
 
-                target_state[st.id][day][hour] = ideal
+                target_state[st.id][day][hour] = min_target
 
     return target_state
