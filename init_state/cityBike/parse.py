@@ -1,6 +1,7 @@
 # parse.py
 
 import operator
+from os import stat
 from sre_parse import Verbose
 import sim
 import json
@@ -148,16 +149,18 @@ def calcDistances(city):
         print("A total of ", len(set(stationsData)), " stations used, reported on stationsAll.txt")
 
     stationsList = sortStations(stationsData)  # this step was needed to assure equivalent behaviour under windows and linux. List contains ALL stations  
-    activeStations = washAndReportStations(stationsList, city)
+    activeStationNos = washAndReportStations(stationsList, city)
 
     dist_matrix_km = [] # km in kilometers
     dm_file = open("init_state/cityBike/data/" + city + "/Distances.txt", "w")
-    for rowNo in range(len(activeStations)):
+    for rowNo in range(len(activeStationNos)):
         col = 0 
         row = []
-        for col in range(len(activeStations)):
-            dist = geopy.distance.distance((stationsList[rowNo].latitude, stationsList[rowNo].longitude), 
-                (stationsList[col].latitude, stationsList[col].longitude)).km
+        for col in range(len(activeStationNos)):
+            # dist = geopy.distance.distance((stationsList[rowNo].latitude, stationsList[rowNo].longitude), 
+            #     (stationsList[col].latitude, stationsList[col].longitude)).km
+            dist = geopy.distance.distance((stationsList[activeStationNos[rowNo]].latitude, stationsList[activeStationNos[rowNo]].longitude), 
+                (stationsList[activeStationNos[col]].latitude, stationsList[activeStationNos[col]].longitude)).km # TODO, puh..., simplify this, ugly
             dist = round(dist, 3)    
             if dist == 0.0 and rowNo != col:
                 print("*** ERROR: Distance between two stations is zero", end ="") 
@@ -207,7 +210,7 @@ def readBikeStartStatus(city):
                 noOfBikes = stationData["stations"][i]["num_bikes_available"]
                 bikeStartStatus[stationNo] = noOfBikes
             else:
-                print("*** Error: station is not active, bikeStartStatus set to zero")
+                print("*** Warning: active station without any tripData, is neglected. StationId: ", stationId)
     else:
         print("*** Error - given city not implemented")
     return bikeStartStatus
@@ -230,7 +233,7 @@ def readCapacities(city):
                 noOfBikes = stationData["stations"][i]["num_bikes_available"]
                 dockStartStatus[stationNo] = noOfDocks + noOfBikes
             else:
-                print("*** Error: station is not active, capasity set to zero")    
+                print("*** Warning: active station without any tripData, is neglected. StationId: ", stationId)    
     elif city == "Utopia":             
         print("*** Error - readCapacities not implemented for Utopia")
     else:
@@ -244,6 +247,9 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
         print("*** Error: week must be 48")
     elif not (city == "Oslo" or city == "Utopia"):
         print("*** Error: given city not implemented ", city)    
+
+    # Calculate distance
+    distances = calcDistances(city) # does also produce station.txt
 
     print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) 
         + ", setting up datastructures ... ") 
@@ -271,42 +277,41 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                     durations[station].append([])
                 moveCount[station][day].append(stationList)
 
-    # process all stored trips for given city, count trips and store durations for the given week number
-    trips = 0
-    arrivingBikes = 0
-    leavingBikes = 0
+    # process all stored trips for given city, count trips and store durations for the given week number, only for 
+    # trips with both active start station and end station
+    trips = 0 # total number from all tripdata read
     tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
     for file in fileList:
         jsonFile = open(os.path.join(tripDataPath, file), "r")
         bikeData = json.loads(jsonFile.read())
         for i in range(len(bikeData)):
-            year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
-            # print(" ", weekNo, end= "") # debug
-            years.append(year)
-            hour = int(bikeData[i]["ended_at"][11:13])
-            if weekNo == week:
-                if bikeData[i]["end_station_id"] in stationMap:
-                    endStationNo = stationMap[bikeData[i]["end_station_id"]]
+            startStationNo = -1
+            endStationNo = -1
+            if bikeData[i]["start_station_id"] in stationMap:
+                startStationNo = stationMap[bikeData[i]["start_station_id"]]
+            if bikeData[i]["end_station_id"] in stationMap:
+                endStationNo = stationMap[bikeData[i]["end_station_id"]]
+
+            if (startStationNo >= 0) and (endStationNo >= 0):
+                # both end and start of trip are active stations 
+                year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
+                # print(" ", weekNo, end= "") # debug
+                years.append(year)
+                hour = int(bikeData[i]["ended_at"][11:13])
+                if weekNo == week:
                     arriveCount[endStationNo][weekDay][hour] += 1
-                    arrivingBikes += 1
-            year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
-            years.append(year)
-            hour = int(bikeData[i]["started_at"][11:13])
-            if weekNo == week:
-                if bikeData[i]["start_station_id"] in stationMap:
-                    startStationNo = stationMap[bikeData[i]["start_station_id"]]
+                year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
+                years.append(year)
+                hour = int(bikeData[i]["started_at"][11:13])
+                if weekNo == week:
                     leaveCount[startStationNo][weekDay][hour] += 1
-                    if bikeData[i]["end_station_id"] in stationMap:
-                        endStationNo = stationMap[bikeData[i]["end_station_id"]]
-                        moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
-                        leavingBikes += 1
-                        durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
-            trips = trips + 1
+                    moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
+                    durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
+
+                trips = trips + 1
         print(".", end='') # TODO replace with progress bar
     
-    # Calculate distance
-    distances = calcDistances(city)
 
     # Calculate average durations
     avgDuration = []
@@ -379,8 +384,7 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
     totalBikes = 0
     for i in range(len(bikeStartStatus)):
         totalBikes += bikeStartStatus[i]
-    write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "left:", str(leavingBikes), 
-        "arrived:", str(arrivingBikes), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
+    write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
 
     return sim.State.get_initial_state(
         bike_class = bike_class, 
