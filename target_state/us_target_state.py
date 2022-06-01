@@ -1,3 +1,5 @@
+from progress.bar import Bar
+
 import sim
 import os
 import sys
@@ -16,22 +18,19 @@ def poisson_le(k, l):
         val += poisson(i, l)
     return val
 
-def poisson_ge(k, l):
-    return 1 - poisson_le(k - 1, l)
-
 def poisson_gt(k, l):
     return 1 - poisson_le(k, l)
 
 def p_starvation(arrive, leave, target, cap):
     val = poisson_le(target, leave)
     for i in range(1, cap - target):
-        val += poisson(target + i, leave) * poisson_ge(i, arrive)
+        val += poisson(target + i, leave) * poisson_gt(i - 1, arrive)
     return 1 - val
 
 def p_congestion(arrive, leave, target, cap):
     val = poisson_le(cap - target, arrive)
     for i in range(1, target):
-        val += poisson(cap - target + i, arrive) * poisson_ge(i, leave)
+        val += poisson(cap - target + i, arrive) * poisson_gt(i - 1, leave)
     return 1 - val
 
 def us_target_state(state):
@@ -43,6 +42,11 @@ def us_target_state(state):
             target_state[st.id].append([])
             for hour in range(24):
                 target_state[st.id][day].append(0)
+
+    progress = Bar(
+        "Calculating target state",
+        max = 7 * 24
+    )
 
     for day in range(7):
         for hour in range(24):
@@ -65,5 +69,9 @@ def us_target_state(state):
                     prev_diff = diff
 
                 target_state[st.id][day][hour] = min_target
+
+            progress.next()
+
+    progress.finish()
 
     return target_state
