@@ -2,7 +2,7 @@ from shapely.geometry import MultiPoint
 import numpy as np
 from sim.Scooter import Scooter
 from sim.Location import Location
-from settings import CLUSTER_CENTER_DELTA, BATTERY_LIMIT
+from settings import CLUSTER_CENTER_DELTA, BATTERY_LIMIT, DEFAULT_STATION_CAPACITY
 import copy
 
 class Station(Location):
@@ -19,12 +19,12 @@ class Station(Location):
         center_location=None,
         move_probabilities=None,
         average_number_of_scooters=None,
-        ideal_state=None,
-        capacity=1000000000,
+        target_state=None,
+        capacity=DEFAULT_STATION_CAPACITY,
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(scooters)),
-            cluster_id, ideal_state=ideal_state
+            cluster_id, target_state=target_state
         )
         self.scooters = scooters
         self.leave_intensity_per_iteration = leave_intensity_per_iteration
@@ -42,7 +42,7 @@ class Station(Location):
             center_location=self.get_location(),
             move_probabilities=self.move_probabilities,
             average_number_of_scooters=self.average_number_of_scooters,
-            ideal_state=self.ideal_state,
+            target_state=self.target_state,
             capacity=self.capacity,
         )
 
@@ -60,9 +60,9 @@ class Station(Location):
     def get_leave_intensity(self, day, hour):
         return self.leave_intensity_per_iteration[day % 7][hour % 24]
 
-    def get_ideal_state(self, day, hour):
-        if self.ideal_state:
-            return self.ideal_state[day % 7][hour % 24]
+    def get_target_state(self, day, hour):
+        if self.target_state:
+            return self.target_state[day % 7][hour % 24]
         else:
             return 0
 
@@ -91,12 +91,15 @@ class Station(Location):
             raise ValueError(
                 f"The scooter you are trying to add is already in the cluster: {matches}"
             )
+        if len(self.scooters) >= self.capacity:
+            return False
         # Adding scooter to scooter list
         self.scooters.append(scooter)
         # Changing coordinates of scooter to this location + some delta
         delta_lat = rng.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
         delta_lon = rng.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
         scooter.set_location(self.get_lat() + delta_lat, self.get_lon() + delta_lon)
+        return True
 
     def remove_scooter(self, scooter: Scooter):
         self.scooters.remove(scooter)
@@ -146,4 +149,4 @@ class Station(Location):
         )
 
     def __str__(self):
-        return f"Station {self.id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_ideal_state(0, 8):3d} Scooters {len(self.scooters):3d}"
+        return f"Station {self.id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):3d} Scooters {len(self.scooters):3d}"

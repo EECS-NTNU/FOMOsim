@@ -287,14 +287,14 @@ class ValueFunction(abc.ABC):
         for i, cluster in enumerate(state.stations):
             deviation = (
                 len(available_scooters[i])
-                - cluster.get_ideal_state(day, hour)
+                - cluster.get_target_state(day, hour)
                 + (
                     scooters_added_in_current_cluster
                     if cluster.id == current_location
                     else 0
                 )  # Add available scooters from action
             )
-            negative_deviations.append(min(deviation, 0) / (cluster.get_ideal_state(day, hour) + 1))
+            negative_deviations.append(min(deviation, 0) / (cluster.get_target_state(day, hour) + 1))
             battery_deficiency.append(
                 (
                     len(cluster.scooters)
@@ -305,7 +305,7 @@ class ValueFunction(abc.ABC):
                         else 0
                     )
                 )
-                / (cluster.get_ideal_state(day, hour) + 1)
+                / (cluster.get_target_state(day, hour) + 1)
             )
 
         def range_one_hot(cluster_list):

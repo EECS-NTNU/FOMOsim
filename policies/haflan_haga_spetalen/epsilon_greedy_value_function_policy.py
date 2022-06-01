@@ -75,7 +75,7 @@ def get_possible_actions(
         pick_ups = min(
             max(
                 len(vehicle.current_location.scooters)
-                - vehicle.current_location.get_ideal_state(day, hour),
+                - vehicle.current_location.get_target_state(day, hour),
                 0,
             ),
             vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory),
@@ -84,7 +84,7 @@ def get_possible_actions(
         swaps = vehicle.get_max_number_of_swaps()
         drop_offs = max(
             min(
-                vehicle.current_location.get_ideal_state(day, hour)
+                vehicle.current_location.get_target_state(day, hour)
                 - len(vehicle.current_location.scooters),
                 len(vehicle.scooter_inventory),
             ),
@@ -212,11 +212,14 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
         return current_states, available_scooters
 
     def get_best_action(self, simul, vehicle):
+        tabu_list = [ vehicle.current_location.id for vehicle in simul.state.vehicles ]
+
         # Find all possible actions
         actions = get_possible_actions(
             simul.state, simul.day(), simul.hour(), 
             vehicle,
             divide=self.get_possible_actions_divide,
+            exclude=tabu_list,
             time=simul.time,
             number_of_neighbours=self.number_of_neighbors,
         )
@@ -263,7 +266,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                 next_action_actions = get_possible_actions(forward_state, simul.day(), simul.hour(),
                     forward_vehicle, 
                     divide=self.get_possible_actions_divide,
-                    exclude=[action.next_location],
+                    exclude=tabu_list + [action.next_location],
                     time=simul.time
                     + action.get_action_time(
                         state.get_distance(

@@ -59,7 +59,7 @@ class SwapAllPolicy(Policy):
             next_location=next_location.id,
         )
 
-    def initSim(self, sim):
+    def init_sim(self, sim):
         for vehicle in sim.state.vehicles:
             vehicle.battery_inventory_capacity = 250
             vehicle.battery_inventory = 250

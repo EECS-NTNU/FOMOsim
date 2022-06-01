@@ -14,7 +14,7 @@ class NightShift(Policy):
     def get_best_action(self, simul, vehicle):
         return sim.Action([], [], [], 0)
 
-    def initSim(self, simul):
+    def init_sim(self, simul):
         # TODO: Do every night
         simul.event_queue = [
             event

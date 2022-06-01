@@ -145,6 +145,6 @@ if __name__ == "__main__":
     else:
         analysis.evaluate_policies.run_analysis_from_path(
             "world_cache/test_models",
-            shift_duration=60,
+            duration=60,
             export_to_excel=True,
         )

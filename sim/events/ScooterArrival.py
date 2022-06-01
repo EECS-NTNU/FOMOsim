@@ -36,10 +36,48 @@ class ScooterArrival(Event):
             self.scooter.travel(self.distance)
 
             # add scooter to the arrived cluster (location is changed in add_scooter method)
-            arrival_cluster.add_scooter(world.state.rng, self.scooter)
+            if arrival_cluster.add_scooter(world.state.rng, self.scooter):
+                if FULL_TRIP:
+                    world.state.remove_used_scooter(self.scooter)
+            else:
+                if FULL_TRIP:
+                    # go to another station
+                    neighbours = world.state.get_neighbours(arrival_cluster, 2, exclude=[depot.id for depot in world.state.depots])
+                    next_cluster = world.state.rng.choice(neighbours)
 
-            if FULL_TRIP:
-                world.state.remove_used_scooter(self.scooter)
+                    trip_distance = world.state.get_distance(
+                        arrival_cluster.id,
+                        next_cluster.id,
+                    )
+
+                    trip_speed = world.state.get_trip_speed(
+                        arrival_cluster.id,
+                        next_cluster.id,
+                    )
+
+                    # calculate arrival time
+                    if trip_speed == 0.0:
+                        pass # debug issue10
+                        arrival_time = self.time + 10 # debug
+                        loggWrite("arrival_time set by debug code")
+                    else:
+                        arrival_time = self.time + round((trip_distance / trip_speed) * 60)
+
+                    # create an arrival event for the departed scooter
+                    world.add_event(
+                        sim.ScooterArrival(
+                            arrival_time,
+                            self.scooter,
+                            next_cluster.id,
+                            arrival_cluster.id,
+                            trip_distance,
+                        )
+                    )
+
+                else:
+                    world.state.scooter_in_use(self.scooter)
+
+                world.metrics.add_aggregate_metric(world, "congestion", 1)
 
         # set time of world to this event's time
         super(ScooterArrival, self).perform(world, **kwargs)

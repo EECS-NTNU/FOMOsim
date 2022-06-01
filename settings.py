@@ -4,14 +4,13 @@ SIM SETTINGS
 
 # general settings
 
-USER_INTERFACE_MODE = "GUI" # uses GUI from dashboard.py under tripStats
-#USER_INTERFACE_MODE = "CMD" # uses normal code in main.py 
-VERBOSE = True
+#USER_INTERFACE_MODE = "GUI" # uses GUI from dashboard.py under tripStats
+USER_INTERFACE_MODE = "CMD" # uses normal code in main.py 
 FULL_TRIP = True
 TRAFFIC_LOGGING = True
 REPORT_CHANGES = False # if True, changes in station position or name are reported in terminal
 
-ITERATION_LENGTH_MINUTES = 20
+ITERATION_LENGTH_MINUTES = 60
 GEOSPATIAL_BOUND_NEW = (59.9040, 59.9547, 10.6478, 10.8095) # geographical limits (lat_min, lat_max, long_min, long_max)
 CLUSTER_CENTER_DELTA = 0  # scooters are parked within this distance from a station (set to 0 if parking only at stations)
 
@@ -49,6 +48,7 @@ CHARGE_TIME_PER_BATTERY = 60
 SWAP_TIME_PER_BATTERY = 0.4
 CONSTANT_DEPOT_DURATION = 15
 
+DEFAULT_STATION_CAPACITY = 20
 
 """
 IMPORTANT PATHS

@@ -19,9 +19,9 @@ def filtering_neighbours(
             for cluster in state.stations
             if cluster.id != vehicle.current_location.id
             and cluster.id not in exclude
-            and len(cluster.get_available_scooters()) - cluster.get_ideal_state(day, hour) > 0
+            and len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour) > 0
         ],
-        key=lambda cluster: len(cluster.get_available_scooters()) - cluster.get_ideal_state(day, hour),
+        key=lambda cluster: len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour),
         reverse=True,
     )
 
@@ -31,9 +31,9 @@ def filtering_neighbours(
             for cluster in state.stations
             if cluster.id != vehicle.current_location.id
             and cluster.id not in exclude
-            and len(cluster.get_available_scooters()) - cluster.get_ideal_state(day, hour) < 0
+            and len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour) < 0
         ],
-        key=lambda cluster: len(cluster.get_available_scooters()) - cluster.get_ideal_state(day, hour),
+        key=lambda cluster: len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour),
     )
 
     has_more_capacity = (
@@ -89,9 +89,9 @@ def add_depots_as_neighbours(state, time, vehicle, max_swaps):
     )
 
 
-# def get_deviation_ideal_state(state, day, hour):
+# def get_deviation_target_state(state, day, hour):
 #     # cluster score based on deviation
-#     return [cluster.get_ideal_state(day, hour) - len(cluster.scooters) for cluster in state.stations]
+#     return [cluster.get_target_state(day, hour) - len(cluster.scooters) for cluster in state.stations]
 
 
 # def get_battery_deficient_in_clusters(state):

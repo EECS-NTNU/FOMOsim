@@ -19,7 +19,7 @@ def training_simulation(world):
     # list of vehicle times for next arrival
     vehicle_times = [world.time] * len(world.state.vehicles)
 
-    while world.time < world.shift_duration:
+    while world.time < world.duration:
         if next_is_vehicle_action:
             # choosing the vehicle with the earliest arrival time (index-method is choosing the first if multiple equal)
             vehicle_index = vehicle_times.index(min(vehicle_times))

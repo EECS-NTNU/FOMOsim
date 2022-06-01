@@ -8,7 +8,6 @@ from .Depot import Depot
 from .events.Event import Event
 from .Metric import Metric
 from .Simulator import Simulator
-from .events.LostTrip import LostTrip
 from .events.ScooterDeparture import ScooterDeparture
 from .events.ScooterArrival import ScooterArrival
 from .events.VehicleArrival import VehicleArrival

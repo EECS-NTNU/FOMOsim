@@ -48,7 +48,7 @@ class RebalancingPolicy(Policy):
                         - len(vehicle.scooter_inventory),
                         vehicle.battery_inventory,
                         len(vehicle.current_location.scooters)
-                        - vehicle.current_location.get_ideal_state(simul.day(), simul.hour()),
+                        - vehicle.current_location.get_target_state(simul.day(), simul.hour()),
                     ),
                     0,
                 ))
@@ -61,15 +61,17 @@ class RebalancingPolicy(Policy):
                 # There are no scooters to deliver due to empty inventory
                 scooters_to_deliver = []
 
-        def get_next_location_id(is_finding_positive_deviation):
+        def get_next_location_id(simul, is_finding_positive_deviation):
+            tabu_list = [ vehicle.current_location.id for vehicle in simul.state.vehicles ]
+
             return sorted(
                 [
                     cluster
                     for cluster in simul.state.stations
-                    if cluster.id != vehicle.current_location.id
+                    if cluster.id not in tabu_list
                 ],
                 key=lambda cluster: len(cluster.get_available_scooters())
-                - cluster.get_ideal_state(simul.day(), simul.hour()),
+                - cluster.get_target_state(simul.day(), simul.hour()),
                 reverse=is_finding_positive_deviation,
             )[0].id
 
@@ -91,7 +93,7 @@ class RebalancingPolicy(Policy):
             change the scooter inventory.
             """
             visit_positive_deviation_cluster_next = (len(vehicle.scooter_inventory) + len(scooters_to_pickup) - len(scooters_to_deliver)) <= 0
-            next_location_id = get_next_location_id(visit_positive_deviation_cluster_next)
+            next_location_id = get_next_location_id(simul, visit_positive_deviation_cluster_next)
 
         return sim.Action(
             scooters_to_swap,
