@@ -30,7 +30,7 @@ WEEK = 33
 START_DAY = 0
 START_HOUR = 0
 PERIOD = get_time(day=1)
-RUNS = 5
+RUNS = 10
 
 def run_sim(state, period, policy, start_time, label, seed):
     local_state = copy.deepcopy(state)
@@ -112,6 +112,9 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
         max = RUNS*2,
     )
 
+    tstate = target_state.outflow_target_state(state)
+    state.set_target_state(tstate)
+
     for run in range(RUNS):
         donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),                                       start_time, "DoNothing",  run))
 #        randoms.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
@@ -119,8 +122,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
         rebalancings.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy", run))
         progress.next()
 
-    target_state = target_state.us_target_state(state)
-    state.set_target_state(target_state)
+    tstate = target_state.us_target_state(state)
+    state.set_target_state(tstate)
 
     for run in range(RUNS):
 #        randoms2.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
