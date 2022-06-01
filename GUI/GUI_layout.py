@@ -22,7 +22,7 @@ dashboardColumn = [
         sg.Radio("Utopia", "RADIO1", key = "-UTOPIA-"), sg.Button("Find stations and distances")],
     [sg.Text('_'*colWidth)],
     [sg.Text("Set initial state"), sg.Text("", key = "-STATE-MSG-")],
-    [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: 17", key="-WEEK-", size=12), sg.VSeparator(), 
+    [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
         sg.Button("Haflan, Haga & Spetalen")],
     [ sg.Button("Test state")],   
     [sg.Text("Calculate ideal state"), sg.Text("", key="-IDEAL-METHOD-"), sg.Button("Evenly distributed"), 

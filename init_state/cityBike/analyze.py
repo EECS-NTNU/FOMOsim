@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 
 from GUI.GUIhelpers import userError 
 
-def openVisual1():
+def openVisual1(): # TODO prototype code to serve a request from Steffen May 27. - 2022, should be cleaned, improved or removed 
     # perStation = True
     allStations = True
-    stationId2NameMap = {} # ma storing stationNames, key is stationId  
+    stationId2NameMap = {} # map storing stationNames, key is stationId  
     stationIdList = []
     stationsFile = open("init_state/cityBike/data/Oslo/stations.txt", "r")
     for line in stationsFile.readlines():
@@ -23,10 +23,9 @@ def openVisual1():
 
 #    if perStation:
         # stationList = [377, 386, 391, 483]
-        # stationList = [377, 386]
-        # print("*** TODO REFACTOR CODE")
-        # for s in stationList:
-    if allStations:
+        # for s in stationList: ...
+    if allStations: # NOTE this takes many hours, half a day, produce 15000 files, 265 Mbytes
+        print("*** WARNING: this takes many hours, half a day, produce 15000 files, 265 Mbytes")
         for s in stationIdList:
             starts = []
             ends = []
@@ -60,7 +59,6 @@ def openVisual1():
                     axs[row, col].hist(starts[h], bins=60)
                     axs[row, col].set_title("Hour == " + str(h), fontsize=9, x = 0.3, y = 0.4)
             plt.savefig("HourDistribution_starts_all_" + stationId2NameMap[str(s)] + ".jpg")
-            # plt.show()
             plt.close()
 
             fig, axs = plt.subplots(8,3, sharex = True, sharey = True)
@@ -71,91 +69,22 @@ def openVisual1():
                     axs[row, col].hist(ends[h], bins=60)
                     axs[row, col].set_title("Hour == " + str(h), fontsize=9, x = 0.3, y = 0.4)
             plt.savefig("HourDistribution_ends_all_" + stationId2NameMap[str(s)] + ".jpg")
-            # plt.show()
             plt.close()
            
             for h in range(24):
                 plt.hist(starts[h], bins=60)
-                #plt.plot(starts[h])
                 plt.title(stationId2NameMap[str(s)] + " Hour = " + str(h))
                 plt.grid(True)
                 plt.savefig("HourDistribution_starts_" + stationId2NameMap[str(s)] + "_" + str(h) + ".jpg")
-                # plt.show()
                 plt.close()
             
             for h in range(24):
                 plt.hist(ends[h], bins=60)
-                # plt.plot(ends[h])
                 plt.title(stationId2NameMap[str(s)] + " Hour = " + str(h))
                 plt.grid(True)
                 plt.savefig("HourDistribution_ends_"+  stationId2NameMap[str(s)] + "_" + str(h) + ".jpg")
-                # plt.show()
                 plt.close()       
     return
-
-
-    # TODO REFACTOR, code below was for delivery 1 to Steffen
-    starts = []
-    ends = []
-    for h in range(24):
-        starts.append([])
-    for h in range(24):
-        ends.append([])
-
-    tripDataPath = "init_state/cityBike/data/Oslo/tripData"
-    fileList = os.listdir(tripDataPath)
-    for file in fileList:
-        jsonFile = open(os.path.join(tripDataPath, file), "r")
-        bikeData = json.loads(jsonFile.read())
-        for i in range(len(bikeData)):
-            startHour = bikeData[i]["started_at"][11:13]
-            startMinute = bikeData[i]["started_at"][14:16]
-            starts[int(startHour)].append(int(startMinute))
-
-        for i in range(len(bikeData)):
-            endHour = bikeData[i]["ended_at"][11:13]
-            endMinute = bikeData[i]["ended_at"][14:16]
-            ends[int(endHour)].append(int(endMinute))
-    
-    fig, axs = plt.subplots(8,3, sharex = True, sharey = True)
-    for row in range(8):
-        for col in range(3):
-            h = row*3 + col
-            axs[row, col].hist(starts[h], bins=60)
-            axs[row, col].set_title("Hour = " + str(h), fontsize=9, x = 0.3, y = 0.4)
-    plt.savefig("HourDistribution_starts_all.jpg")
-    # plt.show()
-    plt.close()
-
-    fig, axs = plt.subplots(8,3, sharex = True, sharey = True)
-    for row in range(8):
-        for col in range(3):
-            h = row*3 + col
-            axs[row, col].hist(ends[h], bins=60)
-            axs[row, col].set_title("Hour = " + str(h), fontsize=9, x = 0.3, y = 0.4)
-    plt.savefig("HourDistribution_ends_all.jpg")
-    # plt.show()
-    plt.close()
-
-    for h in range(24):
-        plt.hist(starts[h], bins=60)
-        #plt.plot(starts[h])
-        plt.title("\nHour = "+ str(h))
-        plt.grid(True)
-        plt.savefig("HourDistribution_starts_"+ str(h) + ".jpg")
-        # plt.show()
-        plt.close()
-        pass 
-    
-    for h in range(24):
-        plt.hist(ends[h], bins=60)
-        # plt.plot(ends[h])
-        plt.title("Hour = " + str(h))
-        plt.grid(True)
-        plt.savefig("HourDistribution_ends_"+ str(h) + ".jpg")
-        # plt.show()
-        plt.close()
-        pass 
 
 def openVisual2(resultFile):
     # TODO bikes is used also for scooters
