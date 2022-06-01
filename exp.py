@@ -98,10 +98,10 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     donothings = []
     randoms = []
+
     fhs = []
     rebalancings = []
     
-    randoms2 = []
     fhs2 = []
     rebalancings2 = []
     
@@ -117,22 +117,21 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     for run in range(RUNS):
         donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),                                       start_time, "DoNothing",  run))
-#        randoms.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
-#        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
-        rebalancings.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy", run))
+        randoms.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
+        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy target AD",  run))
+        rebalancings.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy target AD", run))
         progress.next()
 
     tstate = target_state.us_target_state(state)
     state.set_target_state(tstate)
 
     for run in range(RUNS):
-#        randoms2.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
-#        fhs2.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
-        rebalancings2.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy US", run))
+        fhs2.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy target US",  run))
+        rebalancings2.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy target US", run))
         progress.next()
 
     progress.finish()
         
     # Visualize results
-    visualize_starvation([donothings, rebalancings, rebalancings2], title=("Week " + str(WEEK)), week=WEEK)
-    visualize_congestion([donothings, rebalancings, rebalancings2], title=("Week " + str(WEEK)), week=WEEK)
+    visualize_starvation([donothings, rebalancings, rebalancings2, fhs, fhs2], title=("Week " + str(WEEK)), week=WEEK)
+    visualize_congestion([donothings, rebalancings, rebalancings2, fhs, fhs2], title=("Week " + str(WEEK)), week=WEEK)
