@@ -63,12 +63,19 @@ def loggLocations(state):
     if len(words) > 0:
         write(trafficLogg, ["In-use:"] + words)        
 
-def loggEvent(event):
+def loggDepartures(stationId, timelist):
+    loggMsg = ["Trips-generated-for-station:", str(stationId)]
+    for t in timelist:
+        loggMsg.append(str(t))
+    write(trafficLogg, loggMsg)    
+
+def loggEvent(event, times=[]):
     string = event.__repr__()
     words = string.split()
     if words[0] == "<GenerateScooterTrips":
-        time = words[3][0:len(words[3])-1]
-        write(trafficLogg, ["GenerateTrips-at-time:", time]) 
+        pass
+        # time = words[3][0:len(words[3])-1] # NOTE This event not longer reported since it is covered by loggDepartures
+        # write(trafficLogg, ["0-to-many-was-generated-at-time:", time])
     elif words[0] == "<ScooterDeparture":
         time = words[3][0:len(words[3])-1]
         fromLocation = words[7][0:len(words[7])-1]
@@ -86,7 +93,8 @@ def loggEvent(event):
     else:
         pass
         print("*** ERROR: Tried to logg unknown event ??? ")
-        
+
+
 def fixComputerName(string):
     if string == "LAPTOP-SBB45R3V":
         return string + "(Lasse-PC1)"

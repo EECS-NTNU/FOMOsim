@@ -7,7 +7,6 @@ import matplotlib # TODO MARK-C
 
 import settings
 
-# import init_state.cityBike
 from init_state.cityBike.helpers import dateAndTimeStr, strip, write, fixComputerName, get_duration
 from init_state.cityBike.analyze import openVisual1, openVisual2, openVisual3, openVisual4
 
@@ -21,7 +20,7 @@ def GUI_main():
     session = Session("GUI_main_session")
     betterName = fixComputerName(socket.gethostname())
     write(loggFile, ["Session-start:", session.name, dateAndTimeStr(), "Computer:", betterName]) 
-    task = [] # TODO, only one task allowed in queue at the moment
+    task = [] # TODO, currently only one task allowed in queue 
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
     resultFile = ""                     
     while True:
@@ -72,11 +71,12 @@ def GUI_main():
                 task = ["Find-stations", "Utopia"]
                 updateFieldOperation("-FEEDBACK-", "short operation started ...")
             else:
-                print("*** Error: wrong value from Radiobutton")         
+                userError("You must select a city") 
         
         ###### INIT STATE GUI PART
         elif GUI_event == "Fosen & Haldorsen":
             if GUI_values["-OSLO-"]:
+                userFeedbackClear()
                 weekNo = 0
                 if GUI_values["-WEEK-"] == "Week no: ": # TODO, improve code, make function, reuse
                     weekNo = 53
@@ -91,6 +91,7 @@ def GUI_main():
                     task = ["Init-state-FH", "Oslo", str(weekNo)]    
                     updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (4 - 6 minutes)") 
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
+                userFeedbackClear()
                 updateField("-WEEK-", "Week no: 48") # Only week with traffic at the moment for Utopia
                 task = ["Init-state-FH", "Utopia", "48"]    
                 updateFieldOperation("-STATE-MSG-", "short operation started ...") 

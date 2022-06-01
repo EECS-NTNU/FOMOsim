@@ -1,11 +1,10 @@
-# City-bike trip statistics
+# Notes to integrate in wiki
 
-## Til Asbjørn
+* **WORK IN PROGRESS**  
 
-* Kode-eksemplet du la ut for meg i main.py var svært nyttig!!
-* Initiell stasjons-status i antall sykler er "hardkodet" til 23 mars 2022 kl. 1513, se **readBikeStartStatus()** i parse.py
-* funksjonen oslo() i download.py brukes for å laste ned JSON filer for Oslo, de som finnes er nummerert 1 - 35
-* jeg har fjernet (men tatt vare på :-) dashboard-modulen (GUI), for å levere bare den koden du ba om
+* ------------------------
+
+* Initiell stasjons-status i antall sykler er "hardkodet" til 23 mars  --- REVIDERT og bare for Oslo, ikke Utopia 2022 kl. 1513, se **readBikeStartStatus()** i parse.py
 
 ## File structure
 

@@ -10,6 +10,7 @@ import settings
 from GUI import loggFile
 
 from init_state.cityBike.helpers import yearWeekNoAndDay, write, dateAndTimeStr 
+from init_state.cityBike.analyze import plotSpeeds
 
 class Station:
     def __init__(self, stationId, longitude, latitude, stationName):
@@ -52,6 +53,7 @@ def calcDistances(city):
     stationsData = {}
     tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
+    fileList.sort() # needed to get linux and windows behave similarly
     if len(fileList) == 0:
         print("*** Error: you must download city data" )
     else:    
@@ -59,7 +61,6 @@ def calcDistances(city):
             # NOTE we read all stored trip-data to find all "possible" stations. If there are stations that
             # are taken out of operation, we should remove them
             jsonFile = open(os.path.join(tripDataPath, file), "r")
-            # print(jsonFile.name) # debug
             bikeData = json.loads(jsonFile.read())
 
             for i in range(len(bikeData)):
@@ -71,18 +72,18 @@ def calcDistances(city):
                     stationMap[startId] = stationNo
                     stationNo = stationNo + 1
                     stationsData[startId] = Station(startId, startLong, startLat, startName)
-                else: # we already have a Station-object for startId, will check if data are changed and report such changes
+                else: # we already have a Station-object for startId, will check if data are changed and eventually report such changes
                     if stationsData[startId].longitude != startLong or stationsData[startId].latitude != startLat:
                         moveDist = geopy.distance.distance((stationsData[startId].latitude, stationsData[startId].longitude), 
                             (startLat, startLong)).km
                         stationsData[startId].longitude = startLong
                         stationsData[startId].latitude = startLat
-                        if startId == 507: # TODO SORRY lots of debug code around here 
+                        if settings.REPORT_CHANGES:
                             print("* position of station ", startId, "was moved ", "%.3f" % moveDist, "km")
                     if stationsData[startId].stationName != startName:
                         oldName = stationsData[startId].stationName
                         stationsData[startId].stationName = startName
-                        if startId == 486:        
+                        if settings.REPORT_CHANGES:
                             print("* name of station ", startId, "was changed from", oldName, " to ", startName )
 
                 endId = int(bikeData[i]["end_station_id"])
@@ -99,13 +100,13 @@ def calcDistances(city):
                             (endLat, endLong)).km
                         stationsData[endId].longitude = endLong
                         stationsData[endId].latitude = endLat
-                        if endId == 507:
+                        if settings.REPORT_CHANGES:
                             print("* position of station ", endId, "was moved ", "%.3f" % moveDist, "km")
 
                     if stationsData[endId].stationName != endName:
                         oldName = stationsData[endId].stationName
                         stationsData[endId].stationName = endName 
-                        if endId == 486:       
+                        if settings.REPORT_CHANGES:
                             print("* name of station ", endId, "was changed from ", oldName, "to ", endName)                    
                     
         print("A total of ", len(set(stationsData)), " stations used, reported on stations.txt")
@@ -121,7 +122,7 @@ def calcDistances(city):
         for col in range(len(stationMap)):
             dist = geopy.distance.distance((stationsList[rowNo].latitude, stationsList[rowNo].longitude), 
                 (stationsList[col].latitude, stationsList[col].longitude)).km
-            dist = round(dist, 2)    
+            dist = round(dist, 3)    
             if dist == 0.0 and rowNo != col:
                 print("*** ERROR: Distance between two stations is zero", end ="") 
                 print(" --- set to 1 km by guessing", rowNo, "", col)
@@ -133,7 +134,7 @@ def calcDistances(city):
         dist_matrix_km.append(row)
         dm_file.write("\n")
         rowNo = rowNo + 1    
-    # print("Distances calculated, stored in Distances.txt and returned thru call")
+    print("Distances calculated, stored in Distances.txt and returned thru call")
     return dist_matrix_km
 
 def readStationMap(city):
@@ -165,6 +166,7 @@ def readBikeStartStatus(city):
     return bikeStartStatus
 
 def readDockStartStatus(city):
+    dockStartStatus = []
     if city == "Oslo":
         bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
         allStatusData = json.loads(bikeStatusFile.read())
@@ -179,8 +181,10 @@ def readDockStartStatus(city):
                 stationNo = id2no[stationId]
                 noOfDocks = stationData["stations"][i]["num_docks_available"]
                 dockStartStatus[stationNo] = noOfDocks
+    elif city == "Utopia":             
+        print("*** Error - readDockStartStatus not implemented for Utopia")
     else:
-        print("*** Error - given city not implemented")
+        print("*** Error - readDockStartStatus not implemented for given city")
     return dockStartStatus
 
 def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
@@ -245,13 +249,6 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                 moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
                 leavingBikes += 1
                 durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
-                # debug
-                # if startStationNo == 4 and endStationNo == 84:
-                #     print("4-84-duration: ", bikeData[i]["duration"], "at time: ", bikeData[i]["started_at"])
-                # debug
-                # if startStationNo == 252 and endStationNo == 255:
-                #     print("252-255-duration: ", bikeData[i]["duration"], "at time: ", bikeData[i]["started_at"])
-
             trips = trips + 1
         print(".", end='') # TODO replace with progress bar
     
@@ -277,6 +274,7 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                 # TODO check this  
 
     # Calculate speed matrix
+  
     speed_matrix = []
     for start in range(len(stationMap)):
         speed_matrix.append([])
@@ -294,9 +292,7 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
                 speed_matrix[start].append(speed)
             else:
                 speed_matrix[start].append(settings.SCOOTER_SPEED)
- 
-
-
+         
     # Calculate arrive and leave-intensities and move_probabilities
     noOfYears = len(set(years))
     arrive_intensities = []  
@@ -327,14 +323,12 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
 
     bikeStartStatus = readBikeStartStatus(city)
     dockStartStatus = readDockStartStatus(city)
-    for i in range(len(dockStartStatus)):
-        print(dockStartStatus[i], " ", end="")
-    print(" ") # newline in terminal
     totalBikes = 0
     for i in range(len(bikeStartStatus)):
         totalBikes += bikeStartStatus[i]
     write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "left:", str(leavingBikes), 
         "arrived:", str(arrivingBikes), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
+
     return sim.State.get_initial_state(
         bike_class = bike_class, 
         distance_matrix = distances,
@@ -342,6 +336,7 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
         main_depot = None,
         secondary_depots = [],
         number_of_scooters = bikeStartStatus,
+        capacities = dockStartStatus,
         number_of_vans = number_of_vans,
         random_seed = random_seed,
         arrive_intensities = arrive_intensities,

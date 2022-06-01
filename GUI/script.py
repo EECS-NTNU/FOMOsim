@@ -65,7 +65,7 @@ def doCommand(session, task):
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
             # print("before reading" + dateAndTimeStr())
-            session.initState = get_initial_state(task[1], week = int(task[2]))
+            session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vans=1, random_seed=1) # TODO, hardwired, not good, fix 
             # print("after reading" + dateAndTimeStr())
             session.initStateType = "FH"
         elif task[0] == "Init-state-HHS": 
@@ -161,9 +161,20 @@ def doCommand(session, task):
         if not fromState == "":
             session.startTime = dateAndTimeStr()
             policy = task[1]
-            write(scriptFile, ["Sim", policy, task[2], task[3]] )
-            # TODO Debug-plan: tap out used state to check that several simulations in a row start from same state"])    
-            startSimulation(session.startTime, policy, session.state, startTime=int(task[2]), simDuration=int(task[3]))
+            simDuration=int(task[3])
+            startTime=int(task[2])
+            write(scriptFile, ["Sim", policy, str(startTime), str(simDuration)])
+            # TODO Debug-plan: tap out used state to check that several simulations in a row start from same state"])
+            if session.idealStateType == "":
+                startState = session.initStateType
+            else:
+                startState = session.idealStateType
+
+            simulationDescr =  ["Simulation-start:", dateAndTimeStr(), "startState:", startState, "simPolicy:", policy, 
+                "simDuration:", str(simDuration), "startTime:", str(startTime) ] 
+            write(loggFile, simulationDescr)
+            write(trafficLogg, simulationDescr)
+            startSimulation(session.startTime, policy, session.state, startTime, simDuration)
             write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()])
         updateField("-SIM-MSG-", "")
 
@@ -211,10 +222,8 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
             start_time = startTime,
             label="F&H-Greedy",
         )
-    simulationDescr =  ["Simulation-start:", dateAndTimeStr(), "simPolicy:", simPolicy, 
-        "simDuration:", str(simDuration), "startTime:", str(startTime), ] 
-    write(loggFile, simulationDescr)
-    write(trafficLogg, simulationDescr)
+
+
     updateField("-START-TIME-", "Start: " + readTime())
     start = datetime.now()
     simulator.run()
@@ -231,7 +240,7 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     dumpMetrics(metrics)
     beepy.beep(sound="ready")
 
-def smallCircle(session):
+def smallCircle(session): # TODO misleading name, trafficc pattern is all-to-all-equal-prob
     arrive_intensities = [] # 3D matrise som indekseres [station][day][hour]
     leave_intensities = []  # 3D matrise som indekseres [station][day][hour]
     move_probabilities = [] # 4D matrise som indekseres [from-station][day][hour][to-station]
@@ -250,7 +259,7 @@ def smallCircle(session):
                 move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
 
     state = sim.State.get_initial_state(
-                bike_class = "Scooter", # TODO logging code will crash if Bike is used
+                bike_class = "Scooter", # TODO logging code will crash if Bike is used TODO test again
                 distance_matrix = [ # km
                     [0, 2, 2, 2],
                     [2, 0, 2, 2],
@@ -267,7 +276,7 @@ def smallCircle(session):
                 secondary_depots = [],
 #                number_of_scooters = [2, 2, 2, 2],
                 number_of_scooters = [1, 1, 1, 1],
-                number_of_vans = 2,
+                number_of_vans = 1,
                 random_seed = 1,
                 arrive_intensities = arrive_intensities,
                 leave_intensities = leave_intensities,
