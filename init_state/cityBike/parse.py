@@ -180,7 +180,8 @@ def readDockStartStatus(city):
             if stationId in id2no:
                 stationNo = id2no[stationId]
                 noOfDocks = stationData["stations"][i]["num_docks_available"]
-                dockStartStatus[stationNo] = noOfDocks
+                noOfBikes = stationData["stations"][i]["num_bikes_available"]
+                dockStartStatus[stationNo] = noOfDocks + noOfBikes
     elif city == "Utopia":             
         print("*** Error - readDockStartStatus not implemented for Utopia")
     else:
