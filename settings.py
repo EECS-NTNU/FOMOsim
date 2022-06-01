@@ -4,8 +4,8 @@ SIM SETTINGS
 
 # general settings
 
-#USER_INTERFACE_MODE = "GUI" # uses GUI from dashboard.py under tripStats
-USER_INTERFACE_MODE = "CMD" # uses normal code in main.py 
+USER_INTERFACE_MODE = "GUI" # uses GUI from dashboard.py under tripStats
+#USER_INTERFACE_MODE = "CMD" # uses normal code in main.py 
 FULL_TRIP = True
 TRAFFIC_LOGGING = True
 REPORT_CHANGES = False # if True, changes in station position or name are reported in terminal
