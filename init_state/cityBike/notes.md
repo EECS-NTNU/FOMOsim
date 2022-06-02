@@ -1,9 +1,7 @@
 # Notes to integrate in wiki
 
 * **WORK IN PROGRESS**  
-
 * ------------------------
-
 * Initiell stasjons-status i antall sykler er "hardkodet" til 23 mars  --- REVIDERT og bare for Oslo, ikke Utopia 2022 kl. 1513, se **readBikeStartStatus()** i parse.py
 
 ## File structure
