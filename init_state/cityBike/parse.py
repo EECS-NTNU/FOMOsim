@@ -217,7 +217,7 @@ def readBikeStartStatus(city):
 
 def readCapacities(city):
     dockStartStatus = []
-    if city == "Oslo":
+    if city == "Oslo" or city == "Utopia":
         bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
         allStatusData = json.loads(bikeStatusFile.read())
         stationData = allStatusData["data"]
@@ -234,8 +234,6 @@ def readCapacities(city):
                 dockStartStatus[stationNo] = noOfDocks + noOfBikes
             else:
                 print("*** Warning: active station without any tripData, is neglected. StationId: ", stationId)    
-    elif city == "Utopia":             
-        print("*** Error - readCapacities not implemented for Utopia")
     else:
         print("*** Error - readCapacities not implemented for given city")
     return dockStartStatus
