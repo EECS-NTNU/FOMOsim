@@ -35,6 +35,11 @@ def outflow_target_state(state):
             # scale ideal states so that sum is close to total number of scooters
             scale_factor = len(state.get_all_scooters()) / total_target_state
             for st in state.stations:
-                target_state[st.id][day][hour] = int(target_state[st.id][day][hour] * scale_factor)
+                target = int(target_state[st.id][day][hour] * scale_factor)
+                if target > (0.7 * st.capacity):
+                    target = 0.7 * st.capacity
+                if target < (0.3 * st.capacity):
+                    target = 0.3 * st.capacity
+                target_state[st.id][day][hour] = target
 
     return target_state
