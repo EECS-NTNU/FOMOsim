@@ -64,9 +64,7 @@ def doCommand(session, task):
     elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-test-state":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
-            # print("before reading" + dateAndTimeStr())
             session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vans=1, random_seed=1) # TODO, hardwired, not good, fix 
-            # print("after reading" + dateAndTimeStr())
             session.initStateType = "FH"
         elif task[0] == "Init-state-HHS": 
             write(scriptFile, ["Init-state-HHS"])
@@ -74,9 +72,9 @@ def doCommand(session, task):
                 "test_data",
                 "0900-entur-snapshot.csv",
                 "Scooter",
-                number_of_scooters = 2500,
-                number_of_clusters = 10,
-                number_of_vans = 2,
+                number_of_scooters = 150,
+                number_of_clusters = 5,
+                number_of_vans = 1,
                 random_seed = 1,
             )
             session.initStateType = "HHS"
