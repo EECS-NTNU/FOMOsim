@@ -67,7 +67,7 @@ class GenerateRoutePattern:
         self.w_drive, self.w_dev, self.w_viol, self.w_net = crit_weights
 
     def get_station_car_travel_time(self, station, end_st_id):
-        return self.simul.state.get_distance(station.id, end_st_id) / settings.VEHICLE_SPEED
+        return self.simul.state.get_van_travel_time(station.id, end_st_id)
 
     def get_columns(self):
         finished_routes = list()

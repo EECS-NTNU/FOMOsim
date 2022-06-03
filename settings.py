@@ -7,7 +7,7 @@ SIM SETTINGS
 #USER_INTERFACE_MODE = "GUI" # uses GUI from dashboard.py under tripStats
 USER_INTERFACE_MODE = "CMD" # uses normal code in main.py 
 FULL_TRIP = True
-TRAFFIC_LOGGING = True
+TRAFFIC_LOGGING = False
 REPORT_CHANGES = False # if True, changes in station position or name are reported in terminal
 
 ITERATION_LENGTH_MINUTES = 60
@@ -31,7 +31,7 @@ MINUTES_CONSTANT_PER_ACTION = 5
 VEHICLE_SPEED = 15
 SCOOTER_SPEED = 7 # Speed of scooter ref - Fearnley at al. (2020, section 3.6)
 
-BATTERY_CHANGE_PER_KM = 5
+BATTERY_CHANGE_PER_MINUTE = 0.5
 
 # Clustering parameters
 MAIN_DEPOT_LOCATION = (59.931794, 10.788314)

@@ -70,6 +70,12 @@ class Metric:
 
     ###############################################################################
 
+    def get_aggregate_value(self, key):
+        if key in self.metrics:
+            return self.metrics[key][-1][1]
+        else:
+            return 0
+
     def get_value(self, time, key):
         pointer = 0
         value = 0

@@ -159,7 +159,7 @@ def get_possible_actions(
                     depot.id
                     for depot in sorted(
                         state.depots,
-                        key=lambda depot: state.get_distance(
+                        key=lambda depot: state.get_travel_time(
                             vehicle.current_location.id, depot.id
                         ),
                     )
@@ -269,7 +269,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                     exclude=tabu_list + [action.next_location],
                     time=simul.time
                     + action.get_action_time(
-                        state.get_distance(
+                        state.get_travel_time(
                             vehicle.current_location.id,
                             forward_vehicle.current_location.id,
                         )

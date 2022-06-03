@@ -50,8 +50,8 @@ def system_simulate(state, day, hour):
     # compute trip after all trips are generated to avoid handling inflow in cluster
     for start_cluster, end_cluster, scooter in trips:
         start_cluster.scooters.remove(scooter)
-        trip_distance = state.get_distance(start_cluster.id, end_cluster.id)
-        scooter.travel(trip_distance)
+        travel_time = state.get_travel_time(start_cluster.id, end_cluster.id)
+        scooter.travel(travel_time)
         end_cluster.add_scooter(state.rng, scooter)
 
     return (

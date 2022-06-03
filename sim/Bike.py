@@ -10,7 +10,7 @@ class Bike(Location):
         super().__init__(lat, lon, scooter_id)
         self.battery = 100.0
 
-    def travel(self, distance):
+    def travel(self, travel_time):
       pass
 
     def usable(self):
