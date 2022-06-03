@@ -547,7 +547,7 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
 
     return sim.State.get_initial_state(
         bike_class = bike_class, 
-        travel_time_matrix = ttMatrix, 
+        traveltime_matrix = ttMatrix, 
         traveltime_van_matrix = ttVanMatrix,
         main_depot = None,
         secondary_depots = [],

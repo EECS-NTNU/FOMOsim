@@ -70,7 +70,7 @@ class State(SaveMixin):
         depots = []
         if main_depot:
             depots.append(sim.Depot(depot_id=0, main_depot=True))
-        for i in range(secondary_depots):
+        for i in range(len(secondary_depots)):
             if main_depot:
                 depots.append(sim.Depot(depot_id=i+1))
             else:

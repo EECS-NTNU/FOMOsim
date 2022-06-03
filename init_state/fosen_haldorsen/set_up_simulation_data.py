@@ -1,4 +1,5 @@
 import datetime
+
 from google.cloud import bigquery as bq
 import pickle
 
