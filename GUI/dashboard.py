@@ -108,23 +108,28 @@ def GUI_main():
             updateField("-CALC-MSG-","")
             updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (see progress in terminal)")
         elif GUI_event == "Test state": 
-            task = ["Init-test-state", "Small-Circle"] 
+            task = ["Init-test-state", "allToAll4"] 
         elif GUI_event == "Save state":
             fileName = strip("Name: ", GUI_values["-INPUTname-"])
             task = ["Save-state", fileName]
         elif GUI_event == "Load state":
             task = ["Load-state"] # TODO not implemented
 
-        ###### IDEAL STATE GUI PART   
-        elif GUI_event == "Evenly distributed":
-            task = ["Ideal-state-evenly-distributed"]
+        ###### TARGET STATE GUI PART   
+        elif GUI_event == "Evenly":
+            task = ["Target-state-evenly-distributed"]
             if session.initStateType == "HHS":
                 updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
         elif GUI_event == "Outflow":
-            task = ["Ideal-state-outflow"]
+            task = ["Target-state-outflow"]
+            if session.initStateType == "FH":
+                updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
+        elif GUI_event == "US":
+            task = ["Target-state-US"]
             if session.initStateType == "FH":
                 updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
     
+
         ###### SIMULATE GUI PART
         elif GUI_event == "Simulate":
             if session.simPolicy == "":
