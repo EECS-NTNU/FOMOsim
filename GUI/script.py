@@ -20,7 +20,7 @@ import policies.fosen_haldorsen
 
 from init_state.cityBike.download import oslo
 from init_state.cityBike.helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
-from init_state.cityBike.parse import calcDistances, get_initial_state, get_initial_state2
+from init_state.cityBike.parse import calcDistances, get_initial_state, get_initial_stateOLD
 
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *
@@ -64,7 +64,7 @@ def doCommand(session, task):
     elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-test-state":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
-            session.initState = get_initial_state2(task[1], week = int(task[2]), bike_class="Bike", number_of_vans=1, random_seed=1) # TODO, hardwired, not good, fix 
+            session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vans=1, random_seed=1) # TODO, hardwired, not good, fix 
             session.initStateType = "FH"
         elif task[0] == "Init-state-HHS": 
             write(scriptFile, ["Init-state-HHS"])
