@@ -238,7 +238,7 @@ def readCapacities(city):
         print("*** Error - readCapacities not implemented for given city")
     return dockStartStatus
 
-def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
+def get_initial_stateOLD(city, week, bike_class, number_of_vans, random_seed):
     if city == "Oslo" and ( (week < 1) or (week > 53)):
         print("*** Error: week no must be in range 1..53")
     elif city == "Utopia" and (week != 48):
@@ -398,3 +398,165 @@ def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
         leave_intensities = leave_intensities,
         move_probabilities = move_probabilities,
     )
+
+def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
+    if city == "Oslo" and ( (week < 1) or (week > 53)):
+        print("*** Error: week no must be in range 1..53")
+    elif city == "Utopia" and (week != 48):
+        print("*** Error: week must be 48")
+    elif not (city == "Oslo" or city == "Utopia"):
+        print("*** Error: given city not implemented ", city)    
+
+    # Calculate distance
+    distances = calcDistances(city) # does also produce station.txt
+
+    print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) 
+        + ", setting up datastructures ... ") 
+    years = [] # Must count no of "year-instances" of the given week that are analyzed
+    stationMap = readActiveStationMap(city)
+    arriveCount = []
+    leaveCount = []
+    moveCount = []
+    durations = []
+    for station in range(len(stationMap)):
+        arriveCount.append([])
+        leaveCount.append([])
+        moveCount.append([])
+        durations.append([])
+        for day in range(7):
+            arriveCount[station].append([])
+            leaveCount[station].append([])
+            moveCount[station].append([])
+            for hour in range(24):
+                arriveCount[station][day].append(0)
+                leaveCount[station][day].append(0)
+                stationList = []
+                for i in range(len(stationMap)): # TODO, can probably be done more compactly
+                    stationList.append(0)
+                    durations[station].append([])
+                moveCount[station][day].append(stationList)
+
+    # process all stored trips for given city, count trips and store durations for the given week number, only for 
+    # trips with both active start station and end station
+    trips = 0 # total number from all tripdata read
+    backToStartTrips = 0
+    tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
+    fileList = os.listdir(tripDataPath)
+    for file in fileList:
+        jsonFile = open(os.path.join(tripDataPath, file), "r")
+        bikeData = json.loads(jsonFile.read())
+        for i in range(len(bikeData)):
+            startStationNo = -1
+            endStationNo = -1
+            if bikeData[i]["start_station_id"] in stationMap:
+                startStationNo = stationMap[bikeData[i]["start_station_id"]]
+            if bikeData[i]["end_station_id"] in stationMap:
+                endStationNo = stationMap[bikeData[i]["end_station_id"]]
+
+            if (startStationNo >= 0) and (endStationNo >= 0):
+                # both end and start of trip are active stations
+                if startStationNo == endStationNo:
+                    backToStartTrips += 1  
+                year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
+                # print(" ", weekNo, end= "") # debug
+                years.append(year)
+                hour = int(bikeData[i]["ended_at"][11:13])
+                if weekNo == week:
+                    arriveCount[endStationNo][weekDay][hour] += 1
+                year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
+                years.append(year)
+                hour = int(bikeData[i]["started_at"][11:13])
+                if weekNo == week:
+                    leaveCount[startStationNo][weekDay][hour] += 1
+                    moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
+                    durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
+
+                trips = trips + 1
+        print(".", end='') # TODO replace with progress bar
+    
+    # Calculate average durations, durations in seconds
+    avgDuration = []
+    for start in range(len(stationMap)):
+        avgDuration.append([])
+        for end in range(len(stationMap)):
+            avgDuration[start].append([])
+            sumDuration = 0
+            noOfTrips = 0
+            for trip in range(len(durations[start][end])):
+                tripDuration = durations[start][end][trip]
+                noOfTrips += 1
+                sumDuration += tripDuration     
+            if noOfTrips > 0:
+                avgDuration[start][end] = sumDuration/noOfTrips
+            else:
+                avgDuration[start][end] = (distances[start][end]/settings.SCOOTER_SPEED)*3600
+
+    # Calculate traveltime_matrix, travel-times in minutes
+    ttMatrix = []
+    for start in range(len(stationMap)):
+        ttMatrix.append([])
+        for end in range(len(stationMap)):
+            averageDuration = avgDuration[start][end]
+            if averageDuration == 0:
+                if start == end:
+                    averageDuration = 7.7777 # TODO, improve, calculate all such positive averageDuarations, and use here
+                else:
+                    print("*** Error, averageDuration == 0 should not happen") # should be set to default scooter-speed above
+            ttMatrix[start].append(averageDuration/60)
+         
+    ttVanMatrix = []
+    for start in range(len(stationMap)):
+        ttVanMatrix.append([])
+        for end in range(len(stationMap)):
+            ttVanMatrix[start].append((distances[start][end]/settings.VEHICLE_SPEED)*60)
+                       
+    # Calculate arrive and leave-intensities and move_probabilities
+    noOfYears = len(set(years))
+    arrive_intensities = []  
+    leave_intensities = []
+    move_probabilities= []
+    for station in range(len(stationMap)):
+        if station % 20 == 0:
+            print(".", end='')
+        arrive_intensities.append([])
+        leave_intensities.append([])
+        move_probabilities.append([])
+        for day in range(7):
+            arrive_intensities[station].append([])
+            leave_intensities[station].append([])
+            move_probabilities[station].append([])
+            for hour in range(24):
+                arrive_intensities[station][day].append(arriveCount[station][day][hour]/noOfYears)
+                leave_intensities[station][day].append(leaveCount[station][day][hour]/noOfYears)
+                move_probabilities[station][day].append([])
+                for endStation in range(len(stationMap)):
+                    movedBikes = moveCount[station][day][hour][endStation]
+                    movedBikesTotal = leaveCount[station][day][hour]
+                    if movedBikesTotal > 0:
+                        move_probabilities[station][day][hour].append(movedBikes/movedBikesTotal)
+                    else:
+                        equalProb = 1.0/len(stationMap)    
+                        move_probabilities[station][day][hour].append(equalProb)
+
+    bikeStartStatus = readBikeStartStatus(city)
+    dockStartStatus = readCapacities(city)
+    totalBikes = 0
+    for i in range(len(bikeStartStatus)):
+        totalBikes += bikeStartStatus[i]
+    write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
+
+    return sim.State.get_initial_state(
+        bike_class = bike_class, 
+        travel_time_matrix = ttMatrix, 
+        traveltime_van_matrix = ttVanMatrix,
+        main_depot = None,
+        secondary_depots = [],
+        number_of_scooters = bikeStartStatus,
+        capacities = dockStartStatus,
+        number_of_vans = number_of_vans,
+        random_seed = random_seed,
+        arrive_intensities = arrive_intensities,
+        leave_intensities = leave_intensities,
+        move_probabilities = move_probabilities,
+    )
+
