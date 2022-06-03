@@ -20,7 +20,7 @@ import policies.fosen_haldorsen
 
 from init_state.cityBike.download import oslo
 from init_state.cityBike.helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
-from init_state.cityBike.parse import calcDistances, get_initial_state
+from init_state.cityBike.parse import calcDistances, get_initial_state, get_initial_stateOLD
 
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *
@@ -33,8 +33,8 @@ class Session:
         self.state = sim.State()  # TODO see if these three can be replaced by = []
         self.initState = sim.State()
         self.initStateType = ""  # is "", "FH", "HHS", "manual", "loaded"
-        self.idealState = sim.State()
-        self.idealStateType = ""  # is "", "evenly" or "outflow"
+        self.targetState = sim.State()
+        self.targetStateType = ""  # is "", "evenly" or "outflow"
         self.simPolicy = ""
 
     def saveState(self, filename):
@@ -64,9 +64,7 @@ def doCommand(session, task):
     elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-test-state":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
-            # print("before reading" + dateAndTimeStr())
             session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vans=1, random_seed=1) # TODO, hardwired, not good, fix 
-            # print("after reading" + dateAndTimeStr())
             session.initStateType = "FH"
         elif task[0] == "Init-state-HHS": 
             write(scriptFile, ["Init-state-HHS"])
@@ -74,9 +72,9 @@ def doCommand(session, task):
                 "test_data",
                 "0900-entur-snapshot.csv",
                 "Scooter",
-                number_of_scooters = 2500,
-                number_of_clusters = 10,
-                number_of_vans = 2,
+                number_of_scooters = 150,
+                number_of_clusters = 5,
+                number_of_vans = 1,
                 random_seed = 1,
             )
             session.initStateType = "HHS"
@@ -85,47 +83,68 @@ def doCommand(session, task):
             session.initStateType = "manual"
         updateField("-STATE-MSG-", session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
-        session.idealState = sim.State() # idealState must be cleared, if it exist or not
-        session.idealStateType = ""
+        session.targetState = sim.State() # targetState must be cleared, if it exist or not
+        session.targetStateType = ""
         write(loggFile, [task[0], "finished:", dateAndTimeStr()])
         beepy.beep(sound="ping")
    
-    #### IDEAL STATE handling
-    elif task[0] == "Ideal-state-outflow": # TODO, refactor code in this and next elif
-        if session.initStateType == "": # an initial state does NOT exist
-            userError("Cannot calculate ideal state without an initial state")
+    #### Target STATE handling
+    elif task[0] == "Target-state-outflow": # TODO, refactor code in this and next elif
+        if session.initStateType == "": # an initial state does NOT exist 
+            userError("Can't calc target state without init state")
         else:
-            if session.initStateType == "HHS" or session.initStateType =="FH": 
+            if session.initStateType == "HHS" or session.initStateType =="FH" or session.initStateType == "manual": # TODO 3x similar code, REFACTOR
                 state = session.initState # via local variable to ensure initState is not destroyed
-                session.idealState = target_state.outflow_target_state(state)
-                session.idealStateType = "outflow"
+                session.targetState = target_state.outflow_target_state(state)
+                session.targetStateType = "outflow"
             else:
-                print("*** Error: initStatType invalid") # TODO extend code above to accept init state of type TEST
-            write(scriptFile, ["Ideal-state-outflow"])
+                print("*** Error: initStateType invalid") 
+            write(scriptFile, ["Target-state-outflow"])
             write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
-            updateFieldDone("-CALC-MSG-", session.initStateType + " ==> outflow ==> OK") 
-            userFeedback_OK("Ideal state outflow calculated OK")
-            beepy.beep(sound="ping")
-    elif task[0] == "Ideal-state-evenly-distributed":        
-            if session.initStateType == "HHS" or session.initStateType =="FH": 
-                state = session.initState
-                newIdeal_state = target_state.evenly_distributed_target_state(state)
-                session.idealState = newIdeal_state # TODO, probably clumsy, had to (try again?) go via newIdeal_state variable due to import-trouble !???
-                session.idealStateType = "evenly"
-            else:
-                print("*** Error: initStateType invalid") # TODO extend code above to accept init state of type TEST
-            write(scriptFile, ["Ideal-state-evenly-distributed"])
-            write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
-            updateFieldDone("-CALC-MSG-", session.initStateType + " ==> evenly ==> OK") 
-            userFeedback_OK("Ideal state evenly calculated OK")
+            updateFieldDone("-CALC-MSG-", session.initStateType + " -> outflow -> OK") 
+            userFeedback_OK("Target state outflow calculated OK")
             beepy.beep(sound="ping")
 
-    elif task[0] == "Save-state": # saves ideal state if it exists, otherwise from init state
+    elif task[0] == "Target-state-evenly-distributed":        
+        if session.initStateType == "": # an initial state does NOT exist  
+                userError("Can't calc target state without init state")
+        else:
+            if session.initStateType == "HHS" or session.initStateType =="FH" or session.initStateType == "manual": 
+                state = session.initState
+                newTarget_state = target_state.evenly_distributed_target_state(state)
+                session.targetState = newTarget_state # TODO, probably clumsy, had to (try again?) go via newTarget_state variable due to import-trouble !???
+                session.targetStateType = "evenly"
+            else:
+                print("*** Error: initStateType invalid") 
+            write(scriptFile, ["Target-state-evenly-distributed"])
+            write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
+            updateFieldDone("-CALC-MSG-", session.initStateType + " -> evenly -> OK") 
+            userFeedback_OK("Target state evenly calculated OK")
+            beepy.beep(sound="ping")
+
+    elif task[0] == "Target-state-US":
+        if session.initStateType == "": # an initial state does NOT exist  
+                userError("Can't calc target state without init state")
+        else:
+            if session.initStateType == "HHS" or session.initStateType =="FH" or session.initStateType == "manual": 
+                state = session.initState
+                newTarget_state = target_state.us_target_state(state)
+                session.targetState = newTarget_state # TODO, probably clumsy, had to (try again?) go via newTarget_state variable due to import-trouble !???
+                session.targetStateType = "UrbanSharing"
+            else:
+                print("*** Error: initStateType invalid") 
+            write(scriptFile, ["Target-state-UrbanSharing"])
+            write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
+            updateFieldDone("-CALC-MSG-", session.initStateType + " -> Urban -> OK") 
+            userFeedback_OK("Target state US calculated OK")
+            beepy.beep(sound="ping")
+
+    elif task[0] == "Save-state": # saves target state if it exists, otherwise from init state
         savedStateFile = open(task[1] + ".json", "w")
-        if session.idealStateType == "outflow" or session.idealStateType == "evenly":
-            savedStateFile.write(jsonpickle.encode(session.idealState))  
+        if session.targetStateType == "outflow" or session.targetStateType == "evenly":
+            savedStateFile.write(jsonpickle.encode(session.targetState))  
             savedStateFile.close()
-            write(loggFile, ["Save-state-from-ideal-state:", session.idealStateType])
+            write(loggFile, ["Save-state-from-target-state:", session.targetStateType])
         else: # saves init state
             savedStateFile.write(jsonpickle.encode(session.initState)) 
             savedStateFile.close()
@@ -150,14 +169,14 @@ def doCommand(session, task):
 
     elif task[0] == "Sim":
         fromState = ""  
-        if not session.idealStateType == "": 
-            session.state = session.idealState 
+        if not session.targetStateType == "": 
+            session.state = session.targetState 
             fromState = "IDEAL"
         elif not session.initStateType == "":
             session.state = session.initState 
             fromState = "INIT"
         else:
-            userError("You must set an initial (or ideal) state")
+            userError("You must set an initial (or target) state")
         if not fromState == "":
             session.startTime = dateAndTimeStr()
             policy = task[1]
@@ -165,10 +184,10 @@ def doCommand(session, task):
             startTime=int(task[2])
             write(scriptFile, ["Sim", policy, str(startTime), str(simDuration)])
             # TODO Debug-plan: tap out used state to check that several simulations in a row start from same state"])
-            if session.idealStateType == "":
+            if session.targetStateType == "":
                 startState = session.initStateType
             else:
-                startState = session.idealStateType
+                startState = session.targetStateType
 
             simulationDescr =  ["Simulation-start:", dateAndTimeStr(), "startState:", startState, "simPolicy:", policy, 
                 "simDuration:", str(simDuration), "startTime:", str(startTime) ] 
@@ -240,11 +259,11 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     dumpMetrics(metrics)
     beepy.beep(sound="ready")
 
-def smallCircle(session): # TODO misleading name, trafficc pattern is all-to-all-equal-prob
-    arrive_intensities = [] # 3D matrise som indekseres [station][day][hour]
-    leave_intensities = []  # 3D matrise som indekseres [station][day][hour]
-    move_probabilities = [] # 4D matrise som indekseres [from-station][day][hour][to-station]
-    for station in range(4): # eksempelet har 4 stasjoner
+def allToAll4(session): # all to all topology with 4 stations
+    arrive_intensities = [] # 3D matrix indexed as [station][day][hour]
+    leave_intensities = []  # 3D matrix indexed as [station][day][hour]
+    move_probabilities = [] # 4D matrix indexed as [from-station][day][hour][to-station]
+    for station in range(4): 
         arrive_intensities.append([])
         leave_intensities.append([])
         move_probabilities.append([])
@@ -253,10 +272,10 @@ def smallCircle(session): # TODO misleading name, trafficc pattern is all-to-all
             leave_intensities[station].append([])
             move_probabilities[station].append([])
             for hour in range(24):
-                arrive_intensities[station][day].append(1) # fra denne stasjonen på gitt tidspunkt drar det 1 sykkel i timen 
-                leave_intensities[station][day].append(1)  # fra denne stasjonen på gitt tidspunkt kommer det 1 sykkel i timen
-                move_probabilities[station][day].append([1/3, 1/3, 1/3, 1/3]) # sannsynlighetsfordeling for å dra til de forskjellige stasjonene
-                move_probabilities[station][day][hour][station] = 0 # null i sannsynlighet for å bli på samme plass
+                arrive_intensities[station][day].append(1) # at this station it arrives 1 bike per hour
+                leave_intensities[station][day].append(1)  # from this station it leaves 1 bike every hour 
+                move_probabilities[station][day].append([1/3, 1/3, 1/3, 1/3]) # probabilities for moving to other stations. One 1/3 is set to 0 in next codeline 
+                move_probabilities[station][day][hour][station] = 0 # zero probability for traveling from and to same station
 
     state = sim.State.get_initial_state(
                 bike_class = "Scooter", # TODO logging code will crash if Bike is used TODO test again
@@ -274,7 +293,6 @@ def smallCircle(session): # TODO misleading name, trafficc pattern is all-to-all
                 ],
                 main_depot = None,
                 secondary_depots = [],
-#                number_of_scooters = [2, 2, 2, 2],
                 number_of_scooters = [1, 1, 1, 1],
                 number_of_vans = 1,
                 random_seed = 1,
@@ -285,15 +303,15 @@ def smallCircle(session): # TODO misleading name, trafficc pattern is all-to-all
     session.initState = state
 
 def manualInitState(session, testName):
-    if testName == "Small-Circle":
-        smallCircle(session)
+    if testName == "allToAll4":
+        allToAll4(session)
 
 def bigOsloTest():
     session = Session("bigOsloTest")
     for week in range(6):
         command = ["Init-state-FH", "Oslo", str(week+1)]
         doCommand(session, command)
-        command = ["Ideal-state"]
+        command = ["Target-state"]
         doCommand(session, command)
         command = ["Sim", "Rebalancing"]
         doCommand(session, command)
