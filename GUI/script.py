@@ -205,43 +205,24 @@ def dumpMetrics(metric):
 def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     # from GUI.dashboard import updateField
     simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
-    if simPolicy == "Do-nothing": 
-        simulator = sim.Simulator( 
-            simDuration,
-            policies.DoNothing(),
-            copy.deepcopy(state),
-            verbose=True,
-            start_time = startTime,
-            label="DoNothing",
-        )
+    if simPolicy == "Do-nothing":
+        policy = policies.DoNothing()
+    elif simPolicy == "Random":
+        policy = policies.RandomActionPolicy()
     elif simPolicy == "Rebalancing":
-        simulator = sim.Simulator( 
-            simDuration,
-            policies.RebalancingPolicy(),
-            copy.deepcopy(state),
-            verbose=True,
-            start_time = startTime,
-            label="Rebalancing",
-        )
+        policy = policies.RebalancingPolicy()
     elif simPolicy == "Fosen&Haldorsen":
-        simulator = sim.Simulator(
-            simDuration,
-            policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False),
-            copy.deepcopy(state),
-            verbose=True,
-            start_time = startTime,
-            label="Fosen&Haldorsen",
-        )
+        policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False)
     elif simPolicy == "F&H-Greedy":
-        simulator = sim.Simulator(
-            simDuration,
-            policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True),
-            copy.deepcopy(state),
-            verbose=True,
-            start_time = startTime,
-            label="F&H-Greedy",
-        )
-
+        policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
+        
+    simulator = sim.Simulator( 
+        duration = simDuration,
+        policy = policies.DoNothing(),
+        initial_state = state,
+        verbose=True,
+        start_time = startTime,
+    )
 
     updateField("-START-TIME-", "Start: " + readTime())
     start = datetime.now()
