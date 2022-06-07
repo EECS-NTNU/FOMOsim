@@ -43,7 +43,7 @@ def washAndReportStations(stationsList, city):
     # will produce two files, stations.txt that is "washed" by removing stations with capacity = 0 as reported in snapshot from April 26. 2022. This file
     # is used in the simulations. The other file stationsAll.txt with all stations found in the tripData is included to ease debugging. 
     # If Verbose = True, the washing is reported in terminal
-    Verbose = True
+    Verbose = False
 
     fileName = "init_state/cityBike/data/" + city + "/stationsAll.txt"
     stationsDescr = open(fileName, "w")

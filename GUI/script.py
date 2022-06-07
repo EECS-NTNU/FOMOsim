@@ -218,7 +218,7 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
         
     simulator = sim.Simulator( 
         duration = simDuration,
-        policy = policies.DoNothing(),
+        policy = policy,
         initial_state = state,
         verbose=True,
         start_time = startTime,
