@@ -19,8 +19,8 @@ class State(SaveMixin):
         depots: [sim.Depot] = [],
         vehicles: [sim.Vehicle] = [],
         scooters_in_use: [sim.Location] = [], # scooters in use (not parked at any station)
-        distance_matrix=None, # will calculate based on coordinates if not given
-        speed_matrix=None,
+        traveltime_matrix=None,
+        traveltime_van_matrix=None,
         rng = None,
     ):
         if rng is None:
@@ -34,20 +34,14 @@ class State(SaveMixin):
         self.scooters_in_use = scooters_in_use
 
         self.locations = self.depots + self.stations
-        if distance_matrix:
-            self.distance_matrix = distance_matrix
-        else:
-            self.distance_matrix = self.calculate_distance_matrix()
-        if speed_matrix:
-            self.speed_matrix = speed_matrix
-        else:
-            self.speed_matrix = []
-            for a in range(len(self.locations)):
-                self.speed_matrix.append([])
-                for b in range(len(self.locations)):
-                    self.speed_matrix[a].append(SCOOTER_SPEED)
+        self.traveltime_matrix = traveltime_matrix
+        self.traveltime_van_matrix = traveltime_van_matrix
 
-        self.TRIP_INTENSITY_RATE = 0.1
+        if traveltime_matrix is None:
+            self.traveltime_matrix = self.calculate_traveltime(SCOOTER_SPEED)
+
+        if traveltime_van_matrix is None:
+            self.traveltime_matrix = self.calculate_traveltime(VEHICLE_SPEED)
 
     def sloppycopy(self, *args):
         stationscopy = []
@@ -59,8 +53,8 @@ class State(SaveMixin):
             copy.deepcopy(self.depots),
             copy.deepcopy(self.vehicles),
             copy.deepcopy(self.scooters_in_use),
-            distance_matrix=self.distance_matrix,
-            speed_matrix=self.speed_matrix,
+            traveltime_matrix(self.traveltime_matrix),
+            traveltime_van_matrix(self.traveltime_van_matrix),
             rng = self.rng,
         )
 
@@ -72,12 +66,15 @@ class State(SaveMixin):
         return new_state
 
     @staticmethod
-    def get_initial_state(bike_class, distance_matrix, number_of_scooters, number_of_vans, leave_intensities, arrive_intensities = None, move_probabilities = None, main_depot = None, secondary_depots = [], target_state = None, random_seed=None, speed_matrix=None, capacities=None):
+    def get_initial_state(bike_class, traveltime_matrix, traveltime_van_matrix, number_of_scooters, number_of_vans, leave_intensities, arrive_intensities = None, move_probabilities = None, main_depot = False, secondary_depots = 0, target_state = None, random_seed=None, capacities=None, charging_station = None):
         depots = []
-        if main_depot is not None:
-            depots.append(sim.Depot(depot_id=main_depot, main_depot=True))
-        for depot_id in secondary_depots:
-            depots.append(sim.Depot(depot_id=depot_id))
+        if main_depot:
+            depots.append(sim.Depot(depot_id=0, main_depot=True))
+        for i in range(secondary_depots):
+            if main_depot:
+                depots.append(sim.Depot(depot_id=i+1))
+            else:
+                depots.append(sim.Depot(depot_id=i))
 
         stations = []
 
@@ -91,11 +88,11 @@ class State(SaveMixin):
             if capacities is not None:
                 capacity = capacities[station_id]
 
-            istate = None
+            tstate = None
             if target_state:
-                istate = target_state[station_id]
+                tstate = target_state[station_id]
 
-            if station_id != main_depot and station_id not in secondary_depots:
+            if station_id >= len(depots):
                 scooters = []
                 for scooter_id in range(number_of_scooters[station_id]):
                     if bike_class == "Scooter":
@@ -103,14 +100,27 @@ class State(SaveMixin):
                     else:
                         scooters.append(sim.Bike(scooter_id=start_of_ids + scooter_id))
                 start_of_ids += number_of_scooters[station_id]
-                stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=istate, capacity=capacity))
+                stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=tstate, capacity=capacity))
                 
-        state = State(stations, depots, [], distance_matrix=distance_matrix, speed_matrix=speed_matrix)
+        state = State(stations, depots, [], traveltime_matrix=traveltime_matrix, traveltime_van_matrix=traveltime_van_matrix)
 
         state.set_num_vans(number_of_vans)
         state.set_seed(random_seed)
 
         return state
+
+    def calculate_traveltime(self, speed):
+        traveltime_matrix = []
+        for location in self.locations:
+            neighbour_traveltime = []
+            for neighbour in self.locations:
+                if location == neighbour:
+                    neighbour_traveltime.append(0.0)
+                else:
+                    neighbour_traveltime.append(location.distance_to(*neighbour.get_location()) / speed)
+            traveltime_matrix.append(neighbour_traveltime)
+        
+        return traveltime_matrix
 
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
@@ -172,40 +182,11 @@ class State(SaveMixin):
             
         return all_scooters
 
-    def get_distance(self, start_location_id: int, end_location_id: int):
-        """
-        Calculate distance between two stations
-        :param start_location_id: sim.Location id
-        :param end_location_id: sim.Location id
-        :return: float - distance in kilometers
-        """
-        return self.distance_matrix[start_location_id][end_location_id]
+    def get_travel_time(self, start_location_id: int, end_location_id: int):
+        return self.traveltime_matrix[start_location_id][end_location_id]
 
-    def get_trip_speed(self, start_location_id: int, end_location_id: int):
-        # print("from: ", str(start_location_id), " to: ", str(end_location_id))
-        loggWrite(["from: ", str(start_location_id), " to: ", str(end_location_id)])
-        return self.speed_matrix[start_location_id][end_location_id]
-
-    def get_distance_to_all_clusters(self, location_id):
-        return self.distance_matrix[location_id][: len(self.stations)]
-
-    def calculate_distance_matrix(self):
-        """
-        Computes distance matrix for all stations
-        :return: Distance matrix
-        """
-        distance_matrix = []
-        for location in self.locations:
-            neighbour_distance = []
-            for neighbour in self.locations:
-                if location == neighbour:
-                    neighbour_distance.append(0.0)
-                else:
-                    neighbour_distance.append(
-                        location.distance_to(*neighbour.get_location())
-                    )
-            distance_matrix.append(neighbour_distance)
-        return distance_matrix
+    def get_van_travel_time(self, start_location_id: int, end_location_id: int):
+        return self.traveltime_van_matrix[start_location_id][end_location_id]
 
     def do_action(self, action: sim.Action, vehicle: sim.Vehicle, time: int):
         """
@@ -297,7 +278,7 @@ class State(SaveMixin):
                     if state_location.id != location.id
                     and state_location.id not in (exclude if exclude else [])
                 ],
-                key=lambda state_location: self.distance_matrix[location.id][
+                key=lambda state_location: self.traveltime_matrix[location.id][
                     state_location.id
                 ],
             )

@@ -73,7 +73,7 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
     return - w_viol * time_to_violation - w_drive * driving_time + w_dev * dev + w_net * net
 
 def get_station_car_travel_time(state, station, end_st_id):
-    return state.get_distance(station.id, end_st_id) / settings.VEHICLE_SPEED
+    return state.get_van_travel_time(station.id, end_st_id)
 
 class HeuristicManager:
 

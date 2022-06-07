@@ -25,6 +25,72 @@ def create_plot_with_axis_labels(fig, spec, x_label, y_label, plot_title):
     ax.set_title(plot_title, fontsize=14)
     return ax
 
+def visualize_trips(instances, title=None, week=1):
+    """
+    :param instances: world instances to analyse
+    :param title: plot title
+    :return: plot for the analysis
+    """
+    # generate plot and subplots
+    #     fig = plt.figure(figsize=(20, 9.7))
+    fig = plt.figure(figsize=(8, 6))
+
+    # creating subplots
+    spec = gridspec.GridSpec(figure=fig, ncols=1, nrows=1)
+
+    subplots_labels = [
+        ("Time", "Number of trips", "Trips"),
+    ]
+    # figure
+    subplots = []
+    for i, (x_label, y_label, plot_title) in enumerate(subplots_labels):
+        ax = create_plot_with_axis_labels(
+            fig,
+            spec[i],
+            x_label=x_label,
+            y_label=y_label,
+            plot_title=plot_title,
+        )
+        subplots.append(ax)
+
+    ax1 = subplots[0]
+
+    weektext = "2022 " + str(week) + " 1 00:00"
+    startdate=datetime.datetime.strptime(weektext, "%Y %W %w %H:%M")
+
+    for i, insts in enumerate(instances):
+        if type(insts) is list:
+            metric = Metric.merge_metrics([instance.metrics for instance in insts])
+            label = insts[0].label
+        else:
+            metric = insts.metrics
+            label = insts.label
+
+        x = [totime(metric.min_time, startdate)]
+        y = [0]
+        if "trips" in metric.metrics:
+            x.extend([totime(item[0], startdate) for item in metric.metrics["trips"]])
+            y.extend([item[1] for item in metric.metrics["trips"]])
+        x.append(totime(metric.max_time, startdate))
+        y.append(y[-1])
+        ax1.plot(x, y, c=COLORS[i], label=label)
+
+    for subplot in subplots:
+        subplot.legend()
+        subplot.set_ylim(ymin=0)
+        subplot.xaxis.set_major_formatter(mdates.DateFormatter("%a %H:%M"))
+        subplot.xaxis.set_minor_formatter(mdates.DateFormatter("%a %H:%M"))
+    if title is not None:
+        fig.suptitle(
+            title,
+            fontsize=16,
+        )
+
+    plt.show()
+
+    return fig
+
+
 def visualize_starvation(instances, title=None, week=1):
     """
     :param instances: world instances to analyse

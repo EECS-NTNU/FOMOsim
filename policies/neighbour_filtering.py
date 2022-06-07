@@ -79,7 +79,7 @@ def add_depots_as_neighbours(state, time, vehicle, max_swaps):
         + [
             min(
                 [depot for depot in available_small_depots],
-                key=lambda depot: state.get_distance(
+                key=lambda depot: state.get_travel_time(
                     vehicle.current_location.id, depot.id
                 ),
             )

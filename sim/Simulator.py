@@ -112,10 +112,10 @@ class Simulator(SaveMixin):
             self.progress_bar.finish()
 
     def day(self):
-        return (self.time // (60*24)) % 7
+        return int((self.time // (60*24)) % 7)
 
     def hour(self):
-        return (self.time // 60) % 24
+        return int((self.time // 60) % 24)
 
     def add_event(self, event: sim.Event) -> None:
         """

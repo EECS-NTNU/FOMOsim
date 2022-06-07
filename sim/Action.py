@@ -25,18 +25,18 @@ class Action:
         self.delivery_scooters = delivery_scooters
         self.next_location = next_location
 
-    def get_action_time(self, distance):
+    def get_action_time(self, travel_time):
         """
         Get the time consumed from performing an action (travel from cluster 1 to 2) in a given state.
         Can add time for performing actions on scooters as well.
-        :param distance: distance in km from current cluster to next cluster
+        :param travel_time: travel_time in min from current cluster to next cluster
         :return: Total time to perform action in minutes
         """
         operation_duration = (
             len(self.battery_swaps) + len(self.pick_ups) + len(self.delivery_scooters)
         ) * MINUTES_PER_ACTION
         travel_duration = (
-            round((distance / VEHICLE_SPEED) * 60)
+            travel_time
             + MINUTES_CONSTANT_PER_ACTION
         )
         return operation_duration + travel_duration

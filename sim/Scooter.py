@@ -9,10 +9,10 @@ class Scooter(Location):
     def __init__(self, lat: float = 0, lon: float = 0, battery: float = 100.0, scooter_id: int = 0):
         super().__init__(lat, lon, scooter_id)
         self.battery = battery
-        self.battery_change_per_kilometer = BATTERY_CHANGE_PER_KM
+        self.battery_change_per_minute = BATTERY_CHANGE_PER_MINUTE
 
-    def travel(self, distance):
-        self.battery -= distance * self.battery_change_per_kilometer
+    def travel(self, travel_time):
+        self.battery -= travel_time * self.battery_change_per_minute
 
     def usable(self):
       return self.battery >= BATTERY_LIMIT

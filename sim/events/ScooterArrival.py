@@ -9,17 +9,17 @@ class ScooterArrival(Event):
 
     def __init__(
         self,
-        arrival_time: int,
+        time, 
+        travel_time,
         scooter: sim.Scooter,
         arrival_cluster_id: int,
         departure_cluster_id: int,
-        distance: int,
     ):
-        super().__init__(arrival_time)
+        super().__init__(time + travel_time)
         self.scooter = scooter
         self.arrival_cluster_id = arrival_cluster_id
         self.departure_cluster_id = departure_cluster_id
-        self.distance = distance
+        self.travel_time = travel_time
 
     def perform(self, world, **kwargs) -> None:
         """
@@ -33,7 +33,7 @@ class ScooterArrival(Event):
             self.scooter = world.state.get_used_scooter()
 
         if self.scooter is not None:
-            self.scooter.travel(self.distance)
+            self.scooter.travel(self.travel_time)
 
             # add scooter to the arrived cluster (location is changed in add_scooter method)
             if arrival_cluster.add_scooter(world.state.rng, self.scooter):
@@ -45,32 +45,19 @@ class ScooterArrival(Event):
                     neighbours = world.state.get_neighbours(arrival_cluster, 2, exclude=[depot.id for depot in world.state.depots])
                     next_cluster = world.state.rng.choice(neighbours)
 
-                    trip_distance = world.state.get_distance(
+                    travel_time = world.state.get_travel_time(
                         arrival_cluster.id,
                         next_cluster.id,
                     )
-
-                    trip_speed = world.state.get_trip_speed(
-                        arrival_cluster.id,
-                        next_cluster.id,
-                    )
-
-                    # calculate arrival time
-                    if trip_speed == 0.0:
-                        pass # debug issue10
-                        arrival_time = self.time + 10 # debug
-                        loggWrite("arrival_time set by debug code")
-                    else:
-                        arrival_time = self.time + round((trip_distance / trip_speed) * 60)
 
                     # create an arrival event for the departed scooter
                     world.add_event(
                         sim.ScooterArrival(
-                            arrival_time,
+                            self.time,
+                            travel_time,
                             self.scooter,
                             next_cluster.id,
                             arrival_cluster.id,
-                            trip_distance,
                         )
                     )
 

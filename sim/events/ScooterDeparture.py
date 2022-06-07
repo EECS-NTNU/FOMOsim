@@ -44,33 +44,22 @@ class ScooterDeparture(Event):
                     else:
                         p_normalized.append(1/len(p))
                 arrival_cluster = world.state.rng.choice(world.state.locations, p = p_normalized)
-                trip_distance = world.state.get_distance(
-                    departure_cluster.id,
-                    arrival_cluster.id,
-                )
 
-                trip_speed = world.state.get_trip_speed(
+                travel_time = world.state.get_travel_time(
                     departure_cluster.id,
                     arrival_cluster.id,
                 )
 
                 # calculate arrival time
 
-                if trip_speed == 0.0:
-                    pass # debug issue10
-                    arrival_time = self.time + 10 # debug
-                    loggWrite("arrival_time set by debug code")
-                else:
-                    arrival_time = self.time + round((trip_distance / trip_speed) * 60)
-
                 # create an arrival event for the departed scooter
                 world.add_event(
                     sim.ScooterArrival(
-                        arrival_time,
+                        self.time,
+                        travel_time,
                         scooter,
                         arrival_cluster.id,
                         departure_cluster.id,
-                        trip_distance,
                     )
                 )
 
@@ -78,6 +67,8 @@ class ScooterDeparture(Event):
             departure_cluster.remove_scooter(scooter)
 
             world.state.scooter_in_use(scooter)
+
+            world.metrics.add_aggregate_metric(world, "trips", 1)
 
         else:
             world.metrics.add_aggregate_metric(world, "lost_demand", 1)
