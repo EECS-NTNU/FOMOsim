@@ -42,8 +42,7 @@ class ScooterArrival(Event):
             else:
                 if FULL_TRIP:
                     # go to another station
-                    neighbours = world.state.get_neighbours(arrival_cluster, 2, exclude=[depot.id for depot in world.state.depots])
-                    next_cluster = world.state.rng.choice(neighbours)
+                    next_cluster = world.state.get_neighbours(arrival_cluster, 1, not_full=True, exclude=[depot.id for depot in world.state.depots])[0]
 
                     travel_time = world.state.get_travel_time(
                         arrival_cluster.id,

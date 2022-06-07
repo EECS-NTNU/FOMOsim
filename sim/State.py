@@ -66,7 +66,7 @@ class State(SaveMixin):
         return new_state
 
     @staticmethod
-    def get_initial_state(bike_class, traveltime_matrix, traveltime_van_matrix, number_of_scooters, number_of_vans, leave_intensities, arrive_intensities = None, move_probabilities = None, main_depot = False, secondary_depots = 0, target_state = None, random_seed=None, capacities=None, charging_station = None):
+    def get_initial_state(bike_class, traveltime_matrix, traveltime_van_matrix, number_of_scooters, number_of_vans, leave_intensities, arrive_intensities = None, move_probabilities = None, main_depot = False, secondary_depots = 0, target_state = None, random_seed=None, capacities=None, charging_station = None, original_ids = None):
         depots = []
         if main_depot:
             depots.append(sim.Depot(depot_id=0, main_depot=True))
@@ -92,6 +92,10 @@ class State(SaveMixin):
             if target_state:
                 tstate = target_state[station_id]
 
+            original_id = None
+            if original_ids is not None:
+                original_id = original_ids[station_id]
+
             if station_id >= len(depots):
                 scooters = []
                 for scooter_id in range(number_of_scooters[station_id]):
@@ -100,7 +104,7 @@ class State(SaveMixin):
                     else:
                         scooters.append(sim.Bike(scooter_id=start_of_ids + scooter_id))
                 start_of_ids += number_of_scooters[station_id]
-                stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=tstate, capacity=capacity))
+                stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=tstate, capacity=capacity, original_id=original_id))
                 
         state = State(stations, depots, [], traveltime_matrix=traveltime_matrix, traveltime_van_matrix=traveltime_van_matrix)
 
@@ -255,6 +259,7 @@ class State(SaveMixin):
         number_of_neighbours=None,
         is_sorted=True,
         exclude=None,
+        not_full=False,
     ):
         """
         Get sorted list of stations closest to input cluster
@@ -271,17 +276,32 @@ class State(SaveMixin):
             and state_location.id not in (exclude if exclude else [])
         ]
         if is_sorted:
-            neighbours = sorted(
-                [
-                    state_location
-                    for state_location in self.locations
-                    if state_location.id != location.id
-                    and state_location.id not in (exclude if exclude else [])
-                ],
-                key=lambda state_location: self.traveltime_matrix[location.id][
-                    state_location.id
-                ],
-            )
+            if not_full:
+                neighbours = sorted(
+                    [
+                        state_location
+                        for state_location in self.locations
+                        if state_location.id != location.id
+                        and state_location.spare_capacity() >= 1
+                        and state_location.id not in (exclude if exclude else [])
+                    ],
+                    key=lambda state_location: self.traveltime_matrix[location.id][
+                        state_location.id
+                    ],
+                )
+            else:
+                neighbours = sorted(
+                    [
+                        state_location
+                        for state_location in self.locations
+                        if state_location.id != location.id
+                        and state_location.id not in (exclude if exclude else [])
+                    ],
+                    key=lambda state_location: self.traveltime_matrix[location.id][
+                        state_location.id
+                    ],
+                )
+                
         return neighbours[:number_of_neighbours] if number_of_neighbours else neighbours
 
     def get_location_by_id(self, location_id: int):

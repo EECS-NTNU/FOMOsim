@@ -1,20 +1,38 @@
-    #ideal states are defined externally
+import sim
+from progress.bar import Bar
+import os
+import sys
+import numpy as np
+import copy
+import settings
+import math
+import policies
+import json
+
+def fosen_haldorsen_target_state(state):
+    # initialize target_state matrix
+    target_state = []
+    for st in state.locations:
+        target_state.append([])
+        for day in range(7):
+            target_state[st.id].append([])
+
+    #target states are defined externally
     with open('init_state//fosen_haldorsen//station.json', 'r') as f:
-        ideal_state_json = json.load(f)
+        target_state_json = json.load(f)
 
-    #a bit arbitrary how to set up stations
-    for st in stations:
-        if st.id in ideal_state_json.keys():
-            ideal = {int(k): int(v) for k, v in ideal_state_json[st.id].items()}
-            st.ideal_state = ideal
+    for st in state.stations:
+        target = {}
+        if st.original_id in target_state_json.keys():
+            target = {int(k): int(v) for k, v in target_state_json[st.original_id].items()}
         else:
-            ideal = {}
             for hour in range(0, 24):
-                ideal[hour] = st.station_cap // 2
-            st.ideal_state = ideal
+                target[hour] = st.capacity // 2
 
-        st.current_charged_bikes = min(st.station_cap, st.actual_num_bikes[init_hour])
-        st.current_flat_bikes = 0
-        st.init_charged = st.current_charged_bikes
-        st.init_flat = st.current_flat_bikes
+        for hour in range(24):
+            target_state[st.id][0].append(target[hour])
 
+    for day in range(1, 7):
+        target_state[st.id][day] = target_state[st.id][0]
+
+    return target_state

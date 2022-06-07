@@ -21,6 +21,7 @@ class Station(Location):
         average_number_of_scooters=None,
         target_state=None,
         capacity=DEFAULT_STATION_CAPACITY,
+        original_id = None,
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(scooters)),
@@ -32,6 +33,7 @@ class Station(Location):
         self.average_number_of_scooters = average_number_of_scooters
         self.move_probabilities = move_probabilities
         self.capacity = capacity
+        self.original_id = original_id
 
     def sloppycopy(self, *args):
         return Station(
@@ -45,6 +47,9 @@ class Station(Location):
             target_state=self.target_state,
             capacity=self.capacity,
         )
+
+    def spare_capacity(self):
+        return self.capacity - len(self.scooters)
 
     def get_leave_distribution(self, state, day, hour):
         if self.move_probabilities is None:
