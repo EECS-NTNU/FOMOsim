@@ -38,8 +38,6 @@ class VehicleArrival(Event):
             + refill_time
         )
 
-        print(world.time, arrival_cluster_id, action.next_location, world.state.get_van_travel_time(arrival_cluster_id, action.next_location))
-
         # set time of world to this event's time
         super(VehicleArrival, self).perform(world, **kwargs)
 

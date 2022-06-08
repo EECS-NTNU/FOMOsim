@@ -34,6 +34,8 @@ class Station(Location):
         self.move_probabilities = move_probabilities
         self.capacity = capacity
         self.original_id = original_id
+        if len(self.scooters) > self.capacity:
+            self.capacity = len(self.scooters)
 
     def sloppycopy(self, *args):
         return Station(

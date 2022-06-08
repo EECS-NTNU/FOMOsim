@@ -41,7 +41,7 @@ class State(SaveMixin):
             self.traveltime_matrix = self.calculate_traveltime(SCOOTER_SPEED)
 
         if traveltime_van_matrix is None:
-            self.traveltime_matrix = self.calculate_traveltime(VEHICLE_SPEED)
+            self.traveltime_van_matrix = self.calculate_traveltime(VEHICLE_SPEED)
 
     def sloppycopy(self, *args):
         stationscopy = []
@@ -282,8 +282,8 @@ class State(SaveMixin):
                         state_location
                         for state_location in self.locations
                         if state_location.id != location.id
-                        and state_location.spare_capacity() >= 1
                         and state_location.id not in (exclude if exclude else [])
+                        and state_location.spare_capacity() >= 1
                     ],
                     key=lambda state_location: self.traveltime_matrix[location.id][
                         state_location.id
