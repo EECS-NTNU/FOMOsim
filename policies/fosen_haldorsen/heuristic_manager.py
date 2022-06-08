@@ -12,16 +12,24 @@ def get_index(station_id, stations):
             return i
 
 def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, w_viol, w_drive, w_dev, w_net, first_station):
+    if int(location.original_id) % 10 == 0:
+        battery_rate = 1
+    else:
+        battery_rate = 0.95
+
     # converting values from new simulator
     vehicle_current_batteries = vehicle.battery_inventory
-    incoming_flat_bike_rate_plus_incoming_charged_bike_rate = location.get_arrive_intensity(simul.day(), simul.hour())
-    location_incoming_charged_bike_rate = location.get_arrive_intensity(simul.day(), simul.hour())
+
+    location_incoming_flat_bike_rate = location.get_arrive_intensity(simul.day(), simul.hour()) * (1-battery_rate)
+    location_incoming_charged_bike_rate = location.get_arrive_intensity(simul.day(), simul.hour()) * battery_rate
+
+    incoming_flat_bike_rate_plus_incoming_charged_bike_rate = location_incoming_flat_bike_rate + location_incoming_charged_bike_rate
+
     demand_per_hour = location.get_leave_intensity(simul.day(), simul.hour())
     vehicle_current_charged_bikes = len(vehicle.scooter_inventory)
     location_current_charged_bikes = len(location.get_available_scooters())
     location_current_flat_bikes = len(location.get_swappable_scooters(settings.BATTERY_LIMIT))
     vehicle_current_station_current_charged_bikes = len(vehicle.current_location.get_available_scooters())
-    location_get_incoming_charged_rate = location.get_arrive_intensity(simul.day(), simul.hour())
     location_get_outgoing_customer_rate = location.get_leave_intensity(simul.day(), simul.hour())
     location_available_parking = location.capacity - len(location.scooters)
     vehicle_available_bike_capacity = vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory)
@@ -49,6 +57,7 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
         if t_starv > 0:
             time_to_starvation = t_starv
     time_to_violation = min(time_to_starvation, time_to_congestion)
+
     if (vehicle_current_station_current_charged_bikes - vehicle.current_location.get_target_state(simul.day(), simul.hour())) > 0 and (incoming_flat_bike_rate_plus_incoming_charged_bike_rate -
              demand_per_hour) > 0 and first_station and location_current_charged_bikes > location.get_target_state(simul.day(), simul.hour()):
         return -10000
@@ -69,7 +78,7 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
     else:
         charged_at_t = location_current_charged_bikes
     dev = abs(location.get_target_state(simul.day(), simul.hour()) - charged_at_t)
-    net = abs(location_get_incoming_charged_rate - location_get_outgoing_customer_rate)
+    net = abs(location_incoming_charged_bike_rate - demand_per_hour)
     return - w_viol * time_to_violation - w_drive * driving_time + w_dev * dev + w_net * net
 
 def get_station_car_travel_time(state, station, end_st_id):

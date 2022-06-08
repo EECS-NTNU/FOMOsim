@@ -27,22 +27,22 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # get initial state
 
-    state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter",
-                                                       number_of_scooters = 150, number_of_clusters = 5,
-                                                       number_of_vans = 1, random_seed = 1)
+    # state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter",
+    #                                                    number_of_scooters = 150, number_of_clusters = 5,
+    #                                                    number_of_vans = 1, random_seed = 1)
     
     # state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike",
     #                                                      number_of_vans=1, random_seed=1)
 
-    # state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_vans=1, random_seed=1)
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_vans=1, random_seed=2)
 
     ###############################################################################
     # calculate target state
 
     # target_state = target_state.evenly_distributed_target_state(state)
-    target_state = target_state.outflow_target_state(state)
+    # target_state = target_state.outflow_target_state(state)
     # target_state = target_state.us_target_state(state)
-    # target_state = target_state.fosen_haldorsen_target_state(state)
+    target_state = target_state.fosen_haldorsen_target_state(state)
 
     state.set_target_state(target_state)
 
@@ -59,7 +59,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Set up simulator
 
     # for st in state.stations:
-    #     print(f"{st.id}: {st.capacity}: {len(st.scooters)}: ", end="")
+    #     print(f"{st.original_id:4}: {st.capacity:2}: {len(st.scooters):3}: {st.get_leave_intensity(0, 7)} ", end="")
     #     for hour in range(24):
     #         print(f"{st.get_target_state(0, hour)}, ", end="")
     #     print()
@@ -69,7 +69,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
         policy = policy,
         start_time = get_time(day=0, hour=7),
         duration = duration,
-        verbose = True,
+        verbose = False,
     )
 
     ###############################################################################
