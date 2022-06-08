@@ -73,6 +73,8 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
     leave_intensities = []
     move_probabilities = []
 
+    original_ids = []
+
     charging_station = []
 
     stations_to_include = []
@@ -105,11 +107,14 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
 
         charging_station.append(True if int(station_id) % 10 == 0 else False)
 
-        traveltime_matrix.append([ station_travel_time.get(toid[j], 0) / 60 for j in range(num_stations) ])
-        traveltime_van_matrix.append([ station_car_travel_time.get(toid[j], 0) / 60 for j in range(num_stations) ])
+        #traveltime_matrix.append([ station_travel_time.get(toid[j], 0) for j in range(num_stations) ])
+        traveltime_matrix.append([ station_car_travel_time.get(toid[j], 0) * 1.3 for j in range(num_stations) ])
+        traveltime_van_matrix.append([ station_car_travel_time.get(toid[j], 0) for j in range(num_stations) ])
 
         number_of_scooters.append(actual_num_bikes[init_hour])
         capacities.append(max_capacity)
+
+        original_ids.append(station_id)
 
         arrive_intensities.append([])
         leave_intensities.append([])
@@ -137,6 +142,7 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
         leave_intensities = leave_intensities,
         move_probabilities = move_probabilities,
         charging_station = charging_station,
+        original_ids = original_ids,
     )
 
 def get_input_data_from_movement_df(movement_df, datestring, snapshot_keys):
