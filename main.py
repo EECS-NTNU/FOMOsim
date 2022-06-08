@@ -50,9 +50,9 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Set up policy
 
     # policy = policies.DoNothing()
-    # policy = policies.RandomActionPolicy()
+    policy = policies.RandomActionPolicy()
     # policy = policies.RebalancingPolicy()
-    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
+    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False)
 
     ###############################################################################
