@@ -28,6 +28,9 @@ class VehicleArrival(Event):
         # Record current location of vehicle to compute action time
         arrival_cluster_id = self.vehicle.current_location.id
 
+        a = self.vehicle.current_location.original_id
+        b = world.state.locations[action.next_location].original_id
+
         # perform the best action on the state and send vehicle to new location
         refill_time = world.state.do_action(action, self.vehicle, world.time)
 
@@ -37,6 +40,8 @@ class VehicleArrival(Event):
             )
             + refill_time
         )
+
+        driving_time = world.state.get_van_travel_time(arrival_cluster_id, action.next_location)
 
         # set time of world to this event's time
         super(VehicleArrival, self).perform(world, **kwargs)
