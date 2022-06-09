@@ -61,7 +61,7 @@ def GUI_main():
             updateFieldOperation("-FEEDBACK-", "Lengthy operation started (see terminal)") 
 
         ###### SELECT CITY GUI PART     
-        elif GUI_event == "Find stations and distances":
+        elif GUI_event == "Stations and distances":
             if GUI_values["-OSLO-"]:
                 task = ["Find-stations", "Oslo"]
                 updateFieldOperation("-FEEDBACK-", "Lengthy operation started ...") 
@@ -74,7 +74,7 @@ def GUI_main():
                 userError("You must select a city") 
         
         ###### INIT STATE GUI PART
-        elif GUI_event == "Fosen & Haldorsen":
+        elif GUI_event == "CityBike":
             if GUI_values["-OSLO-"]:
                 userFeedbackClear()
                 weekNo = 0
@@ -88,20 +88,20 @@ def GUI_main():
                     else:    
                         weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
                 if weekNo != 0 :
-                    task = ["Init-state-FH", "Oslo", str(weekNo)]    
+                    task = ["Init-state-CityBike", "Oslo", str(weekNo)]    
                     updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (4 - 6 minutes)") 
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
                 userFeedbackClear()
                 updateField("-WEEK-", "Week no: 48") # Only week with traffic at the moment for Utopia
-                task = ["Init-state-FH", "Utopia", "48"]    
+                task = ["Init-state-CityBike", "Utopia", "48"]    
                 updateFieldOperation("-STATE-MSG-", "short operation started ...") 
             elif GUI_values["-BERGEN-"]:
                 userError("Bergen not yet implemented")
             else:
                 userError("You must select a city")
             updateField("-CALC-MSG-", "")
-        elif GUI_event == "Haflan, Haga & Spetalen": # handled here since it is relativelu quick
-            task = ["Init-state-HHS"] 
+        elif GUI_event == "Entur": # handled here since it is relativelu quick
+            task = ["Init-state-entur"] 
             updateField("-WEEK-","Week no: -na-")
             window["-OSLO-"].update(True) # entur data are from Oslo
             window["-UTOPIA-"].update(False)
@@ -118,11 +118,11 @@ def GUI_main():
         ###### TARGET STATE GUI PART   
         elif GUI_event == "Evenly":
             task = ["Target-state-evenly-distributed"]
-            if session.initStateType == "HHS":
+            if session.initStateType == "entur":
                 updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
         elif GUI_event == "Outflow":
             task = ["Target-state-outflow"]
-            if session.initStateType == "FH":
+            if session.initStateType == "CityBike":
                 updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
         elif GUI_event == "US":
             task = ["Target-state-US"]

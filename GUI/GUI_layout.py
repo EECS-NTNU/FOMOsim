@@ -5,26 +5,26 @@ colWidth = 55
 policyMenu = ["Do-nothing", "Random", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 simOptions = [
     [sg.Checkbox('Logg traffic', key='-LOGG-TRAFFIC-')], 
-    [sg.Checkbox('Option-1 (na)', key='-SIM-OPT-1-')],
-    [sg.Checkbox('Option-2 (na)', key='-SIM-OPT-2-')],
+    # [sg.Checkbox('Option-1 (na)', key='-SIM-OPT-1-')],
+    # [sg.Checkbox('Option-2 (na)', key='-SIM-OPT-2-')],
 ]
 dashboardColumn = [
     [sg.Text("Prep. and set up ", font='Lucida', text_color = 'Yellow'), sg.VSeparator(), 
         sg.Button("Fast-Track", button_color = "forest green"), sg.Button("main.py", button_color="snow4"), sg.Button("Exit")],
     [sg.Text("Set up simulation", font="Helvetica 14", size=(30, 1), text_color = "spring green", key="-FEEDBACK-")],
     [sg.Text('_'*colWidth)],
+
     [sg.Text("Download Oslo trips, 1 = April 2019 ... 35 = February 2022)")],
     [sg.Button("All Oslo"), sg.Button("Clear"), sg.Input("From: ", key="-INPUTfrom-", size=8), 
         sg.Input("To: ", key="-INPUTto-", size = 6), sg.Button("Download Oslo")],
     [sg.Text('_'*colWidth)],
-    [sg.Text("Select city (Oslo is default, only relevant for F & H)")],
-    [sg.Radio("Oslo", "RADIO1", key = "-OSLO-"), sg.Radio("Bergen", "RADIO1", key = "-BERGEN-"), 
-        sg.Radio("Utopia", "RADIO1", key = "-UTOPIA-"), sg.Button("Find stations and distances")],
-    [sg.Text('_'*colWidth)],
+
     [sg.Text("Set initial state"), sg.Text("", key = "-STATE-MSG-")],
-    [sg.Button("Fosen & Haldorsen"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
-        sg.Button("Haflan, Haga & Spetalen")],
-    [ sg.Button("Test state")],   
+    [sg.Text("Select city (Oslo is default, only relevant for CityBike)")],
+    [sg.Radio("Oslo", "RADIO1", key = "-OSLO-"), sg.Radio("Bergen", "RADIO1", key = "-BERGEN-"), 
+        sg.Radio("Utopia", "RADIO1", key = "-UTOPIA-"), sg.Button("Stations and distances")],
+    [sg.Button("CityBike"), sg.Input("Week no: ", key="-WEEK-", size=12), sg.VSeparator(), 
+        sg.Button("Entur"), sg.Button("US-init"), sg.Button("Test state")],   
     [sg.Text("Calculate target state"), sg.Text("", key="-TARGET-METHOD-"), sg.Button("Evenly"), 
         sg.Button("Outflow"), sg.Button("US"), sg.Text("", key="-CALC-MSG-")], 
     [sg.Text('_'*colWidth)],

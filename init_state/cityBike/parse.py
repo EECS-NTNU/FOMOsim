@@ -192,8 +192,8 @@ def readActiveStationMap(city):
         stationMap[words[1]] = int(words[0])
     return stationMap
 
-
 def readBikeStartStatus(city):
+    verbose = False # local, TODO, make global setting for warnings?
     if city == "Oslo" or city == "Utopia":
 #        bikeStatusFile = open("init_state.cityBike/data/Oslo/stationStatus-23-Mar-1513.json", "r")
         bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
@@ -209,13 +209,14 @@ def readBikeStartStatus(city):
                 stationNo = id2no[stationId]
                 noOfBikes = stationData["stations"][i]["num_bikes_available"]
                 bikeStartStatus[stationNo] = noOfBikes
-            else:
+            elif verbose:
                 print("*** Warning: active station without any tripData, is neglected. StationId: ", stationId)
     else:
         print("*** Error - given city not implemented")
     return bikeStartStatus
 
 def readCapacities(city):
+    verbose = False
     dockStartStatus = []
     if city == "Oslo" or city == "Utopia":
         bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
@@ -232,7 +233,7 @@ def readCapacities(city):
                 noOfDocks = stationData["stations"][i]["num_docks_available"]
                 noOfBikes = stationData["stations"][i]["num_bikes_available"]
                 dockStartStatus[stationNo] = noOfDocks + noOfBikes
-            else:
+            elif verbose:
                 print("*** Warning: active station without any tripData, is neglected. StationId: ", stationId)    
     else:
         print("*** Error - readCapacities not implemented for given city")
