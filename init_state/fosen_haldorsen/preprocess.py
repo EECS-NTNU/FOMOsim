@@ -17,7 +17,7 @@ def get_initial_state(init_hour=8, number_of_vans=1, random_seed=1):
 
 def create_subset(stations_uip,n):
 
-    demand_met = 0.75    
+    demand_met = 1
 
     subset = stations_uip[:n]
     subset_ids = [s.id for s in subset]
@@ -32,9 +32,10 @@ def create_subset(stations_uip,n):
                 st1.leave_intensity_per_iteration[day][hour] *= subset_prob
             for s_id in subset_ids:
                 st1.move_probabilities[day][hour][s_id] /= subset_prob
-    for st2 in subset:
-        for day in range(7):
-            for hour in range(24):
+
+    for day in range(7):
+        for hour in range(24):
+            for st2 in subset:
                 incoming = 0
                 for stat in subset:
                     incoming += stat.leave_intensity_per_iteration[day][hour] * demand_met * stat.move_probabilities[day][hour][st2.id]

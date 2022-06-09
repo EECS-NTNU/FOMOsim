@@ -7,6 +7,7 @@ import copy
 import settings
 import sim
 import init_state
+import init_state.fosen_haldorsen
 
 import policies
 import policies.fosen_haldorsen
@@ -28,8 +29,8 @@ def get_time(day=0, hour=0, minute=0):
 #WEEK = 28
 WEEK = 33
 START_DAY = 0
-START_HOUR = 0
-PERIOD = get_time(day=1)
+START_HOUR = 7
+PERIOD = get_time(hour=4)
 RUNS = 10
 
 def run_sim(state, period, policy, start_time, label, seed):
@@ -38,12 +39,12 @@ def run_sim(state, period, policy, start_time, label, seed):
 
     # Set up simulator
     simul = sim.Simulator(
-        PERIOD,
-        policy, 
-        local_state,
-        verbose=False,
+        initial_state = local_state,
+        policy = policy, 
         start_time = start_time,
-        label=label,
+        duration = PERIOD,
+        verbose = False,
+        label = label,
     )
 
     # Run simulator
@@ -57,13 +58,12 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # get initial state
 
-    #state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Bike", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
-    state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike", number_of_vans=1, random_seed=1)
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_vans=8, random_seed=1)
 
     ###############################################################################
-    # calculate ideal state
+    # calculate target state
 
-    tstate = target_state.outflow_target_state(state)
+    tstate = target_state.fosen_haldorsen_target_state(state)
     state.set_target_state(tstate)
 
     ###############################################################################
@@ -97,41 +97,25 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
 
     donothings = []
-    randoms = []
-
+    fhgreedys = []
     fhs = []
-    rebalancings = []
     
-    fhs2 = []
-    rebalancings2 = []
-    
-    state.set_num_vans(8)
+    state.set_num_vans(3)
 
     progress = Bar(
         "Running",
-        max = RUNS*2,
+        max = RUNS,
     )
-
-    tstate = target_state.outflow_target_state(state)
-    state.set_target_state(tstate)
 
     for run in range(RUNS):
         donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),                                       start_time, "DoNothing",  run))
-        randoms.append     (run_sim(state, PERIOD, policies.RandomActionPolicy(),                              start_time, "Random",     run))
-#        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy target AD",  run))
-        rebalancings.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy target AD", run))
-        progress.next()
+        fhgreedys.append   (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
+        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False), start_time, "FH",  run))
 
-    tstate = target_state.us_target_state(state)
-    state.set_target_state(tstate)
-
-    for run in range(RUNS):
-#        fhs2.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy target US",  run))
-        rebalancings2.append(run_sim(state, PERIOD, policies.RebalancingPolicy(),                               start_time, "HHS-Greedy target US", run))
         progress.next()
 
     progress.finish()
         
     # Visualize results
-    visualize_starvation([donothings, rebalancings, rebalancings2], title=("Week " + str(WEEK)), week=WEEK)
-    visualize_congestion([donothings, rebalancings, rebalancings2], title=("Week " + str(WEEK)), week=WEEK)
+    visualize_starvation([donothings, fhgreedys, fhs], title=("Week " + str(WEEK)), week=WEEK)
+    visualize_congestion([donothings, fhgreedys, fhs], title=("Week " + str(WEEK)), week=WEEK)

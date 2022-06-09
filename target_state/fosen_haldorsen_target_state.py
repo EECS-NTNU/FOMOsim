@@ -21,7 +21,7 @@ def fosen_haldorsen_target_state(state):
     with open('init_state//fosen_haldorsen//station.json', 'r') as f:
         target_state_json = json.load(f)
 
-    for st in state.stations:
+    for st in state.locations:
         target = {}
         if st.original_id in target_state_json.keys():
             target = {int(k): int(v) for k, v in target_state_json[st.original_id].items()}

@@ -1,32 +1,49 @@
-from sim.Location import Location
+from sim.Station import Station
+from sim.Scooter import Scooter
 from settings import *
 
 
-class Depot(Location):
+class Depot(Station):
     """
     Class for depot. Contains method for updating the state of the depot.
     """
 
-    def __init__(self, lat: float = 0, lon: float = 0, depot_id: int = 0, main_depot=False):
-        super(Depot, self).__init__(lat, lon, depot_id)
-        self.capacity = MAIN_DEPOT_CAPACITY if main_depot else SMALL_DEPOT_CAPACITY
+    def __init__(
+        self,
+        depot_id: int,
+        main_depot,
+        scooters: [Scooter],
+        leave_intensity_per_iteration=None,
+        arrive_intensity_per_iteration=None,
+        center_location=None,
+        move_probabilities=None,
+        average_number_of_scooters=None,
+        target_state=None,
+        capacity=DEFAULT_STATION_CAPACITY,
+        original_id = None,
+        charging_station = None,
+    ):
+        super().__init__(
+            depot_id, scooters, leave_intensity_per_iteration, arrive_intensity_per_iteration,
+            center_location, move_probabilities, average_number_of_scooters, target_state,
+            capacity, original_id, charging_station
+        )
+
+        self.battery_inventory = MAIN_DEPOT_CAPACITY if main_depot else SMALL_DEPOT_CAPACITY
         self.time = 0
         self.charging = []
 
-    def number_of_scooters(self):
-        return 0
-
     def swap_battery_inventory(self, time, number_of_battery_to_change) -> int:
-        self.capacity += self.get_delta_capacity(time)
+        self.battery_inventory += self.get_delta_capacity(time)
         self.time = time
 
-        if number_of_battery_to_change > self.capacity:
+        if number_of_battery_to_change > self.battery_inventory:
             raise ValueError(
-                f"Depot has only {self.capacity} batteries available. "
+                f"Depot has only {self.battery_inventory} batteries available. "
                 f"Vehicle tried to swap {number_of_battery_to_change}"
             )
 
-        self.capacity -= number_of_battery_to_change
+        self.battery_inventory -= number_of_battery_to_change
 
         self.charging.append((time, number_of_battery_to_change))
 
@@ -36,7 +53,7 @@ class Depot(Location):
         )
 
     def get_available_battery_swaps(self, time):
-        return self.capacity + self.get_delta_capacity(time, update_charging=False)
+        return self.battery_inventory + self.get_delta_capacity(time, update_charging=False)
 
     def get_delta_capacity(self, time, update_charging=True):
         delta_capacity = 0
@@ -59,4 +76,4 @@ class Depot(Location):
         return f"Depot {self.id}"
 
     def __repr__(self):
-        return f"<Depot, id: {self.id}, cap: {self.capacity}>"
+        return f"<Depot, id: {self.id}, cap: {self.battery_inventory}>"

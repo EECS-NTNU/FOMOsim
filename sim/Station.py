@@ -22,6 +22,7 @@ class Station(Location):
         target_state=None,
         capacity=DEFAULT_STATION_CAPACITY,
         original_id = None,
+        charging_station = None,
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(scooters)),
@@ -34,6 +35,7 @@ class Station(Location):
         self.move_probabilities = move_probabilities
         self.capacity = capacity
         self.original_id = original_id
+        self.charging_station = charging_station
         if len(self.scooters) > self.capacity:
             self.capacity = len(self.scooters)
 
@@ -48,6 +50,8 @@ class Station(Location):
             average_number_of_scooters=self.average_number_of_scooters,
             target_state=self.target_state,
             capacity=self.capacity,
+            original_id=self.original_id,
+            charging_station=self.charging_station,
         )
 
     def spare_capacity(self):

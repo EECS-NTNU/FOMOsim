@@ -74,8 +74,7 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
     move_probabilities = []
 
     original_ids = []
-
-    charging_station = []
+    charging_stations = []
 
     stations_to_include = []
 
@@ -105,9 +104,8 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
 
         move_p = [next_station_probabilities[toid[i]] for i in range(num_stations)]
 
-        charging_station.append(True if int(station_id) % 10 == 0 else False)
+        charging_stations.append(True if int(station_id) % 10 == 0 else False)
 
-        #traveltime_matrix.append([ station_travel_time.get(toid[j], 0) for j in range(num_stations) ])
         traveltime_matrix.append([ station_car_travel_time.get(toid[j], 0) * 1.3 for j in range(num_stations) ])
         traveltime_van_matrix.append([ station_car_travel_time.get(toid[j], 0) for j in range(num_stations) ])
 
@@ -124,11 +122,24 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
             leave_intensities[i].append([])
             move_probabilities[i].append([])
             for hour in range(24):
-                arrive_intensities[i][day].append(0) # FIXME
+                arrive_intensities[i][day].append(0) # fixed in preprocess.py
                 leave_intensities[i][day].append(demand_per_hour[hour])
                 move_probabilities[i][day].append(move_p)
 
     ###############################################################################
+
+    # station 4 is depot, move to index 0
+    traveltime_matrix.insert(0, traveltime_matrix.pop(4))
+    traveltime_van_matrix.insert(0, traveltime_van_matrix.pop(4))
+    number_of_scooters.insert(0, number_of_scooters.pop(4))
+    capacities.insert(0, capacities.pop(4))
+    arrive_intensities.insert(0, arrive_intensities.pop(4))
+    leave_intensities.insert(0, leave_intensities.pop(4))
+    move_probabilities.insert(0, move_probabilities.pop(4))
+    for s in range(num_stations):
+        for day in range(7):
+            for hour in range(24):
+                move_probabilities[s][day][hour].insert(0, move_probabilities[s][day][hour].pop(4))
 
     return sim.State.get_initial_state(
         bike_class = "Scooter", 
@@ -136,12 +147,13 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
         traveltime_van_matrix = traveltime_van_matrix,
         number_of_scooters = number_of_scooters,
         capacities = capacities,
+        main_depot = True,
         number_of_vans = number_of_vans,
         random_seed = random_seed,
         arrive_intensities = arrive_intensities,
         leave_intensities = leave_intensities,
         move_probabilities = move_probabilities,
-        charging_station = charging_station,
+        charging_stations = charging_stations,
         original_ids = original_ids,
     )
 

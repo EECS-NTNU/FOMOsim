@@ -34,7 +34,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike",
     #                                                      number_of_vans=1, random_seed=1)
 
-    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_vans=1, random_seed=2)
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_vans=1, random_seed=1)
 
     ###############################################################################
     # calculate target state
@@ -52,8 +52,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # policy = policies.DoNothing()
     # policy = policies.RandomActionPolicy()
     # policy = policies.RebalancingPolicy()
-    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
-    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False)
+    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
+    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False)
 
     ###############################################################################
     # Set up simulator
@@ -69,7 +69,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
         policy = policy,
         start_time = get_time(day=0, hour=7),
         duration = duration,
-        verbose = False,
+        verbose = True,
     )
 
     ###############################################################################
