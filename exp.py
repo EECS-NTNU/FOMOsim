@@ -58,7 +58,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # get initial state
 
-    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_vans=8, random_seed=1)
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations = 50, number_of_vans=3, random_seed=1)
 
     ###############################################################################
     # calculate target state
@@ -97,6 +97,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
 
     donothings = []
+    rebalancings = []
     fhgreedys = []
     fhs = []
     
@@ -109,8 +110,9 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     for run in range(RUNS):
         donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),                                       start_time, "DoNothing",  run))
+        rebalancings.append (run_sim(state, PERIOD, policies.RebalancingPolicy(),                                       start_time, "FH-HHS",  run))
         fhgreedys.append   (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
-        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False), start_time, "FH",  run))
+        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25), start_time, "FH",  run))
 
         progress.next()
 
