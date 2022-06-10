@@ -15,11 +15,12 @@ class FosenHaldorsenPolicy(Policy):
 
         self.scenarios = scenarios
         self.branching = branching
-        self.time_horizon = time_horizon
 
+        self.time_horizon = time_horizon
         self.handling_time = handling_time
         self.flexibility = flexibility
         self.average_handling_time = average_handling_time
+
         self.weights = weights
         self.crit_weights = crit_weights
         self.criticality = criticality
@@ -101,6 +102,8 @@ class FosenHaldorsenPolicy(Policy):
     def heuristic_solve(self, simul, vehicle):
         heuristic_man = HeuristicManager(simul, simul.state.vehicles, simul.state.locations,
                                          no_scenarios=self.scenarios, init_branching=self.branching,
+                                         time_horizon=self.time_horizon, handling_time=self.handling_time, flexibility=self.flexibility,
+                                         average_handling_time=self.average_handling_time, seed_scenarios_subproblems=simul.state.rng.integers(10000), 
                                          criticality=self.criticality, weights=self.weights, crit_weights=self.crit_weights)
 
         # Index of vehicle that triggered event

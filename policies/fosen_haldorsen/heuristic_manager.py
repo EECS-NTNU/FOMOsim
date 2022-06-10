@@ -5,11 +5,13 @@ from policies.fosen_haldorsen.MasterProblem.master_params import MasterParameter
 from policies.fosen_haldorsen.MasterProblem.master_model import run_master_model
 import settings
 import sim
+import time
 
 def get_index(station_id, stations):
     for i in range(len(stations)):
         if stations[i].id == station_id:
             return i
+
 
 def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, w_viol, w_drive, w_dev, w_net, first_station):
     if location.charging_station:
@@ -75,12 +77,14 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
     net = abs(incoming_charged_bike_rate - demand_per_hour)
     return - w_viol * time_to_violation - w_drive * driving_time + w_dev * dev + w_net * net
 
+
 class HeuristicManager:
 
-    time_h = 25
 
-    def __init__(self, simul, vehicles, station_full_set, no_scenarios, init_branching, weights, crit_weights, 
-                 criticality=True, writer=None):
+    def __init__(self, simul, vehicles, station_full_set, no_scenarios, init_branching, 
+                 time_horizon,handling_time, flexibility,average_handling_time,
+                 seed_scenarios_subproblems,
+                 times_called=0, weights=None, criticality=True, writer=None, crit_weights=None):
         self.simul = simul
         self.no_scenarios = no_scenarios
         self.customer_arrival_scenarios = list()
@@ -94,11 +98,23 @@ class HeuristicManager:
         self.criticality = criticality
         self.crit_weights = crit_weights
         self.writer = writer
+        
+        self.rng2 = np.random.RandomState(int(str(seed_scenarios_subproblems)+str(times_called)))
+        
+        self.flexibility = flexibility
+        self.average_handling_time = average_handling_time
+        self.time_horizon = time_horizon 
+        self.handling_time = handling_time
+        
+        self.generate_scenarios()
 
-        self.generate_scenarios(simul)
-
+        start_sub = time.time()    
         self.run_subproblems()
+        self.sub_time = time.time() -start_sub
+        
+        start_master = time.time()        
         self.run_master_problem()
+        self.master_time = time.time()-start_master
 
     def reset_manager_and_run(self, branching):
         self.route_patterns = list()
@@ -109,12 +125,14 @@ class HeuristicManager:
         self.run_master_problem()
 
     def run_vehicle_subproblems(self, vehicle):
-        gen = GenerateRoutePattern(self.simul, vehicle.current_location, self.station_set, vehicle,
-                                   init_branching=self.init_branching, criticality=self.criticality,
+        gen = GenerateRoutePattern(self.simul, vehicle.current_location, self.station_set, vehicle, 
+                                   self.init_branching, self.time_horizon,
+                                   self.handling_time,  self.flexibility, self.average_handling_time,
+                                   criticality=self.criticality,
                                    crit_weights=self.crit_weights)
         gen.get_columns()
         self.route_patterns.append(gen)
-        model_man = ModelManager(vehicle, self.simul)
+        model_man = ModelManager(self.simul, vehicle, self.time_horizon)
         route_scores = list()
         for route in gen.finished_gen_routes:
             route_full_set_index = [get_index(st.id, self.station_set) for st in route.stations]
@@ -159,7 +177,7 @@ class HeuristicManager:
                 q_B = round(var.x, 0)
         return self.station_set[i], [q_B, q_CCL, q_FCL, q_CCU, q_FCU]
 
-    def generate_scenarios(self, simul):
+    def generate_scenarios(self):
         for i in range(self.no_scenarios):
             scenario = list()
             for station in self.station_set:
@@ -168,18 +186,22 @@ class HeuristicManager:
                 else:
                     battery_rate = 0.95
 
-                station_get_incoming_charged_rate = station.get_arrive_intensity(simul.day(), simul.hour()) * battery_rate
-                station_get_incoming_flat_rate = station.get_arrive_intensity(simul.day(), simul.hour()) * (1-battery_rate)
+                station_get_incoming_charged_rate = station.get_arrive_intensity(self.simul.day(), self.simul.hour()) * battery_rate
+                station_get_incoming_flat_rate = station.get_arrive_intensity(self.simul.day(), self.simul.hour()) * (1-battery_rate)
                 station_get_outgoing_customer_rate = station.get_leave_intensity(self.simul.day(), self.simul.hour())
 
-                c1_times = HeuristicManager.poisson_simulation(self.simul.state.rng, station_get_incoming_charged_rate / 60, HeuristicManager.time_h)
-                c2_times = HeuristicManager.poisson_simulation(self.simul.state.rng, station_get_incoming_flat_rate / 60, HeuristicManager.time_h)
-                c3_times = HeuristicManager.poisson_simulation(self.simul.state.rng, station_get_outgoing_customer_rate / 60, HeuristicManager.time_h)
+                c1_times = HeuristicManager.poisson_simulation(station_get_incoming_charged_rate / 60, 
+                                                               self.time_horizon, self.rng2)
+                c2_times = HeuristicManager.poisson_simulation(station_get_incoming_flat_rate / 60, 
+                                                               self.time_horizon, self.rng2)
+                c3_times = HeuristicManager.poisson_simulation(station_get_outgoing_customer_rate / 60, 
+                                                               self.time_horizon, self.rng2)
                 scenario.append([c1_times, c2_times, c3_times])
             self.customer_arrival_scenarios.append(scenario)
 
+
     @staticmethod
-    def poisson_simulation(rng, intensity_rate, time_steps):
+    def poisson_simulation(intensity_rate, time_steps,rng):
         times = list()
         for t in range(time_steps):
             arrival = rng.poisson(intensity_rate)

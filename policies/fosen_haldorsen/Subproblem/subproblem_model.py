@@ -5,7 +5,8 @@ import numpy as np
 
 def run_model(parameters):
 
-    try:
+    #try:
+    if True:
         m = Model("Heuristic")
         m.setParam('OutputFlag', False)
 
@@ -131,5 +132,5 @@ def run_model(parameters):
 
         return obj_val
 
-    except GurobiError:
-        print(GurobiError.message)
+    #except GurobiError:
+    #    print(GurobiError.message)
