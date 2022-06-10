@@ -119,5 +119,5 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     progress.finish()
         
     # Visualize results
-    visualize_starvation([donothings, fhgreedys, fhs], title=("Week " + str(WEEK)), week=WEEK)
-    visualize_congestion([donothings, fhgreedys, fhs], title=("Week " + str(WEEK)), week=WEEK)
+    visualize_starvation([donothings, rebalancings, fhgreedys, fhs], title=("Week " + str(WEEK)), week=WEEK)
+    visualize_congestion([donothings, rebalancings, fhgreedys, fhs], title=("Week " + str(WEEK)), week=WEEK)
