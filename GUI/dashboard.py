@@ -88,8 +88,8 @@ def GUI_main():
                     else:    
                         weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
                 if weekNo != 0 :
-                    task = ["Init-state-CityBike", "Oslo", str(weekNo)]    
                     updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (4 - 6 minutes)") 
+                    task = ["Init-state-CityBike", "Oslo", str(weekNo)]    
             elif GUI_values["-UTOPIA-"]: # This is (still) quick
                 userFeedbackClear()
                 updateField("-WEEK-", "Week no: 48") # Only week with traffic at the moment for Utopia
@@ -101,6 +101,7 @@ def GUI_main():
                 userError("You must select a city")
             updateField("-CALC-MSG-", "")
         elif GUI_event == "Entur": # handled here since it is relativelu quick
+            userFeedbackClear()
             task = ["Init-state-Entur"] 
             updateField("-WEEK-","Week no: -na-")
             window["-OSLO-"].update(True) # entur data are from Oslo
@@ -108,30 +109,34 @@ def GUI_main():
             updateField("-CALC-MSG-","")
             updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (see progress in terminal)")
         elif GUI_event == "US-init":
-            print("NOT IMPLEMENTED YET")
-        
-        elif GUI_event == "Test state": 
-            task = ["Init-test-state", "allToAll4"] 
+            userFeedbackClear()
+            updateFieldOperation("-STATE-MSG-", "Lengthy operation started ...")
+            task = ["Init-state-US"]         
+        elif GUI_event == "Test-state": 
+            userFeedbackClear()
+            task = ["Init-state-test", "allToAll4"] 
         elif GUI_event == "Save state":
+            userFeedbackClear()
             fileName = strip("Name: ", GUI_values["-INPUTname-"])
             task = ["Save-state", fileName]
         elif GUI_event == "Load state":
+            userFeedbackClear()
             task = ["Load-state"] # TODO not implemented
 
         ###### TARGET STATE GUI PART   
         elif GUI_event == "Evenly":
             task = ["Target-state-evenly-distributed"]
-            if session.initStateType == "entur":
-                updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
+            userFeedbackClear()
+            updateFieldOperation("-CALC-MSG-", "Lengthy operation started ...")        
         elif GUI_event == "Outflow":
             task = ["Target-state-outflow"]
-            if session.initStateType == "CityBike":
-                updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
+            userFeedbackClear()
+            updateFieldOperation("-CALC-MSG-", "Lengthy operation started ...")        
         elif GUI_event == "US":
             task = ["Target-state-US"]
-            if session.initStateType == "FH":
-                updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")
-    
+            userFeedbackClear()
+            updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")        
+
 
         ###### SIMULATE GUI PART
         elif GUI_event == "Simulate":

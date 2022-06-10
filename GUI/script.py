@@ -20,7 +20,7 @@ import policies.fosen_haldorsen
 
 from init_state.cityBike.download import oslo
 from init_state.cityBike.helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
-from init_state.cityBike.parse import calcDistances, get_initial_state, get_initial_stateOLD
+from init_state.cityBike.parse import calcDistances, get_initial_state
 
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *
@@ -60,26 +60,32 @@ def doCommand(session, task):
         beepy.beep(sound="ping")
    
     #### INIT STATE handling
-    elif task[0] == "Init-state-FH" or task[0] == "Init-state-Entur" or task[0] == "Init-test-state":
-        if task[0] == "Init-state-FH":
-            write(scriptFile, ["Init-state-FH", task[1], task[2]])
+    elif task[0] == "Init-state-CityBike" or task[0] == "Init-state-Entur" or task[0] == "Init-state-US" or task[0] == "Init-state-test":
+        if task[0] == "Init-state-CityBike":
+            write(scriptFile, ["Init-state-CityBike", task[1], task[2]])
             session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vans=1, random_seed=1) # TODO, hardwired, not good, fix 
-            session.initStateType = "FH"
+            session.initStateType = "CityBike"
         elif task[0] == "Init-state-Entur": 
             write(scriptFile, ["Init-state-Entur"])
             session.initState = init_state.entur.scripts.get_initial_state(
                 "test_data",
                 "0900-entur-snapshot.csv",
                 "Scooter",
-                number_of_scooters = 150,
-                number_of_clusters = 5,
-                number_of_vans = 1,
-                random_seed = 1,
+                number_of_scooters = 150, # TODO, check with AD,cannot use more default params
+                # number_of_clusters = 5, 
+                # number_of_vans = 1,
+                # random_seed = 1,
             )
             session.initStateType = "Entur"
-        elif task[0] == "Init-test-state":
+        elif task[0] == "Init-state-US":
+            write(scriptFile, ["Init-state-US"])
+#            session.initState =  init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations=50, number_of_vans=3, random_seed=1)
+            session.initState =  init_state.fosen_haldorsen.get_initial_state()
+            session.initStateType = "US"
+        elif task[0] == "Init-state-test":
+            write(scriptFile, ["Init-state-test"])
             manualInitState(session, task[1]) # second param opens for several different
-            session.initStateType = "manual"
+            session.initStateType = "test"
         updateField("-STATE-MSG-", session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
         session.targetState = sim.State() # targetState must be cleared, if it exist or not
@@ -92,7 +98,8 @@ def doCommand(session, task):
         if session.initStateType == "": # an initial state does NOT exist 
             userError("Can't calc target state without init state")
         else:
-            if session.initStateType == "Entur" or session.initStateType =="FH" or session.initStateType == "manual": # TODO 3x similar code, REFACTOR
+            userFeedbackClear()
+            if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
                 state = session.initState # via local variable to ensure initState is not destroyed
                 session.targetState = target_state.outflow_target_state(state)
                 session.targetStateType = "outflow"
@@ -104,11 +111,12 @@ def doCommand(session, task):
             userFeedback_OK("Target state outflow calculated OK")
             beepy.beep(sound="ping")
 
-    elif task[0] == "Target-state-evenly-distributed":        
+    elif task[0] == "Target-state-evenly-distributed":
         if session.initStateType == "": # an initial state does NOT exist  
                 userError("Can't calc target state without init state")
         else:
-            if session.initStateType == "Entur" or session.initStateType =="FH" or session.initStateType == "manual": 
+            userFeedbackClear()
+            if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
                 state = session.initState
                 newTarget_state = target_state.evenly_distributed_target_state(state)
                 session.targetState = newTarget_state # TODO, probably clumsy, had to (try again?) go via newTarget_state variable due to import-trouble !???
@@ -125,7 +133,7 @@ def doCommand(session, task):
         if session.initStateType == "": # an initial state does NOT exist  
                 userError("Can't calc target state without init state")
         else:
-            if session.initStateType == "Entur" or session.initStateType =="FH" or session.initStateType == "manual": 
+            if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
                 state = session.initState
                 newTarget_state = target_state.us_target_state(state)
                 session.targetState = newTarget_state # TODO, probably clumsy, had to (try again?) go via newTarget_state variable due to import-trouble !???
