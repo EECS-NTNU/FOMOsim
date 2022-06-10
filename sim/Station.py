@@ -33,7 +33,7 @@ class Station(Location):
         self.arrive_intensity_per_iteration = arrive_intensity_per_iteration
         self.average_number_of_scooters = average_number_of_scooters
         self.move_probabilities = move_probabilities
-        self.capacity = capacity
+        self.capacity = int(capacity)
         self.original_id = original_id
         self.charging_station = charging_station
         if len(self.scooters) > self.capacity:
