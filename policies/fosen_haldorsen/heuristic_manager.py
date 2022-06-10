@@ -79,8 +79,8 @@ class HeuristicManager:
 
     time_h = 25
 
-    def __init__(self, simul, vehicles, station_full_set, no_scenarios=2, init_branching=7, weights=None,
-                 criticality=True, writer=None, crit_weights=None):
+    def __init__(self, simul, vehicles, station_full_set, no_scenarios, init_branching, weights, crit_weights, 
+                 criticality=True, writer=None):
         self.simul = simul
         self.no_scenarios = no_scenarios
         self.customer_arrival_scenarios = list()

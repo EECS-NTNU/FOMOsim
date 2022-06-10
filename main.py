@@ -53,7 +53,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # policy = policies.RandomActionPolicy()
     # policy = policies.RebalancingPolicy()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
-    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False)
+    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
 
     ###############################################################################
     # Set up simulator

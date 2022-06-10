@@ -8,12 +8,24 @@ import sim
 import settings
 from policies.fosen_haldorsen.heuristic_manager import *
 
-EVENT_HANDLING_TIME = 0.5
-EVENT_PARKING_TIME = 1
-
 class FosenHaldorsenPolicy(Policy):
-    def __init__(self, greedy=False):
+    def __init__(self, scenarios, branching, time_horizon,
+                 handling_time=0.5, flexibility=3, average_handling_time=6, weights=(0.6, 0.1, 0.3, 0.8, 0.2), crit_weights=(0.2, 0.1, 0.5, 0.2), criticality=True, 
+                 greedy=False):
+
+        self.scenarios = scenarios
+        self.branching = branching
+        self.time_horizon = time_horizon
+
+        self.handling_time = handling_time
+        self.flexibility = flexibility
+        self.average_handling_time = average_handling_time
+        self.weights = weights
+        self.crit_weights = crit_weights
+        self.criticality = criticality
+
         self.greedy = greedy
+
         super().__init__()
 
     def get_best_action(self, simul, vehicle):
@@ -88,8 +100,8 @@ class FosenHaldorsenPolicy(Policy):
 
     def heuristic_solve(self, simul, vehicle):
         heuristic_man = HeuristicManager(simul, simul.state.vehicles, simul.state.locations,
-                                         no_scenarios=2, init_branching=7,
-                                         weights=(0.6, 0.1, 0.3, 0.8, 0.2), crit_weights=(0.2, 0.1, 0.5, 0.2))
+                                         no_scenarios=self.scenarios, init_branching=self.branching,
+                                         criticality=self.criticality, weights=self.weights, crit_weights=self.crit_weights)
 
         # Index of vehicle that triggered event
         next_station, pattern = heuristic_man.return_solution(vehicle_index=vehicle.id)
