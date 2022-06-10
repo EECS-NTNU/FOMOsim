@@ -32,7 +32,7 @@ class Session:
         self.endTime = ""
         self.state = sim.State()  # TODO see if these three can be replaced by = []
         self.initState = sim.State()
-        self.initStateType = ""  # is "", "FH", "HHS", "manual", "loaded"
+        self.initStateType = ""  # is "", "FH", "Entur", "manual", "loaded"
         self.targetState = sim.State()
         self.targetStateType = ""  # is "", "evenly" or "outflow"
         self.simPolicy = ""
@@ -50,8 +50,7 @@ def doCommand(session, task):
         write(scriptFile, ["Find-stations", task[1]])
         calcDistances(task[1])
         updateFieldOK("-FEEDBACK-", "City OK")
-        if task[1] == "Oslo":
-            beepy.beep(sound="ping")
+        beepy.beep(sound="ping")
         write(loggFile, [task[0], "finished:", dateAndTimeStr(), "city:", task[1]])
     elif task[0] == "Download-Oslo":
         write(scriptFile, ["Download-Oslo", task[1], task[2]])
@@ -61,13 +60,13 @@ def doCommand(session, task):
         beepy.beep(sound="ping")
    
     #### INIT STATE handling
-    elif task[0] == "Init-state-FH" or task[0] == "Init-state-HHS" or task[0] == "Init-test-state":
+    elif task[0] == "Init-state-FH" or task[0] == "Init-state-Entur" or task[0] == "Init-test-state":
         if task[0] == "Init-state-FH":
             write(scriptFile, ["Init-state-FH", task[1], task[2]])
             session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vans=1, random_seed=1) # TODO, hardwired, not good, fix 
             session.initStateType = "FH"
-        elif task[0] == "Init-state-HHS": 
-            write(scriptFile, ["Init-state-HHS"])
+        elif task[0] == "Init-state-Entur": 
+            write(scriptFile, ["Init-state-Entur"])
             session.initState = init_state.entur.scripts.get_initial_state(
                 "test_data",
                 "0900-entur-snapshot.csv",
@@ -77,7 +76,7 @@ def doCommand(session, task):
                 number_of_vans = 1,
                 random_seed = 1,
             )
-            session.initStateType = "HHS"
+            session.initStateType = "Entur"
         elif task[0] == "Init-test-state":
             manualInitState(session, task[1]) # second param opens for several different
             session.initStateType = "manual"
@@ -93,7 +92,7 @@ def doCommand(session, task):
         if session.initStateType == "": # an initial state does NOT exist 
             userError("Can't calc target state without init state")
         else:
-            if session.initStateType == "HHS" or session.initStateType =="FH" or session.initStateType == "manual": # TODO 3x similar code, REFACTOR
+            if session.initStateType == "Entur" or session.initStateType =="FH" or session.initStateType == "manual": # TODO 3x similar code, REFACTOR
                 state = session.initState # via local variable to ensure initState is not destroyed
                 session.targetState = target_state.outflow_target_state(state)
                 session.targetStateType = "outflow"
@@ -109,7 +108,7 @@ def doCommand(session, task):
         if session.initStateType == "": # an initial state does NOT exist  
                 userError("Can't calc target state without init state")
         else:
-            if session.initStateType == "HHS" or session.initStateType =="FH" or session.initStateType == "manual": 
+            if session.initStateType == "Entur" or session.initStateType =="FH" or session.initStateType == "manual": 
                 state = session.initState
                 newTarget_state = target_state.evenly_distributed_target_state(state)
                 session.targetState = newTarget_state # TODO, probably clumsy, had to (try again?) go via newTarget_state variable due to import-trouble !???
@@ -126,7 +125,7 @@ def doCommand(session, task):
         if session.initStateType == "": # an initial state does NOT exist  
                 userError("Can't calc target state without init state")
         else:
-            if session.initStateType == "HHS" or session.initStateType =="FH" or session.initStateType == "manual": 
+            if session.initStateType == "Entur" or session.initStateType =="FH" or session.initStateType == "manual": 
                 state = session.initState
                 newTarget_state = target_state.us_target_state(state)
                 session.targetState = newTarget_state # TODO, probably clumsy, had to (try again?) go via newTarget_state variable due to import-trouble !???

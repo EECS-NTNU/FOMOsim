@@ -24,7 +24,7 @@ def GUI_main():
     readyForTask = False # used together with timeout to ensure one iteration in loop for 
     resultFile = ""                     
     while True:
-        GUI_event, GUI_values= window.read(timeout = 100) # waits 100 millisecs before looking in taskQueue
+        GUI_event, GUI_values= window.read(timeout = 50) # waits some millisecs before looking in taskQueue
 #        GUI_event, GUI_values= window.read() 
         if len(task) > 0: ###### handling of lengthy operations is done in a two-stage process to be able to give message
             if not readyForTask:
@@ -40,7 +40,7 @@ def GUI_main():
             # bigOsloTest()
             #-------------            
             # session = Session("Fast-Track-session")
-            # replayScript(session, "tripStats/scripts/script.txt")
+            # replayScript(session, "tripStats/scripts/script.txt") # TODO, remove if demnstrated in code
 
         elif GUI_event == "main.py":
             print("Leaves GUI-dashboard-code, continues in main.py")
@@ -101,12 +101,15 @@ def GUI_main():
                 userError("You must select a city")
             updateField("-CALC-MSG-", "")
         elif GUI_event == "Entur": # handled here since it is relativelu quick
-            task = ["Init-state-entur"] 
+            task = ["Init-state-Entur"] 
             updateField("-WEEK-","Week no: -na-")
             window["-OSLO-"].update(True) # entur data are from Oslo
             window["-UTOPIA-"].update(False)
             updateField("-CALC-MSG-","")
             updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (see progress in terminal)")
+        elif GUI_event == "US-init":
+            print("NOT IMPLEMENTED YET")
+        
         elif GUI_event == "Test state": 
             task = ["Init-test-state", "allToAll4"] 
         elif GUI_event == "Save state":
