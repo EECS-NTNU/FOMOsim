@@ -138,10 +138,14 @@ class State(SaveMixin):
 
     def set_num_vans(self, number_of_vans):
         self.vehicles = []
-        start_location = self.stations[0]
-        if len(self.depots) > 0:
-            start_location = self.depots[0]
         for vehicle_id in range(number_of_vans):
+            # to make starting stations the same as for fosen&haldorsen, just for comparison with old sim
+            if vehicle_id < 4:
+                start_location = self.locations[vehicle_id+1]
+            elif vehicle_id == 4:
+                start_location = self.locations[0]
+            else:
+                start_location = self.locations[vehicle_id]
             self.vehicles.append(sim.Vehicle(vehicle_id, start_location, VAN_BATTERY_INVENTORY, VAN_SCOOTER_INVENTORY))
 
     def set_move_probabilities(self, move_probabilities):

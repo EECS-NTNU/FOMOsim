@@ -10,7 +10,7 @@ def get_initial_state(init_hour=8, number_of_vans=1, random_seed=1):
         else:
             st.battery_rate = 0.95
 
-    create_subset(state.stations, len(state.stations))
+    create_subset(state.locations, len(state.locations))
     print("UIP DB objects collected")
     
     return state

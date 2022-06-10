@@ -34,7 +34,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike",
     #                                                      number_of_vans=1, random_seed=1)
 
-    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_vans=1, random_seed=1)
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_vans=4, random_seed=1)
 
     ###############################################################################
     # calculate target state
@@ -58,7 +58,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # Set up simulator
 
-    # for st in state.stations:
+    # for st in state.locations:
     #     print(f"{st.original_id:4}: {st.capacity:2}: {len(st.scooters):3}: {st.get_leave_intensity(0, 7)} ", end="")
     #     for hour in range(24):
     #         print(f"{st.get_target_state(0, hour)}, ", end="")

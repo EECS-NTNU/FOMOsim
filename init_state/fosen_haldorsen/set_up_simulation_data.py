@@ -140,6 +140,8 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
         for day in range(7):
             for hour in range(24):
                 move_probabilities[s][day][hour].insert(0, move_probabilities[s][day][hour].pop(4))
+    charging_stations.insert(0, charging_stations.pop(4))
+    original_ids.insert(0, original_ids.pop(4))
 
     return sim.State.get_initial_state(
         bike_class = "Scooter", 

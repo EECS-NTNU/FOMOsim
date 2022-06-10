@@ -19,7 +19,7 @@ BATTERY_LIMIT = 20.0 # scooter is usable if battery is higher than this
 
 # settings for clustering script
 
-# Inventory of vehicle
+# Inventory of vehicle (max capacities, not actual inventory) TODO: change name
 VAN_BATTERY_INVENTORY = 170
 VAN_SCOOTER_INVENTORY = 20
 

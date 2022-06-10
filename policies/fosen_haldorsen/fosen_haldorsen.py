@@ -88,7 +88,7 @@ class FosenHaldorsenPolicy(Policy):
 
     def heuristic_solve(self, simul, vehicle):
         heuristic_man = HeuristicManager(simul, simul.state.vehicles, simul.state.locations,
-                                         no_scenarios=10, init_branching=3,
+                                         no_scenarios=2, init_branching=7,
                                          weights=(0.6, 0.1, 0.3, 0.8, 0.2), crit_weights=(0.2, 0.1, 0.5, 0.2))
 
         # Index of vehicle that triggered event
