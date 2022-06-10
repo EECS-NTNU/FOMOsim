@@ -40,20 +40,20 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # calculate target state
 
     # target_state = target_state.evenly_distributed_target_state(state)
-    # target_state = target_state.outflow_target_state(state)
+    target_state = target_state.outflow_target_state(state)
     # target_state = target_state.us_target_state(state)
-    target_state = target_state.fosen_haldorsen_target_state(state)
+    # target_state = target_state.fosen_haldorsen_target_state(state)
 
     state.set_target_state(target_state)
 
     ###############################################################################
     # Set up policy
 
-    # policy = policies.DoNothing()
+    policy = policies.DoNothing()
     # policy = policies.RandomActionPolicy()
     # policy = policies.RebalancingPolicy()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
-    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
+    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
 
     ###############################################################################
     # Set up simulator

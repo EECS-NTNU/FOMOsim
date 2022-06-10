@@ -110,7 +110,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     for run in range(RUNS):
         donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),                                       start_time, "DoNothing",  run))
-        rebalancings.append (run_sim(state, PERIOD, policies.RebalancingPolicy(),                                       start_time, "FH-HHS",  run))
+        rebalancings.append (run_sim(state, PERIOD, policies.RebalancingPolicy(),                              start_time, "HHS-Greedy",  run))
         fhgreedys.append   (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
         fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25), start_time, "FH",  run))
 
