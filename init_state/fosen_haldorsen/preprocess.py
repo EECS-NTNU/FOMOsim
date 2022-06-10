@@ -1,41 +1,45 @@
 import json
 from init_state.fosen_haldorsen.set_up_simulation_data import setup_stations_students
 
-def get_initial_state(init_hour=8, number_of_vans=1, random_seed=1):
+def get_initial_state(init_hour=8, number_of_vans=1, random_seed=1, number_of_stations=None):
     state = setup_stations_students('uip-students', init_hour, number_of_vans, random_seed, False)
 
-    for st in state.stations:
-        if int(st.original_id) % 10 == 0:
-            st.battery_rate = 1
-        else:
-            st.battery_rate = 0.95
+    if number_of_stations is None:
+        number_of_stations = len(state.locations)
 
-    create_subset(state.stations, len(state.stations))
+    create_subset(state, number_of_stations)
     print("UIP DB objects collected")
     
     return state
 
-def create_subset(stations_uip,n):
+def create_subset(state, n):
 
-    demand_met = 0.75    
+    demand_met = 1
 
-    subset = stations_uip[:n]
+    subset = state.locations[:n]
     subset_ids = [s.id for s in subset]
 
-    for st1 in subset:
+    for station in subset:
         for day in range(7):
             for hour in range(24):
+                station.move_probabilities[day][hour] = station.move_probabilities[day][hour][:n]
+
                 subset_prob = 0
-                for st_id, prob in enumerate(st1.move_probabilities[day][hour]):
-                    if st_id in subset_ids:
-                        subset_prob += prob
-                st1.leave_intensity_per_iteration[day][hour] *= subset_prob
-            for s_id in subset_ids:
-                st1.move_probabilities[day][hour][s_id] /= subset_prob
-    for st2 in subset:
-        for day in range(7):
-            for hour in range(24):
+                for prob in station.move_probabilities[day][hour]:
+                    subset_prob += prob
+
+                station.leave_intensity_per_iteration[day][hour] *= subset_prob
+
+                for destination_id in subset_ids:
+                    station.move_probabilities[day][hour][destination_id] /= subset_prob
+
+    for day in range(7):
+        for hour in range(24):
+            for station in subset:
                 incoming = 0
-                for stat in subset:
-                    incoming += stat.leave_intensity_per_iteration[day][hour] * demand_met * stat.move_probabilities[day][hour][st2.id]
-                st2.arrive_intensity_per_iteration[day][hour] = incoming
+                for from_station in subset:
+                    incoming += from_station.leave_intensity_per_iteration[day][hour] * demand_met * from_station.move_probabilities[day][hour][station.id]
+                station.arrive_intensity_per_iteration[day][hour] = incoming
+
+    state.locations = state.locations[:n]
+    state.stations = state.stations[:n-1]

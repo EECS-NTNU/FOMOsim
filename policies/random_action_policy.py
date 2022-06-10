@@ -41,8 +41,7 @@ class RandomActionPolicy(Policy):
                 deliverable = [ scooter.id for scooter in vehicle.scooter_inventory ]
                 scooters_to_deliver = simul.state.rng.choice(deliverable, num_deliver, replace=False)
 
-            next_location = simul.state.locations[next_location_id]
-            swappable = [ scooter.id for scooter in next_location.get_swappable_scooters() if scooter.id not in scooters_to_pickup ]
+            swappable = [ scooter.id for scooter in vehicle.current_location.get_swappable_scooters() if scooter.id not in scooters_to_pickup ]
 
             num_swap = 0
             max_swap = min(len(swappable), vehicle.battery_inventory)

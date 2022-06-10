@@ -3,15 +3,18 @@ from policies.fosen_haldorsen.Subproblem.subproblem_model import run_model
 import settings
 import sim
 
+
 class ModelManager:
 
-    time_horizon = 25
+    time_horizon = 25  #this is being overwritten, so not necessarily hardcoded
 
-    def __init__(self, vehicle, simul):
+    def __init__(self, simul, vehicle, time_horizon):
+        self.simul = simul
         self.vehicle = vehicle
         self.scores = list()
-        self.simul = simul
-
+        self.time_horizon
+        ModelManager.time_horizon = time_horizon
+        
     def run_one_subproblem(self, route, route_full_set_index, pattern, customer_scenario, weights):
         customer_arrivals = ModelManager.arrivals_after_visit(route, route_full_set_index, customer_scenario)
         L_CS = list()
@@ -24,14 +27,14 @@ class ModelManager:
             st_L_CS, st_L_FS = ModelManager.get_base_inventory(route.stations[i], route.station_visits[i],
                                                                customer_scenario[route_full_set_index[i]])
             if i == 0:
-                V_0, D_0 = ModelManager.get_base_violations(self.simul, route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i],
-                                                            pattern=pattern)
+                V_0, D_0 = ModelManager.get_base_violations(self.simul, route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i], pattern=pattern)
             st_viol, st_dev = ModelManager.get_base_violations(self.simul, route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i])
             L_CS.append(st_L_CS)
             L_FS.append(st_L_FS)
             base_viol.append(st_viol)
             base_dev.append(st_dev)
-        params = ParameterSub(route, self.vehicle, pattern, customer_arrivals, L_CS, L_FS, base_viol, V_0, D_0, base_dev, weights, self.simul.day(), self.simul.hour())
+        params = ParameterSub(self.simul, route, self.vehicle, pattern, customer_arrivals, L_CS, L_FS, base_viol, V_0, D_0, base_dev,
+                              weights)
         return run_model(params)
 
     """
@@ -64,6 +67,7 @@ class ModelManager:
     """
     @staticmethod
     def get_base_inventory(station, visit_time_float, customer_arrivals=None):
+        # convert from new sim
         station_current_charged_bikes = len(station.get_available_scooters())
         station_current_flat_bikes = len(station.get_swappable_scooters(settings.BATTERY_LIMIT))
 

@@ -340,6 +340,16 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list, entur_da
 
     cluster_leave_intensities = np.mean(trip_counter_leave, axis=1)
     cluster_arrive_intensities = np.mean(trip_counter_arrive, axis=1)
+    for cluster in state.depots:
+        cluster.leave_intensity_per_iteration = []
+        cluster.arrive_intensity_per_iteration = []
+        for day in range(7):
+            cluster.leave_intensity_per_iteration.append([])
+            cluster.arrive_intensity_per_iteration.append([])
+            for hour in range(24):
+                cluster.leave_intensity_per_iteration[day].append(0)
+                cluster.arrive_intensity_per_iteration[day].append(0)
+
     for cluster in state.stations:
         # set all days and hour the same
         # TODO: update to support days and hours
@@ -360,13 +370,12 @@ def generate_depots():
     Generate depot objects
     :return: depot objects
     """
-    main_depot_lat, main_depot_lon = MAIN_DEPOT_LOCATION
     depots = [
-        Depot(main_depot_lat, main_depot_lon, 0, main_depot=True)
+        Depot(depot_id = 0, center_location = MAIN_DEPOT_LOCATION, main_depot=True)
     ]
 
-    for i, (lat, lon) in enumerate(SMALL_DEPOT_LOCATIONS):
-        depots.append(Depot(lat, lon, i + 1, main_depot=False))
+    for i, loc in enumerate(SMALL_DEPOT_LOCATIONS):
+        depots.append(Depot(center_location=loc, depot_id = i + 1, main_depot=False))
 
     return depots
 

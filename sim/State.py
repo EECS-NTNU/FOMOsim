@@ -66,19 +66,15 @@ class State(SaveMixin):
         return new_state
 
     @staticmethod
-    def get_initial_state(bike_class, traveltime_matrix, traveltime_van_matrix, number_of_scooters, number_of_vans, leave_intensities, arrive_intensities = None, move_probabilities = None, main_depot = False, secondary_depots = 0, target_state = None, random_seed=None, capacities=None, charging_station = None, original_ids = None):
+    def get_initial_state(bike_class, traveltime_matrix, traveltime_van_matrix, number_of_scooters, number_of_vans, leave_intensities, arrive_intensities = None, move_probabilities = None, main_depot = False, secondary_depots = 0, target_state = None, random_seed=None, capacities=None, charging_stations = None, original_ids = None):
         depots = []
-        if main_depot:
-            depots.append(sim.Depot(depot_id=0, main_depot=True))
-        for i in range(secondary_depots):
-            if main_depot:
-                depots.append(sim.Depot(depot_id=i+1))
-            else:
-                depots.append(sim.Depot(depot_id=i))
-
         stations = []
 
-        start_of_ids = len(depots) + len(number_of_scooters)
+        start_of_ids = 0
+
+        num_depots = secondary_depots
+        if main_depot:
+            num_depots += 1
 
         if arrive_intensities is None:
             arrive_intensities = leave_intensities
@@ -96,15 +92,26 @@ class State(SaveMixin):
             if original_ids is not None:
                 original_id = original_ids[station_id]
 
-            if station_id >= len(depots):
-                scooters = []
-                for scooter_id in range(number_of_scooters[station_id]):
-                    if bike_class == "Scooter":
-                        scooters.append(sim.Scooter(scooter_id=start_of_ids + scooter_id, battery=100))
-                    else:
-                        scooters.append(sim.Bike(scooter_id=start_of_ids + scooter_id))
-                start_of_ids += number_of_scooters[station_id]
-                stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=tstate, capacity=capacity, original_id=original_id))
+            charging_station = None
+            if charging_stations is not None:
+                charging_station = charging_stations[station_id]
+
+            scooters = []
+            for scooter_id in range(number_of_scooters[station_id]):
+                if bike_class == "Scooter":
+                    scooters.append(sim.Scooter(scooter_id=start_of_ids + scooter_id, battery=100))
+                else:
+                    scooters.append(sim.Bike(scooter_id=start_of_ids + scooter_id))
+            start_of_ids += number_of_scooters[station_id]
+
+            if station_id == 0:
+                depots.append(sim.Depot(station_id, True, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=tstate, capacity=capacity, original_id=original_id, charging_station=charging_station))
+
+            elif station_id < num_depots:
+                depots.append(sim.Depot(station_id, False, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=tstate, capacity=capacity, original_id=original_id, charging_station=charging_station))
+
+            else:
+                stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=tstate, capacity=capacity, original_id=original_id, charging_station=charging_station))
                 
         state = State(stations, depots, [], traveltime_matrix=traveltime_matrix, traveltime_van_matrix=traveltime_van_matrix)
 
@@ -131,10 +138,14 @@ class State(SaveMixin):
 
     def set_num_vans(self, number_of_vans):
         self.vehicles = []
-        start_location = self.stations[0]
-        if len(self.depots) > 0:
-            start_location = self.depots[0]
         for vehicle_id in range(number_of_vans):
+            # to make starting stations the same as for fosen&haldorsen, just for comparison with old sim
+            if vehicle_id < 4:
+                start_location = self.locations[vehicle_id+1]
+            elif vehicle_id == 4:
+                start_location = self.locations[0]
+            else:
+                start_location = self.locations[vehicle_id]
             self.vehicles.append(sim.Vehicle(vehicle_id, start_location, VAN_BATTERY_INVENTORY, VAN_SCOOTER_INVENTORY))
 
     def set_move_probabilities(self, move_probabilities):

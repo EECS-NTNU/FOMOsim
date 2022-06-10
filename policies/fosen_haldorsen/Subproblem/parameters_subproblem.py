@@ -2,18 +2,18 @@ import sim
 
 class ParameterSub:
 
-    def __init__(self, route, vehicle, pattern, customer_arrivals, L_CS, L_FS, base_violations, V_0, D_O, base_deviations,
-                 weights, day, hour):
+    def __init__(self, simul, route, vehicle, pattern, customer_arrivals, L_CS, L_FS, base_violations, V_0, D_O, base_deviations,
+                 weights):
         # Sets
         self.stations = [i for i in range(len(route.stations))]
         self.charging_stations = list()
         self.non_charging_stations = list()
         self.depot_index = None
         for i in range(1, len(route.stations)):  # Don't include start station in subsets
-            # if route.stations[i].charging_station:
-            #     self.charging_stations.append(i)
-            # else:
-            self.non_charging_stations.append(i)
+            if route.stations[i].charging_station:
+                self.charging_stations.append(i)
+            else:
+                self.non_charging_stations.append(i)
             if isinstance(route.stations[i], sim.Depot):
                 self.depot_index = i
         self.stations += [len(route.stations)]
@@ -33,7 +33,7 @@ class ParameterSub:
         self.I_IC = [customer_arrivals[i][0] for i in range(len(customer_arrivals))] + [0]
         self.I_IF = [customer_arrivals[i][1] for i in range(len(customer_arrivals))] + [0]
         self.I_OC = [customer_arrivals[i][2] for i in range(len(customer_arrivals))] + [0]
-        self.O = [station.get_target_state(day, hour) for station in route.stations] + [0]
+        self.O = [station.get_target_state(simul.day(), simul.hour()) for station in route.stations] + [0]
 
         # Vehicle specific
         self.Q_BV = vehicle.battery_inventory_capacity
@@ -56,8 +56,8 @@ class ParameterSub:
         self.R_O = 0
         self.D = base_deviations + [0]
         self.D_O = D_O
-        # if route.stations[0].charging_station:
-        #     self.R_O = max(0, self.Q_FCU - self.Q_FCL)
+        if route.stations[0].charging_station:
+            self.R_O = max(0, self.Q_FCU - self.Q_FCL)
 
         # Weights
         self.W_V, self.W_R, self.W_D, self.W_N, self.W_L = weights
