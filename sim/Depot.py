@@ -11,8 +11,8 @@ class Depot(Station):
     def __init__(
         self,
         depot_id: int,
-        main_depot,
-        scooters: [Scooter],
+        main_depot = False,
+        scooters: [Scooter] = [],
         leave_intensity_per_iteration=None,
         arrive_intensity_per_iteration=None,
         center_location=None,

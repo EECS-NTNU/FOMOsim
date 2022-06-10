@@ -34,15 +34,15 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike",
     #                                                      number_of_vans=1, random_seed=1)
 
-    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations = 50, number_of_vans=3, random_seed=1)
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations=50, number_of_vans=3, random_seed=1)
 
     ###############################################################################
     # calculate target state
 
     # target_state = target_state.evenly_distributed_target_state(state)
-    target_state = target_state.outflow_target_state(state)
+    # target_state = target_state.outflow_target_state(state)
     # target_state = target_state.us_target_state(state)
-    # target_state = target_state.fosen_haldorsen_target_state(state)
+    target_state = target_state.fosen_haldorsen_target_state(state)
 
     state.set_target_state(target_state)
 
@@ -57,12 +57,6 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     ###############################################################################
     # Set up simulator
-
-    # for st in state.locations:
-    #     print(f"{st.original_id:4}: {st.capacity:2}: {len(st.scooters):3}: {st.get_leave_intensity(0, 7)} ", end="")
-    #     for hour in range(24):
-    #         print(f"{st.get_target_state(0, hour)}, ", end="")
-    #     print()
 
     simulator = sim.Simulator(
         initial_state = state,
@@ -89,5 +83,5 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # Visualize results
 
     # visualization.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    # visualization.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    # visualization.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    visualization.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    visualization.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
