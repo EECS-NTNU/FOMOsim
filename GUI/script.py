@@ -24,23 +24,24 @@ from init_state.cityBike.parse import calcDistances, get_initial_state
 
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *
+# from GUI.GUI_layout import policyMenu
  
 class Session:
     def __init__(self, sessionName):
         self.name = sessionName
         self.startTime = ""
         self.endTime = ""
-        self.state = sim.State()  # TODO see if these three can be replaced by = []
+#        self.state = sim.State()  # TODO see if these three can be replaced by = []
         self.initState = sim.State()
-        self.initStateType = ""  # is "", "FH", "Entur", "manual", "loaded"
+        self.initStateType = ""  # is "", "cityBike", "Entur", "manual or test?? ", "loaded"
         self.targetState = sim.State()
-        self.targetStateType = ""  # is "", "evenly" or "outflow"
+        self.targetStateType = ""  # is "", "evenly", "outflow" or "US"
         self.simPolicy = ""
 
     def saveState(self, filename):
         print("SaveState called for " + self.name + "at" + self.startTime) #### TODO not difference simulated time and measured simulator exec time
 
-policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
+# policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 
 def doCommand(session, task):
     if len(task) == 0:
@@ -72,9 +73,9 @@ def doCommand(session, task):
                 "0900-entur-snapshot.csv",
                 "Scooter",
                 number_of_scooters = 150, # TODO, check with AD,cannot use more default params
-                # number_of_clusters = 5, 
-                # number_of_vans = 1,
-                # random_seed = 1,
+                number_of_clusters = 5, 
+                number_of_vans = 1,
+                random_seed = 1,
             )
             session.initStateType = "Entur"
         elif task[0] == "Init-state-US":
@@ -100,8 +101,7 @@ def doCommand(session, task):
         else:
             userFeedbackClear()
             if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
-                state = session.initState # via local variable to ensure initState is not destroyed
-                session.targetState = target_state.outflow_target_state(state)
+                session.initState.set_target_state = target_state.outflow_target_state(session.initState)
                 session.targetStateType = "outflow"
             else:
                 print("*** Error: initStateType invalid") 
@@ -117,9 +117,7 @@ def doCommand(session, task):
         else:
             userFeedbackClear()
             if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
-                state = session.initState
-                newTarget_state = target_state.evenly_distributed_target_state(state)
-                session.targetState = newTarget_state # TODO, probably clumsy, had to (try again?) go via newTarget_state variable due to import-trouble !???
+                session.initState.set_target_state = target_state.evenly_distributed_target_state(session.initState)
                 session.targetStateType = "evenly"
             else:
                 print("*** Error: initStateType invalid") 
@@ -134,9 +132,7 @@ def doCommand(session, task):
                 userError("Can't calc target state without init state")
         else:
             if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
-                state = session.initState
-                newTarget_state = target_state.us_target_state(state)
-                session.targetState = newTarget_state # TODO, probably clumsy, had to (try again?) go via newTarget_state variable due to import-trouble !???
+                session.initState.set_target_state = target_state.us_target_state(session.initState)
                 session.targetStateType = "UrbanSharing"
             else:
                 print("*** Error: initStateType invalid") 
@@ -177,13 +173,13 @@ def doCommand(session, task):
     elif task[0] == "Sim":
         fromState = ""  
         if not session.targetStateType == "": 
-            session.state = session.targetState 
-            fromState = "IDEAL"
+#            session.state = session.targetState 
+            fromState = "TARGET"
         elif not session.initStateType == "":
-            session.state = session.initState 
+#            session.state = session.initState 
             fromState = "INIT"
         else:
-            userError("You must set an initial (or target) state")
+            userError("You must set an initial state")
         if not fromState == "":
             session.startTime = dateAndTimeStr()
             policy = task[1]
@@ -200,7 +196,7 @@ def doCommand(session, task):
                 "simDuration:", str(simDuration), "startTime:", str(startTime) ] 
             write(loggFile, simulationDescr)
             write(trafficLogg, simulationDescr)
-            startSimulation(session.startTime, policy, session.state, startTime, simDuration)
+            startSimulation(session.startTime, policy, session.initState, startTime, simDuration)
             write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()])
         updateField("-SIM-MSG-", "")
 
@@ -224,11 +220,11 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
         
     simulator = sim.Simulator( 
-        duration = simDuration,
-        policy = policy,
         initial_state = state,
-        verbose=True,
+        policy = policy,
         start_time = startTime,
+        duration = simDuration,
+        verbose=True,
     )
 
     updateField("-START-TIME-", "Start: " + readTime())
@@ -267,20 +263,20 @@ def allToAll4(session): # all to all topology with 4 stations
 
     state = sim.State.get_initial_state(
                 bike_class = "Scooter", # TODO logging code will crash if Bike is used TODO test again
-                distance_matrix = [ # km
-                    [0, 2, 2, 2],
-                    [2, 0, 2, 2],
-                    [2, 2, 0, 2],
-                    [2, 2, 2, 0],
-                ],
-                speed_matrix = [ # km/h
+                traveltime_matrix = [ # in minutes
                     [10, 10, 10, 10],
                     [10, 10, 10, 10],
                     [10, 10, 10, 10],
                     [10, 10, 10, 10]
                 ],
+                traveltime_van_matrix = [ # minutes
+                    [5, 5, 5, 5],
+                    [5, 5, 5, 5],
+                    [5, 5, 5, 5],
+                    [5, 5, 5, 5],
+                ],
                 main_depot = None,
-                secondary_depots = [],
+                secondary_depots = 0,
                 number_of_scooters = [1, 1, 1, 1],
                 number_of_vans = 1,
                 random_seed = 1,
