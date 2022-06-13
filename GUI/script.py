@@ -86,7 +86,7 @@ def doCommand(session, task):
             write(scriptFile, ["Init-state-test"])
             manualInitState(session, task[1]) # second param opens for several different
             session.initStateType = "test"
-        updateField("-STATE-MSG-", session.initStateType + " ==> OK")
+        updateFieldDone("-STATE-MSG-", session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
         session.targetState = sim.State() # targetState must be cleared, if it exist or not
         session.targetStateType = ""
@@ -219,7 +219,7 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     elif simPolicy == "Rebalancing":
         policy = policies.RebalancingPolicy()
     elif simPolicy == "Fosen&Haldorsen":
-        policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False)
+        policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     elif simPolicy == "F&H-Greedy":
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
         
@@ -267,21 +267,22 @@ def allToAll4(session): # all to all topology with 4 stations
 
     state = sim.State.get_initial_state(
                 bike_class = "Scooter", # TODO logging code will crash if Bike is used TODO test again
-                distance_matrix = [ # km
-                    [0, 2, 2, 2],
-                    [2, 0, 2, 2],
-                    [2, 2, 0, 2],
-                    [2, 2, 2, 0],
-                ],
-                speed_matrix = [ # km/h
+                traveltime_matrix = [ # minutes
                     [10, 10, 10, 10],
                     [10, 10, 10, 10],
                     [10, 10, 10, 10],
                     [10, 10, 10, 10]
                 ],
+                traveltime_van_matrix = [ # minutes
+                    [5, 5, 5, 5],
+                    [5, 5, 5, 5],
+                    [5, 5, 5, 5],
+                    [5, 5, 5, 5],
+                ],
                 main_depot = None,
-                secondary_depots = [],
+                secondary_depots = 0,
                 number_of_scooters = [1, 1, 1, 1],
+                capacities = [4, 4, 4, 4],
                 number_of_vans = 1,
                 random_seed = 1,
                 arrive_intensities = arrive_intensities,
