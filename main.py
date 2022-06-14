@@ -41,19 +41,18 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # calculate target state
 
     # tstate = target_state.evenly_distributed_target_state(state)
-    # tstate = target_state.outflow_target_state(state)
-    # tstate = target_state.us_target_state(state)
-    tstate = target_state.fosen_haldorsen_target_state(state)
+    tstate = target_state.outflow_target_state(state)
+    # tstate = target_state.equal_prob_target_state(state)
 
     state.set_target_state(tstate)
 
     ###############################################################################
     # Set up policy
 
-    # policy = policies.DoNothing()
+    policy = policies.DoNothing()
     # policy = policies.RandomActionPolicy()
     # policy = policies.RebalancingPolicy()
-    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
+    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
 
     ###############################################################################
@@ -73,18 +72,15 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     simulator.run()
 
     ###############################################################################
-    # Print some statistics
+    # Output
 
     print(f"Simulation time = {duration} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('lost_demand')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
 
-    ###############################################################################
-    # Output
-
     output.write_csv(simulator, "output.csv", WEEK)
 
-    # output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    # output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    # output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)

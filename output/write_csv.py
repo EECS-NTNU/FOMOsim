@@ -50,7 +50,7 @@ def write_csv(instances, filename, week, hourly=False):
                 if value is None:
                     f.write(";;")
                 else:
-                    if trips != 0:
+                    if trips != 0 and trips is not None:
                         f.write(str(value) + ";" + str(value / trips) + ";")
                     else:
                         f.write(str(value) + ";;")
