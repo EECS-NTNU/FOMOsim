@@ -20,27 +20,28 @@ import policies.fosen_haldorsen
 
 from init_state.cityBike.download import oslo
 from init_state.cityBike.helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
-from init_state.cityBike.parse import calcDistances, get_initial_state, get_initial_stateOLD
+from init_state.cityBike.parse import calcDistances, get_initial_state
 
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *
+# from GUI.GUI_layout import policyMenu
  
 class Session:
     def __init__(self, sessionName):
         self.name = sessionName
         self.startTime = ""
         self.endTime = ""
-        self.state = sim.State()  # TODO see if these three can be replaced by = []
+#        self.state = sim.State()  # TODO see if these three can be replaced by = []
         self.initState = sim.State()
-        self.initStateType = ""  # is "", "FH", "Entur", "manual", "loaded"
+        self.initStateType = ""  # is "", "cityBike", "Entur", "manual or test?? ", "loaded"
         self.targetState = sim.State()
-        self.targetStateType = ""  # is "", "evenly" or "outflow"
+        self.targetStateType = ""  # is "", "evenly", "outflow" or "US"
         self.simPolicy = ""
 
     def saveState(self, filename):
         print("SaveState called for " + self.name + "at" + self.startTime) #### TODO not difference simulated time and measured simulator exec time
 
-policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
+# policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 
 def doCommand(session, task):
     if len(task) == 0:
@@ -60,27 +61,33 @@ def doCommand(session, task):
         beepy.beep(sound="ping")
    
     #### INIT STATE handling
-    elif task[0] == "Init-state-FH" or task[0] == "Init-state-Entur" or task[0] == "Init-test-state":
-        if task[0] == "Init-state-FH":
-            write(scriptFile, ["Init-state-FH", task[1], task[2]])
+    elif task[0] == "Init-state-CityBike" or task[0] == "Init-state-Entur" or task[0] == "Init-state-US" or task[0] == "Init-state-test":
+        if task[0] == "Init-state-CityBike":
+            write(scriptFile, ["Init-state-CityBike", task[1], task[2]])
             session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vans=1, random_seed=1) # TODO, hardwired, not good, fix 
-            session.initStateType = "FH"
+            session.initStateType = "CityBike"
         elif task[0] == "Init-state-Entur": 
             write(scriptFile, ["Init-state-Entur"])
             session.initState = init_state.entur.scripts.get_initial_state(
                 "test_data",
                 "0900-entur-snapshot.csv",
                 "Scooter",
-                number_of_scooters = 150,
-                number_of_clusters = 5,
+                number_of_scooters = 150, # TODO, check with AD,cannot use more default params
+                number_of_clusters = 5, 
                 number_of_vans = 1,
                 random_seed = 1,
             )
             session.initStateType = "Entur"
-        elif task[0] == "Init-test-state":
+        elif task[0] == "Init-state-US":
+            write(scriptFile, ["Init-state-US"])
+#            session.initState =  init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations=50, number_of_vans=3, random_seed=1)
+            session.initState =  init_state.fosen_haldorsen.get_initial_state()
+            session.initStateType = "US"
+        elif task[0] == "Init-state-test":
+            write(scriptFile, ["Init-state-test"])
             manualInitState(session, task[1]) # second param opens for several different
-            session.initStateType = "manual"
-        updateField("-STATE-MSG-", session.initStateType + " ==> OK")
+            session.initStateType = "test"
+        updateFieldDone("-STATE-MSG-", session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
         session.targetState = sim.State() # targetState must be cleared, if it exist or not
         session.targetStateType = ""
@@ -92,9 +99,9 @@ def doCommand(session, task):
         if session.initStateType == "": # an initial state does NOT exist 
             userError("Can't calc target state without init state")
         else:
-            if session.initStateType == "Entur" or session.initStateType =="FH" or session.initStateType == "manual": # TODO 3x similar code, REFACTOR
-                state = session.initState # via local variable to ensure initState is not destroyed
-                session.targetState = target_state.outflow_target_state(state)
+            userFeedbackClear()
+            if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
+                session.initState.set_target_state = target_state.outflow_target_state(session.initState)
                 session.targetStateType = "outflow"
             else:
                 print("*** Error: initStateType invalid") 
@@ -104,14 +111,13 @@ def doCommand(session, task):
             userFeedback_OK("Target state outflow calculated OK")
             beepy.beep(sound="ping")
 
-    elif task[0] == "Target-state-evenly-distributed":        
+    elif task[0] == "Target-state-evenly-distributed":
         if session.initStateType == "": # an initial state does NOT exist  
                 userError("Can't calc target state without init state")
         else:
-            if session.initStateType == "Entur" or session.initStateType =="FH" or session.initStateType == "manual": 
-                state = session.initState
-                newTarget_state = target_state.evenly_distributed_target_state(state)
-                session.targetState = newTarget_state # TODO, probably clumsy, had to (try again?) go via newTarget_state variable due to import-trouble !???
+            userFeedbackClear()
+            if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
+                session.initState.set_target_state = target_state.evenly_distributed_target_state(session.initState)
                 session.targetStateType = "evenly"
             else:
                 print("*** Error: initStateType invalid") 
@@ -125,10 +131,8 @@ def doCommand(session, task):
         if session.initStateType == "": # an initial state does NOT exist  
                 userError("Can't calc target state without init state")
         else:
-            if session.initStateType == "Entur" or session.initStateType =="FH" or session.initStateType == "manual": 
-                state = session.initState
-                newTarget_state = target_state.us_target_state(state)
-                session.targetState = newTarget_state # TODO, probably clumsy, had to (try again?) go via newTarget_state variable due to import-trouble !???
+            if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
+                session.initState.set_target_state = target_state.us_target_state(session.initState)
                 session.targetStateType = "UrbanSharing"
             else:
                 print("*** Error: initStateType invalid") 
@@ -151,31 +155,32 @@ def doCommand(session, task):
         write(scriptFile, ["Save-state"])
 
     elif task[0] == "Load-state":
-        print(" -- load state only from Oslo17.json (preliminary) --")
-        print("before" + dateAndTimeStr())
+        print(" -- load state only from filename hardcoded in GUI/script.py --")
+        loadFileName = "entur_raw.json"
+        # print("before" + dateAndTimeStr()) # code for measuring time reduction when using ZIP
         # loggText = [] # not used in this case
-        loadStateFile = open("Oslo17out.json", "r") # from JSON alternative
+        loadStateFile = open(loadFileName, "r") # from JSON alternative
         string = loadStateFile.read()
-        # with zipfile.ZipFile("Oslo17out.zip", mode = "r") as archive:
-        #     string = archive.read("Oslo17out.json")
+        # with zipfile.ZipFile(loadFileName, mode = "r") as archive:
+        #     string = archive.read(loadFileName) # NOTE, compression can be really efficient here
         session.initState = jsonpickle.decode(string)
         session.initStateType = "loaded"  
-        print("after" + dateAndTimeStr())
+        # print("after" + dateAndTimeStr())
 
         write(scriptFile, ["Load-state"])   
-        write(loggFile, ["Loaded-state"])
+        write(loggFile, ["Loaded-state", "from", loadFileName])
         beepy.beep(sound="ping")
 
     elif task[0] == "Sim":
         fromState = ""  
         if not session.targetStateType == "": 
-            session.state = session.targetState 
-            fromState = "IDEAL"
+#            session.state = session.targetState 
+            fromState = "TARGET"
         elif not session.initStateType == "":
-            session.state = session.initState 
+#            session.state = session.initState 
             fromState = "INIT"
         else:
-            userError("You must set an initial (or target) state")
+            userError("You must set an initial state")
         if not fromState == "":
             session.startTime = dateAndTimeStr()
             policy = task[1]
@@ -192,7 +197,9 @@ def doCommand(session, task):
                 "simDuration:", str(simDuration), "startTime:", str(startTime) ] 
             write(loggFile, simulationDescr)
             write(trafficLogg, simulationDescr)
-            startSimulation(session.startTime, policy, session.state, startTime, simDuration)
+            state = session.initState # TODO Ask AD,, see note 14Juni testing
+            startSimulation(session.startTime, policy, state, startTime, simDuration)
+#            startSimulation(session.startTime, policy, session.initState, startTime, simDuration)
             write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()])
         updateField("-SIM-MSG-", "")
 
@@ -203,7 +210,7 @@ def dumpMetrics(metric):
 
 def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     # from GUI.dashboard import updateField
-    simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
+    # simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
     if simPolicy == "Do-nothing":
         policy = policies.DoNothing()
     elif simPolicy == "Random":
@@ -211,16 +218,16 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     elif simPolicy == "Rebalancing":
         policy = policies.RebalancingPolicy()
     elif simPolicy == "Fosen&Haldorsen":
-        policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False)
+        policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     elif simPolicy == "F&H-Greedy":
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
         
     simulator = sim.Simulator( 
-        duration = simDuration,
-        policy = policy,
         initial_state = state,
-        verbose=True,
+        policy = policy,
         start_time = startTime,
+        duration = simDuration,
+        verbose=True,
     )
 
     updateField("-START-TIME-", "Start: " + readTime())
@@ -259,21 +266,22 @@ def allToAll4(session): # all to all topology with 4 stations
 
     state = sim.State.get_initial_state(
                 bike_class = "Scooter", # TODO logging code will crash if Bike is used TODO test again
-                distance_matrix = [ # km
-                    [0, 2, 2, 2],
-                    [2, 0, 2, 2],
-                    [2, 2, 0, 2],
-                    [2, 2, 2, 0],
-                ],
-                speed_matrix = [ # km/h
+                traveltime_matrix = [ # in minutes
                     [10, 10, 10, 10],
                     [10, 10, 10, 10],
                     [10, 10, 10, 10],
                     [10, 10, 10, 10]
                 ],
+                traveltime_van_matrix = [ # minutes
+                    [5, 5, 5, 5],
+                    [5, 5, 5, 5],
+                    [5, 5, 5, 5],
+                    [5, 5, 5, 5],
+                ],
                 main_depot = None,
-                secondary_depots = [],
+                secondary_depots = 0,
                 number_of_scooters = [1, 1, 1, 1],
+                capacities = [4, 4, 4, 4],
                 number_of_vans = 1,
                 random_seed = 1,
                 arrive_intensities = arrive_intensities,
