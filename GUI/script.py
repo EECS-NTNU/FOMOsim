@@ -155,19 +155,20 @@ def doCommand(session, task):
         write(scriptFile, ["Save-state"])
 
     elif task[0] == "Load-state":
-        print(" -- load state only from Oslo17.json (preliminary) --")
-        print("before" + dateAndTimeStr())
+        print(" -- load state only from filename hardcoded in GUI/script.py --")
+        loadFileName = "entur_raw.json"
+        # print("before" + dateAndTimeStr()) # code for measuring time reduction when using ZIP
         # loggText = [] # not used in this case
-        loadStateFile = open("Oslo17out.json", "r") # from JSON alternative
+        loadStateFile = open(loadFileName, "r") # from JSON alternative
         string = loadStateFile.read()
-        # with zipfile.ZipFile("Oslo17out.zip", mode = "r") as archive:
-        #     string = archive.read("Oslo17out.json")
+        # with zipfile.ZipFile(loadFileName, mode = "r") as archive:
+        #     string = archive.read(loadFileName) # NOTE, compression can be really efficient here
         session.initState = jsonpickle.decode(string)
         session.initStateType = "loaded"  
-        print("after" + dateAndTimeStr())
+        # print("after" + dateAndTimeStr())
 
         write(scriptFile, ["Load-state"])   
-        write(loggFile, ["Loaded-state"])
+        write(loggFile, ["Loaded-state", "from", loadFileName])
         beepy.beep(sound="ping")
 
     elif task[0] == "Sim":
@@ -196,7 +197,9 @@ def doCommand(session, task):
                 "simDuration:", str(simDuration), "startTime:", str(startTime) ] 
             write(loggFile, simulationDescr)
             write(trafficLogg, simulationDescr)
-            startSimulation(session.startTime, policy, session.initState, startTime, simDuration)
+            state = session.initState # TODO Ask AD,, see note 14Juni testing
+            startSimulation(session.startTime, policy, state, startTime, simDuration)
+#            startSimulation(session.startTime, policy, session.initState, startTime, simDuration)
             write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()])
         updateField("-SIM-MSG-", "")
 
@@ -207,7 +210,7 @@ def dumpMetrics(metric):
 
 def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     # from GUI.dashboard import updateField
-    simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
+    # simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
     if simPolicy == "Do-nothing":
         policy = policies.DoNothing()
     elif simPolicy == "Random":

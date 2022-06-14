@@ -143,6 +143,7 @@ def GUI_main():
             if session.simPolicy == "":
                 userError("You must select a policy")
             else:
+                userFeedbackClear()
                 startDay = int(strip("Start-day:", GUI_values["-START-D-"]))
                 startHour = int(strip("Start-hour:", GUI_values["-START-H-"]))
                 numDays = int(strip("#days:", GUI_values["-NUM-DAYS-"]))
