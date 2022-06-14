@@ -20,7 +20,6 @@ def system_simulate(state, day, hour):
         (start, end): 0
         for start in np.arange(len(state.locations))
         for end in np.arange(len(state.locations))
-        if start != end
     }
     trips = []
     lost_demand = []

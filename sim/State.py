@@ -53,8 +53,8 @@ class State(SaveMixin):
             copy.deepcopy(self.depots),
             copy.deepcopy(self.vehicles),
             copy.deepcopy(self.scooters_in_use),
-            traveltime_matrix(self.traveltime_matrix),
-            traveltime_van_matrix(self.traveltime_van_matrix),
+            traveltime_matrix = self.traveltime_matrix,
+            traveltime_van_matrix = self.traveltime_van_matrix,
             rng = self.rng,
         )
 
