@@ -32,7 +32,7 @@ def fosen_haldorsen_target_state(state):
         for hour in range(24):
             target_state[st.id][0].append(target[hour])
 
-    for day in range(1, 7):
-        target_state[st.id][day] = target_state[st.id][0]
+        for day in range(1, 7):
+            target_state[st.id][day] = target_state[st.id][0]
 
     return target_state

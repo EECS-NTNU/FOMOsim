@@ -56,8 +56,20 @@ class Metric:
         self.add_metric(sim, "average_battery", sum([scooter.battery for scooter in sim.state.get_all_scooters() if scooter.hasBattery()]) / len(sim.state.get_all_scooters()))
         self.add_metric(sim, "total_available_scooters", sum([len(station.get_available_scooters()) for station in sim.state.stations]))
 
-    def timeline(self, metric="average_battery"):
-        return [item[0] for item in metrics[metric]]
+    def timeline(self):
+        times = []
+        for metric in self.metrics.keys():
+            times.extend([item[0] for item in self.metrics[metric]])
+        return sorted(list(dict.fromkeys(times)))
+
+    def getValue(self, metric, from_idx, time):
+        for i in range(from_idx, len(self.metrics[metric])):
+            key = self.metrics[metric][i][0]
+            if key == time:
+                return (self.metrics[metric][i][1], i)
+            if key > time:
+                return (self.metrics[metric][i-1][1], i)
+        return (None, len(self.metrics[metric]))
 
     def values(self, metric):
         return [item[1] for item in metrics[metric]]

@@ -12,13 +12,14 @@ import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 #import policies.gleditsch_hagen
 import sim
-import visualization
+import output
 from GUI.dashboard import GUI_main
 
 def get_time(day=0, hour=0, minute=0):
     return 24*60*day + 60*hour + minute
 
-duration = get_time(hour=4)
+start_time = get_time(hour=7)
+duration = get_time(hour=48)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
@@ -34,25 +35,25 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike",
     #                                                      number_of_vans=1, random_seed=1)
 
-    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations=50, number_of_vans=3, random_seed=1)
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=start_time//60, number_of_stations=50, number_of_vans=3, random_seed=1)
 
     ###############################################################################
     # calculate target state
 
-    # target_state = target_state.evenly_distributed_target_state(state)
-    # target_state = target_state.outflow_target_state(state)
-    # target_state = target_state.us_target_state(state)
-    target_state = target_state.fosen_haldorsen_target_state(state)
+    # tstate = target_state.evenly_distributed_target_state(state)
+    # tstate = target_state.outflow_target_state(state)
+    # tstate = target_state.us_target_state(state)
+    tstate = target_state.fosen_haldorsen_target_state(state)
 
-    state.set_target_state(target_state)
+    state.set_target_state(tstate)
 
     ###############################################################################
     # Set up policy
 
     # policy = policies.DoNothing()
-    policy = policies.RandomActionPolicy()
+    # policy = policies.RandomActionPolicy()
     # policy = policies.RebalancingPolicy()
-    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
+    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
 
     ###############################################################################
@@ -61,7 +62,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     simulator = sim.Simulator(
         initial_state = state,
         policy = policy,
-        start_time = get_time(day=0, hour=7),
+        start_time = start_time,
         duration = duration,
         verbose = True,
     )
@@ -80,8 +81,10 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
 
     ###############################################################################
-    # Visualize results
+    # Output
 
-    # visualization.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    visualization.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    visualization.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    output.write_csv(simulator, "output.csv", WEEK)
+
+    # output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    # output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    # output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
