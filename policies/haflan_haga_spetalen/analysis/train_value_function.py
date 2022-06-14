@@ -13,6 +13,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../../..'))
 
 import sim
 import init_state
+import init_state.fosen_haldorsen
 import policies
 import policies.haflan_haga_spetalen
 import policies.haflan_haga_spetalen.epsilon_greedy_value_function_policy
@@ -106,21 +107,16 @@ if __name__ == "__main__":
         value_function,
     )
 
-    duration = get_time(hour=16)
-    start_time = get_time(day=1, hour=7)
+    duration = get_time(hour=24)
+    start_time = get_time(day=0, hour=7)
     end_time = start_time + duration
 
     ###############################################################################
     # get initial state
 
-    state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter", number_of_scooters = 250, number_of_clusters = 5, number_of_vans = 1, random_seed = 1)
-    #state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=1, random_seed=1)
-
-    ###############################################################################
-    # calculate ideal state
-
-    istate = target_state.evenly_distributed_target_state(state)
-    state.set_target_state(istate)
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations = 50, number_of_vans=3, random_seed=1)
+    tstate = target_state.fosen_haldorsen_target_state(state)
+    state.set_target_state(tstate)
 
     ###############################################################################
     # generate scenarios
@@ -143,4 +139,4 @@ if __name__ == "__main__":
     world_to_analyse.TRAINING_SHIFTS_BEFORE_SAVE=10
     world_to_analyse.REPLAY_BUFFER_SIZE=64
 
-    train_value_function(world_to_analyse, filename="entur_scooter_5_250")
+    train_value_function(world_to_analyse, filename="fh_3_50")

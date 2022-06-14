@@ -16,13 +16,12 @@ class GenerateScooterTrips(Event):
     def perform(self, world, **kwargs) -> None:
         super(GenerateScooterTrips, self).perform(world)
 
-        total = 0
-        for departure_cluster in world.state.stations:
+        for departure_cluster in world.state.locations:
             # poisson process to select number of trips in a iteration
             number_of_trips = round(
                 world.state.rng.poisson(departure_cluster.get_leave_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
             )
-            total += number_of_trips
+
             # generate trip departure times (can be implemented with np.random.uniform if we want decimal times)
             # both functions generate numbers from a discrete uniform distribution
 

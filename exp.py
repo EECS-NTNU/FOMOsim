@@ -16,7 +16,7 @@ import policies.gleditsch_hagen
 
 from progress.bar import Bar
 
-from visualization.visualizer import visualize_end, visualize_starvation, visualize_congestion, save_lost_demand_csv
+import output
 import target_state
 
 from GUI.dashboard import GUI_main
@@ -30,7 +30,7 @@ def get_time(day=0, hour=0, minute=0):
 WEEK = 33
 START_DAY = 0
 START_HOUR = 7
-PERIOD = get_time(hour=4)
+PERIOD = get_time(hour=49)
 RUNS = 10
 
 def run_sim(state, period, policy, start_time, label, seed):
@@ -43,7 +43,7 @@ def run_sim(state, period, policy, start_time, label, seed):
         policy = policy, 
         start_time = start_time,
         duration = PERIOD,
-        verbose = False,
+        verbose = True,
         label = label,
     )
 
@@ -96,28 +96,66 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     ###############################################################################
 
-    donothings = []
-    rebalancings = []
-    fhgreedys = []
-    fhs = []
-    
-    state.set_num_vans(3)
+    # Set up simulator
+    simul = sim.Simulator.load("sim_cache/fh_3_50.pickle")
 
-    progress = Bar(
-        "Running",
-        max = RUNS,
-    )
+    hhs = []
 
     for run in range(RUNS):
-        donothings.append  (run_sim(state, PERIOD, policies.DoNothing(),                                       start_time, "DoNothing",  run))
-        rebalancings.append (run_sim(state, PERIOD, policies.RebalancingPolicy(),                              start_time, "HHS-Greedy",  run))
-        fhgreedys.append   (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy",  run))
-        fhs.append         (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25), start_time, "FH",  run))
+        print(f"\nRun {run+1} of {RUNS}")
 
-        progress.next()
+        hhsstate = copy.deepcopy(state)
+        hhsstate.simulation_scenarios = simul.state.simulation_scenarios
 
-    progress.finish()
-        
-    # Visualize results
-    visualize_starvation([donothings, rebalancings, fhgreedys, fhs], title=("Week " + str(WEEK)), week=WEEK)
-    visualize_congestion([donothings, rebalancings, fhgreedys, fhs], title=("Week " + str(WEEK)), week=WEEK)
+        hhsstate.set_seed(run)
+
+        simul.init(
+            duration = PERIOD, 
+            initial_state = hhsstate,
+            verbose = True,
+            start_time = start_time, 
+            label = "HHS",
+        )
+        simul.run()
+
+        hhs.append(simul)
+
+        # Run simulator
+
+    output.write_csv(hhs, "output_hhs.csv", WEEK, hourly = True)
+
+    ###############################################################################
+
+    # us = []
+    # equalprob = []
+    # outflow = []
+    # even = []
+
+    # tstate = target_state.fosen_haldorsen_target_state(state)
+    # state.set_target_state(tstate)
+    # for run in range(RUNS):
+    #     print(f"\nRun {run+1} of {RUNS*4}")
+    #     us.append (run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "US",  run))
+    # output.write_csv(us, "output_us.csv", WEEK, hourly = True)
+
+    # tstate = target_state.us_target_state(state)
+    # state.set_target_state(tstate)
+    # for run in range(RUNS):
+    #     print(f"\nRun {run+11} of {RUNS*4}")
+    #     equalprob.append (run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "EqualProb",  run))
+    # output.write_csv(equalprob, "output_same.csv", WEEK, hourly = True)
+
+    # tstate = target_state.outflow_target_state(state)
+    # state.set_target_state(tstate)
+    # for run in range(RUNS):
+    #     print(f"\nRun {run+21} of {RUNS*4}")
+    #     outflow.append (run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "Outflow",  run))
+    # output.write_csv(outflow, "output_outflow.csv", WEEK, hourly = True)
+
+    # tstate = target_state.evenly_distributed_target_state(state)
+    # state.set_target_state(tstate)
+    # for run in range(RUNS):
+    #     print(f"\nRun {run+31} of {RUNS*4}")
+    #     even.append (run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "Even",  run))
+    # output.write_csv(even, "output_even.csv", WEEK, hourly = True)
+
