@@ -84,7 +84,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     
     #     for run in range(RUNS):
     #         #sims.append(run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy", run))
-    #         sims.append(run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "HHS-Greedy", run))
+    #         sims.append(run_sim(state, PERIOD, policies.GreedyPolicy(), start_time, "HHS-Greedy", run))
     #         progress.next()
 
     #     simulations.append(sims)

@@ -11,7 +11,7 @@ import sim
 import init_state.entur.methods
 import init_state.entur.scripts
 
-class RebalancingPolicy(Policy):
+class GreedyPolicy(Policy):
     def __init__(self):
         super().__init__()
 
