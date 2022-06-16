@@ -41,8 +41,6 @@ class Session:
     def saveState(self, filename):
         print("SaveState called for " + self.name + "at" + self.startTime) #### TODO not difference simulated time and measured simulator exec time
 
-# policyMenu = ["Do-nothing", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
-
 def doCommand(session, task):
     if len(task) == 0:
         return
@@ -215,13 +213,15 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
         policy = policies.DoNothing()
     elif simPolicy == "Random":
         policy = policies.RandomActionPolicy()
-    elif simPolicy == "Rebalancing":
-        policy = policies.RebalancingPolicy()
+    elif simPolicy == "HHS-Greedy":
+        policy = policies.GreedyPolicy()
     elif simPolicy == "Fosen&Haldorsen":
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     elif simPolicy == "F&H-Greedy":
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
         
+    # startTime = 60*7 # debug OVERRIDES GUI_FIELDS
+    # simDuration = 60*48 # debug 
     simulator = sim.Simulator( 
         initial_state = state,
         policy = policy,

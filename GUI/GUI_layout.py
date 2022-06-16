@@ -2,7 +2,7 @@
 import PySimpleGUI as sg
 
 colWidth = 55
-policyMenu = ["Do-nothing", "Random", "Rebalancing", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
+policyMenu = ["Do-nothing", "Random", "HHS-Greedy", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
 simOptions = [
     [sg.Checkbox('Logg traffic', key='-LOGG-TRAFFIC-')], 
     # [sg.Checkbox('Option-1 (na)', key='-SIM-OPT-1-')],

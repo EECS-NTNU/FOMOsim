@@ -26,8 +26,25 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     WEEK = 30
 
     ###############################################################################
-    # get initial state
+    # code giving issue #  
+    from GUI.script import Session, allToAll4
+    session = Session("issueDemoSession")
+    allToAll4(session) # test state
+    policy = policies.GreedyPolicy()   # HHS-Greedy in GUI-menu
+    startTime = get_time(hour=7)
+    simDuration = get_time(hour=20) # works for values 18, 19 but crashes for 20 and 21 
+    simulator = sim.Simulator( 
+        initial_state = session.initState,
+        policy = policy,
+        start_time = startTime,
+        duration = simDuration,
+        verbose=True,
+    )
+    simulator.run()
+    print("************* TESTED")
 
+    ###############################################################################
+    # get initial state
     state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter",
                                                        number_of_scooters = 150, number_of_clusters = 5,
                                                        number_of_vans = 1, random_seed = 1)
