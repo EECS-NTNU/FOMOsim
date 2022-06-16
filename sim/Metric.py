@@ -68,8 +68,11 @@ class Metric:
             if key == time:
                 return (self.metrics[metric][i][1], i)
             if key > time:
-                return (self.metrics[metric][i-1][1], i)
-        return (None, len(self.metrics[metric]))
+                if i > 0:
+                    return (self.metrics[metric][i-1][1], i)
+                else:
+                    return (None, i)
+        return (self.metrics[metric][i][1], i)
 
     def values(self, metric):
         return [item[1] for item in metrics[metric]]
@@ -87,20 +90,6 @@ class Metric:
             return self.metrics[key][-1][1]
         else:
             return 0
-
-    def get_value(self, time, key):
-        pointer = 0
-        value = 0
-        while True:
-            if key not in self.metrics:
-                break
-            if len(self.metrics[key]) <= pointer:
-                break
-            if self.metrics[key][pointer][0] > time:
-                break
-            value = self.metrics[key][pointer][1]
-            pointer += 1
-        return value
 
     def get_n_time(self, time, key):
         pointer = 0

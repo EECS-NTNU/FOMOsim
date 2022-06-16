@@ -25,7 +25,7 @@ def write_csv(instances, filename, week, hourly=False):
 
     f.write("Time;")
     for key in keys:
-        f.write(key + ";" + key + "_norm" + ";")
+        f.write(key + ";")
     f.write("\n")
 
     progress = Bar(
@@ -44,16 +44,12 @@ def write_csv(instances, filename, week, hourly=False):
         if not hourly or ((time // 60) > last_hour):
             last_hour = time // 60
             f.write(str(totime(time, startdate)) + ";")
-            trips, tripIdx = metric.getValue("trips", tripIdx, time)
             for m in keys:
                 value, idx[m] = metric.getValue(m, idx[m], time)
                 if value is None:
-                    f.write(";;")
+                    f.write(";")
                 else:
-                    if trips != 0 and trips is not None:
-                        f.write(str(value) + ";" + str(value / trips) + ";")
-                    else:
-                        f.write(str(value) + ";;")
+                    f.write(str(value) + ";")
             f.write("\n")
 
         progress.next()
