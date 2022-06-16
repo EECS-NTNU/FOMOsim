@@ -26,13 +26,31 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     WEEK = 30
 
     ###############################################################################
-    # code giving issue #  
+    # code giving issue 12 
+    # from GUI.script import Session, allToAll4
+    # session = Session("issueDemoSession")
+    # allToAll4(session) # test state
+    # policy = policies.GreedyPolicy()   # HHS-Greedy in GUI-menu
+    # startTime = get_time(hour=7)
+    # simDuration = get_time(hour=20) # works for values 18, 19 but crashes for 20 and 21 
+    # simulator = sim.Simulator( 
+    #     initial_state = session.initState,
+    #     policy = policy,
+    #     start_time = startTime,
+    #     duration = simDuration,
+    #     verbose=True,
+    # )
+    # simulator.run()
+    # print("************* TESTED")
+
+###############################################################################
+    # code giving issue 13 
     from GUI.script import Session, allToAll4
     session = Session("issueDemoSession")
     allToAll4(session) # test state
-    policy = policies.GreedyPolicy()   # HHS-Greedy in GUI-menu
+    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     startTime = get_time(hour=7)
-    simDuration = get_time(hour=20) # works for values 18, 19 but crashes for 20 and 21 
+    simDuration = get_time(hour=20) 
     simulator = sim.Simulator( 
         initial_state = session.initState,
         policy = policy,
@@ -42,6 +60,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     )
     simulator.run()
     print("************* TESTED")
+
 
     ###############################################################################
     # get initial state
