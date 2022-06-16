@@ -99,7 +99,8 @@ def doCommand(session, task):
         else:
             userFeedbackClear()
             if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
-                session.initState.set_target_state = target_state.outflow_target_state(session.initState)
+                tState = target_state.outflow_target_state(session.initState)
+                session.initState.set_target_state(tState) 
                 session.targetStateType = "outflow"
             else:
                 print("*** Error: initStateType invalid") 
@@ -115,7 +116,8 @@ def doCommand(session, task):
         else:
             userFeedbackClear()
             if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
-                session.initState.set_target_state = target_state.evenly_distributed_target_state(session.initState)
+                tState = target_state.evenly_distributed_target_state(session.initState)
+                session.initState.set_target_state(tState) 
                 session.targetStateType = "evenly"
             else:
                 print("*** Error: initStateType invalid") 
@@ -130,7 +132,8 @@ def doCommand(session, task):
                 userError("Can't calc target state without init state")
         else:
             if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
-                session.initState.set_target_state = target_state.us_target_state(session.initState)
+                tState = target_state.equal_prob_target_state(session.initState)
+                session.initState.set_target_state(tState) 
                 session.targetStateType = "UrbanSharing"
             else:
                 print("*** Error: initStateType invalid") 
