@@ -59,7 +59,22 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     #     verbose=True,
     # )
     # simulator.run()
-    # print("************* TESTED")
+
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=start_time//60, number_of_stations=50, number_of_vans=3, random_seed=1)
+    tState = target_state.equal_prob_target_state(state)
+    state.set_target_state(tState)
+    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
+    startTime = get_time(hour=7)
+    simDuration = get_time(hour=2) 
+    simulator = sim.Simulator( 
+        initial_state = state,
+        policy = policy,
+        start_time = startTime,
+        duration = simDuration,
+        verbose=True,
+    )
+    simulator.run()
+    print("************* TESTED")
 
 
     ###############################################################################
