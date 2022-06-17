@@ -24,18 +24,15 @@ from init_state.cityBike.parse import calcDistances, get_initial_state
 
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *
-# from GUI.GUI_layout import policyMenu
  
 class Session:
     def __init__(self, sessionName):
         self.name = sessionName
         self.startTime = ""
         self.endTime = ""
-#        self.state = sim.State()  # TODO see if these three can be replaced by = []
         self.initState = sim.State()
         self.initStateType = ""  # is "", "cityBike", "Entur", "manual or test?? ", "loaded"
-        self.targetState = sim.State()
-        self.targetStateType = ""  # is "", "evenly", "outflow" or "US"
+        self.targetStateMethod = ""  # is "", "evenly", "outflow" or "US"
         self.simPolicy = ""
 
     def saveState(self, filename):
@@ -92,7 +89,7 @@ def doCommand(session, task):
         write(loggFile, [task[0], "finished:", dateAndTimeStr()])
         beepy.beep(sound="ping")
    
-    #### Target STATE handling
+    #### TARGET state METHOD handling
     elif task[0] == "Target-state-outflow": # TODO, refactor code in this and next elif
         if session.initStateType == "": # an initial state does NOT exist 
             userError("Can't calc target state without init state")
@@ -101,10 +98,10 @@ def doCommand(session, task):
             if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
                 tState = target_state.outflow_target_state(session.initState)
                 session.initState.set_target_state(tState) 
-                session.targetStateType = "outflow"
+                session.targetStateMethod = "outflow"
             else:
                 print("*** Error: initStateType invalid") 
-            write(scriptFile, ["Target-state-outflow"])
+            write(scriptFile, ["Target-state-method-outflow"])
             write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
             updateFieldDone("-CALC-MSG-", session.initStateType + " -> outflow -> OK") 
             userFeedback_OK("Target state outflow calculated OK")
@@ -121,7 +118,7 @@ def doCommand(session, task):
                 session.targetStateType = "evenly"
             else:
                 print("*** Error: initStateType invalid") 
-            write(scriptFile, ["Target-state-evenly-distributed"])
+            write(scriptFile, ["Target-state-method-evenly"])
             write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
             updateFieldDone("-CALC-MSG-", session.initStateType + " -> evenly -> OK") 
             userFeedback_OK("Target state evenly calculated OK")
@@ -132,12 +129,14 @@ def doCommand(session, task):
                 userError("Can't calc target state without init state")
         else:
             if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
+                if session.initStateType != "US":
+                    print("*** Warning: you are calculating target state with US method on an initial state different from US-init !?")
                 tState = target_state.equal_prob_target_state(session.initState)
                 session.initState.set_target_state(tState) 
                 session.targetStateType = "UrbanSharing"
             else:
                 print("*** Error: initStateType invalid") 
-            write(scriptFile, ["Target-state-UrbanSharing"])
+            write(scriptFile, ["Target-state-method-UrbanSharing"])
             write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
             updateFieldDone("-CALC-MSG-", session.initStateType + " -> Urban -> OK") 
             userFeedback_OK("Target state US calculated OK")
@@ -173,35 +172,34 @@ def doCommand(session, task):
         beepy.beep(sound="ping")
 
     elif task[0] == "Sim":
-        fromState = ""  
-        if not session.targetStateType == "": 
-#            session.state = session.targetState 
-            fromState = "TARGET"
-        elif not session.initStateType == "":
-#            session.state = session.initState 
-            fromState = "INIT"
+        # fromState = ""  
+        # if not session.targetStateType == "": 
+        #     fromState = "TARGET"
+        # elif not session.initStateType == "":
+        #     fromState = "INIT"
+        # else:
+        #     userError("You must set an initial state")
+        # if not fromState == "":
+        session.startTime = dateAndTimeStr()
+        policy = task[1]
+        simDuration=int(task[3])
+        startTime=int(task[2])
+        write(scriptFile, ["Sim", policy, str(startTime), str(simDuration)])
+        
+        if session.targetStateType == "":
+            startState = session.initStateType
         else:
-            userError("You must set an initial state")
-        if not fromState == "":
-            session.startTime = dateAndTimeStr()
-            policy = task[1]
-            simDuration=int(task[3])
-            startTime=int(task[2])
-            write(scriptFile, ["Sim", policy, str(startTime), str(simDuration)])
-            # TODO Debug-plan: tap out used state to check that several simulations in a row start from same state"])
-            if session.targetStateType == "":
-                startState = session.initStateType
-            else:
-                startState = session.targetStateType
+            startState = session.targetStateType
 
-            simulationDescr =  ["Simulation-start:", dateAndTimeStr(), "startState:", startState, "simPolicy:", policy, 
-                "simDuration:", str(simDuration), "startTime:", str(startTime) ] 
-            write(loggFile, simulationDescr)
-            write(trafficLogg, simulationDescr)
-            state = session.initState # TODO Ask AD,, see note 14Juni testing
-            startSimulation(session.startTime, policy, state, startTime, simDuration)
+        simulationDescr =  ["Simulation-start:", dateAndTimeStr(), "startState:", startState, "simPolicy:", policy, 
+            "simDuration:", str(simDuration), "startTime:", str(startTime) ] 
+        write(loggFile, simulationDescr)
+        write(trafficLogg, simulationDescr)
+        state = session.initState # TODO Ask AD,, see note 14Juni testing
+        startSimulation(session.startTime, policy, state, startTime, simDuration)
 #            startSimulation(session.startTime, policy, session.initState, startTime, simDuration)
-            write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()])
+        write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()])
+
         updateField("-SIM-MSG-", "")
 
 def dumpMetrics(metric):
@@ -223,8 +221,6 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     elif simPolicy == "F&H-Greedy":
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
         
-    # startTime = 60*7 # debug OVERRIDES GUI_FIELDS
-    # simDuration = 60*48 # debug 
     simulator = sim.Simulator( 
         initial_state = state,
         policy = policy,
