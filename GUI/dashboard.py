@@ -115,13 +115,6 @@ def GUI_main():
         elif GUI_event == "Test-state": 
             userFeedbackClear()
             task = ["Init-state-test", "allToAll4"] 
-        elif GUI_event == "Save state":
-            userFeedbackClear()
-            fileName = strip("Name: ", GUI_values["-INPUTname-"])
-            task = ["Save-state", fileName]
-        elif GUI_event == "Load state":
-            userFeedbackClear()
-            task = ["Load-state"] # TODO not implemented
 
         ###### TARGET STATE GUI PART   
         elif GUI_event == "Evenly":
@@ -136,6 +129,20 @@ def GUI_main():
             task = ["Target-state-US"]
             userFeedbackClear()
             updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")        
+
+        ###### SAVE AND LOAD STATE PART
+
+        elif GUI_event == "Save state":
+            userFeedbackClear()
+            fileName = strip("Name: ", GUI_values["-INPUTname-"])
+            if fileName == "":
+                fileName = "SavedState"
+            task = ["Save-state", fileName]
+        elif GUI_event == "Load state":
+            fileName = strip("Name: ", GUI_values["-INPUTname-"])
+            userFeedbackClear()
+            task = ["Load-state", fileName] 
+
 
 
         ###### SIMULATE GUI PART

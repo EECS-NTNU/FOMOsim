@@ -32,15 +32,15 @@ dashboardColumn = [
     [sg.Text("", key="-CALC-MSG-")], 
     [sg.Text('_'*colWidth)],
     [sg.Button("Save state"), sg.Input("Name: ", key ="-INPUTname-", size = 25), sg.Button("Load state")],  
-    [sg.Text('_'*colWidth)],
+
+]
+statusColumn = [
+    [sg.Text("Simulation", font='Lucida', text_color = 'Yellow'), sg.Text("", key="-SIM-MSG-")],
     [sg.Text("Simulation parameters")],
     [sg.Input("Start-day: 1", key="-START-D-", size = 11), sg.Input("Start-hour: 12", key="-START-H-", size = 12), 
         sg.Input("#days: 0", key="-NUM-DAYS-", size = 9), sg.Input("#hours: 2", key="-NUM-HOURS-", size = 10)],
     [sg.Text("Select policy: "), sg.Listbox( values=policyMenu, enable_events=True, size=(17, 5), key="-POLICIES-"),
-        sg.VSeperator(), sg.Column(simOptions)]
-]
-statusColumn = [
-    [sg.Text("Simulation", font='Lucida', text_color = 'Yellow'), sg.Text("", key="-SIM-MSG-")],
+        sg.VSeperator(), sg.Column(simOptions)],
     [sg.Button("Simulate"), sg.Button("Replay script")],
     [sg.Text("Simulation progress:"), sg.Text("",key="-START-TIME-"), sg.Text("",key="-END-TIME-")],
     [sg.Button("Timestamp and save session results"), sg.Button("Save session as script")],
