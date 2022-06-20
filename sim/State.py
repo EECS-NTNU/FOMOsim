@@ -328,9 +328,6 @@ class State(SaveMixin):
         else:
             raise ValueError(f"No locations with id={location_id} where found")
 
-    def save_state(self):
-        super().save(STATE_CACHE_DIR)
-
     @staticmethod
     def save_path(
         number_of_stations,

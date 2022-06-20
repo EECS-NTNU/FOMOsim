@@ -28,14 +28,15 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # get initial state
 
-    state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter",
-                                                       number_of_scooters = 150, number_of_clusters = 5,
-                                                       number_of_vans = 1, random_seed = 1)
+    # state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter",
+    #                                                    number_of_scooters = 150, number_of_clusters = 5,
+    #                                                    number_of_vans = 3, random_seed = 1)
     
-    # state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike",
-    #                                                      number_of_vans=1, random_seed=1)
+    state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike",
+                                                        number_of_vans=3, random_seed=1)
 
-    # state = init_state.fosen_haldorsen.get_initial_state(init_hour=start_time//60, number_of_stations=50, number_of_vans=3, random_seed=1)
+    # state = init_state.fosen_haldorsen.get_initial_state(init_hour=start_time//60, number_of_stations=50,
+    #                                                      number_of_vans=3, random_seed=1)
 
     ###############################################################################
     # calculate target state
@@ -49,9 +50,9 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # Set up policy
 
-    # policy = policies.DoNothing()
+    policy = policies.DoNothing()
     # policy = policies.RandomActionPolicy()
-    policy = policies.GreedyPolicy()
+    # policy = policies.GreedyPolicy()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
 
@@ -79,7 +80,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     print(f"Starvations = {simulator.metrics.get_aggregate_value('lost_demand')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
 
-    output.write_csv(simulator, "output.csv", WEEK, hourly = True)
+    output.write_csv(simulator, "output.csv", WEEK, hourly = False)
 
     output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
     output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
