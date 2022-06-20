@@ -183,9 +183,10 @@ def doCommand(session, task):
                 "simDuration:", str(simDuration), "startTime:", str(startTime) ] 
             write(loggFile, simulationDescr)
             write(trafficLogg, simulationDescr)
-            state = session.initState # TODO Ask AD,, see note 14Juni testing
-            startSimulation(session.startTime, policy, state, startTime, simDuration)
-    #            startSimulation(session.startTime, policy, session.initState, startTime, simDuration)
+            # state = session.initState # TODO Ask AD, see NOTE 14 Juni testing
+            state = copy.deepcopy(session.initState) # NOTE 20 Juni
+            startSimulation(session.startTime, policy, state, startTime, simDuration) # # NOTE 20 Juni
+            # startSimulation(session.startTime, policy, session.initState, startTime, simDuration)
             write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()])
             updateField("-SIM-MSG-", "")
         else:
@@ -306,7 +307,7 @@ def doScript(session, fileName):
 def replayScript(): # subwindow for selecting 
     session = Session("Replay")
     layout = [[sg.Text("Select script:", key="new")],
-        [sg.Button("Load scripts"), sg.Button("Confirm")],
+        [sg.Button("Load script names"), sg.Button("Confirm")],
         [sg.Listbox( values=[], enable_events=True, size=(40, 10), key="-FILE LIST-")]
     ]
     window = sg.Window("FOMO - select script", layout, modal=True)
@@ -314,7 +315,7 @@ def replayScript(): # subwindow for selecting
 
     while True:
         event, values = window.read()
-        if event == "Load scripts":
+        if event == "Load script names":
             fnames = [
                 f
                 for f in file_list

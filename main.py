@@ -25,58 +25,6 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     WEEK = 30
 
-    ###############################################################################
-    # code giving issue 12 
-    # from GUI.script import Session, allToAll4
-    # session = Session("issueDemoSession")
-    # allToAll4(session) # test state
-    # policy = policies.GreedyPolicy()   # HHS-Greedy in GUI-menu
-    # startTime = get_time(hour=7)
-    # simDuration = get_time(hour=20) # works for values 18, 19 but crashes for 20 and 21 
-    # simulator = sim.Simulator( 
-    #     initial_state = session.initState,
-    #     policy = policy,
-    #     start_time = startTime,
-    #     duration = simDuration,
-    #     verbose=True,
-    # )
-    # simulator.run()
-    # print("************* TESTED")
-
-###############################################################################
-    # # code giving issue 13 
-    # from GUI.script import Session, allToAll4
-    # session = Session("issueDemoSession")
-    # allToAll4(session) # test state
-    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
-    # startTime = get_time(hour=7)
-    # simDuration = get_time(hour=20) 
-    # simulator = sim.Simulator( 
-    #     initial_state = session.initState,
-    #     policy = policy,
-    #     start_time = startTime,
-    #     duration = simDuration,
-    #     verbose=True,
-    # )
-    # simulator.run()
-
-    state = init_state.fosen_haldorsen.get_initial_state(init_hour=start_time//60, number_of_stations=50, number_of_vans=3, random_seed=1)
-    tState = target_state.equal_prob_target_state(state)
-    state.set_target_state(tState)
-    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
-    startTime = get_time(hour=7)
-    simDuration = get_time(hour=2) 
-    simulator = sim.Simulator( 
-        initial_state = state,
-        policy = policy,
-        start_time = startTime,
-        duration = simDuration,
-        verbose=True,
-    )
-    simulator.run()
-    print("************* TESTED")
-
-
     # state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter",
     #                                                    number_of_scooters = 150, number_of_clusters = 5,
     #                                                    number_of_vans = 3, random_seed = 1)
@@ -89,6 +37,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     ###############################################################################
     # calculate target state
+
 
     # tstate = target_state.evenly_distributed_target_state(state)
     # tstate = target_state.outflow_target_state(state)
