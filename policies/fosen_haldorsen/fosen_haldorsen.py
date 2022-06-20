@@ -29,6 +29,10 @@ class FosenHaldorsenPolicy(Policy):
 
         super().__init__()
 
+    def init_sim(self, sim):
+        if len(sim.state.stations) < self.branching:
+            self.branching = len(sim.state.stations)
+
     def get_best_action(self, simul, vehicle):
         if self.greedy:
             return self.greedy_solve(simul, vehicle)
