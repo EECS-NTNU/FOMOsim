@@ -65,7 +65,6 @@ class Simulator(SaveMixin):
                 "Running Sim",
                 check_tty=False,
                 max=round(duration / settings.ITERATION_LENGTH_MINUTES) + 1,
-                color=settings.WHITE,
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
 

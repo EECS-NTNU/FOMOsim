@@ -188,7 +188,7 @@ class State(SaveMixin):
     # parked and in-use scooters
     def get_all_scooters(self):
         all_scooters = []
-        for cluster in self.stations:
+        for cluster in self.locations:
             for scooter in cluster.scooters:
                 all_scooters.append(scooter)
         all_scooters.extend(self.scooters_in_use)
@@ -327,9 +327,6 @@ class State(SaveMixin):
             )
         else:
             raise ValueError(f"No locations with id={location_id} where found")
-
-    def save_state(self):
-        super().save(STATE_CACHE_DIR)
 
     @staticmethod
     def save_path(

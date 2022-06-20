@@ -1,6 +1,4 @@
 from math import sqrt, pi, sin, cos, atan2
-from settings import GEOSPATIAL_BOUND_NEW
-
 
 class Location:
     """
@@ -43,24 +41,8 @@ class Location:
         return []
 
     def set_location(self, lat: float, lon: float):
-        lat_min, lat_max, lon_min, lon_max = GEOSPATIAL_BOUND_NEW
-        if lat is None:
-            self.lat = lat
-        elif lat < lat_min:
-            self.lat = lat_min
-        elif lat > lat_max:
-            self.lat = lat_max
-        else:
-            self.lat = lat
-
-        if lon is None:
-            self.lon = lon
-        elif lon < lon_min:
-            self.lon = lon_min
-        elif lon > lon_max:
-            self.lon = lon_max
-        else:
-            self.lon = lon
+        self.lat = lat
+        self.lon = lon
 
     def distance_to(self, lat: float, lon: float):
         return Location.haversine(self.lat, self.lon, lat, lon)

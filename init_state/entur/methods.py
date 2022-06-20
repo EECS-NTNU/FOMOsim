@@ -7,13 +7,14 @@ import os
 
 from sim import State, Bike, Scooter, Station
 from sim.Depot import Depot
-from settings import (
-    GEOSPATIAL_BOUND_NEW,
-    MAIN_DEPOT_LOCATION,
-    SMALL_DEPOT_LOCATIONS,
-    TRIP_INTENSITY_FACTOR,
-)
 from progress.bar import Bar
+
+GEOSPATIAL_BOUND_NEW = (59.9040, 59.9547, 10.6478, 10.8095)
+MAIN_DEPOT_LOCATION = (59.931794, 10.788314)
+SMALL_DEPOT_LOCATIONS = [
+    (59.908009, 10.741604),
+    (59.944473, 10.748624),
+]
 
 def get_moved_scooters(merged_tables):
     return merged_tables[
@@ -359,8 +360,8 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list, entur_da
             cluster.leave_intensity_per_iteration.append([])
             cluster.arrive_intensity_per_iteration.append([])
             for hour in range(24):
-                cluster.leave_intensity_per_iteration[day].append(cluster_leave_intensities[cluster.id] * TRIP_INTENSITY_FACTOR)
-                cluster.arrive_intensity_per_iteration[day].append(cluster_arrive_intensities[cluster.id] * TRIP_INTENSITY_FACTOR)
+                cluster.leave_intensity_per_iteration[day].append(cluster_leave_intensities[cluster.id])
+                cluster.arrive_intensity_per_iteration[day].append(cluster_arrive_intensities[cluster.id])
 
     progress.finish()
 
