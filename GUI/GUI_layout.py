@@ -2,11 +2,9 @@
 import PySimpleGUI as sg
 
 colWidth = 55
-policyMenu = ["Do-nothing", "Random", "HHS-Greedy", "Fosen&Haldorsen", "F&H-Greedy"] # must be single words
+policyMenu = ["Do-nothing", "Random", "FH-Greedy", "HHS-Greedy", "FH"] # must be single words. TODO HHS (tensorflow-based) not included
 simOptions = [
-    [sg.Checkbox('Logg traffic', key='-LOGG-TRAFFIC-')], 
-    # [sg.Checkbox('Option-1 (na)', key='-SIM-OPT-1-')],
-    # [sg.Checkbox('Option-2 (na)', key='-SIM-OPT-2-')],
+    [sg.Checkbox('Logg traffic', key='-LOGG-TRAFFIC-')]
 ]
 dashboardColumn = [
     [sg.Text("Prep. and set up ", font='Lucida', text_color = 'Yellow'), sg.VSeparator(), 
@@ -43,17 +41,8 @@ statusColumn = [
         sg.VSeperator(), sg.Column(simOptions)],
     [sg.Button("Simulate")],
     [sg.Text("Simulation progress:"), sg.Text("",key="-START-TIME-"), sg.Text("",key="-END-TIME-")],
-    [sg.Button("Timestamp and save session results"), sg.Button("Save session as script")],
+    [sg.Text('_'*colWidth)],
     [sg.Button("Replay script")],
-    [sg.Text('_'*50)],
-    [sg.Text("Analysis of results", font='Lucida', text_color = 'Yellow')],
-    [sg.Text("Choose folder for FOMO results files")],
-    [sg.Input(size=(42, 1), enable_events=True, key="-FOLDER-"), sg.FolderBrowse()],
-    [sg.Listbox( values=[], enable_events=True, size=(30, 6), key="-RESULT-FILES-")],
-    [sg.Text("The following checkboxes are still not implemented")],
-    [sg.Checkbox ('Option 1', key='check_value1'), sg.Checkbox ('Option 2',key='check_value2'), sg.Checkbox ('Grid',key='check_value2')],
-    [sg.Button("Test-1"), sg.Button("Test-2"), sg.Button("Test-3"), sg.Button("Trips/week-Oslo")],
-    [sg.Text('_'*50)],
 ]
 layout = [ [sg.Column(dashboardColumn), sg.VSeperator(), sg.Column(statusColumn) ] ]
 window = sg.Window("FOMO Digital Twin Dashboard 0.2", layout)

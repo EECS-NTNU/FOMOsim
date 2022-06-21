@@ -12,6 +12,7 @@ import beepy
 import PySimpleGUI as sg
 from numpy import DataSource
 
+import settings
 import sim
 import init_state.entur.scripts
 import target_state.outflow_target_state
@@ -182,7 +183,8 @@ def doCommand(session, task):
             simulationDescr =  ["Simulation-start:", dateAndTimeStr(), "startState:", session.initStateType, "simPolicy:", policy, 
                 "simDuration:", str(simDuration), "startTime:", str(startTime) ] 
             write(loggFile, simulationDescr)
-            write(trafficLogg, simulationDescr)
+            if settings.TRAFFIC_LOGGING == True:
+                 write(trafficLogg, simulationDescr)
             # state = session.initState # TODO Ask AD, see NOTE 14 Juni testing
             state = copy.deepcopy(session.initState) # NOTE 20 Juni
             startSimulation(session.startTime, policy, state, startTime, simDuration) # # NOTE 20 Juni
@@ -191,11 +193,6 @@ def doCommand(session, task):
             updateField("-SIM-MSG-", "")
         else:
             userError("Set an initial state")
-
-def dumpMetrics(metric):
-    # print("dumpMetrics called")
-    metricsCopy = metric
-    pass
 
 def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     if simPolicy == "Do-nothing":
@@ -225,12 +222,12 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     seconds = str(duration.total_seconds())
     updateField("-END-TIME-", "End:" + readTime())
     write(loggFile, ["Simulation-end:", dateAndTimeStr(), "usedTime(s):", seconds ])
-    write(trafficLogg, ["usedTime(s):", seconds ])
-    saveTrafficLogg(timeStamp) # save and reset traffic-file with timeStamp of start in filename
-    trafficLogg.seek(0)
-    trafficLogg.truncate()
-    metrics = simulator.metrics.get_all_metrics()
-    dumpMetrics(metrics)
+    if settings.TRAFFIC_LOGGING == True:
+        write(trafficLogg, ["usedTime(s):", seconds ])
+        saveTrafficLogg(timeStamp) # save and reset traffic-file with timeStamp of start in filename
+        trafficLogg.seek(0)
+        trafficLogg.truncate()
+    metrics = simulator.metrics.get_all_metrics() # TODO, currently not used
     beepy.beep(sound="ready")
 
 def allToAll4(session): # all to all topology with 4 stations
@@ -280,16 +277,6 @@ def allToAll4(session): # all to all topology with 4 stations
 def manualInitState(session, testName):
     if testName == "allToAll4":
         allToAll4(session)
-
-def bigOsloTest():
-    session = Session("bigOsloTest")
-    for week in range(6):
-        command = ["Init-state-FH", "Oslo", str(week+1)]
-        doCommand(session, command)
-        command = ["Target-state"]
-        doCommand(session, command)
-        command = ["Sim", "Rebalancing"]
-        doCommand(session, command)
 
 def doScript(session, fileName):
     write(loggFile, ["Script-started:", fileName, dateAndTimeStr()]) 

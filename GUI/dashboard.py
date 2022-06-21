@@ -36,10 +36,6 @@ def GUI_main():
         ###### SPECIAL BUTTONS GUI PART
         if GUI_event == "Fast-Track":  
             userError("No code currently placed in FastTrack")
-            # bigOsloTest()
-            #-------------            
-            # session = Session("Fast-Track-session")
-            # replayScript(session, "tripStats/scripts/script.txt") # TODO, remove if demnstrated in code
 
         elif GUI_event == "main.py":
             print("Leaves GUI-dashboard-code, continues in main.py")
@@ -159,7 +155,7 @@ def GUI_main():
                     settings.TRAFFIC_LOGGING = False                
                 task = ["Sim", session.simPolicy, str(startTime), str(period)]
                 updateFieldOperation("-SIM-MSG-", "Simulation started ...  (see progress in terminal)")
-                
+
         elif GUI_event == "Replay script":
             replayScript()
 
