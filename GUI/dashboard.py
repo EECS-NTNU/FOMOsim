@@ -52,7 +52,7 @@ def GUI_main():
             updateField("-INPUTfrom-", "From: ")
             updateField("-INPUTto-", "To: ")   
         elif GUI_event == "Download Oslo": # TODO, should maybe be handled like time-consuming tasks, or give warning
-            task = ["Download-Oslo", GUI_values["-INPUTfrom-"], GUI_values["-INPUTto-"]]
+            task = ["Download-Oslo", strip("From:", GUI_values["-INPUTfrom-"]), strip("To:", GUI_values["-INPUTto-"])]
             updateFieldOperation("-FEEDBACK-", "Lengthy operation started (see terminal)") 
 
         ###### SELECT CITY GUI PART     

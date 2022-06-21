@@ -277,6 +277,9 @@ def allToAll4(session): # all to all topology with 4 stations
 def manualInitState(session, testName):
     if testName == "allToAll4":
         allToAll4(session)
+        write(scriptFile, ["Init-state-test", "allToAll4"])  
+    else:
+        print("*** Error: testName not implemented")
 
 def doScript(session, fileName):
     write(loggFile, ["Script-started:", fileName, dateAndTimeStr()]) 
