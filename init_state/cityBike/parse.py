@@ -12,7 +12,6 @@ import settings
 from GUI import loggFile
 
 from init_state.cityBike.helpers import yearWeekNoAndDay, write, dateAndTimeStr 
-from init_state.cityBike.analyze import plotSpeeds
 
 class Station:
     def __init__(self, stationId, longitude, latitude, stationName):

@@ -198,17 +198,15 @@ def dumpMetrics(metric):
     pass
 
 def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
-    # from GUI.dashboard import updateField
-    # simulator = sim.Simulator(0,  policies.DoNothing(), sim.State()) # TODO (needed?), make empty Simulator for scope
     if simPolicy == "Do-nothing":
         policy = policies.DoNothing()
     elif simPolicy == "Random":
         policy = policies.RandomActionPolicy()
     elif simPolicy == "HHS-Greedy":
         policy = policies.GreedyPolicy()
-    elif simPolicy == "Fosen&Haldorsen":
+    elif simPolicy == "FH":
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
-    elif simPolicy == "F&H-Greedy":
+    elif simPolicy == "FH-Greedy":
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
         
     simulator = sim.Simulator( 

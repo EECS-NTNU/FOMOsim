@@ -8,7 +8,6 @@ import matplotlib # TODO MARK-C
 import settings
 
 from init_state.cityBike.helpers import dateAndTimeStr, strip, write, fixComputerName, get_duration
-from init_state.cityBike.analyze import openVisual1, openVisual2, openVisual3, openVisual4
 
 from GUI import loggFile
 from GUI.script import Session, doCommand, replayScript
@@ -131,7 +130,6 @@ def GUI_main():
             updateFieldOperation("-CALC-MSG-", "Lengthy operation started ... (see progress in terminal)")        
 
         ###### SAVE AND LOAD STATE PART
-
         elif GUI_event == "Save state":
             userFeedbackClear()
             fileName = strip("Name: ", GUI_values["-INPUTname-"])
@@ -142,8 +140,6 @@ def GUI_main():
             fileName = strip("Name: ", GUI_values["-INPUTname-"])
             userFeedbackClear()
             task = ["Load-state", fileName] 
-
-
 
         ###### SIMULATE GUI PART
         elif GUI_event == "Simulate":
@@ -163,36 +159,10 @@ def GUI_main():
                     settings.TRAFFIC_LOGGING = False                
                 task = ["Sim", session.simPolicy, str(startTime), str(period)]
                 updateFieldOperation("-SIM-MSG-", "Simulation started ...  (see progress in terminal)")
-
+                
         elif GUI_event == "Replay script":
             replayScript()
 
-        #####################################################
-        elif GUI_event == "-FOLDER-": # Folder name was filled in, make a list of files in the folder
-            folder = GUI_values["-FOLDER-"]
-            try:
-                file_list = os.listdir(folder)
-            except:
-                file_list = []
-            fnames = [
-                f
-                for f in file_list
-                if os.path.isfile(os.path.join(folder, f))
-                and f.lower().endswith((".txt"))
-            ]
-            window["-RESULT-FILES-"].update(fnames)
-
-        elif GUI_event == "Test-1":
-            openVisual1()
-        elif GUI_event == "Test-2":
-            openVisual2(resultFile)
-        elif GUI_event == "Test-3":
-            openVisual3()
-        elif GUI_event == "Trips/week-Oslo":
-            openVisual4()
-
         if GUI_values["-POLICIES-"] != []:
             session.simPolicy = GUI_values["-POLICIES-"][0]
-        if GUI_values["-RESULT-FILES-"] != []:
-            resultFile = GUI_values["-FOLDER-"] + "/" + GUI_values["-RESULT-FILES-"][0]
-            
+    
