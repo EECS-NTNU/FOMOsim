@@ -1,16 +1,15 @@
 # parse.py
 
-import operator
-from os import stat
-from sre_parse import Verbose
+# import operator
+# from os import stat
+# from sre_parse import Verbose
 import sim
 import json
 import os.path
 import geopy.distance
+
 import settings
-
 from GUI import loggFile
-
 from init_state.cityBike.helpers import yearWeekNoAndDay, write, dateAndTimeStr 
 
 class Station:
@@ -19,19 +18,23 @@ class Station:
         self.longitude = longitude
         self.latitude = latitude
         self.stationName = stationName
+    moved = False
+    renamed = False    
     def __lt__(self, other):
         return self.stationId < other.stationId
     def toString(self):
         return f'{self.stationId:>6}' + " " + self.longitude + " " + self.latitude + " " + self.stationName
 
-class BikeTrip:
-    def __init__(self, startTime, endTime, duration, start, end):
-        self.start = startTime
-        self.end = endTime
-        self.duration = duration
-        self.start = start
-        self.end = end
-        
+# class BikeTrip:
+#     def __init__(self, startTime, endTime, duration, start, end):
+#         self.start = startTime
+#         self.end = endTime
+#         self.duration = duration
+#         self.start = start
+#         self.end = end
+
+#### LEST OVER HIT    ***********************************************************************************'
+
 def sortStations(stationsDict):
     stationsList = []
     for s in sorted(stationsDict, key = stationsDict.get):
@@ -82,11 +85,13 @@ def washAndReportStations(stationsList, city):
     stationsDescr.close()
     return activeStations # list of activeStations, as indices into list of all
 
-
 def calcDistances(city):
+    """ All stations data available are processed. Stations that are moved while keeping their identy can be reported using
+        the flag settings.REPORT_CHANGES. The same goes for stations that have a name change.
+    """
     stationNo = 0 # station numbers found, counts 0,1,2,...
-    stationMap = {} # maps from stationId to station number, ALL stations found in tripdata are included 
-    stationsData = {} # ALL stations found in tripdata are included 
+    stationMap = {} # maps from stationId to station number, ALL stations found in the folder <city>/data/tripData are included 
+    stationsData = {} # ALL stations found in tripData are included 
     tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
     fileList = os.listdir(tripDataPath)
     fileList.sort() # needed to get linux and windows behave similarly
@@ -95,7 +100,7 @@ def calcDistances(city):
     else:    
         for file in fileList:
             # NOTE we read all stored trip-data to find all "possible" stations. If there are stations that
-            # are taken out of operation, we should remove them
+            # are taken out of operation, we should remove them TODO How to remove? manually? describe?
             jsonFile = open(os.path.join(tripDataPath, file), "r")
             bikeData = json.loads(jsonFile.read())
 
@@ -115,12 +120,16 @@ def calcDistances(city):
                         stationsData[startId].longitude = startLong
                         stationsData[startId].latitude = startLat
                         if settings.REPORT_CHANGES:
-                            print("* position of station ", startId, "was moved ", "%.3f" % moveDist, "km")
+                            if stationsData[startId].moved == False:
+                                print("* position of station ", startId, "was moved ", "%.3f" % moveDist, "km")
+                                stationsData[startId].moved = True
                     if stationsData[startId].stationName != startName:
                         oldName = stationsData[startId].stationName
                         stationsData[startId].stationName = startName
                         if settings.REPORT_CHANGES:
-                            print("* name of station ", startId, "was changed from", oldName, " to ", startName )
+                            if stationsData[startId].renamed == False:
+                                print("* name of station ", startId, "was changed from", oldName, " to ", startName )
+                                stationsData[startId].renamed = True
 
                 endId = int(bikeData[i]["end_station_id"])
                 endLong = str(bikeData[i]["end_station_longitude"])
@@ -130,21 +139,23 @@ def calcDistances(city):
                     stationMap[endId] = stationNo
                     stationNo = stationNo + 1
                     stationsData[endId] = Station(endId, endLong, endLat, endName)
-                else: # we already have a Station-object for endId, will check if data are changed and report such changes
+                else: # we already have a Station-object for endId, will check if data are changed and eventually report such changes
                     if stationsData[endId].longitude != endLong or stationsData[endId].latitude != endLat:
                         moveDist = geopy.distance.distance((stationsData[endId].latitude, stationsData[endId].longitude), 
                             (endLat, endLong)).km
                         stationsData[endId].longitude = endLong
                         stationsData[endId].latitude = endLat
                         if settings.REPORT_CHANGES:
-                            print("* position of station ", endId, "was moved ", "%.3f" % moveDist, "km")
-
+                            if stationsData[endId].moved == False:
+                                print("* position of station ", endId, "was moved ", "%.3f" % moveDist, "km")
+                                stationsData[endId].moved = True
                     if stationsData[endId].stationName != endName:
                         oldName = stationsData[endId].stationName
                         stationsData[endId].stationName = endName 
                         if settings.REPORT_CHANGES:
-                            print("* name of station ", endId, "was changed from ", oldName, "to ", endName)                    
-                    
+                            if stationsData[endId].renamed == False:
+                                print("* name of station ", endId, "was changed from ", oldName, "to ", endName)                    
+                                stationsData[endId].renamed = True
         print("A total of ", len(set(stationsData)), " stations used, reported on stationsAll.txt")
 
     stationsList = sortStations(stationsData)  # this step was needed to assure equivalent behaviour under windows and linux. List contains ALL stations  
@@ -238,16 +249,16 @@ def readCapacities(city):
         print("*** Error - readCapacities not implemented for given city")
     return dockStartStatus
 
-def get_initial_state(city, week, bike_class, number_of_vans, random_seed):
+def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3, random_seed=1):
     if city == "Oslo" and ( (week < 1) or (week > 53)):
         print("*** Error: week no must be in range 1..53")
-    elif city == "Utopia" and (week != 48):
+    elif city == "Utopia" and (week != 48): # Utopia is used for test purposes
         print("*** Error: week must be 48")
     elif not (city == "Oslo" or city == "Utopia"):
         print("*** Error: given city not implemented ", city)    
 
-    # Calculate distance
-    distances = calcDistances(city) # does also produce station.txt
+    # Read all stations data for city, calculate distances, and remove non-active stations.
+    distances = calcDistances(city)
 
     print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) 
         + ", setting up datastructures ... ") 
