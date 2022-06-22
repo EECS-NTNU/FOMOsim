@@ -25,70 +25,69 @@ class Station:
     def toString(self):
         return f'{self.stationId:>6}' + " " + self.longitude + " " + self.latitude + " " + self.stationName
 
-# class BikeTrip:
-#     def __init__(self, startTime, endTime, duration, start, end):
-#         self.start = startTime
-#         self.end = endTime
-#         self.duration = duration
-#         self.start = start
-#         self.end = end
-
-#### LEST OVER HIT    ***********************************************************************************'
-
-def sortStations(stationsDict):
-    stationsList = []
-    for s in sorted(stationsDict, key = stationsDict.get):
-        stationsList.append(stationsDict[s])
-    return stationsList
-
-def washAndReportStations(stationsList, city):
-    # will produce two files, stations.txt that is "washed" by removing stations with capacity = 0 as reported in snapshot from April 26. 2022. This file
-    # is used in the simulations. The other file stationsAll.txt with all stations found in the tripData is included to ease debugging. 
-    # If Verbose = True, the washing is reported in terminal
-    Verbose = False
-
-    fileName = "init_state/cityBike/data/" + city + "/stationsAll.txt"
-    stationsDescr = open(fileName, "w")
-    count = 0
-    stationIsActive = [] # used for washing, see comment above
-    for s in range(len(stationsList)):
-        stationIdText = f'{count:>5}'+ stationsList[s].toString() + "\n"
-        stationsDescr.write(stationIdText)
-        count = count + 1
-        stationIsActive.append(False) # initialization, used further down
-    stationsDescr.close()
-    
-    stationStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r") # TODO, is possible to update more dynamically, it is
-                                                                                                  # read from https://gbfs.urbansharing.com/oslobysykkel.no/station_information.json
-    allStatusData = json.loads(stationStatusFile.read())
-    stationData = allStatusData["data"]
-
-    id2no = readStationMap(city) # map is needed to find active stations, readStationMap reads from stationsAll.txt
-    for i in range(len(stationData["stations"])): # loop thru all active stations
-        stationId = stationData["stations"][i]["station_id"]
-        if stationId in id2no:
-            stationNo = id2no[stationId] # stationNo is number in list of stations
-            stationIsActive[stationNo] = True
-
-    fileName = "init_state/cityBike/data/" + city + "/stations.txt" # produce the WASHED list
-    stationsDescr = open(fileName, "w")
-    count = 0
-    activeStations = []
-    for s in range(len(stationsList)):
-        stationIdText = f'{count:>5}'+ stationsList[s].toString() + "\n"
-        if stationIsActive[s]:
-            stationsDescr.write(stationIdText)
-            activeStations.append(s)
-            count = count + 1
-        elif Verbose:
-            print("Station removed by washing: ", stationIdText, end="")
-    stationsDescr.close()
-    return activeStations # list of activeStations, as indices into list of all
 
 def calcDistances(city):
-    """ All stations data available are processed. Stations that are moved while keeping their identy can be reported using
+    """ All stations data available for the city are processed. Stations that are moved while keeping their identity can be reported using
         the flag settings.REPORT_CHANGES. The same goes for stations that have a name change.
+        stations.txt is produced and is used in the simulations and contains only active stations, i.e. those with capacity > 0
     """
+    def sortStations(stationsDict):
+        stationsList = []
+        for s in sorted(stationsDict, key = stationsDict.get):
+            stationsList.append(stationsDict[s])
+        return stationsList
+
+    def readStationMap(city): # returns a map from stationId to station number based on a file with ALL stations 
+        stationMap = {}  
+        stationsFile = open("init_state/cityBike/data/" + city + "/stationsAll.txt", "r")
+        for line in stationsFile.readlines():
+            words = line.split()
+            stationMap[words[1]] = int(words[0])
+        return stationMap
+
+    def washAndReportStations(stationsList, city):
+        # will produce two files, stations.txt that is "washed" by removing stations with capacity = 0 as reported in snapshot from April 26. 2022. This file
+        # is used in the simulations. The other file stationsAll.txt with all stations found in the tripData is included to ease debugging. 
+        # If Verbose = True, the washing is reported in terminal
+        Verbose = False # TODO, move into settings? 
+
+        fileName = "init_state/cityBike/data/" + city + "/stationsAll.txt"
+        stationsDescr = open(fileName, "w")
+        count = 0
+        stationIsActive = [] # used for washing, see comment above
+        for s in range(len(stationsList)):
+            stationIdText = f'{count:>5}'+ stationsList[s].toString() + "\n"
+            stationsDescr.write(stationIdText)
+            count = count + 1
+            stationIsActive.append(False) # initialization, used further down
+        stationsDescr.close()
+        stationStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r") # TODO, is possible to update more dynamically, it is
+                                                                                                    # read from https://gbfs.urbansharing.com/oslobysykkel.no/station_information.json
+                                                                                                    # TODO, move such hardcoded filenames into settings?
+        allStatusData = json.loads(stationStatusFile.read())
+        stationData = allStatusData["data"]
+        id2no = readStationMap(city) # map is needed to find active stations, readStationMap reads from stationsAll.txt
+        for i in range(len(stationData["stations"])): # loop thru all active stations
+            stationId = stationData["stations"][i]["station_id"]
+            if stationId in id2no:
+                stationNo = id2no[stationId] # stationNo is number in list of stations
+                stationIsActive[stationNo] = True
+
+        fileName = "init_state/cityBike/data/" + city + "/stations.txt" # produce the WASHED list
+        stationsDescr = open(fileName, "w")
+        count = 0
+        activeStations = []
+        for s in range(len(stationsList)):
+            stationIdText = f'{count:>5}'+ stationsList[s].toString() + "\n"
+            if stationIsActive[s]:
+                stationsDescr.write(stationIdText)
+                activeStations.append(s)
+                count = count + 1
+            elif Verbose:
+                print("Station removed by washing: ", stationIdText, end="")
+        stationsDescr.close()
+        return activeStations # list of activeStations, as indices into list of all
+
     stationNo = 0 # station numbers found, counts 0,1,2,...
     stationMap = {} # maps from stationId to station number, ALL stations found in the folder <city>/data/tripData are included 
     stationsData = {} # ALL stations found in tripData are included 
@@ -156,7 +155,7 @@ def calcDistances(city):
                             if stationsData[endId].renamed == False:
                                 print("* name of station ", endId, "was changed from ", oldName, "to ", endName)                    
                                 stationsData[endId].renamed = True
-        print("A total of ", len(set(stationsData)), " stations used, reported on stationsAll.txt")
+        print("A total of ", len(set(stationsData)), " stations have been used, reported on stationsAll.txt")
 
     stationsList = sortStations(stationsData)  # this step was needed to assure equivalent behaviour under windows and linux. List contains ALL stations  
     activeStationNos = washAndReportStations(stationsList, city)
@@ -167,10 +166,8 @@ def calcDistances(city):
         col = 0 
         row = []
         for col in range(len(activeStationNos)):
-            # dist = geopy.distance.distance((stationsList[rowNo].latitude, stationsList[rowNo].longitude), 
-            #     (stationsList[col].latitude, stationsList[col].longitude)).km
             dist = geopy.distance.distance((stationsList[activeStationNos[rowNo]].latitude, stationsList[activeStationNos[rowNo]].longitude), 
-                (stationsList[activeStationNos[col]].latitude, stationsList[activeStationNos[col]].longitude)).km # TODO, puh..., simplify this, ugly
+                                            (stationsList[activeStationNos[col]].latitude, stationsList[activeStationNos[col]].longitude)).km 
             dist = round(dist, 3)    
             if dist == 0.0 and rowNo != col:
                 print("*** ERROR: Distance between two stations is zero", end ="") 
@@ -186,13 +183,6 @@ def calcDistances(city):
     print("Distances calculated, stored in Distances.txt and returned thru call")
     return dist_matrix_km
 
-def readStationMap(city):
-    stationMap = {} # maps from stationId to station number 
-    stationsFile = open("init_state/cityBike/data/" + city + "/stationsAll.txt", "r")
-    for line in stationsFile.readlines():
-        words = line.split()
-        stationMap[words[1]] = int(words[0])
-    return stationMap
 
 def readActiveStationMap(city):
     stationMap = {} # maps from stationId to station number 
@@ -206,7 +196,7 @@ def readBikeStartStatus(city):
     verbose = False # local, TODO, make global setting for warnings?
     if city == "Oslo" or city == "Utopia":
 #        bikeStatusFile = open("init_state.cityBike/data/Oslo/stationStatus-23-Mar-1513.json", "r")
-        bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
+        bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r") # TODO move hardcoded filenames into settings?
         allStatusData = json.loads(bikeStatusFile.read())
         stationData = allStatusData["data"]
         id2no = readActiveStationMap(city)
@@ -226,28 +216,28 @@ def readBikeStartStatus(city):
     return bikeStartStatus
 
 def readCapacities(city):
-    verbose = False
-    dockStartStatus = []
+    verbose = False # local, TODO, make global setting for warnings?
+    dockStartCapacity = []
     if city == "Oslo" or city == "Utopia":
-        bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r")
+        bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r") # TODO move hardcoded filenames into settings?
         allStatusData = json.loads(bikeStatusFile.read())
         stationData = allStatusData["data"]
         id2no = readActiveStationMap(city)
-        dockStartStatus = []
+        dockStartCapacity = []
         for stat in range(len(id2no)): # make list of correct length, fill values below for those found
-            dockStartStatus.append(0)
+            dockStartCapacity.append(0)
         for i in range(len(stationData["stations"])):
             stationId = stationData["stations"][i]["station_id"]
             if stationId in id2no:
                 stationNo = id2no[stationId]
                 noOfDocks = stationData["stations"][i]["num_docks_available"]
                 noOfBikes = stationData["stations"][i]["num_bikes_available"]
-                dockStartStatus[stationNo] = noOfDocks + noOfBikes
+                dockStartCapacity[stationNo] = noOfDocks + noOfBikes
             elif verbose:
                 print("*** Warning: active station without any tripData, is neglected. StationId: ", stationId)    
     else:
         print("*** Error - readCapacities not implemented for given city")
-    return dockStartStatus
+    return dockStartCapacity
 
 def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3, random_seed=1):
     if city == "Oslo" and ( (week < 1) or (week > 53)):
@@ -259,6 +249,8 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
 
     # Read all stations data for city, calculate distances, and remove non-active stations.
     distances = calcDistances(city)
+
+#### LEST OVER HIT    ***********************************************************************************'
 
     print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) 
         + ", setting up datastructures ... ") 
@@ -389,7 +381,7 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
                         move_probabilities[station][day][hour].append(equalProb)
 
     bikeStartStatus = readBikeStartStatus(city)
-    dockStartStatus = readCapacities(city)
+    dockStartCapacity = readCapacities(city)
     totalBikes = 0
     for i in range(len(bikeStartStatus)):
         totalBikes += bikeStartStatus[i]
@@ -402,11 +394,11 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
         main_depot = False,
         secondary_depots = 0,
         number_of_scooters = bikeStartStatus,
-        capacities = dockStartStatus,
+        capacities = dockStartCapacity,
         number_of_vans = number_of_vans,
         random_seed = random_seed,
         arrive_intensities = arrive_intensities,
         leave_intensities = leave_intensities,
         move_probabilities = move_probabilities,
     )
-
+    
