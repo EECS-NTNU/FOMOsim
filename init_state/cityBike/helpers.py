@@ -72,11 +72,7 @@ def loggDepartures(stationId, timelist):
 def loggEvent(event, times=[]):
     string = event.__repr__()
     words = string.split()
-    if words[0] == "<GenerateScooterTrips":
-        pass
-        # time = words[3][0:len(words[3])-1] # NOTE This event not longer reported since it is covered by loggDepartures
-        # write(trafficLogg, ["0-to-many-was-generated-at-time:", time])
-    elif words[0] == "<ScooterDeparture":
+    if words[0] == "<ScooterDeparture":
         time = words[3][0:len(words[3])-1]
         fromLocation = words[7][0:len(words[7])-1]
         write(trafficLogg, ["Departure-at-time:", time, "from:", fromLocation ]) 
@@ -94,8 +90,8 @@ def loggEvent(event, times=[]):
         pass
         print("*** ERROR: Tried to logg unknown event ??? ")
 
-
-def fixComputerName(string):
+def fixComputerName(string): # Used for storing name of computer when logging simualtion results and performance
+                             # also used to distinquish execution on WinPC in contrast to linux, in cases where it is needed
     if string == "LAPTOP-SBB45R3V":
         return string + "(Lasse-PC1)"
     elif string == "DESKTOP-CTHMSMJ":
@@ -107,6 +103,3 @@ def fixComputerName(string):
 
 def get_duration(days, hour): # was get_time in Asbjørns recent main.py
     return 60*24*days + 60*hour
-
-
-

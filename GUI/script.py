@@ -10,7 +10,7 @@ from datetime import datetime
 import jsonpickle
 import beepy
 import PySimpleGUI as sg
-from numpy import DataSource
+# from numpy import DataSource
 
 import settings
 import sim
@@ -26,18 +26,17 @@ from init_state.cityBike.parse import calcDistances, get_initial_state
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *
  
-class Session:
+class Session: # used to store state during a simulation session
     def __init__(self, sessionName):
         self.name = sessionName
-        self.startTime = ""
-        self.endTime = ""
+        self.startTime = "" # start time for simulation (Simulated time)
         self.initState = sim.State()
-        self.initStateType = ""  # is "", "cityBike", "Entur", "manual or test?? ", "loaded"
-        self.targetStateMethod = ""  # is "", "evenly", "outflow" or "US"
+        self.initStateType = ""
+        self.targetStateMethod = ""  
         self.simPolicy = ""
 
     def saveState(self, filename):
-        print("SaveState called for " + self.name + "at" + self.startTime) #### TODO not difference simulated time and measured simulator exec time
+        print("SaveState called for " + self.name + "at" + self.startTime) #### TODO note the difference between simulated time and measured simulator exec time
 
 def doCommand(session, task):
     if len(task) == 0:
@@ -83,15 +82,13 @@ def doCommand(session, task):
             session.initStateType = "test"
         updateFieldDone("-STATE-MSG-", session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
-        session.targetState = sim.State() # targetState must be cleared, if it exist or not
-        session.targetStateType = ""
         write(loggFile, [task[0], "finished:", dateAndTimeStr()])
         beepy.beep(sound="ping")
    
     #### TARGET state METHOD handling
     elif task[0] == "Target-state-evenly-distributed":
         if session.initStateType == "": # an initial state does NOT exist  
-                userError("Can't calc target state without init state")
+            userError("Can't calc target state without init state")
         else:
             userFeedbackClear()
             if session.initStateType == "Entur" or session.initStateType =="CityBike" or session.initStateType =="US" or session.initStateType == "test": # TODO 3x similar code, REFACTOR
@@ -143,14 +140,9 @@ def doCommand(session, task):
 
     elif task[0] == "Save-state": # saves the initial state 
         savedStateFile = open(task[1] + ".json", "w")
-        if session.targetStateType == "outflow" or session.targetStateType == "evenly":
-            savedStateFile.write(jsonpickle.encode(session.targetState))  
-            savedStateFile.close()
-            write(loggFile, ["Save-state-from-target-state:", session.targetStateType])
-        else: # saves init state
-            savedStateFile.write(jsonpickle.encode(session.initState)) 
-            savedStateFile.close()
-            write(loggFile, ["Save-state-from-init-state:", session.initStateType])
+        savedStateFile.write(jsonpickle.encode(session.initState)) 
+        savedStateFile.close()
+        write(loggFile, ["Save-state-from-init-state:", session.initStateType])
         write(scriptFile, ["Save-state"])
 
     elif task[0] == "Load-state":
@@ -230,51 +222,51 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     metrics = simulator.metrics.get_all_metrics() # TODO, currently not used
     beepy.beep(sound="ready")
 
-def allToAll4(session): # all to all topology with 4 stations
-    arrive_intensities = [] # 3D matrix indexed as [station][day][hour]
-    leave_intensities = []  # 3D matrix indexed as [station][day][hour]
-    move_probabilities = [] # 4D matrix indexed as [from-station][day][hour][to-station]
-    for station in range(4): 
-        arrive_intensities.append([])
-        leave_intensities.append([])
-        move_probabilities.append([])
-        for day in range(7):
-            arrive_intensities[station].append([])
-            leave_intensities[station].append([])
-            move_probabilities[station].append([])
-            for hour in range(24):
-                arrive_intensities[station][day].append(1) # at this station it arrives 1 bike per hour
-                leave_intensities[station][day].append(1)  # from this station it leaves 1 bike every hour 
-                move_probabilities[station][day].append([1/3, 1/3, 1/3, 1/3]) # probabilities for moving to other stations. One 1/3 is set to 0 in next codeline 
-                move_probabilities[station][day][hour][station] = 0 # zero probability for traveling from and to same station
-
-    state = sim.State.get_initial_state(
-                bike_class = "Scooter", # TODO logging code will crash if Bike is used TODO test again
-                traveltime_matrix = [ # in minutes
-                    [10, 10, 10, 10],
-                    [10, 10, 10, 10],
-                    [10, 10, 10, 10],
-                    [10, 10, 10, 10]
-                ],
-                traveltime_van_matrix = [ # minutes
-                    [5, 5, 5, 5],
-                    [5, 5, 5, 5],
-                    [5, 5, 5, 5],
-                    [5, 5, 5, 5],
-                ],
-                main_depot = None,
-                secondary_depots = 0,
-                number_of_scooters = [1, 1, 1, 1],
-                capacities = [4, 4, 4, 4],
-                number_of_vans = 1,
-                random_seed = 1,
-                arrive_intensities = arrive_intensities,
-                leave_intensities = leave_intensities,
-                move_probabilities = move_probabilities,
-            )
-    session.initState = state
-
 def manualInitState(session, testName):
+    def allToAll4(session): # all to all topology with 4 stations
+        arrive_intensities = [] # 3D matrix indexed as [station][day][hour]
+        leave_intensities = []  # 3D matrix indexed as [station][day][hour]
+        move_probabilities = [] # 4D matrix indexed as [from-station][day][hour][to-station]
+        for station in range(4): 
+            arrive_intensities.append([])
+            leave_intensities.append([])
+            move_probabilities.append([])
+            for day in range(7):
+                arrive_intensities[station].append([])
+                leave_intensities[station].append([])
+                move_probabilities[station].append([])
+                for hour in range(24):
+                    arrive_intensities[station][day].append(1) # at this station it arrives 1 bike per hour
+                    leave_intensities[station][day].append(1)  # from this station it leaves 1 bike every hour 
+                    move_probabilities[station][day].append([1/3, 1/3, 1/3, 1/3]) # probabilities for moving to other stations. One 1/3 is set to 0 in next codeline 
+                    move_probabilities[station][day][hour][station] = 0 # zero probability for traveling from and to same station
+
+        state = sim.State.get_initial_state(
+                    bike_class = "Scooter", # TODO logging code will crash if Bike is used TODO test again
+                    traveltime_matrix = [ # in minutes
+                        [10, 10, 10, 10],
+                        [10, 10, 10, 10],
+                        [10, 10, 10, 10],
+                        [10, 10, 10, 10]
+                    ],
+                    traveltime_van_matrix = [ # minutes
+                        [5, 5, 5, 5],
+                        [5, 5, 5, 5],
+                        [5, 5, 5, 5],
+                        [5, 5, 5, 5],
+                    ],
+                    main_depot = None,
+                    secondary_depots = 0,
+                    number_of_scooters = [1, 1, 1, 1],
+                    capacities = [4, 4, 4, 4],
+                    number_of_vans = 1,
+                    random_seed = 1,
+                    arrive_intensities = arrive_intensities,
+                    leave_intensities = leave_intensities,
+                    move_probabilities = move_probabilities,
+                )
+        session.initState = state
+
     if testName == "allToAll4":
         allToAll4(session)
         write(scriptFile, ["Init-state-test", "allToAll4"])  
@@ -315,7 +307,6 @@ def replayScript(): # subwindow for selecting
             if len(values["-FILE LIST-"]) > 0:
                 filepath = os.path.join("GUI/scripts", values["-FILE LIST-"][0])
         elif event == "Confirm":
-            # print(filepath)
             doScript(session,filepath)
             break 
         elif event == "Exit" or event == sg.WIN_CLOSED:

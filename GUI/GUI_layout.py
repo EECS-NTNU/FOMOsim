@@ -7,8 +7,8 @@ simOptions = [
     [sg.Checkbox('Logg traffic', key='-LOGG-TRAFFIC-')]
 ]
 dashboardColumn = [
-    [sg.Text("Prep. and set up ", font='Lucida', text_color = 'Yellow'), sg.VSeparator(), 
-        sg.Button("Fast-Track", button_color = "forest green"), sg.Button("main.py", button_color="snow4"), sg.Button("Exit")],
+    [sg.Text("Prep. and set up ", font='Lucida', text_color = 'Yellow'), sg.VSeparator(), sg.Button("Fast-Track", 
+        button_color = "forest green"), sg.Button("main.py", button_color="snow4"), sg.Button("Exit")],
     [sg.Text("Set up simulation", font="Helvetica 14", size=(30, 1), text_color = "spring green", key="-FEEDBACK-")],
     [sg.Text('_'*colWidth)],
 

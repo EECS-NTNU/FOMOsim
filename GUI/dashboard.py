@@ -1,6 +1,5 @@
 # dashboard.py
 
-import os
 import socket
 import PySimpleGUI as sg
 import matplotlib # TODO MARK-C
@@ -20,16 +19,14 @@ def GUI_main():
     betterName = fixComputerName(socket.gethostname())
     write(loggFile, ["Session-start:", session.name, dateAndTimeStr(), "Computer:", betterName]) 
     task = [] # TODO, currently only one task allowed in queue 
-    readyForTask = False # used together with timeout to ensure one iteration in loop for 
-    resultFile = ""                     
+    readyForTask = False # used together with timeout to ensure one iteration in loop         
     while True:
         GUI_event, GUI_values= window.read(timeout = 50) # waits some millisecs before looking in taskQueue
-#        GUI_event, GUI_values= window.read() 
-        if len(task) > 0: ###### handling of lengthy operations is done in a two-stage process to be able to give message
+        if len(task) > 0: ###### handling of lengthy operations is done in a two-stage process to be able to give rapid feedback in GUI
             if not readyForTask:
                 readyForTask = True
             else:
-                doCommand(session, task) # TODO opprett session passende sted
+                doCommand(session, task) 
                 readyForTask = False
                 task = []   
         
@@ -47,11 +44,11 @@ def GUI_main():
         ###### DOWNLOAD GUI PART
         elif GUI_event == "All Oslo":
             updateField("-INPUTfrom-", "From: 1")
-            updateField("-INPUTto-", "To: 35")  # TODO, Magic number, move to local settings ? 
+            updateField("-INPUTto-", "To: 35")  # TODO, Magic number, move to local settings ? TODO download the last months?
         elif GUI_event == "Clear":
             updateField("-INPUTfrom-", "From: ")
             updateField("-INPUTto-", "To: ")   
-        elif GUI_event == "Download Oslo": # TODO, should maybe be handled like time-consuming tasks, or give warning
+        elif GUI_event == "Download Oslo": 
             task = ["Download-Oslo", strip("From:", GUI_values["-INPUTfrom-"]), strip("To:", GUI_values["-INPUTto-"])]
             updateFieldOperation("-FEEDBACK-", "Lengthy operation started (see terminal)") 
 
@@ -73,7 +70,7 @@ def GUI_main():
             if GUI_values["-OSLO-"]:
                 userFeedbackClear()
                 weekNo = 0
-                if GUI_values["-WEEK-"] == "Week no: ": # TODO, improve code, make function, reuse
+                if GUI_values["-WEEK-"] == "Week no: ": 
                     weekNo = 53
                     updateField("-WEEK-", "Week no: 53") 
                 else:
@@ -85,9 +82,9 @@ def GUI_main():
                 if weekNo != 0 :
                     updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (4 - 6 minutes)") 
                     task = ["Init-state-CityBike", "Oslo", str(weekNo)]    
-            elif GUI_values["-UTOPIA-"]: # This is (still) quick
+            elif GUI_values["-UTOPIA-"]: 
                 userFeedbackClear()
-                updateField("-WEEK-", "Week no: 48") # Only week with traffic at the moment for Utopia
+                updateField("-WEEK-", "Week no: 48") # Only one week with traffic at the moment for Utopia (3 trips)
                 task = ["Init-state-CityBike", "Utopia", "48"]    
                 updateFieldOperation("-STATE-MSG-", "short operation started ...") 
             elif GUI_values["-BERGEN-"]:
@@ -95,11 +92,11 @@ def GUI_main():
             else:
                 userError("You must select a city")
             updateField("-CALC-MSG-", "")
-        elif GUI_event == "Entur": # handled here since it is relativelu quick
+        elif GUI_event == "Entur": 
             userFeedbackClear()
             task = ["Init-state-Entur"] 
             updateField("-WEEK-","Week no: -na-")
-            window["-OSLO-"].update(True) # entur data are from Oslo
+            window["-OSLO-"].update(True) # entur data are from Oslo, indicate it in GUI
             window["-UTOPIA-"].update(False)
             updateField("-CALC-MSG-","")
             updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (see progress in terminal)")

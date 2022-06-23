@@ -240,6 +240,14 @@ def readCapacities(city):
     return dockStartCapacity
 
 def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3, random_seed=1):
+    """ Calls calcDistances to get an updated status of active stations in the given city. Processes all stored trips
+        downloaded for the city, calculates average trip duration for every pair of stations, including
+        back-to-start trips. For pair of stations without any registered trips an average duration is estimated via
+        the trip distance and a global average SCOOTER_SPEED value from settings.py. This gives the travel_time matrix.
+        Travel time for the van is based on distance. All tripdata is read and used to calculate arrive and leave intensities 
+        for every station and move probabilities for every pair of stations. These structures are indexed by station, week and hour.
+        Station capacities and number of scooters in use is based on real_time data from 26 April 2022 at 11:40h.
+    """
     if city == "Oslo" and ( (week < 1) or (week > 53)):
         print("*** Error: week no must be in range 1..53")
     elif city == "Utopia" and (week != 48): # Utopia is used for test purposes
@@ -250,8 +258,6 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
     # Read all stations data for city, calculate distances, and remove non-active stations.
     distances = calcDistances(city)
 
-#### LEST OVER HIT    ***********************************************************************************'
-
     print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) 
         + ", setting up datastructures ... ") 
     years = [] # Must count no of "year-instances" of the given week that are analyzed
@@ -261,10 +267,12 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
     moveCount = []
     durations = []
     for station in range(len(stationMap)):
-        arriveCount.append([])
-        leaveCount.append([])
-        moveCount.append([])
-        durations.append([])
+        arriveCount.append([]) # arriving at this station
+        leaveCount.append([]) # departing from this station
+        moveCount.append([]) # moving fro this station to an end-station
+        durations.append([]) # traveltime from this station to an end-station
+        for s in range(len(stationMap)):
+            durations[station].append([])
         for day in range(7):
             arriveCount[station].append([])
             leaveCount[station].append([])
@@ -273,9 +281,8 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
                 arriveCount[station][day].append(0)
                 leaveCount[station][day].append(0)
                 stationList = []
-                for i in range(len(stationMap)): # TODO, can probably be done more compactly
+                for i in range(len(stationMap)):
                     stationList.append(0)
-                    durations[station].append([])
                 moveCount[station][day].append(stationList)
 
     # process all stored trips for given city, count trips and store durations for the given week number, only for 
@@ -300,7 +307,6 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
                 if startStationNo == endStationNo:
                     backToStartTrips += 1  
                 year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
-                # print(" ", weekNo, end= "") # debug
                 years.append(year)
                 hour = int(bikeData[i]["ended_at"][11:13])
                 if weekNo == week:
@@ -353,12 +359,12 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
             ttVanMatrix[start].append((distances[start][end]/settings.VEHICLE_SPEED)*60)
                        
     # Calculate arrive and leave-intensities and move_probabilities
-    noOfYears = len(set(years))
+    noOfYears = len(set(years)) # TODO, inefficient storing long list of years, use set from the start 
     arrive_intensities = []  
     leave_intensities = []
     move_probabilities= []
     for station in range(len(stationMap)):
-        if station % 20 == 0:
+        if station % 20 == 0: # show progress
             print(".", end='')
         arrive_intensities.append([])
         leave_intensities.append([])
