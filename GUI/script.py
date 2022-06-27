@@ -19,7 +19,7 @@ import target_state.outflow_target_state
 import policies
 import policies.fosen_haldorsen
 
-from init_state.cityBike.download import oslo
+from init_state.cityBike.download import download
 from init_state.cityBike.helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
 from init_state.cityBike.parse import calcDistances, get_initial_state
 
@@ -41,16 +41,10 @@ class Session: # used to store state during a simulation session
 def doCommand(session, task):
     if len(task) == 0:
         return
-    if task[0] == "Find-stations":
-        write(scriptFile, ["Find-stations", task[1]])
-        calcDistances(task[1])
-        updateFieldOK("-FEEDBACK-", "City OK")
-        beepy.beep(sound="ping")
-        write(loggFile, [task[0], "finished:", dateAndTimeStr(), "city:", task[1]])
-    elif task[0] == "Download-Oslo":
-        write(scriptFile, ["Download-Oslo", task[1], task[2]])
-        oslo(task[1], task[2])
-        write(loggFile, [task[0], "finished:", dateAndTimeStr(), "fromWeek:", task[1], "toWeek:", task[2]])
+    if task[0] == "Download":
+        write(scriptFile, ["Download", task[1]])
+        download(task[1])
+        write(loggFile, [task[0], "finished:", dateAndTimeStr(), "url:", task[1]])
         userFeedback_OK("Tripdata downloaded")
         beepy.beep(sound="ping")
    

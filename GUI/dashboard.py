@@ -42,14 +42,20 @@ def GUI_main():
             return True
 
         ###### DOWNLOAD GUI PART
-        elif GUI_event == "All Oslo":
-            updateField("-INPUTfrom-", "From: 1")
-            updateField("-INPUTto-", "To: 35")  # TODO, Magic number, move to local settings ? TODO download the last months?
-        elif GUI_event == "Clear":
-            updateField("-INPUTfrom-", "From: ")
-            updateField("-INPUTto-", "To: ")   
-        elif GUI_event == "Download Oslo": 
-            task = ["Download-Oslo", strip("From:", GUI_values["-INPUTfrom-"]), strip("To:", GUI_values["-INPUTto-"])]
+        elif GUI_event == "Oslo": 
+            task = ["Download", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/"]
+            updateFieldOperation("-FEEDBACK-", "Lengthy operation started (see terminal)") 
+        elif GUI_event == "Oslo vinter":
+            task = ["Download", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/"]
+            updateFieldOperation("-FEEDBACK-", "Lengthy operation started (see terminal)") 
+        elif GUI_event == "Bergen":
+            task = ["Download", "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/"]
+            updateFieldOperation("-FEEDBACK-", "Lengthy operation started (see terminal)") 
+        elif GUI_event == "Edinburgh":
+            task = ["Download", "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/"]
+            updateFieldOperation("-FEEDBACK-", "Lengthy operation started (see terminal)") 
+        elif GUI_event == "Trondheim":
+            task = ["Download", "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/"]
             updateFieldOperation("-FEEDBACK-", "Lengthy operation started (see terminal)") 
 
         ###### SELECT CITY GUI PART     
