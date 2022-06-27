@@ -1,6 +1,15 @@
 # parse.py
 
-# import operator
+# AD: Viktigste kommentarer:
+# AD: - Bør generalisere koden slik at det ikke hardkodes støtte for de forskjellige byene
+# AD:   - Gi heller inn en URL til get_initial_state()
+# AD: - Bør laste inn alle data fra nett, ikke forutsette at bruker har lastet ned filene på forhånd
+        # teste på om de finnes lastet ned, OBS  filnavn med start & slutt måned, laste nyere om det finnes
+# AD: - Bør unngå å gå gjennom datafilene to ganger
+# AD:   - Nå er det først en gang for å lage stasjonsliste, etterpå for å finne tripcount
+# AD: - Etter at state-objektet er laget første gang bør det lagres som json-fil
+# AD:   - get_initial_state() kan sjekke om det finnes en lagret state, bruk i såfall den
+
 # from os import stat
 # from sre_parse import Verbose
 import sim
@@ -12,7 +21,9 @@ import settings
 from GUI import loggFile
 from init_state.cityBike.helpers import yearWeekNoAndDay, write, dateAndTimeStr 
 
-class Station:
+tripDataDirectory = "init_state/cityBike/data/" # location of tripData
+
+class StationLocation: #LN: se om denne kan sløyfes helt
     def __init__(self, stationId, longitude, latitude, stationName):
         self.stationId = stationId
         self.longitude = longitude
@@ -31,6 +42,7 @@ def calcDistances(city):
         the flag settings.REPORT_CHANGES. The same goes for stations that have a name change.
         stations.txt is produced and is used in the simulations and contains only active stations, i.e. those with capacity > 0
     """
+
     def sortStations(stationsDict):
         stationsList = []
         for s in sorted(stationsDict, key = stationsDict.get):
@@ -39,19 +51,20 @@ def calcDistances(city):
 
     def readStationMap(city): # returns a map from stationId to station number based on a file with ALL stations 
         stationMap = {}  
-        stationsFile = open("init_state/cityBike/data/" + city + "/stationsAll.txt", "r")
+        stationsFile = open(tripDataDirectory + city + "/stationsAll.txt", "r")
         for line in stationsFile.readlines():
             words = line.split()
             stationMap[words[1]] = int(words[0])
         return stationMap
 
-    def washAndReportStations(stationsList, city):
+    def washAndReportStations(stationsList, city): ## IKKE nødvendig, bare les status-fila for å finne aktuelle stasjoner og DETTE forenkler også endring av get_initial state
         # will produce two files, stations.txt that is "washed" by removing stations with capacity = 0 as reported in snapshot from April 26. 2022. This file
         # is used in the simulations. The other file stationsAll.txt with all stations found in the tripData is included to ease debugging. 
         # If Verbose = True, the washing is reported in terminal
         Verbose = False # TODO, move into settings? 
 
-        fileName = "init_state/cityBike/data/" + city + "/stationsAll.txt"
+        # AD: Hvis denne bare er til debugging synes jeg den bør fjernes i main-branchen
+        fileName = tripDataDirectory + city + "/stationsAll.txt"
         stationsDescr = open(fileName, "w")
         count = 0
         stationIsActive = [] # used for washing, see comment above
@@ -61,19 +74,25 @@ def calcDistances(city):
             count = count + 1
             stationIsActive.append(False) # initialization, used further down
         stationsDescr.close()
+
+        ## gi GBFS URL inn som param til get_intial
+        # AD: Synes absolutt dette bør gjøres mer dynamisk.  Liker ikke å hardkode denne noe sted, heller ikke i settings
         stationStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r") # TODO, is possible to update more dynamically, it is
                                                                                                     # read from https://gbfs.urbansharing.com/oslobysykkel.no/station_information.json
                                                                                                     # TODO, move such hardcoded filenames into settings?
         allStatusData = json.loads(stationStatusFile.read())
         stationData = allStatusData["data"]
+
+        # AD: Hvorfor lager du ikke denne mappingen i for-løkka på linje 70?  Rart å gjøre dette via en tekstfil MULIG DETTE faller bort nå
         id2no = readStationMap(city) # map is needed to find active stations, readStationMap reads from stationsAll.txt
+
         for i in range(len(stationData["stations"])): # loop thru all active stations
             stationId = stationData["stations"][i]["station_id"]
             if stationId in id2no:
                 stationNo = id2no[stationId] # stationNo is number in list of stations
                 stationIsActive[stationNo] = True
 
-        fileName = "init_state/cityBike/data/" + city + "/stations.txt" # produce the WASHED list
+        fileName = tripDataDirectory + city + "/stations.txt" # produce the WASHED list
         stationsDescr = open(fileName, "w")
         count = 0
         activeStations = []
@@ -91,12 +110,17 @@ def calcDistances(city):
     stationNo = 0 # station numbers found, counts 0,1,2,...
     stationMap = {} # maps from stationId to station number, ALL stations found in the folder <city>/data/tripData are included 
     stationsData = {} # ALL stations found in tripData are included 
-    tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
+    tripDataPath = tripDataDirectory + city + "/tripData"
     fileList = os.listdir(tripDataPath)
     fileList.sort() # needed to get linux and windows behave similarly
     if len(fileList) == 0:
-        print("*** Error: you must download city data" )
+        print("*** Error: you must download city data" ) # AD: Her burde data blitt lastet ned automatisk
     else:    
+        # AD: Dette er en svært treg løkke
+        # AD: Det den gjør er å finne en liste over alle stasjoner i hele datasettet
+        # AD: Etterpå filtererer du ut stasjoner som ikke er i stationStatus*.json.
+        # AD: Kan du ikke like gjerne bare lese ut fra stationStatus*.json?  Da slipper du washAndReportStations også
+        # AD: I såfall er det nok å lese fra fileList for å finne koordinater og andre data, dette kan gjøres senere når du går gjennom alle filene på nytt for å lage trip-statistikken (linje 338)
         for file in fileList:
             # NOTE we read all stored trip-data to find all "possible" stations. If there are stations that
             # are taken out of operation, we should remove them TODO How to remove? manually? describe?
@@ -111,7 +135,7 @@ def calcDistances(city):
                 if not startId in stationMap: # first entry for this station
                     stationMap[startId] = stationNo
                     stationNo = stationNo + 1
-                    stationsData[startId] = Station(startId, startLong, startLat, startName)
+                    stationsData[startId] = StationLocation(startId, startLong, startLat, startName)
                 else: # we already have a Station-object for startId, will check if data are changed and eventually report such changes
                     if stationsData[startId].longitude != startLong or stationsData[startId].latitude != startLat:
                         moveDist = geopy.distance.distance((stationsData[startId].latitude, stationsData[startId].longitude), 
@@ -130,6 +154,7 @@ def calcDistances(city):
                                 print("* name of station ", startId, "was changed from", oldName, " to ", startName )
                                 stationsData[startId].renamed = True
 
+                # AD: Følgende kode er kopi av den over, dette bør refaktoreres
                 endId = int(bikeData[i]["end_station_id"])
                 endLong = str(bikeData[i]["end_station_longitude"])
                 endLat = str(bikeData[i]["end_station_latitude"])
@@ -137,7 +162,7 @@ def calcDistances(city):
                 if not endId in stationMap:
                     stationMap[endId] = stationNo
                     stationNo = stationNo + 1
-                    stationsData[endId] = Station(endId, endLong, endLat, endName)
+                    stationsData[endId] = StationLocation(endId, endLong, endLat, endName)
                 else: # we already have a Station-object for endId, will check if data are changed and eventually report such changes
                     if stationsData[endId].longitude != endLong or stationsData[endId].latitude != endLat:
                         moveDist = geopy.distance.distance((stationsData[endId].latitude, stationsData[endId].longitude), 
@@ -157,21 +182,29 @@ def calcDistances(city):
                                 stationsData[endId].renamed = True
         print("A total of ", len(set(stationsData)), " stations have been used, reported on stationsAll.txt")
 
+    # AD: Kan du ikke bare gjøre slik: stationsList = sorted(stationsData.values()) ? LASSE TESTE PC vs. LINUX
     stationsList = sortStations(stationsData)  # this step was needed to assure equivalent behaviour under windows and linux. List contains ALL stations  
+
     activeStationNos = washAndReportStations(stationsList, city)
 
     dist_matrix_km = [] # km in kilometers
-    dm_file = open("init_state/cityBike/data/" + city + "/Distances.txt", "w")
+
+    # AD: Samme kommentar som på linje 65, bare lagre distances.txt i utviklings-brancher og ikke i main-branchen
+    dm_file = open(tripDataDirectory + city + "/Distances.txt", "w")
+
     for rowNo in range(len(activeStationNos)):
         col = 0 
         row = []
         for col in range(len(activeStationNos)):
+            # AD: Dette er funksjonalitet som også ligger i sim/Location.py     ASBJØRN får denne geopy-metiden inn i simulator  LASSE vurderer om jeg kan droppe alt styret med distance - og trenger vi vite om en stasjon har flyttet seg?
+            # AD: Du har en finere implementasjon, men vi burde refaktorere enten her eller i Location.py 
             dist = geopy.distance.distance((stationsList[activeStationNos[rowNo]].latitude, stationsList[activeStationNos[rowNo]].longitude), 
                                             (stationsList[activeStationNos[col]].latitude, stationsList[activeStationNos[col]].longitude)).km 
             dist = round(dist, 3)    
             if dist == 0.0 and rowNo != col:
                 print("*** ERROR: Distance between two stations is zero", end ="") 
                 print(" --- set to 1 km by guessing", rowNo, "", col)
+                # AD: Denne liker jeg ikke.  Er det ikke bedre å flette disse stasjonene da? Fjerne den ene SLØYFE HELE TESTET fordi vi håndterer tilbake-til-start
                 dist = 1.0
             row.append(dist)
             dm_file.write(str(dist))
@@ -186,14 +219,17 @@ def calcDistances(city):
 
 def readActiveStationMap(city):
     stationMap = {} # maps from stationId to station number 
-    stationsFile = open("init_state/cityBike/data/" + city + "/stations.txt", "r")
+    stationsFile = open(tripDataDirectory + city + "/stations.txt", "r")
     for line in stationsFile.readlines():
         words = line.split()
         stationMap[words[1]] = int(words[0])
     return stationMap
 
+# AD: Både denne og readCapacities() leser data fra stationStatus. SLÅ SAMMEN DE TO   Jeg synes det er mer naturlig å lese fila én gang, og hente ut alle data i samme for-løkke
 def readBikeStartStatus(city):
     verbose = False # local, TODO, make global setting for warnings?
+
+    # AD: Generaliser, ikke begrens deg til Oslo
     if city == "Oslo" or city == "Utopia":
 #        bikeStatusFile = open("init_state.cityBike/data/Oslo/stationStatus-23-Mar-1513.json", "r")
         bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r") # TODO move hardcoded filenames into settings?
@@ -218,6 +254,8 @@ def readBikeStartStatus(city):
 def readCapacities(city):
     verbose = False # local, TODO, make global setting for warnings?
     dockStartCapacity = []
+
+    # AD: Generaliser, ikke begrens deg til Oslo
     if city == "Oslo" or city == "Utopia":
         bikeStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r") # TODO move hardcoded filenames into settings?
         allStatusData = json.loads(bikeStatusFile.read())
@@ -248,6 +286,8 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
         for every station and move probabilities for every pair of stations. These structures are indexed by station, week and hour.
         Station capacities and number of scooters in use is based on real_time data from 26 April 2022 at 11:40h.
     """
+
+    # AD: Bør unngå å hardkode data for de forskjellige byene, dette bør generaliseres (gjelder hele cityBike-pakken)
     if city == "Oslo" and ( (week < 1) or (week > 53)):
         print("*** Error: week no must be in range 1..53")
     elif city == "Utopia" and (week != 48): # Utopia is used for test purposes
@@ -261,6 +301,8 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
     print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) 
         + ", setting up datastructures ... ") 
     years = [] # Must count no of "year-instances" of the given week that are analyzed
+
+    # AD: også her er jeg tvilende til om det er fornuftig å gå via fil, du har jo alle data i minnet
     stationMap = readActiveStationMap(city)
     arriveCount = []
     leaveCount = []
@@ -289,8 +331,10 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
     # trips with both active start station and end station
     trips = 0 # total number from all tripdata read
     backToStartTrips = 0
-    tripDataPath = "init_state/cityBike/data/" + city + "/tripData"
+    tripDataPath = tripDataDirectory + city + "/tripData"
     fileList = os.listdir(tripDataPath)
+    
+    # AD: Dette bør være den eneste plassen du går gjennom alle datafiler
     for file in fileList:
         jsonFile = open(os.path.join(tripDataPath, file), "r")
         bikeData = json.loads(jsonFile.read())
@@ -321,6 +365,7 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
 
                 trips = trips + 1
         print(".", end='') # TODO replace with progress bar
+                           # AD: Enig, progress bar er lett i python
     
     # Calculate average durations, durations in seconds
     avgDuration = []
@@ -393,6 +438,11 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
         totalBikes += bikeStartStatus[i]
     write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
 
+    # AD: Hadde vært kjekt å cache ferdigprosesserte data her, så slipper man å kalkulere alt på nytt hver gang
+    # AD: Du kan kalle State.save() her, og State.load() på begynnelsen av funksjonen   1) PRØV Å BRUKE DENNE først   2)  hvis min egen save load, så flytt koden inn her fra gui
+    #  
+
+    # AD: Lurer på om denne bør splittes opp i flere funksjoner, har blitt ganske stor og stygg  ASBJØRN TENKER på, ikke Lasse
     return sim.State.get_initial_state(
         bike_class = bike_class, 
         traveltime_matrix = ttMatrix, 

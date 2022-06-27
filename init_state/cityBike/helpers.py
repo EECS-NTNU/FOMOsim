@@ -4,6 +4,9 @@ import shutil
 from datetime import datetime, date
 from GUI import trafficLogg, trafficLoggDir
 
+# AD: Mye her (alt?) er ikke spesifikt for cityBike, bør flyttes ut til rota, eller til der de brukes
+
+# AD: Denne kan du erstatte med re.sub() JA
 def strip(removeStr, wholeStr): # strips from front
     start = wholeStr.find(removeStr)
     if start == 0:
@@ -12,6 +15,7 @@ def strip(removeStr, wholeStr): # strips from front
         print("*** ERROR could not remove ", removeStr)
 
 def yearWeekNoAndDay(dateString):
+    # AD: Bruke strptime, ikke parse stringen selv
     year, month, day = map(int, dateString.split('-'))
     date1 = date(year, month, day)
     return year, int(date1.isocalendar()[1]), date1.weekday()
@@ -90,6 +94,7 @@ def loggEvent(event, times=[]):
         pass
         print("*** ERROR: Tried to logg unknown event ??? ")
 
+# AD: Dette er tungvint, rart og vanskelig å vedlikeholde.  Er det ikke bedre å endre navn på PC-ene? JEPP 
 def fixComputerName(string): # Used for storing name of computer when logging simualtion results and performance
                              # also used to distinquish execution on WinPC in contrast to linux, in cases where it is needed
     if string == "LAPTOP-SBB45R3V":
@@ -101,5 +106,6 @@ def fixComputerName(string): # Used for storing name of computer when logging si
     else:
         return string + "(unknown)"    
 
+# AD: Bedre da å refaktorere slik at samme funksjon brukes begge steder
 def get_duration(days, hour): # was get_time in Asbjørns recent main.py
     return 60*24*days + 60*hour
