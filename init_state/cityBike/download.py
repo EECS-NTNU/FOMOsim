@@ -3,6 +3,7 @@
 import os
 import requests
 
+# AD: synes ikke dette bør være hardkodet til Oslo, lag heller en funksjon som laster ned en hvilken som helst by, gitt en URL
 def oslo(fromIncluded, toIncluded):
     for i in range(int(fromIncluded), int(toIncluded) + 1):
         monthNo = 1 + ((i + 2) % 12) # 1 is April
