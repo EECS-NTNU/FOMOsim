@@ -6,7 +6,7 @@ from GUI import trafficLogg, trafficLoggDir
 
 # AD: Mye her (alt?) er ikke spesifikt for cityBike, bør flyttes ut til rota, eller til der de brukes
 
-# AD: Denne kan du erstatte med re.sub()
+# AD: Denne kan du erstatte med re.sub() JA
 def strip(removeStr, wholeStr): # strips from front
     start = wholeStr.find(removeStr)
     if start == 0:
@@ -94,7 +94,7 @@ def loggEvent(event, times=[]):
         pass
         print("*** ERROR: Tried to logg unknown event ??? ")
 
-# AD: Dette er tungvint, rart og vanskelig å vedlikeholde.  Er det ikke bedre å endre navn på PC-ene?
+# AD: Dette er tungvint, rart og vanskelig å vedlikeholde.  Er det ikke bedre å endre navn på PC-ene? JEPP 
 def fixComputerName(string): # Used for storing name of computer when logging simualtion results and performance
                              # also used to distinquish execution on WinPC in contrast to linux, in cases where it is needed
     if string == "LAPTOP-SBB45R3V":

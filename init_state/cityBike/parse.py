@@ -56,7 +56,7 @@ def calcDistances(city):
             stationMap[words[1]] = int(words[0])
         return stationMap
 
-    def washAndReportStations(stationsList, city):
+    def washAndReportStations(stationsList, city): ## IKKE nødvendig, bare les status-fila for å finne aktuelle stasjoner og DETTE forenkler også endring av get_initial state
         # will produce two files, stations.txt that is "washed" by removing stations with capacity = 0 as reported in snapshot from April 26. 2022. This file
         # is used in the simulations. The other file stationsAll.txt with all stations found in the tripData is included to ease debugging. 
         # If Verbose = True, the washing is reported in terminal
@@ -74,6 +74,7 @@ def calcDistances(city):
             stationIsActive.append(False) # initialization, used further down
         stationsDescr.close()
 
+        ## gi GBFS URL inn som param til get_intial
         # AD: Synes absolutt dette bør gjøres mer dynamisk.  Liker ikke å hardkode denne noe sted, heller ikke i settings
         # AD: Derimot ville jeg ha lagt "init_state/cityBike/" som en konstant øverst i fila, den brukes mange plasser
         stationStatusFile = open("init_state/cityBike/data/Oslo/stationStatus-26-Apr-1140.json", "r") # TODO, is possible to update more dynamically, it is
@@ -82,7 +83,7 @@ def calcDistances(city):
         allStatusData = json.loads(stationStatusFile.read())
         stationData = allStatusData["data"]
 
-        # AD: Hvorfor lager du ikke denne mappingen i for-løkka på linje 70?  Rart å gjøre dette via en tekstfil
+        # AD: Hvorfor lager du ikke denne mappingen i for-løkka på linje 70?  Rart å gjøre dette via en tekstfil MULIG DETTE faller bort nå
         id2no = readStationMap(city) # map is needed to find active stations, readStationMap reads from stationsAll.txt
 
         for i in range(len(stationData["stations"])): # loop thru all active stations
@@ -119,8 +120,7 @@ def calcDistances(city):
         # AD: Det den gjør er å finne en liste over alle stasjoner i hele datasettet
         # AD: Etterpå filtererer du ut stasjoner som ikke er i stationStatus*.json.
         # AD: Kan du ikke like gjerne bare lese ut fra stationStatus*.json?  Da slipper du washAndReportStations også
-        # AD: I såfall er det nok å lese fra fileList for å finne koordinater og andre data, og det kan enten gjøres
-        # AD:   ved å sjekke bare nyeste datafil, eller senere når du går gjennom alle filene på nytt for å lage trip-statistikken (linje 338)
+        # AD: I såfall er det nok å lese fra fileList for å finne koordinater og andre data, dette kan gjøres senere når du går gjennom alle filene på nytt for å lage trip-statistikken (linje 338)
         for file in fileList:
             # NOTE we read all stored trip-data to find all "possible" stations. If there are stations that
             # are taken out of operation, we should remove them TODO How to remove? manually? describe?
@@ -182,7 +182,7 @@ def calcDistances(city):
                                 stationsData[endId].renamed = True
         print("A total of ", len(set(stationsData)), " stations have been used, reported on stationsAll.txt")
 
-    # AD: Kan du ikke bare gjøre slik: stationsList = sorted(stationsData.values()) ?
+    # AD: Kan du ikke bare gjøre slik: stationsList = sorted(stationsData.values()) ? LASSE TESTE PC vs. LINUX
     stationsList = sortStations(stationsData)  # this step was needed to assure equivalent behaviour under windows and linux. List contains ALL stations  
 
     activeStationNos = washAndReportStations(stationsList, city)
@@ -196,15 +196,15 @@ def calcDistances(city):
         col = 0 
         row = []
         for col in range(len(activeStationNos)):
-            # AD: Dette er funksjonalitet som også ligger i sim/Location.py
-            # AD: Du har en finere implementasjon, men vi burde refaktorere enten her eller i Location.py
+            # AD: Dette er funksjonalitet som også ligger i sim/Location.py     ASBJØRN får denne geopy-metiden inn i simulator  LASSE vurderer om jeg kan droppe alt styret med distance - og trenger vi vite om en stasjon har flyttet seg?
+            # AD: Du har en finere implementasjon, men vi burde refaktorere enten her eller i Location.py 
             dist = geopy.distance.distance((stationsList[activeStationNos[rowNo]].latitude, stationsList[activeStationNos[rowNo]].longitude), 
                                             (stationsList[activeStationNos[col]].latitude, stationsList[activeStationNos[col]].longitude)).km 
             dist = round(dist, 3)    
             if dist == 0.0 and rowNo != col:
                 print("*** ERROR: Distance between two stations is zero", end ="") 
                 print(" --- set to 1 km by guessing", rowNo, "", col)
-                # AD: Denne liker jeg ikke.  Er det ikke bedre å flette disse stasjonene da? Fjerne den ene
+                # AD: Denne liker jeg ikke.  Er det ikke bedre å flette disse stasjonene da? Fjerne den ene SLØYFE HELE TESTET fordi vi håndterer tilbake-til-start
                 dist = 1.0
             row.append(dist)
             dm_file.write(str(dist))
@@ -225,7 +225,7 @@ def readActiveStationMap(city):
         stationMap[words[1]] = int(words[0])
     return stationMap
 
-# AD: Både denne og readCapacities() leser data fra stationStatus.  Jeg synes det er mer naturlig å lese fila én gang, og hente ut alle data i samme for-løkke
+# AD: Både denne og readCapacities() leser data fra stationStatus. SLÅ SAMMEN DE TO   Jeg synes det er mer naturlig å lese fila én gang, og hente ut alle data i samme for-løkke
 def readBikeStartStatus(city):
     verbose = False # local, TODO, make global setting for warnings?
 
@@ -439,9 +439,10 @@ def get_initial_state(city="Oslo", week=30, bike_class="Bike", number_of_vans=3,
     write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
 
     # AD: Hadde vært kjekt å cache ferdigprosesserte data her, så slipper man å kalkulere alt på nytt hver gang
-    # AD: Du kan kalle State.save() her, og State.load() på begynnelsen av funksjonen
+    # AD: Du kan kalle State.save() her, og State.load() på begynnelsen av funksjonen   1) PRØV Å BRUKE DENNE først   2)  hvis min egen save load, så flytt koden inn her fra gui
+    #  
 
-    # AD: Lurer på om denne bør splittes opp i flere funksjoner, har blitt ganske stor og stygg
+    # AD: Lurer på om denne bør splittes opp i flere funksjoner, har blitt ganske stor og stygg  ASBJØRN TENKER på, ikke Lasse
     return sim.State.get_initial_state(
         bike_class = bike_class, 
         traveltime_matrix = ttMatrix, 
