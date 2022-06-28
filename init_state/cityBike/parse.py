@@ -125,6 +125,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     trips = 0 # total number from all tripdata read
     tripDataPath = tripDataDirectory + city
     fileList = os.listdir(tripDataPath)
+    
+    # AD: Dette bør være den eneste plassen du går gjennom alle datafiler
     for file in fileList:
         jsonFile = open(os.path.join(tripDataPath, file), "r")
         bikeData = json.loads(jsonFile.read())
