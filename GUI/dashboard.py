@@ -6,7 +6,7 @@ import matplotlib # TODO MARK-C
 
 import settings
 
-from init_state.cityBike.helpers import dateAndTimeStr, strip, write, fixComputerName, get_duration
+from helpers import dateAndTimeStr, strip, write, fixComputerName, get_duration
 
 from GUI import loggFile
 from GUI.script import Session, doCommand, replayScript

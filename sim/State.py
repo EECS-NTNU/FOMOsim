@@ -6,7 +6,7 @@ import math
 from settings import *
 import copy
 
-from init_state.cityBike.helpers import loggWrite
+from helpers import loggWrite
 
 class State(SaveMixin):
     """

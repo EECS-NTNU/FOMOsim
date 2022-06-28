@@ -19,9 +19,9 @@ import target_state.outflow_target_state
 import policies
 import policies.fosen_haldorsen
 
-from init_state.cityBike.download import download
-from init_state.cityBike.helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
-from init_state.cityBike.parse import calcDistances, get_initial_state
+from init_state.cityBike.parse import download
+from helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
+from init_state.cityBike.parse import  get_initial_state
 
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *

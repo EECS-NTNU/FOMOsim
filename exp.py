@@ -20,7 +20,7 @@ import output
 import target_state
 
 from GUI.dashboard import GUI_main
-from init_state.cityBike.helpers import dateAndTimeStr
+from helpers import dateAndTimeStr
 
 def get_time(day=0, hour=0, minute=0):
     return 24*60*day + 60*hour + minute

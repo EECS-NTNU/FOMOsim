@@ -11,7 +11,7 @@ from sim import Metric
 
 from progress.bar import IncrementalBar
 
-from init_state.cityBike.helpers import loggTime, loggLocations, loggEvent
+from helpers import loggTime, loggLocations, loggEvent
 
 class Simulator(SaveMixin):
     """

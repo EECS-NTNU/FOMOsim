@@ -3,7 +3,7 @@ from sim import Event
 from settings import *
 import numpy as np
 
-from init_state.cityBike.helpers import loggWrite
+from helpers import loggWrite
 
 class ScooterDeparture(Event):
     """

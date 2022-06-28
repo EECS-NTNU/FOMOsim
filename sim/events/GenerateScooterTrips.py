@@ -3,7 +3,7 @@ import sim
 from sim import Event
 import settings
 from settings import *
-from init_state.cityBike.helpers import loggDepartures
+from helpers import loggDepartures
 
 class GenerateScooterTrips(Event):
     """
