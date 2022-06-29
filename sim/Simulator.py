@@ -2,18 +2,17 @@ import copy
 import datetime
 from typing import List
 
-import numpy as np
 import bisect
 import sim
 import settings
-from sim.SaveMixin import SaveMixin
+from sim.LoadSave import LoadSave
 from sim import Metric
 
 from progress.bar import IncrementalBar
 
 from helpers import loggTime, loggLocations, loggEvent
 
-class Simulator(SaveMixin):
+class Simulator(LoadSave):
     """
     Class containing all metadata about an instance. This class contains both the state, the policy and parameters.
     This class uses the state as the environment and the policy as the actor. Additionally, it is the main driver of the
@@ -28,9 +27,8 @@ class Simulator(SaveMixin):
         start_time = 0,
         verbose=False,
         label=None,
-        **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__()
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
         self.policy = policy
         self.init(duration, initial_state, start_time, verbose, label)
@@ -43,7 +41,7 @@ class Simulator(SaveMixin):
         verbose=False,
         label=None,
     ):
-        self.duration = start_time + duration
+        self.end_time = start_time + duration
         self.state = initial_state
         self.time = start_time
         self.event_queue: List[sim.Event] = []
@@ -71,7 +69,7 @@ class Simulator(SaveMixin):
         self.policy.init_sim(self)
 
     def __repr__(self):
-        string = f"<Sim with {self.time} of {self.duration} elapsed. {len(self.event_queue)} events in event_queue>"
+        string = f"<Sim with {self.time} of {self.end_time} elapsed. {len(self.event_queue)} events in event_queue>"
         return string
 
     def single_step(self):
@@ -103,7 +101,7 @@ class Simulator(SaveMixin):
         The sim object uses a queue initialized with vehicle arrival events and a GenerateScooterTrips event.
         It then pops events from this queue. The queue is always sorted in by the time of the events.
         """
-        while self.time < self.duration:
+        while self.time < self.end_time:
             self.full_step()
             if self.verbose:
                 self.progress_bar.next()
@@ -125,12 +123,6 @@ class Simulator(SaveMixin):
         insert_index = bisect.bisect([event.time for event in self.event_queue], event.time)
         self.event_queue.insert(insert_index, event)
 
-    def get_filename(self):
-        if label is not None:
-            return label
-        else:
-            return "sim"
-
     def save_sim(self, filename):
         directory = f"{settings.SIM_CACHE_DIR}/{filename}"
         super().save(directory)
@@ -144,7 +136,7 @@ class Simulator(SaveMixin):
             self.verbose,
             self.label,
         )
-        new_sim.duration = self.duration
+        new_sim.duration = self.end_time
         new_sim.event_queue = copy.deepcopy(self.event_queue)
         new_sim.metrics = copy.deepcopy(self.metrics)
         return new_sim

@@ -1,5 +1,5 @@
 """
-This file contains all the policies used in the thesis.
+This file contains a greedy policy
 """
 import copy
 

@@ -60,12 +60,12 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     # state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter",
     #                                                    number_of_scooters = 300, number_of_clusters = 50,
-    #                                                    number_of_vans = 3, random_seed = 1)
+    #                                                    number_of_vehicles = 3, random_seed = 1)
 
     # state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike",
-    #                                                     number_of_vans=3, random_seed=1)
+    #                                                     number_of_vehicles=3, random_seed=1)
 
-    state = init_state.fosen_haldorsen.get_initial_state(init_hour=start_time//60, number_of_stations=50, number_of_vans=3, random_seed=1)
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=start_time//60, number_of_stations=50, number_of_vehicles=3, random_seed=1)
 
     ###############################################################################
     # calculate target state
@@ -85,8 +85,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     #     max = len(xvalues) * RUNS,
     # )
 
-    # for num_vans in xvalues:
-    #     state.set_num_vans(num_vans)
+    # for num_vehicles in xvalues:
+    #     state.set_num_vehicles(num_vehicles)
 
     #     sims = []
     

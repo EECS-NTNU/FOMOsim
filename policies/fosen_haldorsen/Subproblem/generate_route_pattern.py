@@ -70,7 +70,7 @@ class GenerateRoutePattern:
         self.handling_time = handling_time
 
     def get_station_car_travel_time(self, station, end_st_id):
-        return self.simul.state.get_van_travel_time(station.id, end_st_id)
+        return self.simul.state.get_vehicle_travel_time(station.id, end_st_id)
 
     def get_columns(self):
         finished_routes = list()

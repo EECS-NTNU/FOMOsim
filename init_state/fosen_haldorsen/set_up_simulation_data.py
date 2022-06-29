@@ -6,7 +6,7 @@ import pickle
 import sim
 import settings
 
-def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, pull_data_server=False):
+def setup_stations_students(clientName, init_hour, number_of_vehicles, random_seed, pull_data_server=False):
     """
     function used to setup stations for students without access to all BQ data
     """
@@ -65,7 +65,7 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
     ###############################################################################
 
     traveltime_matrix = []
-    traveltime_van_matrix = []
+    traveltime_vehicle_matrix = []
     number_of_scooters = []
     capacities = []
 
@@ -107,7 +107,7 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
         charging_stations.append(True if int(station_id) % 10 == 0 else False)
 
         traveltime_matrix.append([ station_car_travel_time.get(toid[j], 0) * 1.3 for j in range(num_stations) ])
-        traveltime_van_matrix.append([ station_car_travel_time.get(toid[j], 0) for j in range(num_stations) ])
+        traveltime_vehicle_matrix.append([ station_car_travel_time.get(toid[j], 0) for j in range(num_stations) ])
 
         number_of_scooters.append(actual_num_bikes[init_hour])
         capacities.append(max_capacity)
@@ -130,7 +130,7 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
 
     # station 4 is depot, move to index 0
     traveltime_matrix.insert(0, traveltime_matrix.pop(4))
-    traveltime_van_matrix.insert(0, traveltime_van_matrix.pop(4))
+    traveltime_vehicle_matrix.insert(0, traveltime_vehicle_matrix.pop(4))
     number_of_scooters.insert(0, number_of_scooters.pop(4))
     capacities.insert(0, capacities.pop(4))
     arrive_intensities.insert(0, arrive_intensities.pop(4))
@@ -146,11 +146,11 @@ def setup_stations_students(clientName, init_hour, number_of_vans, random_seed, 
     return sim.State.get_initial_state(
         bike_class = "Scooter", 
         traveltime_matrix = traveltime_matrix,
-        traveltime_van_matrix = traveltime_van_matrix,
+        traveltime_vehicle_matrix = traveltime_vehicle_matrix,
         number_of_scooters = number_of_scooters,
         capacities = capacities,
         main_depot = True,
-        number_of_vans = number_of_vans,
+        number_of_vehicles = number_of_vehicles,
         random_seed = random_seed,
         arrive_intensities = arrive_intensities,
         leave_intensities = leave_intensities,

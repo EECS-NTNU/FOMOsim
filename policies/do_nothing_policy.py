@@ -1,11 +1,9 @@
 """
-This file contains all the policies used in the thesis.
+This file contains the DoNothing policy
 """
-import copy
 
 from policies import Policy
 import sim
-import abc
 
 class DoNothing(Policy):
     def __init__(self):

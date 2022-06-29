@@ -20,7 +20,7 @@ def download(url):
     city = extractCityFromURL(url)
     directory = f"{tripDataDirectory}/{city}"
     if not os.path.isdir(directory):
-        os.mkdir(directory) 
+        os.makedirs(directory, exist_ok=True)
     file_list = os.listdir(directory)
 
     # these loops are a brute-force method to avoid implementing a web-crawler
@@ -36,12 +36,12 @@ def download(url):
                     dataOut.write(data.text)
                     dataOut.close()
 
-def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, bike_class="Bike", number_of_vans=3, random_seed=1):
+def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, bike_class="Bike", number_of_vehicles=3, random_seed=1):
     """ Calls calcDistances to get an updated status of active stations in the given city. Processes all stored trips
         downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pair of stations without any registered trips an average duration is estimated via
         the trip distance and a global average SCOOTER_SPEED value from settings.py. This gives the travel_time matrix.
-        Travel time for the van is based on distance. All tripdata is read and used to calculate arrive and leave intensities 
+        Travel time for the vehicle is based on distance. All tripdata is read and used to calculate arrive and leave intensities 
         for every station and move probabilities for every pair of stations. These structures are indexed by station, week and hour.
         Station capacities and number of scooters in use is based on real_time data read at execution time. NOTE this will remove reproducibility of simulations
     """
@@ -182,13 +182,13 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                     print("*** Error, averageDuration == 0 should not happen") # should be set to default scooter-speed above
             ttMatrix[start].append(averageDuration/60)
          
-    ttVanMatrix = []
+    ttVehicleMatrix = []
     for start in range(len(stationMap)):
-        ttVanMatrix.append([])
+        ttVehicleMatrix.append([])
         for end in range(len(stationMap)):
             distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
                (stationLocations[end].latitude, stationLocations[end].longitude)).km
-            ttVanMatrix[start].append((distance/settings.VEHICLE_SPEED)*60)
+            ttVehicleMatrix[start].append((distance/settings.VEHICLE_SPEED)*60)
                        
     # Calculate arrive and leave-intensities and move_probabilities
     noOfYears = len(set(years)) # TODO, inefficient storing long list of years, use set from the start 
@@ -229,12 +229,12 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     return sim.State.get_initial_state(
         bike_class = bike_class, 
         traveltime_matrix = ttMatrix, 
-        traveltime_van_matrix = ttVanMatrix,
+        traveltime_vehicle_matrix = ttVehicleMatrix,
         main_depot = False,
         secondary_depots = 0,
         number_of_scooters = bikeStartStatus,
         capacities = stationCapacities,
-        number_of_vans = number_of_vans,
+        number_of_vehicles = number_of_vehicles,
         random_seed = random_seed,
         arrive_intensities = arrive_intensities,
         leave_intensities = leave_intensities,

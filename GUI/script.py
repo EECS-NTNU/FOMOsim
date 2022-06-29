@@ -52,7 +52,7 @@ def doCommand(session, task):
     elif task[0] == "Init-state-CityBike" or task[0] == "Init-state-Entur" or task[0] == "Init-state-US" or task[0] == "Init-state-test":
         if task[0] == "Init-state-CityBike":
             write(scriptFile, ["Init-state-CityBike", task[1], task[2]])
-            session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vans=3, random_seed=1) # TODO, hardwired, not good, fix 
+            session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vehicles=3, random_seed=1) # TODO, hardwired, not good, fix 
             session.initStateType = "CityBike"
         elif task[0] == "Init-state-Entur": 
             write(scriptFile, ["Init-state-Entur"])
@@ -62,13 +62,13 @@ def doCommand(session, task):
                 "Scooter",
                 number_of_scooters = 150, # TODO, check with AD,cannot use more default params
                 number_of_clusters = 5, 
-                number_of_vans = 3,
+                number_of_vehicles = 3,
                 random_seed = 1,
             )
             session.initStateType = "Entur"
         elif task[0] == "Init-state-US":
             write(scriptFile, ["Init-state-US"])
-            session.initState =  init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations=50, number_of_vans=3, random_seed=1)        
+            session.initState =  init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations=50, number_of_vehicles=3, random_seed=1)        
             session.initStateType = "US"
         elif task[0] == "Init-state-test":
             write(scriptFile, ["Init-state-test"])
@@ -243,7 +243,7 @@ def manualInitState(session, testName):
                         [10, 10, 10, 10],
                         [10, 10, 10, 10]
                     ],
-                    traveltime_van_matrix = [ # minutes
+                    traveltime_vehicle_matrix = [ # minutes
                         [5, 5, 5, 5],
                         [5, 5, 5, 5],
                         [5, 5, 5, 5],
@@ -253,7 +253,7 @@ def manualInitState(session, testName):
                     secondary_depots = 0,
                     number_of_scooters = [1, 1, 1, 1],
                     capacities = [4, 4, 4, 4],
-                    number_of_vans = 1,
+                    number_of_vehicles = 1,
                     random_seed = 1,
                     arrive_intensities = arrive_intensities,
                     leave_intensities = leave_intensities,

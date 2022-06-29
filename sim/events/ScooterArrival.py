@@ -21,7 +21,7 @@ class ScooterArrival(Event):
         self.departure_cluster_id = departure_cluster_id
         self.travel_time = travel_time
 
-    def perform(self, world, **kwargs) -> None:
+    def perform(self, world) -> None:
         """
         :param world: world object
         """
@@ -66,7 +66,7 @@ class ScooterArrival(Event):
                 world.metrics.add_aggregate_metric(world, "congestion", 1)
 
         # set time of world to this event's time
-        super(ScooterArrival, self).perform(world, **kwargs)
+        super(ScooterArrival, self).perform(world)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at cluster {self.arrival_cluster_id}>"

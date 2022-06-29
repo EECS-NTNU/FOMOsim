@@ -47,7 +47,7 @@ def training(input_arguments, suffix):
             bike_class = "Scooter",
             number_of_scooters = SAMPLE_SIZE,
             number_of_clusters = 50,
-            number_of_vans = 2,
+            number_of_vehicles = 2,
             save = True,
             cache = True,
         ),

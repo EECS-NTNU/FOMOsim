@@ -22,7 +22,7 @@ def get_initial_state(
     initial_in_use=0,
     number_of_clusters=20,
     initial_location_depot=True,
-    number_of_vans=4,
+    number_of_vehicles=4,
     random_seed=None,
 ) -> State:
     """
@@ -31,7 +31,7 @@ def get_initial_state(
     :param number_of_scooters: number of e-scooters in the instance
     :param number_of_clusters
     :param initial_location_depot: set the initial current location of the vehicles to the depot
-    :param number_of_vans: the number of vans to use
+    :param number_of_vehicles: the number of vehicles to use
     :return:
     """
     # If this combination has been requested before we fetch a cached version
@@ -77,8 +77,8 @@ def get_initial_state(
 
     # Setting vehicles to initial state
     initial_state.vehicles = [
-        Vehicle(i, current_location, VAN_BATTERY_INVENTORY, VAN_SCOOTER_INVENTORY)
-        for i in range(number_of_vans)
+        Vehicle(i, current_location, VEHICLE_BATTERY_INVENTORY, VEHICLE_SCOOTER_INVENTORY)
+        for i in range(number_of_vehicles)
     ]
 
     initial_state.scooters_in_use = []

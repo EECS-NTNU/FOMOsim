@@ -13,7 +13,7 @@ class GenerateScooterTrips(Event):
     def __init__(self, time: int):
         super().__init__(time)
 
-    def perform(self, world, **kwargs) -> None:
+    def perform(self, world) -> None:
         super(GenerateScooterTrips, self).perform(world)
 
         for departure_cluster in world.state.locations:

@@ -8,9 +8,9 @@ import abc
 class Decorators:
     @classmethod
     def check_setup(cls, func):
-        def return_function(self, *args, **kwargs):
+        def return_function(self, *args):
             if self.setup_complete:
-                return func(self, *args, **kwargs)
+                return func(self, *args)
             else:
                 raise ValueError(
                     "Value function is not setup with a state. "

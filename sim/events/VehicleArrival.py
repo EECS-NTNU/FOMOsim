@@ -15,7 +15,7 @@ class VehicleArrival(Event):
         super().__init__(arrival_time)
         self.vehicle = vehicle
 
-    def perform(self, world, **kwargs) -> None:
+    def perform(self, world) -> None:
         """
         :param world: world object
         """
@@ -36,15 +36,15 @@ class VehicleArrival(Event):
 
         action_time = (
             action.get_action_time(
-                world.state.get_van_travel_time(arrival_cluster_id, action.next_location)
+                world.state.get_vehicle_travel_time(arrival_cluster_id, action.next_location)
             )
             + refill_time
         )
 
-        driving_time = world.state.get_van_travel_time(arrival_cluster_id, action.next_location)
+        driving_time = world.state.get_vehicle_travel_time(arrival_cluster_id, action.next_location)
 
         # set time of world to this event's time
-        super(VehicleArrival, self).perform(world, **kwargs)
+        super(VehicleArrival, self).perform(world)
 
         # Compute the arrival time for the Vehicle arrival event created by the action
         arrival_time += self.time + action_time

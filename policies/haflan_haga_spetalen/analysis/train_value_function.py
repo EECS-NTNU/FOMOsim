@@ -114,7 +114,7 @@ if __name__ == "__main__":
     ###############################################################################
     # get initial state
 
-    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations = 50, number_of_vans=3, random_seed=1)
+    state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations = 50, number_of_vehicles=3, random_seed=1)
     tstate = target_state.fosen_haldorsen_target_state(state)
     state.set_target_state(tstate)
 

@@ -1,6 +1,4 @@
-init_state/cityBike/data/Oslo/tripData
-init_state/cityBike/data/Oslo/*.txt
-init_state/cityBike/data/Utopia/*.txt
+init_state/cityBike/data/
 GUI/scripts
 GUI/results
 GUI/loggfiles

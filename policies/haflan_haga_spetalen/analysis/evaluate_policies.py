@@ -60,7 +60,7 @@ def run_analysis_from_path(
                     event.visualize = True
 
         # Always rollout for 8 hours
-        world.duration = duration
+        world.end_time = duration
 
         # Do not learn anything more when during evaluation
         world.disable_training = True

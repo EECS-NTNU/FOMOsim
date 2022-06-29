@@ -4,16 +4,16 @@ SIM SETTINGS
 
 # User interface settings
 
-USER_INTERFACE_MODE = "GUI" # uses GUI from dashboard.py under tripStats
-# USER_INTERFACE_MODE = "CMD" # uses normal code in main.py 
+#USER_INTERFACE_MODE = "GUI" # uses GUI from dashboard.py under tripStats
+USER_INTERFACE_MODE = "CMD" # uses normal code in main.py 
 FULL_TRIP = True
 TRAFFIC_LOGGING = False
 REPORT_CHANGES = False # if True, changes in station position or name are reported in terminal
 
 # Vehicle settings
 
-VAN_BATTERY_INVENTORY = 170
-VAN_SCOOTER_INVENTORY = 20
+VEHICLE_BATTERY_INVENTORY = 170
+VEHICLE_SCOOTER_INVENTORY = 20
 VEHICLE_SPEED = 15
 MINUTES_PER_ACTION = 0.5
 MINUTES_CONSTANT_PER_ACTION = 1

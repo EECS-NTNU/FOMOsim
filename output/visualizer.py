@@ -476,7 +476,7 @@ def visualize_end(instances, xvalues, title=None, week=1):
     spec = gridspec.GridSpec(figure=fig, ncols=1, nrows=1)
 
     subplots_labels = [
-        ("Num vans", "Lost trips", "Starvation"),
+        ("Num vehicles", "Lost trips", "Starvation"),
     ]
     # figure
     subplots = []

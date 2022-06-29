@@ -19,7 +19,7 @@ def training_simulation(world):
     # list of vehicle times for next arrival
     vehicle_times = [world.time] * len(world.state.vehicles)
 
-    while world.time < world.duration:
+    while world.time < world.end_time:
         if next_is_vehicle_action:
             # choosing the vehicle with the earliest arrival time (index-method is choosing the first if multiple equal)
             vehicle_index = vehicle_times.index(min(vehicle_times))
@@ -94,7 +94,7 @@ if __name__ == "__main__":
         clustering.scripts.get_initial_state(
             2500,
             50,
-            number_of_vans=3,
+            number_of_vehicles=3,
             number_of_bikes=0,
         ),
         verbose=False,

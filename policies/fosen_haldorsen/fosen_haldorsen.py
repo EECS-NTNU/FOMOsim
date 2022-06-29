@@ -51,7 +51,7 @@ class FosenHaldorsenPolicy(Policy):
             if st.id == vehicle.current_location.id:
                 continue
             first = True
-            driving_time = simul.state.get_van_travel_time(vehicle.current_location.id, st.id)
+            driving_time = simul.state.get_vehicle_travel_time(vehicle.current_location.id, st.id)
             score = get_criticality_score(simul, st, vehicle, 25, driving_time, 0.2, 0.1, 0.5, 0.2, first)
             cand_scores.append([st, driving_time, score])
 
