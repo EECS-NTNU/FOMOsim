@@ -5,16 +5,6 @@ import re
 from datetime import datetime, date
 from GUI import trafficLogg, trafficLoggDir
 
-# AD: Mye her (alt?) er ikke spesifikt for cityBike, bør flyttes ut til rota, eller til der de brukes
-
-# AD: Denne kan du erstatte med re.sub() JA
-def strip(removeStr, wholeStr): # strips from front
-    start = wholeStr.find(removeStr)
-    if start == 0:
-        return wholeStr[len(removeStr):len(wholeStr)]
-    else:
-        print("*** ERROR could not remove ", removeStr)
-
 def extractCityFromURL(url):
     name = re.sub("https://data.urbansharing.com/","",url)
     name = re.sub(".no/trips/v1/","", name)
