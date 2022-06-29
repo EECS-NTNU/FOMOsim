@@ -1,6 +1,6 @@
 # parse.py
 # AD: - Etter at state-objektet er laget første gang bør det lagres som json-fil
-# AD:   - get_initial_state() kan sjekke om det finnes en lagret state, bruk i såfall den
+#     - get_initial_state() kan sjekke om det finnes en lagret state, bruk i såfall den
 import sim
 import json
 import os
@@ -15,7 +15,6 @@ from helpers import extractCityFromURL, extractCityAndDomainFromURL, yearWeekNoA
 
 tripDataDirectory = "init_state/cityBike/data/" # location of tripData
 
-# AD: jeg skrev om denne litt, bruker nå range(from, to), samt format-strenger.  
 def download(url):
     city = extractCityFromURL(url)
     directory = f"{tripDataDirectory}/{city}"
@@ -46,11 +45,10 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         Station capacities and number of scooters in use is based on real_time data read at execution time. NOTE this will remove reproducibility of simulations
     """
     class StationLocation: 
-        def __init__(self, stationId, longitude, latitude, stationName):
+        def __init__(self, stationId, longitude, latitude):
             self.stationId = stationId 
             self.longitude = longitude
             self.latitude = latitude
-            self.stationName = stationName 
 
     download(url) # checks if new data are available for the city
     city = extractCityFromURL(url)
@@ -86,9 +84,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         id = stationInfoData["stations"][i]["station_id"]
         long = stationInfoData["stations"][i]["lon"]
         lat = stationInfoData["stations"][i]["lat"]
-        name = stationInfoData["stations"][i]["name"]
         stationMap[id] = stationNo
-        stationLocations.append(StationLocation(id, long, lat, name))
+        stationLocations.append(StationLocation(id, long, lat))
         bikeStartStatus.append(stationStatusData["stations"][i]["num_bikes_available"])
         stationCapacities.append(stationInfoData["stations"][i]["capacity"])
         stationNo += 1
@@ -121,7 +118,6 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     tripDataPath = tripDataDirectory + city
     fileList = os.listdir(tripDataPath)
     
-    # AD: Dette bør være den eneste plassen du går gjennom alle datafiler
     for file in fileList:
         jsonFile = open(os.path.join(tripDataPath, file), "r")
         bikeData = json.loads(jsonFile.read())

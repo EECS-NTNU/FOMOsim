@@ -1,6 +1,7 @@
 # dashboard.py
 
 import socket
+import re
 import PySimpleGUI as sg
 import matplotlib # TODO MARK-C
 
@@ -84,7 +85,7 @@ def GUI_main():
                         updateField("-WEEK-", "Week no: ")
                         userError("You must select a week no")
                     else:    
-                        weekNo = int(strip("Week no: ", GUI_values["-WEEK-"]))
+                        weekNo = int(re.sub("Week no: ", "", GUI_values["-WEEK-"]))
                 if weekNo != 0 :
                     updateFieldOperation("-STATE-MSG-", "Lengthy operation started ... (4 - 6 minutes)") 
                     task = ["Init-state-CityBike", "Oslo", str(weekNo)]    
@@ -131,12 +132,12 @@ def GUI_main():
         ###### SAVE AND LOAD STATE PART
         elif GUI_event == "Save state":
             userFeedbackClear()
-            fileName = strip("Name: ", GUI_values["-INPUTname-"])
+            fileName = re.sub("Name: ", "", GUI_values["-INPUTname-"])
             if fileName == "":
                 fileName = "SavedState"
             task = ["Save-state", fileName]
         elif GUI_event == "Load state":
-            fileName = strip("Name: ", GUI_values["-INPUTname-"])
+            fileName = re.sub("Name: ", "", GUI_values["-INPUTname-"])
             userFeedbackClear()
             task = ["Load-state", fileName] 
 
@@ -146,10 +147,10 @@ def GUI_main():
                 userError("You must select a policy")
             else:
                 userFeedbackClear()
-                startDay = int(strip("Start-day:", GUI_values["-START-D-"]))
-                startHour = int(strip("Start-hour:", GUI_values["-START-H-"]))
-                numDays = int(strip("#days:", GUI_values["-NUM-DAYS-"]))
-                numHours = int(strip("#hours:", GUI_values["-NUM-HOURS-"]))
+                startDay = int(re.sub("Start-day:", "", GUI_values["-START-D-"]))
+                startHour = int(re.sub("Start-hour:", "", GUI_values["-START-H-"]))
+                numDays = int(re.sub("#days:", "", GUI_values["-NUM-DAYS-"]))
+                numHours = int(re.sub("#hours:", "", GUI_values["-NUM-HOURS-"]))
                 period = get_duration(numDays, numHours)
                 startTime = (24*startDay + startHour)*60 
                 if GUI_values["-LOGG-TRAFFIC-"] == True:
