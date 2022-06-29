@@ -7,6 +7,7 @@ import os
 import os.path
 import requests
 import geopy.distance
+import datetime
 
 import settings
 from GUI import loggFile
@@ -14,32 +15,26 @@ from helpers import extractCityFromURL, extractCityAndDomainFromURL, yearWeekNoA
 
 tripDataDirectory = "init_state/cityBike/data/" # location of tripData
 
+# AD: jeg skrev om denne litt, bruker nå range(from, to), samt format-strenger.  
 def download(url):
     city = extractCityFromURL(url)
-    directory = tripDataDirectory + "/" + city
+    directory = f"{tripDataDirectory}/{city}"
     if not os.path.isdir(directory):
         os.mkdir(directory) 
     file_list = os.listdir(directory)
 
-    yearNo = 2018 # 2018/02 is earliest data from data.urbansharing.com
-    while yearNo < 2024: # TODO nice-to-have improve stop iteration by reading current year
-        for monthNo in range (12): # these loops are a brute-force method to avoid implementing a web-crawler
-            monthNo += 1    
-            if monthNo < 10:  
-                monthStr = "0" + str(monthNo)
-            else:
-                monthStr = str(monthNo)
-            fileName = str(yearNo) + "-" + monthStr + ".json"
+    # these loops are a brute-force method to avoid implementing a web-crawler
+    for yearNo in range(2018, datetime.date.today().year + 1): # 2018/02 is earliest data from data.urbansharing.com
+        for monthNo in range (1, 13): 
+            fileName = f"{yearNo}-{monthNo:02}.json"
             if fileName not in file_list:     
-                address = url + str(yearNo) + "/" + monthStr + ".json"
+                address = f"{url}{yearNo}/{monthNo:02}.json"
                 data = requests.get(address)
                 if data.status_code == 200: # non-existent files will have status 404
-                    print("downloads " + city + " " + fileName + " ...")
-                    dataOut = open(directory + "/" + str(yearNo) + "-" + monthStr  + ".json", "w")
+                    print(f"downloads {city} {fileName} ...")
+                    dataOut = open(f"{directory}/{fileName}", "w")
                     dataOut.write(data.text)
                     dataOut.close()
-        yearNo += 1    
-
 
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, bike_class="Bike", number_of_vans=3, random_seed=1):
     """ Calls calcDistances to get an updated status of active stations in the given city. Processes all stored trips

@@ -25,27 +25,15 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
     WEEK = 30
 
-    cityURLs = ["https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
-        "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/", 
-        "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",
-        "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
-        "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/" ]
-    for cityURL in cityURLs:
-        state = init_state.cityBike.parse.get_initial_state( url=cityURL,  week=WEEK, 
-            bike_class="Bike", number_of_vans=3, random_seed=1)
-        tstate = target_state.equal_prob_target_state(state)
-        state.set_target_state(tstate)
-        policy = policies.DoNothing()
-        simulator = sim.Simulator(initial_state = state, policy = policy, start_time = start_time, 
-            duration = 2, verbose = True)
-        simulator.run()
-
-    print("finito")
     ###############################################################################
-    # Run simulator
+    # get initial state
 
-    simulator.run()
-
+    cityURL = "https://data.urbansharing.com/oslobysykkel.no/trips/v1/"
+    #cityUrl = "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/"
+    #cityUrl = "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/"
+    #cityUrl = "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/"
+    #cityUrl = "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/"
+    state = init_state.cityBike.parse.get_initial_state(url=cityURL,  week=WEEK, bike_class="Bike", number_of_vans=3, random_seed=1)
 
     # state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter",
     #                                                    number_of_scooters = 150, number_of_clusters = 5,
