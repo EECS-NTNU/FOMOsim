@@ -18,10 +18,9 @@ def extractCityAndDomainFromURL(url):
     
 
 def yearWeekNoAndDay(dateString):
-    # AD: Bruke strptime, ikke parse stringen selv
-    year, month, day = map(int, dateString.split('-'))
-    date1 = date(year, month, day)
-    return year, int(date1.isocalendar()[1]), date1.weekday()
+    y, w, d = datetime.strptime(dateString, "%Y-%m-%d").isocalendar() # returns day as 1..7
+    d -= 1 # adjust day to ramge 0..6
+    return (y, w, d)
 
 def timeInHoursAndMinutes(seconds):
     m, s = divmod(seconds, 60)
@@ -109,6 +108,5 @@ def fixComputerName(string): # Used for storing name of computer when logging si
     else:
         return string + "(unknown)"    
 
-# AD: Bedre da å refaktorere slik at samme funksjon brukes begge steder
-def get_duration(days, hour): # was get_time in Asbjørns recent main.py
-    return 60*24*days + 60*hour
+def timeInMinutes(days=0, hour=0, minutes=0): 
+    return 60*24*days + 60*hour + minutes

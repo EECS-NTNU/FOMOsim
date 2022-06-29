@@ -8,6 +8,8 @@ import os.path
 import requests
 import geopy.distance
 import datetime
+from datetime import date
+import jsonpickle
 
 import settings
 from GUI import loggFile
@@ -16,6 +18,19 @@ from helpers import extractCityFromURL, extractCityAndDomainFromURL, yearWeekNoA
 tripDataDirectory = "init_state/cityBike/data/" # location of tripData
 
 def download(url):
+    newData = False
+    def loadMonth(monthNo):
+        fileName = f"{yearNo}-{monthNo:02}.json"
+        if fileName not in file_list:     
+            address = f"{url}{yearNo}/{monthNo:02}.json"
+            data = requests.get(address)
+            if data.status_code == 200: # non-existent files will have status 404
+                print(f"downloads {city} {fileName} ...")
+                dataOut = open(f"{directory}/{fileName}", "w")
+                dataOut.write(data.text)
+                dataOut.close()
+                newData = True
+
     city = extractCityFromURL(url)
     directory = f"{tripDataDirectory}/{city}"
     if not os.path.isdir(directory):
@@ -24,16 +39,14 @@ def download(url):
 
     # these loops are a brute-force method to avoid implementing a web-crawler
     for yearNo in range(2018, datetime.date.today().year + 1): # 2018/02 is earliest data from data.urbansharing.com
-        for monthNo in range (1, 13): 
-            fileName = f"{yearNo}-{monthNo:02}.json"
-            if fileName not in file_list:     
-                address = f"{url}{yearNo}/{monthNo:02}.json"
-                data = requests.get(address)
-                if data.status_code == 200: # non-existent files will have status 404
-                    print(f"downloads {city} {fileName} ...")
-                    dataOut = open(f"{directory}/{fileName}", "w")
-                    dataOut.write(data.text)
-                    dataOut.close()
+        if yearNo < datetime.date.today().year:
+            for month in range (1, 13):
+                loadMonth(month)
+        else: # will not load tripdata for current month since we do not want incomplete month-files (Reason is mainly the use of file existence in loadMonth)
+            for month in range (1, datetime.date.today().month):
+                loadMonth(month)
+    return newData            
+
 
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, bike_class="Bike", number_of_vehicles=3, random_seed=1):
     """ Calls calcDistances to get an updated status of active stations in the given city. Processes all stored trips
@@ -50,7 +63,27 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             self.longitude = longitude
             self.latitude = latitude
 
-    download(url) # checks if new data are available for the city
+    def weekMonths(weekNo): # produce a list of months that can be in a given week no. Note that isocalendar 
+                            # does not handle week no = 53
+        if weekNo == 53:
+            months = [1,12]
+        else:
+            months = [] 
+            for year in range (2018, datetime.date.today().year + 1):
+                monday = date.fromisocalendar(year, weekNo, 1)
+                sunday = date.fromisocalendar(year, weekNo, 7)
+                if monday.month not in months:
+                    months.append(monday.month)
+                if sunday.month not in months:
+                    months.append(sunday.month)
+        return months
+
+    if not download(url): # checks if new data are available for the city, true if new data was loaded
+        # look in cache
+        # if found in cache, load
+
+
+
     city = extractCityFromURL(url)
     print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) + ", setting up datastructures ... ") 
     years = [] # Must count no of "year-instances" of the given week that are analyzed
@@ -101,7 +134,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         durations.append([]) # traveltime from this station to an end-station
         for s in range(len(stationMap)):
             durations[station].append([])
-        for day in range(7):
+        for day in range(7): # weekdays here are 0..6
             arriveCount[station].append([])
             leaveCount[station].append([])
             moveCount[station].append([])
@@ -119,32 +152,34 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     fileList = os.listdir(tripDataPath)
     
     for file in fileList:
-        jsonFile = open(os.path.join(tripDataPath, file), "r")
-        bikeData = json.loads(jsonFile.read())
-        for i in range(len(bikeData)):
-            startStationNo = -1
-            endStationNo = -1
-            if bikeData[i]["start_station_id"] in stationMap:
-                startStationNo = stationMap[bikeData[i]["start_station_id"]]
-            if bikeData[i]["end_station_id"] in stationMap:
-                endStationNo = stationMap[bikeData[i]["end_station_id"]]
+        if int(file[5:7]) in weekMonths(week):
+            print("Reads from: ", file)
+            jsonFile = open(os.path.join(tripDataPath, file), "r")
+            bikeData = json.loads(jsonFile.read())
+            for i in range(len(bikeData)):
+                startStationNo = -1
+                endStationNo = -1
+                if bikeData[i]["start_station_id"] in stationMap:
+                    startStationNo = stationMap[bikeData[i]["start_station_id"]]
+                if bikeData[i]["end_station_id"] in stationMap:
+                    endStationNo = stationMap[bikeData[i]["end_station_id"]]
 
-            if (startStationNo >= 0) and (endStationNo >= 0):
-                # both end and start of trip are active stations
-                year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
-                years.append(year)
-                hour = int(bikeData[i]["ended_at"][11:13])
-                if weekNo == week:
-                    arriveCount[endStationNo][weekDay][hour] += 1
-                year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
-                years.append(year)
-                hour = int(bikeData[i]["started_at"][11:13])
-                if weekNo == week:
-                    leaveCount[startStationNo][weekDay][hour] += 1
-                    moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
-                    durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
-                trips = trips + 1
-        print(".", end='') # TODO replace with progress bar # AD: Enig, progress bar er lett i python
+                if (startStationNo >= 0) and (endStationNo >= 0):
+                    # both end and start of trip are active stations
+                    year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
+                    years.append(year)
+                    hour = int(bikeData[i]["ended_at"][11:13])
+                    if weekNo == week:
+                        arriveCount[endStationNo][weekDay][hour] += 1
+                    year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
+                    years.append(year)
+                    hour = int(bikeData[i]["started_at"][11:13])
+                    if weekNo == week:
+                        leaveCount[startStationNo][weekDay][hour] += 1
+                        moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
+                        durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
+                    trips = trips + 1
+        # TODO progress bar # AD: Enig, progress bar er lett i python, men Behov redusert nå ? 
     
     # Calculate average durations, durations in seconds
     avgDuration = []
@@ -219,6 +254,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         totalBikes += bikeStartStatus[i]
     write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
 
+
     # AD: Hadde vært kjekt å cache ferdigprosesserte data her, så slipper man å kalkulere alt på nytt hver gang
     # AD: Du kan kalle State.save() her, og State.load() på begynnelsen av funksjonen   1) PRØV Å BRUKE DENNE først   2)  hvis min egen save load, så flytt koden inn her fra gui
 
@@ -228,4 +264,11 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
 
     # Create State object and return
-    return sim.State.get_initial_state(stations, number_of_vehicles, random_seed, ttMatrix, ttVehicleMatrix)
+
+    state = sim.State.get_initial_state(stations, number_of_vehicles, random_seed, ttMatrix, ttVehicleMatrix) 
+
+    savedStateFile = open("init_state/saved/states" + city + "_" + str(week) + ".json", "w")
+    savedStateFile.write(jsonpickle.encode(session.initState))
+    savedStateFile.close()
+
+    return state
