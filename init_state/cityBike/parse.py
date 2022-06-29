@@ -225,18 +225,11 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
 
     # AD: Hadde vært kjekt å cache ferdigprosesserte data her, så slipper man å kalkulere alt på nytt hver gang
     # AD: Du kan kalle State.save() her, og State.load() på begynnelsen av funksjonen   1) PRØV Å BRUKE DENNE først   2)  hvis min egen save load, så flytt koden inn her fra gui
-    # AD: Lurer på om denne bør splittes opp i flere funksjoner, har blitt ganske stor og stygg  ASBJØRN TENKER på, ikke Lasse
-    return sim.State.get_initial_state(
-        bike_class = bike_class, 
-        traveltime_matrix = ttMatrix, 
-        traveltime_vehicle_matrix = ttVehicleMatrix,
-        main_depot = False,
-        secondary_depots = 0,
-        number_of_scooters = bikeStartStatus,
-        capacities = stationCapacities,
-        number_of_vehicles = number_of_vehicles,
-        random_seed = random_seed,
-        arrive_intensities = arrive_intensities,
-        leave_intensities = leave_intensities,
-        move_probabilities = move_probabilities,
-    )
+
+    # Create stations
+    stations = sim.State.create_stations(num_stations=len(stationCapacities), capacities=stationCapacities)
+    sim.State.create_bikes_in_stations(stations, bike_class, bikeStartStatus)
+    sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
+
+    # Create State object and return
+    return sim.State.get_initial_state(stations, number_of_vehicles, random_seed, ttMatrix, ttVehicleMatrix)

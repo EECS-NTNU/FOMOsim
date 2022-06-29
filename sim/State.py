@@ -39,6 +39,7 @@ class State(LoadSave):
         if traveltime_vehicle_matrix is None:
             self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
 
+
     def sloppycopy(self, *args):
         stationscopy = []
         for s in self.stations:
@@ -61,55 +62,70 @@ class State(LoadSave):
 
         return new_state
 
+
     @staticmethod
-    def get_initial_state(bike_class, traveltime_matrix, traveltime_vehicle_matrix, number_of_scooters, number_of_vehicles, leave_intensities, arrive_intensities = None, move_probabilities = None, main_depot = False, secondary_depots = 0, target_state = None, random_seed=None, capacities=None, charging_stations = None, original_ids = None):
-        depots = []
+    def create_stations(num_stations, capacities=None, original_ids=None, positions=None, main_depot = None, secondary_depots = [], charging_stations = None):
         stations = []
 
-        start_of_ids = 0
-
-        num_depots = secondary_depots
-        if main_depot:
-            num_depots += 1
-
-        if arrive_intensities is None:
-            arrive_intensities = leave_intensities
-
-        for station_id in range(len(number_of_scooters)):
+        for station_id in range(num_stations):
             capacity = DEFAULT_STATION_CAPACITY
             if capacities is not None:
                 capacity = capacities[station_id]
-
-            tstate = None
-            if target_state:
-                tstate = target_state[station_id]
 
             original_id = None
             if original_ids is not None:
                 original_id = original_ids[station_id]
 
+            position = None
+            if positions is not None:
+                position = positions[station_id]
+
             charging_station = None
             if charging_stations is not None:
                 charging_station = charging_stations[station_id]
 
-            scooters = []
-            for scooter_id in range(number_of_scooters[station_id]):
-                if bike_class == "Scooter":
-                    scooters.append(sim.Scooter(scooter_id=start_of_ids + scooter_id, battery=100))
-                else:
-                    scooters.append(sim.Bike(scooter_id=start_of_ids + scooter_id))
-            start_of_ids += number_of_scooters[station_id]
+            if station_id == main_depot:
+                station = sim.Depot(station_id, main_depot=True, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
 
-            if station_id == 0:
-                depots.append(sim.Depot(station_id, main_depot=True, scooters=scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=tstate, capacity=capacity, original_id=original_id, charging_station=charging_station))
-
-            elif station_id < num_depots:
-                depots.append(sim.Depot(station_id, main_depot=False, scooters=scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=tstate, capacity=capacity, original_id=original_id, charging_station=charging_station))
+            elif station_id in secondary_depots:
+                station = sim.Depot(station_id, main_depot=False, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
 
             else:
-                stations.append(sim.Station(station_id, scooters, leave_intensity_per_iteration=leave_intensities[station_id], arrive_intensity_per_iteration=arrive_intensities[station_id], move_probabilities=move_probabilities[station_id], target_state=tstate, capacity=capacity, original_id=original_id, charging_station=charging_station))
+                station = sim.Station(station_id, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
+
+            stations.append(station)
+
+        return stations
                 
-        state = State(stations, depots, [], traveltime_matrix=traveltime_matrix, traveltime_vehicle_matrix=traveltime_vehicle_matrix)
+
+    @staticmethod
+    def create_bikes_in_stations(stations, bike_class, bikes_per_station):
+        id_counter = 0
+
+        for station in stations:
+            scooters = []
+
+            for scooter_id in range(bikes_per_station[station.id]):
+                if bike_class == "Scooter":
+                    scooters.append(sim.Scooter(scooter_id=id_counter, battery=100))
+                else:
+                    scooters.append(sim.Bike(scooter_id=id_counter))
+                id_counter += 1
+
+            station.scooters = scooters
+
+
+    @staticmethod
+    def set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities):
+        for station in stations:
+            station.leave_intensity_per_iteration = leave_intensities[station.id]
+            station.arrive_intensity_per_iteration = leave_intensities[station.id]
+            station.move_probabilities = move_probabilities[station.id]
+
+
+    @staticmethod
+    def get_initial_state(stations, number_of_vehicles, random_seed=None, traveltime_matrix=None, traveltime_vehicle_matrix=None):
+        state = State(stations, traveltime_matrix=traveltime_matrix, traveltime_vehicle_matrix=traveltime_vehicle_matrix)
 
         state.set_num_vehicles(number_of_vehicles)
         state.set_seed(random_seed)

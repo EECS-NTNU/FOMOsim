@@ -13,7 +13,7 @@ class Station(Location):
     def __init__(
         self,
         cluster_id: int,
-        scooters: [Scooter],
+        scooters: [Scooter] = [],
         leave_intensity_per_iteration=None,
         arrive_intensity_per_iteration=None,
         center_location=None,
