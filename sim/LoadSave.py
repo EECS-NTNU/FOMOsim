@@ -9,7 +9,6 @@ class LoadSave(abc.ABC):
     """
 
     def save(self, filename: str):
-        # If there is no world_cache directory, create it
         with open(filename, "wb") as file:
             pickle.dump(self, file)
 
