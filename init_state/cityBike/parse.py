@@ -10,12 +10,15 @@ import geopy.distance
 import datetime
 from datetime import date
 import jsonpickle
+import zipfile
+from zipfile import ZipFile
 
 import settings
 from GUI import loggFile
 from helpers import extractCityFromURL, extractCityAndDomainFromURL, yearWeekNoAndDay, write
 
 tripDataDirectory = "init_state/cityBike/data/" # location of tripData
+savedStatesDirectory = "init_state/cityBike/savedStates/" # location of saved states
 
 def download(url):
     newData = False
@@ -78,11 +81,17 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                     months.append(sunday.month)
         return months
 
-    if not download(url): # checks if new data are available for the city, true if new data was loaded
+    if not download(url): # TODO WORK IN PROGRESS // checks if new data are available for the city, true if new data was loaded, and in that case state should not
+                          # be restored from saved state
         # look in cache
         # if found in cache, load
-
-
+        pass
+        # savedStateFileName = task[1] + ".json"
+        #     # print("before" + dateAndTimeStr()) # code for measuring time reduction when using ZIP
+        #     loadStateFile = open(loadFileName, "r") # from JSON alternative
+        #     string = loadStateFile.read()
+        #     # with zipfile.ZipFile(loadFileName, mode = "r") as archive:
+        #     #     string = archive.read(loadFileName) # NOTE, compression can be really efficient here
 
     city = extractCityFromURL(url)
     print("get_initial_state starts analyzing traffic for city: " + city + " for week " + str(week) + ", setting up datastructures ... ") 
@@ -266,9 +275,16 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     # Create State object and return
 
     state = sim.State.get_initial_state(stations, number_of_vehicles, random_seed, ttMatrix, ttVehicleMatrix) 
-
-    savedStateFile = open("init_state/saved/states" + city + "_" + str(week) + ".json", "w")
-    savedStateFile.write(jsonpickle.encode(session.initState))
-    savedStateFile.close()
+    
+    # if not os.path.isdir(savedStatesDirectory):
+    #     os.makedirs(savedStatesDirectory, exist_ok=True) # first time
+        
+    # fileName = f"{savedStatesDirectory}/saved.json"
+    # saveStateFile = open(fileName, "w")
+    # saveStateFile.write(jsonpickle.encode(state))
+    # saveStateFile.close()
+    
+    # # myZip = ZipFile(filename=f"{savedStatesDirectory}/saved.json", arcname = f"{savedStatesDirectory}/{city}_{week}.json""w")
+    # # myZip.close()    
 
     return state
