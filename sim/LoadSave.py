@@ -8,9 +8,9 @@ class LoadSave(abc.ABC):
     Inherit from this class and a basic implementation of saving an object using pickling is added to the class
     """
 
-    def save(self, directory: str, suffix=""):
+    def save(self, filename: str):
         # If there is no world_cache directory, create it
-        with open(f"{directory}.pickle", "wb") as file:
+        with open(filename, "wb") as file:
             pickle.dump(self, file)
 
     @classmethod
