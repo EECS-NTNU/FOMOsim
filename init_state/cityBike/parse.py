@@ -197,6 +197,11 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 if i % 7000 == 0:
                     progress.next()
     
+    noOfYears = len(years)
+    if noOfYears == 0:
+        raise Exception("*** Sorry, no trip data found for given city and week")
+
+
     # Calculate average durations, durations in seconds
     avgDuration = []
     for start in range(noOfStations):
@@ -274,6 +279,9 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     totalBikes = 0
     for i in range(len(bikeStartStatus)):
         totalBikes += bikeStartStatus[i]
+    if totalBikes == 0:
+        raise Exception("*** Sorry, no bikes currently available for given city")
+
     write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
 
     # Create stations
