@@ -21,7 +21,7 @@ duration = timeInMinutes(hour=48)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
-    WEEK = 2
+    WEEK = 30
 
     ###############################################################################
     # get initial state
