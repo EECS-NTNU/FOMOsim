@@ -7,7 +7,7 @@ import matplotlib # TODO MARK-C
 
 import settings
 
-from helpers import dateAndTimeStr, write, fixComputerName, get_duration
+from helpers import dateAndTimeStr, write, timeInMinutes
 
 from GUI import loggFile
 from GUI.script import Session, doCommand, replayScript
@@ -17,8 +17,8 @@ from GUI.GUIhelpers import *
 def GUI_main():
     matplotlib.use("TkAgg") # TODO MARK-C
     session = Session("GUI_main_session")
-    betterName = fixComputerName(socket.gethostname())
-    write(loggFile, ["Session-start:", session.name, dateAndTimeStr(), "Computer:", betterName]) 
+    computerName = socket.gethostname()
+    write(loggFile, ["Session-start:", session.name, dateAndTimeStr(), "Computer:", computerName]) 
     task = [] # TODO, currently only one task allowed in queue 
     readyForTask = False # used together with timeout to ensure one iteration in loop         
     while True:
@@ -151,7 +151,7 @@ def GUI_main():
                 startHour = int(re.sub("Start-hour:", "", GUI_values["-START-H-"]))
                 numDays = int(re.sub("#days:", "", GUI_values["-NUM-DAYS-"]))
                 numHours = int(re.sub("#hours:", "", GUI_values["-NUM-HOURS-"]))
-                period = get_duration(numDays, numHours)
+                period = timeInMinutes(days=numDays, hour=numHours)
                 startTime = (24*startDay + startHour)*60 
                 if GUI_values["-LOGG-TRAFFIC-"] == True:
                     settings.TRAFFIC_LOGGING = True

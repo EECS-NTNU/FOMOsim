@@ -13,26 +13,24 @@ import policies.haflan_haga_spetalen
 #import policies.gleditsch_hagen
 import sim
 import output
+from helpers import timeInMinutes
 from GUI.dashboard import GUI_main
 
-def get_time(day=0, hour=0, minute=0):
-    return 24*60*day + 60*hour + minute
-
-start_time = get_time(hour=7)
-duration = get_time(hour=48)
+start_time = timeInMinutes(hour=7)
+duration = timeInMinutes(hour=48)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
-    WEEK = 30
+    WEEK = 2
 
     ###############################################################################
     # get initial state
 
     cityURL = "https://data.urbansharing.com/oslobysykkel.no/trips/v1/"
-    #cityUrl = "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/"
-    #cityUrl = "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/"
-    #cityUrl = "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/"
-    #cityUrl = "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/"
+    #cityURL = "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/"
+    #cityURL = "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/"
+    #cityURL = "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/"
+    #cityURL = "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/"
     state = init_state.cityBike.parse.get_initial_state(url=cityURL,  week=WEEK, bike_class="Bike", number_of_vehicles=3, random_seed=1)
 
     # state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter",

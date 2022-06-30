@@ -18,10 +18,9 @@ def extractCityAndDomainFromURL(url):
     
 
 def yearWeekNoAndDay(dateString):
-    # AD: Bruke strptime, ikke parse stringen selv
-    year, month, day = map(int, dateString.split('-'))
-    date1 = date(year, month, day)
-    return year, int(date1.isocalendar()[1]), date1.weekday()
+    y, w, d = datetime.strptime(dateString, "%Y-%m-%d").isocalendar() # returns day as 1..7
+    d -= 1 # adjust day to ramge 0..6
+    return (y, w, d)
 
 def timeInHoursAndMinutes(seconds):
     m, s = divmod(seconds, 60)
@@ -97,18 +96,5 @@ def loggEvent(event, times=[]):
         pass
         print("*** ERROR: Tried to logg unknown event ??? ")
 
-# AD: Dette er tungvint, rart og vanskelig å vedlikeholde.  Er det ikke bedre å endre navn på PC-ene? JEPP 
-def fixComputerName(string): # Used for storing name of computer when logging simualtion results and performance
-                             # also used to distinquish execution on WinPC in contrast to linux, in cases where it is needed
-    if string == "LAPTOP-SBB45R3V":
-        return string + "(Lasse-PC1)"
-    elif string == "DESKTOP-CTHMSMJ":
-        return string + "(Lasse-PC2)"
-    elif string == "lasse-PC":
-        return "Lasse-PC3"
-    else:
-        return string + "(unknown)"    
-
-# AD: Bedre da å refaktorere slik at samme funksjon brukes begge steder
-def get_duration(days, hour): # was get_time in Asbjørns recent main.py
-    return 60*24*days + 60*hour
+def timeInMinutes(days=0, hour=0, minutes=0): 
+    return 60*24*days + 60*hour + minutes
