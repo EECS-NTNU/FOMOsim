@@ -129,22 +129,8 @@ def setup_stations_students(clientName, init_hour, number_of_vehicles, random_se
 
     ###############################################################################
 
-    # station 4 is depot, move to index 0
-    traveltime_matrix.insert(0, traveltime_matrix.pop(4))
-    traveltime_vehicle_matrix.insert(0, traveltime_vehicle_matrix.pop(4))
-    number_of_scooters.insert(0, number_of_scooters.pop(4))
-    capacities.insert(0, capacities.pop(4))
-    arrive_intensities.insert(0, arrive_intensities.pop(4))
-    leave_intensities.insert(0, leave_intensities.pop(4))
-    move_probabilities.insert(0, move_probabilities.pop(4))
-    for s in range(num_stations):
-        for day in range(7):
-            for hour in range(24):
-                move_probabilities[s][day][hour].insert(0, move_probabilities[s][day][hour].pop(4))
-    charging_stations.insert(0, charging_stations.pop(4))
-    original_ids.insert(0, original_ids.pop(4))
-
-    stations = sim.State.create_stations(num_stations=len(capacities), capacities=capacities, charging_stations=charging_stations, original_ids=original_ids, main_depot=4)
+    # station 4 is depot
+    stations = sim.State.create_stations(num_stations=len(capacities), capacities=capacities, charging_stations=charging_stations, original_ids=original_ids, depots=[4])
     sim.State.create_bikes_in_stations(stations, "Scooter", number_of_scooters)
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
     return sim.State.get_initial_state(stations, number_of_vehicles, random_seed, traveltime_matrix, traveltime_vehicle_matrix)
