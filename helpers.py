@@ -96,17 +96,5 @@ def loggEvent(event, times=[]):
         pass
         print("*** ERROR: Tried to logg unknown event ??? ")
 
-# AD: Dette er tungvint, rart og vanskelig å vedlikeholde.  Er det ikke bedre å endre navn på PC-ene? JEPP 
-def fixComputerName(string): # Used for storing name of computer when logging simualtion results and performance
-                             # also used to distinquish execution on WinPC in contrast to linux, in cases where it is needed
-    if string == "LAPTOP-SBB45R3V":
-        return string + "(Lasse-PC1)"
-    elif string == "DESKTOP-CTHMSMJ":
-        return string + "(Lasse-PC2)"
-    elif string == "lasse-PC":
-        return "Lasse-PC3"
-    else:
-        return string + "(unknown)"    
-
 def timeInMinutes(days=0, hour=0, minutes=0): 
     return 60*24*days + 60*hour + minutes
