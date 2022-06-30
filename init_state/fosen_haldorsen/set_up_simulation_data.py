@@ -104,7 +104,8 @@ def setup_stations_students(clientName, init_hour, number_of_vehicles, random_se
 
         move_p = [next_station_probabilities[toid[i]] for i in range(num_stations)]
 
-        charging_stations.append(True if int(station_id) % 10 == 0 else False)
+        if (int(station_id) % 10) == 0:
+            charging_stations.append(i)
 
         traveltime_matrix.append([ station_car_travel_time.get(toid[j], 0) * 1.3 for j in range(num_stations) ])
         traveltime_vehicle_matrix.append([ station_car_travel_time.get(toid[j], 0) for j in range(num_stations) ])

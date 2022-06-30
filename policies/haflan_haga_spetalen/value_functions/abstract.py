@@ -193,13 +193,6 @@ class ValueFunction(abc.ABC):
             cache=cache,
         )
 
-    @staticmethod
-    def get_small_depot_degree_of_filling(time, state) -> [int]:
-        return [
-            depot.get_available_battery_swaps(time) / SMALL_DEPOT_CAPACITY
-            for depot in state.depots[1:]
-        ]
-
     def get_location_indicator(
         self, location_id, number_of_locations, location_repetition=None
     ) -> [int]:

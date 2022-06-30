@@ -11,7 +11,7 @@ class Depot(Station):
     def __init__(
         self,
         depot_id: int,
-        main_depot = False,
+        depot_capacity = DEFAULT_DEPOT_CAPACITY,
         scooters: [Scooter] = [],
         leave_intensity_per_iteration=None,
         arrive_intensity_per_iteration=None,
@@ -29,7 +29,8 @@ class Depot(Station):
             capacity, original_id, charging_station
         )
 
-        self.battery_inventory = MAIN_DEPOT_CAPACITY if main_depot else SMALL_DEPOT_CAPACITY
+        self.depot_capacity = depot_capacity
+        self.battery_inventory = depot_capacity
         self.time = 0
         self.charging = []
 

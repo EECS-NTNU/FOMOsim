@@ -53,7 +53,7 @@ def get_initial_state(
     clusters = methods.generate_cluster_objects(bike_class, entur_dataframe, cluster_labels, number_of_depots=len(depots))
 
     # Create state object
-    initial_state = State(clusters, depots, rng=rng)
+    initial_state = State(depots + clusters, rng=rng)
 
     # Sample size filtering. Create list of scooter ids to include
     sample_scooters = scooter_sample_filter(rng, entur_dataframe)

@@ -15,6 +15,8 @@ SMALL_DEPOT_LOCATIONS = [
     (59.908009, 10.741604),
     (59.944473, 10.748624),
 ]
+MAIN_DEPOT_CAPACITY = 10000
+SMALL_DEPOT_CAPACITY = 100
 
 def get_moved_scooters(merged_tables):
     return merged_tables[
@@ -372,11 +374,11 @@ def generate_depots():
     :return: depot objects
     """
     depots = [
-        Depot(depot_id = 0, center_location = MAIN_DEPOT_LOCATION, main_depot=True)
+        Depot(depot_id = 0, depot_capacity = MAIN_DEPOT_CAPACITY, center_location = MAIN_DEPOT_LOCATION)
     ]
 
     for i, loc in enumerate(SMALL_DEPOT_LOCATIONS):
-        depots.append(Depot(center_location=loc, depot_id = i + 1, main_depot=False))
+        depots.append(Depot(depot_capacity = SMALL_DEPOT_CAPACITY, center_location=loc, depot_id = i + 1))
 
     return depots
 

@@ -12,7 +12,6 @@ class State(LoadSave):
     def __init__(
         self,
         stations: [sim.Station] = [],
-        depots: [sim.Depot] = [],
         vehicles: [sim.Vehicle] = [],
         scooters_in_use: [sim.Location] = [], # scooters in use (not parked at any station)
         traveltime_matrix=None,
@@ -24,12 +23,14 @@ class State(LoadSave):
         else:
             self.rng = rng
 
-        self.stations = stations
         self.vehicles = vehicles
-        self.depots = depots
         self.scooters_in_use = scooters_in_use
 
-        self.locations = self.depots + self.stations
+        self.locations = stations
+
+        self.stations = [ station for station in stations if not isinstance(station, sim.Depot) ]
+        self.depots = [ station for station in stations if isinstance(station, sim.Depot) ]
+
         self.traveltime_matrix = traveltime_matrix
         self.traveltime_vehicle_matrix = traveltime_vehicle_matrix
 
@@ -42,12 +43,11 @@ class State(LoadSave):
 
     def sloppycopy(self, *args):
         stationscopy = []
-        for s in self.stations:
+        for s in self.locations:
             stationscopy.append(s.sloppycopy())
 
         new_state = State(
             stationscopy,
-            copy.deepcopy(self.depots),
             copy.deepcopy(self.vehicles),
             copy.deepcopy(self.scooters_in_use),
             traveltime_matrix = self.traveltime_matrix,
@@ -64,7 +64,7 @@ class State(LoadSave):
 
 
     @staticmethod
-    def create_stations(num_stations, capacities=None, original_ids=None, positions=None, main_depot = None, secondary_depots = [], charging_stations = None):
+    def create_stations(num_stations, capacities=None, original_ids=None, positions=None, depots = [], depot_capacities = None, charging_stations = []):
         stations = []
 
         for station_id in range(num_stations):
@@ -80,15 +80,13 @@ class State(LoadSave):
             if positions is not None:
                 position = positions[station_id]
 
-            charging_station = None
-            if charging_stations is not None:
-                charging_station = charging_stations[station_id]
+            charging_station = station_id in charging_stations
 
-            if station_id == main_depot:
-                station = sim.Depot(station_id, main_depot=True, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
-
-            elif station_id in secondary_depots:
-                station = sim.Depot(station_id, main_depot=False, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
+            if station_id in depots:
+                depot_capacity = DEFAULT_DEPOT_CAPACITY
+                if depot_capacities is not None:
+                    depot_capacity = depot_capacities[depots.index(station_id)]
+                station = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
 
             else:
                 station = sim.Station(station_id, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
