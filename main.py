@@ -21,13 +21,13 @@ duration = timeInMinutes(hour=48)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
-    WEEK = 40
+    WEEK = 12
 
     ###############################################################################
     # get initial state
 
-    cityURL = "https://data.urbansharing.com/oslobysykkel.no/trips/v1/"
-    #cityURL = "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/"
+    #cityURL = "https://data.urbansharing.com/oslobysykkel.no/trips/v1/"
+    cityURL = "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/"
     #cityURL = "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/"
     #cityURL = "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/"
     #cityURL = "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/"
