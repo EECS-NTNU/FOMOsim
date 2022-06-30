@@ -13,7 +13,7 @@ class LoadSave(abc.ABC):
         with open(filename, "wb") as file:
             pickle.dump(self, file)
 
-    @classmethod
-    def load(cls, filepath):
+    @staticmethod
+    def load(filepath):
         with open(filepath, "rb") as file:
             return pickle.load(file)
