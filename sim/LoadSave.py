@@ -1,4 +1,5 @@
 import os
+import gzip
 import pickle
 import abc
 
@@ -9,10 +10,10 @@ class LoadSave(abc.ABC):
     """
 
     def save(self, filename: str):
-        with open(filename, "wb") as file:
+        with gzip.open(filename, "wb") as file:
             pickle.dump(self, file)
 
     @staticmethod
     def load(filepath):
-        with open(filepath, "rb") as file:
+        with gzip.open(filepath, "rb") as file:
             return pickle.load(file)
