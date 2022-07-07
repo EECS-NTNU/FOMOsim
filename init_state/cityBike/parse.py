@@ -14,7 +14,6 @@ from GUI import loggFile
 from helpers import extractCityFromURL, extractCityAndDomainFromURL, yearWeekNoAndDay, write
 
 tripDataDirectory = "init_state/cityBike/data/" # location of tripData
-savedStatesDirectory = "init_state/cityBike/savedStates/" # location of saved states
 
 def download(url):
     newDataFound = False
@@ -82,18 +81,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         return months
 
     city = extractCityFromURL(url)
-    if not download(url): # checks if NEW data are available for the city, true if new data was loaded, and in that case state should not
-                          # be restored from saved state
-        if os.path.isdir(savedStatesDirectory):
-            # directory with saved states exists
-            stateFilename = f"{savedStatesDirectory}/{city}_{week}.pickle"
-            if os.path.isfile(stateFilename):
-                progress = Bar("Get initial state from saved state", max = 2)
-                progress.next()
-                state = sim.State.load(stateFilename)
-                progress.next()
-                progress.finish()
-                return state
+    download(url)
 
     progress = Bar("Get initial state from trip data", max = 300 + 100*len(weekMonths(week)))
     years = [] 
@@ -291,14 +279,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     # Create State object and return
 
     state = sim.State.get_initial_state(stations, number_of_vehicles, random_seed, ttMatrix, ttVehicleMatrix) 
-    progress.next()
     
-    if not os.path.isdir(savedStatesDirectory):
-        os.makedirs(savedStatesDirectory, exist_ok=True) # first time
-
-    state.save(f"{savedStatesDirectory}/{city}_{week}.pickle")
-    for i in range(progress.max - progress.index):
-        progress.next()
-
     progress.finish()
+
     return state
