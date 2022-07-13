@@ -33,7 +33,7 @@ def download(url):
         return loaded
 
     city = extractCityFromURL(url)
-    directory = f"{tripDataDirectory}/{city}"
+    directory = f"{tripDataDirectory}{city}"
     if not os.path.isdir(directory):
         os.makedirs(directory, exist_ok=True)
     file_list = os.listdir(directory)
@@ -48,6 +48,31 @@ def download(url):
             for month in range (1, datetime.date.today().month):
                 if loadMonth(month):
                     newDataFound = True
+
+    if newDataFound:
+        # print("downloads station information")
+        gbfsStart = "https://gbfs.urbansharing.com/"
+        gbfsTailInfo = "/station_information.json"
+        address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailInfo                                                                                                # read from 
+        stationInfo =  requests.get(address)
+        if stationInfo.status_code != 200: # 200 is OK, non-existent files will have status 404
+            print("*** Error: could not read station info from: " + address)
+            return False
+        stationInfoFile = open(f"{directory}/stationinfo.text", "w")
+        stationInfoFile.write(stationInfo.text)
+        stationInfoFile.close()
+
+        # print("downloads station status")
+        gbfsTailStatus = "/station_status.json"
+        address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailStatus  
+        stationStatus =  requests.get(address)
+        if stationStatus.status_code != 200: # 200 is OK, non-existent files will have status 404
+            print("*** Error: could not read station status from: " + address)
+            return False
+        stationStatusFile = open(f"{directory}/stationstatus.text", "w")
+        stationStatusFile.write(stationStatus.text)
+        stationStatusFile.close()
+
     return newDataFound            
 
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, bike_class="Bike", number_of_vehicles=3, random_seed=1):
@@ -86,23 +111,14 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     progress = Bar("Get initial state from trip data", max = 300 + 100*len(weekMonths(week)))
     years = [] 
 
-    gbfsStart = "https://gbfs.urbansharing.com/"
-    gbfsTailInfo = "/station_information.json"
-    address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailInfo                                                                                                # read from 
-    stationInfo =  requests.get(address)
-    if stationInfo.status_code != 200: # 200 is OK, non-existent files will have status 404
-        print("*** Error: could not read station info from: " + address)
-        return
-    allData = json.loads(stationInfo.text)
+    tripDataPath = tripDataDirectory + city
+
+    stationInfoFile = open(f"{tripDataPath}/stationinfo.text", "r")
+    allData = json.loads(stationInfoFile.read())
     stationInfoData = allData["data"]
 
-    gbfsTailStatus = "/station_status.json"
-    address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailStatus  
-    stationStatus =  requests.get(address)
-    if stationStatus.status_code != 200: # 200 is OK, non-existent files will have status 404
-        print("*** Error: could not read station status from: " + address)
-        return
-    allData = json.loads(stationStatus.text)
+    stationStatusFile = open(f"{tripDataPath}/stationstatus.text", "r")
+    allData = json.loads(stationStatusFile.read())
     stationStatusData = allData["data"]
 
     stationNo = 0
@@ -150,40 +166,40 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
 
     # process all stored trips for given city, count trips and store durations for the given week number
     trips = 0 # total number from all tripdata read
-    tripDataPath = tripDataDirectory + city
     fileList = os.listdir(tripDataPath)
     
     for file in fileList:
-        if int(file[5:7]) in weekMonths(week):
-            jsonFile = open(os.path.join(tripDataPath, file), "r")
-            bikeData = json.loads(jsonFile.read())
-            for i in range(len(bikeData)):
-                startStationNo = -1
-                endStationNo = -1
-                if bikeData[i]["start_station_id"] in stationMap:
-                    startStationNo = stationMap[bikeData[i]["start_station_id"]]
-                if bikeData[i]["end_station_id"] in stationMap:
-                    endStationNo = stationMap[bikeData[i]["end_station_id"]]
+        if file.endswith(".json"):
+            if int(file[5:7]) in weekMonths(week):
+                jsonFile = open(os.path.join(tripDataPath, file), "r")
+                bikeData = json.loads(jsonFile.read())
+                for i in range(len(bikeData)):
+                    startStationNo = -1
+                    endStationNo = -1
+                    if bikeData[i]["start_station_id"] in stationMap:
+                        startStationNo = stationMap[bikeData[i]["start_station_id"]]
+                    if bikeData[i]["end_station_id"] in stationMap:
+                        endStationNo = stationMap[bikeData[i]["end_station_id"]]
 
-                if (startStationNo >= 0) and (endStationNo >= 0):
-                    # both end and start of trip are active stations
-                    year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
-                    if year not in years:
-                        years.append(year)
-                    hour = int(bikeData[i]["ended_at"][11:13])
-                    if weekNo == week:
-                        arriveCount[endStationNo][weekDay][hour] += 1
-                    year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
-                    if year not in years:
-                        years.append(year)
-                    hour = int(bikeData[i]["started_at"][11:13])
-                    if weekNo == week:
-                        leaveCount[startStationNo][weekDay][hour] += 1
-                        moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
-                        durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
-                    trips = trips + 1
-                if i % 7000 == 0:
-                    progress.next()
+                    if (startStationNo >= 0) and (endStationNo >= 0):
+                        # both end and start of trip are active stations
+                        year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
+                        if year not in years:
+                            years.append(year)
+                        hour = int(bikeData[i]["ended_at"][11:13])
+                        if weekNo == week:
+                            arriveCount[endStationNo][weekDay][hour] += 1
+                        year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
+                        if year not in years:
+                            years.append(year)
+                        hour = int(bikeData[i]["started_at"][11:13])
+                        if weekNo == week:
+                            leaveCount[startStationNo][weekDay][hour] += 1
+                            moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
+                            durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
+                        trips = trips + 1
+                    if i % 7000 == 0:
+                        progress.next()
     
     noOfYears = len(years)
     if noOfYears == 0:
