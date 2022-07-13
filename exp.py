@@ -58,21 +58,11 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # get initial state
 
-    # state = init_state.entur.scripts.get_initial_state("test_data", "0900-entur-snapshot.csv", "Scooter",
-    #                                                    number_of_scooters = 300, number_of_clusters = 50,
-    #                                                    number_of_vehicles = 3, random_seed = 1)
-
-    # state = init_state.cityBike.parse.get_initial_state(city="Oslo", week=WEEK, bike_class="Bike",
-    #                                                     number_of_vehicles=3, random_seed=1)
-
-    state = init_state.fosen_haldorsen.get_initial_state(init_hour=start_time//60, number_of_stations=50, number_of_vehicles=3, random_seed=1)
-
-    ###############################################################################
-    # calculate target state
-
-    tstate = target_state.us_target_state(state)
-    #tstate = target_state.equal_prob_target_state(state)
-    state.set_target_state(tstate)
+    tstate = target_state.equal_prob_target_state
+    cityURL = "https://data.urbansharing.com/oslobysykkel.no/trips/v1/"
+    state = init_state.get_initial_state(source=init_state.cityBike,
+                                         target_state=tstate,
+                                         url=cityURL,  week=WEEK, bike_class="Bike", number_of_vehicles=3, random_seed=1)
 
     ###############################################################################
 
@@ -178,16 +168,16 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     for run in range(RUNS):
         print(f"\nRun {run+1} of {RUNS}")
         donothing.append (run_sim(state, PERIOD, policies.DoNothing(), start_time, "DoNothing",  run))
-        #random.append (run_sim(state, PERIOD, policies.RandomActionPolicy(), start_time, "Random",  run))
-        #greedy.append (run_sim(state, PERIOD, policies.GreedyPolicy(), start_time, "Greedy",  run))
-        #fhgreedy.append (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-greedy",  run))
+        random.append (run_sim(state, PERIOD, policies.RandomActionPolicy(), start_time, "Random",  run))
+        greedy.append (run_sim(state, PERIOD, policies.GreedyPolicy(), start_time, "Greedy",  run))
+        fhgreedy.append (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-greedy",  run))
         #fh.append (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25), start_time, "FH",  run))
 
-    output.write_csv(donothing, "output_donothing.csv", WEEK, hourly = True)
+    #output.write_csv(donothing, "output_donothing.csv", WEEK, hourly = True)
     #output.write_csv(random, "output_random.csv", WEEK, hourly = True)
     #output.write_csv(greedy, "output_greedy.csv", WEEK, hourly = True)
     #output.write_csv(fhgreedy, "output_fhgreedy.csv", WEEK, hourly = True)
     #output.write_csv(fh, "output_fh.csv", WEEK, hourly = True)
 
-    #output.visualize_starvation([donothing, random, greedy, fhgreedy], title=("Week " + str(WEEK)), week=WEEK)
-    #output.visualize_congestion([donothing, random, greedy, fhgreedy], title=("Week " + str(WEEK)), week=WEEK)
+    output.visualize_starvation([donothing, random, greedy, fhgreedy], title=("Week " + str(WEEK)), week=WEEK)
+    output.visualize_congestion([donothing, random, greedy, fhgreedy], title=("Week " + str(WEEK)), week=WEEK)
