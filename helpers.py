@@ -64,7 +64,7 @@ def loggLocations(state):
             words.append(scooterBatteryStat)      
         write(trafficLogg, words)
     words = []    
-    for i in range(len(state.scooters_in_use)):
+    for scooter_id in state.scooters_in_use:
         words.append(str(state.scooters_in_use[i].id))
     if len(words) > 0:
         write(trafficLogg, ["In-use:"] + words)        

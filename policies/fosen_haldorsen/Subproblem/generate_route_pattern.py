@@ -31,7 +31,7 @@ class Route:
                 starting_station_current_charged_bikes = len(self.starting_station.get_available_scooters())
                 vehicle_available_bike_capacity = self.vehicle.scooter_inventory_capacity - len(self.vehicle.scooter_inventory)
                 vehicle_current_charged_bikes = len(self.vehicle.scooter_inventory)
-                starting_station_available_parking = self.starting_station.capacity - len(self.starting_station.scooters)
+                starting_station_available_parking = self.starting_station.capacity - len(self.starting_station.get_scooters())
                 starting_station_current_flat_bikes = len(self.starting_station.get_swappable_scooters(settings.BATTERY_LIMIT))
                 vehicle_current_flat_bikes = 0
                 vehicle_current_batteries = self.vehicle.battery_inventory

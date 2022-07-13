@@ -19,7 +19,7 @@ class Vehicle:
         self.id = vehicle_id
         self.battery_inventory = battery_inventory_capacity
         self.battery_inventory_capacity = battery_inventory_capacity
-        self.scooter_inventory = []
+        self.scooter_inventory = {}
         self.scooter_inventory_capacity = scooter_inventory_capacity
         self.service_route = []
         self.current_location = start_location
@@ -34,29 +34,22 @@ class Vehicle:
             scooter.swap_battery()
             return True
 
+    def get_scooter_inventory(self):
+        return self.scooter_inventory.values()
+
     def pick_up(self, scooter: Scooter):
         if len(self.scooter_inventory) + 1 > self.scooter_inventory_capacity:
             raise ValueError("Can't pick up an scooter when the vehicle is full")
         else:
-            self.scooter_inventory.append(scooter)
+            self.scooter_inventory[scooter.id] = scooter
             if scooter.hasBattery():
                 if scooter.battery < 70:
                     self.change_battery(scooter)
             scooter.remove_location()
 
     def drop_off(self, scooter_id: int):
-        if scooter_id not in map(
-            lambda inventory_scooter: inventory_scooter.id, self.scooter_inventory
-        ):
-            raise ValueError(
-                "Can't deliver a scooter that isn't in the vehicle inventory"
-            )
-
-        scooter = next(
-            (scooter for scooter in self.scooter_inventory if scooter.id == scooter_id),
-            None,
-        )
-        self.scooter_inventory.remove(scooter)
+        scooter = self.scooter_inventory[scooter_id]
+        del self.scooter_inventory[scooter_id]
         return scooter
 
     def set_current_location(self, location: Station, action):

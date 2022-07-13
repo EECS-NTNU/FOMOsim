@@ -62,7 +62,7 @@ def training(input_arguments, suffix):
     world_to_analyse.REPLAY_BUFFER_SIZE=100
 
     for cluster in world_to_analyse.state.stations:
-        cluster.scooters = cluster.scooters[: round(len(cluster.scooters) * 0.6)]
+        cluster.set_scooters(cluster.get_scooters()[: round(len(cluster.scooters) * 0.6)])
     decision_times = [train_value_function(world_to_analyse, save_suffix=f"{suffix}")]
 
     df = pd.DataFrame(

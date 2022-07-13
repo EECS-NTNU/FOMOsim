@@ -21,7 +21,7 @@ import init_state.entur.scripts
 from policies.haflan_haga_spetalen.helpers import *
 
 def get_current_state(station) -> float:
-    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
+    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.get_scooters()))
 
 
 def get_possible_actions(
@@ -170,7 +170,7 @@ def get_possible_actions(
                 sim.Action(
                     swappable_scooters_id[:int(battery_swap)],
                     choose_pick_up(battery_swap, pick_up),
-                    [scooter.id for scooter in vehicle.scooter_inventory][
+                    [scooter.id for scooter in vehicle.get_scooter_inventory()][
                         :int(drop_off)
                     ],
                     cluster_id,

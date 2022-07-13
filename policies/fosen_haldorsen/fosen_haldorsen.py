@@ -83,7 +83,7 @@ class FosenHaldorsenPolicy(Policy):
                 bat_unload = max(0,
                                  min(vehicle_current_charged_bikes, vehicle_current_location_available_parking,
                                      vehicle.current_location.get_target_state(simul.day(), simul.hour()) - vehicle_current_station_current_charged_bikes))
-                scooters_to_deliver = [scooter.id for scooter in vehicle.scooter_inventory[0:int(bat_unload)]]
+                scooters_to_deliver = [scooter.id for scooter in vehicle.get_scooter_inventory()[0:int(bat_unload)]]
 
             # picked up bikes low on battery get new battery, make sure we dont pick up more than we have batteries for
             swaps_for_pickups = 0
@@ -118,7 +118,7 @@ class FosenHaldorsenPolicy(Policy):
         scooters_by_battery = sorted(vehicle.current_location.scooters, key=lambda scooter: scooter.battery, reverse=True)
 
         scooters_to_pickup = [ scooter.id for scooter in scooters_by_battery[0:int(Q_CCL+Q_FCL)] ]
-        scooters_to_deliver = [ scooter.id for scooter in vehicle.scooter_inventory[0:int(Q_CCU+Q_FCU)] ]
+        scooters_to_deliver = [ scooter.id for scooter in vehicle.get_scooter_inventory()[0:int(Q_CCU+Q_FCU)] ]
 
         # picked up bikes low on battery get new battery, make sure we dont pick up more than we have batteries for
         swaps_for_pickups = 0

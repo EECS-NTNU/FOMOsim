@@ -34,7 +34,7 @@ class GleditschHagenPolicy(Policy):
             stations.add(station)
 
         vhc = FomoVehicle(vehicle.id, vehicle.scooter_inventory_capacity, vehicle.current_location.id)
-        for b in vehicle.scooter_inventory:
+        for b in vehicle.get_scooter_inventory():
             vhc.bikes.add(b.id)
 
         fomoAction = Simulation.policy(stations, vhc)

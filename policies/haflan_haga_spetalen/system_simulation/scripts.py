@@ -48,7 +48,7 @@ def system_simulate(state, day, hour):
 
     # compute trip after all trips are generated to avoid handling inflow in cluster
     for start_cluster, end_cluster, scooter in trips:
-        start_cluster.scooters.remove(scooter)
+        start_cluster.remove_scooter(scooter)
         travel_time = state.get_travel_time(start_cluster.id, end_cluster.id)
         scooter.travel(travel_time)
         end_cluster.add_scooter(state.rng, scooter)

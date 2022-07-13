@@ -28,7 +28,7 @@ class GreedyPolicy(Policy):
             if vehicle_has_scooter_inventory:
                 # Deliver all scooters in scooter inventory, and don't pick up any new scooters
                 scooters_to_deliver = [
-                    scooter.id for scooter in vehicle.scooter_inventory
+                    scooter.id for scooter in vehicle.get_scooter_inventory()
                 ]
                 scooters_to_pickup = []
                 number_of_scooters_to_pick_up = 0

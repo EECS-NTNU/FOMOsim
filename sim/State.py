@@ -13,7 +13,7 @@ class State(LoadSave):
         self,
         stations: [sim.Station] = [],
         vehicles: [sim.Vehicle] = [],
-        scooters_in_use: [sim.Location] = [], # scooters in use (not parked at any station)
+        scooters_in_use: [sim.Location] = {}, # scooters not parked at any station
         traveltime_matrix=None,
         traveltime_vehicle_matrix=None,
         rng = None,
@@ -110,7 +110,7 @@ class State(LoadSave):
                     scooters.append(sim.Bike(scooter_id=id_counter))
                 id_counter += 1
 
-            station.scooters = scooters
+            station.set_scooters(scooters)
 
 
     @staticmethod
@@ -158,14 +158,16 @@ class State(LoadSave):
             st.target_state = target_state[st.id]
 
     def scooter_in_use(self, scooter):
-        self.scooters_in_use.append(scooter)
+        self.scooters_in_use[scooter.id] = scooter
 
     def remove_used_scooter(self, scooter):
-        self.scooters_in_use.remove(scooter)
+        del self.scooters_in_use[scooter.id]
 
     def get_used_scooter(self):
         if len(self.scooters_in_use) > 0:
-            return self.scooters_in_use.pop()
+            scooter = next(iter(self.scooters_in_use))
+            remove_used_scooter(scooter)
+            return scooter
 
     def get_all_locations(self):
         return self.locations
@@ -182,19 +184,17 @@ class State(LoadSave):
     def get_scooters(self):
         all_scooters = []
         for cluster in self.stations:
-            for scooter in cluster.scooters:
-                all_scooters.append(scooter)
+            all_scooters.extend(cluster.get_scooters())
         return all_scooters
 
     # parked and in-use scooters
     def get_all_scooters(self):
         all_scooters = []
         for cluster in self.locations:
-            for scooter in cluster.scooters:
-                all_scooters.append(scooter)
-        all_scooters.extend(self.scooters_in_use)
+            all_scooters.extend(cluster.get_scooters())
+        all_scooters.extend(self.scooters_in_use.values())
         for vehicle in self.vehicles:
-            all_scooters.extend(vehicle.scooter_inventory)
+            all_scooters.extend(vehicle.get_scooter_inventory())
             
         return all_scooters
 
@@ -262,7 +262,7 @@ class State(LoadSave):
             string += f"{str(station)}\n"
         for vehicle in self.vehicles:
             string += f"{str(vehicle)}\n"
-        string += f"In use: {self.scooters_in_use}"
+        string += f"In use: {self.scooters_in_use.values()}"
         return string
 
     def get_neighbours(
@@ -317,17 +317,7 @@ class State(LoadSave):
         return neighbours[:number_of_neighbours] if number_of_neighbours else neighbours
 
     def get_location_by_id(self, location_id: int):
-        matches = [
-            location for location in self.locations if location_id == location.id
-        ]
-        if len(matches) == 1:
-            return matches[0]
-        elif len(matches) > 1:
-            raise ValueError(
-                f"There are more than one location ({len(matches)} locations) matching on id {location_id} in this state"
-            )
-        else:
-            raise ValueError(f"No locations with id={location_id} where found")
+        return self.locations[location_id]
 
     @staticmethod
     def save_path(
@@ -347,11 +337,11 @@ class State(LoadSave):
             [scooter.id for scooter in self.get_scooters()], sample_size, replace=False,
         )
         for cluster in self.stations:
-            cluster.scooters = [
+            cluster.set_scooters([
                 scooter
-                for scooter in cluster.scooters
+                for scooter in cluster.get_scooters()
                 if scooter.id in sampled_scooter_ids
-            ]
+            ])
 
     def get_random_cluster(self, exclude=None):
         return rng.choice(
@@ -366,9 +356,4 @@ class State(LoadSave):
         :param vehicle_id: the id of the vehicle to fetch
         :return: vehicle object
         """
-        try:
-            return [vehicle for vehicle in self.vehicles if vehicle_id == vehicle.id][0]
-        except IndexError:
-            raise ValueError(
-                f"There are no vehicle in the state with an id of {vehicle_id}"
-            )
+        return self.vehicles[id]

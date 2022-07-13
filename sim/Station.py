@@ -13,7 +13,7 @@ class Station(Location):
     def __init__(
         self,
         cluster_id: int,
-        scooters: [Scooter] = [],
+        scooters: [Scooter] = {},
         leave_intensity_per_iteration=None,
         arrive_intensity_per_iteration=None,
         center_location=None,
@@ -28,7 +28,7 @@ class Station(Location):
             *(center_location if center_location else self.__compute_center(scooters)),
             cluster_id, target_state=target_state
         )
-        self.scooters = scooters
+        self.set_scooters(scooters)
         self.leave_intensity_per_iteration = leave_intensity_per_iteration
         self.arrive_intensity_per_iteration = arrive_intensity_per_iteration
         self.average_number_of_scooters = average_number_of_scooters
@@ -53,6 +53,9 @@ class Station(Location):
             original_id=self.original_id,
             charging_station=self.charging_station,
         )
+
+    def set_scooters(self, scooters):
+        self.scooters = {scooter.id : scooter for scooter in scooters}
 
     def spare_capacity(self):
         return self.capacity - len(self.scooters)
@@ -93,19 +96,10 @@ class Station(Location):
             return 0, 0
 
     def add_scooter(self, rng, scooter: Scooter):
-        matches = [
-            cluster_scooter
-            for cluster_scooter in self.scooters
-            if scooter.id == cluster_scooter.id
-        ]
-        if len(matches) > 0:
-            raise ValueError(
-                f"The scooter you are trying to add is already in the cluster: {matches}"
-            )
         if len(self.scooters) >= self.capacity:
             return False
         # Adding scooter to scooter list
-        self.scooters.append(scooter)
+        self.scooters[scooter.id] = scooter
         # Changing coordinates of scooter to this location + some delta
         delta_lat = rng.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
         delta_lon = rng.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
@@ -113,16 +107,19 @@ class Station(Location):
         return True
 
     def remove_scooter(self, scooter: Scooter):
-        self.scooters.remove(scooter)
+        del self.scooters[scooter.id]
+
+    def get_scooters(self):
+        return self.scooters.values()
 
     def get_available_scooters(self):
         return [
-            scooter for scooter in self.scooters if scooter.usable()
+            scooter for scooter in self.scooters.values() if scooter.usable()
         ]
 
     def print_all_scooters(self, with_coordinates=False):
         string = ""
-        for scooter in self.scooters:
+        for scooter in self.scooters.values():
             string += f"ID: {scooter.id}  Battery {round(scooter.battery, 1)}"
             string += (
                 f"Coord: {scooter.get_location()} | " if with_coordinates else " | "
@@ -134,25 +131,12 @@ class Station(Location):
         Filter out scooters with 100% battery and sort them by battery percentage
         """
         scooters = [
-            scooter for scooter in self.scooters if scooter.hasBattery() and scooter.battery < battery_limit
+            scooter for scooter in self.scooters.values() if scooter.hasBattery() and scooter.battery < battery_limit
         ]
         return sorted(scooters, key=lambda scooter: scooter.battery, reverse=False)
 
     def get_scooter_from_id(self, scooter_id):
-        matches = [
-            cluster_scooter
-            for cluster_scooter in self.scooters
-            if scooter_id == cluster_scooter.id
-        ]
-        if len(matches) == 1:
-            return matches[0]
-        elif len(matches) > 1:
-            raise ValueError(
-                f"There are more than one scooter ({len(matches)} scooters) "
-                f"matching on id {scooter_id} in Station {self.id}"
-            )
-        else:
-            raise ValueError(f"No scooters with id={scooter_id} were found")
+        return self.scooters[scooter_id]
 
     def __repr__(self):
         return (

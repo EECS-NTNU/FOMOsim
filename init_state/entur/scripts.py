@@ -81,18 +81,14 @@ def get_initial_state(
         for i in range(number_of_vehicles)
     ]
 
-    initial_state.scooters_in_use = []
+    initial_state.scooters_in_use = {}
     if not FULL_TRIP:
         if bike_class == "Bike":
-          initial_state.scooters_in_use = [
-            Bike(0, 0, index+number_of_scooters)
-            for index in range(initial_in_use)
-          ]
+            for id in range(number_of_scooters, number_of_scooters+initial_in_use):
+                initial_state.scooters_in_use[id] = Bike(0, 0, id)
         else:
-          initial_state.scooters_in_use = [
-            Scooter(0, 0, 100, index+number_of_scooters)
-            for index in range(initial_in_use)
-          ]
+            for id in range(number_of_scooters, number_of_scooters+initial_in_use):
+                initial_state.scooters_in_use[id] = Scooter(0, 0, 100, id)
 
     return initial_state
 

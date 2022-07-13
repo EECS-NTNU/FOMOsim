@@ -21,7 +21,7 @@ class Decorators:
 
 
 def get_current_state(station) -> float:
-    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
+    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.get_scooters()))
 
 
 class ValueFunction(abc.ABC):
