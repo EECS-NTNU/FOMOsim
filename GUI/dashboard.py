@@ -151,7 +151,7 @@ def GUI_main():
                 startHour = int(re.sub("Start-hour:", "", GUI_values["-START-H-"]))
                 numDays = int(re.sub("#days:", "", GUI_values["-NUM-DAYS-"]))
                 numHours = int(re.sub("#hours:", "", GUI_values["-NUM-HOURS-"]))
-                period = timeInMinutes(days=numDays, hour=numHours)
+                period = timeInMinutes(days=numDays, hours=numHours)
                 startTime = (24*startDay + startHour)*60 
                 if GUI_values["-LOGG-TRAFFIC-"] == True:
                     settings.TRAFFIC_LOGGING = True

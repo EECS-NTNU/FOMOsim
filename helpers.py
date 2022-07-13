@@ -96,5 +96,5 @@ def loggEvent(event, times=[]):
         pass
         print("*** ERROR: Tried to logg unknown event ??? ")
 
-def timeInMinutes(days=0, hour=0, minutes=0): 
-    return 60*24*days + 60*hour + minutes
+def timeInMinutes(days=0, hours=0, minutes=0): 
+    return 60*24*days + 60*hours + minutes

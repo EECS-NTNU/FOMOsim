@@ -198,6 +198,13 @@ class State(LoadSave):
             
         return all_scooters
 
+    # parked scooters with usable battery
+    def get_num_available_scooters(self):
+        num = 0
+        for station in self.locations:
+            num += len(station.get_available_scooters())
+        return num
+
     def get_travel_time(self, start_location_id: int, end_location_id: int):
         return self.traveltime_matrix[start_location_id][end_location_id]
 

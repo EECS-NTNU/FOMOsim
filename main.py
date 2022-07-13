@@ -16,8 +16,8 @@ import output
 from helpers import timeInMinutes
 from GUI.dashboard import GUI_main
 
-start_time = timeInMinutes(hour=7)
-duration = timeInMinutes(hour=48)
+start_time = timeInMinutes(hours=7)
+duration = timeInMinutes(days=7)
 
 if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
 
