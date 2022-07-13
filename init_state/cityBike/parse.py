@@ -53,7 +53,7 @@ def download(url):
         # print("downloads station information")
         gbfsStart = "https://gbfs.urbansharing.com/"
         gbfsTailInfo = "/station_information.json"
-        address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailInfo                                                                                                # read from 
+        address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailInfo
         stationInfo =  requests.get(address)
         if stationInfo.status_code != 200: # 200 is OK, non-existent files will have status 404
             print("*** Error: could not read station info from: " + address)
