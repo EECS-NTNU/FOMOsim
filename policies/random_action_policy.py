@@ -34,7 +34,7 @@ class RandomActionPolicy(Policy):
                 num_pickup = simul.state.rng.integers(0, max_pickup)
 
             if num_pickup > 0:
-                pickable = [ scooter.id for scooter in vehicle.current_location.scooters ]
+                pickable = list(vehicle.current_location.scooters.keys())
                 scooters_to_pickup = simul.state.rng.choice(pickable, num_pickup, replace=False)
 
             if num_deliver > 0:

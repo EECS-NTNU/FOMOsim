@@ -18,7 +18,7 @@ tripDataDirectory = "init_state/cityBike/data/" # location of tripData
 def download(url):
     newDataFound = False
 
-    def loadMonth(monthNo):
+    def loadMonth(yearNo, monthNo):
         fileName = f"{yearNo}-{monthNo:02}.json"
         loaded = False
         if fileName not in file_list:     
@@ -39,15 +39,17 @@ def download(url):
     file_list = os.listdir(directory)
 
     # these loops are a brute-force method to avoid implementing a web-crawler
-    for yearNo in range(2018, datetime.date.today().year + 1): # 2018/02 is earliest data from data.urbansharing.com
-        if yearNo < datetime.date.today().year:
-            for month in range (1, 13):
-                if loadMonth(month):
-                    newDataFound = True
-        else: # will not load tripdata for current month since we do not want incomplete month-files (Reason is mainly the use of file existence in loadMonth)
-            for month in range (1, datetime.date.today().month):
-                if loadMonth(month):
-                    newDataFound = True
+    progress = Bar("CityBike 1/5: Download datafiles", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
+    for yearNo in range(2018, datetime.date.today().year): # 2018/02 is earliest data from data.urbansharing.com
+        for month in range (1, 13):
+            if loadMonth(yearNo, month):
+                newDataFound = True
+            progress.next()
+    for month in range (1, datetime.date.today().month):
+        if loadMonth(datetime.date.today().year, month):
+            newDataFound = True
+        progress.next()
+    progress.finish()
 
     if newDataFound:
         # print("downloads station information")
@@ -108,7 +110,6 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     city = extractCityFromURL(url)
     download(url)
 
-    progress = Bar("Get initial state from trip data", max = 300 + 100*len(weekMonths(week)))
     years = [] 
 
     tripDataPath = tripDataDirectory + city
@@ -122,7 +123,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     stationStatusData = allData["data"]
 
     stationNo = 0
-    stationMap = {} # maps from station Id to stationNo taht is index in most datastructures   
+    stationMap = {} # maps from station Id to stationNo that is index in most datastructures   
     stationLocations = [] # indexed by stationNo
     bikeStartStatus = []
     stationCapacities = []
@@ -136,7 +137,6 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         bikeStartStatus.append(stationStatusData["stations"][i]["num_bikes_available"])
         stationCapacities.append(stationInfoData["stations"][i]["capacity"])
         stationNo += 1
-    progress.next()
 
     arriveCount = []
     leaveCount = []
@@ -161,13 +161,12 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 for i in range(noOfStations):
                     stationList.append(0)
                 moveCount[station][day].append(stationList)
-        if (station % 4) == 0:  
-            progress.next()
 
     # process all stored trips for given city, count trips and store durations for the given week number
     trips = 0 # total number from all tripdata read
     fileList = os.listdir(tripDataPath)
     
+    progress = Bar("CityBike 2/5: Read data from files", max = len(fileList))
     for file in fileList:
         if file.endswith(".json"):
             if int(file[5:7]) in weekMonths(week):
@@ -198,15 +197,16 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                             moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
                             durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
                         trips = trips + 1
-                    if i % 7000 == 0:
-                        progress.next()
-    
+        progress.next()
+    progress.finish()
+
     noOfYears = len(years)
     if noOfYears == 0:
         raise Exception("*** Sorry, no trip data found for given city and week")
 
 
     # Calculate average durations, durations in seconds
+    progress = Bar("CityBike 3/5: Calculate durations", max = noOfStations)
     avgDuration = []
     for start in range(noOfStations):
         avgDuration.append([])
@@ -224,8 +224,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
                         (stationLocations[end].latitude, stationLocations[end].longitude)).km
                 avgDuration[start][end] = (distance/settings.SCOOTER_SPEED)*3600
-        if start % 5 == 0:
-            progress.next()
+        progress.next()
+    progress.finish()
 
     # Calculate traveltime_matrix, travel-times in minutes
     ttMatrix = []
@@ -239,8 +239,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 else:
                     print("*** Error, averageDuration == 0 should not happen") # should be set to default scooter-speed above
             ttMatrix[start].append(averageDuration/60)
-    progress.next()     
     
+    progress = Bar("CityBike 4/5: Calculate traveltime", max = noOfStations)
     ttVehicleMatrix = []
     for start in range(noOfStations):
         ttVehicleMatrix.append([])
@@ -248,10 +248,11 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
                (stationLocations[end].latitude, stationLocations[end].longitude)).km
             ttVehicleMatrix[start].append((distance/settings.VEHICLE_SPEED)*60)
-        if start % 5 == 0:
-            progress.next()    
+        progress.next()
+    progress.finish()
     
     # Calculate arrive and leave-intensities and move_probabilities
+    progress = Bar("CityBike 5/5: Calculate intensities", max = noOfStations)
     noOfYears = len(years)
     arrive_intensities = []  
     leave_intensities = []
@@ -276,9 +277,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                     else:
                         equalProb = 1.0/noOfStations    
                         move_probabilities[station][day][hour].append(equalProb)
-        if station % 4 == 0:  
-            progress.next()
-
+        progress.next()
+    progress.finish()
 
     totalBikes = 0
     for i in range(len(bikeStartStatus)):
@@ -296,6 +296,4 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
 
     state = sim.State.get_initial_state(stations, number_of_vehicles, random_seed, ttMatrix, ttVehicleMatrix) 
     
-    progress.finish()
-
     return state

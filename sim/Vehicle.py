@@ -35,7 +35,7 @@ class Vehicle:
             return True
 
     def get_scooter_inventory(self):
-        return self.scooter_inventory.values()
+        return list(self.scooter_inventory.values())
 
     def pick_up(self, scooter: Scooter):
         if len(self.scooter_inventory) + 1 > self.scooter_inventory_capacity:

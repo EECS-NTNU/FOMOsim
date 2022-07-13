@@ -76,7 +76,7 @@ class FosenHaldorsenPolicy(Policy):
             if vehicle_current_station_current_charged_bikes - vehicle.current_location.get_target_state(simul.day(), simul.hour()) > 0:
                 bat_load = max(0, min(vehicle_available_bike_capacity,
                                       vehicle_current_station_current_charged_bikes - vehicle.current_location.get_target_state(simul.day(), simul.hour())))
-                scooters_by_battery = sorted(vehicle.current_location.scooters, key=lambda scooter: scooter.battery, reverse=True)
+                scooters_by_battery = sorted(vehicle.current_location.get_scooters(), key=lambda scooter: scooter.battery, reverse=True)
                 scooters_to_pickup = [scooter.id for scooter in scooters_by_battery[0:int(bat_load)]]
 
             else:
@@ -115,7 +115,7 @@ class FosenHaldorsenPolicy(Policy):
 
         Q_B, Q_CCL, Q_FCL, Q_CCU, Q_FCU = pattern[0], pattern[1], pattern[2], pattern[3], pattern[4]
 
-        scooters_by_battery = sorted(vehicle.current_location.scooters, key=lambda scooter: scooter.battery, reverse=True)
+        scooters_by_battery = sorted(vehicle.current_location.get_scooters(), key=lambda scooter: scooter.battery, reverse=True)
 
         scooters_to_pickup = [ scooter.id for scooter in scooters_by_battery[0:int(Q_CCL+Q_FCL)] ]
         scooters_to_deliver = [ scooter.id for scooter in vehicle.get_scooter_inventory()[0:int(Q_CCU+Q_FCU)] ]

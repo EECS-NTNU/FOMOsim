@@ -24,7 +24,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     WEEK = 12
 
     ###############################################################################
-    # get initial state
+    # Get initial state
 
     # tstate = target_state.evenly_distributed_target_state
     # tstate = target_state.outflow_target_state

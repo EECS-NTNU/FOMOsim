@@ -52,9 +52,7 @@ class GreedyPolicy(Policy):
                     ),
                     0,
                 ))
-                scooters_to_pickup = [
-                    scooter.id for scooter in vehicle.current_location.scooters
-                ][:number_of_scooters_to_pick_up]
+                scooters_to_pickup = list(vehicle.current_location.scooters.keys())[:number_of_scooters_to_pick_up]
                 # Do not swap any scooters in a cluster with a lot of scooters
                 scooters_to_swap = []
                 number_of_scooters_to_swap = 0
