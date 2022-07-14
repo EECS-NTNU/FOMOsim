@@ -16,7 +16,7 @@ def filtering_neighbours(
     clusters_positive_deviation = sorted(
         [
             cluster
-            for cluster in state.stations
+            for cluster in state.stations.values()
             if cluster.id != vehicle.current_location.id
             and cluster.id not in exclude
             and len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour) > 0
@@ -28,7 +28,7 @@ def filtering_neighbours(
     clusters_negative_deviation = sorted(
         [
             cluster
-            for cluster in state.stations
+            for cluster in state.stations.values()
             if cluster.id != vehicle.current_location.id
             and cluster.id not in exclude
             and len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour) < 0
@@ -54,4 +54,4 @@ def filtering_neighbours(
     if len(returnval) > 0:
         return returnval
     else:
-        return [ cluster for cluster in state.stations if cluster.id != vehicle.current_location.id and cluster.id not in exclude ]
+        return [ cluster for cluster in state.stations.values() if cluster.id != vehicle.current_location.id and cluster.id not in exclude ]

@@ -65,7 +65,7 @@ class GreedyPolicy(Policy):
             return sorted(
                 [
                     cluster
-                    for cluster in simul.state.stations
+                    for cluster in simul.state.stations.values()
                     if cluster.id not in tabu_list
                 ],
                 key=lambda cluster: len(cluster.get_available_scooters())
@@ -80,7 +80,7 @@ class GreedyPolicy(Policy):
             - number_of_scooters_to_pick_up
             < vehicle.battery_inventory_capacity * 0.1
         ) and not vehicle.is_at_depot() and (len(simul.state.depots) > 0):
-            next_location_id = simul.state.depots[0].id
+            next_location_id = simul.state.depots.values()[0].id
         else:
             """
             If vehicle has scooter inventory upon arrival,

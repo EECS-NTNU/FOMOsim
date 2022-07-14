@@ -42,7 +42,7 @@ class GenerateScooterTrips(Event):
                 world.add_event(departure_event)
 
         if not FULL_TRIP:
-            for arrival_cluster in world.state.stations:
+            for arrival_cluster in world.state.stations.values():
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(
                     world.state.rng.poisson(arrival_cluster.get_arrive_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))

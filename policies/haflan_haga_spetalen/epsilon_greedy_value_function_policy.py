@@ -158,7 +158,7 @@ def get_possible_actions(
                 cluster_id = [
                     depot.id
                     for depot in sorted(
-                        state.depots,
+                        state.depots.values(),
                         key=lambda depot: state.get_travel_time(
                             vehicle.current_location.id, depot.id
                         ),
@@ -206,7 +206,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
     def get_cache(state):
         # Cache current states in state
         current_states, available_scooters = [], []
-        for cluster in state.stations:
+        for cluster in state.stations.values():
             current_states.append(get_current_state(cluster))
             available_scooters.append(cluster.get_available_scooters())
         return current_states, available_scooters

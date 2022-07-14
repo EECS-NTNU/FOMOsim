@@ -28,8 +28,8 @@ class State(LoadSave):
 
         self.locations = stations
 
-        self.stations = [ station for station in stations if not isinstance(station, sim.Depot) ]
-        self.depots = [ station for station in stations if isinstance(station, sim.Depot) ]
+        self.stations = { station.id : station for station in stations if not isinstance(station, sim.Depot) }
+        self.depots = { station.id : station for station in stations if isinstance(station, sim.Depot) }
 
         self.traveltime_matrix = traveltime_matrix
         self.traveltime_vehicle_matrix = traveltime_vehicle_matrix
@@ -42,12 +42,12 @@ class State(LoadSave):
 
 
     def sloppycopy(self, *args):
-        stationscopy = []
+        locationscopy = []
         for s in self.locations:
-            stationscopy.append(s.sloppycopy())
+            locationscopy.append(s.sloppycopy())
 
         new_state = State(
-            stationscopy,
+            locationscopy,
             copy.deepcopy(self.vehicles),
             copy.deepcopy(self.scooters_in_use),
             traveltime_matrix = self.traveltime_matrix,
@@ -178,12 +178,12 @@ class State(LoadSave):
         :param lon:
         :return:
         """
-        return min(self.stations, key=lambda cluster: cluster.distance_to(lat, lon))
+        return min(list(self.stations.values()), key=lambda cluster: cluster.distance_to(lat, lon))
 
     # parked scooters
     def get_scooters(self):
         all_scooters = []
-        for cluster in self.stations:
+        for cluster in self.stations.values():
             all_scooters.extend(cluster.get_scooters())
         return all_scooters
 
@@ -343,7 +343,7 @@ class State(LoadSave):
         sampled_scooter_ids = self.rng.choice(
             [scooter.id for scooter in self.get_scooters()], sample_size, replace=False,
         )
-        for cluster in self.stations:
+        for cluster in self.stations.values():
             cluster.set_scooters([
                 scooter
                 for scooter in cluster.get_scooters()
@@ -352,9 +352,9 @@ class State(LoadSave):
 
     def get_random_cluster(self, exclude=None):
         return rng.choice(
-            [cluster for cluster in self.stations if cluster.id != exclude.id]
+            [cluster for cluster in self.stations.values() if cluster.id != exclude.id]
             if exclude
-            else self.stations
+            else self.stations.values()
         )
 
     def get_vehicle_by_id(self, vehicle_id: int) -> sim.Vehicle:

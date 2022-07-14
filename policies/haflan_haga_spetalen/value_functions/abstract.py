@@ -272,12 +272,12 @@ class ValueFunction(abc.ABC):
             cache
             if cache is not None
             else (
-                [get_current_state(cluster) for cluster in state.stations],
-                [cluster.get_available_scooters() for cluster in state.stations],
+                [get_current_state(cluster) for cluster in state.stations.values()],
+                [cluster.get_available_scooters() for cluster in state.stations.values()],
             )
         )  # Use cache if you have it
         negative_deviations, battery_deficiency = [], []
-        for i, cluster in enumerate(state.stations):
+        for i, cluster in enumerate(state.stations.values()):
             deviation = (
                 len(available_scooters[i])
                 - cluster.get_target_state(day, hour)

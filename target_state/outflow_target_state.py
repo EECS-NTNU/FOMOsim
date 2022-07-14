@@ -23,7 +23,7 @@ def outflow_target_state(state):
             # set ideal state to net outflow of bikes
             total_target_state = 0
 
-            for st in state.stations:
+            for st in state.stations.values():
                 outflow = st.get_leave_intensity(day, hour) - st.get_arrive_intensity(day, hour)
                 if outflow > 0:
                     target_state[st.id][day][hour] = 2
@@ -34,7 +34,7 @@ def outflow_target_state(state):
 
             # scale ideal states so that sum is close to total number of scooters
             scale_factor = len(state.get_all_scooters()) / total_target_state
-            for st in state.stations:
+            for st in state.stations.values():
                 target = int(target_state[st.id][day][hour] * scale_factor)
                 if target > (0.7 * st.capacity):
                     target = 0.7 * st.capacity
