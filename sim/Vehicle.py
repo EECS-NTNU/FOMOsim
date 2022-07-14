@@ -68,9 +68,6 @@ class Vehicle:
         else:
             self.battery_inventory += number_of_batteries
 
-    def get_route(self):
-        return self.service_route
-
     def __repr__(self):
         return (
             f"<Vehicle {self.id} at {self.current_location.id}, {len(self.scooter_inventory)} scooters,"

@@ -6,7 +6,6 @@ import datetime
 from sim import Action, Scooter, State, Vehicle, Metric
 import matplotlib.pyplot as plt
 import copy
-from itertools import cycle
 import matplotlib.dates as mdates
 from matplotlib import gridspec
 

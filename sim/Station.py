@@ -80,9 +80,6 @@ class Station(Location):
         else:
             return 0
 
-    def number_of_possible_pickups(self):
-        return self.number_of_scooters()
-
     def number_of_scooters(self):
         return len(self.scooters)
 
@@ -116,15 +113,6 @@ class Station(Location):
         return [
             scooter for scooter in self.scooters.values() if scooter.usable()
         ]
-
-    def print_all_scooters(self, with_coordinates=False):
-        string = ""
-        for scooter in self.scooters.values():
-            string += f"ID: {scooter.id}  Battery {round(scooter.battery, 1)}"
-            string += (
-                f"Coord: {scooter.get_location()} | " if with_coordinates else " | "
-            )
-        return string if string != "" else "Empty station"
 
     def get_swappable_scooters(self, battery_limit=70):
         """

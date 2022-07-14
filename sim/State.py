@@ -169,17 +169,6 @@ class State(LoadSave):
             remove_used_scooter(scooter)
             return scooter
 
-    def get_all_locations(self):
-        return self.locations
-
-    def get_station_by_lat_lon(self, lat: float, lon: float):
-        """
-        :param lat: lat location of scooter
-        :param lon:
-        :return:
-        """
-        return min(list(self.stations.values()), key=lambda station: station.distance_to(lat, lon))
-
     # parked scooters
     def get_scooters(self):
         all_scooters = []
@@ -326,18 +315,6 @@ class State(LoadSave):
     def get_location_by_id(self, location_id: int):
         return self.locations[location_id]
 
-    @staticmethod
-    def save_path(
-        number_of_stations,
-        sample_size,
-    ):
-        def convert_binary(binary):
-            return 1 if binary else 0
-
-        return (
-            f"c{number_of_stations}s{sample_size}_"
-        )
-
     def sample(self, sample_size: int):
         # Filter out scooters not in sample
         sampled_scooter_ids = self.rng.choice(
@@ -349,13 +326,6 @@ class State(LoadSave):
                 for scooter in station.get_scooters()
                 if scooter.id in sampled_scooter_ids
             ])
-
-    def get_random_station(self, exclude=None):
-        return rng.choice(
-            [station for station in self.stations.values() if station.id != exclude.id]
-            if exclude
-            else self.stations.values()
-        )
 
     def get_vehicle_by_id(self, vehicle_id: int) -> sim.Vehicle:
         """

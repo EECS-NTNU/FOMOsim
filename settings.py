@@ -8,7 +8,6 @@ SIM SETTINGS
 USER_INTERFACE_MODE = "CMD" # uses normal code in main.py 
 FULL_TRIP = True
 TRAFFIC_LOGGING = False
-REPORT_CHANGES = False # if True, changes in station position or name are reported in terminal
 
 # Vehicle settings
 

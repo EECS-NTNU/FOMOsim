@@ -3,8 +3,6 @@ from sim import Event
 from settings import *
 import numpy as np
 
-from helpers import loggWrite
-
 class ScooterDeparture(Event):
     """
     Event fired when a customer requests a trip from a given departure station. Creates a Lost Trip or Scooter arrival

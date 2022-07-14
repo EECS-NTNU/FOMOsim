@@ -36,7 +36,6 @@ def write_csv(instances, filename, week, hourly=False):
     idx = {}
     for m in keys:
         idx[m] = 0
-    tripIdx = 0
 
     last_hour = 0
 

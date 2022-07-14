@@ -1,5 +1,4 @@
 import geopy.distance
-from math import sqrt, pi, sin, cos, atan2
 
 class Location:
     """
