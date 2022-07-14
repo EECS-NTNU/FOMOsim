@@ -38,8 +38,8 @@ seeds_generating_trips = list(range(0,10))
 inputs = {
     'greedy':[True],
     #'branching':[3,5,7],
-    'num_vehicles':[0,2,5],
-    'num_stations':[20,30]
+    'num_vehicles':[0],
+    'num_stations':[50],
 }
 
 
@@ -82,7 +82,8 @@ else:
     combinations = list(it.product(*(inputs[key] for key in keys)))
     num_scenario_analyses = len(combinations)
 
-    os.remove("output.csv")
+    if os.path.exists("output.csv"):
+        os.remove("output.csv")
 
     for i in range(num_scenario_analyses):
         simulators = []
