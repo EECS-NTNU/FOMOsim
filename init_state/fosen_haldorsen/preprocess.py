@@ -41,5 +41,4 @@ def create_subset(state, n):
                     incoming += from_station.leave_intensity_per_iteration[day][hour] * demand_met * from_station.move_probabilities[day][hour][station.id]
                 station.arrive_intensity_per_iteration[day][hour] = incoming
 
-    state.locations = state.locations[:n]
-    state.stations = state.stations[:n-1]
+    state.set_locations(subset)

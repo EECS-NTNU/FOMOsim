@@ -26,10 +26,7 @@ class State(LoadSave):
         self.vehicles = vehicles
         self.scooters_in_use = scooters_in_use
 
-        self.locations = stations
-
-        self.stations = { station.id : station for station in stations if not isinstance(station, sim.Depot) }
-        self.depots = { station.id : station for station in stations if isinstance(station, sim.Depot) }
+        self.set_locations(stations)
 
         self.traveltime_matrix = traveltime_matrix
         self.traveltime_vehicle_matrix = traveltime_vehicle_matrix
@@ -139,6 +136,11 @@ class State(LoadSave):
             traveltime_matrix.append(neighbour_traveltime)
         
         return traveltime_matrix
+
+    def set_locations(self, locations):
+        self.locations = locations
+        self.stations = { station.id : station for station in locations if not isinstance(station, sim.Depot) }
+        self.depots = { station.id : station for station in locations if isinstance(station, sim.Depot) }
 
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
