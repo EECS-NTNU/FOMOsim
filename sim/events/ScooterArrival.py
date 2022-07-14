@@ -4,7 +4,7 @@ from settings import *
 
 class ScooterArrival(Event):
     """
-    Event performed when an e-scooter arrives at a cluster after a e-scooter departure
+    Event performed when an e-scooter arrives at a station after a e-scooter departure
     """
 
     def __init__(
@@ -12,13 +12,13 @@ class ScooterArrival(Event):
         time, 
         travel_time,
         scooter: sim.Scooter,
-        arrival_cluster_id: int,
-        departure_cluster_id: int,
+        arrival_station_id: int,
+        departure_station_id: int,
     ):
         super().__init__(time + travel_time)
         self.scooter = scooter
-        self.arrival_cluster_id = arrival_cluster_id
-        self.departure_cluster_id = departure_cluster_id
+        self.arrival_station_id = arrival_station_id
+        self.departure_station_id = departure_station_id
         self.travel_time = travel_time
 
     def perform(self, world) -> None:
@@ -26,8 +26,8 @@ class ScooterArrival(Event):
         :param world: world object
         """
 
-        # get arrival cluster
-        arrival_cluster = world.state.get_location_by_id(self.arrival_cluster_id)
+        # get arrival station
+        arrival_station = world.state.get_location_by_id(self.arrival_station_id)
 
         if not FULL_TRIP:
             self.scooter = world.state.get_used_scooter()
@@ -35,18 +35,18 @@ class ScooterArrival(Event):
         if self.scooter is not None:
             self.scooter.travel(self.travel_time)
 
-            # add scooter to the arrived cluster (location is changed in add_scooter method)
-            if arrival_cluster.add_scooter(world.state.rng, self.scooter):
+            # add scooter to the arrived station (location is changed in add_scooter method)
+            if arrival_station.add_scooter(world.state.rng, self.scooter):
                 if FULL_TRIP:
                     world.state.remove_used_scooter(self.scooter)
             else:
                 if FULL_TRIP:
                     # go to another station
-                    next_cluster = world.state.get_neighbours(arrival_cluster, 1, not_full=True)[0]
+                    next_station = world.state.get_neighbours(arrival_station, 1, not_full=True)[0]
 
                     travel_time = world.state.get_travel_time(
-                        arrival_cluster.id,
-                        next_cluster.id,
+                        arrival_station.id,
+                        next_station.id,
                     )
 
                     # create an arrival event for the departed scooter
@@ -55,8 +55,8 @@ class ScooterArrival(Event):
                             self.time,
                             travel_time,
                             self.scooter,
-                            next_cluster.id,
-                            arrival_cluster.id,
+                            next_station.id,
+                            arrival_station.id,
                         )
                     )
 
@@ -69,4 +69,4 @@ class ScooterArrival(Event):
         super(ScooterArrival, self).perform(world)
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} at time {self.time}, arriving at cluster {self.arrival_cluster_id}>"
+        return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_station_id}>"

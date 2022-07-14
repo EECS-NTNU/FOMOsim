@@ -7,33 +7,33 @@ from helpers import loggWrite
 
 class ScooterDeparture(Event):
     """
-    Event fired when a customer requests a trip from a given departure cluster. Creates a Lost Trip or Scooter arrival
-    event based on the availability of the cluster
+    Event fired when a customer requests a trip from a given departure station. Creates a Lost Trip or Scooter arrival
+    event based on the availability of the station
     """
 
-    def __init__(self, departure_time: int, departure_cluster_id: int):
+    def __init__(self, departure_time: int, departure_station_id: int):
         super().__init__(departure_time)
-        self.departure_cluster_id = departure_cluster_id
+        self.departure_station_id = departure_station_id
 
     def perform(self, world) -> None:
         """
         :param world: world object
         """
 
-        # get departure cluster
-        departure_cluster = world.state.get_location_by_id(self.departure_cluster_id)
+        # get departure station
+        departure_station = world.state.get_location_by_id(self.departure_station_id)
 
-        # get all available scooter in the cluster
-        available_scooters = departure_cluster.get_available_scooters()
+        # get all available scooter in the station
+        available_scooters = departure_station.get_available_scooters()
 
         # if there are no more available scooters -> make a LostTrip event for that departure time
         if len(available_scooters) > 0:
             scooter = available_scooters.pop(0)
 
             if FULL_TRIP:
-                # get a arrival cluster from the leave prob distribution
+                # get a arrival station from the leave prob distribution
 
-                p=departure_cluster.get_leave_distribution(world.state, world.day(), world.hour())
+                p=departure_station.get_leave_distribution(world.state, world.day(), world.hour())
                 sum = 0.0
                 for i in range(len(p)):
                     sum += p[i]
@@ -43,11 +43,11 @@ class ScooterDeparture(Event):
                         p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
                     else:
                         p_normalized.append(1/len(p))
-                arrival_cluster = world.state.rng.choice(world.state.locations, p = p_normalized)
+                arrival_station = world.state.rng.choice(world.state.locations, p = p_normalized)
 
                 travel_time = world.state.get_travel_time(
-                    departure_cluster.id,
-                    arrival_cluster.id,
+                    departure_station.id,
+                    arrival_station.id,
                 )
 
                 # calculate arrival time
@@ -58,13 +58,13 @@ class ScooterDeparture(Event):
                         self.time,
                         travel_time,
                         scooter,
-                        arrival_cluster.id,
-                        departure_cluster.id,
+                        arrival_station.id,
+                        departure_station.id,
                     )
                 )
 
-            # remove scooter from the departure cluster
-            departure_cluster.remove_scooter(scooter)
+            # remove scooter from the departure station
+            departure_station.remove_scooter(scooter)
 
             world.state.scooter_in_use(scooter)
 
@@ -77,4 +77,4 @@ class ScooterDeparture(Event):
         super(ScooterDeparture, self).perform(world)
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} at time {self.time}, departing from cluster {self.departure_cluster_id}>"
+        return f"<{self.__class__.__name__} at time {self.time}, departing from station {self.departure_station_id}>"

@@ -32,7 +32,7 @@ class GreedyPolicy(Policy):
                 ]
                 scooters_to_pickup = []
                 number_of_scooters_to_pick_up = 0
-                # Swap as many scooters as possible as this cluster most likely needs it
+                # Swap as many scooters as possible as this station most likely needs it
                 swappable_scooters = vehicle.current_location.get_swappable_scooters()
                 number_of_scooters_to_swap = min(
                     vehicle.battery_inventory, len(swappable_scooters)
@@ -53,7 +53,7 @@ class GreedyPolicy(Policy):
                     0,
                 ))
                 scooters_to_pickup = list(vehicle.current_location.scooters.keys())[:number_of_scooters_to_pick_up]
-                # Do not swap any scooters in a cluster with a lot of scooters
+                # Do not swap any scooters in a station with a lot of scooters
                 scooters_to_swap = []
                 number_of_scooters_to_swap = 0
                 # There are no scooters to deliver due to empty inventory
@@ -64,12 +64,12 @@ class GreedyPolicy(Policy):
 
             return sorted(
                 [
-                    cluster
-                    for cluster in simul.state.stations.values()
-                    if cluster.id not in tabu_list
+                    station
+                    for station in simul.state.stations.values()
+                    if station.id not in tabu_list
                 ],
-                key=lambda cluster: len(cluster.get_available_scooters())
-                - cluster.get_target_state(simul.day(), simul.hour()),
+                key=lambda station: len(station.get_available_scooters())
+                - station.get_target_state(simul.day(), simul.hour()),
                 reverse=is_finding_positive_deviation,
             )[0].id
 
@@ -84,14 +84,14 @@ class GreedyPolicy(Policy):
         else:
             """
             If vehicle has scooter inventory upon arrival,
-            go to new positive deviation cluster to pick up new scooters.
-            If there are no scooter inventory, go to cluster where you
-            can drop off scooters picked up in this cluster, ergo negative deviation cluster.
+            go to new positive deviation station to pick up new scooters.
+            If there are no scooter inventory, go to station where you
+            can drop off scooters picked up in this station, ergo negative deviation station.
             If, however, you are in the depot, you should do the opposite as the depot does not
             change the scooter inventory.
             """
-            visit_positive_deviation_cluster_next = (len(vehicle.scooter_inventory) + len(scooters_to_pickup) - len(scooters_to_deliver)) <= 0
-            next_location_id = get_next_location_id(simul, visit_positive_deviation_cluster_next)
+            visit_positive_deviation_station_next = (len(vehicle.scooter_inventory) + len(scooters_to_pickup) - len(scooters_to_deliver)) <= 0
+            next_location_id = get_next_location_id(simul, visit_positive_deviation_station_next)
 
         return sim.Action(
             scooters_to_swap,

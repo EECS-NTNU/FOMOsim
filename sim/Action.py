@@ -27,9 +27,9 @@ class Action:
 
     def get_action_time(self, travel_time):
         """
-        Get the time consumed from performing an action (travel from cluster 1 to 2) in a given state.
+        Get the time consumed from performing an action (travel from station 1 to 2) in a given state.
         Can add time for performing actions on scooters as well.
-        :param travel_time: travel_time in min from current cluster to next cluster
+        :param travel_time: travel_time in min from current station to next station
         :return: Total time to perform action in minutes
         """
         operation_duration = (

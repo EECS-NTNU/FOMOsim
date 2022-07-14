@@ -16,10 +16,10 @@ class GenerateScooterTrips(Event):
     def perform(self, world) -> None:
         super(GenerateScooterTrips, self).perform(world)
 
-        for departure_cluster in world.state.locations:
+        for departure_station in world.state.locations:
             # poisson process to select number of trips in a iteration
             number_of_trips = round(
-                world.state.rng.poisson(departure_cluster.get_leave_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
+                world.state.rng.poisson(departure_station.get_leave_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
             )
 
             # generate trip departure times (can be implemented with np.random.uniform if we want decimal times)
@@ -31,21 +31,21 @@ class GenerateScooterTrips(Event):
                 )
             )
             if settings.TRAFFIC_LOGGING and len(trips_departure_time) > 0:
-                loggDepartures(departure_cluster.id, trips_departure_time) 
+                loggDepartures(departure_station.id, trips_departure_time) 
 
             # generate departure event and add to world event_queue
             for departure_time in trips_departure_time:
                 # add departure event to the event_queue
                 departure_event = sim.ScooterDeparture(
-                    departure_time, departure_cluster.id
+                    departure_time, departure_station.id
                 )
                 world.add_event(departure_event)
 
         if not FULL_TRIP:
-            for arrival_cluster in world.state.stations.values():
+            for arrival_station in world.state.stations.values():
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(
-                    world.state.rng.poisson(arrival_cluster.get_arrive_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
+                    world.state.rng.poisson(arrival_station.get_arrive_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
                 )
 
                 # generate trip arrival times (can be implemented with np.random.uniform if we want decimal times)
@@ -62,7 +62,7 @@ class GenerateScooterTrips(Event):
                     arrival_event = sim.ScooterArrival(
                         arrival_time,
                         None,
-                        arrival_cluster.id,
+                        arrival_station.id,
                         None,
                         0,
                     )

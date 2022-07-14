@@ -6,7 +6,7 @@ import copy
 
 class State(LoadSave):
     """
-    Container class for the whole state of all clusters. Data concerning the interplay between clusters are stored here
+    Container class for the whole state of all stations. Data concerning the interplay between stations are stored here
     """
 
     def __init__(
@@ -172,26 +172,26 @@ class State(LoadSave):
     def get_all_locations(self):
         return self.locations
 
-    def get_cluster_by_lat_lon(self, lat: float, lon: float):
+    def get_station_by_lat_lon(self, lat: float, lon: float):
         """
         :param lat: lat location of scooter
         :param lon:
         :return:
         """
-        return min(list(self.stations.values()), key=lambda cluster: cluster.distance_to(lat, lon))
+        return min(list(self.stations.values()), key=lambda station: station.distance_to(lat, lon))
 
     # parked scooters
     def get_scooters(self):
         all_scooters = []
-        for cluster in self.stations.values():
-            all_scooters.extend(cluster.get_scooters())
+        for station in self.stations.values():
+            all_scooters.extend(station.get_scooters())
         return all_scooters
 
     # parked and in-use scooters
     def get_all_scooters(self):
         all_scooters = []
-        for cluster in self.locations:
-            all_scooters.extend(cluster.get_scooters())
+        for station in self.locations:
+            all_scooters.extend(station.get_scooters())
         all_scooters.extend(self.scooters_in_use.values())
         for vehicle in self.vehicles:
             all_scooters.extend(vehicle.get_scooter_inventory())
@@ -238,7 +238,7 @@ class State(LoadSave):
                 # Picking up scooter and adding to vehicle inventory and swapping battery
                 vehicle.pick_up(pick_up_scooter)
 
-                # Remove scooter from current cluster
+                # Remove scooter from current station
                 vehicle.current_location.remove_scooter(pick_up_scooter)
             # Perform all battery swaps
             for battery_swap_scooter_id in action.battery_swaps[:vehicle.battery_inventory]:
@@ -253,10 +253,10 @@ class State(LoadSave):
                 # Removing scooter from vehicle inventory
                 delivery_scooter = vehicle.drop_off(delivery_scooter_id)
 
-                # Adding scooter to current cluster and changing coordinates of scooter
+                # Adding scooter to current station and changing coordinates of scooter
                 vehicle.current_location.add_scooter(self.rng, delivery_scooter)
 
-        # Moving the state/vehicle from this to next cluster
+        # Moving the state/vehicle from this to next station
         vehicle.set_current_location(
             self.get_location_by_id(action.next_location), action
         )
@@ -281,7 +281,7 @@ class State(LoadSave):
         not_full=False,
     ):
         """
-        Get sorted list of stations closest to input cluster
+        Get sorted list of stations closest to input station
         :param is_sorted: Boolean if the neighbours list should be sorted in a ascending order based on distance
         :param location: location to find neighbours for
         :param number_of_neighbours: number of neighbours to return
@@ -343,16 +343,16 @@ class State(LoadSave):
         sampled_scooter_ids = self.rng.choice(
             [scooter.id for scooter in self.get_scooters()], sample_size, replace=False,
         )
-        for cluster in self.stations.values():
-            cluster.set_scooters([
+        for station in self.stations.values():
+            station.set_scooters([
                 scooter
-                for scooter in cluster.get_scooters()
+                for scooter in station.get_scooters()
                 if scooter.id in sampled_scooter_ids
             ])
 
-    def get_random_cluster(self, exclude=None):
+    def get_random_station(self, exclude=None):
         return rng.choice(
-            [cluster for cluster in self.stations.values() if cluster.id != exclude.id]
+            [station for station in self.stations.values() if station.id != exclude.id]
             if exclude
             else self.stations.values()
         )

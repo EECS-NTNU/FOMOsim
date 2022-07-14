@@ -2,7 +2,7 @@ from shapely.geometry import MultiPoint
 import numpy as np
 from sim.Scooter import Scooter
 from sim.Location import Location
-from settings import CLUSTER_CENTER_DELTA, BATTERY_LIMIT, DEFAULT_STATION_CAPACITY
+from settings import STATION_CENTER_DELTA, BATTERY_LIMIT, DEFAULT_STATION_CAPACITY
 import copy
 
 class Station(Location):
@@ -12,7 +12,7 @@ class Station(Location):
 
     def __init__(
         self,
-        cluster_id: int,
+        station_id: int,
         scooters: [Scooter] = {},
         leave_intensity_per_iteration=None,
         arrive_intensity_per_iteration=None,
@@ -26,7 +26,7 @@ class Station(Location):
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(scooters)),
-            cluster_id, target_state=target_state
+            station_id, target_state=target_state
         )
         self.set_scooters(scooters)
         self.leave_intensity_per_iteration = leave_intensity_per_iteration
@@ -88,10 +88,10 @@ class Station(Location):
 
     def __compute_center(self, scooters):
         if len(scooters) > 0:
-            cluster_centroid = MultiPoint(
+            station_centroid = MultiPoint(
                 list(map(lambda scooter: (scooter.get_location()), scooters))
             ).centroid
-            return cluster_centroid.x, cluster_centroid.y
+            return station_centroid.x, station_centroid.y
         else:
             return 0, 0
 
@@ -101,8 +101,8 @@ class Station(Location):
         # Adding scooter to scooter list
         self.scooters[scooter.id] = scooter
         # Changing coordinates of scooter to this location + some delta
-        delta_lat = rng.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
-        delta_lon = rng.uniform(-CLUSTER_CENTER_DELTA, CLUSTER_CENTER_DELTA)
+        delta_lat = rng.uniform(-STATION_CENTER_DELTA, STATION_CENTER_DELTA)
+        delta_lon = rng.uniform(-STATION_CENTER_DELTA, STATION_CENTER_DELTA)
         scooter.set_location(self.get_lat() + delta_lat, self.get_lon() + delta_lon)
         return True
 
@@ -124,7 +124,7 @@ class Station(Location):
             string += (
                 f"Coord: {scooter.get_location()} | " if with_coordinates else " | "
             )
-        return string if string != "" else "Empty cluster"
+        return string if string != "" else "Empty station"
 
     def get_swappable_scooters(self, battery_limit=70):
         """
