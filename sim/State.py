@@ -114,7 +114,7 @@ class State(LoadSave):
     def set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities):
         for station in stations:
             station.leave_intensity_per_iteration = leave_intensities[station.id]
-            station.arrive_intensity_per_iteration = leave_intensities[station.id]
+            station.arrive_intensity_per_iteration = arrive_intensities[station.id]
             station.move_probabilities = move_probabilities[station.id]
 
 
@@ -260,7 +260,7 @@ class State(LoadSave):
             string += f"{str(station)}\n"
         for vehicle in self.vehicles:
             string += f"{str(vehicle)}\n"
-        string += f"In use: {self.scooters_in_use.values()}"
+        string += f"In use: {len(self.scooters_in_use.values())}"
         return string
 
     def get_neighbours(

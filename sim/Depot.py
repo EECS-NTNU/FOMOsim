@@ -74,7 +74,7 @@ class Depot(Station):
         return delta_capacity
 
     def __str__(self):
-        return f"Depot {self.id}"
+        return f"Depot   {self.id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):3d} Scooters {len(self.scooters):3d} Cap {self.depot_capacity} Inv {self.battery_inventory}"
 
     def __repr__(self):
         return f"<Depot, id: {self.id}, cap: {self.battery_inventory}>"

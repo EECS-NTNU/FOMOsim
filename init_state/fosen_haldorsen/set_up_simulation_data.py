@@ -129,7 +129,6 @@ def setup_stations_students(clientName, init_hour, number_of_vehicles, random_se
 
     ###############################################################################
 
-    # station 4 is depot
     stations = sim.State.create_stations(num_stations=len(capacities), capacities=capacities, charging_stations=charging_stations, original_ids=original_ids, depots=[4])
     sim.State.create_bikes_in_stations(stations, "Scooter", number_of_scooters)
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
