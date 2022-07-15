@@ -45,6 +45,7 @@ inputs = {
 
 if simple_run:
 
+    # setup state
     tstate = target_state.us_target_state
     state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
                                          target_state=tstate,
@@ -52,12 +53,14 @@ if simple_run:
                                          number_of_vehicles=num_vehicles)
     state.set_seed(seed_generating_trips)
 
+    # setup policy
     if greedy:
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     else:
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=subproblem_scenarios,
                                                                branching=branching, time_horizon=time_horizon)
 
+    # setup simulator
     simulator = sim.Simulator(
         initial_state = state,
         policy = policy,
@@ -66,8 +69,10 @@ if simple_run:
         verbose = True,
     )
 
+    # run simulator
     simulator.run()
 
+    # results
     print(f"Simulation time = {simulation_time} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('lost_demand')}")
@@ -102,8 +107,7 @@ else:
             for key, value in parameters.items():
                 print(key, value)
 
-            # setup simulator
-
+            # setup state
             tstate = target_state.us_target_state
             state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
                                                  target_state=tstate,
@@ -111,12 +115,14 @@ else:
                                                  number_of_vehicles=num_vehicles)
             state.set_seed(seed_generating_trips)
 
+            # setup policy
             if greedy:
                 policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
             else:
                 policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=subproblem_scenarios,
                                                                        branching=branching, time_horizon=time_horizon)
 
+            # setup simulator
             simulators.append(sim.Simulator(
                 initial_state = state,
                 policy = policy,
@@ -128,6 +134,7 @@ else:
             # run simulator
             simulators[-1].run()
 
+            # results
             print(f"Simulation time = {simulation_time} minutes")
             print(f"Total requested trips = {simulators[-1].metrics.get_aggregate_value('trips')}")
             print(f"Starvations = {simulators[-1].metrics.get_aggregate_value('lost_demand')}")
