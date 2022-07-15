@@ -13,7 +13,7 @@ class Station(Location):
     def __init__(
         self,
         station_id: int,
-        scooters: [Scooter] = {},
+        scooters: [Scooter] = [],
         leave_intensity_per_iteration=None,
         arrive_intensity_per_iteration=None,
         center_location=None,
@@ -42,7 +42,7 @@ class Station(Location):
     def sloppycopy(self, *args):
         return Station(
             self.id,
-            copy.deepcopy(self.scooters),
+            list(copy.deepcopy(self.scooters).values()),
             leave_intensity_per_iteration=self.leave_intensity_per_iteration,
             arrive_intensity_per_iteration=self.arrive_intensity_per_iteration,
             center_location=self.get_location(),

@@ -67,7 +67,7 @@ def get_initial_state(
 
     if number_of_scooters:
         initial_state.sample(number_of_scooters)
-        for st in initial_state.stations:
+        for st in initial_state.stations.values():
             st.capacity = max(DEFAULT_STATION_CAPACITY, len(st.scooters))
 
     # Choosing a location as starting cluster for all vehicles

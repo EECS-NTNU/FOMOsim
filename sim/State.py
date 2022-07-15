@@ -159,6 +159,14 @@ class State(LoadSave):
         for st in self.locations:
             st.target_state = target_state[st.id]
 
+    def get_station_by_lat_lon(self, lat: float, lon: float):
+        """
+        :param lat: lat location of scooter
+        :param lon:
+        :return:
+        """
+        return min(list(self.stations.values()), key=lambda station: station.distance_to(lat, lon))
+
     def scooter_in_use(self, scooter):
         self.scooters_in_use[scooter.id] = scooter
 
@@ -329,10 +337,10 @@ class State(LoadSave):
                 if scooter.id in sampled_scooter_ids
             ])
 
-    def get_vehicle_by_id(self, vehicle_id: int) -> sim.Vehicle:
+    def get_vehicle_by_id(self, vehicle_id):
         """
         Returns the vehicle object in the state corresponding to the vehicle id input
         :param vehicle_id: the id of the vehicle to fetch
         :return: vehicle object
         """
-        return self.vehicles[id]
+        return self.vehicles[vehicle_id]
