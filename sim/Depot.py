@@ -1,3 +1,5 @@
+import copy
+
 from sim.Station import Station
 from sim.Scooter import Scooter
 from settings import *
@@ -33,6 +35,22 @@ class Depot(Station):
         self.battery_inventory = depot_capacity
         self.time = 0
         self.charging = []
+
+    def sloppycopy(self, *args):
+        return Depot(
+            self.id,
+            self.depot_capacity,
+            list(copy.deepcopy(self.scooters).values()),
+            leave_intensity_per_iteration=self.leave_intensity_per_iteration,
+            arrive_intensity_per_iteration=self.arrive_intensity_per_iteration,
+            center_location=self.get_location(),
+            move_probabilities=self.move_probabilities,
+            average_number_of_scooters=self.average_number_of_scooters,
+            target_state=self.target_state,
+            capacity=self.capacity,
+            original_id=self.original_id,
+            charging_station=self.charging_station,
+        )
 
     def swap_battery_inventory(self, time, number_of_battery_to_change) -> int:
         self.battery_inventory += self.get_delta_capacity(time)

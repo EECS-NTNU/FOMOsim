@@ -11,9 +11,9 @@ class State(LoadSave):
 
     def __init__(
         self,
-        stations: [sim.Station] = [],
-        vehicles: [sim.Vehicle] = [],
-        scooters_in_use: [sim.Location] = {}, # scooters not parked at any station
+        stations = [],
+        vehicles = [],
+        scooters_in_use = {}, # scooters not parked at any station
         traveltime_matrix=None,
         traveltime_vehicle_matrix=None,
         rng = None,

@@ -12,8 +12,8 @@ class Station(Location):
 
     def __init__(
         self,
-        station_id: int,
-        scooters: [Scooter] = [],
+        station_id,
+        scooters = [],
         leave_intensity_per_iteration=None,
         arrive_intensity_per_iteration=None,
         center_location=None,
