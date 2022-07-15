@@ -36,18 +36,18 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     #cityURL = "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/"
     #cityURL = "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/"
 
-    # state = init_state.get_initial_state(source=init_state.cityBike,
-    #                                      target_state=tstate,
-    #                                      url=cityURL,  week=WEEK, bike_class="Bike", number_of_vehicles=3, random_seed=1)
+    state = init_state.get_initial_state(source=init_state.cityBike,
+                                         target_state=tstate,
+                                         url=cityURL,  week=WEEK, bike_class="Bike", number_of_vehicles=3, random_seed=1)
 
     # state = init_state.get_initial_state(source=init_state.entur,
     #                                      target_state=tstate,
     #                                      entur_data_dir="test_data", entur_main_file="0900-entur-snapshot.csv", bike_class="Scooter",
     #                                      number_of_scooters = 150, number_of_clusters = 5, number_of_vehicles = 3, random_seed = 1)
     
-    state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
-                                         target_state=tstate,
-                                         init_hour=start_time//60, number_of_stations=50, number_of_vehicles=3, random_seed=1)
+    # state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
+    #                                      target_state=tstate,
+    #                                      init_hour=start_time//60, number_of_stations=50, number_of_vehicles=3, random_seed=1)
 
     ###############################################################################
     # Set up policy
