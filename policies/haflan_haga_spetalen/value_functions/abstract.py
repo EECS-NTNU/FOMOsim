@@ -1,16 +1,16 @@
 from collections import deque
 
 import sim
-from settings import SMALL_DEPOT_CAPACITY, BATTERY_LIMIT
+from settings import BATTERY_LIMIT
 import abc
 
 
 class Decorators:
     @classmethod
     def check_setup(cls, func):
-        def return_function(self, *args):
+        def return_function(self, *args, **kwargs):
             if self.setup_complete:
-                return func(self, *args)
+                return func(self, *args, **kwargs)
             else:
                 raise ValueError(
                     "Value function is not setup with a state. "

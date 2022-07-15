@@ -2,13 +2,6 @@
 SIM SETTINGS
 """
 
-# User interface settings
-
-#USER_INTERFACE_MODE = "GUI" # uses GUI from dashboard.py under tripStats
-USER_INTERFACE_MODE = "CMD" # uses normal code in main.py 
-FULL_TRIP = True
-TRAFFIC_LOGGING = False
-
 # Vehicle settings
 
 VEHICLE_BATTERY_INVENTORY = 170
@@ -33,6 +26,8 @@ DEFAULT_STATION_CAPACITY = 20
 
 # Other settings
 
+FULL_TRIP = True
 ITERATION_LENGTH_MINUTES = 60
 STATION_CENTER_DELTA = 0
 SIM_CACHE_DIR = "sim_cache"
+TRAFFIC_LOGGING = False

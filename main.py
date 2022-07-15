@@ -1,6 +1,6 @@
 #!/bin/python3
 """
-FOMO simulator main program
+FOMO simulator example
 """
 
 import settings
@@ -16,12 +16,11 @@ import output
 from helpers import timeInMinutes
 from GUI.dashboard import GUI_main
 
-start_time = timeInMinutes(hours=7)
-duration = timeInMinutes(days=7)
+START_TIME = timeInMinutes(hours=7)
+DURATION = timeInMinutes(hours=4)
+WEEK = 12
 
-if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
-
-    WEEK = 12
+def main():
 
     ###############################################################################
     # Get initial state
@@ -30,24 +29,19 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     # tstate = target_state.outflow_target_state
     tstate = target_state.equal_prob_target_state
 
-    cityURL = "https://data.urbansharing.com/oslobysykkel.no/trips/v1/"
-    #cityURL = "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/"
-    #cityURL = "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/"
-    #cityURL = "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/"
-    #cityURL = "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/"
-
-    # state = init_state.get_initial_state(source=init_state.cityBike,
-    #                                      target_state=tstate,
-    #                                      url=cityURL,  week=WEEK, bike_class="Bike", number_of_vehicles=3, random_seed=1)
+    state = init_state.get_initial_state(source=init_state.cityBike,
+                                         target_state=tstate,
+                                         url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
+                                         week=WEEK, bike_class="Bike", number_of_vehicles=3, random_seed=1)
 
     # state = init_state.get_initial_state(source=init_state.entur,
     #                                      target_state=tstate,
     #                                      entur_data_dir="test_data", entur_main_file="0900-entur-snapshot.csv", bike_class="Scooter",
     #                                      number_of_scooters = 150, number_of_clusters = 5, number_of_vehicles = 3, random_seed = 1)
     
-    state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
-                                         target_state=tstate,
-                                         init_hour=start_time//60, number_of_stations=50, number_of_vehicles=3, random_seed=1)
+    # state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
+    #                                      target_state=tstate,
+    #                                      init_hour=START_TIME//60, number_of_stations=50, number_of_vehicles=3, random_seed=1)
 
     ###############################################################################
     # Set up policy
@@ -64,8 +58,8 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     simulator = sim.Simulator(
         initial_state = state,
         policy = policy,
-        start_time = start_time,
-        duration = duration,
+        start_time = START_TIME,
+        duration = DURATION,
         verbose = True,
     )
 
@@ -77,7 +71,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     ###############################################################################
     # Output
 
-    print(f"Simulation time = {duration} minutes")
+    print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('lost_demand')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
@@ -87,3 +81,7 @@ if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
     output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
     output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
     output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
+
+
+if __name__ == "__main__":
+    main()

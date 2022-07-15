@@ -21,7 +21,7 @@ class Simulator(LoadSave):
 
     def __init__(
         self,
-        duration: int,
+        duration,
         policy,
         initial_state,
         start_time = 0,
@@ -31,18 +31,19 @@ class Simulator(LoadSave):
         super().__init__()
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
         self.policy = policy
-        self.init(duration, initial_state, start_time, verbose, label)
+        self.init(duration=duration, initial_state=initial_state, start_time=start_time, verbose=verbose, label=label)
 
     def init(
         self,
-        duration: int,
-        initial_state,
         start_time = 0,
-        verbose=False,
-        label=None,
+        duration = 0,
+        initial_state = None,
+        verbose = False,
+        label = None,
     ):
         self.end_time = start_time + duration
-        self.state = initial_state
+        if initial_state is not None:
+            self.state = initial_state
         self.time = start_time
         self.event_queue: List[sim.Event] = []
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
@@ -124,8 +125,13 @@ class Simulator(LoadSave):
         self.event_queue.insert(insert_index, event)
 
     def save_sim(self, filename):
-        directory = f"{settings.SIM_CACHE_DIR}/{filename}"
+        directory = f"{settings.SIM_CACHE_DIR}/{filename}.pickle.gz"
         super().save(directory)
+
+    @staticmethod
+    def load_sim(filename):
+        directory = f"{settings.SIM_CACHE_DIR}/{filename}.pickle.gz"
+        return sim.Simulator.load(directory)
 
     def sloppycopy(self, *args):
         new_sim = Simulator(

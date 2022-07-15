@@ -80,7 +80,7 @@ class GreedyPolicy(Policy):
             - number_of_scooters_to_pick_up
             < vehicle.battery_inventory_capacity * 0.1
         ) and not vehicle.is_at_depot() and (len(simul.state.depots) > 0):
-            next_location_id = simul.state.depots.values()[0].id
+            next_location_id = list(simul.state.depots.values())[0].id
         else:
             """
             If vehicle has scooter inventory upon arrival,
