@@ -1,0 +1,7 @@
+greedy;num_stations;num_vehicles;Time;congestion;lost_demand;trips;
+True;50;0;7;0.0;2.0;6.7;
+True;50;0;8;14.7;170.7;337.2;
+True;50;0;9;44.2;316.1;611.9;
+True;50;0;10;62.7;394.3;757.9;
+True;50;0;11;74.9;464.7;888.4;
+

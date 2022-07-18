@@ -3,7 +3,7 @@ import shutil
 import re
 
 from datetime import datetime, date
-from GUI import trafficLogg, trafficLoggDir
+#from GUI import trafficLogg, trafficLoggDir
 
 def extractCityFromURL(url):
     name = re.sub("https://data.urbansharing.com/","",url)

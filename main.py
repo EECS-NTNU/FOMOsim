@@ -6,6 +6,7 @@ FOMO simulator example
 import settings
 import init_state
 import init_state.fosen_haldorsen
+import init_state.cityBike
 import target_state
 import policies
 import policies.fosen_haldorsen
@@ -14,7 +15,7 @@ import policies.haflan_haga_spetalen
 import sim
 import output
 from helpers import timeInMinutes
-from GUI.dashboard import GUI_main
+#   from GUI.dashboard import GUI_main
 
 START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(hours=4)

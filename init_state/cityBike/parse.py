@@ -10,7 +10,7 @@ from datetime import date
 from progress.bar import Bar
 
 import settings
-from GUI import loggFile
+#from GUI import loggFile
 from helpers import extractCityFromURL, extractCityAndDomainFromURL, yearWeekNoAndDay, write
 
 tripDataDirectory = "init_state/cityBike/data/" # location of tripData
