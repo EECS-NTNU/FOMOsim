@@ -49,5 +49,7 @@ class VehicleArrival(Event):
         # Add a new Vehicle Arrival event for the next station arrival to the world event_queue
         world.add_event(VehicleArrival(arrival_time, self.vehicle))
 
+        self.vehicle.eta = arrival_time
+
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time} to location {self.vehicle.current_location.id}>"

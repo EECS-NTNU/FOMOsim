@@ -23,6 +23,7 @@ class Vehicle:
         self.scooter_inventory_capacity = scooter_inventory_capacity
         self.service_route = []
         self.current_location = start_location
+        self.eta = 0
 
     def change_battery(self, scooter: Scooter):
         if self.battery_inventory <= 0:
