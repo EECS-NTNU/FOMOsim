@@ -160,7 +160,7 @@ class ValueFunction(abc.ABC):
         negative_deviations, battery_deficiency = ValueFunction.get_normalized_lists(
             state, day, hour, 
             cache,
-            current_location=vehicle.current_location.id if is_next_action else None,
+            current_location=vehicle.location.id if is_next_action else None,
             action=action,
         )
 

@@ -21,8 +21,7 @@ class Vehicle:
         self.battery_inventory_capacity = battery_inventory_capacity
         self.scooter_inventory = {}
         self.scooter_inventory_capacity = scooter_inventory_capacity
-        self.service_route = []
-        self.current_location = start_location
+        self.location = start_location
         self.eta = 0
 
     def change_battery(self, scooter: Scooter):
@@ -53,10 +52,6 @@ class Vehicle:
         del self.scooter_inventory[scooter_id]
         return scooter
 
-    def set_current_location(self, location: Station, action):
-        self.service_route.append((self.current_location, action))
-        self.current_location = location
-
     def add_battery_inventory(self, number_of_batteries):
         if (
             number_of_batteries + self.battery_inventory
@@ -71,18 +66,18 @@ class Vehicle:
 
     def __repr__(self):
         return (
-            f"<Vehicle {self.id} at {self.current_location.id}, {len(self.scooter_inventory)} scooters,"
+            f"<Vehicle {self.id} at {self.location.id}, {len(self.scooter_inventory)} scooters,"
             f" {self.battery_inventory} batteries>"
         )
 
     def is_at_depot(self):
-        return isinstance(self.current_location, Depot)
+        return isinstance(self.location, Depot)
 
     def get_max_number_of_swaps(self):
         return (
             min(
-                min(len(self.current_location.scooters), self.battery_inventory),
-                len(self.current_location.get_swappable_scooters()),
+                min(len(self.location.scooters), self.battery_inventory),
+                len(self.location.get_swappable_scooters()),
             )
             if not self.is_at_depot()
             else 0

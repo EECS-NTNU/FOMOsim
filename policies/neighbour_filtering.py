@@ -17,7 +17,7 @@ def filtering_neighbours(
         [
             cluster
             for cluster in state.stations.values()
-            if cluster.id != vehicle.current_location.id
+            if cluster.id != vehicle.location.id
             and cluster.id not in exclude
             and len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour) > 0
         ],
@@ -29,7 +29,7 @@ def filtering_neighbours(
         [
             cluster
             for cluster in state.stations.values()
-            if cluster.id != vehicle.current_location.id
+            if cluster.id != vehicle.location.id
             and cluster.id not in exclude
             and len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour) < 0
         ],
@@ -54,4 +54,4 @@ def filtering_neighbours(
     if len(returnval) > 0:
         return returnval
     else:
-        return [ cluster for cluster in state.stations.values() if cluster.id != vehicle.current_location.id and cluster.id not in exclude ]
+        return [ cluster for cluster in state.stations.values() if cluster.id != vehicle.location.id and cluster.id not in exclude ]

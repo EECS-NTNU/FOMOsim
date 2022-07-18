@@ -48,10 +48,10 @@ class FosenHaldorsenPolicy(Policy):
         # Calculate criticality score for all stations
         cand_scores = list()
         for st in next_st_candidates:
-            if st.id == vehicle.current_location.id:
+            if st.id == vehicle.location.id:
                 continue
             first = True
-            driving_time = simul.state.get_vehicle_travel_time(vehicle.current_location.id, st.id)
+            driving_time = simul.state.get_vehicle_travel_time(vehicle.location.id, st.id)
             score = get_criticality_score(simul, st, vehicle, 25, driving_time, 0.2, 0.1, 0.5, 0.2, first)
             cand_scores.append([st, driving_time, score])
 
@@ -67,34 +67,34 @@ class FosenHaldorsenPolicy(Policy):
         if not vehicle.is_at_depot():
             # convert from new sim
             vehicle_current_batteries = vehicle.battery_inventory
-            vehicle_current_station_current_flat_bikes = len(vehicle.current_location.get_swappable_scooters(settings.BATTERY_LIMIT))
-            vehicle_current_station_current_charged_bikes = len(vehicle.current_location.scooters) - vehicle_current_station_current_flat_bikes
+            vehicle_current_station_current_flat_bikes = len(vehicle.location.get_swappable_scooters(settings.BATTERY_LIMIT))
+            vehicle_current_station_current_charged_bikes = len(vehicle.location.scooters) - vehicle_current_station_current_flat_bikes
             vehicle_available_bike_capacity = vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory)
             vehicle_current_charged_bikes = len(vehicle.scooter_inventory)
-            vehicle_current_location_available_parking = vehicle.current_location.capacity - len(vehicle.current_location.scooters);
+            vehicle_current_location_available_parking = vehicle.location.capacity - len(vehicle.location.scooters);
 
-            if vehicle_current_station_current_charged_bikes - vehicle.current_location.get_target_state(simul.day(), simul.hour()) > 0:
+            if vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state(simul.day(), simul.hour()) > 0:
                 bat_load = max(0, min(vehicle_available_bike_capacity,
-                                      vehicle_current_station_current_charged_bikes - vehicle.current_location.get_target_state(simul.day(), simul.hour())))
-                scooters_by_battery = sorted(vehicle.current_location.get_scooters(), key=lambda scooter: scooter.battery, reverse=True)
+                                      vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state(simul.day(), simul.hour())))
+                scooters_by_battery = sorted(vehicle.location.get_scooters(), key=lambda scooter: scooter.battery, reverse=True)
                 scooters_to_pickup = [scooter.id for scooter in scooters_by_battery[0:int(bat_load)]]
 
             else:
                 bat_unload = max(0,
                                  min(vehicle_current_charged_bikes, vehicle_current_location_available_parking,
-                                     vehicle.current_location.get_target_state(simul.day(), simul.hour()) - vehicle_current_station_current_charged_bikes))
+                                     vehicle.location.get_target_state(simul.day(), simul.hour()) - vehicle_current_station_current_charged_bikes))
                 scooters_to_deliver = [scooter.id for scooter in vehicle.get_scooter_inventory()[0:int(bat_unload)]]
 
             # picked up bikes low on battery get new battery, make sure we dont pick up more than we have batteries for
             swaps_for_pickups = 0
             for s in scooters_to_pickup:
-                if vehicle.current_location.get_scooter_from_id(s).battery < 70:
+                if vehicle.location.get_scooter_from_id(s).battery < 70:
                     swaps_for_pickups += 1
             scooters_to_pickup = scooters_to_pickup[0:(vehicle.battery_inventory-swaps_for_pickups)]
 
             swaps = min(vehicle_current_batteries - swaps_for_pickups, vehicle_current_station_current_flat_bikes)
 
-            scooters_to_swap = [scooter.id for scooter in vehicle.current_location.get_swappable_scooters() if scooter.id not in scooters_to_pickup ][0:swaps]
+            scooters_to_swap = [scooter.id for scooter in vehicle.location.get_swappable_scooters() if scooter.id not in scooters_to_pickup ][0:swaps]
 
         return sim.Action(
             scooters_to_swap,
@@ -115,7 +115,7 @@ class FosenHaldorsenPolicy(Policy):
 
         Q_B, Q_CCL, Q_FCL, Q_CCU, Q_FCU = pattern[0], pattern[1], pattern[2], pattern[3], pattern[4]
 
-        scooters_by_battery = sorted(vehicle.current_location.get_scooters(), key=lambda scooter: scooter.battery, reverse=True)
+        scooters_by_battery = sorted(vehicle.location.get_scooters(), key=lambda scooter: scooter.battery, reverse=True)
 
         scooters_to_pickup = [ scooter.id for scooter in scooters_by_battery[0:int(Q_CCL+Q_FCL)] ]
         scooters_to_deliver = [ scooter.id for scooter in vehicle.get_scooter_inventory()[0:int(Q_CCU+Q_FCU)] ]
@@ -123,12 +123,12 @@ class FosenHaldorsenPolicy(Policy):
         # picked up bikes low on battery get new battery, make sure we dont pick up more than we have batteries for
         swaps_for_pickups = 0
         for s in scooters_to_pickup:
-            if vehicle.current_location.get_scooter_from_id(s).battery < 70:
+            if vehicle.location.get_scooter_from_id(s).battery < 70:
                 swaps_for_pickups += 1
         scooters_to_pickup = scooters_to_pickup[0:max(0, vehicle.battery_inventory-swaps_for_pickups)]
 
         swaps = min(max(0, vehicle.battery_inventory - swaps_for_pickups), Q_B)
-        scooters_to_swap = [ scooter.id for scooter in vehicle.current_location.get_swappable_scooters() if scooter.id not in scooters_to_pickup ][0:int(swaps)]
+        scooters_to_swap = [ scooter.id for scooter in vehicle.location.get_swappable_scooters() if scooter.id not in scooters_to_pickup ][0:int(swaps)]
 
         return sim.Action(
             scooters_to_swap,

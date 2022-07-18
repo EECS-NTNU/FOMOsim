@@ -33,7 +33,7 @@ class GreedyPolicy(Policy):
                 scooters_to_pickup = []
                 number_of_scooters_to_pick_up = 0
                 # Swap as many scooters as possible as this station most likely needs it
-                swappable_scooters = vehicle.current_location.get_swappable_scooters()
+                swappable_scooters = vehicle.location.get_swappable_scooters()
                 number_of_scooters_to_swap = min(
                     vehicle.battery_inventory, len(swappable_scooters)
                 )
@@ -47,12 +47,12 @@ class GreedyPolicy(Policy):
                         vehicle.scooter_inventory_capacity
                         - len(vehicle.scooter_inventory),
                         vehicle.battery_inventory,
-                        len(vehicle.current_location.scooters)
-                        - vehicle.current_location.get_target_state(simul.day(), simul.hour()),
+                        len(vehicle.location.scooters)
+                        - vehicle.location.get_target_state(simul.day(), simul.hour()),
                     ),
                     0,
                 ))
-                scooters_to_pickup = list(vehicle.current_location.scooters.keys())[:number_of_scooters_to_pick_up]
+                scooters_to_pickup = list(vehicle.location.scooters.keys())[:number_of_scooters_to_pick_up]
                 # Do not swap any scooters in a station with a lot of scooters
                 scooters_to_swap = []
                 number_of_scooters_to_swap = 0
@@ -60,7 +60,7 @@ class GreedyPolicy(Policy):
                 scooters_to_deliver = []
 
         def get_next_location_id(simul, is_finding_positive_deviation):
-            tabu_list = [ vehicle.current_location.id for vehicle in simul.state.vehicles ]
+            tabu_list = [ vehicle.location.id for vehicle in simul.state.vehicles ]
 
             return sorted(
                 [

@@ -53,8 +53,8 @@ class State(LoadSave):
         )
 
         for vehicle in new_state.vehicles:
-            vehicle.current_location = new_state.get_location_by_id(
-                vehicle.current_location.id
+            vehicle.location = new_state.get_location_by_id(
+                vehicle.location.id
             )
 
         return new_state
@@ -221,27 +221,27 @@ class State(LoadSave):
         if vehicle.is_at_depot():
             batteries_to_swap = min(
                 vehicle.flat_batteries(),
-                vehicle.current_location.get_available_battery_swaps(time),
+                vehicle.location.get_available_battery_swaps(time),
             )
 
-            refill_time += vehicle.current_location.swap_battery_inventory(
+            refill_time += vehicle.location.swap_battery_inventory(
                 time, batteries_to_swap
             )
             vehicle.add_battery_inventory(batteries_to_swap)
 
         else:
             for pick_up_scooter_id in action.pick_ups:
-                pick_up_scooter = vehicle.current_location.get_scooter_from_id(
+                pick_up_scooter = vehicle.location.get_scooter_from_id(
                     pick_up_scooter_id
                 )
                 # Picking up scooter and adding to vehicle inventory and swapping battery
                 vehicle.pick_up(pick_up_scooter)
 
                 # Remove scooter from current station
-                vehicle.current_location.remove_scooter(pick_up_scooter)
+                vehicle.location.remove_scooter(pick_up_scooter)
             # Perform all battery swaps
             for battery_swap_scooter_id in action.battery_swaps[:vehicle.battery_inventory]:
-                battery_swap_scooter = vehicle.current_location.get_scooter_from_id(
+                battery_swap_scooter = vehicle.location.get_scooter_from_id(
                     battery_swap_scooter_id
                 )
                 # Decreasing vehicle battery inventory
@@ -253,12 +253,10 @@ class State(LoadSave):
                 delivery_scooter = vehicle.drop_off(delivery_scooter_id)
 
                 # Adding scooter to current station and changing coordinates of scooter
-                vehicle.current_location.add_scooter(self.rng, delivery_scooter)
+                vehicle.location.add_scooter(self.rng, delivery_scooter)
 
         # Moving the state/vehicle from this to next station
-        vehicle.set_current_location(
-            self.get_location_by_id(action.next_location), action
-        )
+        vehicle.location = self.get_location_by_id(action.next_location)
 
         return refill_time
 

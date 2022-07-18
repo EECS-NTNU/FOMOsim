@@ -74,8 +74,8 @@ def get_possible_actions(
         # Initiate constraints for battery swap, pick-up and drop-off
         pick_ups = min(
             max(
-                len(vehicle.current_location.scooters)
-                - vehicle.current_location.get_target_state(day, hour),
+                len(vehicle.location.scooters)
+                - vehicle.location.get_target_state(day, hour),
                 0,
             ),
             vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory),
@@ -84,8 +84,8 @@ def get_possible_actions(
         swaps = vehicle.get_max_number_of_swaps()
         drop_offs = max(
             min(
-                vehicle.current_location.get_target_state(day, hour)
-                - len(vehicle.current_location.scooters),
+                vehicle.location.get_target_state(day, hour)
+                - len(vehicle.location.scooters),
                 len(vehicle.scooter_inventory),
             ),
             0,
@@ -96,7 +96,7 @@ def get_possible_actions(
             for swap in get_range(swaps):
                 for drop_off in get_range(drop_offs):
                     if (
-                        (pick_up + swap) <= len(vehicle.current_location.scooters)
+                        (pick_up + swap) <= len(vehicle.location.scooters)
                         and (pick_up + swap) <= vehicle.battery_inventory
                         and (pick_up + swap + drop_off > 0)
                     ):
@@ -129,12 +129,12 @@ def get_possible_actions(
         # that the scooters with the lowest battery are prioritized
         swappable_scooters_id = [
             scooter.id
-            for scooter in vehicle.current_location.get_swappable_scooters()
+            for scooter in vehicle.location.get_swappable_scooters()
         ]
 
         none_swappable_scooters_id = [
             scooter.id
-            for scooter in vehicle.current_location.scooters.values()
+            for scooter in vehicle.location.scooters.values()
             if isinstance(scooter, sim.Bike) or (scooter.battery >= 70)
         ]
 
@@ -160,7 +160,7 @@ def get_possible_actions(
                     for depot in sorted(
                         state.depots.values(),
                         key=lambda depot: state.get_travel_time(
-                            vehicle.current_location.id, depot.id
+                            vehicle.location.id, depot.id
                         ),
                     )
                     if depot.get_available_battery_swaps(time)
@@ -212,7 +212,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
         return current_states, available_scooters
 
     def get_best_action(self, simul, vehicle):
-        tabu_list = [ vehicle.current_location.id for vehicle in simul.state.vehicles ]
+        tabu_list = [ vehicle.location.id for vehicle in simul.state.vehicles ]
 
         # Find all possible actions
         actions = get_possible_actions(
@@ -270,8 +270,8 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                     time=simul.time
                     + action.get_action_time(
                         state.get_travel_time(
-                            vehicle.current_location.id,
-                            forward_vehicle.current_location.id,
+                            vehicle.location.id,
+                            forward_vehicle.location.id,
                         )
                     ),
                     number_of_neighbours=self.number_of_neighbors,

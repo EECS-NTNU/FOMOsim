@@ -27,7 +27,7 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
     vehicle_current_charged_bikes = len(vehicle.scooter_inventory)
     current_charged_bikes = len(location.get_available_scooters())
     current_flat_bikes = len(location.get_swappable_scooters(settings.BATTERY_LIMIT))
-    vehicle_current_station_current_charged_bikes = len(vehicle.current_location.get_available_scooters())
+    vehicle_current_station_current_charged_bikes = len(vehicle.location.get_available_scooters())
     get_outgoing_customer_rate = location.get_leave_intensity(simul.day(), simul.hour())
     available_parking = location.capacity - len(location.scooters)
     vehicle_available_bike_capacity = vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory)
@@ -56,7 +56,7 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
             time_to_starvation = t_starv
     time_to_violation = min(time_to_starvation, time_to_congestion)
 
-    if (vehicle_current_station_current_charged_bikes - vehicle.current_location.get_target_state(simul.day(), simul.hour())) > 0 and (incoming_flat_bike_rate + incoming_charged_bike_rate - demand_per_hour) > 0 and first_station and current_charged_bikes > location.get_target_state(simul.day(), simul.hour()):
+    if (vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state(simul.day(), simul.hour())) > 0 and (incoming_flat_bike_rate + incoming_charged_bike_rate - demand_per_hour) > 0 and first_station and current_charged_bikes > location.get_target_state(simul.day(), simul.hour()):
         return -10000
     # ------- Deviation at time horizon  -------
     # Starving station
@@ -125,7 +125,7 @@ class HeuristicManager:
         self.run_master_problem()
 
     def run_vehicle_subproblems(self, vehicle):
-        gen = GenerateRoutePattern(self.simul, vehicle.current_location, self.station_set, vehicle, 
+        gen = GenerateRoutePattern(self.simul, vehicle.location, self.station_set, vehicle, 
                                    self.init_branching, self.time_horizon,
                                    self.handling_time,  self.flexibility, self.average_handling_time,
                                    criticality=self.criticality,
