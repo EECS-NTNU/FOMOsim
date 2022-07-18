@@ -1,21 +1,15 @@
 # helpers.py
+
 import shutil
-import re
+import os
 
 from datetime import datetime, date
-#from GUI import trafficLogg, trafficLoggDir
 
-def extractCityFromURL(url):
-    name = re.sub("https://data.urbansharing.com/","",url)
-    name = re.sub(".no/trips/v1/","", name)
-    name = re.sub(".com/trips/v1/","", name)
-    return name
-    
-def extractCityAndDomainFromURL(url):
-    name = re.sub("https://data.urbansharing.com/","",url)
-    name = re.sub("/trips/v1/","", name)
-    return name
-    
+###############################################################################
+# time and date
+
+def timeInMinutes(days=0, hours=0, minutes=0): 
+    return 60*24*days + 60*hours + minutes
 
 def yearWeekNoAndDay(dateString):
     y, w, d = datetime.strptime(dateString, "%Y-%m-%d").isocalendar() # returns day as 1..7
@@ -36,65 +30,67 @@ def dateAndTimeStr():
 def readTime():
     return datetime.now().strftime("%H:%M:%S")
  
-def write(file, words): # writes list of words to file and flush
+###############################################################################
+# logging
+
+trafficLoggDir = "log_files/" 
+
+os.makedirs(trafficLoggDir, exist_ok=True)
+trafficLogg = open(trafficLoggDir + "traffic.txt", "w")  
+
+def writeWords(file, words): # writes list of words to file and flush
     for i in range(len(words)):
         file.write(words[i])
         file.write(" ") 
     file.write("\n")    
     file.flush()    
 
-def loggWrite(words):
-    write(trafficLogg, words)
-
-def saveTrafficLogg(timeStamp):
-    shutil.copy(trafficLoggDir + "traffic.txt", trafficLoggDir + "traffic_" + timeStamp + ".txt")
+#------------------------------------------------------------------------------
 
 def loggTime(time):
     words = ["Time: ", str(time)]       
-    write(trafficLogg, words)    
+    writeWords(trafficLogg, words)    
 
 def loggLocations(state):
-    write(trafficLogg, ["Locations:", str(len(state.locations))])
+    writeWords(trafficLogg, ["Locations:", str(len(state.locations))])
     for loc in range(len(state.locations)):
         words = [str(loc), str(len(state.locations[loc].scooters))]
-        for sco in range(len(state.locations[loc].scooters)):
-            scooterId = "ID-" + str(state.locations[loc].scooters[sco].id)
-            scooterBatteryStat = str(state.locations[loc].scooters[sco].battery)
+        for sco in state.locations[loc].scooters.values():
+            scooterId = "ID-" + str(sco.id)
+            scooterBatteryStat = str(sco.battery)
             words.append(scooterId)
             words.append(scooterBatteryStat)      
-        write(trafficLogg, words)
+        writeWords(trafficLogg, words)
     words = []    
-    for scooter_id in state.scooters_in_use:
-        words.append(str(state.scooters_in_use[i].id))
+    for scooter in state.scooters_in_use.values():
+        words.append(str(scooter.id))
     if len(words) > 0:
-        write(trafficLogg, ["In-use:"] + words)        
+        writeWords(trafficLogg, ["In-use:"] + words)        
 
 def loggDepartures(stationId, timelist):
     loggMsg = ["Trips-generated-for-station:", str(stationId)]
     for t in timelist:
         loggMsg.append(str(t))
-    write(trafficLogg, loggMsg)    
+    writeWords(trafficLogg, loggMsg)    
 
 def loggEvent(event, times=[]):
     string = event.__repr__()
     words = string.split()
-    if words[0] == "<ScooterDeparture":
+    if words[0] == "<GenerateScooterTrips":
+        pass
+    elif words[0] == "<ScooterDeparture":
         time = words[3][0:len(words[3])-1]
         fromLocation = words[7][0:len(words[7])-1]
-        write(trafficLogg, ["Departure-at-time:", time, "from:", fromLocation ]) 
+        writeWords(trafficLogg, ["Departure-at-time:", time, "from:", fromLocation ]) 
     elif words[0] == "<ScooterArrival":
         time = words[3][0:len(words[3])-1]
         toLocation = words[7][0:len(words[7])-1]
-        write(trafficLogg, ["Arrival-at-time:", time, "at:", toLocation ])
+        writeWords(trafficLogg, ["Arrival-at-time:", time, "at:", toLocation ])
     elif words[0] == "<LostTrip":
         time = words[3][0:len(words[3])-1]
-        write(trafficLogg, ["LostTrip-at-time:", time])
+        writeWords(trafficLogg, ["LostTrip-at-time:", time])
     elif words[0] == "<VehicleArrival":
         time = words[3][0:len(words[3])-1]
-        write(trafficLogg, ["VehicleArrival-at-time:", time])
+        writeWords(trafficLogg, ["VehicleArrival-at-time:", time])
     else:
-        pass
-        print("*** ERROR: Tried to logg unknown event ??? ")
-
-def timeInMinutes(days=0, hours=0, minutes=0): 
-    return 60*24*days + 60*hours + minutes
+        print(f"*** ERROR: Tried to log unknown event {words[0][1:]} ")
