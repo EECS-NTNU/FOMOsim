@@ -286,7 +286,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     if totalBikes == 0:
         raise Exception("*** Sorry, no bikes currently available for given city")
 
-    write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
+    #write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
 
     # Create stations
     stations = sim.State.create_stations(num_stations=len(stationCapacities), capacities=stationCapacities)
