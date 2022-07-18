@@ -1,12 +1,12 @@
 init_state/cityBike/data/
 GUI/scripts
 GUI/results
+GUI/loggfiles
 data/tripData
 log_files
 saved_states
 sim_cache
-
-state_cache
+*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
