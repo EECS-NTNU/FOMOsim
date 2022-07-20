@@ -36,6 +36,14 @@ class Station(Location):
         self.capacity = int(capacity)
         self.original_id = original_id
         self.charging_station = charging_station
+        
+        self.net_demand = 0 #needed for gleditsch_hagen_policy
+        self.pickup_station = 0 #needed for gleditsch_hagen_policy
+        self.deviation_not_visited = 0 #needed for gleditsch_hagen_policy
+        self.time_to_violation = 0  #needed for gleditsch_hagen_policy
+        self.base_violations = 0  #needed for gleditsch_hagen_policy
+        self.target state = 0  #needed for gleditsch_hagen_policy
+        
         if len(self.scooters) > self.capacity:
             self.capacity = len(self.scooters)
 

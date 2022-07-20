@@ -13,15 +13,15 @@ import sim
 import output
 from helpers import timeInMinutes
 
-simple_run = False
+simple_run = True
 
 # BASE DATA
 
 # Parameters
-start_hour = 7
-simulation_time = 240  # 7 am to 11 pm   = 60*16=960   -> Smaller: 240 (60*4)
-num_stations = 50   #was at 200
-num_vehicles = 3
+start_hour = 7   #7*60 = 420
+simulation_time = 20  # 7 am to 11 pm   = 60*16=960   -> Smaller: 240 (60*4)
+num_stations = 30   #was at 200
+num_vehicles = 2
 subproblem_scenarios = 2   #was at ten
 branching = 7
 time_horizon=25   
@@ -30,15 +30,15 @@ time_horizon=25
 seed_generating_trips = 1
 seed_scenarios_subproblems = 2    # TO DO
 
-greedy = True
+greedy = False
 
 # SCENARIO DATA
 
 seeds_generating_trips = list(range(0,10))
 inputs = {
-    'greedy':[True],
+    'greedy':[False],
     #'branching':[3,5,7],
-    'num_vehicles':[0],
+    #'num_vehicles':[0],
     'num_stations':[50],
 }
 

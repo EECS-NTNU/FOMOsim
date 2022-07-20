@@ -11,14 +11,14 @@ import target_state
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
-#import policies.gleditsch_hagen
+import policies.gleditsch_hagen
 import sim
 import output
 from helpers import timeInMinutes
 #   from GUI.dashboard import GUI_main
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=4)
+DURATION = timeInMinutes(minutes=10, hours=0)
 WEEK = 12
 
 def main():
@@ -47,11 +47,13 @@ def main():
     ###############################################################################
     # Set up policy
 
-    policy = policies.DoNothing()
+    #policy = policies.DoNothing()
     # policy = policies.RandomActionPolicy()
     # policy = policies.GreedyPolicy()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
+    policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased', time_horizon=25)
+    
 
     ###############################################################################
     # Set up simulator

@@ -2,6 +2,7 @@ from typing import Union
 from sim.Depot import Depot
 from sim.Station import Station
 from sim.Scooter import Scooter
+import settings
 
 
 class Vehicle:
@@ -23,6 +24,9 @@ class Vehicle:
         self.scooter_inventory_capacity = scooter_inventory_capacity
         self.location = start_location
         self.eta = 0
+        self.speed = VEHICLE_SPEED  #imported from settings
+        self.handling_time = HANDLING_TIME
+        self.parking_time = PARKING_TIME
 
     def change_battery(self, scooter: Scooter):
         if self.battery_inventory <= 0:

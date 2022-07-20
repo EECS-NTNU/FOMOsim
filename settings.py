@@ -10,6 +10,9 @@ VEHICLE_SPEED = 15
 MINUTES_PER_ACTION = 0.5
 MINUTES_CONSTANT_PER_ACTION = 1
 
+HANDLING_TIME = 0.25  #these are not SIM settings, but for gleditsch and hagen -> Move
+PARKING_TIME = 2 #these are not SIM settings, but for gleditsch and hagen -> Move
+
 # Scooter settings
 BATTERY_LIMIT = 20.0
 SCOOTER_SPEED = 7 # default, normally calculated from input data
