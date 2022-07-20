@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from policies.gleditsch_hagen.cgh.utils import calculate_net_demand
-
+from policies.gleditsch_hagen.utils import calculate_net_demand
 
 class Route:  # OR COLUMNS
 

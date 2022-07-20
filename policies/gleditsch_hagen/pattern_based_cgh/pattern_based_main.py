@@ -1,27 +1,18 @@
-from policies.fosen_haldorsen.Subproblem.model_manager import ModelManager
-from policies.gleditsch_hagen.cgh.Routes import Route
 import numpy as np
 import settings
 import sim
 import time
-
-from policies.gleditsch_hagen.cgh.utils import calculate_net_demand
-from policies.gleditsch_hagen.cgh.utils import extract_N_best_elements
 import copy
 
+from policies.gleditsch_hagen.pattern_based_cgh.Routes import Route
 from policies.gleditsch_hagen.pattern_based_cgh.master_data import MasterData
 from policies.gleditsch_hagen.pattern_based_cgh.master_model import run_master_model
+from policies.gleditsch_hagen.utils import calculate_net_demand, extract_N_best_elements
 
 
-
-        
-
-
-        
-
-    
 class PatternBasedCGH:
-    def __init__(self, simul,vehicle,planning_horizon,
+    def __init__(self, simul,vehicle,
+                 planning_horizon=25,
                  branching_constant= 20,
                  omega1 = 0.1,
                  omega2 = 0.5,
