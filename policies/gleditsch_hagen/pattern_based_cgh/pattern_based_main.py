@@ -38,34 +38,41 @@ class PatternBasedCGH:
         self.data = None
         self.master_solution = None
 
-
+        
         #first do some data preprocessing. These calculations are necessary for several stages in the cgh
-        self.all_stations = [loc for loc in self.simul.state.locations if isinstance(loc,sim.Station)]
+
+        self.all_stations = simul.state.stations.values() 
         self.pickup_stations = []
         self.delivery_stations = []
+        
+        
+        
+        self.net_demand = self.pickup_station = self.deviation_not_visited = self.time_to_violation = \
+        self.base_violations = self.target_state =  {station.station_id:0 for station in self.all_stations}
+        
+        
         for station in self.all_stations:
-            station.net_demand = calculate_net_demand(station,self.simul.time,self.simul.day(),
+            self.net_demand[station] = calculate_net_demand(station,self.simul.time,self.simul.day(),
                                     self.simul.hour(),self.planning_horizon)
-            num_bikes_not_visited_no_cap = station.number_of_scooters() + station.net_demand*self.planning_horizon
-            station.base_violations = 0
-            station.time_to_violation = 0
-            if station.net_demand >= 0:
-                station.pickup_station = 1
+            num_bikes_not_visited_no_cap = station.number_of_scooters() + self.net_demand[station]*self.planning_horizon
+    
+            if self.net_demand[station] >= 0:
+                self.pickup_station[station.station_id] = 1
                 self.pickup_stations.append(station)
-                station.base_violations = max(0,num_bikes_not_visited_no_cap-station.capacity)
+                self.base_violations[station.station_id] = max(0,num_bikes_not_visited_no_cap-station.capacity)
                 num_bikes_not_visited_cap = min(num_bikes_not_visited_no_cap,station.capacity)
-                if station.net_demand != 0:
-                    station.time_to_violation = (station.capacity - station.number_of_scooters() ) / station.net_demand
+                if self.net_demand[station] != 0:
+                    self.time_to_violation[station.station_id] = (station.capacity - station.number_of_scooters() ) / self.net_demand[station]
             else:
-                station.pickup_station = 0
+                self.pickup_station[station.station_id] = 0
                 self.delivery_stations.append(station)
-                station.base_violations = max(0,- num_bikes_not_visited_no_cap)
+                self.base_violations[station.station_id] = max(0,- num_bikes_not_visited_no_cap)
                 num_bikes_not_visited_cap = max(num_bikes_not_visited_no_cap,0) 
-                if station.net_demand != 0:
-                    station.time_to_violation = - station.number_of_scooters() / station.net_demand
+                if self.net_demand[station] != 0:
+                    self.time_to_violation[station.station_id] = - station.number_of_scooters() / self.net_demand[station]
             
-            station.target_state = station.get_target_state(self.simul.day(), self.simul.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
-            station.deviation_not_visited = abs(num_bikes_not_visited_cap-station.target_state)
+            self.target_state[station.station_id] = station.get_target_state(self.simul.day(), self.simul.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
+            self.deviation_not_visited[station.station_id] = abs(num_bikes_not_visited_cap-self.target_state[station.station_id])
             
 
         self.main()
@@ -147,20 +154,22 @@ class PatternBasedCGH:
             
         def calculate_criticality(self,partial_route, potential_station):
             
-            driving_time = partial_route.stations[partial_route.num_visits-1].distance_to(
-                potential_station.location())/partial_route.vehicle.speed
+            driving_time = self.simul.state.get_vehicle_travel_time(partial_route.stations[partial_route.num_visits-1].station_id,
+                                                                    potential_station.station_id)
             
-            return (-self.omega1*potential_station.time_to_violation + 
-             self.omega2*potential_station.net_demand -
+            return (-self.omega1*self.time_to_violation[potential_station.station_id] + 
+             self.omega2*self.net_demand[potential_station] -
              self.omega3*driving_time + 
-            self.omega4*potential_station.deviation_not_visited)
+            self.omega4*self.deviation_not_visited[potential_station.station_id])
       
         
             # TO DO: I believe that we can use a lot more effort in calculating a good criticality. This will most likely help A LOT!!    
             
         def master_problem(self,input_routes):
             
-            self.data = MasterData(input_routes,self.all_stations,self.simul,self.omega_v,self.omega_d)
+            self.data = MasterData(input_routes,self.all_stations,self.simul,self.omega_v,self.omega_d,
+                                   self.net_demand,self.pickup_station,self.deviation_not_visited,
+                                   self.base_violations,self.target_state)
             self.master_solution = run_master_model(self.data)
             
         def return_solution(self, vehicle_index_input):

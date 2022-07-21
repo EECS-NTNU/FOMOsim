@@ -26,9 +26,8 @@ class Vehicle:
         self.scooter_inventory_capacity = scooter_inventory_capacity
         self.location = start_location
         self.eta = 0
-        self.speed = VEHICLE_SPEED  #imported from settings
-        self.handling_time = HANDLING_TIME
-        self.parking_time = PARKING_TIME
+        self.handling_time = MINUTES_PER_ACTION
+        self.parking_time = MINUTES_CONSTANT_PER_ACTION
 
     def change_battery(self, scooter: Scooter):
         if self.battery_inventory <= 0:

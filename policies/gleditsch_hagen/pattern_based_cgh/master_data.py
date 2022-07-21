@@ -1,6 +1,7 @@
 class MasterData:
     
-    def __init__(self,generated_routes,all_stations,simul,omega_v,omega_d):
+    def __init__(self,generated_routes,all_stations,simul,omega_v,omega_d,
+                 net_demand,pickup_station,deviation_not_visited, base_violations,target_state):
         
         #calculate VIOLATIONAS, DEVIATIONS
         
@@ -40,8 +41,8 @@ class MasterData:
                 i = station.station_id
                 self.A_MATRIX[(i,v,r)]=1    
                 
-        self.V_BASE = sum(station.base_violations for station in all_stations)
-        self.D_BASE = sum(station.deviation_not_visited for station in all_stations)
+        self.V_BASE = sum(base_violations[station.station_id] for station in all_stations)
+        self.D_BASE = sum(deviation_not_visited[station.station_id] for station in all_stations)
                         
         self.V_PREVENTED = {(v,r):0 for v in self.V_VEHICLES for r in self.R_ROUTES[v]}
         self.D_PREVENTED = {(v,r):0 for v in self.V_VEHICLES for r in self.R_ROUTES[v]}
@@ -54,26 +55,26 @@ class MasterData:
                 # could do an if base_violation > 0:
                 arrival_time = route.arrival_times[i]
                 num_bikes_at_visit_no_cap = (station.number_of_scooters() + 
-                                             station.net_demand*arrival_time)
+                                             net_demand[station.station_id]*arrival_time)
                 violation_pre = 0
                 violation_post = 0
-                if station.pickup_station == 1:
+                if pickup_station[station.station_id] == 1:
                     violation_pre = max(0,num_bikes_at_visit_no_cap-station.capacity)
                     bikes_after_visit = min(num_bikes_at_visit_no_cap,station.capacity) - route.loading[i]
-                    num_bikes_at_horizon_no_cap = bikes_after_visit + station.net_demand*(
+                    num_bikes_at_horizon_no_cap = bikes_after_visit + net_demand[station.station_id]*(
                         self.planning_horizon-arrival_time) 
                     violation_post = max(0,num_bikes_at_horizon_no_cap-station.capacity)
                     num_bikes_at_horizon_cap = min(station.capacity,num_bikes_at_horizon_no_cap)                    
-                if station.pickup_station == 0: #delivery station
+                elif pickup_station[station.station_id] == 0: #delivery station
                     violation_pre = max(0,- num_bikes_at_visit_no_cap)
                     bikes_after_visit = max(num_bikes_at_visit_no_cap,0) + route.unloading[i]
-                    num_bikes_at_horizon_no_cap = bikes_after_visit + station.net_demand*(
+                    num_bikes_at_horizon_no_cap = bikes_after_visit + net_demand[station.station_id]*(
                         self.planning_horizon-arrival_time) 
                     violation_post = max(0,-num_bikes_at_horizon_no_cap)
                     num_bikes_at_horizon_cap = max(0,num_bikes_at_horizon_no_cap)
-                violations_prevented += station.base_violations - violation_pre - violation_post
-                deviation_at_horizon = abs(station.target_state-num_bikes_at_horizon_cap)
-                deviations_prevented += station.deviation_not_visited - deviation_at_horizon
+                violations_prevented += base_violations[station.station_id] - violation_pre - violation_post
+                deviation_at_horizon = abs(target_state[station.station_id]-num_bikes_at_horizon_cap)
+                deviations_prevented += deviation_not_visited[station.station_id] - deviation_at_horizon
             v = route.vehicle.id
             r = route.route_id
             self.V_PREVENTED[(v,r)] = violations_prevented

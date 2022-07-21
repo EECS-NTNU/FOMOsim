@@ -10,14 +10,14 @@ from policies.fosen_haldorsen.heuristic_manager import *
 
 class FosenHaldorsenPolicy(Policy):
     def __init__(self, scenarios=2, branching=7, time_horizon=25,
-                 handling_time=0.5, flexibility=3, average_handling_time=6, weights=(0.6, 0.1, 0.3, 0.8, 0.2), crit_weights=(0.2, 0.1, 0.5, 0.2), criticality=True, 
+                 flexibility=3, average_handling_time=6, weights=(0.6, 0.1, 0.3, 0.8, 0.2), crit_weights=(0.2, 0.1, 0.5, 0.2), criticality=True, 
                  greedy=False):
 
         self.scenarios = scenarios
         self.branching = branching
 
         self.time_horizon = time_horizon
-        self.handling_time = handling_time
+        self.handling_time = MINUTES_PER_ACTION
         self.flexibility = flexibility
         self.average_handling_time = average_handling_time
 

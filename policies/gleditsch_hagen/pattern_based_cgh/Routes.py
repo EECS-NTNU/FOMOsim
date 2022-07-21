@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from policies.gleditsch_hagen.utils import calculate_net_demand
+import settings
 
 class Route:  # OR COLUMNS
 
@@ -103,7 +104,8 @@ class Route:  # OR COLUMNS
             if i <= self.num_visits-2:  
                 self.arrival_times[i+1] = (self.arrival_times[i]+self.vehicle.parking_time+
                                       self.vehicle.handling_time*(self.loading[i]+self.unloading[i])+
-                                      self.stations[i].distance_to(self.stations[i+1].get_location())/self.vehicle.speed)                  
+                                      self.simul.state.get_vehicle_travel_time(self.stations[i].station_id,self.stations[i+1].station_id)
+                                      )                  
                 self.vehicle_level[i+1] = self.vehicle_level[i] + self.loading[i] - self.unloading[i]
                 self.station_loads_at_visit[i+1] = self.station_loads_at_visit[i] - self.loading[i] + self.unloading[i] 
             
