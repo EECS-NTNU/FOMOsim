@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from policies.gleditsch_hagen.utils import calculate_net_demand
 import settings
+import time
 
 class Route:  # OR COLUMNS
 
@@ -11,6 +12,7 @@ class Route:  # OR COLUMNS
         self.day = day
         self.hour = hour
         self.planning_horizon = planning_horizon
+        
         self.route_id = -1
         
         self.stations = []
@@ -21,29 +23,32 @@ class Route:  # OR COLUMNS
         self.station_loads_at_visit = []
         self.regret = []
         self.pickup_station = []
-        self.duration_route = 0 #WHETHER A ROUTE IS EXTENDED DEPENDS ON THE DURATION!!    
+        self.travel_times = []
         
-        self.starting_station = vehicle.location   #Necessary?
-        self.stations.append(vehicle.location)
         self.num_visits = 1
         self.first_arrival_time = 0
         if not self.trigger: # if vehicle is still underway (loading or driving)
-            if self.vehicle.eta == 0: #It equals zero when the simulation starts
-                self.arrival_times[0] = 0 
-            elif self.vehicle.eta > 0: 
-                self.first_arrival_time = self.vehicle.eta - self.time 
+            if self.vehicle.eta > 0: 
+                self.first_arrival_time = self.vehicle.eta - self.time
+        self.duration_route = self.first_arrival_time #WHETHER A ROUTE IS EXTENDED DEPENDS ON THE DURATION!! 
+        
+        self.starting_station = vehicle.location   #Necessary?
+        self.stations.append(vehicle.location)
+        self.arrival_times.append(self.first_arrival_time)
+        
         net_demand = calculate_net_demand(self.stations[0],self.time,self.day,self.hour,self.planning_horizon)
         self.station_load_first_visit = self.stations[0].number_of_scooters()+net_demand*self.first_arrival_time
         
 
-    def add_station(self, station):
-        self.stations.append(station)
+    
         
     def loading_algorithm(self):  #maybe we do not need to send all simul info just yet    TO DO, check how much time this step takes
         #THE PAPER IS LOCK-CENTRIC. ONLY ONE SMALL TYPO IN PROBLEM DESCRIPTION
         #    
         #Positive net demand: PICKUP STATION
         #Negative net demand: DELIVERY STATION
+        
+        start_time = time.time()
         
         #SOME OF THIS CAN BE IN THE OVERARCHING CLASS
         self.num_visits = len(self.stations)
@@ -83,7 +88,7 @@ class Route:  # OR COLUMNS
                 self.loading[i] = min(vehicle_spare_capacity,self.station_loads_at_visit[i],Q_half)
                 if i >= 1:
                     if self.pickup_station[i-1] == 1:
-                        spare_cap = vehicle_spare_capacity - self.loading
+                        spare_cap = vehicle_spare_capacity - self.loading[i]
                         if spare_cap > 0:  #REMAINING CAPACITY AFTER PICK UP 
                             if  self.station_loads_at_visit[i-1] - self.loading[i-1] > 0:  #COULD HAVE PICKED UP MORE IN PREVIOUS
                                 if self.regret[i] == 0: # not yet performed a regret    
@@ -94,18 +99,18 @@ class Route:  # OR COLUMNS
                 self.unloading[i] = min(self.stations[i].capacity-self.station_loads_at_visit[i],self.vehicle_level[i],Q_half)
                 if i >= 1:
                     if self.pickup_station[i-1] == 0:
-                        spare_cap = self.vehicle_level[i] - self.unloading
+                        spare_cap = self.vehicle_level[i] - self.unloading[i]
                         if  spare_cap > 0:  #COULD HAVE UNLOADED MORE 
                             if  self.stations[i-1].capacity-self.station_loads_at_visit[i-1] + self.unloading[i-1] > 0:  #CAN UNLOAD MORE
                                 if self.regret[i] == 0: # not yet performed a regret
                                     self.regret[i] = 1
                                     i = i-1
                                     continue
-            if i <= self.num_visits-2:  
+            
+            if i <= self.num_visits-2:   #if we are not yet at the last station in the route, then calculate the following
                 self.arrival_times[i+1] = (self.arrival_times[i]+self.vehicle.parking_time+
                                       self.vehicle.handling_time*(self.loading[i]+self.unloading[i])+
-                                      self.simul.state.get_vehicle_travel_time(self.stations[i].station_id,self.stations[i+1].station_id)
-                                      )                  
+                                      self.travel_times[i])                  
                 self.vehicle_level[i+1] = self.vehicle_level[i] + self.loading[i] - self.unloading[i]
                 self.station_loads_at_visit[i+1] = self.station_loads_at_visit[i] - self.loading[i] + self.unloading[i] 
             
@@ -114,5 +119,11 @@ class Route:  # OR COLUMNS
         j = self.num_visits-1
         self.duration_route = self.arrival_times[j]+self.vehicle.handling_time*(self.loading[j]+self.unloading[j])
         
-    def loading_algorithm2(self,route,simul,planning_horizon):       #START TWO STEPS BACK; SAFE MANY CALCULATIONS TO DO
+        self.time_used_in_algo =time.time()-start_time
+        
+    def add_station(self, station, travel_time):
+        self.stations.append(station)    
+        self.travel_times.append(travel_time)
+        
+    def loading_algorithm2(self,route,planning_horizon):       #START TWO STEPS BACK; SAFE MANY CALCULATIONS TO DO
         pass

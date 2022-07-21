@@ -3,7 +3,7 @@
 FOMO simulator example
 """
 
-import settings
+from settings import *
 import init_state
 import init_state.fosen_haldorsen
 import init_state.cityBike

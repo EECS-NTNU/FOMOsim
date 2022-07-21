@@ -20,7 +20,7 @@ class GleditschHagenPolicy(Policy):
     def PB_solve(self, simul, vehicle):
         PBCGH = PatternBasedCGH(simul, vehicle)
 
-        next_station, num_loading, num_unloading = PBCGH.return_solution(vehicle_index=vehicle.id)        
+        next_station, num_loading, num_unloading = PBCGH.return_solution(vehicle_index_input=vehicle.id)        
         scooters_to_swap = []
         scooters_to_pickup = vehicle.location.scooters[range(num_loading)]
         scooters_to_deliver = []
@@ -31,7 +31,7 @@ class GleditschHagenPolicy(Policy):
             scooters_to_swap,
             scooters_to_pickup,
             scooters_to_deliver,
-            next_station.station_id,
+            next_station.id,
         )
 
 
