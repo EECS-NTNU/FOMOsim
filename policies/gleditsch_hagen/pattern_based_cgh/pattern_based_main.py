@@ -48,20 +48,23 @@ class PatternBasedCGH:
                                     self.simul.hour(),self.planning_horizon)
             num_bikes_not_visited_no_cap = station.number_of_scooters() + station.net_demand*self.planning_horizon
             station.base_violations = 0
+            station.time_to_violation = 0
             if station.net_demand >= 0:
                 station.pickup_station = 1
                 self.pickup_stations.append(station)
                 station.base_violations = max(0,num_bikes_not_visited_no_cap-station.capacity)
                 num_bikes_not_visited_cap = min(num_bikes_not_visited_no_cap,station.capacity)
-                station.time_to_violation = (station.capacity - station.number_of_scooters() ) / station.net_demand
+                if station.net_demand != 0:
+                    station.time_to_violation = (station.capacity - station.number_of_scooters() ) / station.net_demand
             else:
                 station.pickup_station = 0
                 self.delivery_stations.append(station)
                 station.base_violations = max(0,- num_bikes_not_visited_no_cap)
                 num_bikes_not_visited_cap = max(num_bikes_not_visited_no_cap,0) 
-                station.time_to_violation = - station.number_of_scooters() / station.net_demand
+                if station.net_demand != 0:
+                    station.time_to_violation = - station.number_of_scooters() / station.net_demand
             
-            station.target_state = station.get_target_state(self.simul.day, self.simul.hour) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
+            station.target_state = station.get_target_state(self.simul.day(), self.simul.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
             station.deviation_not_visited = abs(num_bikes_not_visited_cap-station.target_state)
             
 
@@ -98,7 +101,7 @@ class PatternBasedCGH:
     def route_extension_algo(self,vehicle):  #do the extension for all vehicles, not only the trigger
         
         trigger=False
-        if vehicle.vehicle_id==self.vehicle.vehicle_id:
+        if vehicle.id==self.vehicle.id:
             trigger=True
         #initiate the route
         

@@ -42,7 +42,7 @@ class Station(Location):
         self.deviation_not_visited = 0 #needed for gleditsch_hagen_policy
         self.time_to_violation = 0  #needed for gleditsch_hagen_policy
         self.base_violations = 0  #needed for gleditsch_hagen_policy
-        self.target state = 0  #needed for gleditsch_hagen_policy
+        self.target_state = 0  #needed for gleditsch_hagen_policy
         
         if len(self.scooters) > self.capacity:
             self.capacity = len(self.scooters)

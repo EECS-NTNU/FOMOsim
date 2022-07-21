@@ -51,7 +51,7 @@ class Route:  # OR COLUMNS
         self.arrival_times = [None for i in range(self.num_visits)]
         self.arrival_times[0] = self.first_arrival_time  #length/duration of the route
         self.vehicle_level = [0 for i in range(self.num_visits)]  #when arriving at the station
-        self.vehicle_level[0] = len(self.vehicle.get_scooter_inventory)
+        self.vehicle_level[0] = len(self.vehicle.get_scooter_inventory())
         self.station_loads_at_visit = [0 for i in range(self.num_visits)]
         self.station_loads_at_visit[0] = self.station_load_first_visit
         self.regret = [0 for i in range(self.num_visits)]

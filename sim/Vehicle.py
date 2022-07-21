@@ -17,7 +17,9 @@ class Vehicle:
         battery_inventory_capacity: int,
         scooter_inventory_capacity: int,
     ):
+        
         self.id = vehicle_id
+        self.vehicle_id = self.id
         self.battery_inventory = battery_inventory_capacity
         self.battery_inventory_capacity = battery_inventory_capacity
         self.scooter_inventory = {}

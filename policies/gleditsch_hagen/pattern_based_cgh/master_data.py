@@ -15,7 +15,7 @@ class MasterData:
             
         self.V_VEHICLES = []
         for vehicle in simul.state.vehicles:
-            self.V_VEHICLES.append(vehicle.vehicle_id)
+            self.V_VEHICLES.append(vehicle.id)
         
         route_id = 0
         self.route_id_to_route = {}
@@ -24,7 +24,7 @@ class MasterData:
             route.route_id = route_id
             self.route_id_to_route[route_id] = route
             vehicle = route.vehicle
-            self.R_ROUTES[vehicle.vehicle_id].append(route.route_id)
+            self.R_ROUTES[vehicle.id].append(route.route_id)
             route_id += 1
         
         #PARAMETERS
@@ -35,7 +35,7 @@ class MasterData:
         self.A_MATRIX = {(i,v,r):0 for i in self.S_STATIONS for v in self.V_VEHICLES for r in self.R_ROUTES[v] }
         for route in generated_routes:
             r = route.route_id
-            v = route.vehicle.vehicle_id
+            v = route.vehicle.id
             for station in route.stations:
                 i = station.station_id
                 self.A_MATRIX[(i,v,r)]=1    
@@ -74,7 +74,7 @@ class MasterData:
                 violations_prevented += station.base_violations - violation_pre - violation_post
                 deviation_at_horizon = abs(station.target_state-num_bikes_at_horizon_cap)
                 deviations_prevented += station.deviation_not_visited - deviation_at_horizon
-            v = route.vehicle.vehicle_id
+            v = route.vehicle.id
             r = route.route_id
             self.V_PREVENTED[(v,r)] = violations_prevented
             self.D_PREVENTED[(v,r)] = deviations_prevented
