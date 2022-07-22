@@ -35,14 +35,14 @@ class MasterParameters:
         self.pattern_fcu = list()
         self.set_pattern()
 
-        self.vehicle_bike_caps = [gen.vehicle.scooter_inventory_capacity for gen in self.route_pattern]
+        self.vehicle_bike_caps = [gen.vehicle.bike_inventory_capacity for gen in self.route_pattern]
         self.station_caps = [station.capacity for station in station_objects]
         self.init_battery_load = [gen.vehicle.battery_inventory for gen in self.route_pattern]
-        self.init_charged_bike_load = [len(gen.vehicle.scooter_inventory) for gen in self.route_pattern]
+        self.init_charged_bike_load = [len(gen.vehicle.bike_inventory) for gen in self.route_pattern]
         self.init_flat_bike_load = [0 for gen in self.route_pattern]
 
-        self.init_charged_station_load = [len(station.get_available_scooters()) for station in station_objects]
-        self.init_flat_station_load = [len(station.get_swappable_scooters(settings.BATTERY_LIMIT)) for station in station_objects]
+        self.init_charged_station_load = [len(station.get_available_bikes()) for station in station_objects]
+        self.init_flat_station_load = [len(station.get_swappable_bikes(settings.BATTERY_LIMIT)) for station in station_objects]
 
         # self.print_master_params()
 

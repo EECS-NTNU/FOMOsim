@@ -13,7 +13,7 @@ class State(LoadSave):
         self,
         stations = [],
         vehicles = [],
-        scooters_in_use = {}, # scooters not parked at any station
+        bikes_in_use = {}, # bikes not parked at any station
         traveltime_matrix=None,
         traveltime_vehicle_matrix=None,
         rng = None,
@@ -24,7 +24,7 @@ class State(LoadSave):
             self.rng = rng
 
         self.vehicles = vehicles
-        self.scooters_in_use = scooters_in_use
+        self.bikes_in_use = bikes_in_use
 
         self.set_locations(stations)
 
@@ -32,7 +32,7 @@ class State(LoadSave):
         self.traveltime_vehicle_matrix = traveltime_vehicle_matrix
 
         if traveltime_matrix is None:
-            self.traveltime_matrix = self.calculate_traveltime(SCOOTER_SPEED)
+            self.traveltime_matrix = self.calculate_traveltime(BIKE_SPEED)
 
         if traveltime_vehicle_matrix is None:
             self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
@@ -46,7 +46,7 @@ class State(LoadSave):
         new_state = State(
             locationscopy,
             copy.deepcopy(self.vehicles),
-            copy.deepcopy(self.scooters_in_use),
+            copy.deepcopy(self.bikes_in_use),
             traveltime_matrix = self.traveltime_matrix,
             traveltime_vehicle_matrix = self.traveltime_vehicle_matrix,
             rng = self.rng,
@@ -98,16 +98,16 @@ class State(LoadSave):
         id_counter = 0
 
         for station in stations:
-            scooters = []
+            bikes = []
 
-            for scooter_id in range(bikes_per_station[station.id]):
-                if bike_class == "Scooter":
-                    scooters.append(sim.Scooter(scooter_id=id_counter, battery=100))
+            for bike_id in range(bikes_per_station[station.id]):
+                if bike_class == "EBike":
+                    bikes.append(sim.EBike(bike_id=id_counter, battery=100))
                 else:
-                    scooters.append(sim.Bike(scooter_id=id_counter))
+                    bikes.append(sim.Bike(bike_id=id_counter))
                 id_counter += 1
 
-            station.set_scooters(scooters)
+            station.set_bikes(bikes)
 
 
     @staticmethod
@@ -149,7 +149,7 @@ class State(LoadSave):
         self.vehicles = []
         for vehicle_id in range(number_of_vehicles):
             self.vehicles.append(sim.Vehicle(vehicle_id, self.locations[0],
-                                             VEHICLE_BATTERY_INVENTORY, VEHICLE_SCOOTER_INVENTORY))
+                                             VEHICLE_BATTERY_INVENTORY, VEHICLE_BIKE_INVENTORY))
 
     def set_move_probabilities(self, move_probabilities):
         for st in self.locations:
@@ -161,47 +161,47 @@ class State(LoadSave):
 
     def get_station_by_lat_lon(self, lat: float, lon: float):
         """
-        :param lat: lat location of scooter
+        :param lat: lat location of bike
         :param lon:
         :return:
         """
         return min(list(self.stations.values()), key=lambda station: station.distance_to(lat, lon))
 
-    def scooter_in_use(self, scooter):
-        self.scooters_in_use[scooter.id] = scooter
+    def bike_in_use(self, bike):
+        self.bikes_in_use[bike.id] = bike
 
-    def remove_used_scooter(self, scooter):
-        del self.scooters_in_use[scooter.id]
+    def remove_used_bike(self, bike):
+        del self.bikes_in_use[bike.id]
 
-    def get_used_scooter(self):
-        if len(self.scooters_in_use) > 0:
-            scooter = next(iter(self.scooters_in_use))
-            remove_used_scooter(scooter)
-            return scooter
+    def get_used_bike(self):
+        if len(self.bikes_in_use) > 0:
+            bike = next(iter(self.bikes_in_use))
+            remove_used_bike(bike)
+            return bike
 
-    # parked scooters
-    def get_scooters(self):
-        all_scooters = []
+    # parked bikes
+    def get_bikes(self):
+        all_bikes = []
         for station in self.stations.values():
-            all_scooters.extend(station.get_scooters())
-        return all_scooters
+            all_bikes.extend(station.get_bikes())
+        return all_bikes
 
-    # parked and in-use scooters
-    def get_all_scooters(self):
-        all_scooters = []
+    # parked and in-use bikes
+    def get_all_bikes(self):
+        all_bikes = []
         for station in self.locations:
-            all_scooters.extend(station.get_scooters())
-        all_scooters.extend(self.scooters_in_use.values())
+            all_bikes.extend(station.get_bikes())
+        all_bikes.extend(self.bikes_in_use.values())
         for vehicle in self.vehicles:
-            all_scooters.extend(vehicle.get_scooter_inventory())
+            all_bikes.extend(vehicle.get_bike_inventory())
             
-        return all_scooters
+        return all_bikes
 
-    # parked scooters with usable battery
-    def get_num_available_scooters(self):
+    # parked bikes with usable battery
+    def get_num_available_bikes(self):
         num = 0
         for station in self.locations:
-            num += len(station.get_available_scooters())
+            num += len(station.get_available_bikes())
         return num
 
     def get_travel_time(self, start_location_id: int, end_location_id: int):
@@ -230,30 +230,30 @@ class State(LoadSave):
             vehicle.add_battery_inventory(batteries_to_swap)
 
         else:
-            for pick_up_scooter_id in action.pick_ups:
-                pick_up_scooter = vehicle.location.get_scooter_from_id(
-                    pick_up_scooter_id
+            for pick_up_bike_id in action.pick_ups:
+                pick_up_bike = vehicle.location.get_bike_from_id(
+                    pick_up_bike_id
                 )
-                # Picking up scooter and adding to vehicle inventory and swapping battery
-                vehicle.pick_up(pick_up_scooter)
+                # Picking up bike and adding to vehicle inventory and swapping battery
+                vehicle.pick_up(pick_up_bike)
 
-                # Remove scooter from current station
-                vehicle.location.remove_scooter(pick_up_scooter)
+                # Remove bike from current station
+                vehicle.location.remove_bike(pick_up_bike)
             # Perform all battery swaps
-            for battery_swap_scooter_id in action.battery_swaps[:vehicle.battery_inventory]:
-                battery_swap_scooter = vehicle.location.get_scooter_from_id(
-                    battery_swap_scooter_id
+            for battery_swap_bike_id in action.battery_swaps[:vehicle.battery_inventory]:
+                battery_swap_bike = vehicle.location.get_bike_from_id(
+                    battery_swap_bike_id
                 )
                 # Decreasing vehicle battery inventory
-                vehicle.change_battery(battery_swap_scooter)
+                vehicle.change_battery(battery_swap_bike)
 
-            # Dropping of scooters
-            for delivery_scooter_id in action.delivery_scooters:
-                # Removing scooter from vehicle inventory
-                delivery_scooter = vehicle.drop_off(delivery_scooter_id)
+            # Dropping of bikes
+            for delivery_bike_id in action.delivery_bikes:
+                # Removing bike from vehicle inventory
+                delivery_bike = vehicle.drop_off(delivery_bike_id)
 
-                # Adding scooter to current station and changing coordinates of scooter
-                vehicle.location.add_scooter(self.rng, delivery_scooter)
+                # Adding bike to current station and changing coordinates of bike
+                vehicle.location.add_bike(self.rng, delivery_bike)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)
@@ -261,12 +261,12 @@ class State(LoadSave):
         return refill_time
 
     def __repr__(self):
-        string = f"<State: {len(self.get_scooters())} scooters in {len(self.stations)} stations with {len(self.vehicles)} vehicles>\n"
+        string = f"<State: {len(self.get_bikes())} bikes in {len(self.stations)} stations with {len(self.vehicles)} vehicles>\n"
         for station in self.locations:
             string += f"{str(station)}\n"
         for vehicle in self.vehicles:
             string += f"{str(vehicle)}\n"
-        string += f"In use: {len(self.scooters_in_use.values())}"
+        string += f"In use: {len(self.bikes_in_use.values())}"
         return string
 
     def get_neighbours(
@@ -324,15 +324,15 @@ class State(LoadSave):
         return self.locations[location_id]
 
     def sample(self, sample_size: int):
-        # Filter out scooters not in sample
-        sampled_scooter_ids = self.rng.choice(
-            [scooter.id for scooter in self.get_scooters()], sample_size, replace=False,
+        # Filter out bikes not in sample
+        sampled_bike_ids = self.rng.choice(
+            [bike.id for bike in self.get_bikes()], sample_size, replace=False,
         )
         for station in self.stations.values():
-            station.set_scooters([
-                scooter
-                for scooter in station.get_scooters()
-                if scooter.id in sampled_scooter_ids
+            station.set_bikes([
+                bike
+                for bike in station.get_bikes()
+                if bike.id in sampled_bike_ids
             ])
 
     def get_vehicle_by_id(self, vehicle_id):

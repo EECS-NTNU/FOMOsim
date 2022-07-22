@@ -1,7 +1,7 @@
 init_state/cityBike/data/
 GUI/scripts
 GUI/results
-GUI/loggfiles
+GUI/loggFiles
 data/tripData
 log_files
 saved_states

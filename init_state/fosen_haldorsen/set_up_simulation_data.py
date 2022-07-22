@@ -66,7 +66,7 @@ def setup_stations_students(clientName, init_hour, number_of_vehicles, random_se
 
     traveltime_matrix = []
     traveltime_vehicle_matrix = []
-    number_of_scooters = []
+    number_of_bikes = []
     capacities = []
 
     arrive_intensities = []
@@ -110,7 +110,7 @@ def setup_stations_students(clientName, init_hour, number_of_vehicles, random_se
         traveltime_matrix.append([ station_car_travel_time.get(toid[j], 0) * 1.3 for j in range(num_stations) ])
         traveltime_vehicle_matrix.append([ station_car_travel_time.get(toid[j], 0) for j in range(num_stations) ])
 
-        number_of_scooters.append(actual_num_bikes[init_hour])
+        number_of_bikes.append(actual_num_bikes[init_hour])
         capacities.append(max_capacity)
 
         original_ids.append(station_id)
@@ -130,7 +130,7 @@ def setup_stations_students(clientName, init_hour, number_of_vehicles, random_se
     ###############################################################################
 
     stations = sim.State.create_stations(num_stations=len(capacities), capacities=capacities, charging_stations=charging_stations, original_ids=original_ids, depots=[4])
-    sim.State.create_bikes_in_stations(stations, "Scooter", number_of_scooters)
+    sim.State.create_bikes_in_stations(stations, "EBike", number_of_bikes)
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
     return sim.State.get_initial_state(stations, number_of_vehicles, random_seed, traveltime_matrix, traveltime_vehicle_matrix)
 

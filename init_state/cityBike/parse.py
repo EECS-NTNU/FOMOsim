@@ -39,7 +39,7 @@ def download(url):
     file_list = os.listdir(directory)
 
     # these loops are a brute-force method to avoid implementing a web-crawler
-    progress = Bar("CityBike 1/5: Download datafiles", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
+    progress = Bar("CityBike 1/5: Download datafiles   ", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
     for yearNo in range(2018, datetime.date.today().year): # 2018/02 is earliest data from data.urbansharing.com
         for month in range (1, 13):
             if loadMonth(yearNo, month):
@@ -77,14 +77,14 @@ def download(url):
 
     return newDataFound            
 
-def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, bike_class="Bike", number_of_vehicles=3, random_seed=1):
+def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, number_of_vehicles=3, random_seed=1):
     """ Calls calcDistances to get an updated status of active stations in the given city. Processes all stored trips
         downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pair of stations without any registered trips an average duration is estimated via
-        the trip distance and a global average SCOOTER_SPEED value from settings.py. This gives the travel_time matrix.
+        the trip distance and a global average BIKE_SPEED value from settings.py. This gives the travel_time matrix.
         Travel time for the vehicle is based on distance. All tripdata is read and used to calculate arrive and leave intensities 
         for every station and move probabilities for every pair of stations. These structures are indexed by station, week and hour.
-        Station capacities and number of scooters in use is based on real_time data read at execution time. NOTE this will remove reproducibility of simulations
+        Station capacities and number of bikes in use is based on real_time data read at execution time. NOTE this will remove reproducibility of simulations
     """
     class StationLocation: 
         def __init__(self, stationId, longitude, latitude):
@@ -166,7 +166,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     trips = 0 # total number from all tripdata read
     fileList = os.listdir(tripDataPath)
     
-    progress = Bar("CityBike 2/5: Read data from files", max = len(fileList))
+    progress = Bar("CityBike 2/5: Read data from files ", max = len(fileList))
     for file in fileList:
         if file.endswith(".json"):
             if int(file[5:7]) in weekMonths(week):
@@ -206,7 +206,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
 
 
     # Calculate average durations, durations in seconds
-    progress = Bar("CityBike 3/5: Calculate durations", max = noOfStations)
+    progress = Bar("CityBike 3/5: Calculate durations  ", max = noOfStations)
     avgDuration = []
     for start in range(noOfStations):
         avgDuration.append([])
@@ -223,7 +223,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             else:
                 distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
                         (stationLocations[end].latitude, stationLocations[end].longitude)).km
-                avgDuration[start][end] = (distance/settings.SCOOTER_SPEED)*3600
+                avgDuration[start][end] = (distance/settings.BIKE_SPEED)*3600
         progress.next()
     progress.finish()
 
@@ -237,10 +237,10 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 if start == end:
                     averageDuration = 7.7777 # TODO, improve, calculate all such positive averageDuarations, and use here
                 else:
-                    print("*** Error, averageDuration == 0 should not happen") # should be set to default scooter-speed above
+                    print("*** Error, averageDuration == 0 should not happen") # should be set to default bike-speed above
             ttMatrix[start].append(averageDuration/60)
     
-    progress = Bar("CityBike 4/5: Calculate traveltime", max = noOfStations)
+    progress = Bar("CityBike 4/5: Calculate traveltime ", max = noOfStations)
     ttVehicleMatrix = []
     for start in range(noOfStations):
         ttVehicleMatrix.append([])
@@ -288,7 +288,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
 
     # Create stations
     stations = sim.State.create_stations(num_stations=len(stationCapacities), capacities=stationCapacities)
-    sim.State.create_bikes_in_stations(stations, bike_class, bikeStartStatus)
+    sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatus)
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
     # Create State object and return
 

@@ -24,13 +24,13 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
     incoming_flat_bike_rate = location.get_arrive_intensity(simul.day(), simul.hour()) * (1-battery_rate)
     incoming_charged_bike_rate = location.get_arrive_intensity(simul.day(), simul.hour()) * battery_rate
     demand_per_hour = location.get_leave_intensity(simul.day(), simul.hour())
-    vehicle_current_charged_bikes = len(vehicle.scooter_inventory)
-    current_charged_bikes = len(location.get_available_scooters())
-    current_flat_bikes = len(location.get_swappable_scooters(settings.BATTERY_LIMIT))
-    vehicle_current_station_current_charged_bikes = len(vehicle.location.get_available_scooters())
+    vehicle_current_charged_bikes = len(vehicle.bike_inventory)
+    current_charged_bikes = len(location.get_available_bikes())
+    current_flat_bikes = len(location.get_swappable_bikes(settings.BATTERY_LIMIT))
+    vehicle_current_station_current_charged_bikes = len(vehicle.location.get_available_bikes())
     get_outgoing_customer_rate = location.get_leave_intensity(simul.day(), simul.hour())
-    available_parking = location.capacity - len(location.scooters)
-    vehicle_available_bike_capacity = vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory)
+    available_parking = location.capacity - len(location.bikes)
+    vehicle_available_bike_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
 
     # ------- Time to violation -------
     if vehicle.battery_inventory_capacity == 0 and isinstance(location, sim.Depot):

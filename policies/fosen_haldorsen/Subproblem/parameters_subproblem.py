@@ -37,14 +37,14 @@ class ParameterSub:
 
         # Vehicle specific
         self.Q_BV = vehicle.battery_inventory_capacity
-        self.Q_CV = vehicle.scooter_inventory_capacity + self.Q_CCL + self.Q_FCL - max(0, self.Q_CCU + self.Q_FCU)
+        self.Q_CV = vehicle.bike_inventory_capacity + self.Q_CCL + self.Q_FCL - max(0, self.Q_CCU + self.Q_FCU)
         if isinstance(route.stations[0], sim.Depot):
             self.depot_index = 0
             self.L_BV = vehicle.battery_inventory_capacity
         else:
             self.L_BV = vehicle.battery_inventory - self.Q_B
 
-        vehicle_current_charged_bikes = len(vehicle.scooter_inventory)
+        vehicle_current_charged_bikes = len(vehicle.bike_inventory)
         vehicle_current_flat_bikes = 0
 
         self.L_CV = vehicle_current_charged_bikes + self.Q_CCL - self.Q_CCU

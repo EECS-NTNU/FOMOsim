@@ -3,7 +3,7 @@ Methods for visualizing different aspects of the system.
 """
 
 import datetime
-from sim import Action, Scooter, State, Vehicle, Metric
+from sim import Action, EBike, State, Vehicle, Metric
 import matplotlib.pyplot as plt
 import copy
 import matplotlib.dates as mdates

@@ -51,8 +51,8 @@ class Simulator(LoadSave):
             self.event_queue.append(
                 sim.VehicleArrival(self.time, vehicle)
             )
-        # Add Generate Scooter Trip event to the event_queue
-        self.event_queue.append(sim.GenerateScooterTrips(start_time))
+        # Add generate trip event to the event_queue
+        self.event_queue.append(sim.GenerateBikeTrips(start_time))
         self.metrics = Metric()
         self.verbose = verbose
         if label is None:
@@ -92,14 +92,14 @@ class Simulator(LoadSave):
     def full_step(self):
         while True:
             event = self.single_step()
-            if isinstance(event, sim.GenerateScooterTrips):
+            if isinstance(event, sim.GenerateBikeTrips):
                 break
 
     def run(self):
         """
         Main method for running the Event Based Simulation Engine.
 
-        The sim object uses a queue initialized with vehicle arrival events and a GenerateScooterTrips event.
+        The sim object uses a queue initialized with vehicle arrival events and a GenerateBikeTrips event.
         It then pops events from this queue. The queue is always sorted in by the time of the events.
         """
         while self.time < self.end_time:
