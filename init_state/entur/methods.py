@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 import os
 
-from sim import State, Bike, Scooter, Station
+from sim import State, Bike, EBike, Station
 from sim.Depot import Depot
 from progress.bar import Bar
 
@@ -143,7 +143,7 @@ def scooter_movement_analysis(state: State, entur_data_dir) -> np.ndarray:
 
         # Initialize probability_matrix with number of scooters in each cluster
         number_of_scooters = np.array(
-            [[cluster.number_of_scooters() for cluster in initial_state.locations]]
+            [[cluster.number_of_bikes() for cluster in initial_state.locations]]
             * number_of_clusters,
             dtype="float64",
         ).transpose()
@@ -246,7 +246,7 @@ def generate_cluster_objects(
         classname, scooter_data: pd.DataFrame, cluster_labels: list, number_of_depots,
 ) -> [Station]:
     """
-    Based on cluster labels and scooter data create Scooter and Station objects.
+    Based on cluster labels and scooter data create Bike and Station objects.
     Station class generates cluster center
     :param scooter_data: geospatial data for scooters
     :param cluster_labels: list of labels for scooter data
@@ -271,7 +271,7 @@ def generate_cluster_objects(
           ]
         else:
           scooters = [
-            Scooter(row["lat"], row["lon"], row["battery"], index)
+            EBike(row["lat"], row["lon"], row["battery"], index)
             for index, row in cluster_scooters.iterrows()
           ]
         # Adding all scooters to cluster to find center location

@@ -5,23 +5,26 @@ SIM SETTINGS
 # Vehicle settings
 
 VEHICLE_BATTERY_INVENTORY = 170
-VEHICLE_SCOOTER_INVENTORY = 20
+VEHICLE_BIKE_INVENTORY = 20
 VEHICLE_SPEED = 15
 MINUTES_PER_ACTION = 0.5
 MINUTES_CONSTANT_PER_ACTION = 1
 
-# Scooter settings
+# Bike settings
+
 BATTERY_LIMIT = 20.0
-SCOOTER_SPEED = 7 # default, normally calculated from input data
+BIKE_SPEED = 7 # default, normally calculated from input data
 BATTERY_CHANGE_PER_MINUTE = 0.75
 
 # Depot settings
+
 DEFAULT_DEPOT_CAPACITY = 1000
 CHARGE_TIME_PER_BATTERY = 60
 SWAP_TIME_PER_BATTERY = 0.4
 CONSTANT_DEPOT_DURATION = 15
 
 # Station settings
+
 DEFAULT_STATION_CAPACITY = 20
 
 # Other settings

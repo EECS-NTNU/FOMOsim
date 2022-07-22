@@ -54,8 +54,8 @@ class Metric:
 
     # analysis metrics added every timestep
     def add_analysis_metrics(self, sim):
-        #self.add_metric(sim, "average_battery", sum([scooter.battery for scooter in sim.state.get_all_scooters() if scooter.hasBattery()]) / len(sim.state.get_all_scooters()))
-        #self.add_metric(sim, "total_available_scooters", sim.state.get_num_available_scooters())
+        #self.add_metric(sim, "average_battery", sum([bike.battery for bike in sim.state.get_all_bikes() if bike.hasBattery()]) / len(sim.state.get_all_bikes()))
+        #self.add_metric(sim, "total_available_bikes", sim.state.get_num_available_bikes())
         pass
 
     def timeline(self):

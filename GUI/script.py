@@ -61,8 +61,8 @@ def doCommand(session, task):
             session.initState = init_state.entur.scripts.get_initial_state(
                 "test_data",
                 "0900-entur-snapshot.csv",
-                "Scooter",
-                number_of_scooters = 150, # TODO, check with AD,cannot use more default params
+                "EBike",
+                number_of_bikes = 150, # TODO, check with AD,cannot use more default params
                 number_of_clusters = 5, 
                 number_of_vehicles = 3,
                 random_seed = 1,
@@ -238,7 +238,7 @@ def manualInitState(session, testName):
                     move_probabilities[station][day][hour][station] = 0 # zero probability for traveling from and to same station
 
         state = sim.State.get_initial_state(
-                    bike_class = "Scooter", # TODO logging code will crash if Bike is used TODO test again
+                    bike_class = "EBike", # TODO logging code will crash if Bike is used TODO test again
                     traveltime_matrix = [ # in minutes
                         [10, 10, 10, 10],
                         [10, 10, 10, 10],
@@ -253,7 +253,7 @@ def manualInitState(session, testName):
                     ],
                     main_depot = None,
                     secondary_depots = 0,
-                    number_of_scooters = [1, 1, 1, 1],
+                    number_of_bikes = [1, 1, 1, 1],
                     capacities = [4, 4, 4, 4],
                     number_of_vehicles = 1,
                     random_seed = 1,

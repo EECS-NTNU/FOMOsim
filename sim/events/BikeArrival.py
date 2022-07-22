@@ -2,21 +2,21 @@ from sim import Event
 import sim
 from settings import *
 
-class ScooterArrival(Event):
+class BikeArrival(Event):
     """
-    Event performed when an e-scooter arrives at a station after a e-scooter departure
+    Event performed when a bike arrives at a station after a bike departure
     """
 
     def __init__(
         self,
         time, 
         travel_time,
-        scooter: sim.Scooter,
+        bike,
         arrival_station_id: int,
         departure_station_id: int,
     ):
         super().__init__(time + travel_time)
-        self.scooter = scooter
+        self.bike = bike
         self.arrival_station_id = arrival_station_id
         self.departure_station_id = departure_station_id
         self.travel_time = travel_time
@@ -30,15 +30,15 @@ class ScooterArrival(Event):
         arrival_station = world.state.get_location_by_id(self.arrival_station_id)
 
         if not FULL_TRIP:
-            self.scooter = world.state.get_used_scooter()
+            self.bike = world.state.get_used_bike()
 
-        if self.scooter is not None:
-            self.scooter.travel(self.travel_time)
+        if self.bike is not None:
+            self.bike.travel(self.travel_time)
 
-            # add scooter to the arrived station (location is changed in add_scooter method)
-            if arrival_station.add_scooter(world.state.rng, self.scooter):
+            # add bike to the arrived station (location is changed in add_bike method)
+            if arrival_station.add_bike(world.state.rng, self.bike):
                 if FULL_TRIP:
-                    world.state.remove_used_scooter(self.scooter)
+                    world.state.remove_used_bike(self.bike)
             else:
                 if FULL_TRIP:
                     # go to another station
@@ -49,24 +49,24 @@ class ScooterArrival(Event):
                         next_station.id,
                     )
 
-                    # create an arrival event for the departed scooter
+                    # create an arrival event for the departed bike
                     world.add_event(
-                        sim.ScooterArrival(
+                        sim.BikeArrival(
                             self.time,
                             travel_time,
-                            self.scooter,
+                            self.bike,
                             next_station.id,
                             arrival_station.id,
                         )
                     )
 
                 else:
-                    world.state.scooter_in_use(self.scooter)
+                    world.state.bike_in_use(self.bike)
 
                 world.metrics.add_aggregate_metric(world, "congestion", 1)
 
         # set time of world to this event's time
-        super(ScooterArrival, self).perform(world)
+        super(BikeArrival, self).perform(world)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_station_id}>"

@@ -81,10 +81,10 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     """ Calls calcDistances to get an updated status of active stations in the given city. Processes all stored trips
         downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pair of stations without any registered trips an average duration is estimated via
-        the trip distance and a global average SCOOTER_SPEED value from settings.py. This gives the travel_time matrix.
+        the trip distance and a global average BIKE_SPEED value from settings.py. This gives the travel_time matrix.
         Travel time for the vehicle is based on distance. All tripdata is read and used to calculate arrive and leave intensities 
         for every station and move probabilities for every pair of stations. These structures are indexed by station, week and hour.
-        Station capacities and number of scooters in use is based on real_time data read at execution time. NOTE this will remove reproducibility of simulations
+        Station capacities and number of bikes in use is based on real_time data read at execution time. NOTE this will remove reproducibility of simulations
     """
     class StationLocation: 
         def __init__(self, stationId, longitude, latitude):
@@ -223,7 +223,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             else:
                 distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
                         (stationLocations[end].latitude, stationLocations[end].longitude)).km
-                avgDuration[start][end] = (distance/settings.SCOOTER_SPEED)*3600
+                avgDuration[start][end] = (distance/settings.BIKE_SPEED)*3600
         progress.next()
     progress.finish()
 
@@ -237,7 +237,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 if start == end:
                     averageDuration = 7.7777 # TODO, improve, calculate all such positive averageDuarations, and use here
                 else:
-                    print("*** Error, averageDuration == 0 should not happen") # should be set to default scooter-speed above
+                    print("*** Error, averageDuration == 0 should not happen") # should be set to default bike-speed above
             ttMatrix[start].append(averageDuration/60)
     
     progress = Bar("CityBike 4/5: Calculate traveltime ", max = noOfStations)

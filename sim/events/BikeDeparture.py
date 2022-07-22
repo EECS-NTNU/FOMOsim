@@ -3,9 +3,9 @@ from sim import Event
 from settings import *
 import numpy as np
 
-class ScooterDeparture(Event):
+class BikeDeparture(Event):
     """
-    Event fired when a customer requests a trip from a given departure station. Creates a Lost Trip or Scooter arrival
+    Event fired when a customer requests a trip from a given departure station. Creates a Lost Trip or Bike Arrival
     event based on the availability of the station
     """
 
@@ -21,12 +21,12 @@ class ScooterDeparture(Event):
         # get departure station
         departure_station = world.state.get_location_by_id(self.departure_station_id)
 
-        # get all available scooter in the station
-        available_scooters = departure_station.get_available_scooters()
+        # get all available bike in the station
+        available_bikes = departure_station.get_available_bikes()
 
-        # if there are no more available scooters -> make a LostTrip event for that departure time
-        if len(available_scooters) > 0:
-            scooter = available_scooters.pop(0)
+        # if there are no more available bikes -> make a LostTrip event for that departure time
+        if len(available_bikes) > 0:
+            bike = available_bikes.pop(0)
 
             if FULL_TRIP:
                 # get a arrival station from the leave prob distribution
@@ -50,21 +50,21 @@ class ScooterDeparture(Event):
 
                 # calculate arrival time
 
-                # create an arrival event for the departed scooter
+                # create an arrival event for the departed bike
                 world.add_event(
-                    sim.ScooterArrival(
+                    sim.BikeArrival(
                         self.time,
                         travel_time,
-                        scooter,
+                        bike,
                         arrival_station.id,
                         departure_station.id,
                     )
                 )
 
-            # remove scooter from the departure station
-            departure_station.remove_scooter(scooter)
+            # remove bike from the departure station
+            departure_station.remove_bike(bike)
 
-            world.state.scooter_in_use(scooter)
+            world.state.bike_in_use(bike)
 
         else:
             world.metrics.add_aggregate_metric(world, "lost_demand", 1)
@@ -72,7 +72,7 @@ class ScooterDeparture(Event):
         world.metrics.add_aggregate_metric(world, "trips", 1)
 
         # set time of world to this event's time
-        super(ScooterDeparture, self).perform(world)
+        super(BikeDeparture, self).perform(world)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, departing from station {self.departure_station_id}>"

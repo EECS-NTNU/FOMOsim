@@ -54,16 +54,16 @@ def loggTime(time):
 def loggLocations(state):
     writeWords(trafficLogg, ["Locations:", str(len(state.locations))])
     for loc in range(len(state.locations)):
-        words = [str(loc), str(len(state.locations[loc].scooters))]
-        for sco in state.locations[loc].scooters.values():
-            scooterId = "ID-" + str(sco.id)
-            scooterBatteryStat = str(sco.battery)
-            words.append(scooterId)
-            words.append(scooterBatteryStat)      
+        words = [str(loc), str(len(state.locations[loc].bikes))]
+        for sco in state.locations[loc].bikes.values():
+            bikeId = "ID-" + str(sco.id)
+            bikeBatteryStat = str(sco.battery)
+            words.append(bikeId)
+            words.append(bikeBatteryStat)      
         writeWords(trafficLogg, words)
     words = []    
-    for scooter in state.scooters_in_use.values():
-        words.append(str(scooter.id))
+    for bike in state.bikes_in_use.values():
+        words.append(str(bike.id))
     if len(words) > 0:
         writeWords(trafficLogg, ["In-use:"] + words)        
 
@@ -76,13 +76,13 @@ def loggDepartures(stationId, timelist):
 def loggEvent(event, times=[]):
     string = event.__repr__()
     words = string.split()
-    if words[0] == "<GenerateScooterTrips":
+    if words[0] == "<GenerateBikeTrips":
         pass
-    elif words[0] == "<ScooterDeparture":
+    elif words[0] == "<BikeDeparture":
         time = words[3][0:len(words[3])-1]
         fromLocation = words[7][0:len(words[7])-1]
         writeWords(trafficLogg, ["Departure-at-time:", time, "from:", fromLocation ]) 
-    elif words[0] == "<ScooterArrival":
+    elif words[0] == "<BikeArrival":
         time = words[3][0:len(words[3])-1]
         toLocation = words[7][0:len(words[7])-1]
         writeWords(trafficLogg, ["Arrival-at-time:", time, "at:", toLocation ])

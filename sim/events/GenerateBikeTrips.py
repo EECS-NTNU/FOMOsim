@@ -5,16 +5,16 @@ import settings
 from settings import *
 from helpers import loggDepartures
 
-class GenerateScooterTrips(Event):
+class GenerateBikeTrips(Event):
     """
-    This event creates e-scooter departure events based on the trip intensity parameter and a Possion Distribution
+    This event creates bike departure events based on the trip intensity parameter and a Possion Distribution
     """
 
     def __init__(self, time: int):
         super().__init__(time)
 
     def perform(self, world) -> None:
-        super(GenerateScooterTrips, self).perform(world)
+        super(GenerateBikeTrips, self).perform(world)
 
         for departure_station in world.state.locations:
             # poisson process to select number of trips in a iteration
@@ -36,7 +36,7 @@ class GenerateScooterTrips(Event):
             # generate departure event and add to world event_queue
             for departure_time in trips_departure_time:
                 # add departure event to the event_queue
-                departure_event = sim.ScooterDeparture(
+                departure_event = sim.BikeDeparture(
                     departure_time, departure_station.id
                 )
                 world.add_event(departure_event)
@@ -59,7 +59,7 @@ class GenerateScooterTrips(Event):
                 # generate arrival event and add to world event_queue
                 for arrival_time in trips_arrival_time:
                     # add arrival event to the event_queue
-                    arrival_event = sim.ScooterArrival(
+                    arrival_event = sim.BikeArrival(
                         arrival_time,
                         None,
                         arrival_station.id,
@@ -68,4 +68,4 @@ class GenerateScooterTrips(Event):
                     )
                     world.add_event(arrival_event)
 
-        world.add_event(GenerateScooterTrips(self.time + ITERATION_LENGTH_MINUTES))
+        world.add_event(GenerateBikeTrips(self.time + ITERATION_LENGTH_MINUTES))

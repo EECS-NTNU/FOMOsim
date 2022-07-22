@@ -44,8 +44,8 @@ def training(input_arguments, suffix):
         policies.haflan_haga_spetalen.epsilon_greedy_value_function_policy.get_initial_state(
             entur_data_dir = "test_data",
             entur_main_file = "0900-entur-snapshot.csv",
-            bike_class = "Scooter",
-            number_of_scooters = SAMPLE_SIZE,
+            bike_class = "EBike",
+            number_of_bikes = SAMPLE_SIZE,
             number_of_clusters = 50,
             number_of_vehicles = 2,
             save = True,
@@ -62,7 +62,7 @@ def training(input_arguments, suffix):
     world_to_analyse.REPLAY_BUFFER_SIZE=100
 
     for cluster in world_to_analyse.state.stations.values():
-        cluster.set_scooters(cluster.get_scooters()[: round(len(cluster.scooters) * 0.6)])
+        cluster.set_bikes(cluster.get_bikes()[: round(len(cluster.bikes) * 0.6)])
     decision_times = [train_value_function(world_to_analyse, save_suffix=f"{suffix}")]
 
     df = pd.DataFrame(
