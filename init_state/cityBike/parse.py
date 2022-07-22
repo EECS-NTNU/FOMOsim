@@ -77,7 +77,7 @@ def download(url):
 
     return newDataFound            
 
-def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, bike_class="Bike", number_of_vehicles=3, random_seed=1):
+def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, number_of_vehicles=3, random_seed=1):
     """ Calls calcDistances to get an updated status of active stations in the given city. Processes all stored trips
         downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pair of stations without any registered trips an average duration is estimated via
@@ -288,7 +288,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
 
     # Create stations
     stations = sim.State.create_stations(num_stations=len(stationCapacities), capacities=stationCapacities)
-    sim.State.create_bikes_in_stations(stations, bike_class, bikeStartStatus)
+    sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatus)
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
     # Create State object and return
 

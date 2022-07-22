@@ -17,7 +17,6 @@ def scooter_sample_filter(rng, dataframe: pd.DataFrame, number_of_scooters=None)
 def get_initial_state(
     entur_data_dir,
     entur_main_file,
-    bike_class,
     number_of_bikes=None,
     initial_in_use=0,
     number_of_clusters=20,
@@ -50,7 +49,7 @@ def get_initial_state(
     depots = methods.generate_depots()
 
     # Structure data into objects
-    clusters = methods.generate_cluster_objects(bike_class, entur_dataframe, cluster_labels, number_of_depots=len(depots))
+    clusters = methods.generate_cluster_objects("EBike", entur_dataframe, cluster_labels, number_of_depots=len(depots))
 
     # Create state object
     initial_state = State(depots + clusters, rng=rng)
@@ -83,12 +82,8 @@ def get_initial_state(
 
     initial_state.scooters_in_use = {}
     if not FULL_TRIP:
-        if bike_class == "Bike":
-            for id in range(number_of_bikes, number_of_bikes+initial_in_use):
-                initial_state.scooters_in_use[id] = Bike(0, 0, id)
-        else:
-            for id in range(number_of_bikes, number_of_bikes+initial_in_use):
-                initial_state.scooters_in_use[id] = EBike(0, 0, 100, id)
+        for id in range(number_of_bikes, number_of_bikes+initial_in_use):
+            initial_state.scooters_in_use[id] = EBike(0, 0, 100, id)
 
     return initial_state
 

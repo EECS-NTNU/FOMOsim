@@ -33,11 +33,11 @@ def main():
     state = init_state.get_initial_state(source=init_state.cityBike,
                                          target_state=tstate,
                                          url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
-                                         week=WEEK, bike_class="Bike", number_of_vehicles=3, random_seed=1)
+                                         week=WEEK, number_of_vehicles=3, random_seed=1)
 
     # state = init_state.get_initial_state(source=init_state.entur,
     #                                      target_state=tstate,
-    #                                      entur_data_dir="test_data", entur_main_file="0900-entur-snapshot.csv", bike_class="EBike",
+    #                                      entur_data_dir="test_data", entur_main_file="0900-entur-snapshot.csv", 
     #                                      number_of_bikes = 150, number_of_clusters = 5, number_of_vehicles = 3, random_seed = 1)
     
     # state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
