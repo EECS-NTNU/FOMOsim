@@ -56,7 +56,7 @@ class MasterData:
                 # could do an if base_violation > 0:
                 arrival_time = route.arrival_times[i]
                 if arrival_time < self.planning_horizon: #if arrive after planning horizon, then we do not count it...    
-                    num_bikes_at_visit_no_cap = (station.number_of_scooters() + 
+                    num_bikes_at_visit_no_cap = (station.number_of_bikes() + 
                                                  net_demand[station.id]*arrival_time)
                     violation_pre = 0
                     violation_post = 0

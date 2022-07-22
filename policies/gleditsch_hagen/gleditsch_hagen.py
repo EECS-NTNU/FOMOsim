@@ -21,16 +21,16 @@ class GleditschHagenPolicy(Policy):
         PBCGH = PatternBasedCGH(simul, vehicle)
 
         next_station, num_loading, num_unloading = PBCGH.return_solution(vehicle_index_input=vehicle.id)        
-        scooters_to_swap = []
-        scooters_to_pickup = vehicle.location.scooters[range(num_loading)]
-        scooters_to_deliver = []
+        bikes_to_swap = []
+        bikes_to_pickup = vehicle.location.bikes[range(num_loading)]
+        bikes_to_deliver = []
         for i in range(num_unloading):
-            scooters_to_deliver.append(vehicle.get_scooter_inventory()[i]) #ust pick the first ones
+            bikes_to_deliver.append(vehicle.get_bike_inventory()[i]) #ust pick the first ones
 
         return sim.Action(
-            scooters_to_swap,
-            scooters_to_pickup,
-            scooters_to_deliver,
+            bikes_to_swap,
+            bikes_to_pickup,
+            bikes_to_deliver,
             next_station.id,
         )
 

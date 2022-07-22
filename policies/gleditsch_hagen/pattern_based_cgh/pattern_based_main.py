@@ -60,7 +60,7 @@ class PatternBasedCGH:
         for station in self.all_stations:
             self.net_demand[station.id] = calculate_net_demand(station,self.simul.time,self.simul.day(),
                                     self.simul.hour(),self.planning_horizon)
-            num_bikes_not_visited_no_cap = station.number_of_scooters() + self.net_demand[station.id]*self.planning_horizon
+            num_bikes_not_visited_no_cap = station.number_of_bikes() + self.net_demand[station.id]*self.planning_horizon
     
             if self.net_demand[station.id] >= 0:
                 self.pickup_station[station.id] = 1
@@ -68,14 +68,14 @@ class PatternBasedCGH:
                 self.base_violations[station.id] = max(0,num_bikes_not_visited_no_cap-station.capacity)
                 num_bikes_not_visited_cap = min(num_bikes_not_visited_no_cap,station.capacity)
                 if self.net_demand[station.id] != 0:
-                    self.time_to_violation[station.id] = (station.capacity - station.number_of_scooters() ) / self.net_demand[station.id]
+                    self.time_to_violation[station.id] = (station.capacity - station.number_of_bikes() ) / self.net_demand[station.id]
             else:
                 self.pickup_station[station.id] = 0
                 self.delivery_stations.append(station)
                 self.base_violations[station.id] = max(0,- num_bikes_not_visited_no_cap)
                 num_bikes_not_visited_cap = max(num_bikes_not_visited_no_cap,0) 
                 if self.net_demand[station.id] != 0:
-                    self.time_to_violation[station.id] = - station.number_of_scooters() / self.net_demand[station.id]
+                    self.time_to_violation[station.id] = - station.number_of_bikes() / self.net_demand[station.id]
             
             self.target_state[station.id] = station.get_target_state(self.simul.day(), self.simul.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
             self.deviation_not_visited[station.id] = abs(num_bikes_not_visited_cap-self.target_state[station.id])
@@ -151,10 +151,10 @@ class PatternBasedCGH:
         next_stations = self.all_stations
         if route.num_visits == 1:
             if route.pickup_station[0] == 1:
-                if len(route.vehicle.scooter_inventory) >= (1-self.threshold_service_vehicle) * route.vehicle.scooter_inventory_capacity:
+                if len(route.vehicle.bike_inventory) >= (1-self.threshold_service_vehicle) * route.vehicle.bike_inventory_capacity:
                     next_stations=self.delivery_stations
             else:  #so, DELIVERY_STATION
-                if len(route.vehicle.scooter_inventory) <= self.threshold_service_vehicle * route.vehicle.scooter_inventory_capacity:
+                if len(route.vehicle.bike_inventory) <= self.threshold_service_vehicle * route.vehicle.bike_inventory_capacity:
                     next_stations = self.pickup_stations
         else: #so at least two visits
             if (route.pickup_station[route.num_visits-1]==1) and (route.pickup_station[route.num_visits-2]==1):
