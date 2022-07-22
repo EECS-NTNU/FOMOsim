@@ -19,12 +19,12 @@ simple_run = True
 
 # Parameters
 start_hour = 7   #7*60 = 420
-simulation_time = 20  # 7 am to 11 pm   = 60*16=960   -> Smaller: 240 (60*4)
-num_stations = 30   #was at 200
-num_vehicles = 2
+simulation_time = 120  # 7 am to 11 pm   = 60*16=960   -> Smaller: 240 (60*4)
+num_stations = 15   #was at 200
+num_vehicles = 1
 subproblem_scenarios = 2   #was at ten
 branching = 7
-time_horizon=25   
+time_horizon=40   
 
 #basic_seed = 1   #alternatively just do a seed here at the beginning. A bit less controll though. 
 seed_generating_trips = 1
@@ -49,7 +49,8 @@ if simple_run:
     tstate = target_state.us_target_state
     state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
                                          target_state=tstate,
-                                         init_hour=start_hour, number_of_stations=num_stations,
+                                         init_hour=start_hour, 
+                                         number_of_stations=num_stations,
                                          number_of_vehicles=num_vehicles)
     state.set_seed(seed_generating_trips)
 

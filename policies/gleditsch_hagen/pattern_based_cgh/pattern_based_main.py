@@ -164,9 +164,9 @@ class PatternBasedCGH:
         return list(set(next_stations)-set(route.stations))  #remove existing stations
         
     def calculate_criticality(self,partial_route, potential_station):
-        
-        driving_time = self.simul.state.get_vehicle_travel_time(partial_route.stations[partial_route.num_visits-1].id,
-                                                                potential_station.id)
+        station_from = partial_route.stations[partial_route.num_visits-1].id
+        station_to = potential_station.id
+        driving_time = self.simul.state.get_vehicle_travel_time(station_from,station_to)
         
         return round((-self.omega1*self.time_to_violation[potential_station.id] + 
          self.omega2*self.net_demand[potential_station.id] -
