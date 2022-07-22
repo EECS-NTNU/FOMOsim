@@ -39,7 +39,7 @@ def download(url):
     file_list = os.listdir(directory)
 
     # these loops are a brute-force method to avoid implementing a web-crawler
-    progress = Bar("CityBike 1/5: Download datafiles", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
+    progress = Bar("CityBike 1/5: Download datafiles   ", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
     for yearNo in range(2018, datetime.date.today().year): # 2018/02 is earliest data from data.urbansharing.com
         for month in range (1, 13):
             if loadMonth(yearNo, month):
@@ -166,7 +166,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     trips = 0 # total number from all tripdata read
     fileList = os.listdir(tripDataPath)
     
-    progress = Bar("CityBike 2/5: Read data from files", max = len(fileList))
+    progress = Bar("CityBike 2/5: Read data from files ", max = len(fileList))
     for file in fileList:
         if file.endswith(".json"):
             if int(file[5:7]) in weekMonths(week):
@@ -206,7 +206,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
 
 
     # Calculate average durations, durations in seconds
-    progress = Bar("CityBike 3/5: Calculate durations", max = noOfStations)
+    progress = Bar("CityBike 3/5: Calculate durations  ", max = noOfStations)
     avgDuration = []
     for start in range(noOfStations):
         avgDuration.append([])
@@ -240,7 +240,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                     print("*** Error, averageDuration == 0 should not happen") # should be set to default scooter-speed above
             ttMatrix[start].append(averageDuration/60)
     
-    progress = Bar("CityBike 4/5: Calculate traveltime", max = noOfStations)
+    progress = Bar("CityBike 4/5: Calculate traveltime ", max = noOfStations)
     ttVehicleMatrix = []
     for start in range(noOfStations):
         ttVehicleMatrix.append([])
