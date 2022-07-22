@@ -123,9 +123,17 @@ def setup_stations_students(clientName, init_hour, number_of_vehicles, random_se
             leave_intensities[i].append([])
             move_probabilities[i].append([])
             for hour in range(24):
-                arrive_intensities[i][day].append(0) # fixed in preprocess.py
+                arrive_intensities[i][day].append(0) # fixed below
                 leave_intensities[i][day].append(demand_per_hour[hour])
                 move_probabilities[i][day].append(move_p)
+
+    for i in range(num_stations):
+        for day in range(7):
+            for hour in range(24):
+                incoming = 0
+                for from_station in range(num_stations):
+                    incoming += leave_intensities[from_station][day][hour] * move_probabilities[from_station][day][hour][i]
+                arrive_intensities[i][day][hour] = incoming
 
     ###############################################################################
 
