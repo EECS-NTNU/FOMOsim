@@ -42,15 +42,15 @@ def get_initial_state(source, target_state, number_of_stations=None, load_from_c
     return state
 
 def station_sort(station):
+    # make sure depots get high score
     if isinstance(station, sim.Depot):
-        return 1000
+        return 1000 + station.depot_capacity
 
+    # return average of leave intensity
     leave = 0
-
     for day in range(7):
         for hour in range(24):
             leave += station.get_leave_intensity(day, hour)
-
     leave /= 7*24
     return leave
 
