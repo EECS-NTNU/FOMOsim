@@ -1,7 +1,7 @@
 from typing import Union
 from sim.Depot import Depot
 from sim.Station import Station
-#from settings import *
+from settings import *
 
 class Vehicle:
     """

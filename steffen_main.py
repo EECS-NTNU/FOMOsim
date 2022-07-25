@@ -10,6 +10,7 @@ import init_state.cityBike
 import target_state
 import policies
 import policies.fosen_haldorsen
+import policies.gleditsch_hagen
 import sim
 import output
 from helpers import timeInMinutes
@@ -19,9 +20,9 @@ simple_run = True
 # BASE DATA
 
 # Parameters
-start_hour = 7   #7*60 = 420
+start_hour = 9   #7*60 = 420
 simulation_time = 120  # 7 am to 11 pm   = 60*16=960   -> Smaller: 240 (60*4)
-num_stations = 10   #was at 200
+num_stations = 15   #was at 200
 num_vehicles = 1
 subproblem_scenarios = 2   #was at ten
 branching = 7
@@ -32,6 +33,8 @@ seed_generating_trips = 1
 seed_scenarios_subproblems = 2    # TO DO
 
 greedy = False
+fh = False
+gh = True
 
 # SCENARIO DATA
 
@@ -46,32 +49,44 @@ inputs = {
 
 if simple_run:
 
-    START_TIME = timeInMinutes(hours=7)
-    DURATION = timeInMinutes(minutes=120, hours=0)
-    WEEK = 12    
+    #Make sure the working directory is in the right place, otherwise it cannot find things
+    #os.chdir("C:\\Users\\steff\\OneDrive - NTNU\\Work\\GitHub\\FOMO-sim\\fomo")
 
-    # setup state
-    tstate = target_state.equal_prob_target_state
-    #state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
-    #                                     target_state=tstate,
-    #                                     init_hour=start_hour, 
-    #                                     number_of_stations=num_stations,
-    #                                     number_of_vehicles=num_vehicles)
-    state = init_state.get_initial_state(source=init_state.cityBike,
-                                         target_state=tstate,
-                                         url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
-                                         week=WEEK, bike_class="Bike", 
-                                         number_of_vehicles=1, 
-                                         number_of_stations=15)
+    # FOSEN HALDORSEN
+    
+    tstate = target_state.us_target_state
+    state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
+                                        target_state=tstate,
+                                        init_hour=start_hour, 
+                                        number_of_stations=num_stations,
+                                        number_of_vehicles=num_vehicles)
+
+
+    #CITY BIKES
+
+    # START_TIME = timeInMinutes(hours=7)
+    # DURATION = timeInMinutes(minutes=120, hours=0)
+    # WEEK = 12
+    
+    #tstate = target_state.equal_prob_target_state
+    # state = init_state.get_initial_state(source=init_state.cityBike,
+    #                                      target_state=tstate,
+    #                                      url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
+    #                                      week=WEEK, bike_class="Bike", 
+    #                                      number_of_vehicles=1, 
+    #                                      number_of_stations=15)
     
     #state.set_seed(seed_generating_trips)
 
     # setup policy
     if greedy:
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
-    else:
+    elif fh:
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=subproblem_scenarios,
                                                                branching=branching, time_horizon=time_horizon)
+    elif gh:
+        policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')    
+
 
     # setup simulator
     simulator = sim.Simulator(
@@ -84,6 +99,8 @@ if simple_run:
 
     # run simulator
     simulator.run()
+    #mainly interested in world.policy.get_best_action(world, self.vehicle)
+
 
     # results
     print(f"Simulation time = {simulation_time} minutes")
