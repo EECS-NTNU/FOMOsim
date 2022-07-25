@@ -21,6 +21,7 @@ START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(minutes=10, hours=0)
 WEEK = 12
 
+
 def main():
 
     ###############################################################################
@@ -32,6 +33,7 @@ def main():
 
     state = init_state.get_initial_state(source=init_state.cityBike,
                                          target_state=tstate,
+                                         number_of_stations = 10,
                                          url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
                                          week=WEEK, number_of_vehicles=3, random_seed=1)
 
