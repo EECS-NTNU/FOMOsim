@@ -11,7 +11,7 @@ from policies.gleditsch_hagen.utils import calculate_net_demand, extract_N_best_
 
 
 class PatternBasedCGH:
-    def __init__(self, simul,vehicle,
+    def __init__(self, simul,vehicle,vehicle_same_location,
                  planning_horizon=25,
                  branching_constant= 2, #should be at 20
                  omega1 = 0.1,
@@ -36,6 +36,7 @@ class PatternBasedCGH:
         self.simul = simul
         self.vehicle = vehicle
         self.planning_horizon = planning_horizon
+        self.vehicle_same_location = vehicle_same_location
         
         self.data = None
         self.master_solution = None
@@ -80,21 +81,17 @@ class PatternBasedCGH:
             self.target_state[station.id] = station.get_target_state(self.simul.day(), self.simul.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
             self.deviation_not_visited[station.id] = abs(num_bikes_not_visited_cap-self.target_state[station.id])
             
-        print('test_values')
 
         self.main()
 
     def main(self):
         #Initialization
         start= time.time()  
-        print('')
-        print('Initial_routes')
         self.initial_routes = self.initialization()    #GENERATE SET OF ROUTES
         self.duration_route_initialization = time.time() - start
         
         #Master
         start= time.time() 
-        print('master_problem')
         self.master_problem(self.initial_routes)
         self.duration_master_problem_first = time.time() - start
         
@@ -109,9 +106,13 @@ class PatternBasedCGH:
         initial_routes = [] 
         
         #Then, perform the algorithm
-        for vehicle in self.simul.state.vehicles:  #NOTE, WE GET MANY SIMILAR ROUTES!!! DRIVING TIME/DISTANCE IS NEGLIGABLE..
-            generated_routes = self.route_extension_algo(vehicle)
-            initial_routes = initial_routes + generated_routes
+        if self.vehicle_same_location: #only do planning for a single vehicle
+            initial_routes = self.route_extension_algo(self.vehicle)
+        else:
+            for vehicle in self.simul.state.vehicles:  #NOTE, WE GET MANY SIMILAR ROUTES!!! DRIVING TIME/DISTANCE IS NEGLIGABLE..
+                generated_routes = self.route_extension_algo(vehicle)
+                initial_routes += generated_routes
+        
         return initial_routes          
             
 
@@ -188,9 +189,7 @@ class PatternBasedCGH:
         loading = 0
         unloading = 0
         for var in self.master_solution.getVars():
-            print(var)
             name = var.varName.strip("]").split("[")
-            print(name)
             indices_vr = name[1].split(',')
             vehicle_index = indices_vr[0]
             route_index = indices_vr[1]
@@ -199,7 +198,7 @@ class PatternBasedCGH:
                 route = self.data.route_id_to_route[int(route_index)]
                 loading = route.loading[0]
                 unloading = route.unloading[0]
-                station_id = route.stations[1].station_id
+                station_id = route.stations[1].id
         return station_id, loading, unloading
 
 

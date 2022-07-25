@@ -1,8 +1,21 @@
 class MasterData:
     
-    def __init__(self,generated_routes,all_stations,simul,omega_v,omega_d,
+    def __init__(self,generated_routes, all_stations,simul,omega_v,omega_d,
                  net_demand,pickup_station,deviation_not_visited, base_violations,target_state,
                  planning_horizon):
+        
+        
+        
+        #testing
+        
+        # for i in range(len(generated_routes)):
+        #     print('Route: ', i)
+        #     print('Vehicle: ', generated_routes[i].vehicle)
+        #     print('Stations: ', generated_routes[i].stations)
+        #     print('Arrival times: ', generated_routes[i].arrival_times)
+        #     print('loading: ', generated_routes[i].loading)
+        #     print('unloading: ', generated_routes[i].unloading)
+        #     print('vehicle_level: ', generated_routes[i].vehicle_level)
         
         #calculate VIOLATIONAS, DEVIATIONS
         
@@ -15,9 +28,10 @@ class MasterData:
         for station in all_stations:
             self.S_STATIONS.append(station.id)
             
-        self.V_VEHICLES = []
-        for vehicle in simul.state.vehicles:
-            self.V_VEHICLES.append(vehicle.id)
+        self.V_VEHICLES = set()
+        for route in generated_routes:
+            self.V_VEHICLES.add(route.vehicle.id)
+        self.V_VEHICLES = list(self.V_VEHICLES)
         
         route_id = 0
         self.route_id_to_route = {}
@@ -28,6 +42,8 @@ class MasterData:
             vehicle = route.vehicle
             self.R_ROUTES[vehicle.id].append(route.route_id)
             route_id += 1
+        
+        
         
         #PARAMETERS
         

@@ -18,16 +18,28 @@ class GleditschHagenPolicy(Policy):
             
 
     def PB_solve(self, simul, vehicle):
-        PBCGH = PatternBasedCGH(simul, vehicle)
-
+        
+        vehicle_same_location = False #this can happen in the beginning of the simulation
+        #Alternatively, the vehicles can be randomly distributed.
+        for vehicle_other in simul.state.vehicles:
+            if vehicle is not vehicle_other:
+                if vehicle_other.location == vehicle.location:
+                    vehicle_same_location = True   #
+        
+        PBCGH = PatternBasedCGH(simul, vehicle, vehicle_same_location)
+        
+        
         next_station, num_loading, num_unloading = PBCGH.return_solution(vehicle_index_input=vehicle.id)        
         bikes_to_swap = []
         bikes_to_pickup =  []
-        for i in range(int(num_loading)):
-            bikes_to_pickup.append(vehicle.location.bikes[i])
+        bikes_to_pickup = [bike.id for bike in vehicle.location.get_bikes()][0:int(num_loading)]
+        #for i in range(int(num_loading)):
+        #    vehicle.location.bikes[i]
+        #    bikes_to_pickup.append(i)  #using vehicle.location.bikes[i] causes type error
         bikes_to_deliver = []
-        for i in range(int(num_unloading)):
-            bikes_to_deliver.append(vehicle.get_bike_inventory()[i]) #just pick the first ones
+        bikes_to_deliver = [bike.id for bike in vehicle.get_bike_inventory()][0:int(num_unloading)]
+        #for i in range(int(num_unloading)):
+        #    bikes_to_deliver.append(i) #just pick the first ones
 
         return sim.Action(
             bikes_to_swap,

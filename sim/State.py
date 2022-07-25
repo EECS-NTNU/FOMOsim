@@ -234,6 +234,7 @@ class State(LoadSave):
                 pick_up_bike = vehicle.location.get_bike_from_id(
                     pick_up_bike_id
                 )
+                
                 # Picking up bike and adding to vehicle inventory and swapping battery
                 vehicle.pick_up(pick_up_bike)
 
