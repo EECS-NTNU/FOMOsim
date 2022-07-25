@@ -31,7 +31,7 @@ def extract_N_best_elements(a_list,N):
         max_value = max(a_list)
         max_index = a_list.index(max_value)
         best_elements.append(max_index)
-        a_list[max_index] = 0
+        a_list[max_index] = -1000000
     return best_elements
         
         

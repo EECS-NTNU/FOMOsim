@@ -87,9 +87,9 @@ if simple_run:
         policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=subproblem_scenarios,
                                                                branching=branching, time_horizon=time_horizon)
     elif gh:
-        #policy = policies.DoNothing()
+        policy = policies.DoNothing()
         #policy = policies.GreedyPolicy()
-        policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')    
+        #policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')    
 
 
     # setup simulator

@@ -13,7 +13,7 @@ from policies.gleditsch_hagen.utils import calculate_net_demand, extract_N_best_
 class PatternBasedCGH:
     def __init__(self, simul,vehicle,vehicle_same_location,
                  planning_horizon=25,
-                 branching_constant= 2, #should be at 20
+                 branching_constant= 6, #was at 20, should be at least as big as the number of vehicles, otherwise there might be feasibility issues
                  omega1 = 0.1,
                  omega2 = 0.5,
                  omega3 = 0.1,
@@ -40,7 +40,6 @@ class PatternBasedCGH:
         
         self.data = None
         self.master_solution = None
-
         
         #first do some data preprocessing. These calculations are necessary for several stages in the cgh
 
@@ -48,7 +47,7 @@ class PatternBasedCGH:
         self.pickup_stations = []
         self.delivery_stations = []
         
-        
+        self.initial_routes = []
            
         self.net_demand = {station.id:0 for station in self.all_stations}
         self.pickup_station = {station.id:0 for station in self.all_stations}
@@ -59,8 +58,8 @@ class PatternBasedCGH:
         
         
         for station in self.all_stations:
-            self.net_demand[station.id] = calculate_net_demand(station,self.simul.time,self.simul.day(),
-                                    self.simul.hour(),self.planning_horizon)
+            self.net_demand[station.id] = round(calculate_net_demand(station,self.simul.time,self.simul.day(),
+                                    self.simul.hour(),self.planning_horizon),4)
             num_bikes_not_visited_no_cap = station.number_of_bikes() + self.net_demand[station.id]*self.planning_horizon
     
             if self.net_demand[station.id] >= 0:
@@ -79,7 +78,7 @@ class PatternBasedCGH:
                     self.time_to_violation[station.id] = - station.number_of_bikes() / self.net_demand[station.id]
             
             self.target_state[station.id] = station.get_target_state(self.simul.day(), self.simul.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
-            self.deviation_not_visited[station.id] = abs(num_bikes_not_visited_cap-self.target_state[station.id])
+            self.deviation_not_visited[station.id] = round(abs(num_bikes_not_visited_cap-self.target_state[station.id]),4)
             
 
         self.main()
@@ -89,7 +88,17 @@ class PatternBasedCGH:
         start= time.time()  
         self.initial_routes = self.initialization()    #GENERATE SET OF ROUTES
         self.duration_route_initialization = time.time() - start
-        
+
+#testing
+# for i in range(len(self.initial_routes)):
+#     print('Route: ', i)
+#     print('Vehicle: ', self.initial_routes[i].vehicle.id)
+#     print('Stations: ', [station.id for station in self.initial_routes[i].stations])
+#     print('Arrival times: ', self.initial_routes[i].arrival_times)
+#     print('loading: ', self.initial_routes[i].loading)
+#     print('unloading: ', self.initial_routes[i].unloading)
+#     print('vehicle_level: ', self.initial_routes[i].vehicle_level)
+#     print('-------------------------------------------')        
         #Master
         start= time.time() 
         self.master_problem(self.initial_routes)
@@ -109,7 +118,7 @@ class PatternBasedCGH:
         if self.vehicle_same_location: #only do planning for a single vehicle
             initial_routes = self.route_extension_algo(self.vehicle)
         else:
-            for vehicle in self.simul.state.vehicles:  #NOTE, WE GET MANY SIMILAR ROUTES!!! DRIVING TIME/DISTANCE IS NEGLIGABLE..
+            for vehicle in self.simul.state.vehicles:  #NOTE, WE GET MANY SIMILAR ROUTES!!! DRIVING TIME/DISTANCE IS NEGLIGABLE..??  Not true...
                 generated_routes = self.route_extension_algo(vehicle)
                 initial_routes += generated_routes
         
@@ -124,12 +133,14 @@ class PatternBasedCGH:
         #initiate the route
         
         finished_routes = list()
-        start_of_route = Route(vehicle, trigger,self.simul.time,self.simul.day(),self.simul.hour(),self.planning_horizon)
+        start_of_route = Route(vehicle, trigger,self.simul.time,self.simul.day(),self.simul.hour(),self.planning_horizon,
+                               self.pickup_station[vehicle.location.id],self.net_demand[vehicle.location.id])
         partial_routes = [start_of_route]
-        j = 0
         while len(partial_routes) > 0 :
             pr = partial_routes.pop(0)
             pr.loading_algorithm() #both loads and arrival times
+            if len(pr.stations)==2:
+                finished_routes.append(pr)   #FOR FEASIBILITY PURPOSES,
             if pr.duration_route < self.planning_horizon:
                 potential_stations = self.filtering(pr)
                 criticalities = []
@@ -140,11 +151,12 @@ class PatternBasedCGH:
                 for i in indices_best_extensions:
                     pr2 = copy.deepcopy(pr) # TO DO: DEN HER ER SUPER TREIG. jeg har fjernet simul fra Route class, men burde kanskje fjerne mere.
                     driving_time_to_new_station = self.simul.state.get_vehicle_travel_time(pr.stations[pr.num_visits-1].id,potential_stations[i].id)
-                    pr2.add_station(potential_stations[i],driving_time_to_new_station)   
+                    pr2.add_station(potential_stations[i],driving_time_to_new_station,
+                                    self.pickup_station[potential_stations[i].id],
+                                    self.net_demand[potential_stations[i].id])   
                     partial_routes.append(pr2)
             else:
                 finished_routes.append(pr)
-            j+=1  #did we manage to add new pr's to partial_routes?
         return finished_routes
             
                 
@@ -162,8 +174,11 @@ class PatternBasedCGH:
                 next_stations=self.delivery_stations
             elif (route.pickup_station[route.num_visits-1]==0) and (route.pickup_station[route.num_visits-2]==0):
                 next_stations=self.pickup_stations
-        return list(set(next_stations)-set(route.stations))  #remove existing stations
-        
+        #remove existing stations. IF NOT DOING THIS, THEN WE GET INFEASIBILITIES!!! TO DO: check
+        # I believe that it might happen that a station gets assigned to a route, whereas it would have been better in another route.
+        filtered_stations = list(set(next_stations)-set(route.stations))  
+        return filtered_stations    
+    
     def calculate_criticality(self,partial_route, potential_station):
         station_from = partial_route.stations[partial_route.num_visits-1].id
         station_to = potential_station.id
@@ -184,8 +199,8 @@ class PatternBasedCGH:
                                self.base_violations,self.target_state,self.planning_horizon)
         self.master_solution = run_master_model(self.data)
         
-    def return_solution(self, vehicle_index_input):
         
+    def return_solution(self, vehicle_index_input):
         loading = 0
         unloading = 0
         for var in self.master_solution.getVars():
@@ -194,11 +209,14 @@ class PatternBasedCGH:
             vehicle_index = indices_vr[0]
             route_index = indices_vr[1]
             round_val = round(var.x, 0)
-            if name[0] == 'l_lambda' and round_val == 1 and int(vehicle_index) == vehicle_index_input:
-                route = self.data.route_id_to_route[int(route_index)]
-                loading = route.loading[0]
-                unloading = route.unloading[0]
-                station_id = route.stations[1].id
+            if round_val == 1:
+                #print('variable equaling one: ', var)
+                #print('vehicle index: ',int(vehicle_index))
+                if name[0] == 'l_lambda' and int(vehicle_index) == vehicle_index_input:
+                    route = self.data.route_id_to_route[int(route_index)]
+                    loading = route.loading[0]
+                    unloading = route.unloading[0]
+                    station_id = route.stations[1].id
         return station_id, loading, unloading
 
 

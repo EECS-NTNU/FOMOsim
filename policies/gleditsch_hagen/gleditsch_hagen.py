@@ -9,7 +9,8 @@ class GleditschHagenPolicy(Policy):
     def __init__(self, variant='PatternBased'):
         self.variant = variant #Exact, RouteBased and PatternBased 
         super().__init__()  
-
+        self.num_times_called = 0
+        
     def get_best_action(self, simul, vehicle):
         if self.variant == 'PatternBased':
             return self.PB_solve(simul,vehicle)
@@ -27,7 +28,8 @@ class GleditschHagenPolicy(Policy):
                     vehicle_same_location = True   #
         
         PBCGH = PatternBasedCGH(simul, vehicle, vehicle_same_location)
-        
+        self.num_times_called+=1
+        print('Policy, num_times_called: ',self.num_times_called)
         
         next_station, num_loading, num_unloading = PBCGH.return_solution(vehicle_index_input=vehicle.id)        
         bikes_to_swap = []

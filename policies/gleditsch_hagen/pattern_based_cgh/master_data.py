@@ -5,17 +5,7 @@ class MasterData:
                  planning_horizon):
         
         
-        
-        #testing
-        
-        # for i in range(len(generated_routes)):
-        #     print('Route: ', i)
-        #     print('Vehicle: ', generated_routes[i].vehicle)
-        #     print('Stations: ', generated_routes[i].stations)
-        #     print('Arrival times: ', generated_routes[i].arrival_times)
-        #     print('loading: ', generated_routes[i].loading)
-        #     print('unloading: ', generated_routes[i].unloading)
-        #     print('vehicle_level: ', generated_routes[i].vehicle_level)
+        self.generated_routes = generated_routes
         
         #calculate VIOLATIONAS, DEVIATIONS
         
