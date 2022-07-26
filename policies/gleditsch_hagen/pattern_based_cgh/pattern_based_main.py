@@ -133,12 +133,15 @@ class PatternBasedCGH:
         #initiate the route
         
         finished_routes = list()
-        start_of_route = Route(vehicle, trigger,self.simul.time,self.simul.day(),self.simul.hour(),self.planning_horizon,
+        start_of_route = Route(vehicle.id,vehicle.eta, vehicle.location.id, vehicle.location.number_of_bikes(),
+                               vehicle.location.capacity, vehicle.get_bike_inventory(),
+                               vehicle.bike_inventory_capacity,vehicle.parking_time,vehicle.handling_time,
+                               trigger,self.simul.time,self.simul.day(),self.simul.hour(),self.planning_horizon,
                                self.pickup_station[vehicle.location.id],self.net_demand[vehicle.location.id])
         partial_routes = [start_of_route]
         while len(partial_routes) > 0 :
             pr = partial_routes.pop(0)
-            pr.loading_algorithm() #both loads and arrival times
+            pr.loading_algorithm(self.simul.state.stations) #both loads and arrival times
             if len(pr.stations)==2:
                 finished_routes.append(pr)   #FOR FEASIBILITY PURPOSES,
             if pr.duration_route < self.planning_horizon:
@@ -146,14 +149,18 @@ class PatternBasedCGH:
                 criticalities = []
                 for i in range(len(potential_stations)):
                     ps = potential_stations[i]
-                    criticalities.append(self.calculate_criticality(pr,ps))
+                    criticalities.append(self.calculate_criticality(pr,ps.id))
                 indices_best_extensions = extract_N_best_elements(criticalities,self.branching_constant)
                 for i in indices_best_extensions:
                     pr2 = copy.deepcopy(pr) # TO DO: DEN HER ER SUPER TREIG. jeg har fjernet simul fra Route class, men burde kanskje fjerne mere.
-                    driving_time_to_new_station = self.simul.state.get_vehicle_travel_time(pr.stations[pr.num_visits-1].id,potential_stations[i].id)
-                    pr2.add_station(potential_stations[i],driving_time_to_new_station,
+                    driving_time_to_new_station = self.simul.state.get_vehicle_travel_time(
+                        pr.stations[pr.num_visits-1],potential_stations[i].id)
+                    pr2.add_station(potential_stations[i].id,driving_time_to_new_station,
                                     self.pickup_station[potential_stations[i].id],
-                                    self.net_demand[potential_stations[i].id])   
+                                    self.net_demand[potential_stations[i].id],
+                                    potential_stations[i].number_of_bikes(),
+                                    potential_stations[i].capacity
+                                    )   
                     partial_routes.append(pr2)
             else:
                 finished_routes.append(pr)
@@ -164,10 +171,10 @@ class PatternBasedCGH:
         next_stations = self.all_stations
         if route.num_visits == 1:
             if route.pickup_station[0] == 1:
-                if len(route.vehicle.bike_inventory) >= (1-self.threshold_service_vehicle) * route.vehicle.bike_inventory_capacity:
+                if len(route.vehicle_initial_inventory) >= (1-self.threshold_service_vehicle) * route.vehicle_cap:
                     next_stations=self.delivery_stations
             else:  #so, DELIVERY_STATION
-                if len(route.vehicle.bike_inventory) <= self.threshold_service_vehicle * route.vehicle.bike_inventory_capacity:
+                if len(route.vehicle_initial_inventory) <= self.threshold_service_vehicle * route.vehicle_cap:
                     next_stations = self.pickup_stations
         else: #so at least two visits
             if (route.pickup_station[route.num_visits-1]==1) and (route.pickup_station[route.num_visits-2]==1):
@@ -179,15 +186,14 @@ class PatternBasedCGH:
         filtered_stations = list(set(next_stations)-set(route.stations))  
         return filtered_stations    
     
-    def calculate_criticality(self,partial_route, potential_station):
-        station_from = partial_route.stations[partial_route.num_visits-1].id
-        station_to = potential_station.id
-        driving_time = self.simul.state.get_vehicle_travel_time(station_from,station_to)
+    def calculate_criticality(self,partial_route, potential_station_id):
+        driving_time = self.simul.state.get_vehicle_travel_time(partial_route.stations[partial_route.num_visits-1],
+                                                                potential_station_id)
         
-        return round((-self.omega1*self.time_to_violation[potential_station.id] + 
-         self.omega2*self.net_demand[potential_station.id] -
+        return round((-self.omega1*self.time_to_violation[potential_station_id] + 
+         self.omega2*self.net_demand[potential_station_id] -
          self.omega3*driving_time + 
-        self.omega4*self.deviation_not_visited[potential_station.id]),3)
+        self.omega4*self.deviation_not_visited[potential_station_id]),3)
   
     
         # TO DO: I believe that we can use a lot more effort in calculating a good criticality. This will most likely help A LOT!!    
@@ -216,7 +222,7 @@ class PatternBasedCGH:
                     route = self.data.route_id_to_route[int(route_index)]
                     loading = route.loading[0]
                     unloading = route.unloading[0]
-                    station_id = route.stations[1].id
+                    station_id = route.stations[1]
         return station_id, loading, unloading
 
 
