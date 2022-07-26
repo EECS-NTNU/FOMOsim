@@ -23,10 +23,11 @@ simple_run = True
 # BASE DATA
 
 # Parameters
+WEEK = 12
 start_hour = 9   #7*60 = 420
 simulation_time = 120  # 7 am to 11 pm   = 60*16=960   -> Smaller: 240 (60*4)
-num_stations = 15   #was at 200
-num_vehicles = 1
+num_stations = 200   #was at 200
+num_vehicles = 2
 subproblem_scenarios = 2   #was at ten
 branching = 7
 time_horizon=30   
@@ -67,18 +68,13 @@ def main():
     
     
         #CITY BIKES
-    
-        START_TIME = timeInMinutes(hours=7)
-        DURATION = timeInMinutes(minutes=0, hours=6)
-        WEEK = 12
-        
         tstate = target_state.equal_prob_target_state
         state = init_state.get_initial_state(source=init_state.cityBike,
                                               target_state=tstate,
                                               url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
                                               week=WEEK, 
-                                              number_of_vehicles=2, 
-                                              number_of_stations=50,
+                                              number_of_vehicles=num_vehicles, 
+                                              number_of_stations=num_stations,
                                               random_seed=1
                                               )
         
@@ -91,9 +87,9 @@ def main():
             policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=subproblem_scenarios,
                                                                    branching=branching, time_horizon=time_horizon)
         elif gh:
-            #policy = policies.DoNothing()
+            policy = policies.DoNothing()
             #policy = policies.GreedyPolicy()
-            policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')    
+            #policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')    
     
     
         # setup simulator

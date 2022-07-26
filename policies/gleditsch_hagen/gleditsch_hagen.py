@@ -29,7 +29,6 @@ class GleditschHagenPolicy(Policy):
         
         PBCGH = PatternBasedCGH(simul, vehicle, vehicle_same_location)
         self.num_times_called+=1
-        print('Policy, num_times_called: ',self.num_times_called)
         
         next_station, num_loading, num_unloading = PBCGH.return_solution(vehicle_index_input=vehicle.id)        
         bikes_to_swap = []
