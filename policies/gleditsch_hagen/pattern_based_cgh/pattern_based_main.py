@@ -12,7 +12,7 @@ from policies.gleditsch_hagen.utils import calculate_net_demand, extract_N_best_
 
 class PatternBasedCGH:
     def __init__(self, simul,vehicle,vehicle_same_location,
-                 planning_horizon=25,
+                 planning_horizon=50,
                  branching_constant= 6, #was at 20, should be at least as big as the number of vehicles, otherwise there might be feasibility issues
                  omega1 = 0.1,
                  omega2 = 0.5,
