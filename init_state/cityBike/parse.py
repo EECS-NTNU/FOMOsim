@@ -208,14 +208,19 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     # Calculate average durations, durations in seconds
     progress = Bar("CityBike 3/5: Calculate durations  ", max = noOfStations)
     avgDuration = []
-    for start in range(noOfStations):
+
+#    for start in range(noOfStations):
+    for start in range(1):
         avgDuration.append([])
-        for end in range(noOfStations):
+#        for end in range(noOfStations):
+        for end in range(1):
             avgDuration[start].append([])
             sumDuration = 0
             noOfTrips = 0
-            for trip in range(len(durations[start][end])):
+#            for trip in range(len(durations[start][end])):
+            for trip in range(3):
                 tripDuration = durations[start][end][trip]
+                print(tripDuration)
                 noOfTrips += 1
                 sumDuration += tripDuration     
             if noOfTrips > 0:
@@ -226,6 +231,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 avgDuration[start][end] = (distance/settings.BIKE_SPEED)*3600
         progress.next()
     progress.finish()
+
+    print("STOPP HER debug")
 
     # Calculate traveltime_matrix, travel-times in minutes
     ttMatrix = []
