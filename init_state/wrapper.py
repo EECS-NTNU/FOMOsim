@@ -6,9 +6,9 @@ import sim
 
 savedStatesDirectory = "saved_states/"
 
-def get_initial_state(source, target_state=None, number_of_stations=None, load_from_cache=True, **kwargs):
+def get_initial_state(source, target_state=None, number_of_stations=None, number_of_bikes=None, load_from_cache=True, **kwargs):
     # create filename
-    all_args = {"source" : source, "target_state" : target_state, "number_of_stations" : number_of_stations}
+    all_args = {"source" : source, "target_state" : target_state, "number_of_stations" : number_of_stations, "number_of_bikes" : number_of_bikes}
     all_args.update(kwargs)
     checksum = hashlib.sha256(jsonpickle.encode(all_args).encode('utf-8')).hexdigest()
     stateFilename = f"{savedStatesDirectory}/{checksum}.pickle.gz"
@@ -28,6 +28,10 @@ def get_initial_state(source, target_state=None, number_of_stations=None, load_f
     # create subset of stations
     if number_of_stations is not None:
         create_subset(state, number_of_stations)
+
+    if number_of_bikes is not None:
+        print("Set number of bikes: Not implemented yet")
+        exit()
 
     # calculate target state
     if target_state is not None:
