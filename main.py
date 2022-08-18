@@ -32,10 +32,10 @@ def main():
     tstate = target_state.equal_prob_target_state
 
     state = init_state.get_initial_state(source=init_state.cityBike,
+                                         url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
+                                         week=WEEK, random_seed=0,
                                          target_state=tstate,
-                                         number_of_stations = 10,
-                                         url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
-                                         week=WEEK, number_of_vehicles=3, random_seed=1)
+                                         )
 
     # state = init_state.get_initial_state(source=init_state.entur,
     #                                      target_state=tstate,

@@ -8,176 +8,107 @@ import settings
 import sim
 import init_state
 import init_state.fosen_haldorsen
+import init_state.cityBike
 
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
-import policies.gleditsch_hagen
 
 from progress.bar import Bar
 
 import output
 import target_state
+import matplotlib.pyplot as plt
 
-from GUI.dashboard import GUI_main
-from helpers import dateAndTimeStr
+from helpers import *
 
-def get_time(day=0, hour=0, minute=0):
-    return 24*60*day + 60*hour + minute
+###############################################################################
 
-#WEEK = 1
-#WEEK = 28
+cities = [
+    "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",
+#    "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",
+    "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",
+    "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
+#    "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",
+]
+
+target_states = [
+    target_state.evenly_distributed_target_state,
+    target_state.outflow_target_state,
+    target_state.equal_prob_target_state,
+]        
+
+seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+
 WEEK = 33
 START_DAY = 0
-START_HOUR = 7
-PERIOD = get_time(hour=48)
-RUNS = 10
+START_HOUR = 6
+PERIOD = timeInMinutes(hours=24)
 
-def run_sim(state, period, policy, start_time, label, seed):
-    local_state = copy.deepcopy(state)
-    local_state.set_seed(seed)
+###############################################################################
 
-    # Set up simulator
-    simul = sim.Simulator(
-        initial_state = local_state,
-        policy = policy, 
-        start_time = start_time,
-        duration = PERIOD,
-        verbose = True,
-        label = label,
-    )
+def lostTripsPlot(cities, policies, starv, cong):
+    fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
+    fig.suptitle("FOMO simulator - lost trips results", fontsize=15)
+    w = 0.4
+    if len(cities) == 1:
+        subPlots = [ subPlots ]
+    for city in range(len(cities)):
+        subPlots[city].bar(policies, starv[city], w, label='Starvation')
+        subPlots[city].bar(policies, cong[city], w, bottom=starv[city], label='Congestion')
+        subPlots[city].set_xlabel(cities[city])
+        if city == 0:
+            subPlots[city].set_ylabel("Lost trips")
+            subPlots[city].legend()
 
-    # Run simulator
-    simul.run()
-    return simul
+###############################################################################
 
-if settings.USER_INTERFACE_MODE == "CMD" or not GUI_main():
+if __name__ == "__main__":
 
-    start_time = get_time(day=START_DAY, hour=START_HOUR)
+    starvations = []
+    congestions = []
 
-    ###############################################################################
-    # get initial state
+    for city in cities:
+        print("  city: ", city)
 
-    tstate = target_state.equal_prob_target_state
-    cityURL = "https://data.urbansharing.com/oslobysykkel.no/trips/v1/"
-    state = init_state.get_initial_state(source=init_state.cityBike,
-                                         target_state=tstate,
-                                         url=cityURL,  week=WEEK, bike_class="Bike", number_of_vehicles=3, random_seed=1)
+        starvations.append([])
+        congestions.append([])
 
-    ###############################################################################
+        for tstate in target_states:
+            print("    target_state: ", tstate)
 
-    # simulations = []
+            initial_state = init_state.get_initial_state(source=init_state.cityBike, url=city,
+                                                         week=WEEK, random_seed=0,
+                                                         target_state=tstate)
 
-    # xvalues = [0, 1, 2, 4, 8]
+            simulations = []
 
-    # progress = Bar(
-    #     "Running",
-    #     max = len(xvalues) * RUNS,
-    # )
+            for seed in seeds:
+                print("      seed: ", seed)
 
-    # for num_vehicles in xvalues:
-    #     state.set_num_vehicles(num_vehicles)
+                state_copy = copy.deepcopy(initial_state)
+                state_copy.set_seed(seed)
 
-    #     sims = []
-    
-    #     for run in range(RUNS):
-    #         #sims.append(run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-Greedy", run))
-    #         sims.append(run_sim(state, PERIOD, policies.GreedyPolicy(), start_time, "HHS-Greedy", run))
-    #         progress.next()
+                simul = sim.Simulator(
+                    initial_state = state_copy,
+                    policy = policies.GreedyPolicy(), 
+                    start_time = timeInMinutes(days=START_DAY, hours=START_HOUR),
+                    duration = PERIOD,
+                    verbose = True,
+                )
+                
+                simul.run()
 
-    #     simulations.append(sims)
-        
-    # progress.finish()
+                simulations.append(simul)
 
-    # # Visualize results
-    # visualize_end(simulations, xvalues, title=("Week " + str(WEEK)), week=WEEK)
-
-    ###############################################################################
-
-    # Set up simulator
-    # simul = sim.Simulator.load("sim_cache/fh_3_50.pickle")
-
-    # hhs = []
-
-    # for run in range(RUNS):
-    #     print(f"\nRun {run+1} of {RUNS}")
-
-    #     hhsstate = copy.deepcopy(state)
-    #     hhsstate.simulation_scenarios = simul.state.simulation_scenarios
-
-    #     hhsstate.set_seed(run)
-
-    #     simul.init(
-    #         duration = PERIOD, 
-    #         initial_state = hhsstate,
-    #         verbose = True,
-    #         start_time = start_time, 
-    #         label = "HHS",
-    #     )
-    #     simul.run()
-
-    #     hhs.append(simul)
-
-    #     # Run simulator
-
-    # output.write_csv(hhs, "output_hhs.csv", WEEK, hourly = True)
+            metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
+            starvations[-1].append(metric.get_aggregate_value("lost_demand"))
+            congestions[-1].append(metric.get_aggregate_value("congestion"))
 
     ###############################################################################
 
-    # us = []
-    # equalprob = []
-    # outflow = []
-    # even = []
+    city_names = [ url.split('/')[3].split('.')[0] for url in cities ]
+    target_state_names = [ tstate.__name__.replace("_target_state", "") for tstate in target_states ]
 
-    # tstate = target_state.fosen_haldorsen_target_state(state)
-    # state.set_target_state(tstate)
-    # for run in range(RUNS):
-    #     print(f"\nRun {run+1} of {RUNS*4}")
-    #     us.append (run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "US",  run))
-    # output.write_csv(us, "output_us.csv", WEEK, hourly = True)
-
-    # tstate = target_state.us_target_state(state)
-    # state.set_target_state(tstate)
-    # for run in range(RUNS):
-    #     print(f"\nRun {run+11} of {RUNS*4}")
-    #     equalprob.append (run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "EqualProb",  run))
-    # output.write_csv(equalprob, "output_same.csv", WEEK, hourly = True)
-
-    # tstate = target_state.outflow_target_state(state)
-    # state.set_target_state(tstate)
-    # for run in range(RUNS):
-    #     print(f"\nRun {run+21} of {RUNS*4}")
-    #     outflow.append (run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "Outflow",  run))
-    # output.write_csv(outflow, "output_outflow.csv", WEEK, hourly = True)
-
-    # tstate = target_state.evenly_distributed_target_state(state)
-    # state.set_target_state(tstate)
-    # for run in range(RUNS):
-    #     print(f"\nRun {run+31} of {RUNS*4}")
-    #     even.append (run_sim(state, PERIOD, policies.RebalancingPolicy(), start_time, "Even",  run))
-    # output.write_csv(even, "output_even.csv", WEEK, hourly = True)
-
-    ###############################################################################
-
-    donothing = []
-    random = []
-    greedy = []
-    fhgreedy = []
-    fh = []
-
-    for run in range(RUNS):
-        print(f"\nRun {run+1} of {RUNS}")
-        donothing.append (run_sim(state, PERIOD, policies.DoNothing(), start_time, "DoNothing",  run))
-        random.append (run_sim(state, PERIOD, policies.RandomActionPolicy(), start_time, "Random",  run))
-        greedy.append (run_sim(state, PERIOD, policies.GreedyPolicy(), start_time, "Greedy",  run))
-        fhgreedy.append (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True), start_time, "FH-greedy",  run))
-        #fh.append (run_sim(state, PERIOD, policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25), start_time, "FH",  run))
-
-    #output.write_csv(donothing, "output_donothing.csv", WEEK, hourly = True)
-    #output.write_csv(random, "output_random.csv", WEEK, hourly = True)
-    #output.write_csv(greedy, "output_greedy.csv", WEEK, hourly = True)
-    #output.write_csv(fhgreedy, "output_fhgreedy.csv", WEEK, hourly = True)
-    #output.write_csv(fh, "output_fh.csv", WEEK, hourly = True)
-
-    output.visualize_starvation([donothing, random, greedy, fhgreedy], title=("Week " + str(WEEK)), week=WEEK)
-    output.visualize_congestion([donothing, random, greedy, fhgreedy], title=("Week " + str(WEEK)), week=WEEK)
+    lostTripsPlot(city_names, target_state_names, starvations, congestions)
+    plt.show()
