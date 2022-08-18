@@ -7,7 +7,7 @@ import copy
 from policies.gleditsch_hagen.pattern_based_cgh.Routes import Route
 from policies.gleditsch_hagen.pattern_based_cgh.master_data import MasterData
 from policies.gleditsch_hagen.pattern_based_cgh.master_model import run_master_model
-from policies.gleditsch_hagen.utils import calculate_net_demand, extract_N_best_elements
+from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_to_violation, extract_N_best_elements
 
 
 class PatternBasedCGH:
@@ -67,15 +67,13 @@ class PatternBasedCGH:
                 self.pickup_stations.append(station)
                 self.base_violations[station.id] = max(0,num_bikes_not_visited_no_cap-station.capacity)
                 num_bikes_not_visited_cap = min(num_bikes_not_visited_no_cap,station.capacity)
-                if self.net_demand[station.id] != 0:
-                    self.time_to_violation[station.id] = (station.capacity - station.number_of_bikes() ) / self.net_demand[station.id]
             else:
                 self.pickup_station[station.id] = 0
                 self.delivery_stations.append(station)
                 self.base_violations[station.id] = max(0,- num_bikes_not_visited_no_cap)
                 num_bikes_not_visited_cap = max(num_bikes_not_visited_no_cap,0) 
-                if self.net_demand[station.id] != 0:
-                    self.time_to_violation[station.id] = - station.number_of_bikes() / self.net_demand[station.id]
+    
+            self.time_to_violation[station.id] = calculate_time_to_violation(self.net_demand[station.id], station)
             
             self.target_state[station.id] = station.get_target_state(self.simul.day(), self.simul.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
             self.deviation_not_visited[station.id] = round(abs(num_bikes_not_visited_cap-self.target_state[station.id]),4)
@@ -148,8 +146,9 @@ class PatternBasedCGH:
                 potential_stations = self.filtering(pr)
                 criticalities = []
                 for i in range(len(potential_stations)):
-                    ps = potential_stations[i]
-                    criticalities.append(self.calculate_criticality(pr,ps.id))
+                    ps = potential_stations[i] #potential station
+                    cs = pr.stations[ps.num_visits-1] #current station
+                    criticalities.append(self.calculate_criticality(cs,ps.id))    #
                 indices_best_extensions = extract_N_best_elements(criticalities,self.branching_constant)
                 for i in indices_best_extensions:
                     pr2 = copy.deepcopy(pr) # TO DO: DEN HER ER SUPER TREIG. jeg har fjernet simul fra Route class, men burde kanskje fjerne mere.
@@ -186,10 +185,8 @@ class PatternBasedCGH:
         filtered_stations = list(set(next_stations)-set(route.stations))  
         return filtered_stations    
     
-    def calculate_criticality(self,partial_route, potential_station_id):
-        driving_time = self.simul.state.get_vehicle_travel_time(partial_route.stations[partial_route.num_visits-1],
-                                                                potential_station_id)
-        
+    def calculate_criticality(self,start_station_id, potential_station_id):  
+        driving_time = self.simul.state.get_vehicle_travel_time(start_station_id,potential_station_id)        
         return round((-self.omega1*self.time_to_violation[potential_station_id] + 
          self.omega2*self.net_demand[potential_station_id] -
          self.omega3*driving_time + 

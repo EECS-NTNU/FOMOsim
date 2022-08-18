@@ -5,6 +5,17 @@ Created on Tue Jul 19 14:34:40 2022
 @author: steffejb
 """
 
+
+def calculate_time_to_violation(net_demand,station):  #MOVE SOMEWHERE ELSE, seems to work when tested
+    
+    time_to_violation = 0
+    if net_demand > 0:
+        time_to_violation = (station.capacity - station.number_of_bikes() ) / net_demand
+    elif net_demand < 0:
+        time_to_violation = - station.number_of_bikes() / net_demand
+    return time_to_violation
+
+
 def calculate_net_demand(station,time_now, day,hour, planning_horizon):  #MOVE SOMEWHERE ELSE, seems to work when tested
     if planning_horizon > 60:
         print('not yet supported')
