@@ -6,7 +6,7 @@ import sim
 
 savedStatesDirectory = "saved_states/"
 
-def get_initial_state(source, target_state, number_of_stations=None, load_from_cache=True, **kwargs):
+def get_initial_state(source, target_state=None, number_of_stations=None, load_from_cache=True, **kwargs):
     # create filename
     all_args = {"source" : source, "target_state" : target_state, "number_of_stations" : number_of_stations}
     all_args.update(kwargs)
@@ -30,8 +30,9 @@ def get_initial_state(source, target_state, number_of_stations=None, load_from_c
         create_subset(state, number_of_stations)
 
     # calculate target state
-    tstate = target_state(state)
-    state.set_target_state(tstate)
+    if target_state is not None:
+        tstate = target_state(state)
+        state.set_target_state(tstate)
 
     # save to cache
     if not os.path.isdir(savedStatesDirectory):
