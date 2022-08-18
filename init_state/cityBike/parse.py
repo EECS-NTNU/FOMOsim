@@ -216,7 +216,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             noOfTrips = 0
             for trip in range(len(durations[start][end])):
                 tripDuration = durations[start][end][trip]
-                print(tripDuration)
+                # print(tripDuration)
                 noOfTrips += 1
                 sumDuration += tripDuration     
             if noOfTrips > 0:
