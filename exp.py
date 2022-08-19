@@ -57,7 +57,7 @@ def lostTripsPlot(cities, policies, starv, cong):
         subPlots[city].bar(policies, cong[city], w, bottom=starv[city], label='Congestion')
         subPlots[city].set_xlabel(cities[city])
         if city == 0:
-            subPlots[city].set_ylabel("Violations")
+            subPlots[city].set_ylabel("Violations (% of total number of trips ")
             subPlots[city].legend()
 
 ###############################################################################

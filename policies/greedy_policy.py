@@ -9,6 +9,7 @@ from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_
 
 import sim
 # import abc
+import random
 
 # import init_state
 import init_state.entur.methods
@@ -32,13 +33,13 @@ class GreedyPolicy(Policy):
         
         
         #- Choice of criticality measure
-        self.criticality_measure = 'deviation_from_target_state'  # OR 'weighted_average'
+        self.criticality_measure = 'weighted_average'  # OR 'weighted_average'
         if self.criticality_measure == 'deviation_from_target_state':
             self.omega1 = 0     # time_to_violation
             self.omega2 = 0     # net_demand
             self.omega3 = 0     # driving_time
             self.omega4 = 1     # deviation_from_target_state   (this was deviation when not visited)
-        elif self.criticality_measure == 'weighted average':
+        elif self.criticality_measure == 'weighted_average':
             self.omega1 = 0.1   # time_to_violation
             self.omega2 = 0.5   # net_demand
             self.omega3 = 0.1   # driving_time
@@ -55,16 +56,15 @@ class GreedyPolicy(Policy):
         #########################################
         
         
-        num_bikes_vehicle = vehicle.get_bike_inventory()
-        
-        if vehicle.is_at_depot():
-            bikes_to_deliver = []
-            bikes_to_pickup = []
-            number_of_bikes_to_pick_up = 0
-            number_of_bikes_to_deliver = 0
-            number_of_bikes_to_swap = 0
-            bikes_to_swap = []
-        else:
+        num_bikes_vehicle = len(vehicle.get_bike_inventory())
+
+        bikes_to_deliver = []
+        bikes_to_pickup = []
+        number_of_bikes_to_pick_up = 0
+        number_of_bikes_to_deliver = 0
+        number_of_bikes_to_swap = 0
+        bikes_to_swap = []
+        if not vehicle.is_at_depot():
             target_state = round(vehicle.location.get_target_state(simul.day(), simul.hour()))
             num_bikes_station = len(vehicle.location.bikes)
             if num_bikes_station < target_state: #deliver bikes
@@ -87,7 +87,7 @@ class GreedyPolicy(Policy):
                 bikes_to_deliver = []
                 remaining_vehicle_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
                 number_of_bikes_to_pick_up = min(num_bikes_station-target_state,remaining_vehicle_capacity)
-                bikes_to_pickup = [bike.id for bike in vehicle.location.bikes][:number_of_bikes_to_pick_up]
+                bikes_to_pickup = [bike.id for bike in vehicle.location.bikes.values()][:number_of_bikes_to_pick_up]
             
                 # UPDATE/ TODO Do not swap any bikes/batteries in a station with a lot of bikes
                 bikes_to_swap = []
@@ -112,30 +112,45 @@ class GreedyPolicy(Policy):
         else:
             tabu_list = [vehicle.location.id for vehicle in simul.state.vehicles]
             potential_stations = [station for station in simul.state.stations.values() if station.id not in tabu_list]
+            net_demands = {station.id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
+                           for station in potential_stations}
+            target_states = {station.id:station.get_target_state(simul.day(), simul.hour()) 
+                             for station in potential_stations}
+            
+            potential_pickup_stations = [station for station in potential_stations if 
+                                         station.number_of_bikes() + net_demands[station.id] > target_states[station.id]]
+            potential_delivery_stations = [station for station in potential_stations if 
+                                         station.number_of_bikes() + net_demands[station.id] < target_states[station.id]]
             
             bikes_at_vehicle_after_rebalancing = num_bikes_vehicle + number_of_bikes_to_pick_up - number_of_bikes_to_deliver
             cutoff = self.cutoff
-            if cutoff*vehicle.bike_inventory_capacity <= bikes_at_vehicle_after_rebalancing  <= (1-cutoff)**vehicle.bike_inventory_capacity:
-                pass #can visit all stations
+            if cutoff*vehicle.bike_inventory_capacity <= bikes_at_vehicle_after_rebalancing  <= (1-cutoff)*vehicle.bike_inventory_capacity:
+                potential_stations = potential_pickup_stations + potential_delivery_stations
             else:
-                net_demands = {} #net demand for locks
-                for station in potential_stations:
-                    net_demands[station.id] = calculate_net_demand(station,simul.time,simul.day(),
-                                            simul.hour(),planning_horizon=30)
-                    if bikes_at_vehicle_after_rebalancing <= cutoff*vehicle.bike_inventory_capacity:  #few bikes, so want to pickup
-                        potential_stations = [station for station in potential_stations if net_demands[station.id] > 0]
-                    elif bikes_at_vehicle_after_rebalancing >= (1-cutoff)*vehicle.bike_inventory_capacity: #want do deliver
-                        potential_stations = [station for station in potential_stations if net_demands[station.id] < 0] 
+                # During some hours (approx. 23:00-06:00), there is VERY little demand for bikes (system closed???)
+                # , while there still is demand for locks (it shoud always be possible to return a bike). 
+                # But during these hours, usually the net demand is zero.
+                #THEREFORE, during the night, we allow all stations
+                
+                #In general, we need a better definition of what defines as a pickup or delivery station
+                if bikes_at_vehicle_after_rebalancing <= cutoff*vehicle.bike_inventory_capacity:  #few bikes, so want to pickup
+                    potential_stations = potential_pickup_stations
+                elif bikes_at_vehicle_after_rebalancing >= (1-cutoff)*vehicle.bike_inventory_capacity: #want do deliver
+                    potential_stations = potential_delivery_stations
 
             #calculate criticalities for potential stations
-            criticalities = {}
-            for station in potential_stations:
-                criticalities[station.id] = self.calculate_criticality(simul,vehicle.location.id,
-                                                                       station.id,planning_horizon=30)
+            criticalities = {station.id:self.calculate_criticality(simul,vehicle.location.id,station.id,net_demands[station.id],planning_horizon=60) 
+                             for station in potential_stations}                                                    
             #sort to get the most promising ones
             criticalities = dict(sorted(criticalities.items(), key=lambda item: item[1], reverse=True)) #descending order
+            
             #pick the best
-            next_location_id = list(criticalities.items())[0]
+            if len(criticalities)==0:
+                print('no stations with non-zero criticality, route to random station')
+                potential_stations2 = [station for station in simul.state.stations.values() if station.id not in tabu_list]
+                next_location_id = random.choice(potential_stations2).id
+            else: 
+                next_location_id = list(criticalities.keys())[0]
 
         return sim.Action(
             bikes_to_swap,
@@ -146,19 +161,16 @@ class GreedyPolicy(Policy):
     
     
    
-    def calculate_criticality(self,simul,start_station_id, potential_station_id,planning_horizon=30):  
+    def calculate_criticality(self,simul,start_station_id, potential_station_id,net_demand_ps,planning_horizon=60):  
         
         potential_station = simul.state.stations[potential_station_id]  
         
         driving_time = simul.state.get_vehicle_travel_time(start_station_id,potential_station_id)
         #net demand for LOCKS (so positive values is parking of bikes)
-        net_demand = round(calculate_net_demand(potential_station,simul.time,simul.day(),
-                                simul.hour(),planning_horizon),3)
+        net_demand = net_demand_ps
         #ALTERNATIVELY: use station.get_arrive_intensity(day,hour) and station.get_leave_intensity(day,hour)
-       
-        time_to_violation = round(calculate_time_to_violation(net_demand,potential_station),3)
-        
-        target_state = round(potential_station.get_target_state(simul.day(), simul.hour()))
+        time_to_violation = calculate_time_to_violation(net_demand,potential_station)
+        target_state = potential_station.get_target_state(simul.day(), simul.hour())
         deviation_from_target_state = abs(target_state-len(potential_station.bikes))
         
         return round((-self.omega1*time_to_violation + 
