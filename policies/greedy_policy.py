@@ -16,7 +16,7 @@ import init_state.entur.methods
 import init_state.entur.scripts
 
 class GreedyPolicy(Policy):
-    def __init__(self):
+    def __init__(self,criticality_measure='weighted_average'):
         super().__init__()
 
         #Two options for :
@@ -33,7 +33,7 @@ class GreedyPolicy(Policy):
         
         
         #- Choice of criticality measure
-        self.criticality_measure = 'weighted_average'  # OR 'weighted_average'
+        self.criticality_measure = criticality_measure #  'deviation_from_target_state'  OR 'weighted_average'
         if self.criticality_measure == 'deviation_from_target_state':
             self.omega1 = 0     # time_to_violation
             self.omega2 = 0     # net_demand
@@ -147,6 +147,7 @@ class GreedyPolicy(Policy):
             #pick the best
             if len(criticalities)==0:
                 print('no stations with non-zero criticality, route to random station')
+                print('problem seems to be that target state is empty... ??')
                 potential_stations2 = [station for station in simul.state.stations.values() if station.id not in tabu_list]
                 next_location_id = random.choice(potential_stations2).id
             else: 
