@@ -22,28 +22,48 @@ import matplotlib.pyplot as plt
 
 from helpers import *
 
+
+####################################
+
+#play around
+
+ # import target_state
+ # initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
+ #                                              random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
+ #                                              target_state=target_state.equal_prob_target_state)
+ # #outflow_target_state, evenly_distributed_target_state, equal_prob_target_state
+ # initial_state.stations[12].target_state #matrix of zero's!
+
+
+
 ###############################################################################
 
 DURATION = timeInMinutes(hours=24)
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
-    # Name,         URL,                                                          numvehicles, numbikes, numstations, week, day, hour
-    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",              1,     None,        None,   33,   0,    6 ),
-#    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",            1,     None,        None,   33,   0,    6 ),
-#    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",         1,     None,        None,   33,   0,    6 ),
-#   ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",          1,     None,        None,   33,   0,    6 ),
-#   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",       1,     None,        None,   33,   0,    6 ),
+    # Name,         URL,                                                          numbikes, numstations, week, day, hour
+    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
+#    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
+#    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
+#   ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    None,        None,   33,   0,    6 ),
+#   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
 ]
 
-target_states = [
-    target_state.evenly_distributed_target_state,
-    # target_state.outflow_target_state,
-    # target_state.equal_prob_target_state,
+# Enter analysis definition here
+analyses = [
+    # Name,         target_state,                                 policy                                                numvehicles
+    ("do_nothing",  target_state.outflow_target_state,       policies.DoNothing(),                                 1),
+    ("grd_old",     target_state.outflow_target_state,       policies.GreedyPolicyOld(),                           1),
+    ("grd_trgt",    target_state.outflow_target_state,       policies.GreedyPolicy(
+                                                                    criticality_measure='deviation_from_target_state'), 1),
+    ("grd_crt",     target_state.outflow_target_state,       policies.GreedyPolicy(
+                                                                    criticality_measure='weighted_average'),            1),
 ]        
+#outflow_target_state, evenly_distributed_target_state, equal_prob_target_state
 
-#seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-seeds = [0]
+seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+#seeds = [0]
 
 ###############################################################################
 
@@ -58,7 +78,7 @@ def lostTripsPlot(cities, policies, starv, cong):
         subPlots[city].bar(policies, cong[city], w, bottom=starv[city], label='Congestion')
         subPlots[city].set_xlabel(cities[city])
         if city == 0:
-            subPlots[city].set_ylabel("Violations (% of total number of trips ")
+            subPlots[city].set_ylabel("Violations (% of total number of trips)")
             subPlots[city].legend()
 
 ###############################################################################
@@ -74,16 +94,12 @@ if __name__ == "__main__":
         starvations.append([])
         congestions.append([])
 
-        for tstate in [None] + target_states:   # [None] + .. target_states 
-            if tstate is None:
-                tstate = target_states[0]
-                policy = policies.DoNothing()
-            else:
-                policy = policies.GreedyPolicy()
+        for analysis in analyses:
+            print("    analysis: ", analysis[0])
 
-            print(tstate, policy)
-
-            initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[5], random_seed=0, number_of_stations=instance[4], number_of_bikes=instance[3], target_state=tstate)
+            initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
+                                                         random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
+                                                         target_state=analysis[1])
 
             simulations = []
 
@@ -92,12 +108,12 @@ if __name__ == "__main__":
 
                 state_copy = copy.deepcopy(initial_state)
                 state_copy.set_seed(seed)
-                state_copy.set_num_vehicles(instance[2])
+                state_copy.set_num_vehicles(analysis[3])
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
-                    policy = policy,
-                    start_time = timeInMinutes(days=instance[6], hours=instance[7]),
+                    policy = analysis[2],
+                    start_time = timeInMinutes(days=instance[5], hours=instance[6]),
                     duration = DURATION,
                     verbose = True,
                 )
@@ -113,7 +129,8 @@ if __name__ == "__main__":
     ###############################################################################
 
     city_names = [ instance[0] for instance in instances ]
-    target_state_names = ["DoNothing"] + [ tstate.__name__.replace("_target_state", "") for tstate in target_states ]
+    analysis_names = [ analysis[0] for analysis in analyses ]
 
-    lostTripsPlot(city_names, target_state_names, starvations, congestions)
+    lostTripsPlot(city_names, analysis_names, starvations, congestions)
+    plt.savefig('violations_plot.png')
     plt.show()
