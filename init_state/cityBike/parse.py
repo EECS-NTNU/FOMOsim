@@ -7,6 +7,8 @@ import requests
 import geopy.distance
 import datetime
 from datetime import date
+import statistics
+from statistics import fmean, variance
 from progress.bar import Bar
 
 import settings
@@ -207,24 +209,24 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     # Calculate average durations, durations in seconds
     progress = Bar("CityBike 3/5: Calculate durations  ", max = noOfStations)
     avgDuration = []
-
+    durationVariance = []
     for start in range(noOfStations):
         avgDuration.append([])
+        durationVariance.append([])
         for end in range(noOfStations):
             avgDuration[start].append([])
-            sumDuration = 0
-            noOfTrips = 0
-            for trip in range(len(durations[start][end])):
-                tripDuration = durations[start][end][trip]
-                # print(tripDuration)
-                noOfTrips += 1
-                sumDuration += tripDuration     
-            if noOfTrips > 0:
-                avgDuration[start][end] = sumDuration/noOfTrips
+            durationVariance[start].append([])
+            if len(durations[start][end]) > 0:
+                mean = fmean(durations[start][end])
             else:
                 distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
-                        (stationLocations[end].latitude, stationLocations[end].longitude)).km
-                avgDuration[start][end] = (distance/settings.BIKE_SPEED)*3600
+                   (stationLocations[end].latitude, stationLocations[end].longitude)).km
+                mean = (distance/settings.BIKE_SPEED)*3600
+            avgDuration[start][end] = mean 
+            if len(durations[start][end]) > 1:
+                durationVariance[start][end] = variance(durations[start][end], mean)            
+            else:
+                durationVariance[start][end] = 0
         progress.next()
     progress.finish()
 
