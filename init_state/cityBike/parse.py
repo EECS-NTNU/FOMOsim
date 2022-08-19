@@ -204,10 +204,10 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     if noOfYears == 0:
         raise Exception("*** Sorry, no trip data found for given city and week")
 
-
     # Calculate average durations, durations in seconds
     progress = Bar("CityBike 3/5: Calculate durations  ", max = noOfStations)
     avgDuration = []
+
     for start in range(noOfStations):
         avgDuration.append([])
         for end in range(noOfStations):
@@ -216,6 +216,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             noOfTrips = 0
             for trip in range(len(durations[start][end])):
                 tripDuration = durations[start][end][trip]
+                # print(tripDuration)
                 noOfTrips += 1
                 sumDuration += tripDuration     
             if noOfTrips > 0:
