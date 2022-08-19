@@ -109,7 +109,7 @@ def main():
         # results
         print(f"Simulation time = {simulation_time} minutes")
         print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
-        print(f"Starvations = {simulator.metrics.get_aggregate_value('lost_demand')}")
+        print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
         print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
     
         output.write_csv(simulator, "output.csv", hourly = True)
@@ -171,7 +171,7 @@ def main():
                 # results
                 print(f"Simulation time = {simulation_time} minutes")
                 print(f"Total requested trips = {simulators[-1].metrics.get_aggregate_value('trips')}")
-                print(f"Starvations = {simulators[-1].metrics.get_aggregate_value('lost_demand')}")
+                print(f"Starvations = {simulators[-1].metrics.get_aggregate_value('starvation')}")
                 print(f"Congestions = {simulators[-1].metrics.get_aggregate_value('congestion')}")
                 print()
     

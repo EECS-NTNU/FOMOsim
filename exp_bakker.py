@@ -107,7 +107,7 @@ if __name__ == "__main__":
                 simulations.append(simul)
 
             metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
-            starvations[-1].append(100 * metric.get_aggregate_value("lost_demand") / metric.get_aggregate_value("trips"))
+            starvations[-1].append(100 * metric.get_aggregate_value("starvation") / metric.get_aggregate_value("trips"))
             congestions[-1].append(100 * metric.get_aggregate_value("congestion") / metric.get_aggregate_value("trips"))
 
     ###############################################################################

@@ -19,7 +19,7 @@ from helpers import timeInMinutes
 
 START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(minutes=10, hours=0)
-WEEK = 12
+WEEK = 34
 
 
 def main():
@@ -49,12 +49,12 @@ def main():
     ###############################################################################
     # Set up policy
 
-    #policy = policies.DoNothing()
+    policy = policies.DoNothing()
     # policy = policies.RandomActionPolicy()
     # policy = policies.GreedyPolicy()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
-    policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
+    # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
     
 
     ###############################################################################
@@ -78,7 +78,7 @@ def main():
 
     print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
-    print(f"Starvations = {simulator.metrics.get_aggregate_value('lost_demand')}")
+    print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
 
     output.write_csv(simulator, "output.csv", WEEK, hourly = False)

@@ -67,7 +67,7 @@ class BikeDeparture(Event):
             world.state.bike_in_use(bike)
 
         else:
-            world.metrics.add_aggregate_metric(world, "lost_demand", 1)
+            world.metrics.add_aggregate_metric(world, "starvation", 1)
 
         world.metrics.add_aggregate_metric(world, "trips", 1)
 

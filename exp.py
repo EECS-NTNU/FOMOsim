@@ -72,7 +72,7 @@ if __name__ == "__main__":
     congestions = []
 
     for instance in instances:
-        print("  city: ", instance[0])
+        print("  instance: ", instance[0])
 
         starvations.append([])
         congestions.append([])
@@ -106,13 +106,13 @@ if __name__ == "__main__":
                 simulations.append(simul)
 
             metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
-            starvations[-1].append(100 * metric.get_aggregate_value("lost_demand") / metric.get_aggregate_value("trips"))
+            starvations[-1].append(100 * metric.get_aggregate_value("starvation") / metric.get_aggregate_value("trips"))
             congestions[-1].append(100 * metric.get_aggregate_value("congestion") / metric.get_aggregate_value("trips"))
 
     ###############################################################################
 
-    city_names = [ instance[0] for instance in instances ]
+    instance_names = [ instance[0] for instance in instances ]
     analysis_names = [ analysis[0] for analysis in analyses ]
 
-    lostTripsPlot(city_names, analysis_names, starvations, congestions)
+    lostTripsPlot(instance_names, analysis_names, starvations, congestions)
     plt.show()
