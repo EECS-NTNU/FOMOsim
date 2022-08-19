@@ -24,6 +24,7 @@ from helpers import *
 
 ###############################################################################
 
+# Duration of each simulation run
 DURATION = timeInMinutes(hours=24)
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
@@ -38,7 +39,7 @@ instances = [
 
 # Enter analysis definition here
 analyses = [
-    # Name,        target_state,                                 policy                   numvehicles
+    # Name,        target_state,                                 policy,                  numvehicles
     ("do_nothing", target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
     ("evenly",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
     ("outflow",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),

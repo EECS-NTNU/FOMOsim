@@ -3,6 +3,7 @@ import hashlib
 import os
 
 import sim
+import settings
 
 savedStatesDirectory = "saved_states/"
 
@@ -30,8 +31,7 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
         create_subset(state, number_of_stations)
 
     if number_of_bikes is not None:
-        print("Set number of bikes: Not implemented yet")
-        exit()
+        adjust_num_bikes(state, number_of_bikes)
 
     # calculate target state
     if target_state is not None:
@@ -45,6 +45,25 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
     state.save(stateFilename)
 
     return state
+
+def adjust_num_bikes(state, n):
+    stations = sorted(state.locations, key = lambda station: len(station.get_bikes()), reverse=True)
+    statCounter = 0
+
+    while(len(state.get_all_bikes()) > n):
+        # first, remove from bikes in use
+        if not settings.FULL_TRIP and len(state.bikes_in_use) > 0:
+            bike_id = list(state.bikes_in_use.values())[0].id
+            state.remove_used_bike(bike_id)
+        else:
+            # then, remove from stations
+            if len(stations[statCounter].get_bikes()) > 0:
+                bike_id = list(stations[statCounter].get_bikes())[0].id
+                del stations[statCounter].bikes[bike_id]
+
+            statCounter += 1
+            if statCounter >= len(stations):
+                statCounter = 0
 
 def station_sort(station):
     # make sure depots get high score
