@@ -7,6 +7,8 @@ import requests
 import geopy.distance
 import datetime
 from datetime import date
+import statistics
+from statistics import fmean, stdev
 from progress.bar import Bar
 
 import settings
@@ -78,13 +80,13 @@ def download(url):
     return newDataFound            
 
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, number_of_vehicles=1, random_seed=1):
-    """ Calls calcDistances to get an updated status of active stations in the given city. Processes all stored trips
-        downloaded for the city, calculates average trip duration for every pair of stations, including
-        back-to-start trips. For pair of stations without any registered trips an average duration is estimated via
+    """ Processes all stored trips downloaded for the city, calculates average trip duration for every pair of stations, including
+        back-to-start trips. For pairs of stations without any registered trips an average duration is estimated via
         the trip distance and a global average BIKE_SPEED value from settings.py. This gives the travel_time matrix.
         Travel time for the vehicle is based on distance. All tripdata is read and used to calculate arrive and leave intensities 
         for every station and move probabilities for every pair of stations. These structures are indexed by station, week and hour.
-        Station capacities and number of bikes in use is based on real_time data read at execution time. NOTE this will remove reproducibility of simulations
+        Station capacities and number of bikes in use is based on real_time data read at execution time, NOTE this will remove 
+        reproducibility of simulations (but it can be re-gained by caching)
     """
     class StationLocation: 
         def __init__(self, stationId, longitude, latitude):
@@ -195,7 +197,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                         if weekNo == week:
                             leaveCount[startStationNo][weekDay][hour] += 1
                             moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
-                            durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
+                            durations[startStationNo][endStationNo].append(bikeData[i]["duration"]/60) # duration in minutes
                         trips = trips + 1
         progress.next()
     progress.finish()
@@ -207,24 +209,24 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     # Calculate average durations, durations in seconds
     progress = Bar("CityBike 3/5: Calculate durations  ", max = noOfStations)
     avgDuration = []
-
+    durationStdDev = []
     for start in range(noOfStations):
         avgDuration.append([])
+        durationStdDev.append([])
         for end in range(noOfStations):
             avgDuration[start].append([])
-            sumDuration = 0
-            noOfTrips = 0
-            for trip in range(len(durations[start][end])):
-                tripDuration = durations[start][end][trip]
-                # print(tripDuration)
-                noOfTrips += 1
-                sumDuration += tripDuration     
-            if noOfTrips > 0:
-                avgDuration[start][end] = sumDuration/noOfTrips
+            durationStdDev[start].append([])
+            if len(durations[start][end]) > 0:
+                mean = fmean(durations[start][end])
             else:
                 distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
-                        (stationLocations[end].latitude, stationLocations[end].longitude)).km
-                avgDuration[start][end] = (distance/settings.BIKE_SPEED)*3600
+                   (stationLocations[end].latitude, stationLocations[end].longitude)).km
+                mean = (distance/settings.BIKE_SPEED)*60
+            avgDuration[start][end] = mean 
+            if len(durations[start][end]) > 1:
+                durationStdDev[start][end] = stdev(durations[start][end], mean)            
+            else:
+                durationStdDev[start][end] = 0
         progress.next()
     progress.finish()
 
@@ -236,19 +238,22 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             averageDuration = avgDuration[start][end]
             if averageDuration == 0:
                 if start == end:
-                    averageDuration = 7.7777 # TODO, improve, calculate all such positive averageDuarations, and use here
+                    averageDuration = 7.7777 # TODO, consider to eventually calculate all such positive averageDuarations, and use here
                 else:
                     print("*** Error, averageDuration == 0 should not happen") # should be set to default bike-speed above
-            ttMatrix[start].append(averageDuration/60)
+            ttMatrix[start].append(averageDuration)
     
     progress = Bar("CityBike 4/5: Calculate traveltime ", max = noOfStations)
     ttVehicleMatrix = []
+    ttVehicleMatrixStdDev = []
     for start in range(noOfStations):
         ttVehicleMatrix.append([])
+        ttVehicleMatrixStdDev.append([])
         for end in range(noOfStations):
             distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
                (stationLocations[end].latitude, stationLocations[end].longitude)).km
             ttVehicleMatrix[start].append((distance/settings.VEHICLE_SPEED)*60)
+            ttVehicleMatrixStdDev[start].append(0) # code prepared to use some variation here
         progress.next()
     progress.finish()
     
