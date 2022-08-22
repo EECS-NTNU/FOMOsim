@@ -302,6 +302,10 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                                         number_of_vehicles=number_of_vehicles,
                                         random_seed=random_seed,
                                         traveltime_matrix=ttMatrix,
-                                        traveltime_vehicle_matrix=ttVehicleMatrix) 
+                                        traveltime_matrix_stddev=durationStdDev,
+                                        traveltime_vehicle_matrix=ttVehicleMatrix,
+                                        # traveltime_vehicle_matrix_stddev =ttVehicleMatrixStdDev
+                                        traveltime_vehicle_matrix_stddev = None
+                                        ) 
     
     return state

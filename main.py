@@ -31,14 +31,6 @@ def main():
     tstate = target_state.equal_prob_target_state
 
 
-
-# Lasse-testing-variance:
-    initial_state = init_state.get_initial_state(source=init_state.cityBike, 
-    url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=33, 
-    random_seed=0, number_of_stations=3, number_of_bikes=None, target_state=tstate)
-
-# ------------
-
     state = init_state.get_initial_state(source=init_state.cityBike,
                                          url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
                                          week=WEEK, random_seed=0,
