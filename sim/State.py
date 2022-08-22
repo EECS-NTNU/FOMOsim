@@ -15,7 +15,9 @@ class State(LoadSave):
         vehicles = [],
         bikes_in_use = {}, # bikes not parked at any station
         traveltime_matrix=None,
+        traveltime_matrix_stddev=None,
         traveltime_vehicle_matrix=None,
+        traveltime_vehicle_matrix_stddev=None,
         rng = None,
     ):
         if rng is None:
@@ -29,7 +31,9 @@ class State(LoadSave):
         self.set_locations(stations)
 
         self.traveltime_matrix = traveltime_matrix
+        self.traveltime_matrix_stddev = traveltime_matrix_stddev
         self.traveltime_vehicle_matrix = traveltime_vehicle_matrix
+        self.traveltime_vehicle_matrix_stddev = traveltime_vehicle_matrix_stddev
 
         if traveltime_matrix is None:
             self.traveltime_matrix = self.calculate_traveltime(BIKE_SPEED)
@@ -48,7 +52,9 @@ class State(LoadSave):
             copy.deepcopy(self.vehicles),
             copy.deepcopy(self.bikes_in_use),
             traveltime_matrix = self.traveltime_matrix,
+            traveltime_matrix_stddev = self.traveltime_matrix_stddev,
             traveltime_vehicle_matrix = self.traveltime_vehicle_matrix,
+            traveltime_vehicle_matrix_stddev = self.traveltime_vehicle_matrix_stddev,
             rng = self.rng,
         )
 
@@ -119,8 +125,13 @@ class State(LoadSave):
 
 
     @staticmethod
-    def get_initial_state(stations, number_of_vehicles, random_seed=None, traveltime_matrix=None, traveltime_vehicle_matrix=None):
-        state = State(stations, traveltime_matrix=traveltime_matrix, traveltime_vehicle_matrix=traveltime_vehicle_matrix)
+    def get_initial_state(stations, number_of_vehicles, random_seed=None,
+                          traveltime_matrix=None, traveltime_matrix_stddev=None,
+                          traveltime_vehicle_matrix=None, traveltime_vehicle_matrix_stddev=None):
+
+        state = State(stations,
+                      traveltime_matrix=traveltime_matrix, traveltime_matrix_stddev=traveltime_matrix_stddev,
+                      traveltime_vehicle_matrix=traveltime_vehicle_matrix, traveltime_vehicle_matrix_stddev=traveltime_vehicle_matrix_stddev)
 
         state.set_num_vehicles(number_of_vehicles)
         state.set_seed(random_seed)
@@ -205,10 +216,18 @@ class State(LoadSave):
         return num
 
     def get_travel_time(self, start_location_id: int, end_location_id: int):
-        return self.traveltime_matrix[start_location_id][end_location_id]
+        if self.traveltime_matrix_stddev is not None:
+            return self.rng.normal(self.traveltime_matrix[start_location_id][end_location_id],
+                                   self.traveltime_matrix_stddev[start_location_id][end_location_id])
+        else:
+            return self.traveltime_matrix[start_location_id][end_location_id]
 
     def get_vehicle_travel_time(self, start_location_id: int, end_location_id: int):
-        return self.traveltime_vehicle_matrix[start_location_id][end_location_id]
+        if self.traveltime_vehicle_matrix_stddev is not None:
+            return self.rng.normal(self.traveltime_vehicle_matrix[start_location_id][end_location_id],
+                                   self.traveltime_vehicle_matrix_stddev[start_location_id][end_location_id])
+        else:
+            return self.traveltime_vehicle_matrix[start_location_id][end_location_id]
 
     def do_action(self, action: sim.Action, vehicle: sim.Vehicle, time: int):
         """

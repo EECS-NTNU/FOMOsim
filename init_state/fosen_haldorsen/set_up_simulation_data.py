@@ -140,7 +140,11 @@ def setup_stations_students(clientName, init_hour, number_of_vehicles, random_se
     stations = sim.State.create_stations(num_stations=len(capacities), capacities=capacities, charging_stations=charging_stations, original_ids=original_ids, depots=[4])
     sim.State.create_bikes_in_stations(stations, "EBike", number_of_bikes)
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
-    return sim.State.get_initial_state(stations, number_of_vehicles, random_seed, traveltime_matrix, traveltime_vehicle_matrix)
+    return sim.State.get_initial_state(stations=stations,
+                                       number_of_vehicles=number_of_vehicles,
+                                       random_seed=random_seed,
+                                       traveltime_matrix=traveltime_matrix,
+                                       traveltime_vehicle_matrix=traveltime_vehicle_matrix)
 
 
 def get_input_data_from_movement_df(movement_df, datestring, snapshot_keys):

@@ -293,6 +293,10 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
     # Create State object and return
 
-    state = sim.State.get_initial_state(stations, number_of_vehicles, random_seed, ttMatrix, ttVehicleMatrix) 
+    state = sim.State.get_initial_state(stations=stations,
+                                        number_of_vehicles=number_of_vehicles,
+                                        random_seed=random_seed,
+                                        traveltime_matrix=ttMatrix,
+                                        traveltime_vehicle_matrix=ttVehicleMatrix) 
     
     return state
