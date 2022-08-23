@@ -262,6 +262,10 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     noOfYears = len(years)
     arrive_intensities = []  
     leave_intensities = []
+    numRealLeaveIntensityValues = 0
+    numPragmaticLeaveIntensityValues = 0    
+    numRealArriveIntensityValues = 0
+    numPragmaticArriveIntensityValues = 0
     move_probabilities= []
     for station in range(noOfStations):
         arrive_intensities.append([])
@@ -271,10 +275,25 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             arrive_intensities[station].append([])
             leave_intensities[station].append([])
             move_probabilities[station].append([])
+
             for hour in range(24):
                 arrive_intensities[station][day].append(arriveCount[station][day][hour]/noOfYears)
+                if arriveCount[station][day][hour] > 0:
+                    numRealArriveIntensityValues += 1 
+                else:
+                    arrive_intensities[station][day][hour] = 0.001 # TODO an ad hoc value, could use X/noOfStations or ??
+                    numPragmaticArriveIntensityValues += 1 
+
                 leave_intensities[station][day].append(leaveCount[station][day][hour]/noOfYears)
+                if leaveCount[station][day][hour] > 0:
+                    numRealLeaveIntensityValues += 1 
+                    #print("leave_intensitity was set for:", station, day, hour, " to:",  leave_intensities[station][day][hour])
+                else:
+                    # print("leave_intensitity for:", station, day, hour, " was set to zero" )
+                    leave_intensities[station][day][hour] = 0.001 # TODO an ad hoc value, could use X/noOfStations or ??
+                    numPragmaticLeaveIntensityValues += 1 
                 move_probabilities[station][day].append([])
+
                 for endStation in range(noOfStations):
                     movedBikes = moveCount[station][day][hour][endStation]
                     movedBikesTotal = leaveCount[station][day][hour]
@@ -285,6 +304,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                         move_probabilities[station][day][hour].append(equalProb)
         progress.next()
     progress.finish()
+    print("Arrive IntensityValues:", numRealArriveIntensityValues, " real", numPragmaticArriveIntensityValues, " pragmatic") 
+    print("Leave IntensityValues:", numRealLeaveIntensityValues, " real", numPragmaticLeaveIntensityValues, " pragmatic") 
 
     totalBikes = 0
     for i in range(len(bikeStartStatus)):
