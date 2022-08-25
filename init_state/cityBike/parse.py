@@ -1,4 +1,5 @@
 # parse.py
+from xml.dom.expatbuilder import parseString
 import sim
 import json
 import os
@@ -79,6 +80,66 @@ def download(url):
 
     return newDataFound            
 
+##################################################
+# TODO move inside printStateParams after debugging ?
+# TODO TRY REMOVE
+def write1D(file, list):
+    for i in range(len(list)):
+        file.write(str(list[i]))
+        file.write(" ")
+
+def write2D(file, list):
+        for i in range(len(list)):
+            write1D(file, (list[i]))
+            file.write(" ")
+###################################################
+
+def printStateParams(stations, numvehicles, leave_intensities, arrive_intensities, move_probabilities, seed, tt_matrix, tt_matrix_stddev, tt_vehicle_matrix, tt_vehicle_matrix_stddev):
+    def write1D(file, list):
+        if not list == None:
+            for i in range(len(list)):
+                file.write(str(list[i]))
+                file.write(" ")
+
+    def write2D(file, list):
+            if not list == None:
+                for i in range(len(list)):
+                    write1D(file, (list[i]))
+                    file.write(" ")
+
+    def write3D(file, list):
+            if not list == None:
+                for i in range(len(list)):
+                    write2D(file, (list[i]))
+                    file.write(" ")
+
+    def write4D(file, list):
+        if not list == None:
+            for i in range(len(list)):
+                write3D(file, (list[i]))
+                file.write(" ")
+
+    with open("stateParams.txt", "w", newline="") as f:
+        for s in stations:
+            f.write(s.__str__())
+            f.write("\n")
+        f.write("Num-vehicles: ")
+        f.write(str(numvehicles))
+        f.write("\nleave_intensities:\n")
+        write3D(f, leave_intensities)
+        f.write("\narrive_intensities:\n")
+        write3D(f, arrive_intensities)
+        f.write("\nmove_probabilities:\n")
+        write4D(f, move_probabilities)
+
+        f.write("Seed: ")
+        f.write(str(seed))
+        f.write("\n")
+        write2D(f, tt_matrix)
+        write2D(f, tt_matrix_stddev)
+        write2D(f, tt_vehicle_matrix)
+        write2D(f, tt_vehicle_matrix_stddev)
+
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, number_of_vehicles=1, random_seed=1):
     """ Processes all stored trips downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pairs of stations without any registered trips an average duration is estimated via
@@ -124,33 +185,72 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     allData = json.loads(stationStatusFile.read())
     stationStatusData = allData["data"]
 
-    stationNo = 0
-    stationMap = {} # maps from station Id to stationNo that is index in most datastructures   
-    stationLocations = [] # indexed by stationNo
-    bikeStartStatus = []
-    stationCapacities = []
+    stationLocations = {} # dict with key stationId
+    bikeStartStatus = {}
+    stationCapacities = {}
+    stationNames = {}
+    trafficAtStation = {}
 
+    # Read info about active stations
     for i in range(len(stationInfoData["stations"])): # loop thru all active stations
         id = stationInfoData["stations"][i]["station_id"]
         long = stationInfoData["stations"][i]["lon"]
         lat = stationInfoData["stations"][i]["lat"]
-        stationMap[id] = stationNo
-        stationLocations.append(StationLocation(id, long, lat))
-        bikeStartStatus.append(stationStatusData["stations"][i]["num_bikes_available"])
-        stationCapacities.append(stationInfoData["stations"][i]["capacity"])
-        stationNo += 1
+        stationLocations[id] = StationLocation(id, long, lat)  
+        stationCapacities[id] = stationInfoData["stations"][i]["capacity"]
+        stationNames[id] = stationInfoData["stations"][i]["name"]
+        if stationStatusData["stations"][i]["station_id"]  == id: # check that it is same station
+            bikeStartStatus[id] = stationStatusData["stations"][i]["num_bikes_available"]
+        else:
+            print("Error: stationInfoData and stationStatusData differs, extend code to handle it")
+       
+    ###################################################################################################
+    # # Find stations with traffic for given week
+    fileList = os.listdir(tripDataPath)
+    progress = Bar("CityBike 1b/5: Read data from files, find stations with traffic for given week", max = len(fileList))
+    trafficAtStation = {} # indexed by id, stores stations with at least one arrival or departure 
+
+    for file in fileList:
+        if file.endswith(".json"):
+            if int(file[5:7]) in weekMonths(week):
+                jsonFile = open(os.path.join(tripDataPath, file), "r")
+                bikeData = json.loads(jsonFile.read())
+                for i in range(len(bikeData)):
+                    dummy1, weekNo, dummy2 = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
+                    if weekNo == week:
+                        startId = bikeData[i]["start_station_id"]
+                        if startId in stationNames:
+                            trafficAtStation[startId] = True 
+                    dummy1, weekNo, dummy2 = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
+                    if weekNo == week:
+                        endId = bikeData[i]["end_station_id"]
+                        if endId in stationNames:
+                            trafficAtStation[endId] = True                     
+        progress.next()
+    progress.finish()
+
+    stationMap = {}
+    stationNo = 0
+    print("These stations without traffic in week ", str(week), " are neglected.")
+    for stationId in stationNames:
+        if not stationId in trafficAtStation:
+            print(stationNames[stationId])
+            pass
+        else:
+            stationMap[stationId] = stationNo
+            stationNo += 1
+    print()
 
     arriveCount = []
     leaveCount = []
     moveCount = []
     durations = []
-    noOfStations = len(stationMap)
-    for station in range(noOfStations):
+    for station in range(len(stationMap)):
         arriveCount.append([]) # arriving at this station
         leaveCount.append([]) # departing from this station
-        moveCount.append([]) # moving fro this station to an end-station
+        moveCount.append([]) # moving from this station to an end-station
         durations.append([]) # traveltime from this station to an end-station
-        for s in range(noOfStations):
+        for s in range(len(stationMap)):
             durations[station].append([])
         for day in range(7): # weekdays here are 0..6
             arriveCount[station].append([])
@@ -160,12 +260,11 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 arriveCount[station][day].append(0)
                 leaveCount[station][day].append(0)
                 stationList = []
-                for i in range(noOfStations):
+                for i in range(len(stationMap)):
                     stationList.append(0)
                 moveCount[station][day].append(stationList)
 
-    # process all stored trips for given city, count trips and store durations for the given week number
-    trips = 0 # total number from all tripdata read
+    # process all stored trips for given city, store durations for the given week number
     fileList = os.listdir(tripDataPath)
     
     progress = Bar("CityBike 2/5: Read data from files ", max = len(fileList))
@@ -198,7 +297,6 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                             leaveCount[startStationNo][weekDay][hour] += 1
                             moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
                             durations[startStationNo][endStationNo].append(bikeData[i]["duration"]/60) # duration in minutes
-                        trips = trips + 1
         progress.next()
     progress.finish()
 
@@ -207,20 +305,22 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         raise Exception("*** Sorry, no trip data found for given city and week")
 
     # Calculate average durations, durations in seconds
-    progress = Bar("CityBike 3/5: Calculate durations  ", max = noOfStations)
+    progress = Bar("CityBike 3/5: Calculate durations  ", max = len(stationMap))
     avgDuration = []
     durationStdDev = []
-    for start in range(noOfStations):
+    for s in stationMap:
+        start = stationMap[s]
         avgDuration.append([])
         durationStdDev.append([])
-        for end in range(noOfStations):
+        for e in stationMap:
+            end = stationMap[e]
             avgDuration[start].append([])
             durationStdDev[start].append([])
             if len(durations[start][end]) > 0:
                 mean = fmean(durations[start][end])
             else:
-                distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
-                   (stationLocations[end].latitude, stationLocations[end].longitude)).km
+                distance = geopy.distance.distance((stationLocations[s].latitude, stationLocations[s].longitude), 
+                   (stationLocations[e].latitude, stationLocations[e].longitude)).km
                 mean = (distance/settings.BIKE_SPEED)*60
             avgDuration[start][end] = mean 
             if len(durations[start][end]) > 1:
@@ -232,9 +332,11 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
 
     # Calculate traveltime_matrix, travel-times in minutes
     ttMatrix = []
-    for start in range(noOfStations):
+    for s in stationMap:
+        start = stationMap[s]
         ttMatrix.append([])
-        for end in range(noOfStations):
+        for e in stationMap:
+            end = stationMap[e]
             averageDuration = avgDuration[start][end]
             if averageDuration == 0:
                 if start == end:
@@ -243,31 +345,29 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                     print("*** Error, averageDuration == 0 should not happen") # should be set to default bike-speed above
             ttMatrix[start].append(averageDuration)
     
-    progress = Bar("CityBike 4/5: Calculate traveltime ", max = noOfStations)
+    progress = Bar("CityBike 4/5: Calculate traveltime ", max = len(stationMap))
     ttVehicleMatrix = []
     ttVehicleMatrixStdDev = []
-    for start in range(noOfStations):
+    for s in stationMap:
+        start = stationMap[s]
         ttVehicleMatrix.append([])
         ttVehicleMatrixStdDev.append([])
-        for end in range(noOfStations):
-            distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
-               (stationLocations[end].latitude, stationLocations[end].longitude)).km
+        for e in stationMap:
+            end = stationMap[e]
+            distance = geopy.distance.distance((stationLocations[s].latitude, stationLocations[s].longitude), 
+               (stationLocations[e].latitude, stationLocations[e].longitude)).km
             ttVehicleMatrix[start].append((distance/settings.VEHICLE_SPEED)*60)
             ttVehicleMatrixStdDev[start].append(0) # code prepared to use some variation here
         progress.next()
     progress.finish()
     
     # Calculate arrive and leave-intensities and move_probabilities
-    progress = Bar("CityBike 5/5: Calculate intensities", max = noOfStations)
+    progress = Bar("CityBike 5/5: Calculate intensities", max = len(stationMap))
     noOfYears = len(years)
     arrive_intensities = []  
     leave_intensities = []
-    numRealLeaveIntensityValues = 0
-    numPragmaticLeaveIntensityValues = 0    
-    numRealArriveIntensityValues = 0
-    numPragmaticArriveIntensityValues = 0
-    move_probabilities= []
-    for station in range(noOfStations):
+    move_probabilities= []     
+    for station in range(len(stationMap)):
         arrive_intensities.append([])
         leave_intensities.append([])
         move_probabilities.append([])
@@ -275,49 +375,46 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             arrive_intensities[station].append([])
             leave_intensities[station].append([])
             move_probabilities[station].append([])
-
             for hour in range(24):
                 arrive_intensities[station][day].append(arriveCount[station][day][hour]/noOfYears)
-                if arriveCount[station][day][hour] > 0:
-                    numRealArriveIntensityValues += 1 
-                else:
-                    arrive_intensities[station][day][hour] = 0.001 # TODO an ad hoc value, could use X/noOfStations or ??
-                    numPragmaticArriveIntensityValues += 1 
-
                 leave_intensities[station][day].append(leaveCount[station][day][hour]/noOfYears)
-                if leaveCount[station][day][hour] > 0:
-                    numRealLeaveIntensityValues += 1 
-                    #print("leave_intensitity was set for:", station, day, hour, " to:",  leave_intensities[station][day][hour])
-                else:
-                    # print("leave_intensitity for:", station, day, hour, " was set to zero" )
-                    leave_intensities[station][day][hour] = 0.001 # TODO an ad hoc value, could use X/noOfStations or ??
-                    numPragmaticLeaveIntensityValues += 1 
                 move_probabilities[station][day].append([])
-
-                for endStation in range(noOfStations):
+                for endStation in range(len(stationMap)):
                     movedBikes = moveCount[station][day][hour][endStation]
                     movedBikesTotal = leaveCount[station][day][hour]
                     if movedBikesTotal > 0:
                         move_probabilities[station][day][hour].append(movedBikes/movedBikesTotal)
                     else:
-                        equalProb = 1.0/noOfStations    
+                        equalProb = 1.0/len(stationMap)    
                         move_probabilities[station][day][hour].append(equalProb)
         progress.next()
     progress.finish()
-    print("Arrive IntensityValues:", numRealArriveIntensityValues, " real", numPragmaticArriveIntensityValues, " pragmatic") 
-    print("Leave IntensityValues:", numRealLeaveIntensityValues, " real", numPragmaticLeaveIntensityValues, " pragmatic") 
 
     totalBikes = 0
-    for i in range(len(bikeStartStatus)):
-        totalBikes += bikeStartStatus[i]
+    for s in bikeStartStatus:
+        totalBikes += int(s)
     if totalBikes == 0:
         raise Exception("*** Sorry, no bikes currently available for given city")
 
     # Create stations
-    stations = sim.State.create_stations(num_stations=len(stationCapacities), capacities=stationCapacities)
-    sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatus)
+
+# NOTE ADAPT
+# capacities must be converted from map to list, to avoid changing code in state.py
+    capacitiesList = []
+    for stationId in stationMap:
+        capacitiesList.append(stationCapacities[stationId])
+# same for bikeStartStatus
+    bikeStartStatusList = []
+    for stationId in stationMap:
+        bikeStartStatusList.append(bikeStartStatus[stationId])
+
+    stations = sim.State.create_stations(num_stations=len(capacitiesList), capacities=capacitiesList)
+    sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatusList)
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
     # Create State object and return
+
+    # for debug. stationCapacities and bikeStartStatus are printed as part of Station-object
+    printStateParams(stations,  number_of_vehicles, leave_intensities, arrive_intensities, move_probabilities, random_seed, ttMatrix, durationStdDev, ttVehicleMatrix, None)
 
     state = sim.State.get_initial_state(stations=stations,
                                         number_of_vehicles=number_of_vehicles,
