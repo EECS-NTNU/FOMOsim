@@ -160,8 +160,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         return months
 
     city = extractCityFromURL(url)
-    download(url)
-
+    # download(url)
+    print("***** TESTING --- download new data paused")
     years = [] 
 
     tripDataPath = tripDataDirectory + city
