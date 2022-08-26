@@ -42,7 +42,7 @@ def download(url):
     file_list = os.listdir(directory)
 
     # these loops are a brute-force method to avoid implementing a web-crawler
-    progress = Bar("CityBike 1/5: Download datafiles   ", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
+    progress = Bar("CityBike 1a/5: Download datafiles   ", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
     for yearNo in range(2018, datetime.date.today().year): # 2018/02 is earliest data from data.urbansharing.com
         for month in range (1, 13):
             if loadMonth(yearNo, month):
@@ -61,8 +61,7 @@ def download(url):
         address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailInfo
         stationInfo =  requests.get(address)
         if stationInfo.status_code != 200: # 200 is OK, non-existent files will have status 404
-            print("*** Error: could not read station info from: " + address)
-            return False
+            raise Exception("*** Error: could not read station info from: " + address)
         stationInfoFile = open(f"{directory}/stationinfo.text", "w")
         stationInfoFile.write(stationInfo.text)
         stationInfoFile.close()
@@ -72,47 +71,30 @@ def download(url):
         address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailStatus  
         stationStatus =  requests.get(address)
         if stationStatus.status_code != 200: # 200 is OK, non-existent files will have status 404
-            print("*** Error: could not read station status from: " + address)
-            return False
+            raise Exception("*** Error: could not read station status from: " + address)
         stationStatusFile = open(f"{directory}/stationstatus.text", "w")
         stationStatusFile.write(stationStatus.text)
         stationStatusFile.close()
 
     return newDataFound            
 
-##################################################
-# TODO move inside printStateParams after debugging ?
-# TODO TRY REMOVE
-def write1D(file, list):
-    for i in range(len(list)):
-        file.write(str(list[i]))
-        file.write(" ")
-
-def write2D(file, list):
-        for i in range(len(list)):
-            write1D(file, (list[i]))
-            file.write(" ")
-###################################################
-
-def printStateParams(stations, numvehicles, leave_intensities, arrive_intensities, move_probabilities, seed, tt_matrix, tt_matrix_stddev, tt_vehicle_matrix, tt_vehicle_matrix_stddev):
+def printStateParams(stations, numvehicles, leave_intensities, arrive_intensities, move_probabilities, 
+                    seed, tt_matrix, tt_matrix_stddev, tt_vehicle_matrix, tt_vehicle_matrix_stddev):
     def write1D(file, list):
         if not list == None:
             for i in range(len(list)):
                 file.write(str(list[i]))
                 file.write(" ")
-
     def write2D(file, list):
             if not list == None:
                 for i in range(len(list)):
                     write1D(file, (list[i]))
                     file.write(" ")
-
     def write3D(file, list):
             if not list == None:
                 for i in range(len(list)):
                     write2D(file, (list[i]))
                     file.write(" ")
-
     def write4D(file, list):
         if not list == None:
             for i in range(len(list)):
@@ -131,14 +113,21 @@ def printStateParams(stations, numvehicles, leave_intensities, arrive_intensitie
         write3D(f, arrive_intensities)
         f.write("\nmove_probabilities:\n")
         write4D(f, move_probabilities)
-
         f.write("Seed: ")
         f.write(str(seed))
         f.write("\n")
+        f.write("tt_matrix: ")
         write2D(f, tt_matrix)
+        f.write("\n")
+        f.write("tt_matrix_stddev: ")
         write2D(f, tt_matrix_stddev)
+        f.write("\n")
+        f.write("tt_vehicle_matrix: ")
         write2D(f, tt_vehicle_matrix)
+        f.write("\n")
+        f.write("tt_vehicle_matrix_stddev: ")
         write2D(f, tt_vehicle_matrix_stddev)
+        f.write("\n")
 
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, number_of_vehicles=1, random_seed=1):
     """ Processes all stored trips downloaded for the city, calculates average trip duration for every pair of stations, including
@@ -202,14 +191,13 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         if stationStatusData["stations"][i]["station_id"]  == id: # check that it is same station
             bikeStartStatus[id] = stationStatusData["stations"][i]["num_bikes_available"]
         else:
-            print("Error: stationInfoData and stationStatusData differs, extend code to handle it")
+            raise Exception("Error: stationInfoData and stationStatusData differs, extend code to handle it")
        
     ###################################################################################################
-    # # Find stations with traffic for given week
+    # # Find stations with traffic for given week, loop thru all years
     fileList = os.listdir(tripDataPath)
     progress = Bar("CityBike 1b/5: Read data from files, find stations with traffic for given week", max = len(fileList))
     trafficAtStation = {} # indexed by id, stores stations with at least one arrival or departure 
-
     for file in fileList:
         if file.endswith(".json"):
             if int(file[5:7]) in weekMonths(week):
@@ -304,7 +292,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     if noOfYears == 0:
         raise Exception("*** Sorry, no trip data found for given city and week")
 
-    # Calculate average durations, durations in seconds
+    # Calculate average durations, durations in minutes
     progress = Bar("CityBike 3/5: Calculate durations  ", max = len(stationMap))
     avgDuration = []
     durationStdDev = []
@@ -342,7 +330,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 if start == end:
                     averageDuration = 7.7777 # TODO, consider to eventually calculate all such positive averageDuarations, and use here
                 else:
-                    print("*** Error, averageDuration == 0 should not happen") # should be set to default bike-speed above
+                    raise Exception("*** Error, averageDuration == 0 should not happen") 
             ttMatrix[start].append(averageDuration)
     
     progress = Bar("CityBike 4/5: Calculate traveltime ", max = len(stationMap))
@@ -397,13 +385,11 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         raise Exception("*** Sorry, no bikes currently available for given city")
 
     # Create stations
-
-# NOTE ADAPT
-# capacities must be converted from map to list, to avoid changing code in state.py
+    # capacities must be converted from map to list, to avoid changing code in state.py
     capacitiesList = []
     for stationId in stationMap:
         capacitiesList.append(stationCapacities[stationId])
-# same for bikeStartStatus
+    # same for bikeStartStatus
     bikeStartStatusList = []
     for stationId in stationMap:
         bikeStartStatusList.append(bikeStartStatus[stationId])
@@ -414,7 +400,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     # Create State object and return
 
     # for debug. stationCapacities and bikeStartStatus are printed as part of Station-object
-    printStateParams(stations,  number_of_vehicles, leave_intensities, arrive_intensities, move_probabilities, random_seed, ttMatrix, durationStdDev, ttVehicleMatrix, None)
+    printStateParams(stations,  number_of_vehicles, leave_intensities, arrive_intensities, move_probabilities, 
+                    random_seed, ttMatrix, durationStdDev, ttVehicleMatrix, None)
 
     state = sim.State.get_initial_state(stations=stations,
                                         number_of_vehicles=number_of_vehicles,
