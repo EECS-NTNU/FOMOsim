@@ -1,5 +1,4 @@
 import geopy.distance
-from math import sqrt, pi, sin, cos, atan2
 
 class Location:
     """
@@ -11,7 +10,7 @@ class Location:
         self.lon = lon
         self.id = location_id
         self.target_state = target_state
-        self.scooters = []
+        self.bikes = []
 
     def get_lat(self):
         return self.lat
@@ -35,10 +34,10 @@ class Location:
     def get_leave_intensity(self, day, hour):
         return 0
 
-    def get_available_scooters(self):
+    def get_available_bikes(self):
         return []
 
-    def get_swappable_scooters(self, battery_limit=70):
+    def get_swappable_bikes(self, battery_limit=70):
         return []
 
     def set_location(self, lat: float, lon: float):

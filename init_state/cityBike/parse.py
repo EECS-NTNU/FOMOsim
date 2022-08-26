@@ -7,19 +7,20 @@ import requests
 import geopy.distance
 import datetime
 from datetime import date
+import statistics
+from statistics import fmean, stdev
 from progress.bar import Bar
 
 import settings
-from GUI import loggFile
-from helpers import extractCityFromURL, extractCityAndDomainFromURL, yearWeekNoAndDay, write
+from init_state.cityBike.helpers import extractCityFromURL, extractCityAndDomainFromURL
+from helpers import yearWeekNoAndDay
 
 tripDataDirectory = "init_state/cityBike/data/" # location of tripData
-savedStatesDirectory = "init_state/cityBike/savedStates/" # location of saved states
 
 def download(url):
     newDataFound = False
 
-    def loadMonth(monthNo):
+    def loadMonth(yearNo, monthNo):
         fileName = f"{yearNo}-{monthNo:02}.json"
         loaded = False
         if fileName not in file_list:     
@@ -34,31 +35,58 @@ def download(url):
         return loaded
 
     city = extractCityFromURL(url)
-    directory = f"{tripDataDirectory}/{city}"
+    directory = f"{tripDataDirectory}{city}"
     if not os.path.isdir(directory):
         os.makedirs(directory, exist_ok=True)
     file_list = os.listdir(directory)
 
     # these loops are a brute-force method to avoid implementing a web-crawler
-    for yearNo in range(2018, datetime.date.today().year + 1): # 2018/02 is earliest data from data.urbansharing.com
-        if yearNo < datetime.date.today().year:
-            for month in range (1, 13):
-                if loadMonth(month):
-                    newDataFound = True
-        else: # will not load tripdata for current month since we do not want incomplete month-files (Reason is mainly the use of file existence in loadMonth)
-            for month in range (1, datetime.date.today().month):
-                if loadMonth(month):
-                    newDataFound = True
+    progress = Bar("CityBike 1/5: Download datafiles   ", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
+    for yearNo in range(2018, datetime.date.today().year): # 2018/02 is earliest data from data.urbansharing.com
+        for month in range (1, 13):
+            if loadMonth(yearNo, month):
+                newDataFound = True
+            progress.next()
+    for month in range (1, datetime.date.today().month):
+        if loadMonth(datetime.date.today().year, month):
+            newDataFound = True
+        progress.next()
+    progress.finish()
+
+    if newDataFound:
+        # print("downloads station information")
+        gbfsStart = "https://gbfs.urbansharing.com/"
+        gbfsTailInfo = "/station_information.json"
+        address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailInfo
+        stationInfo =  requests.get(address)
+        if stationInfo.status_code != 200: # 200 is OK, non-existent files will have status 404
+            print("*** Error: could not read station info from: " + address)
+            return False
+        stationInfoFile = open(f"{directory}/stationinfo.text", "w")
+        stationInfoFile.write(stationInfo.text)
+        stationInfoFile.close()
+
+        # print("downloads station status")
+        gbfsTailStatus = "/station_status.json"
+        address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailStatus  
+        stationStatus =  requests.get(address)
+        if stationStatus.status_code != 200: # 200 is OK, non-existent files will have status 404
+            print("*** Error: could not read station status from: " + address)
+            return False
+        stationStatusFile = open(f"{directory}/stationstatus.text", "w")
+        stationStatusFile.write(stationStatus.text)
+        stationStatusFile.close()
+
     return newDataFound            
 
-def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, bike_class="Bike", number_of_vehicles=3, random_seed=1):
-    """ Calls calcDistances to get an updated status of active stations in the given city. Processes all stored trips
-        downloaded for the city, calculates average trip duration for every pair of stations, including
-        back-to-start trips. For pair of stations without any registered trips an average duration is estimated via
-        the trip distance and a global average SCOOTER_SPEED value from settings.py. This gives the travel_time matrix.
+def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, number_of_vehicles=1, random_seed=1):
+    """ Processes all stored trips downloaded for the city, calculates average trip duration for every pair of stations, including
+        back-to-start trips. For pairs of stations without any registered trips an average duration is estimated via
+        the trip distance and a global average BIKE_SPEED value from settings.py. This gives the travel_time matrix.
         Travel time for the vehicle is based on distance. All tripdata is read and used to calculate arrive and leave intensities 
         for every station and move probabilities for every pair of stations. These structures are indexed by station, week and hour.
-        Station capacities and number of scooters in use is based on real_time data read at execution time. NOTE this will remove reproducibility of simulations
+        Station capacities and number of bikes in use is based on real_time data read at execution time, NOTE this will remove 
+        reproducibility of simulations (but it can be re-gained by caching)
     """
     class StationLocation: 
         def __init__(self, stationId, longitude, latitude):
@@ -82,43 +110,22 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         return months
 
     city = extractCityFromURL(url)
-    if not download(url): # checks if NEW data are available for the city, true if new data was loaded, and in that case state should not
-                          # be restored from saved state
-        if os.path.isdir(savedStatesDirectory):
-            # directory with saved states exists
-            stateFilename = f"{savedStatesDirectory}/{city}_{week}.pickle"
-            if os.path.isfile(stateFilename):
-                progress = Bar("Get initial state from saved state", max = 2)
-                progress.next()
-                state = sim.State.load(stateFilename)
-                progress.next()
-                progress.finish()
-                return state
+    download(url)
 
-    progress = Bar("Get initial state from trip data", max = 300 + 100*len(weekMonths(week)))
     years = [] 
 
-    gbfsStart = "https://gbfs.urbansharing.com/"
-    gbfsTailInfo = "/station_information.json"
-    address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailInfo                                                                                                # read from 
-    stationInfo =  requests.get(address)
-    if stationInfo.status_code != 200: # 200 is OK, non-existent files will have status 404
-        print("*** Error: could not read station info from: " + address)
-        return
-    allData = json.loads(stationInfo.text)
+    tripDataPath = tripDataDirectory + city
+
+    stationInfoFile = open(f"{tripDataPath}/stationinfo.text", "r")
+    allData = json.loads(stationInfoFile.read())
     stationInfoData = allData["data"]
 
-    gbfsTailStatus = "/station_status.json"
-    address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailStatus  
-    stationStatus =  requests.get(address)
-    if stationStatus.status_code != 200: # 200 is OK, non-existent files will have status 404
-        print("*** Error: could not read station status from: " + address)
-        return
-    allData = json.loads(stationStatus.text)
+    stationStatusFile = open(f"{tripDataPath}/stationstatus.text", "r")
+    allData = json.loads(stationStatusFile.read())
     stationStatusData = allData["data"]
 
     stationNo = 0
-    stationMap = {} # maps from station Id to stationNo taht is index in most datastructures   
+    stationMap = {} # maps from station Id to stationNo that is index in most datastructures   
     stationLocations = [] # indexed by stationNo
     bikeStartStatus = []
     stationCapacities = []
@@ -132,7 +139,6 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         bikeStartStatus.append(stationStatusData["stations"][i]["num_bikes_available"])
         stationCapacities.append(stationInfoData["stations"][i]["capacity"])
         stationNo += 1
-    progress.next()
 
     arriveCount = []
     leaveCount = []
@@ -157,71 +163,72 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 for i in range(noOfStations):
                     stationList.append(0)
                 moveCount[station][day].append(stationList)
-        if (station % 4) == 0:  
-            progress.next()
 
     # process all stored trips for given city, count trips and store durations for the given week number
     trips = 0 # total number from all tripdata read
-    tripDataPath = tripDataDirectory + city
     fileList = os.listdir(tripDataPath)
     
+    progress = Bar("CityBike 2/5: Read data from files ", max = len(fileList))
     for file in fileList:
-        if int(file[5:7]) in weekMonths(week):
-            jsonFile = open(os.path.join(tripDataPath, file), "r")
-            bikeData = json.loads(jsonFile.read())
-            for i in range(len(bikeData)):
-                startStationNo = -1
-                endStationNo = -1
-                if bikeData[i]["start_station_id"] in stationMap:
-                    startStationNo = stationMap[bikeData[i]["start_station_id"]]
-                if bikeData[i]["end_station_id"] in stationMap:
-                    endStationNo = stationMap[bikeData[i]["end_station_id"]]
+        if file.endswith(".json"):
+            if int(file[5:7]) in weekMonths(week):
+                jsonFile = open(os.path.join(tripDataPath, file), "r")
+                bikeData = json.loads(jsonFile.read())
+                for i in range(len(bikeData)):
+                    startStationNo = -1
+                    endStationNo = -1
+                    if bikeData[i]["start_station_id"] in stationMap:
+                        startStationNo = stationMap[bikeData[i]["start_station_id"]]
+                    if bikeData[i]["end_station_id"] in stationMap:
+                        endStationNo = stationMap[bikeData[i]["end_station_id"]]
 
-                if (startStationNo >= 0) and (endStationNo >= 0):
-                    # both end and start of trip are active stations
-                    year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
-                    if year not in years:
-                        years.append(year)
-                    hour = int(bikeData[i]["ended_at"][11:13])
-                    if weekNo == week:
-                        arriveCount[endStationNo][weekDay][hour] += 1
-                    year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
-                    if year not in years:
-                        years.append(year)
-                    hour = int(bikeData[i]["started_at"][11:13])
-                    if weekNo == week:
-                        leaveCount[startStationNo][weekDay][hour] += 1
-                        moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
-                        durations[startStationNo][endStationNo].append(bikeData[i]["duration"])
-                    trips = trips + 1
-                if i % 7000 == 0:
-                    progress.next()
-    
+                    if (startStationNo >= 0) and (endStationNo >= 0):
+                        # both end and start of trip are active stations
+                        year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
+                        if year not in years:
+                            years.append(year)
+                        hour = int(bikeData[i]["ended_at"][11:13])
+                        if weekNo == week:
+                            arriveCount[endStationNo][weekDay][hour] += 1
+                        year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
+                        if year not in years:
+                            years.append(year)
+                        hour = int(bikeData[i]["started_at"][11:13])
+                        if weekNo == week:
+                            leaveCount[startStationNo][weekDay][hour] += 1
+                            moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
+                            durations[startStationNo][endStationNo].append(bikeData[i]["duration"]/60) # duration in minutes
+                        trips = trips + 1
+        progress.next()
+    progress.finish()
+
     noOfYears = len(years)
     if noOfYears == 0:
         raise Exception("*** Sorry, no trip data found for given city and week")
 
-
     # Calculate average durations, durations in seconds
+    progress = Bar("CityBike 3/5: Calculate durations  ", max = noOfStations)
     avgDuration = []
+    durationStdDev = []
     for start in range(noOfStations):
         avgDuration.append([])
+        durationStdDev.append([])
         for end in range(noOfStations):
             avgDuration[start].append([])
-            sumDuration = 0
-            noOfTrips = 0
-            for trip in range(len(durations[start][end])):
-                tripDuration = durations[start][end][trip]
-                noOfTrips += 1
-                sumDuration += tripDuration     
-            if noOfTrips > 0:
-                avgDuration[start][end] = sumDuration/noOfTrips
+            durationStdDev[start].append([])
+            if len(durations[start][end]) > 0:
+                mean = fmean(durations[start][end])
             else:
                 distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
-                        (stationLocations[end].latitude, stationLocations[end].longitude)).km
-                avgDuration[start][end] = (distance/settings.SCOOTER_SPEED)*3600
-        if start % 5 == 0:
-            progress.next()
+                   (stationLocations[end].latitude, stationLocations[end].longitude)).km
+                mean = (distance/settings.BIKE_SPEED)*60
+            avgDuration[start][end] = mean 
+            if len(durations[start][end]) > 1:
+                durationStdDev[start][end] = stdev(durations[start][end], mean)            
+            else:
+                durationStdDev[start][end] = 0
+        progress.next()
+    progress.finish()
 
     # Calculate traveltime_matrix, travel-times in minutes
     ttMatrix = []
@@ -231,23 +238,27 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             averageDuration = avgDuration[start][end]
             if averageDuration == 0:
                 if start == end:
-                    averageDuration = 7.7777 # TODO, improve, calculate all such positive averageDuarations, and use here
+                    averageDuration = 7.7777 # TODO, consider to eventually calculate all such positive averageDuarations, and use here
                 else:
-                    print("*** Error, averageDuration == 0 should not happen") # should be set to default scooter-speed above
-            ttMatrix[start].append(averageDuration/60)
-    progress.next()     
+                    print("*** Error, averageDuration == 0 should not happen") # should be set to default bike-speed above
+            ttMatrix[start].append(averageDuration)
     
+    progress = Bar("CityBike 4/5: Calculate traveltime ", max = noOfStations)
     ttVehicleMatrix = []
+    ttVehicleMatrixStdDev = []
     for start in range(noOfStations):
         ttVehicleMatrix.append([])
+        ttVehicleMatrixStdDev.append([])
         for end in range(noOfStations):
             distance = geopy.distance.distance((stationLocations[start].latitude, stationLocations[start].longitude), 
                (stationLocations[end].latitude, stationLocations[end].longitude)).km
             ttVehicleMatrix[start].append((distance/settings.VEHICLE_SPEED)*60)
-        if start % 5 == 0:
-            progress.next()    
+            ttVehicleMatrixStdDev[start].append(0) # code prepared to use some variation here
+        progress.next()
+    progress.finish()
     
     # Calculate arrive and leave-intensities and move_probabilities
+    progress = Bar("CityBike 5/5: Calculate intensities", max = noOfStations)
     noOfYears = len(years)
     arrive_intensities = []  
     leave_intensities = []
@@ -272,9 +283,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                     else:
                         equalProb = 1.0/noOfStations    
                         move_probabilities[station][day][hour].append(equalProb)
-        if station % 4 == 0:  
-            progress.next()
-
+        progress.next()
+    progress.finish()
 
     totalBikes = 0
     for i in range(len(bikeStartStatus)):
@@ -282,23 +292,20 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     if totalBikes == 0:
         raise Exception("*** Sorry, no bikes currently available for given city")
 
-    write(loggFile, ["Init-state-based-on-traffic:", "trips:", str(trips), "week:", str(week), "years:", str(noOfYears), "bikesAtStart:", str(totalBikes), "city:", city])
-
     # Create stations
     stations = sim.State.create_stations(num_stations=len(stationCapacities), capacities=stationCapacities)
-    sim.State.create_bikes_in_stations(stations, bike_class, bikeStartStatus)
+    sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatus)
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
     # Create State object and return
 
-    state = sim.State.get_initial_state(stations, number_of_vehicles, random_seed, ttMatrix, ttVehicleMatrix) 
-    progress.next()
+    state = sim.State.get_initial_state(stations=stations,
+                                        number_of_vehicles=number_of_vehicles,
+                                        random_seed=random_seed,
+                                        traveltime_matrix=ttMatrix,
+                                        traveltime_matrix_stddev=durationStdDev,
+                                        traveltime_vehicle_matrix=ttVehicleMatrix,
+                                        # traveltime_vehicle_matrix_stddev =ttVehicleMatrixStdDev
+                                        traveltime_vehicle_matrix_stddev = None
+                                        ) 
     
-    if not os.path.isdir(savedStatesDirectory):
-        os.makedirs(savedStatesDirectory, exist_ok=True) # first time
-
-    state.save(f"{savedStatesDirectory}/{city}_{week}.pickle")
-    for i in range(progress.max - progress.index):
-        progress.next()
-
-    progress.finish()
     return state

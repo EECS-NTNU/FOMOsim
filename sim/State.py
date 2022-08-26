@@ -6,16 +6,18 @@ import copy
 
 class State(LoadSave):
     """
-    Container class for the whole state of all clusters. Data concerning the interplay between clusters are stored here
+    Container class for the whole state of all stations. Data concerning the interplay between stations are stored here
     """
 
     def __init__(
         self,
-        stations: [sim.Station] = [],
-        vehicles: [sim.Vehicle] = [],
-        scooters_in_use: [sim.Location] = [], # scooters in use (not parked at any station)
+        stations = [],
+        vehicles = [],
+        bikes_in_use = {}, # bikes not parked at any station
         traveltime_matrix=None,
+        traveltime_matrix_stddev=None,
         traveltime_vehicle_matrix=None,
+        traveltime_vehicle_matrix_stddev=None,
         rng = None,
     ):
         if rng is None:
@@ -24,40 +26,41 @@ class State(LoadSave):
             self.rng = rng
 
         self.vehicles = vehicles
-        self.scooters_in_use = scooters_in_use
+        self.bikes_in_use = bikes_in_use
 
-        self.locations = stations
-
-        self.stations = [ station for station in stations if not isinstance(station, sim.Depot) ]
-        self.depots = [ station for station in stations if isinstance(station, sim.Depot) ]
+        self.set_locations(stations)
 
         self.traveltime_matrix = traveltime_matrix
+        self.traveltime_matrix_stddev = traveltime_matrix_stddev
         self.traveltime_vehicle_matrix = traveltime_vehicle_matrix
+        self.traveltime_vehicle_matrix_stddev = traveltime_vehicle_matrix_stddev
 
         if traveltime_matrix is None:
-            self.traveltime_matrix = self.calculate_traveltime(SCOOTER_SPEED)
+            self.traveltime_matrix = self.calculate_traveltime(BIKE_SPEED)
 
         if traveltime_vehicle_matrix is None:
             self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
 
 
     def sloppycopy(self, *args):
-        stationscopy = []
+        locationscopy = []
         for s in self.locations:
-            stationscopy.append(s.sloppycopy())
+            locationscopy.append(s.sloppycopy())
 
         new_state = State(
-            stationscopy,
+            locationscopy,
             copy.deepcopy(self.vehicles),
-            copy.deepcopy(self.scooters_in_use),
+            copy.deepcopy(self.bikes_in_use),
             traveltime_matrix = self.traveltime_matrix,
+            traveltime_matrix_stddev = self.traveltime_matrix_stddev,
             traveltime_vehicle_matrix = self.traveltime_vehicle_matrix,
+            traveltime_vehicle_matrix_stddev = self.traveltime_vehicle_matrix_stddev,
             rng = self.rng,
         )
 
         for vehicle in new_state.vehicles:
-            vehicle.current_location = new_state.get_location_by_id(
-                vehicle.current_location.id
+            vehicle.location = new_state.get_location_by_id(
+                vehicle.location.id
             )
 
         return new_state
@@ -101,29 +104,34 @@ class State(LoadSave):
         id_counter = 0
 
         for station in stations:
-            scooters = []
+            bikes = []
 
-            for scooter_id in range(bikes_per_station[station.id]):
-                if bike_class == "Scooter":
-                    scooters.append(sim.Scooter(scooter_id=id_counter, battery=100))
+            for bike_id in range(bikes_per_station[station.id]):
+                if bike_class == "EBike":
+                    bikes.append(sim.EBike(bike_id=id_counter, battery=100))
                 else:
-                    scooters.append(sim.Bike(scooter_id=id_counter))
+                    bikes.append(sim.Bike(bike_id=id_counter))
                 id_counter += 1
 
-            station.scooters = scooters
+            station.set_bikes(bikes)
 
 
     @staticmethod
     def set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities):
         for station in stations:
             station.leave_intensity_per_iteration = leave_intensities[station.id]
-            station.arrive_intensity_per_iteration = leave_intensities[station.id]
+            station.arrive_intensity_per_iteration = arrive_intensities[station.id]
             station.move_probabilities = move_probabilities[station.id]
 
 
     @staticmethod
-    def get_initial_state(stations, number_of_vehicles, random_seed=None, traveltime_matrix=None, traveltime_vehicle_matrix=None):
-        state = State(stations, traveltime_matrix=traveltime_matrix, traveltime_vehicle_matrix=traveltime_vehicle_matrix)
+    def get_initial_state(stations, number_of_vehicles, random_seed=None,
+                          traveltime_matrix=None, traveltime_matrix_stddev=None,
+                          traveltime_vehicle_matrix=None, traveltime_vehicle_matrix_stddev=None):
+
+        state = State(stations,
+                      traveltime_matrix=traveltime_matrix, traveltime_matrix_stddev=traveltime_matrix_stddev,
+                      traveltime_vehicle_matrix=traveltime_vehicle_matrix, traveltime_vehicle_matrix_stddev=traveltime_vehicle_matrix_stddev)
 
         state.set_num_vehicles(number_of_vehicles)
         state.set_seed(random_seed)
@@ -140,6 +148,11 @@ class State(LoadSave):
         
         return traveltime_matrix
 
+    def set_locations(self, locations):
+        self.locations = locations
+        self.stations = { station.id : station for station in locations if not isinstance(station, sim.Depot) }
+        self.depots = { station.id : station for station in locations if isinstance(station, sim.Depot) }
+
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
 
@@ -147,7 +160,7 @@ class State(LoadSave):
         self.vehicles = []
         for vehicle_id in range(number_of_vehicles):
             self.vehicles.append(sim.Vehicle(vehicle_id, self.locations[0],
-                                             VEHICLE_BATTERY_INVENTORY, VEHICLE_SCOOTER_INVENTORY))
+                                             VEHICLE_BATTERY_INVENTORY, VEHICLE_BIKE_INVENTORY))
 
     def set_move_probabilities(self, move_probabilities):
         for st in self.locations:
@@ -157,52 +170,64 @@ class State(LoadSave):
         for st in self.locations:
             st.target_state = target_state[st.id]
 
-    def scooter_in_use(self, scooter):
-        self.scooters_in_use.append(scooter)
-
-    def remove_used_scooter(self, scooter):
-        self.scooters_in_use.remove(scooter)
-
-    def get_used_scooter(self):
-        if len(self.scooters_in_use) > 0:
-            return self.scooters_in_use.pop()
-
-    def get_all_locations(self):
-        return self.locations
-
-    def get_cluster_by_lat_lon(self, lat: float, lon: float):
+    def get_station_by_lat_lon(self, lat: float, lon: float):
         """
-        :param lat: lat location of scooter
+        :param lat: lat location of bike
         :param lon:
         :return:
         """
-        return min(self.stations, key=lambda cluster: cluster.distance_to(lat, lon))
+        return min(list(self.stations.values()), key=lambda station: station.distance_to(lat, lon))
 
-    # parked scooters
-    def get_scooters(self):
-        all_scooters = []
-        for cluster in self.stations:
-            for scooter in cluster.scooters:
-                all_scooters.append(scooter)
-        return all_scooters
+    def bike_in_use(self, bike):
+        self.bikes_in_use[bike.id] = bike
 
-    # parked and in-use scooters
-    def get_all_scooters(self):
-        all_scooters = []
-        for cluster in self.locations:
-            for scooter in cluster.scooters:
-                all_scooters.append(scooter)
-        all_scooters.extend(self.scooters_in_use)
+    def remove_used_bike(self, bike):
+        del self.bikes_in_use[bike.id]
+
+    def get_used_bike(self):
+        if len(self.bikes_in_use) > 0:
+            bike = next(iter(self.bikes_in_use))
+            remove_used_bike(bike)
+            return bike
+
+    # parked bikes
+    def get_bikes(self):
+        all_bikes = []
+        for station in self.stations.values():
+            all_bikes.extend(station.get_bikes())
+        return all_bikes
+
+    # parked and in-use bikes
+    def get_all_bikes(self):
+        all_bikes = []
+        for station in self.locations:
+            all_bikes.extend(station.get_bikes())
+        all_bikes.extend(self.bikes_in_use.values())
         for vehicle in self.vehicles:
-            all_scooters.extend(vehicle.scooter_inventory)
+            all_bikes.extend(vehicle.get_bike_inventory())
             
-        return all_scooters
+        return all_bikes
+
+    # parked bikes with usable battery
+    def get_num_available_bikes(self):
+        num = 0
+        for station in self.locations:
+            num += len(station.get_available_bikes())
+        return num
 
     def get_travel_time(self, start_location_id: int, end_location_id: int):
-        return self.traveltime_matrix[start_location_id][end_location_id]
+        if self.traveltime_matrix_stddev is not None:
+            return self.rng.lognormal(self.traveltime_matrix[start_location_id][end_location_id],
+                                      self.traveltime_matrix_stddev[start_location_id][end_location_id])
+        else:
+            return self.traveltime_matrix[start_location_id][end_location_id]
 
     def get_vehicle_travel_time(self, start_location_id: int, end_location_id: int):
-        return self.traveltime_vehicle_matrix[start_location_id][end_location_id]
+        if self.traveltime_vehicle_matrix_stddev is not None:
+            return self.rng.lognormal(self.traveltime_vehicle_matrix[start_location_id][end_location_id],
+                                      self.traveltime_vehicle_matrix_stddev[start_location_id][end_location_id])
+        else:
+            return self.traveltime_vehicle_matrix[start_location_id][end_location_id]
 
     def do_action(self, action: sim.Action, vehicle: sim.Vehicle, time: int):
         """
@@ -215,54 +240,53 @@ class State(LoadSave):
         if vehicle.is_at_depot():
             batteries_to_swap = min(
                 vehicle.flat_batteries(),
-                vehicle.current_location.get_available_battery_swaps(time),
+                vehicle.location.get_available_battery_swaps(time),
             )
 
-            refill_time += vehicle.current_location.swap_battery_inventory(
+            refill_time += vehicle.location.swap_battery_inventory(
                 time, batteries_to_swap
             )
             vehicle.add_battery_inventory(batteries_to_swap)
 
         else:
-            for pick_up_scooter_id in action.pick_ups:
-                pick_up_scooter = vehicle.current_location.get_scooter_from_id(
-                    pick_up_scooter_id
+            for pick_up_bike_id in action.pick_ups:
+                pick_up_bike = vehicle.location.get_bike_from_id(
+                    pick_up_bike_id
                 )
-                # Picking up scooter and adding to vehicle inventory and swapping battery
-                vehicle.pick_up(pick_up_scooter)
+                
+                # Picking up bike and adding to vehicle inventory and swapping battery
+                vehicle.pick_up(pick_up_bike)
 
-                # Remove scooter from current cluster
-                vehicle.current_location.remove_scooter(pick_up_scooter)
+                # Remove bike from current station
+                vehicle.location.remove_bike(pick_up_bike)
             # Perform all battery swaps
-            for battery_swap_scooter_id in action.battery_swaps[:vehicle.battery_inventory]:
-                battery_swap_scooter = vehicle.current_location.get_scooter_from_id(
-                    battery_swap_scooter_id
+            for battery_swap_bike_id in action.battery_swaps[:vehicle.battery_inventory]:
+                battery_swap_bike = vehicle.location.get_bike_from_id(
+                    battery_swap_bike_id
                 )
                 # Decreasing vehicle battery inventory
-                vehicle.change_battery(battery_swap_scooter)
+                vehicle.change_battery(battery_swap_bike)
 
-            # Dropping of scooters
-            for delivery_scooter_id in action.delivery_scooters:
-                # Removing scooter from vehicle inventory
-                delivery_scooter = vehicle.drop_off(delivery_scooter_id)
+            # Dropping of bikes
+            for delivery_bike_id in action.delivery_bikes:
+                # Removing bike from vehicle inventory
+                delivery_bike = vehicle.drop_off(delivery_bike_id)
 
-                # Adding scooter to current cluster and changing coordinates of scooter
-                vehicle.current_location.add_scooter(self.rng, delivery_scooter)
+                # Adding bike to current station and changing coordinates of bike
+                vehicle.location.add_bike(self.rng, delivery_bike)
 
-        # Moving the state/vehicle from this to next cluster
-        vehicle.set_current_location(
-            self.get_location_by_id(action.next_location), action
-        )
+        # Moving the state/vehicle from this to next station
+        vehicle.location = self.get_location_by_id(action.next_location)
 
         return refill_time
 
     def __repr__(self):
-        string = f"<State: {len(self.get_scooters())} scooters in {len(self.stations)} stations with {len(self.vehicles)} vehicles>\n"
+        string = f"<State: {len(self.get_bikes())} bikes in {len(self.stations)} stations with {len(self.vehicles)} vehicles>\n"
         for station in self.locations:
             string += f"{str(station)}\n"
         for vehicle in self.vehicles:
             string += f"{str(vehicle)}\n"
-        string += f"In use: {self.scooters_in_use}"
+        string += f"In use: {len(self.bikes_in_use.values())}"
         return string
 
     def get_neighbours(
@@ -274,7 +298,7 @@ class State(LoadSave):
         not_full=False,
     ):
         """
-        Get sorted list of stations closest to input cluster
+        Get sorted list of stations closest to input station
         :param is_sorted: Boolean if the neighbours list should be sorted in a ascending order based on distance
         :param location: location to find neighbours for
         :param number_of_neighbours: number of neighbours to return
@@ -317,58 +341,24 @@ class State(LoadSave):
         return neighbours[:number_of_neighbours] if number_of_neighbours else neighbours
 
     def get_location_by_id(self, location_id: int):
-        matches = [
-            location for location in self.locations if location_id == location.id
-        ]
-        if len(matches) == 1:
-            return matches[0]
-        elif len(matches) > 1:
-            raise ValueError(
-                f"There are more than one location ({len(matches)} locations) matching on id {location_id} in this state"
-            )
-        else:
-            raise ValueError(f"No locations with id={location_id} where found")
-
-    @staticmethod
-    def save_path(
-        number_of_stations,
-        sample_size,
-    ):
-        def convert_binary(binary):
-            return 1 if binary else 0
-
-        return (
-            f"c{number_of_stations}s{sample_size}_"
-        )
+        return self.locations[location_id]
 
     def sample(self, sample_size: int):
-        # Filter out scooters not in sample
-        sampled_scooter_ids = self.rng.choice(
-            [scooter.id for scooter in self.get_scooters()], sample_size, replace=False,
+        # Filter out bikes not in sample
+        sampled_bike_ids = self.rng.choice(
+            [bike.id for bike in self.get_bikes()], sample_size, replace=False,
         )
-        for cluster in self.stations:
-            cluster.scooters = [
-                scooter
-                for scooter in cluster.scooters
-                if scooter.id in sampled_scooter_ids
-            ]
+        for station in self.stations.values():
+            station.set_bikes([
+                bike
+                for bike in station.get_bikes()
+                if bike.id in sampled_bike_ids
+            ])
 
-    def get_random_cluster(self, exclude=None):
-        return rng.choice(
-            [cluster for cluster in self.stations if cluster.id != exclude.id]
-            if exclude
-            else self.stations
-        )
-
-    def get_vehicle_by_id(self, vehicle_id: int) -> sim.Vehicle:
+    def get_vehicle_by_id(self, vehicle_id):
         """
         Returns the vehicle object in the state corresponding to the vehicle id input
         :param vehicle_id: the id of the vehicle to fetch
         :return: vehicle object
         """
-        try:
-            return [vehicle for vehicle in self.vehicles if vehicle_id == vehicle.id][0]
-        except IndexError:
-            raise ValueError(
-                f"There are no vehicle in the state with an id of {vehicle_id}"
-            )
+        return self.vehicles[vehicle_id]

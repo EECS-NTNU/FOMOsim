@@ -67,9 +67,9 @@ class ANN:
     def update_predict_model(self):
         self.predict_model.set_weights(self.model.get_weights())
 
-    def batch_fit(self, features_list, target_list):
+    def batch_fit(self, features_list, target_list, **kwargs):
         self.model.fit(
-            features_list, target_list, callbacks=[self.tensorboard],
+            features_list, target_list, callbacks=[self.tensorboard], **kwargs
         )
 
     def __getstate__(self):
@@ -99,8 +99,8 @@ class ModifiedTensorBoard(TensorBoard):
     Since normal tensorboard will create a new log file for every .fit call we create a custom Tensorboard class
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.step = 1
         self.writer = tf.summary.create_file_writer(self.log_dir)
         self._log_write_dir = self.log_dir

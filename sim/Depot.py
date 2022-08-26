@@ -1,5 +1,6 @@
+import copy
+
 from sim.Station import Station
-from sim.Scooter import Scooter
 from settings import *
 
 
@@ -12,20 +13,20 @@ class Depot(Station):
         self,
         depot_id: int,
         depot_capacity = DEFAULT_DEPOT_CAPACITY,
-        scooters: [Scooter] = [],
+        bikes = [],
         leave_intensity_per_iteration=None,
         arrive_intensity_per_iteration=None,
         center_location=None,
         move_probabilities=None,
-        average_number_of_scooters=None,
+        average_number_of_bikes=None,
         target_state=None,
         capacity=DEFAULT_STATION_CAPACITY,
         original_id = None,
         charging_station = None,
     ):
         super().__init__(
-            depot_id, scooters, leave_intensity_per_iteration, arrive_intensity_per_iteration,
-            center_location, move_probabilities, average_number_of_scooters, target_state,
+            depot_id, bikes, leave_intensity_per_iteration, arrive_intensity_per_iteration,
+            center_location, move_probabilities, average_number_of_bikes, target_state,
             capacity, original_id, charging_station
         )
 
@@ -33,6 +34,22 @@ class Depot(Station):
         self.battery_inventory = depot_capacity
         self.time = 0
         self.charging = []
+
+    def sloppycopy(self, *args):
+        return Depot(
+            self.id,
+            self.depot_capacity,
+            list(copy.deepcopy(self.bikes).values()),
+            leave_intensity_per_iteration=self.leave_intensity_per_iteration,
+            arrive_intensity_per_iteration=self.arrive_intensity_per_iteration,
+            center_location=self.get_location(),
+            move_probabilities=self.move_probabilities,
+            average_number_of_bikes=self.average_number_of_bikes,
+            target_state=self.target_state,
+            capacity=self.capacity,
+            original_id=self.original_id,
+            charging_station=self.charging_station,
+        )
 
     def swap_battery_inventory(self, time, number_of_battery_to_change) -> int:
         self.battery_inventory += self.get_delta_capacity(time)
@@ -74,7 +91,7 @@ class Depot(Station):
         return delta_capacity
 
     def __str__(self):
-        return f"Depot {self.id}"
+        return f"Depot   {self.id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):3d} Bikes {len(self.bikes):3d} Cap {self.depot_capacity} Inv {self.battery_inventory}"
 
     def __repr__(self):
         return f"<Depot, id: {self.id}, cap: {self.battery_inventory}>"

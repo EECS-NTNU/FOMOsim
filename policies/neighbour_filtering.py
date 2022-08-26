@@ -11,34 +11,34 @@ def filtering_neighbours(
     number_of_neighbours,
     exclude=None,
 ):
-    has_inventory = len(vehicle.scooter_inventory) + pick_up - delivery > 0
+    has_inventory = len(vehicle.bike_inventory) + pick_up - delivery > 0
     exclude = exclude if exclude else []
     clusters_positive_deviation = sorted(
         [
             cluster
-            for cluster in state.stations
-            if cluster.id != vehicle.current_location.id
+            for cluster in state.stations.values()
+            if cluster.id != vehicle.location.id
             and cluster.id not in exclude
-            and len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour) > 0
+            and len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour) > 0
         ],
-        key=lambda cluster: len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour),
+        key=lambda cluster: len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour),
         reverse=True,
     )
 
     clusters_negative_deviation = sorted(
         [
             cluster
-            for cluster in state.stations
-            if cluster.id != vehicle.current_location.id
+            for cluster in state.stations.values()
+            if cluster.id != vehicle.location.id
             and cluster.id not in exclude
-            and len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour) < 0
+            and len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour) < 0
         ],
-        key=lambda cluster: len(cluster.get_available_scooters()) - cluster.get_target_state(day, hour),
+        key=lambda cluster: len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour),
     )
 
     has_more_capacity = (
-        len(vehicle.scooter_inventory) + pick_up - delivery
-        < vehicle.scooter_inventory_capacity
+        len(vehicle.bike_inventory) + pick_up - delivery
+        < vehicle.bike_inventory_capacity
     )
 
     if has_inventory:
@@ -54,4 +54,4 @@ def filtering_neighbours(
     if len(returnval) > 0:
         return returnval
     else:
-        return [ cluster for cluster in state.stations if cluster.id != vehicle.current_location.id and cluster.id not in exclude ]
+        return [ cluster for cluster in state.stations.values() if cluster.id != vehicle.location.id and cluster.id not in exclude ]

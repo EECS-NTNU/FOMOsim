@@ -33,7 +33,7 @@ def training_simulation(world):
 
             action_time = action.get_action_time(
                 world.state.get_travel_time(
-                    current_vehicle.current_location.id, action.next_location
+                    current_vehicle.location.id, action.next_location
                 )
             )
 

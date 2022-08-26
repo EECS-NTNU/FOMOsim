@@ -1,16 +1,16 @@
 from collections import deque
 
 import sim
-from settings import SMALL_DEPOT_CAPACITY, BATTERY_LIMIT
+from settings import BATTERY_LIMIT
 import abc
 
 
 class Decorators:
     @classmethod
     def check_setup(cls, func):
-        def return_function(self, *args):
+        def return_function(self, *args, **kwargs):
             if self.setup_complete:
-                return func(self, *args)
+                return func(self, *args, **kwargs)
             else:
                 raise ValueError(
                     "Value function is not setup with a state. "
@@ -21,7 +21,7 @@ class Decorators:
 
 
 def get_current_state(station) -> float:
-    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
+    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.get_scooters()))
 
 
 class ValueFunction(abc.ABC):
@@ -160,7 +160,7 @@ class ValueFunction(abc.ABC):
         negative_deviations, battery_deficiency = ValueFunction.get_normalized_lists(
             state, day, hour, 
             cache,
-            current_location=vehicle.current_location.id if is_next_action else None,
+            current_location=vehicle.location.id if is_next_action else None,
             action=action,
         )
 
@@ -217,14 +217,14 @@ class ValueFunction(abc.ABC):
                 if isAvailable:
                     available_filter = (
                         lambda scooter_id: state.locations[current_location]
-                        .get_scooter_from_id(scooter_id)
+                        .get_bike_from_id(scooter_id)
                         .battery
                         > BATTERY_LIMIT
                     )
                 else:
                     available_filter = (
                         lambda scooter_id: state.locations[current_location]
-                        .get_scooter_from_id(scooter_id)
+                        .get_bike_from_id(scooter_id)
                         .battery
                         < BATTERY_LIMIT
                     )
@@ -236,7 +236,7 @@ class ValueFunction(abc.ABC):
                 len(
                     filter_scooter_ids(action.battery_swaps, isAvailable=False)
                 )  # Add swapped scooters that where unavailable
-                + len(action.delivery_scooters)  # Add delivered scooters
+                + len(action.delivery_bikes)  # Add delivered scooters
                 - len(
                     filter_scooter_ids(action.pick_ups, isAvailable=True)
                 )  # subtract removed available scooters
@@ -246,7 +246,7 @@ class ValueFunction(abc.ABC):
                     (
                         100
                         - state.locations[current_location]
-                        .get_scooter_from_id(scooter_id)
+                        .get_bike_from_id(scooter_id)
                         .battery
                     )
                     / 100
@@ -257,7 +257,7 @@ class ValueFunction(abc.ABC):
                     (
                         100
                         - state.locations[current_location]
-                        .get_scooter_from_id(scooter_id)
+                        .get_bike_from_id(scooter_id)
                         .battery
                     )
                     / 100
@@ -272,12 +272,12 @@ class ValueFunction(abc.ABC):
             cache
             if cache is not None
             else (
-                [get_current_state(cluster) for cluster in state.stations],
-                [cluster.get_available_scooters() for cluster in state.stations],
+                [get_current_state(cluster) for cluster in state.stations.values()],
+                [cluster.get_available_bikes() for cluster in state.stations.values()],
             )
         )  # Use cache if you have it
         negative_deviations, battery_deficiency = [], []
-        for i, cluster in enumerate(state.stations):
+        for i, cluster in enumerate(state.stations.values()):
             deviation = (
                 len(available_scooters[i])
                 - cluster.get_target_state(day, hour)
@@ -290,7 +290,7 @@ class ValueFunction(abc.ABC):
             negative_deviations.append(min(deviation, 0) / (cluster.get_target_state(day, hour) + 1))
             battery_deficiency.append(
                 (
-                    len(cluster.scooters)
+                    len(cluster.bikes)
                     - current_states[i]
                     - (
                         battery_percentage_added

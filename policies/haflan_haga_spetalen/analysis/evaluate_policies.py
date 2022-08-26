@@ -67,9 +67,6 @@ def run_analysis_from_path(
 
         world.policy.epsilon = 0
 
-        for vehicle in world.state.vehicles:
-            vehicle.service_route = []
-
     return run_analysis(
         world_objects,
         runs_per_policy=runs_per_policy,

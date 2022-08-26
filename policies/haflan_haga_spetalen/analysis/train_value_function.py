@@ -115,7 +115,7 @@ if __name__ == "__main__":
     # get initial state
 
     state = init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations = 50, number_of_vehicles=3, random_seed=1)
-    tstate = target_state.fosen_haldorsen_target_state(state)
+    tstate = target_state.equal_prob_target_state(state)
     state.set_target_state(tstate)
 
     ###############################################################################
@@ -139,4 +139,4 @@ if __name__ == "__main__":
     world_to_analyse.TRAINING_SHIFTS_BEFORE_SAVE=10
     world_to_analyse.REPLAY_BUFFER_SIZE=64
 
-    train_value_function(world_to_analyse, filename="fh_3_50")
+    train_value_function(world_to_analyse, filename="trained")

@@ -21,7 +21,7 @@ import init_state.entur.scripts
 from policies.haflan_haga_spetalen.helpers import *
 
 def get_current_state(station) -> float:
-    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.scooters))
+    return sum(map(lambda scooter: 1 if isinstance(scooter, sim.Bike) else scooter.battery / 100, station.get_scooters()))
 
 
 def get_possible_actions(
@@ -74,19 +74,19 @@ def get_possible_actions(
         # Initiate constraints for battery swap, pick-up and drop-off
         pick_ups = min(
             max(
-                len(vehicle.current_location.scooters)
-                - vehicle.current_location.get_target_state(day, hour),
+                len(vehicle.location.bikes)
+                - vehicle.location.get_target_state(day, hour),
                 0,
             ),
-            vehicle.scooter_inventory_capacity - len(vehicle.scooter_inventory),
+            vehicle.bike_inventory_capacity - len(vehicle.bike_inventory),
             vehicle.battery_inventory,
         )
         swaps = vehicle.get_max_number_of_swaps()
         drop_offs = max(
             min(
-                vehicle.current_location.get_target_state(day, hour)
-                - len(vehicle.current_location.scooters),
-                len(vehicle.scooter_inventory),
+                vehicle.location.get_target_state(day, hour)
+                - len(vehicle.location.bikes),
+                len(vehicle.bike_inventory),
             ),
             0,
         )
@@ -96,7 +96,7 @@ def get_possible_actions(
             for swap in get_range(swaps):
                 for drop_off in get_range(drop_offs):
                     if (
-                        (pick_up + swap) <= len(vehicle.current_location.scooters)
+                        (pick_up + swap) <= len(vehicle.location.bikes)
                         and (pick_up + swap) <= vehicle.battery_inventory
                         and (pick_up + swap + drop_off > 0)
                     ):
@@ -129,12 +129,12 @@ def get_possible_actions(
         # that the scooters with the lowest battery are prioritized
         swappable_scooters_id = [
             scooter.id
-            for scooter in vehicle.current_location.get_swappable_scooters()
+            for scooter in vehicle.location.get_swappable_bikes()
         ]
 
         none_swappable_scooters_id = [
             scooter.id
-            for scooter in vehicle.current_location.scooters
+            for scooter in vehicle.location.bikes.values()
             if isinstance(scooter, sim.Bike) or (scooter.battery >= 70)
         ]
 
@@ -158,9 +158,9 @@ def get_possible_actions(
                 cluster_id = [
                     depot.id
                     for depot in sorted(
-                        state.depots,
+                        state.depots.values(),
                         key=lambda depot: state.get_travel_time(
-                            vehicle.current_location.id, depot.id
+                            vehicle.location.id, depot.id
                         ),
                     )
                     if depot.get_available_battery_swaps(time)
@@ -170,7 +170,7 @@ def get_possible_actions(
                 sim.Action(
                     swappable_scooters_id[:int(battery_swap)],
                     choose_pick_up(battery_swap, pick_up),
-                    [scooter.id for scooter in vehicle.scooter_inventory][
+                    [scooter.id for scooter in vehicle.get_bike_inventory()][
                         :int(drop_off)
                     ],
                     cluster_id,
@@ -206,13 +206,13 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
     def get_cache(state):
         # Cache current states in state
         current_states, available_scooters = [], []
-        for cluster in state.stations:
+        for cluster in state.stations.values():
             current_states.append(get_current_state(cluster))
-            available_scooters.append(cluster.get_available_scooters())
+            available_scooters.append(cluster.get_available_bikes())
         return current_states, available_scooters
 
     def get_best_action(self, simul, vehicle):
-        tabu_list = [ vehicle.current_location.id for vehicle in simul.state.vehicles ]
+        tabu_list = [ vehicle.location.id for vehicle in simul.state.vehicles ]
 
         # Find all possible actions
         actions = get_possible_actions(
@@ -270,8 +270,8 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                     time=simul.time
                     + action.get_action_time(
                         state.get_travel_time(
-                            vehicle.current_location.id,
-                            forward_vehicle.current_location.id,
+                            vehicle.location.id,
+                            forward_vehicle.location.id,
                         )
                     ),
                     number_of_neighbours=self.number_of_neighbors,

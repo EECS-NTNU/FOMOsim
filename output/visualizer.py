@@ -3,10 +3,9 @@ Methods for visualizing different aspects of the system.
 """
 
 import datetime
-from sim import Action, Scooter, State, Vehicle, Metric
+from sim import Action, EBike, State, Vehicle, Metric
 import matplotlib.pyplot as plt
 import copy
-from itertools import cycle
 import matplotlib.dates as mdates
 from matplotlib import gridspec
 
@@ -339,9 +338,9 @@ def visualize_starvation(instances, title=None, week=1):
         # lost demand
         x = [totime(metric.min_time, startdate)]
         y = [0]
-        if "lost_demand" in metric.metrics:
-            x.extend([totime(item[0], startdate) for item in metric.metrics["lost_demand"]])
-            y.extend([item[1] for item in metric.metrics["lost_demand"]])
+        if "starvation" in metric.metrics:
+            x.extend([totime(item[0], startdate) for item in metric.metrics["starvation"]])
+            y.extend([item[1] for item in metric.metrics["starvation"]])
         x.append(totime(metric.max_time, startdate))
         y.append(y[-1])
         ax1.plot(x, y, c=COLORS[i], label=label)
@@ -428,7 +427,7 @@ def visualize_congestion(instances, title=None, week=1):
     return fig
 
 
-def save_lost_demand_csv(instances, title=None, week=1):
+def save_starvation_csv(instances, title=None, week=1):
     """
     :param instances: world instances to analyse
     :param title: plot title
@@ -446,9 +445,9 @@ def save_lost_demand_csv(instances, title=None, week=1):
         # lost demand
         x = [totime(metric.min_time, startdate)]
         y = [0]
-        if "lost_demand" in metric.metrics:
-            x.extend([totime(item[0], startdate) for item in metric.metrics["lost_demand"]])
-            y.extend([item[1] for item in metric.metrics["lost_demand"]])
+        if "starvation" in metric.metrics:
+            x.extend([totime(item[0], startdate) for item in metric.metrics["starvation"]])
+            y.extend([item[1] for item in metric.metrics["starvation"]])
         x.append(totime(metric.max_time, startdate))
         y.append(y[-1])
 
@@ -504,8 +503,8 @@ def visualize_end(instances, xvalues, title=None, week=1):
         else:
             metric = insts.metrics
 
-        if "lost_demand" in metric.metrics:
-            yvalues_ld.append(metric.metrics["lost_demand"][-1][1])
+        if "starvation" in metric.metrics:
+            yvalues_ld.append(metric.metrics["starvation"][-1][1])
         else:
             yvalues_ld.append(0)
 

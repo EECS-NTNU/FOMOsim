@@ -1,7 +1,7 @@
 import sim
 
 def evenly_distributed_target_state(state):
-    num_bikes = len(state.get_all_scooters())
+    num_bikes = len(state.get_all_bikes())
     num_stations = len(state.stations)
     target_state = []
     for st in state.locations:

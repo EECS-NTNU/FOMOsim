@@ -1,52 +1,52 @@
-import socket
-
-import jpype
-import jpype.imports
-from jpype.types import *
-
+import copy
 from policies import Policy
 import sim
 
-computerName = socket.gethostname()
-if computerName == "LAPTOP-SBB45R3V" or  computerName == "DESKTOP-CTHMSMJ" or  computerName == "lasse-PC":
-    # Lasse PC1, PC2, PC3
-    jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','C:/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
-else:
-    # linux
-    jpype.startJVM(convertStrings=False, classpath = ['jars/gs-core-1.3.jar','jars/gs-algo-1.3.jar','jars/gs-ui-1.3.jar','jars/javafx.graphics.jar','jars/poi-5.2.2.jar','jars/poi-ooxml-5.2.2.jar','jars/json-20220320.jar','/opt/xpressmp/lib/xprm.jar','policies/gleditsch_hagen/jars/gleditsch_hagen.jar'])
+from policies.gleditsch_hagen.pattern_based_cgh.pattern_based_main import PatternBasedCGH
 
-import java.util.ArrayList
-from org.gleditsch_hagen.classes import Simulation,FomoAction,FomoStation,FomoVehicle
 
 class GleditschHagenPolicy(Policy):
-    def __init__(self):
-        super().__init__()
-
+    def __init__(self, variant='PatternBased'):
+        self.variant = variant #Exact, RouteBased and PatternBased 
+        super().__init__()  
+        self.num_times_called = 0
+        
     def get_best_action(self, simul, vehicle):
-        stations = java.util.ArrayList()
+        if self.variant == 'PatternBased':
+            return self.PB_solve(simul,vehicle)
+        elif self.variant == 'ColumnBased':
+            print('not yet implemented')
+            
 
-        for s in simul.state.locations:
-            station = FomoStation(s.id, s.capacity, s.get_leave_intensity(simul.day(), simul.hour()), s.get_arrive_intensity(simul.day(), simul.hour()), s.get_target_state(simul.day(), simul.hour()))
-            for b in s.scooters:
-                station.bikes.add(b.id)
-            for d in simul.state.locations:
-                station.distances.put(d.id, simul.state.get_distance(s.id, d.id))
-            stations.add(station)
+    def PB_solve(self, simul, vehicle):
+        
+        vehicle_same_location = False #this can happen in the beginning of the simulation
+        #Alternatively, the vehicles can be randomly distributed.
+        for vehicle_other in simul.state.vehicles:
+            if vehicle is not vehicle_other:
+                if vehicle_other.location == vehicle.location:
+                    vehicle_same_location = True   #
+        
+        PBCGH = PatternBasedCGH(simul, vehicle, vehicle_same_location)
+        self.num_times_called+=1
+        
+        next_station, num_loading, num_unloading = PBCGH.return_solution(vehicle_index_input=vehicle.id)        
+        bikes_to_swap = []
+        bikes_to_pickup =  []
+        bikes_to_pickup = [bike.id for bike in vehicle.location.get_bikes()][0:int(num_loading)]
+        #for i in range(int(num_loading)):
+        #    vehicle.location.bikes[i]
+        #    bikes_to_pickup.append(i)  #using vehicle.location.bikes[i] causes type error
+        bikes_to_deliver = []
+        bikes_to_deliver = [bike.id for bike in vehicle.get_bike_inventory()][0:int(num_unloading)]
+        #for i in range(int(num_unloading)):
+        #    bikes_to_deliver.append(i) #just pick the first ones
 
-        vhc = FomoVehicle(vehicle.id, vehicle.scooter_inventory_capacity, vehicle.current_location.id)
-        for b in vehicle.scooter_inventory:
-            vhc.bikes.add(b.id)
+        return sim.Action(
+            bikes_to_swap,
+            bikes_to_pickup,
+            bikes_to_deliver,
+            next_station, #this is the id
+        )
 
-        fomoAction = Simulation.policy(stations, vhc)
 
-        battery_swaps = []
-        for b in fomoAction.batterySwaps:
-            battery_swaps.append(b)
-        pick_ups = []
-        for b in fomoAction.pickUps:
-            pick_ups.append(b)
-        delivery_scooters = []
-        for b in fomoAction.deliveryScooters:
-            delivery_scooters.append(b)
-        return sim.Action(battery_swaps, pick_ups, delivery_scooters, fomoAction.nextLocation)
-    

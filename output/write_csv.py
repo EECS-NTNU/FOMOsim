@@ -1,7 +1,3 @@
-"""
-Methods for visualizing different aspects of the system.
-"""
-
 import datetime
 from progress.bar import Bar
 
@@ -10,18 +6,24 @@ import sim
 def totime(ts, startdate):
     return datetime.datetime.fromtimestamp(startdate.timestamp() + ts * 60)
 
-def write_csv(instances, filename, week, hourly=False):
-    f = open(filename, "w")
+# TODO: needs cleanup
+def write_csv(instances, filename, week=None, hourly=False, mode="w", parameters=None):
+    f = open(filename, mode)
 
     if type(instances) is list:
         metric = sim.Metric.merge_metrics([instance.metrics for instance in instances])
     else:
         metric = instances.metrics
     
-    weektext = "2022 " + str(week) + " 1 00:00"
-    startdate=datetime.datetime.strptime(weektext, "%Y %W %w %H:%M")
+    if week is not None:
+        weektext = "2022 " + str(week) + " 1 00:00"
+        startdate=datetime.datetime.strptime(weektext, "%Y %W %w %H:%M")
 
-    keys = metric.metrics.keys()
+    keys = sorted(metric.metrics.keys())
+
+    if parameters is not None:
+        for key, _ in parameters:
+            f.write(key + ";")
 
     f.write("Time;")
     for key in keys:
@@ -36,14 +38,25 @@ def write_csv(instances, filename, week, hourly=False):
     idx = {}
     for m in keys:
         idx[m] = 0
-    tripIdx = 0
 
     last_hour = 0
 
     for time in metric.timeline():
         if not hourly or ((time // 60) > last_hour):
             last_hour = time // 60
-            f.write(str(totime(time, startdate)) + ";")
+
+            if parameters is not None:
+                for _, value in parameters:
+                    f.write(str(value) + ";")
+
+            if week is not None:
+                f.write(str(totime(time, startdate)) + ";")
+            else:
+                if hourly:
+                    f.write(str(last_hour) + ";")
+                else:
+                    f.write(str(time) + ";")
+
             for m in keys:
                 value, idx[m] = metric.getValue(m, idx[m], time)
                 if value is None:
@@ -54,7 +67,7 @@ def write_csv(instances, filename, week, hourly=False):
 
         progress.next()
 
-    progress.finish()
-
+    f.write("\n")
     f.close()
         
+    progress.finish()

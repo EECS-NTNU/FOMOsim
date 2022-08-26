@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 import os
 
-from sim import State, Bike, Scooter, Station
+from sim import State, Bike, EBike, Station
 from sim.Depot import Depot
 from progress.bar import Bar
 
@@ -41,11 +41,11 @@ def merge_scooter_snapshots(state, first_snapshot_data, second_snapshot_data):
     # Filtering out scooters that has moved during the 20 minutes
     moved_scooters = get_moved_scooters(merged_tables)
     moved_scooters["cluster_before"] = [
-        state.get_cluster_by_lat_lon(row["lat_before"], row["lon_before"]).id
+        state.get_station_by_lat_lon(row["lat_before"], row["lon_before"]).id
         for index, row in moved_scooters.iterrows()
     ]
     moved_scooters["cluster_after"] = [
-        state.get_cluster_by_lat_lon(row["lat_after"], row["lon_after"]).id
+        state.get_station_by_lat_lon(row["lat_after"], row["lon_after"]).id
         for index, row in moved_scooters.iterrows()
     ]
     # Remove the scooters who move, but within the same cluster
@@ -61,7 +61,7 @@ def merge_scooter_snapshots(state, first_snapshot_data, second_snapshot_data):
     ].copy()
     # Find the origin cluster for these scooters
     disappeared_scooters["cluster_id"] = [
-        state.get_cluster_by_lat_lon(row["lat"], row["lon"])
+        state.get_station_by_lat_lon(row["lat"], row["lon"])
         for index, row in disappeared_scooters.iterrows()
     ]
     return moved_scooters, filtered_moved_scooters, disappeared_scooters
@@ -143,7 +143,7 @@ def scooter_movement_analysis(state: State, entur_data_dir) -> np.ndarray:
 
         # Initialize probability_matrix with number of scooters in each cluster
         number_of_scooters = np.array(
-            [[cluster.number_of_scooters() for cluster in initial_state.locations]]
+            [[cluster.number_of_bikes() for cluster in initial_state.locations]]
             * number_of_clusters,
             dtype="float64",
         ).transpose()
@@ -234,7 +234,7 @@ def scooter_movement_analysis(state: State, entur_data_dir) -> np.ndarray:
                 # Set stay probability to zero
                 distribution[cluster_id] = 0.0
                 # Set probability of going to depot to zero
-                for depot in state.depots:
+                for depot in state.depots.values():
                     distribution[depot.id] = 0.0
                 # Normalize leave distribution
                 norm = distribution / np.sum(distribution)
@@ -246,7 +246,7 @@ def generate_cluster_objects(
         classname, scooter_data: pd.DataFrame, cluster_labels: list, number_of_depots,
 ) -> [Station]:
     """
-    Based on cluster labels and scooter data create Scooter and Station objects.
+    Based on cluster labels and scooter data create Bike and Station objects.
     Station class generates cluster center
     :param scooter_data: geospatial data for scooters
     :param cluster_labels: list of labels for scooter data
@@ -271,7 +271,7 @@ def generate_cluster_objects(
           ]
         else:
           scooters = [
-            Scooter(row["lat"], row["lon"], row["battery"], index)
+            EBike(row["lat"], row["lon"], row["battery"], index)
             for index, row in cluster_scooters.iterrows()
           ]
         # Adding all scooters to cluster to find center location
@@ -305,7 +305,7 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list, entur_da
                 filtered_moved_scooters,
                 disappeared_scooters,
             ) = merge_scooter_snapshots(state, previous_snapshot, current_snapshot)
-            for cluster in state.stations:
+            for cluster in state.stations.values():
                 scooters_leaving_the_cluster = filtered_moved_scooters[
                     filtered_moved_scooters["cluster_before"] == cluster.id
                 ]
@@ -343,7 +343,7 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list, entur_da
 
     cluster_leave_intensities = np.mean(trip_counter_leave, axis=1)
     cluster_arrive_intensities = np.mean(trip_counter_arrive, axis=1)
-    for cluster in state.depots:
+    for cluster in state.depots.values():
         cluster.leave_intensity_per_iteration = []
         cluster.arrive_intensity_per_iteration = []
         for day in range(7):
@@ -353,7 +353,7 @@ def compute_and_set_trip_intensity(state: State, sample_scooters: list, entur_da
                 cluster.leave_intensity_per_iteration[day].append(0)
                 cluster.arrive_intensity_per_iteration[day].append(0)
 
-    for cluster in state.stations:
+    for cluster in state.stations.values():
         # set all days and hour the same
         # TODO: update to support days and hours
         cluster.leave_intensity_per_iteration = []

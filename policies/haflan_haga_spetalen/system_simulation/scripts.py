@@ -28,7 +28,7 @@ def system_simulate(state, day, hour):
     for start_cluster_id, number_of_trips, end_cluster_indices in scenario:
         start_cluster = state.get_location_by_id(start_cluster_id)
         # if there is more trips than scooters available, the system has lost demand
-        valid_scooters = start_cluster.get_available_scooters()
+        valid_scooters = start_cluster.get_available_bikes()
         if number_of_trips > len(valid_scooters):
             lost_demand.append(
                 (number_of_trips - len(valid_scooters), start_cluster_id)
@@ -48,10 +48,10 @@ def system_simulate(state, day, hour):
 
     # compute trip after all trips are generated to avoid handling inflow in cluster
     for start_cluster, end_cluster, scooter in trips:
-        start_cluster.scooters.remove(scooter)
+        start_cluster.remove_scooter(scooter)
         travel_time = state.get_travel_time(start_cluster.id, end_cluster.id)
         scooter.travel(travel_time)
-        end_cluster.add_scooter(state.rng, scooter)
+        end_cluster.add_bike(state.rng, scooter)
 
     return (
         [(start, end, flow) for (start, end), flow in list(flow_counter.items())],

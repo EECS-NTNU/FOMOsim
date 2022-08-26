@@ -7,7 +7,7 @@ import copy
 
 class VehicleArrival(Event):
     """
-    Event where the main decision is done. A vehicle arrives to a cluster and need to determine what to do.
+    Event where the main decision is done. A vehicle arrives to a station and need to determine what to do.
     Different policies can be applied depending on the policy object in the world object.
     """
 
@@ -26,22 +26,19 @@ class VehicleArrival(Event):
             action, _ = action
 
         # Record current location of vehicle to compute action time
-        arrival_cluster_id = self.vehicle.current_location.id
-
-        a = self.vehicle.current_location.original_id
-        b = world.state.locations[action.next_location].original_id
+        arrival_station_id = self.vehicle.location.id
 
         # perform the best action on the state and send vehicle to new location
         refill_time = world.state.do_action(action, self.vehicle, world.time)
 
         action_time = (
             action.get_action_time(
-                world.state.get_vehicle_travel_time(arrival_cluster_id, action.next_location)
+                world.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
             )
             + refill_time
         )
 
-        driving_time = world.state.get_vehicle_travel_time(arrival_cluster_id, action.next_location)
+        driving_time = world.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
 
         # set time of world to this event's time
         super(VehicleArrival, self).perform(world)
@@ -49,8 +46,10 @@ class VehicleArrival(Event):
         # Compute the arrival time for the Vehicle arrival event created by the action
         arrival_time += self.time + action_time
 
-        # Add a new Vehicle Arrival event for the next cluster arrival to the world event_queue
+        # Add a new Vehicle Arrival event for the next station arrival to the world event_queue
         world.add_event(VehicleArrival(arrival_time, self.vehicle))
 
+        self.vehicle.eta = arrival_time
+
     def __repr__(self):
-        return f"<{self.__class__.__name__} at time {self.time} to location {self.vehicle.current_location.id}>"
+        return f"<{self.__class__.__name__} at time {self.time} to location {self.vehicle.location.id}>"

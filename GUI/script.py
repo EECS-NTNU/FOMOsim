@@ -19,13 +19,15 @@ import target_state.outflow_target_state
 import policies
 import policies.fosen_haldorsen
 
-from init_state.cityBike.parse import download
-from helpers import write, dateAndTimeStr, readTime, trafficLogg, saveTrafficLogg
-from init_state.cityBike.parse import  get_initial_state
+from init_state.cityBike.parse import download, get_initial_state
+from helpers import writeWords, dateAndTimeStr, readTime, trafficLogg, trafficLoggDir
 
 from GUI import loggFile, scriptFile
 from GUI.GUIhelpers import *
  
+def saveTrafficLogg(timeStamp):
+    shutil.copy(trafficLoggDir + "traffic.txt", trafficLoggDir + "traffic_" + timeStamp + ".txt")
+
 class Session: # used to store state during a simulation session
     def __init__(self, sessionName):
         self.name = sessionName
@@ -42,41 +44,41 @@ def doCommand(session, task):
     if len(task) == 0:
         return
     if task[0] == "Download":
-        write(scriptFile, ["Download", task[1]])
+        writeWords(scriptFile, ["Download", task[1]])
         download(task[1])
-        write(loggFile, [task[0], "finished:", dateAndTimeStr(), "url:", task[1]])
+        writeWords(loggFile, [task[0], "finished:", dateAndTimeStr(), "url:", task[1]])
         userFeedback_OK("Tripdata downloaded")
         beepy.beep(sound="ping")
    
     #### INIT STATE handling
     elif task[0] == "Init-state-CityBike" or task[0] == "Init-state-Entur" or task[0] == "Init-state-US" or task[0] == "Init-state-test":
         if task[0] == "Init-state-CityBike":
-            write(scriptFile, ["Init-state-CityBike", task[1], task[2]])
+            writeWords(scriptFile, ["Init-state-CityBike", task[1], task[2]])
             session.initState = get_initial_state(task[1], week = int(task[2]), bike_class="Bike", number_of_vehicles=3, random_seed=1) # TODO, hardwired, not good, fix 
             session.initStateType = "CityBike"
         elif task[0] == "Init-state-Entur": 
-            write(scriptFile, ["Init-state-Entur"])
+            writeWords(scriptFile, ["Init-state-Entur"])
             session.initState = init_state.entur.scripts.get_initial_state(
                 "test_data",
                 "0900-entur-snapshot.csv",
-                "Scooter",
-                number_of_scooters = 150, # TODO, check with AD,cannot use more default params
+                "EBike",
+                number_of_bikes = 150, # TODO, check with AD,cannot use more default params
                 number_of_clusters = 5, 
                 number_of_vehicles = 3,
                 random_seed = 1,
             )
             session.initStateType = "Entur"
         elif task[0] == "Init-state-US":
-            write(scriptFile, ["Init-state-US"])
+            writeWords(scriptFile, ["Init-state-US"])
             session.initState =  init_state.fosen_haldorsen.get_initial_state(init_hour=7, number_of_stations=50, number_of_vehicles=3, random_seed=1)        
             session.initStateType = "US"
         elif task[0] == "Init-state-test":
-            write(scriptFile, ["Init-state-test"])
+            writeWords(scriptFile, ["Init-state-test"])
             manualInitState(session, task[1]) # second param opens for several different
             session.initStateType = "test"
         updateFieldDone("-STATE-MSG-", session.initStateType + " ==> OK")
         userFeedback_OK("Initial state set OK")
-        write(loggFile, [task[0], "finished:", dateAndTimeStr()])
+        writeWords(loggFile, [task[0], "finished:", dateAndTimeStr()])
         beepy.beep(sound="ping")
    
     #### TARGET state METHOD handling
@@ -91,8 +93,8 @@ def doCommand(session, task):
                 session.targetStateType = "evenly"
             else:
                 print("*** Error: initStateType invalid") 
-            write(scriptFile, ["Target-state-method-evenly"])
-            write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
+            writeWords(scriptFile, ["Target-state-method-evenly"])
+            writeWords(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
             updateFieldDone("-CALC-MSG-", session.initStateType + " -> evenly -> OK") 
             userFeedback_OK("Target state evenly calculated OK")
             beepy.beep(sound="ping")
@@ -108,8 +110,8 @@ def doCommand(session, task):
                 session.targetStateMethod = "outflow"
             else:
                 print("*** Error: initStateType invalid") 
-            write(scriptFile, ["Target-state-method-outflow"])
-            write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
+            writeWords(scriptFile, ["Target-state-method-outflow"])
+            writeWords(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
             updateFieldDone("-CALC-MSG-", session.initStateType + " -> outflow -> OK") 
             userFeedback_OK("Target state outflow calculated OK")
             beepy.beep(sound="ping")
@@ -126,18 +128,18 @@ def doCommand(session, task):
                 session.targetStateType = "UrbanSharing"
             else:
                 print("*** Error: initStateType invalid") 
-            write(scriptFile, ["Target-state-method-UrbanSharing"])
-            write(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
+            writeWords(scriptFile, ["Target-state-method-UrbanSharing"])
+            writeWords(loggFile, [task[0], "finished:", dateAndTimeStr()]) 
             updateFieldDone("-CALC-MSG-", session.initStateType + " -> Urban -> OK") 
             userFeedback_OK("Target state US calculated OK")
             beepy.beep(sound="ping")
 
     elif task[0] == "Save-state": # saves the initial state 
         savedStateFile = open(task[1] + ".json", "w")
-        savedStateFile.write(jsonpickle.encode(session.initState)) 
+        savedStateFile.writeWords(jsonpickle.encode(session.initState)) 
         savedStateFile.close()
-        write(loggFile, ["Save-state-from-init-state:", session.initStateType])
-        write(scriptFile, ["Save-state"])
+        writeWords(loggFile, ["Save-state-from-init-state:", session.initStateType])
+        writeWords(scriptFile, ["Save-state"])
 
     elif task[0] == "Load-state":
         if task[1] == "":
@@ -154,8 +156,8 @@ def doCommand(session, task):
             session.initStateType = "loaded"  
             # print("after" + dateAndTimeStr())
 
-            write(scriptFile, ["Load-state"])   
-            write(loggFile, ["Loaded-state", "from", loadFileName])
+            writeWords(scriptFile, ["Load-state"])   
+            writeWords(loggFile, ["Loaded-state", "from", loadFileName])
             userFeedback_OK("Initial state loaded OK")
             beepy.beep(sound="ping")
 
@@ -164,18 +166,18 @@ def doCommand(session, task):
         policy = task[1]
         simDuration=int(task[3])
         startTime=int(task[2])
-        write(scriptFile, ["Sim", policy, str(startTime), str(simDuration)])
+        writeWords(scriptFile, ["Sim", policy, str(startTime), str(simDuration)])
         if session.initStateType != "":
             simulationDescr =  ["Simulation-start:", dateAndTimeStr(), "startState:", session.initStateType, "simPolicy:", policy, 
                 "simDuration:", str(simDuration), "startTime:", str(startTime) ] 
-            write(loggFile, simulationDescr)
+            writeWords(loggFile, simulationDescr)
             if settings.TRAFFIC_LOGGING == True:
-                 write(trafficLogg, simulationDescr)
+                 writeWords(trafficLogg, simulationDescr)
             # state = session.initState # TODO Ask AD, see NOTE 14 Juni testing
             state = copy.deepcopy(session.initState) # NOTE 20 Juni
             startSimulation(session.startTime, policy, state, startTime, simDuration) # # NOTE 20 Juni
             # startSimulation(session.startTime, policy, session.initState, startTime, simDuration)
-            write(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()])
+            writeWords(loggFile, ["Sim", policy, "finished:", dateAndTimeStr()])
             updateField("-SIM-MSG-", "")
         else:
             userError("Set an initial state")
@@ -207,9 +209,9 @@ def startSimulation(timeStamp, simPolicy, state, startTime, simDuration):
     duration = end - start
     seconds = str(duration.total_seconds())
     updateField("-END-TIME-", "End:" + readTime())
-    write(loggFile, ["Simulation-end:", dateAndTimeStr(), "usedTime(s):", seconds ])
+    writeWords(loggFile, ["Simulation-end:", dateAndTimeStr(), "usedTime(s):", seconds ])
     if settings.TRAFFIC_LOGGING == True:
-        write(trafficLogg, ["usedTime(s):", seconds ])
+        writeWords(trafficLogg, ["usedTime(s):", seconds ])
         saveTrafficLogg(timeStamp) # save and reset traffic-file with timeStamp of start in filename
         trafficLogg.seek(0)
         trafficLogg.truncate()
@@ -236,7 +238,7 @@ def manualInitState(session, testName):
                     move_probabilities[station][day][hour][station] = 0 # zero probability for traveling from and to same station
 
         state = sim.State.get_initial_state(
-                    bike_class = "Scooter", # TODO logging code will crash if Bike is used TODO test again
+                    bike_class = "EBike", # TODO logging code will crash if Bike is used TODO test again
                     traveltime_matrix = [ # in minutes
                         [10, 10, 10, 10],
                         [10, 10, 10, 10],
@@ -251,7 +253,7 @@ def manualInitState(session, testName):
                     ],
                     main_depot = None,
                     secondary_depots = 0,
-                    number_of_scooters = [1, 1, 1, 1],
+                    number_of_bikes = [1, 1, 1, 1],
                     capacities = [4, 4, 4, 4],
                     number_of_vehicles = 1,
                     random_seed = 1,
@@ -263,12 +265,12 @@ def manualInitState(session, testName):
 
     if testName == "allToAll4":
         allToAll4(session)
-        write(scriptFile, ["Init-state-test", "allToAll4"])  
+        writeWords(scriptFile, ["Init-state-test", "allToAll4"])  
     else:
         print("*** Error: testName not implemented")
 
 def doScript(session, fileName):
-    write(loggFile, ["Script-started:", fileName, dateAndTimeStr()]) 
+    writeWords(loggFile, ["Script-started:", fileName, dateAndTimeStr()]) 
     script = open(fileName, "r")
     lines = script.readlines()
     command = []

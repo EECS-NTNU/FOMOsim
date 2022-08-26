@@ -50,7 +50,7 @@ def equal_prob_target_state(state):
 
     for day in range(7):
         for hour in range(24):
-            for st in state.stations:
+            for st in state.stations.values():
                 cap = st.capacity
                 leave = st.get_leave_intensity(day, hour)
                 arrive = st.get_arrive_intensity(day, hour)
