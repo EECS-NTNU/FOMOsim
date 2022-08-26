@@ -6,6 +6,7 @@ data/tripData
 log_files
 saved_states
 sim_cache
+stateParams.txt
 *.csv
 
 # Byte-compiled / optimized / DLL files
