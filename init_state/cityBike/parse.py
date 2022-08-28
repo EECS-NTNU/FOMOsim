@@ -188,10 +188,16 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         stationLocations[id] = StationLocation(id, long, lat)  
         stationCapacities[id] = stationInfoData["stations"][i]["capacity"]
         stationNames[id] = stationInfoData["stations"][i]["name"]
-        if stationStatusData["stations"][i]["station_id"]  == id: # check that it is same station
-            bikeStartStatus[id] = stationStatusData["stations"][i]["num_bikes_available"]
-        else:
-            raise Exception("Error: stationInfoData and stationStatusData differs, extend code to handle it")
+
+        # BikeStatusTEST XXXXX !!!!!!!!!!!!
+        BikeStatusPercentage = 0  # set to 0 to use standard
+        if BikeStatusPercentage > 0:
+            bikeStartStatus[id] = int(stationCapacities[id]*(BikeStatusPercentage/100))
+        else:            
+            if stationStatusData["stations"][i]["station_id"]  == id: # check that it is same station
+                bikeStartStatus[id] = stationStatusData["stations"][i]["num_bikes_available"]
+            else:
+                raise Exception("Error: stationInfoData and stationStatusData differs, extend code to handle it")
        
     ###################################################################################################
     # # Find stations with traffic for given week, loop thru all years
