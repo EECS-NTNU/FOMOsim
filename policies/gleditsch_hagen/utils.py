@@ -13,6 +13,8 @@ def calculate_time_to_violation(net_demand,station):  #MOVE SOMEWHERE ELSE, seem
         time_to_violation = (station.capacity - station.number_of_bikes() ) / net_demand
     elif net_demand < 0:
         time_to_violation = - station.number_of_bikes() / net_demand
+    elif net_demand == 0:
+        time_to_violation = 60*5  #No demand, then no violation in the next couple of hours (5) HARDCODING
     return time_to_violation
 
 

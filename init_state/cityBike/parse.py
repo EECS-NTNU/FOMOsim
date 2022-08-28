@@ -8,7 +8,8 @@ import geopy.distance
 import datetime
 from datetime import date
 import statistics
-from statistics import fmean, stdev
+from statistics import mean as fmean #I get error when importing fmean
+from statistics import stdev  
 from progress.bar import Bar
 
 import settings
