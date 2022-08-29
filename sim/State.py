@@ -225,7 +225,7 @@ class State(LoadSave):
     def get_vehicle_travel_time(self, start_location_id: int, end_location_id: int):
         if self.traveltime_vehicle_matrix_stddev is not None:
             return self.rng.lognormal(self.traveltime_vehicle_matrix[start_location_id][end_location_id],
-                                      self.traveltime_vehicle_matrix_stddev[start_location_id][end_location_id])
+                                self.traveltime_vehicle_matrix_stddev[start_location_id][end_location_id])
         else:
             return self.traveltime_vehicle_matrix[start_location_id][end_location_id]
 

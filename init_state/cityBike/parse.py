@@ -8,6 +8,7 @@ import requests
 import geopy.distance
 import datetime
 from datetime import date
+import numpy as np
 import statistics
 from statistics import fmean, stdev
 from progress.bar import Bar
@@ -128,6 +129,19 @@ def printStateParams(stations, numvehicles, leave_intensities, arrive_intensitie
         f.write("tt_vehicle_matrix_stddev: ")
         write2D(f, tt_vehicle_matrix_stddev)
         f.write("\n")
+
+def log_to_norm(mu_x, stdev_x):
+    # variance calculated from stdev
+    var_x = stdev_x * stdev_x
+
+    # find mean and variance for the underlying normal distribution
+    mu = np.log(mu_x*mu_x / np.sqrt(var_x + mu_x*mu_x))
+    var = np.log(1 + var_x/(mu_x*mu_x))
+
+    # stdev calculated from variance
+    stdev = np.sqrt(var)
+
+    return (mu, stdev)
 
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, number_of_vehicles=1, random_seed=1):
     """ Processes all stored trips downloaded for the city, calculates average trip duration for every pair of stations, including
@@ -310,48 +324,48 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             end = stationMap[e]
             avgDuration[start].append([])
             durationStdDev[start].append([])
+
+            # calculate mean
             if len(durations[start][end]) > 0:
-                mean = fmean(durations[start][end])
+                mean_x = fmean(durations[start][end])
             else:
                 distance = geopy.distance.distance((stationLocations[s].latitude, stationLocations[s].longitude), 
                    (stationLocations[e].latitude, stationLocations[e].longitude)).km
-                mean = (distance/settings.BIKE_SPEED)*60
-            avgDuration[start][end] = mean 
+                mean_x = (distance/settings.BIKE_SPEED)*60
+            if mean_x == 0:
+                if start == end:
+                    mean_x = 7.7777 # TODO, consider to eventually calculate all such positive averageDuarations, and use here
+                else:
+                    raise Exception("*** Error, averageDuration == 0 should not happen") 
+
+            # calculate stdev
             if len(durations[start][end]) > 1:
-                durationStdDev[start][end] = stdev(durations[start][end], mean)            
+                stdev_x = stdev(durations[start][end], mean_x)            
             else:
-                durationStdDev[start][end] = 0
+                stdev_x = 0
+
+            # convert mean and stdev from lognormal distribution to normal distribution
+            mean, st = log_to_norm(mean_x, stdev_x)
+
+            avgDuration[start][end] = mean
+            durationStdDev[start][end] = st
+
         progress.next()
     progress.finish()
 
-    # Calculate traveltime_matrix, travel-times in minutes
-    ttMatrix = []
-    for s in stationMap:
-        start = stationMap[s]
-        ttMatrix.append([])
-        for e in stationMap:
-            end = stationMap[e]
-            averageDuration = avgDuration[start][end]
-            if averageDuration == 0:
-                if start == end:
-                    averageDuration = 7.7777 # TODO, consider to eventually calculate all such positive averageDuarations, and use here
-                else:
-                    raise Exception("*** Error, averageDuration == 0 should not happen") 
-            ttMatrix[start].append(averageDuration)
-    
     progress = Bar("CityBike 4/5: Calculate traveltime ", max = len(stationMap))
     ttVehicleMatrix = []
-    ttVehicleMatrixStdDev = []
+    #ttVehicleMatrixStdDev = []
     for s in stationMap:
         start = stationMap[s]
         ttVehicleMatrix.append([])
-        ttVehicleMatrixStdDev.append([])
+        #ttVehicleMatrixStdDev.append([])
         for e in stationMap:
             end = stationMap[e]
             distance = geopy.distance.distance((stationLocations[s].latitude, stationLocations[s].longitude), 
                (stationLocations[e].latitude, stationLocations[e].longitude)).km
             ttVehicleMatrix[start].append((distance/settings.VEHICLE_SPEED)*60)
-            ttVehicleMatrixStdDev[start].append(0) # code prepared to use some variation here
+            #ttVehicleMatrixStdDev[start].append(0) # code prepared to use some variation here
         progress.next()
     progress.finish()
     
@@ -407,12 +421,12 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
 
     # for debug. stationCapacities and bikeStartStatus are printed as part of Station-object
     printStateParams(stations,  number_of_vehicles, leave_intensities, arrive_intensities, move_probabilities, 
-                    random_seed, ttMatrix, durationStdDev, ttVehicleMatrix, None)
+                    random_seed, avgDuration, durationStdDev, ttVehicleMatrix, None)
 
     state = sim.State.get_initial_state(stations=stations,
                                         number_of_vehicles=number_of_vehicles,
                                         random_seed=random_seed,
-                                        traveltime_matrix=ttMatrix,
+                                        traveltime_matrix=avgDuration,
                                         traveltime_matrix_stddev=durationStdDev,
                                         traveltime_vehicle_matrix=ttVehicleMatrix,
                                         # traveltime_vehicle_matrix_stddev =ttVehicleMatrixStdDev
