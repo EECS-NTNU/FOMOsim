@@ -120,7 +120,7 @@ class GreedyPolicy(Policy):
                              for station in potential_stations}
             times_to_violation = {station.id:calculate_time_to_violation(net_demands[station.id],station) 
                              for station in potential_stations}
-            deviations_from_target_state = {station.id:abs(target_states[station.id]-len(potential_station.bikes))
+            deviations_from_target_state = {station.id:abs(target_states[station.id]-len(station.bikes))
                              for station in potential_stations}
             
             potential_pickup_stations = [station for station in potential_stations if 
@@ -187,7 +187,9 @@ class GreedyPolicy(Policy):
         #net demand for LOCKS (so positive values is parking of bikes)
         #THIS SHOULD HAVE BEEN ABSOLUTE VALUE OF NET DEMAND. THIS IS NOT CLEAR IN THE PAPER!!!
         net_demand_absolute = abs(net_demand_ps)
-        net_demand_normalized = net_demand_absolute/max_net_demand
+        net_demand_normalized = 0
+        if max_net_demand != 0:
+            net_demand_normalized = net_demand_absolute/max_net_demand
         
         #ALTERNATIVELY: use station.get_arrive_intensity(day,hour) and station.get_leave_intensity(day,hour)
         time_to_violation = calculate_time_to_violation(net_demand_ps,potential_station)

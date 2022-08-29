@@ -10,8 +10,7 @@ import datetime
 from datetime import date
 import numpy as np
 import statistics
-from statistics import mean as fmean #I get error when importing fmean
-from statistics import stdev  
+from statistics import fmean, stdev 
 from progress.bar import Bar
 
 import settings

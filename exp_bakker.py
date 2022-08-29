@@ -53,12 +53,13 @@ instances = [
 # Enter analysis definition here
 analyses = [
     # Name,         target_state,                                 policy                                                numvehicles
-    # ("do_nothing",  target_state.outflow_target_state,       policies.DoNothing(),                                 1),
-    # ("grd_old",     target_state.outflow_target_state,       policies.GreedyPolicyOld(),                           1),
-    # ("grd_trgt",    target_state.outflow_target_state,       policies.GreedyPolicy(
-    #                                                                 criticality_measure='deviation_from_target_state'), 1),
+    ("do_nothing",  target_state.outflow_target_state,       policies.DoNothing(),                                 1),
+    
+    ("grd_trgt",    target_state.outflow_target_state,       policies.GreedyPolicy(
+                                                                    criticality_measure='deviation_from_target_state'), 1),
     ("grd_crt",     target_state.outflow_target_state,       policies.GreedyPolicy(
                                                                     criticality_measure='weighted_average'),            1),
+    ("grd_old",     target_state.outflow_target_state,       policies.GreedyPolicyOld(),                           1),
 ]        
 #outflow_target_state, evenly_distributed_target_state, equal_prob_target_state
 
