@@ -44,8 +44,8 @@ DURATION = timeInMinutes(hours=24)
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
     ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
-#    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
-#    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
+    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
+    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
 #   ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    None,        None,   33,   0,    6 ),
 #   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
 ]
@@ -55,11 +55,15 @@ analyses = [
     # Name,         target_state,                                 policy                                                numvehicles
     ("do_nothing",  target_state.outflow_target_state,       policies.DoNothing(),                                 1),
     
-    ("grd_trgt",    target_state.outflow_target_state,       policies.GreedyPolicy(
+    ("grd_trgt_outfl",    target_state.outflow_target_state,       policies.GreedyPolicy(
                                                                     criticality_measure='deviation_from_target_state'), 1),
-    ("grd_crt",     target_state.outflow_target_state,       policies.GreedyPolicy(
+    ("grd_crt_outfl",     target_state.outflow_target_state,       policies.GreedyPolicy(
                                                                     criticality_measure='weighted_average'),            1),
-    ("grd_old",     target_state.outflow_target_state,       policies.GreedyPolicyOld(),                           1),
+    ("grd_crt_even",     target_state.evenly_distributed_target_state,       policies.GreedyPolicy(
+                                                                    criticality_measure='weighted_average'),            1),
+    ("grd_crt_equal",     target_state.equal_prob_target_state,       policies.GreedyPolicy(
+                                                                    criticality_measure='weighted_average'),            1),
+    #("grd_old",     target_state.outflow_target_state,       policies.GreedyPolicyOld(),                           1),
 ]        
 #outflow_target_state, evenly_distributed_target_state, equal_prob_target_state
 
