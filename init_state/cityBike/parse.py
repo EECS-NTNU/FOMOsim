@@ -79,58 +79,6 @@ def download(url):
 
     return newDataFound            
 
-def printStateParams(stations, numvehicles, leave_intensities, arrive_intensities, move_probabilities, 
-                    seed, tt_matrix, tt_matrix_stddev, tt_vehicle_matrix, tt_vehicle_matrix_stddev):
-    def write1D(file, list):
-        if not list == None:
-            for i in range(len(list)):
-                file.write(str(list[i]))
-                file.write(" ")
-    def write2D(file, list):
-            if not list == None:
-                for i in range(len(list)):
-                    write1D(file, (list[i]))
-                    file.write(" ")
-    def write3D(file, list):
-            if not list == None:
-                for i in range(len(list)):
-                    write2D(file, (list[i]))
-                    file.write(" ")
-    def write4D(file, list):
-        if not list == None:
-            for i in range(len(list)):
-                write3D(file, (list[i]))
-                file.write(" ")
-
-    with open("stateParams.txt", "w", newline="") as f:
-        for s in stations:
-            f.write(s.__str__())
-            f.write("\n")
-        f.write("Num-vehicles: ")
-        f.write(str(numvehicles))
-        f.write("\nleave_intensities:\n")
-        write3D(f, leave_intensities)
-        f.write("\narrive_intensities:\n")
-        write3D(f, arrive_intensities)
-        f.write("\nmove_probabilities:\n")
-        write4D(f, move_probabilities)
-        f.write("Seed: ")
-        f.write(str(seed))
-        f.write("\n")
-        f.write("tt_matrix: ")
-        write2D(f, tt_matrix)
-        f.write("\n")
-        f.write("tt_matrix_stddev: ")
-        write2D(f, tt_matrix_stddev)
-        f.write("\n")
-        f.write("tt_vehicle_matrix: ")
-        write2D(f, tt_vehicle_matrix)
-        f.write("\n")
-        f.write("tt_vehicle_matrix_stddev: ")
-        write2D(f, tt_vehicle_matrix_stddev)
-        f.write("\n")
-
-
 def log_to_norm(mu_x, stdev_x):
     # variance calculated from stdev
     var_x = stdev_x * stdev_x
@@ -204,17 +152,11 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         stationLocations[id] = StationLocation(id, long, lat)  
         stationCapacities[id] = stationInfoData["stations"][i]["capacity"]
         stationNames[id] = stationInfoData["stations"][i]["name"]
-
-        # BikeStatusTEST XXXXX !!!!!!!!!!!!
-        BikeStatusPercentage = 0  # set to 0 to use standard
-        if BikeStatusPercentage > 0:
-            bikeStartStatus[id] = int(stationCapacities[id]*(BikeStatusPercentage/100))
-        else:            
-            if stationStatusData["stations"][i]["station_id"]  == id: # check that it is same station
-                bikeStartStatus[id] = stationStatusData["stations"][i]["num_bikes_available"]
-            else:
-                raise Exception("Error: stationInfoData and stationStatusData differs, extend code to handle it")
-       
+        if stationStatusData["stations"][i]["station_id"]  == id: # check that it is same station
+            bikeStartStatus[id] = stationStatusData["stations"][i]["num_bikes_available"]
+        else:
+            raise Exception("Error: stationInfoData and stationStatusData differs, extend code to handle it")
+    
     ###################################################################################################
     # # Find stations with traffic for given week, loop thru all years
     fileList = os.listdir(tripDataPath)
@@ -345,39 +287,17 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 else:
                     raise Exception("*** Error, averageDuration == 0 should not happen") 
 
-            DEBUG = True
-            longestSaved = []
-            longestMean_x = -1
-            longestStdev_x = -1
-            longest_mean = -1
-            longest_st = -1
             # calculate stdev
             if len(durations[start][end]) > 1:
-                if DEBUG:
-                    if len(durations[start][end]) > len(longestSaved):
-                        longestSaved = durations[start][end]
-                        longestMean_x = mean_x
-                        longestStdev_x = stdev_x = stdev(durations[start][end], mean_x)
-                        longest_mean, longest_st = log_to_norm(mean_x, stdev_x)                     
                 stdev_x = stdev(durations[start][end], mean_x)            
             else:
                 stdev_x = 0
-
             # convert mean and stdev from lognormal distribution to normal distribution
             mean, st = log_to_norm(mean_x, stdev_x)
 
-
             avgDuration[start][end] = mean
             durationStdDev[start][end] = st
-
         progress.next()
-
-    if DEBUG:
-        print(longestSaved.sort())
-        print("mean_x, stdev_x: ", longestMean_x, longestStdev_x)
-        print("mean, st: ", longest_mean, longest_st)
-        
-
     progress.finish()
 
     progress = Bar("CityBike 4/5: Calculate traveltime ", max = len(stationMap))
@@ -446,10 +366,6 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
     # Create State object and return
 
-    # for debug. stationCapacities and bikeStartStatus are printed as part of Station-object
-    printStateParams(stations,  number_of_vehicles, leave_intensities, arrive_intensities, move_probabilities, 
-                    random_seed, avgDuration, durationStdDev, ttVehicleMatrix, None)
-
     state = sim.State.get_initial_state(stations=stations,
                                         number_of_vehicles=number_of_vehicles,
                                         random_seed=random_seed,
@@ -459,5 +375,4 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                                         # traveltime_vehicle_matrix_stddev =ttVehicleMatrixStdDev
                                         traveltime_vehicle_matrix_stddev = None
                                         ) 
-    
     return state
