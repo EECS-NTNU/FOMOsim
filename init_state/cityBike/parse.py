@@ -130,6 +130,7 @@ def printStateParams(stations, numvehicles, leave_intensities, arrive_intensitie
         write2D(f, tt_vehicle_matrix_stddev)
         f.write("\n")
 
+
 def log_to_norm(mu_x, stdev_x):
     # variance calculated from stdev
     var_x = stdev_x * stdev_x
@@ -142,6 +143,7 @@ def log_to_norm(mu_x, stdev_x):
     stdev = np.sqrt(var)
 
     return (mu, stdev)
+
 
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, number_of_vehicles=1, random_seed=1):
     """ Processes all stored trips downloaded for the city, calculates average trip duration for every pair of stations, including
@@ -316,6 +318,11 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     progress = Bar("CityBike 3/5: Calculate durations  ", max = len(stationMap))
     avgDuration = []
     durationStdDev = []
+
+    # DEBUG
+    pragmatic = True
+    longestSaved = []
+
     for s in stationMap:
         start = stationMap[s]
         avgDuration.append([])
@@ -338,8 +345,20 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 else:
                     raise Exception("*** Error, averageDuration == 0 should not happen") 
 
+            DEBUG = True
+            longestSaved = []
+            longestMean_x = -1
+            longestStdev_x = -1
+            longest_mean = -1
+            longest_st = -1
             # calculate stdev
             if len(durations[start][end]) > 1:
+                if DEBUG:
+                    if len(durations[start][end]) > len(longestSaved):
+                        longestSaved = durations[start][end]
+                        longestMean_x = mean_x
+                        longestStdev_x = stdev_x = stdev(durations[start][end], mean_x)
+                        longest_mean, longest_st = log_to_norm(mean_x, stdev_x)                     
                 stdev_x = stdev(durations[start][end], mean_x)            
             else:
                 stdev_x = 0
@@ -347,10 +366,18 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             # convert mean and stdev from lognormal distribution to normal distribution
             mean, st = log_to_norm(mean_x, stdev_x)
 
+
             avgDuration[start][end] = mean
             durationStdDev[start][end] = st
 
         progress.next()
+
+    if DEBUG:
+        print(longestSaved.sort())
+        print("mean_x, stdev_x: ", longestMean_x, longestStdev_x)
+        print("mean, st: ", longest_mean, longest_st)
+        
+
     progress.finish()
 
     progress = Bar("CityBike 4/5: Calculate traveltime ", max = len(stationMap))
