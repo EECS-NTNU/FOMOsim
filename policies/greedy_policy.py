@@ -9,7 +9,6 @@ from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_
 
 import sim
 # import abc
-import random
 
 # import init_state
 import init_state.entur.methods
@@ -167,7 +166,7 @@ class GreedyPolicy(Policy):
                     print('no stations with non-zero criticality, route to random station')
                     print('problem seems to be that target state is empty... ??')
                     potential_stations2 = [station for station in simul.state.stations.values() if station.id not in tabu_list]
-                    next_location_id = random.choice(potential_stations2).id
+                    next_location_id = simul.state.rng.choice(potential_stations2).id
                 else: 
                     next_location_id = list(criticalities.keys())[0]
     
@@ -223,4 +222,3 @@ class GreedyPolicy(Policy):
         #high value implies a critical station
     
     
-
