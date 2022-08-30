@@ -22,20 +22,8 @@ import matplotlib.pyplot as plt
 
 from helpers import *
 
-
-####################################
-
-#play around
-
- # import target_state
- # initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
- #                                              random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
- #                                              target_state=target_state.equal_prob_target_state)
- # #outflow_target_state, evenly_distributed_target_state, equal_prob_target_state
- # initial_state.stations[12].target_state #matrix of zero's!
-
-
-
+###############################################################################
+#                               FOMO SIMULATOR                                #
 ###############################################################################
 
 DURATION = timeInMinutes(hours=24)
@@ -47,28 +35,61 @@ instances = [
     ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
     ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
 #   ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    None,        None,   33,   0,    6 ),
-#   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
+   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
 ]
 
-# Enter analysis definition here
-analyses = [
-    # Name,         target_state,                                 policy                                                numvehicles
-    ("do_nothing",  target_state.outflow_target_state,       policies.DoNothing(),                                 1),
+if False:
+    # Enter analysis definition here
+    analyses = [
+        # Name,             target_state,                                   policy                                              numvehicles
+        # ("do_nothing",      target_state.outflow_target_state,              policies.DoNothing(),                               1),
+        # ("grd_trgt_outfl",  target_state.outflow_target_state,              policies.GreedyPolicy(
+        #                                                                     criticality_measure='deviation_from_target_state'), 1),
+        # ("grd_crt_outfl",   target_state.outflow_target_state,              policies.GreedyPolicy(
+        #                                                                     criticality_measure='weighted_average'),            1),
+        ("grd_crt_even",    target_state.evenly_distributed_target_state,   policies.GreedyPolicy(
+                                                                            criticality_measure='weighted_average'),            1),
+        # ("grd_crt_equal",   target_state.equal_prob_target_state,           policies.GreedyPolicy(
+        #                                                                     criticality_measure='weighted_average'),            1),
+        #("grd_old",     target_state.outflow_target_state,       policies.GreedyPolicyOld(),                           1),
+    ]      
+    #outflow_target_state, evenly_distributed_target_state, equal_prob_target_state
+else:
+    analyses1 = [
+        # Name,             target_state,                       policy                                      numvehicles
+        
+        ("1a",  target_state.outflow_target_state,              policies.GreedyPolicy(criticality_measure=
+                                                                'deviation_from_target_state'),             1),
+        ("1b",  target_state.evenly_distributed_target_state,   policies.GreedyPolicy(criticality_measure=
+                                                                'deviation_from_target_state'),             1),
+        ("1c",  target_state.equal_prob_target_state,           policies.GreedyPolicy(criticality_measure=
+                                                                'deviation_from_target_state'),             1),
+    ]      
     
-    ("grd_trgt_outfl",    target_state.outflow_target_state,       policies.GreedyPolicy(
-                                                                    criticality_measure='deviation_from_target_state'), 1),
-    ("grd_crt_outfl",     target_state.outflow_target_state,       policies.GreedyPolicy(
-                                                                    criticality_measure='weighted_average'),            1),
-    ("grd_crt_even",     target_state.evenly_distributed_target_state,       policies.GreedyPolicy(
-                                                                    criticality_measure='weighted_average'),            1),
-    ("grd_crt_equal",     target_state.equal_prob_target_state,       policies.GreedyPolicy(
-                                                                    criticality_measure='weighted_average'),            1),
-    #("grd_old",     target_state.outflow_target_state,       policies.GreedyPolicyOld(),                           1),
-]        
-#outflow_target_state, evenly_distributed_target_state, equal_prob_target_state
+    analyses2 = [
+        # Name,             target_state,                       policy                              numvehicles
+        ("2a",  target_state.outflow_target_state,   policies.DoNothing(),                          1),
+        ("2b",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
+                                                     'deviation_from_target_state'),                1),
+        ("2c",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
+                                                     'weighted_average'),                           1),
+    ]  
+    
+    analyses3 = [
+        # Name,             target_state,                       policy                              numvehicles
+        ("3_1",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
+                                                     'weighted_average'),                           1),
+        ("3_2",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
+                                                     'weighted_average'),                           2),
+        ("3_3",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
+                                                     'weighted_average'),                           3),
+    ]  
+ 
+analyses = analyses1
 
-#seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-seeds = [0]
+seeds = list(range(20))  # [0,1,2,....,N-1]
+#seeds = [0]
+
 
 ###############################################################################
 
