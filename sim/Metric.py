@@ -140,16 +140,19 @@ class Metric:
             
             time = metrics[0].min_time
 
-            while time < metrics[0].max_time:
+            while time <= max_time:
                 # get value
                 value = 0
+                num = 0
                 for i, m in enumerate(metrics):
                     if (key in m.metrics) and (len(m.metrics[key]) > pointers[i]):
                         v = m.metrics[key][pointers[i]][1]
                         t = m.metrics[key][pointers[i]][0]
                         if(t <= time):
                             value += v
-                value = value / len(metrics)
+                            num += 1
+                if num > 0:
+                    value = value / num
 
                 # add metric
                 metric.add_metric_time(time, key, value)
