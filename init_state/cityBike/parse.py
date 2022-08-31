@@ -19,25 +19,38 @@ from helpers import yearWeekNoAndDay
 
 tripDataDirectory = "init_state/cityBike/data/" # location of tripData
 
-def download(url, fromInclude, toInclude):
-    newDataFound = False
+def download(url, fromInclude, toInclude, readNewStationStatus):
 
     def calcNoMonths(fromInclude, toInclude):
-        print("under development")
-
-    def loadMonth(yearNo, monthNo):
+        yearMonthPairs = []
+        y = fromInclude[0]
+        m = fromInclude[1]
+        while not y > toInclude[0]:
+            while not ((m > toInclude[1]) and (y == toInclude[0])):
+                yearMonthPairs.append([y, m])
+                if m == 12:
+                    m = 1
+                    y += 1
+                else:
+                    m += 1
+        return yearMonthPairs
+        
+    def loadMonth(yearNo, monthNo, alreadyLoaded):
         fileName = f"{yearNo}-{monthNo:02}.json"
-        loaded = False
-        if fileName not in file_list:     
-            address = f"{url}{yearNo}/{monthNo:02}.json"
-            data = requests.get(address)
-            if data.status_code == 200: # non-existent files will have status 404
-                # print(f"downloads {city} {fileName} ...") # debug
-                dataOut = open(f"{directory}/{fileName}", "w")
-                dataOut.write(data.text)
-                dataOut.close()
-                loaded = True
-        return loaded
+        if fileName in alreadyLoaded:
+            return True
+        # must try to load file         
+        address = f"{url}{yearNo}/{monthNo:02}.json"
+        data = requests.get(address)
+        if data.status_code == 200: # non-existent files will have status 404
+            # print(f"downloads {city} {fileName} ...") # debug
+            dataOut = open(f"{directory}/{fileName}", "w")
+            dataOut.write(data.text)
+            dataOut.close()
+            return True
+        else:
+            return False    
+
 
     city = extractCityFromURL(url)
     directory = f"{tripDataDirectory}{city}"
@@ -45,21 +58,19 @@ def download(url, fromInclude, toInclude):
         os.makedirs(directory, exist_ok=True)
     file_list = os.listdir(directory)
 
-    noMonths = calcNoMonths(fromInclude, toInclude)
-
-    progress = Bar("CityBike 1a/5: Download datafiles   ", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
-    for yearNo in range(2018, datetime.date.today().year): # 2018/02 is earliest data from data.urbansharing.com
-        for month in range (1, 13):
-            if loadMonth(yearNo, month):
-                newDataFound = True
-            progress.next()
-    for month in range (1, datetime.date.today().month):
-        if loadMonth(datetime.date.today().year, month):
-            newDataFound = True
+    YMpairs = calcNoMonths(fromInclude, toInclude)
+    # TODO (nice), improve robustness by testing not earlier than 2018/02 which is earliest data from data.urbansharing.com
+    #              and not later than datetime.date.today().year and ... month
+    progress = Bar("CityBike 1a/5: Download datafiles   ", max = len(YMpairs))
+    for p in YMpairs:
+        if not loadMonth(p[0], p[1], file_list):
+            raise Exception("Failed to load tripdata for year and month: " + str(p[0]) + str(p[1]))
         progress.next()
     progress.finish()
 
-    if newDataFound:
+    # XXXXXX check that stationinfo-file has been downloaded once, if not do it
+    # XXX new code to check, the if, and 
+    if True:
         # print("downloads station information")
         gbfsStart = "https://gbfs.urbansharing.com/"
         gbfsTailInfo = "/station_information.json"
@@ -71,6 +82,13 @@ def download(url, fromInclude, toInclude):
         stationInfoFile.write(stationInfo.text)
         stationInfoFile.close()
 
+    # XXXXXX check that stationStatus-file has been downloaded before, 
+    #   if not and if readNewStationStatus == True  download it
+    #   if readNewStationStatus == False 
+    # otherwise it will not be needed
+    # XXX new code
+    #  
+    if readNewStationStatus:
         # print("downloads station status")
         gbfsTailStatus = "/station_status.json"
         address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailStatus  
@@ -80,8 +98,7 @@ def download(url, fromInclude, toInclude):
         stationStatusFile = open(f"{directory}/stationstatus.text", "w")
         stationStatusFile.write(stationStatus.text)
         stationStatusFile.close()
-
-    return newDataFound            
+          
 
 def log_to_norm(mu_x, stdev_x):
     # variance calculated from stdev
@@ -97,7 +114,8 @@ def log_to_norm(mu_x, stdev_x):
     return (mu, stdev)
 
 
-def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, fromInclude=[2018, 2], toInclude=[2022,6], number_of_vehicles=1, random_seed=1):
+def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
+    week=30, fromInclude=[2018, 2], toInclude=[2022,6], number_of_vehicles=1, number_of_bikes=None, random_seed=1):
     """ Processes all stored trips downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pairs of stations without any registered trips an average duration is estimated via
         the trip distance and a global average BIKE_SPEED value from settings.py. This gives the travel_time matrix.
@@ -128,7 +146,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         return months
 
     city = extractCityFromURL(url)
-    download(url, fromInclude, toInclude)
+
+    download(url, fromInclude, toInclude, (number_of_bikes == None))
     years = [] 
 
     tripDataPath = tripDataDirectory + city
@@ -263,10 +282,6 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     progress = Bar("CityBike 3/5: Calculate durations  ", max = len(stationMap))
     avgDuration = []
     durationStdDev = []
-
-    # DEBUG
-    pragmatic = True
-    longestSaved = []
 
     for s in stationMap:
         start = stationMap[s]
