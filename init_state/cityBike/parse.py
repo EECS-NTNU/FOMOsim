@@ -19,8 +19,11 @@ from helpers import yearWeekNoAndDay
 
 tripDataDirectory = "init_state/cityBike/data/" # location of tripData
 
-def download(url):
+def download(url, fromInclude, toInclude):
     newDataFound = False
+
+    def calcNoMonths(fromInclude, toInclude):
+        print("under development")
 
     def loadMonth(yearNo, monthNo):
         fileName = f"{yearNo}-{monthNo:02}.json"
@@ -42,7 +45,8 @@ def download(url):
         os.makedirs(directory, exist_ok=True)
     file_list = os.listdir(directory)
 
-    # these loops are a brute-force method to avoid implementing a web-crawler
+    noMonths = calcNoMonths(fromInclude, toInclude)
+
     progress = Bar("CityBike 1a/5: Download datafiles   ", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
     for yearNo in range(2018, datetime.date.today().year): # 2018/02 is earliest data from data.urbansharing.com
         for month in range (1, 13):
@@ -93,7 +97,7 @@ def log_to_norm(mu_x, stdev_x):
     return (mu, stdev)
 
 
-def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, number_of_vehicles=1, random_seed=1):
+def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, fromInclude=[2018, 2], toInclude=[2022,6], number_of_vehicles=1, random_seed=1):
     """ Processes all stored trips downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pairs of stations without any registered trips an average duration is estimated via
         the trip distance and a global average BIKE_SPEED value from settings.py. This gives the travel_time matrix.
@@ -124,8 +128,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         return months
 
     city = extractCityFromURL(url)
-    # download(url)
-    print("***** TESTING --- download new data paused")
+    download(url, fromInclude, toInclude)
     years = [] 
 
     tripDataPath = tripDataDirectory + city

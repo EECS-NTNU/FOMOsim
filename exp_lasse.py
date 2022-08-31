@@ -31,8 +31,8 @@ DURATION = timeInMinutes(hours=24)
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
     ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
-    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
-    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
+#    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
+#    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
 #   ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    None,        None,   33,   0,    6 ),
 #   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
 ]
@@ -41,29 +41,30 @@ instances = [
 analyses = [
     # Name,        target_state,                                 policy,                  numvehicles
     ("do_nothing", target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
-    ("evenly",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
-    ("outflow",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
-    ("equalprob",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
+#    ("evenly",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
+#    ("outflow",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
+#    ("equalprob",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
 ]        
 
 # seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-seeds = [ 0, 1, 2 ]
+seeds = [ 0, 1 ]
 
 ###############################################################################
 
-def lostTripsPlot(cities, policies, starv, cong):
+def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
     fig.suptitle("FOMO simulator", fontsize=15)
     w = 0.4
     if len(cities) == 1:
         subPlots = [ subPlots ]
     for city in range(len(cities)):
-        subPlots[city].bar(policies, starv[city], w, label='Starvation')
-        subPlots[city].bar(policies, cong[city], w, bottom=starv[city], label='Congestion')
+        subPlots[city].bar(policies, starv[city], width = w, yerr = starv_stdev[city], label='Starvation')
+        subPlots[city].bar(policies, cong[city], width = w, yerr = cong_stdev[city], bottom=starv[city], label='Congestion')
         subPlots[city].set_xlabel(cities[city])
         if city == 0:
             subPlots[city].set_ylabel("Violations (% of total number of trips)")
             subPlots[city].legend()
+
 
 ###############################################################################
 
@@ -72,11 +73,17 @@ if __name__ == "__main__":
     starvations = []
     congestions = []
 
+    starvations_stdev = []
+    congestions_stdev = []
+
     for instance in instances:
         print("  instance: ", instance[0])
 
         starvations.append([])
         congestions.append([])
+
+        starvations_stdev.append([])
+        congestions_stdev.append([])
 
         for analysis in analyses:
             print("    analysis: ", analysis[0])
@@ -107,13 +114,20 @@ if __name__ == "__main__":
                 simulations.append(simul)
 
             metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
-            starvations[-1].append(100 * metric.get_aggregate_value("starvation") / metric.get_aggregate_value("trips"))
-            congestions[-1].append(100 * metric.get_aggregate_value("congestion") / metric.get_aggregate_value("trips"))
+
+            scale = 100 / metric.get_aggregate_value("trips")
+
+            starvations[-1].append(scale * metric.get_aggregate_value("starvation"))
+            congestions[-1].append(scale * metric.get_aggregate_value("congestion"))
+
+            starvations_stdev[-1].append(scale * metric.get_aggregate_value("starvation_stdev"))
+            congestions_stdev[-1].append(scale * metric.get_aggregate_value("congestion_stdev"))
 
     ###############################################################################
 
     instance_names = [ instance[0] for instance in instances ]
     analysis_names = [ analysis[0] for analysis in analyses ]
 
-    lostTripsPlot(instance_names, analysis_names, starvations, congestions)
+    lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
+
     plt.show()

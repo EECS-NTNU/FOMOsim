@@ -47,6 +47,7 @@ analyses = [
 ]        
 
 seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+seeds = [ 0, 1]
 
 ###############################################################################
 
@@ -57,8 +58,8 @@ def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     if len(cities) == 1:
         subPlots = [ subPlots ]
     for city in range(len(cities)):
-        subPlots[city].bar(policies, starv[city], w, label='Starvation')
-        subPlots[city].bar(policies, cong[city], w, bottom=starv[city], label='Congestion')
+        subPlots[city].bar(policies, starv[city], width = w, yerr = starv_stdev[city], label='Starvation')
+        subPlots[city].bar(policies, cong[city], width = w, yerr = cong_stdev[city], bottom=starv[city], label='Congestion')
         subPlots[city].set_xlabel(cities[city])
         if city == 0:
             subPlots[city].set_ylabel("Violations (% of total number of trips)")
