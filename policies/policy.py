@@ -29,6 +29,10 @@ class Policy(abc.ABC):
         """
         pass
 
+    def set_time_of_service(self,hour_from=6, hour_to=20):
+        self.hour_from = hour_from
+        self.hour_to = hour_to
+
     def __repr__(self):
         return f"{self.__class__.__name__}"
 

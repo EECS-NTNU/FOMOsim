@@ -187,10 +187,11 @@ class PatternBasedCGH:
     
     def calculate_criticality(self,start_station_id, potential_station_id):  
         driving_time = self.simul.state.get_vehicle_travel_time(start_station_id,potential_station_id)        
-        return round((-self.omega1*self.time_to_violation[potential_station_id] + 
-         self.omega2*self.net_demand[potential_station_id] -
-         self.omega3*driving_time + 
-        self.omega4*self.deviation_not_visited[potential_station_id]),3)
+        return round((
+            - self.omega1*self.time_to_violation[potential_station_id] 
+            + self.omega2*abs(self.net_demand[potential_station_id])    #THIS IS NEW, NOT SURE IF IT WAS IMPLEMENTED RIGHT. the paper is also not clear
+            - self.omega3*driving_time 
+            + self.omega4*self.deviation_not_visited[potential_station_id]),3)
   
     
         # TO DO: I believe that we can use a lot more effort in calculating a good criticality. This will most likely help A LOT!!    

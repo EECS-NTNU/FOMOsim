@@ -140,19 +140,25 @@ class Metric:
             
             time = metrics[0].min_time
 
-            while time < metrics[0].max_time:
+            while time <= max_time:
                 # get value
-                value = 0
+                mean = 0
+                stdev = 0
+                values = []
                 for i, m in enumerate(metrics):
                     if (key in m.metrics) and (len(m.metrics[key]) > pointers[i]):
                         v = m.metrics[key][pointers[i]][1]
                         t = m.metrics[key][pointers[i]][0]
                         if(t <= time):
-                            value += v
-                value = value / len(metrics)
+                            values.append(v)
+
+                if len(values) > 0:
+                    mean = np.mean(values)
+                    stdev = np.std(values)
 
                 # add metric
-                metric.add_metric_time(time, key, value)
+                metric.add_metric_time(time, key, mean)
+                metric.add_metric_time(time, key + "_stdev", stdev)
 
                 # get next time
                 mintime = sys.maxsize

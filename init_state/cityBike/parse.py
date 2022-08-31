@@ -10,7 +10,7 @@ import datetime
 from datetime import date
 import numpy as np
 import statistics
-from statistics import fmean, stdev
+from statistics import fmean, stdev 
 from progress.bar import Bar
 
 import settings
