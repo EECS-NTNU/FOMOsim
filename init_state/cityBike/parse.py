@@ -25,15 +25,16 @@ def download(url, fromInclude, toInclude, readNewStationStatus):
         yearMonthPairs = []
         y = fromInclude[0]
         m = fromInclude[1]
-        while not y > toInclude[0]:
-            while not ((m > toInclude[1]) and (y == toInclude[0])):
-                yearMonthPairs.append([y, m])
-                if m == 12:
-                    m = 1
-                    y += 1
-                else:
-                    m += 1
-        return yearMonthPairs
+        # TODO (nice), robustness, check that there is at least one month
+        while True:                 
+            yearMonthPairs.append([y, m])
+            if m == 12:
+                m = 1
+                y += 1
+            else:
+                m += 1
+            if (y == toInclude[0]) and (m == fromInclude[1]):
+                return yearMonthPairs
         
     def loadMonth(yearNo, monthNo, alreadyLoadedFiles):
         fileName = f"{yearNo}-{monthNo:02}.json"
@@ -63,12 +64,12 @@ def download(url, fromInclude, toInclude, readNewStationStatus):
     progress = Bar("CityBike 1a/5: Download datafiles   ", max = len(YMpairs))
     for p in YMpairs:
         if not loadMonth(p[0], p[1], file_list):
-            raise Exception("Failed to load tripdata for year and month: " + str(p[0]) + str(p[1]))
+            print("\nWarning: Could not load tripdata for year and month: " + str(p[0]) + "/" + str(p[1]) + " from " + url)
         progress.next()
     progress.finish()
 
     # check that stationinfo-file has been downloaded once, if not do it
-    if not os.path.isFile(f"{directory}/stationinfo.text"): 
+    if not os.path.isfile(f"{directory}/stationinfo.text"): 
         # try to dowload station info file from web
         gbfsStart = "https://gbfs.urbansharing.com/"
         gbfsTailInfo = "/station_information.json"
@@ -82,7 +83,7 @@ def download(url, fromInclude, toInclude, readNewStationStatus):
         print("station information has been read from urbansharing.com")
   
     # check that stationStatus-file has been downloaded before 
-    if not os.path.isFile(f"{directory}/stationstatus.text"):
+    if not os.path.isfile(f"{directory}/stationstatus.text"):
         if readNewStationStatus: # Boolean parameter set to false if calling code takes responsibility to set bike status for stations
             gbfsTailStatus = "/station_status.json"
             address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailStatus  
