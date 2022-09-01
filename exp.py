@@ -30,11 +30,11 @@ DURATION = timeInMinutes(hours=24)
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
-    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
-    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
-    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    None,        None,   5,   0,    6 ),
-    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
+    # ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
+    # ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
+    # ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
+    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    300,        None,    5,   0,    6 ),
+    # ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", 500,        None,   33,   0,    6 ),
 ]
 
 # Enter analysis definition here
@@ -42,8 +42,8 @@ analyses = [
     # Name,        target_state,                                 policy,                  numvehicles
     ("do_nothing", target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
     ("evenly",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
-    ("outflow",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
-    ("equalprob",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
+    # ("outflow",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
+    # ("equalprob",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
 ]        
 
 # seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
