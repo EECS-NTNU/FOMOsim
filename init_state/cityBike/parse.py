@@ -35,9 +35,9 @@ def download(url, fromInclude, toInclude, readNewStationStatus):
                     m += 1
         return yearMonthPairs
         
-    def loadMonth(yearNo, monthNo, alreadyLoaded):
+    def loadMonth(yearNo, monthNo, alreadyLoadedFiles):
         fileName = f"{yearNo}-{monthNo:02}.json"
-        if fileName in alreadyLoaded:
+        if fileName in alreadyLoadedFiles:
             return True
         # must try to load file         
         address = f"{url}{yearNo}/{monthNo:02}.json"
@@ -50,7 +50,6 @@ def download(url, fromInclude, toInclude, readNewStationStatus):
             return True
         else:
             return False    
-
 
     city = extractCityFromURL(url)
     directory = f"{tripDataDirectory}{city}"
@@ -68,10 +67,9 @@ def download(url, fromInclude, toInclude, readNewStationStatus):
         progress.next()
     progress.finish()
 
-    # XXXXXX check that stationinfo-file has been downloaded once, if not do it
-    # XXX new code to check, the if, and 
-    if True:
-        # print("downloads station information")
+    # check that stationinfo-file has been downloaded once, if not do it
+    if not os.path.isFile(f"{directory}/stationinfo.text"): 
+        # try to dowload station info file from web
         gbfsStart = "https://gbfs.urbansharing.com/"
         gbfsTailInfo = "/station_information.json"
         address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailInfo
@@ -81,24 +79,22 @@ def download(url, fromInclude, toInclude, readNewStationStatus):
         stationInfoFile = open(f"{directory}/stationinfo.text", "w")
         stationInfoFile.write(stationInfo.text)
         stationInfoFile.close()
-
-    # XXXXXX check that stationStatus-file has been downloaded before, 
-    #   if not and if readNewStationStatus == True  download it
-    #   if readNewStationStatus == False 
-    # otherwise it will not be needed
-    # XXX new code
-    #  
-    if readNewStationStatus:
-        # print("downloads station status")
-        gbfsTailStatus = "/station_status.json"
-        address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailStatus  
-        stationStatus =  requests.get(address)
-        if stationStatus.status_code != 200: # 200 is OK, non-existent files will have status 404
-            raise Exception("*** Error: could not read station status from: " + address)
-        stationStatusFile = open(f"{directory}/stationstatus.text", "w")
-        stationStatusFile.write(stationStatus.text)
-        stationStatusFile.close()
-          
+        print("station information has been read from urbansharing.com")
+  
+    # check that stationStatus-file has been downloaded before 
+    if not os.path.isFile(f"{directory}/stationstatus.text"):
+        if readNewStationStatus: # Boolean parameter set to false if calling code takes responsibility to set bike status for stations
+            gbfsTailStatus = "/station_status.json"
+            address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailStatus  
+            stationStatus =  requests.get(address)
+            if stationStatus.status_code != 200: # 200 is OK, non-existent files will have status 404
+                raise Exception("*** Error: could not read station status from: " + address)
+            stationStatusFile = open(f"{directory}/stationstatus.text", "w")
+            stationStatusFile.write(stationStatus.text)
+            stationStatusFile.close()
+            print("station status has been read from urbansharing.com")
+        else:
+            pass # bike status should be set by calling code
 
 def log_to_norm(mu_x, stdev_x):
     # variance calculated from stdev
