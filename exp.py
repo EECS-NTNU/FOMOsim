@@ -31,10 +31,10 @@ DURATION = timeInMinutes(hours=24)
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
     # ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
-    # ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
-    # ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
-    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    300,        None,    5,   0,    6 ),
-    # ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", 500,        None,   33,   0,    6 ),
+     ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
+     ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
+     ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    60,        None,    5,   0,    6 ),
+    #("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", 1000,        None,   33,   0,    6 ),
 ]
 
 # Enter analysis definition here

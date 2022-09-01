@@ -397,6 +397,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             #raise Exception("*** Sorry, no bikes currently available for given city")
             print("**** Problem fixed for Oslo-vinter-sykkel and Edinburgh but NOT SOLVED...")
             number_of_bikes = 5000
+            bikeStartStatusList = []
             for stationId in stationMap:
                 bikesThere = round(number_of_bikes/len(stationMap))
                 if bikesThere < 1.0:
