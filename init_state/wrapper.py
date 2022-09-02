@@ -1,15 +1,16 @@
 import jsonpickle
 import hashlib
 import os
+import math
 
 import sim
 import settings
 
 savedStatesDirectory = "saved_states/"
 
-def get_initial_state(source, target_state=None, number_of_stations=None, number_of_bikes=None, load_from_cache=True, **kwargs):
+def get_initial_state(source, target_state=None, number_of_stations=None, number_of_bikes=None, bike_class="Bike", load_from_cache=True, **kwargs):
     # create filename
-    all_args = {"source" : source, "target_state" : target_state, "number_of_stations" : number_of_stations, "number_of_bikes" : number_of_bikes}
+    all_args = {"source" : source, "target_state" : target_state, "number_of_stations" : number_of_stations, "number_of_bikes" : number_of_bikes, "bike_class" : bike_class}
     all_args.update(kwargs)
     checksum = hashlib.sha256(jsonpickle.encode(all_args).encode('utf-8')).hexdigest()
     stateFilename = f"{savedStatesDirectory}/{checksum}.pickle.gz"
@@ -28,10 +29,11 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
 
     # create subset of stations
     if number_of_stations is not None:
-        create_subset(state, number_of_stations)
+        create_station_subset(state, number_of_stations)
 
+    # override number of bikes
     if number_of_bikes is not None:
-        adjust_num_bikes(state, number_of_bikes)
+        set_num_bikes(state, number_of_bikes, bike_class)
 
     # calculate target state
     if target_state is not None:
@@ -46,24 +48,45 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
 
     return state
 
-def adjust_num_bikes(state, n):
-    stations = sorted(state.locations, key = lambda station: len(station.get_bikes()), reverse=True)
-    statCounter = 0
+def set_num_bikes(state, n, bike_class):
+    # find total capacity
+    total_capacity = 0
+    for station in state.locations:
+        total_capacity += station.capacity
 
-    while(len(state.get_all_bikes()) > n):
-        # first, remove from bikes in use
-        if not settings.FULL_TRIP and len(state.bikes_in_use) > 0:
-            bike_id = list(state.bikes_in_use.values())[0].id
-            state.remove_used_bike(bike_id)
+    # don't place more bikes than capacity
+    if n > total_capacity:
+        n = total_capacity
+
+    # create and place bikes at stations, scaled for capacity
+    id_counter = 0
+    scale = n / total_capacity
+    for station in state.locations:
+        bikes = []
+        for bike_id in range(int(station.capacity * scale)):
+            if bike_class == "EBike":
+                bikes.append(sim.EBike(bike_id=id_counter, battery=100))
+            else:
+                bikes.append(sim.Bike(bike_id=id_counter))
+            id_counter += 1
+        station.set_bikes(bikes)
+
+    # place remaining bikes
+    stations = sorted(state.locations, key = lambda station: station.capacity, reverse=True)
+    for i in range(n - id_counter):
+        station = stations[i % len(stations)]
+        if bike_class == "EBike":
+            station.add_bike(state.rng, sim.EBike(bike_id=id_counter, battery=100))
         else:
-            # then, remove from stations
-            if len(stations[statCounter].get_bikes()) > 0:
-                bike_id = list(stations[statCounter].get_bikes())[0].id
-                del stations[statCounter].bikes[bike_id]
+            station.add_bike(state.rng, sim.Bike(bike_id=id_counter))
+        id_counter += 1
 
-            statCounter += 1
-            if statCounter >= len(stations):
-                statCounter = 0
+    # remove bikes in use
+    state.bikes_in_use = {}
+
+    # remove bikes in vehicles
+    for vehicle in state.vehicles:
+        vehicle.bike_inventory = {}
 
 def station_sort(station):
     # make sure depots get high score
@@ -78,7 +101,7 @@ def station_sort(station):
     leave /= 7*24
     return leave
 
-def create_subset(state, n):
+def create_station_subset(state, n):
     subset = sorted(state.locations, key=station_sort, reverse=True)[:n]
 
     for sid, station in enumerate(subset):
