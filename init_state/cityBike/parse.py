@@ -39,7 +39,14 @@ def download(url, fromInclude, toInclude, readStationStatus):
     def loadMonth(yearNo, monthNo, alreadyLoadedFiles):
         fileName = f"{yearNo}-{monthNo:02}.json"
         if fileName in alreadyLoadedFiles:
-            return True
+            if yearNo == datetime.date.today().year  and monthNo == datetime.date.today().month:
+                print("   Warning: We found locally stored trip-data for the current month, it will be used, BUT the file should be deleted since it is incomplete")
+                return True
+        else:
+            if yearNo == datetime.date.today().year  and monthNo == datetime.date.today().month:
+                print("   Info: will NOT load the current month, only trip-data for months that are expired") 
+                return False
+
         # must try to load file         
         address = f"{url}{yearNo}/{monthNo:02}.json"
         data = requests.get(address)
@@ -68,7 +75,7 @@ def download(url, fromInclude, toInclude, readStationStatus):
             notFoundYMpairs.append(p)
         progress.next()
     if len(notFoundYMpairs) > 0:
-        print("\nWarning: Could not load tripdata from " + url + " for these year/month pairs:", end="") 
+        print("\n   Warning: Could not load tripdata from " + url + " for these year/month pairs:", end="") 
         for p in notFoundYMpairs:
             print(" " + str(p[0]) + "/" + str(p[1]), end="")
     progress.finish()
@@ -84,7 +91,7 @@ def download(url, fromInclude, toInclude, readStationStatus):
         stationInfoFile = open(f"{directory}/stationinfo.text", "w")
         stationInfoFile.write(stationInfo.text)
         stationInfoFile.close()
-        print("Info: station information has been read from urbansharing.com")
+        print("   Info: station information has been read from urbansharing.com")
   
     if readStationStatus: # Boolean parameter set to false if calling code takes responsibility to set bike status for stations
         # check that stationStatus-file has been downloaded before
@@ -97,9 +104,9 @@ def download(url, fromInclude, toInclude, readStationStatus):
             stationStatusFile = open(f"{directory}/stationstatus.text", "w")
             stationStatusFile.write(stationStatus.text)
             stationStatusFile.close()
-            print("Info: station status has been read from urbansharing.com")
+            print("   Info: station status has been read from urbansharing.com")
         else:
-            print("Info: stations status was found locally on your computer from an earlier run")
+            print("   Info: stations status was found locally on your computer from an earlier run")
     else:
         pass # bike status should be set by calling code
 
@@ -222,7 +229,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
 
     stationMap = {}
     stationNo = 0
-    print("Info: These stations without traffic in week ", str(week), " are neglected.")
+    print("   Info: These stations without traffic in week ", str(week), " are neglected.")
     for stationId in stationNames:
         if not stationId in trafficAtStation:
             print(stationNames[stationId])
@@ -394,23 +401,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             bikeStartStatusList.append(bikesThere)
             totalBikes += bikesThere
         if totalBikes == 0:
-            #raise Exception("*** Sorry, no bikes currently available for given city")
-            print("**** Problem fixed for Oslo-vinter-sykkel and Edinburgh but NOT SOLVED...")
-            number_of_bikes = 5000
-            bikeStartStatusList = []
-            for stationId in stationMap:
-                bikesThere = round(number_of_bikes/len(stationMap))
-                if bikesThere < 1.0:
-                    bikesThere = 1
-                bikeStartStatusList.append(bikesThere)
+            print("Info: No bikes found in stations status file, assume it is set by wrapper.py") 
 
-    else: # do an even distribution of number_of_bikes given
-        for stationId in stationMap:
-            bikesThere = round(number_of_bikes/len(stationMap))
-            if bikesThere < 1.0:
-                bikesThere = 1
-            bikeStartStatusList.append(bikesThere)
-        
     stations = sim.State.create_stations(num_stations=len(capacitiesList), capacities=capacitiesList)
     sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatusList)
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)

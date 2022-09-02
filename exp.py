@@ -33,8 +33,8 @@ instances = [
     ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
     ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
     ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
-    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",      60,        None,    5,   0,    6 ),
-    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  500,        None,   33,   0,    6 ),
+    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    100,        None,    5,   0,    6 ),
+    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", 200,        None,   33,   0,    6 ),
 ]
 
 # Enter analysis definition here
@@ -53,17 +53,32 @@ seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
 
 def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
-    fig.suptitle("FOMO simulator", fontsize=15)
-    w = 0.4
+    fig.suptitle("FOMO simulator - lost trips results", fontsize=15)
+    
     if len(cities) == 1:
         subPlots = [ subPlots ]
+    w = 0.3
+    pos = []
     for city in range(len(cities)):
-        subPlots[city].bar(policies, starv[city], width = w, yerr = starv_stdev[city], label='Starvation')
-        subPlots[city].bar(policies, cong[city], width = w, yerr = cong_stdev[city], bottom=starv[city], label='Congestion')
+        pos.append([])
+        for i in range(len(cong[city])):
+            pos[city].append(starv[city][i] + cong[city][i])
+
+        subPlots[city].bar(policies, starv[city], w, label='Starvation')
+        subPlots[city].errorbar(policies, starv[city], yerr = starv_stdev[city], fmt='none', ecolor='red')
+        subPlots[city].bar(policies, cong[city], w, bottom=starv[city], label='Congestion')
+        
+        # skew the upper error-bar with delta to avoid that they can overwrite each other
+        delta = 0.03
+        policiesPlussDelta = []
+        for i in range(len(policies)):
+            policiesPlussDelta.append(i + delta) 
+        subPlots[city].errorbar(policiesPlussDelta, pos[city], yerr= cong_stdev[city], fmt='none', ecolor='black')
         subPlots[city].set_xlabel(cities[city])
         if city == 0:
             subPlots[city].set_ylabel("Violations (% of total number of trips)")
             subPlots[city].legend()
+
 
 ###############################################################################
 
@@ -130,3 +145,5 @@ if __name__ == "__main__":
     lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
 
     plt.show()
+
+    print(" bye bye")
