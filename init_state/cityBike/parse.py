@@ -127,7 +127,7 @@ def log_to_norm(mu_x, stdev_x):
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
     week=30, fromInclude=[2018, 2], toInclude=[2022,6], number_of_vehicles=1, number_of_bikes = None, random_seed=1):
 
-    """ Processes all stored trips downloaded for the city, calculates average trip duration for every pair of stations, including
+    """ Processes all stortrips downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pairs of stations without any registered trips an average duration is estimated via
         the trip distance and a global average BIKE_SPEED value from settings.py. This gives the travel_time matrix.
         Travel time for the vehicle is based on distance. All tripdata is read and used to calculate arrive and leave intensities 
@@ -401,7 +401,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             bikeStartStatusList.append(bikesThere)
             totalBikes += bikesThere
         if totalBikes == 0:
-            print("Info: No bikes found in stations status file, assume it is set by wrapper.py") 
+            print("   Info: No bikes found in stations status file, assume it is set by wrapper.py") 
 
     stations = sim.State.create_stations(num_stations=len(capacitiesList), capacities=capacitiesList)
     sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatusList)
