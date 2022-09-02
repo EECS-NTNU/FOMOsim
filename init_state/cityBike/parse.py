@@ -84,7 +84,7 @@ def download(url, fromInclude, toInclude, readStationStatus):
         stationInfoFile = open(f"{directory}/stationinfo.text", "w")
         stationInfoFile.write(stationInfo.text)
         stationInfoFile.close()
-        print("station information has been read from urbansharing.com")
+        print("Info: station information has been read from urbansharing.com")
   
     if readStationStatus: # Boolean parameter set to false if calling code takes responsibility to set bike status for stations
         # check that stationStatus-file has been downloaded before
@@ -97,9 +97,9 @@ def download(url, fromInclude, toInclude, readStationStatus):
             stationStatusFile = open(f"{directory}/stationstatus.text", "w")
             stationStatusFile.write(stationStatus.text)
             stationStatusFile.close()
-            print("station status has been read from urbansharing.com")
+            print("Info: station status has been read from urbansharing.com")
         else:
-            print("stations status was found locally on your computer from an earlier run")
+            print("Info: stations status was found locally on your computer from an earlier run")
     else:
         pass # bike status should be set by calling code
 
