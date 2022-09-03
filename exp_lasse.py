@@ -30,7 +30,7 @@ DURATION = timeInMinutes(hours=96)
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    #("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
+    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
     ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
     ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
     ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",      400,        None,    7,   0,    6 ),
