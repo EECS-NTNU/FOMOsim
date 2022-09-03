@@ -190,7 +190,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     ###################################################################################################
     # Find stations with traffic for given week, loop thru all months in range given by fromInclude and toInclude, now in YMpairs
     fileList = os.listdir(tripDataPath)
-    progress = Bar("CityBike 1b/5: Read data from files, find stations with traffic for given week", max = len(YMpairs))
+    progress = Bar("CityBike 1b/5: Read data from files, find stations with traffic for given week", max = len(fileList))
     trafficAtStation = {} # indexed by id, stores stations with at least one arrival or departure 
     for file in fileList:
         if file.endswith(".json"):
@@ -198,7 +198,6 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             m = int(file[5:7])
 
             if [y, m] in YMpairs: 
-                print("   y:", y, " m:", f'{m:02d}', end="") 
                 jsonFile = open(os.path.join(tripDataPath, file), "r")
                 bikeData = json.loads(jsonFile.read())
                 for i in range(len(bikeData)):
@@ -212,20 +211,23 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                         endId = bikeData[i]["end_station_id"]
                         if endId in stationNames:
                             trafficAtStation[endId] = True                     
-                progress.next()
+                print("   y:", y, " m:", f'{m:02d}', end="") 
+        progress.next()
     progress.finish()
 
     stationMap = {}
     stationNo = 0
-    print("   Info: These stations without traffic in week ", str(week), " are neglected.")
+    withOutTraffic = []
     for stationId in stationNames:
         if not stationId in trafficAtStation:
-            print(stationNames[stationId])
-            pass
+            withOutTraffic.append(stationNames[stationId])
         else:
             stationMap[stationId] = stationNo
             stationNo += 1
-    print()
+    if len(withOutTraffic) > 0:
+        print("   Info: These stations without traffic in week ", str(week), " are neglected.")
+        for name in withOutTraffic:
+            print(name) 
 
     arriveCount = []
     leaveCount = []
@@ -389,7 +391,6 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         totalBikes += bikesThere
     if totalBikes == 0:
         print("   Info: No bikes found in stations status file, assume it is set by wrapper.py") 
-    #### CHECK --- denne lages uansett men overstyres av wrapper el.l ???    
 
     stations = sim.State.create_stations(num_stations=len(capacitiesList), capacities=capacitiesList)
     sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatusList)

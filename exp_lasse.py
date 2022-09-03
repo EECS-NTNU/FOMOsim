@@ -30,9 +30,9 @@ DURATION = timeInMinutes(hours=24)
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
+    #("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
     ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
-    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
+    #("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
     ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",      400,        None,    7,   0,    6 ),
     ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  200,        None,   20,   0,    6 ),
 ]
@@ -52,7 +52,7 @@ seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
 # for i in range(50):
 #     seeds.append(i)
 # seeds = [ 0, 1, 2, 3, 4]
-# seeds = [ 0, 1]
+seeds = [ 0, 1]
 
 
 ###############################################################################
@@ -108,7 +108,12 @@ if __name__ == "__main__":
         for analysis in analyses:
             print("    analysis: ", analysis[0])
 
-            if instance[0] == "Oslo-vinter":
+            if instance[0] == "Oslo":
+                initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
+                                                        fromInclude=[2019,3], toInclude= [2022,8],
+                                                        random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
+                                                        target_state=analysis[1])
+            elif instance[0] == "Oslo-vinter":
                 initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
                                                         fromInclude=[2018,12], toInclude= [2019, 3],
                                                         random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
