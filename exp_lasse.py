@@ -25,7 +25,7 @@ from helpers import *
 ###############################################################################
 
 # Duration of each simulation run
-DURATION = timeInMinutes(hours=24)
+DURATION = timeInMinutes(hours=96)
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
@@ -33,8 +33,8 @@ instances = [
     ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
     ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
     ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
-    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",      400,        None,    7,   0,    6 ),
-    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  200,        None,   20,   0,    6 ),
+    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",      350,        None,    7,   0,    6 ),
+    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  170,        None,   20,   0,    6 ),
 ]
 
 # Enter analysis definition here
@@ -48,11 +48,6 @@ analyses = [
 ]        
 
 seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-# seeds = []
-# for i in range(50):
-#     seeds.append(i)
-# seeds = [ 0, 1, 2, 3, 4]
-# seeds = [ 0, 1]
 
 
 ###############################################################################
