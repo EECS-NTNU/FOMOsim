@@ -58,7 +58,7 @@ def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     
     if len(cities) == 1:
         subPlots = [ subPlots ]
-    w = 0.3
+    w = 0.5
     pos = []
     for city in range(len(cities)):
         pos.append([])
@@ -105,14 +105,26 @@ if __name__ == "__main__":
 
             if instance[0] == "Oslo":
                 initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                        fromInclude=[2019,3], toInclude= [2022,8],
+                                                        fromInclude=[2020, 7], toInclude= [2022,8],
                                                         random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
                                                         target_state=analysis[1])
             elif instance[0] == "Oslo-vinter":
                 initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                        fromInclude=[2018,12], toInclude= [2019, 3],
+                                                        fromInclude=[2018, 12], toInclude= [2019, 3],
                                                         random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
                                                         target_state=analysis[1])
+                                                        
+            elif instance[0] == "Bergen":
+                initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
+                                                        fromInclude=[2018, 9], toInclude= [2021, 9],
+                                                        random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
+                                                        target_state=analysis[1])        
+
+            # elif instance[0] == "Trondheim":
+            #     initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
+            #                                             fromInclude=[2018,9], toInclude= [2021, 9],
+            #                                             random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
+            #                                             target_state=analysis[1])                                         
             elif instance[0] == "Edinburgh":
                 initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
                                                         fromInclude=[2018,9], toInclude= [2021, 9],

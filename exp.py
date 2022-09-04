@@ -33,8 +33,8 @@ instances = [
     ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
     ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
     ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
-    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    100,        None,    5,   0,    6 ),
-    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", 200,        None,   33,   0,    6 ),
+    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",     400,        None,    7,   0,    6 ),
+    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  200,        None,   20,   0,    6 ),
 ]
 
 # Enter analysis definition here
@@ -47,7 +47,6 @@ analyses = [
 ]        
 
 seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-#seeds = [ 0, 1, 3]
 
 ###############################################################################
 
@@ -69,7 +68,7 @@ def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
         subPlots[city].bar(policies, cong[city], w, bottom=starv[city], label='Congestion')
         
         # skew the upper error-bar with delta to avoid that they can overwrite each other
-        delta = 0.03
+        delta = 0.05
         policiesPlussDelta = []
         for i in range(len(policies)):
             policiesPlussDelta.append(i + delta) 

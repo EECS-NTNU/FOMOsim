@@ -121,15 +121,13 @@ def log_to_norm(mu_x, stdev_x):
 
 
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
-    week=30, fromInclude=[2018, 2], toInclude=[2022,6], number_of_vehicles=1,  random_seed=1):
+    week=30, fromInclude=[2018, 5], toInclude=[2022,8], number_of_vehicles=1,  random_seed=1):
 
-    """ Processes all stortrips downloaded for the city, calculates average trip duration for every pair of stations, including
+    """ Processes selected  trips downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pairs of stations without any registered trips an average duration is estimated via
         the trip distance and a global average BIKE_SPEED value from settings.py. This gives the travel_time matrix.
-        Travel time for the vehicle is based on distance. All tripdata is read and used to calculate arrive and leave intensities 
+        Travel time for the vehicle is based on distance. All selected tripdata is read and used to calculate arrive and leave intensities 
         for every station and move probabilities for every pair of stations. These structures are indexed by station, week and hour.
-        Station capacities and number of bikes in use is based on real_time data read at execution time, NOTE this will remove 
-        reproducibility of simulations (but it can be re-gained by caching)
     """
     class StationLocation: 
         def __init__(self, stationId, longitude, latitude):
