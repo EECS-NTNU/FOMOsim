@@ -19,13 +19,36 @@ from helpers import yearWeekNoAndDay
 
 tripDataDirectory = "init_state/cityBike/data/" # location of tripData
 
-def download(url):
-    newDataFound = False
+def generateYMpairs(fromInclude, toInclude):
+    yearMonthPairs = []
+    y = fromInclude[0]
+    m = fromInclude[1]
+    # TODO (nice), robustness, check that there is at least one month
+    while True:                 
+        yearMonthPairs.append([y, m])
+        if m == 12:
+            m = 1
+            y += 1
+        else:
+            m += 1
+        if (y == toInclude[0]) and (m > toInclude[1]):
+            return yearMonthPairs
 
-    def loadMonth(yearNo, monthNo):
+def download(url, YMpairs):    
+
+    def loadMonth(yearNo, monthNo, alreadyLoadedFiles):
         fileName = f"{yearNo}-{monthNo:02}.json"
-        loaded = False
-        if fileName not in file_list:     
+        if fileName in alreadyLoadedFiles:
+            if yearNo == datetime.date.today().year  and monthNo == datetime.date.today().month:
+                print("   Warning: We found locally stored trip-data for the current month, it will be used, BUT the file should be deleted since it is incomplete")
+                return True
+        else:
+            if yearNo == datetime.date.today().year  and monthNo == datetime.date.today().month:
+                print("   Info: will NOT load the current month, only trip-data for months that are expired") 
+                return False
+
+        if fileName not in alreadyLoadedFiles:
+            # must try to load file         
             address = f"{url}{yearNo}/{monthNo:02}.json"
             data = requests.get(address)
             if data.status_code == 200: # non-existent files will have status 404
@@ -33,8 +56,11 @@ def download(url):
                 dataOut = open(f"{directory}/{fileName}", "w")
                 dataOut.write(data.text)
                 dataOut.close()
-                loaded = True
-        return loaded
+                return True
+            else:
+                return False
+        else:
+            return True    
 
     city = extractCityFromURL(url)
     directory = f"{tripDataDirectory}{city}"
@@ -42,21 +68,20 @@ def download(url):
         os.makedirs(directory, exist_ok=True)
     file_list = os.listdir(directory)
 
-    # these loops are a brute-force method to avoid implementing a web-crawler
-    progress = Bar("CityBike 1a/5: Download datafiles   ", max = (datetime.date.today().year - 2018) * 12 + datetime.date.today().month - 1)
-    for yearNo in range(2018, datetime.date.today().year): # 2018/02 is earliest data from data.urbansharing.com
-        for month in range (1, 13):
-            if loadMonth(yearNo, month):
-                newDataFound = True
-            progress.next()
-    for month in range (1, datetime.date.today().month):
-        if loadMonth(datetime.date.today().year, month):
-            newDataFound = True
+    progress = Bar("CityBike 1a/5: Download datafiles   ", max = len(YMpairs))
+    notFoundYMpairs = []
+    for p in YMpairs:
+        if not loadMonth(p[0], p[1], file_list):
+            notFoundYMpairs.append(p)
         progress.next()
+    if len(notFoundYMpairs) > 0:
+        print("\n   Warning: Could not load tripdata from " + url + " for these year/month pairs:", end="") 
+        for p in notFoundYMpairs:
+            print(" " + str(p[0]) + "/" + str(p[1]), end="")
     progress.finish()
 
-    if newDataFound:
-        # print("downloads station information")
+    # check that stationinfo-file has been downloaded once, if not try to do so 
+    if not os.path.isfile(f"{directory}/stationinfo.text"): 
         gbfsStart = "https://gbfs.urbansharing.com/"
         gbfsTailInfo = "/station_information.json"
         address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailInfo
@@ -66,8 +91,9 @@ def download(url):
         stationInfoFile = open(f"{directory}/stationinfo.text", "w")
         stationInfoFile.write(stationInfo.text)
         stationInfoFile.close()
-
-        # print("downloads station status")
+        print("   Info: station information has been read from urbansharing.com")
+  
+    if not os.path.isfile(f"{directory}/stationstatus.text"):
         gbfsTailStatus = "/station_status.json"
         address = gbfsStart + extractCityAndDomainFromURL(url) + gbfsTailStatus  
         stationStatus =  requests.get(address)
@@ -76,59 +102,9 @@ def download(url):
         stationStatusFile = open(f"{directory}/stationstatus.text", "w")
         stationStatusFile.write(stationStatus.text)
         stationStatusFile.close()
-
-    return newDataFound            
-
-def printStateParams(stations, numvehicles, leave_intensities, arrive_intensities, move_probabilities, 
-                    seed, tt_matrix, tt_matrix_stddev, tt_vehicle_matrix, tt_vehicle_matrix_stddev):
-    def write1D(file, list):
-        if not list == None:
-            for i in range(len(list)):
-                file.write(str(list[i]))
-                file.write(" ")
-    def write2D(file, list):
-            if not list == None:
-                for i in range(len(list)):
-                    write1D(file, (list[i]))
-                    file.write(" ")
-    def write3D(file, list):
-            if not list == None:
-                for i in range(len(list)):
-                    write2D(file, (list[i]))
-                    file.write(" ")
-    def write4D(file, list):
-        if not list == None:
-            for i in range(len(list)):
-                write3D(file, (list[i]))
-                file.write(" ")
-
-    with open("stateParams.txt", "w", newline="") as f:
-        for s in stations:
-            f.write(s.__str__())
-            f.write("\n")
-        f.write("Num-vehicles: ")
-        f.write(str(numvehicles))
-        f.write("\nleave_intensities:\n")
-        write3D(f, leave_intensities)
-        f.write("\narrive_intensities:\n")
-        write3D(f, arrive_intensities)
-        f.write("\nmove_probabilities:\n")
-        write4D(f, move_probabilities)
-        f.write("Seed: ")
-        f.write(str(seed))
-        f.write("\n")
-        f.write("tt_matrix: ")
-        write2D(f, tt_matrix)
-        f.write("\n")
-        f.write("tt_matrix_stddev: ")
-        write2D(f, tt_matrix_stddev)
-        f.write("\n")
-        f.write("tt_vehicle_matrix: ")
-        write2D(f, tt_vehicle_matrix)
-        f.write("\n")
-        f.write("tt_vehicle_matrix_stddev: ")
-        write2D(f, tt_vehicle_matrix_stddev)
-        f.write("\n")
+        print("   Info: station status has been read from urbansharing.com")
+    else:
+        print("   Info: stations status was found locally on your computer from an earlier run")
 
 def log_to_norm(mu_x, stdev_x):
     # variance calculated from stdev
@@ -143,14 +119,15 @@ def log_to_norm(mu_x, stdev_x):
 
     return (mu, stdev)
 
-def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", week=30, number_of_vehicles=1, random_seed=1):
-    """ Processes all stored trips downloaded for the city, calculates average trip duration for every pair of stations, including
+
+def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
+    week=30, fromInclude=[2018, 5], toInclude=[2022,8], number_of_vehicles=1,  random_seed=1):
+
+    """ Processes selected  trips downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pairs of stations without any registered trips an average duration is estimated via
         the trip distance and a global average BIKE_SPEED value from settings.py. This gives the travel_time matrix.
-        Travel time for the vehicle is based on distance. All tripdata is read and used to calculate arrive and leave intensities 
+        Travel time for the vehicle is based on distance. All selected tripdata is read and used to calculate arrive and leave intensities 
         for every station and move probabilities for every pair of stations. These structures are indexed by station, week and hour.
-        Station capacities and number of bikes in use is based on real_time data read at execution time, NOTE this will remove 
-        reproducibility of simulations (but it can be re-gained by caching)
     """
     class StationLocation: 
         def __init__(self, stationId, longitude, latitude):
@@ -159,7 +136,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             self.latitude = latitude
 
     def weekMonths(weekNo): # produce a list of months that can be in a given week no. Note that isocalendar 
-                            # does not handle week no = 53
+                            # does not handle week no = 53 <<== TODO
         if weekNo == 53:
             months = [1,12]
         else:
@@ -174,8 +151,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         return months
 
     city = extractCityFromURL(url)
-    # download(url)
-    print("***** TESTING --- download new data paused")
+    YMpairs = generateYMpairs(fromInclude, toInclude)
+    download(url, YMpairs) 
     years = [] 
 
     tripDataPath = tripDataDirectory + city
@@ -203,24 +180,22 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         stationCapacities[id] = stationInfoData["stations"][i]["capacity"]
         stationNames[id] = stationInfoData["stations"][i]["name"]
 
-        # BikeStatusTEST XXXXX !!!!!!!!!!!!
-        BikeStatusPercentage = 0  # set to 0 to use standard
-        if BikeStatusPercentage > 0:
-            bikeStartStatus[id] = int(stationCapacities[id]*(BikeStatusPercentage/100))
-        else:            
-            if stationStatusData["stations"][i]["station_id"]  == id: # check that it is same station
-                bikeStartStatus[id] = stationStatusData["stations"][i]["num_bikes_available"]
-            else:
-                raise Exception("Error: stationInfoData and stationStatusData differs, extend code to handle it")
-       
+        if stationStatusData["stations"][i]["station_id"]  == id: # check that it is same station
+            bikeStartStatus[id] = stationStatusData["stations"][i]["num_bikes_available"]
+        else:
+            raise Exception("Error: stationInfoData and stationStatusData differs")
+    
     ###################################################################################################
-    # # Find stations with traffic for given week, loop thru all years
+    # Find stations with traffic for given week, loop thru all months in range given by fromInclude and toInclude, now in YMpairs
     fileList = os.listdir(tripDataPath)
     progress = Bar("CityBike 1b/5: Read data from files, find stations with traffic for given week", max = len(fileList))
     trafficAtStation = {} # indexed by id, stores stations with at least one arrival or departure 
     for file in fileList:
         if file.endswith(".json"):
-            if int(file[5:7]) in weekMonths(week):
+            y = int(file[0:4])
+            m = int(file[5:7])
+
+            if [y, m] in YMpairs: 
                 jsonFile = open(os.path.join(tripDataPath, file), "r")
                 bikeData = json.loads(jsonFile.read())
                 for i in range(len(bikeData)):
@@ -234,20 +209,23 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                         endId = bikeData[i]["end_station_id"]
                         if endId in stationNames:
                             trafficAtStation[endId] = True                     
+                print("   y:", y, " m:", f'{m:02d}', end="") 
         progress.next()
     progress.finish()
 
     stationMap = {}
     stationNo = 0
-    print("These stations without traffic in week ", str(week), " are neglected.")
+    withOutTraffic = []
     for stationId in stationNames:
         if not stationId in trafficAtStation:
-            print(stationNames[stationId])
-            pass
+            withOutTraffic.append(stationNames[stationId])
         else:
             stationMap[stationId] = stationNo
             stationNo += 1
-    print()
+    if len(withOutTraffic) > 0:
+        print("   Info: These stations without traffic in week ", str(week), " are neglected.")
+        for name in withOutTraffic:
+            print(name) 
 
     arriveCount = []
     leaveCount = []
@@ -316,6 +294,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     progress = Bar("CityBike 3/5: Calculate durations  ", max = len(stationMap))
     avgDuration = []
     durationStdDev = []
+
     for s in stationMap:
         start = stationMap[s]
         avgDuration.append([])
@@ -343,13 +322,11 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                 stdev_x = stdev(durations[start][end], mean_x)            
             else:
                 stdev_x = 0
-
             # convert mean and stdev from lognormal distribution to normal distribution
             mean, st = log_to_norm(mean_x, stdev_x)
 
             avgDuration[start][end] = mean
             durationStdDev[start][end] = st
-
         progress.next()
     progress.finish()
 
@@ -398,30 +375,25 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         progress.next()
     progress.finish()
 
-    totalBikes = 0
-    for s in bikeStartStatus:
-        totalBikes += int(s)
-    if totalBikes == 0:
-        raise Exception("*** Sorry, no bikes currently available for given city")
-
     # Create stations
     # capacities must be converted from map to list, to avoid changing code in state.py
     capacitiesList = []
     for stationId in stationMap:
         capacitiesList.append(stationCapacities[stationId])
-    # same for bikeStartStatus
+    
     bikeStartStatusList = []
+    totalBikes = 0
     for stationId in stationMap:
-        bikeStartStatusList.append(bikeStartStatus[stationId])
+        bikesThere = int(bikeStartStatus[stationId])
+        bikeStartStatusList.append(bikesThere)
+        totalBikes += bikesThere
+    if totalBikes == 0:
+        print("   Info: No bikes found in stations status file, assume it is set by wrapper.py") 
 
     stations = sim.State.create_stations(num_stations=len(capacitiesList), capacities=capacitiesList)
     sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatusList)
     sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
     # Create State object and return
-
-    # for debug. stationCapacities and bikeStartStatus are printed as part of Station-object
-    printStateParams(stations,  number_of_vehicles, leave_intensities, arrive_intensities, move_probabilities, 
-                    random_seed, avgDuration, durationStdDev, ttVehicleMatrix, None)
 
     state = sim.State.get_initial_state(stations=stations,
                                         number_of_vehicles=number_of_vehicles,
@@ -432,5 +404,4 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                                         # traveltime_vehicle_matrix_stddev =ttVehicleMatrixStdDev
                                         traveltime_vehicle_matrix_stddev = None
                                         ) 
-    
     return state
