@@ -31,14 +31,20 @@ DURATION = timeInMinutes(hours=24)
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
+#    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
     ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
     ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
 #   ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    None,        None,   33,   0,    6 ),
-   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
+#   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
 ]
 
-if False:
+if True:
+    analyses = [
+        # Name,             target_state,                                   policy                                              numvehicles
+        ("grd_crt_even",    target_state.outflow_target_state,   policies.GreedyPolicy(
+                                                                            criticality_measure='deviation_from_target_state'),            1),
+    ]    
+elif False:
     # Enter analysis definition here
     analyses = [
         # Name,             target_state,                                   policy                                              numvehicles
@@ -58,9 +64,9 @@ else:
     analyses1 = [
         # Name,             target_state,                       policy                                      numvehicles
         
-        ("1a",  target_state.outflow_target_state,              policies.GreedyPolicy(criticality_measure=
+        ("1a",  target_state.evenly_distributed_target_state,   policies.GreedyPolicy(criticality_measure=
                                                                 'deviation_from_target_state'),             1),
-        ("1b",  target_state.evenly_distributed_target_state,   policies.GreedyPolicy(criticality_measure=
+        ("1b",  target_state.outflow_target_state,              policies.GreedyPolicy(criticality_measure=
                                                                 'deviation_from_target_state'),             1),
         ("1c",  target_state.equal_prob_target_state,           policies.GreedyPolicy(criticality_measure=
                                                                 'deviation_from_target_state'),             1),
@@ -78,16 +84,16 @@ else:
     analyses3 = [
         # Name,             target_state,                       policy                              numvehicles
         ("3_1",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'weighted_average'),                           1),
+                                                     'deviation_from_target_state'),                           1),
         ("3_2",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'weighted_average'),                           2),
+                                                     'deviation_from_target_state'),                           2),
         ("3_3",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'weighted_average'),                           3),
+                                                     'deviation_from_target_state'),                           3),
     ]  
  
-analyses = analyses1
+analyses = analyses
 
-seeds = list(range(20))  # [0,1,2,....,N-1]
+seeds = list(range(10))  # [0,1,2,....,N-1]
 #seeds = [0]
 
 
