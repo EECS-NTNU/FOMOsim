@@ -39,16 +39,8 @@ def Surface3Dplot(bikes, policyNames, values):
     return fig, ax
 
 DURATION = timeInMinutes(hours=48)
-instances = [
-    # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    #("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
-    #("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
-    #("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
-    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",      None,        None,    7,   0,    DURATION ),
-    #("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  200,        None,   20,   0,    6 ),
+instances = [ ("Oslo", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/", None,  None,   33,   0,    DURATION ),
 ]
-
-# Enter analysis definition here
 analyses = [
     # Name,        target_state,                                 policy,                  numvehicles
     ("do_nothing",   target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
@@ -103,9 +95,8 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 100
-#    for i in range(20):
-    for i in range(6):
+    startVal = 400
+    for i in range(20):
         bikes.append(startVal + i*200) 
 
     results = []    
@@ -121,9 +112,9 @@ if __name__ == "__main__":
             for b in bikes:
                 print( "   number of bikes: ", b)
 
-                if instance[0] == "Oslo-vinter":
+                if instance[0] == "Oslo":
                     initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                            fromInclude=[2018, 12], toInclude= [2019, 3],
+                                                            fromInclude=[2020, 7], toInclude= [2022,8],
                                                             random_seed=0, number_of_stations=instance[3], number_of_bikes=b,
                                                             target_state=analysis[1])
                 simulations = []
@@ -147,12 +138,6 @@ if __name__ == "__main__":
 
                 resultRow.append(scale * metric.get_aggregate_value("starvation") + scale * metric.get_aggregate_value("congestion"))
             results.append(resultRow)
-
-            # starvations[-1].append()
-            # congestions[-1].append()
-
-    # instance_names = [ instance[0] for instance in instances ]
-    # analysis_names = [ analysis[0] for analysis in analyses ]
 
     fig, ax = Surface3Dplot(bikes, policyNames, results)
 
