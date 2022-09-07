@@ -50,8 +50,8 @@ analyses = [
     ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
     ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
     ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
-    ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
-    ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
+    #("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
+    #("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
 ]
 
 policyNames = []
@@ -59,7 +59,7 @@ for ana in analyses:
     policyNames.append(ana[0])
 policyIndices = range(len(policyNames))
 
-seeds = [ 0, 1, 2, 4, 5]
+seeds = [0, 1, 2]
 
 def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
@@ -95,11 +95,13 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 400
-    for i in range(20):
+    startVal = 1000
+    for i in range(12):
         bikes.append(startVal + i*200) 
 
-    results = []    
+    resultsStarvation = []  
+    resultsCongestion = []
+    resultsTotal = []    
 
     for instance in instances:
         print("  instance: ", instance[0])
@@ -107,8 +109,9 @@ if __name__ == "__main__":
         congestions.append([])
         for analysis in analyses:
             print("    analysis: ", analysis[0])        
-            resultRow = [] 
-
+            resultRowS = [] 
+            resultRowC = [] 
+            resultRowT = [] 
             for b in bikes:
                 print( "   number of bikes: ", b)
 
@@ -135,11 +138,24 @@ if __name__ == "__main__":
 
                 metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
                 scale = 100 / metric.get_aggregate_value("trips")
+                starv = scale * metric.get_aggregate_value("starvation")
+                cong = scale * metric.get_aggregate_value("congestion")
+                tot = starv + cong
+                resultRowS.append(starv) 
+                resultRowC.append(cong) 
+                resultRowT.append(tot) 
+            resultsStarvation.append(resultRowS)
+            resultsCongestion.append(resultRowC)
+            resultsTotal.append(resultRowT)
 
-                resultRow.append(scale * metric.get_aggregate_value("starvation") + scale * metric.get_aggregate_value("congestion"))
-            results.append(resultRow)
+    print(resultsStarvation)
+    print(resultsCongestion)
+    print(resultsTotal)
 
-    fig, ax = Surface3Dplot(bikes, policyNames, results)
+
+    fig, ax = Surface3Dplot(bikes, policyNames, resultsStarvation)
+    fig, ax = Surface3Dplot(bikes, policyNames, resultsCongestion)
+    fig, ax = Surface3Dplot(bikes, policyNames, resultsTotal)
 
     plt.show()
     print(" bye bye")
