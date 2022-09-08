@@ -13,7 +13,7 @@ from matplotlib import cm
 import numpy as np
 from helpers import *
 
-def Surface3Dplot(bikes, policyNames, values):
+def Surface3Dplot(bikes, policyNames, values, title):
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
     policiesPosition = range(len(policyNames))
     bikes, policiesPosition = np.meshgrid(bikes, policiesPosition)
@@ -32,10 +32,12 @@ def Surface3Dplot(bikes, policyNames, values):
     ax.set_ylabel("rebalancing policy")
     ax.set_yticks(range(len(policyNames)))
     ax.set_yticklabels(policyNames)
+    ax.set_zlim([0, 150])
     # https://stackoverflow.com/questions/6390393/matplotlib-make-tick-labels-font-size-smaller
     ax.tick_params(axis='both', which='major', labelsize=7)
     ax.tick_params(axis='both', which='minor', labelsize=12)
     fig.colorbar(surf, shrink=0.3, aspect=5, )
+    fig.suptitle(title)
     return fig, ax
 
 DURATION = timeInMinutes(hours=48)
@@ -43,15 +45,15 @@ instances = [ ("Oslo", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/"
 ]
 analyses = [
     # Name,        target_state,                                 policy,                  numvehicles
-    ("do_nothing",   target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
-    ("random-1",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     1),
-    ("random-2",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     2),
-    ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
-    ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
-    ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
+    ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
+    ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
     ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
-    #("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
-    #("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
+    ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
+    ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
+    ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
+    ("random-2",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     2),
+    ("random-1",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     1),
+    ("do_nothing",   target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
 ]
 
 policyNames = []
@@ -59,7 +61,8 @@ for ana in analyses:
     policyNames.append(ana[0])
 policyIndices = range(len(policyNames))
 
-seeds = [0, 1, 2]
+seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+seeds = [0,1,2]
 
 def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
@@ -96,8 +99,8 @@ if __name__ == "__main__":
     # set up number_of_bikes-values
     bikes = []
     startVal = 1000
-    for i in range(12):
-        bikes.append(startVal + i*200) 
+    for i in range(5): # 12
+        bikes.append(startVal + i*600) 
 
     resultsStarvation = []  
     resultsCongestion = []
@@ -153,9 +156,9 @@ if __name__ == "__main__":
     print(resultsTotal)
 
 
-    fig, ax = Surface3Dplot(bikes, policyNames, resultsStarvation)
-    fig, ax = Surface3Dplot(bikes, policyNames, resultsCongestion)
-    fig, ax = Surface3Dplot(bikes, policyNames, resultsTotal)
+    fig, ax = Surface3Dplot(bikes, policyNames, resultsStarvation, "Starvation (" + '%' + " of trips)")
+    fig, ax = Surface3Dplot(bikes, policyNames, resultsCongestion, "Congestion (" + '%' + " of trips)")
+    fig, ax = Surface3Dplot(bikes, policyNames, resultsTotal, "Starvation + congestion (" + '%' + " of trips)")
 
     plt.show()
     print(" bye bye")
