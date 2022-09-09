@@ -71,18 +71,17 @@ def Surface3DplotFraction(bikes, policyNames, starv, cong, title):
     fig.suptitle(title)
     return fig, ax
 
-
 DURATION = timeInMinutes(hours=48)
 instances = [ ("Oslo", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/", None,  None,   33,   0,    DURATION )]
 analyses = [
-    # Name,        target_state,                                 policy,                  numvehicles
-    # ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
-    # ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
-    # ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
-    # ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
-    # ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
-    # ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
-    # ("random-2",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     2),
+#    Name,        target_state,                                 policy,                  numvehicles
+    ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
+    ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
+    ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
+    ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
+    ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
+    ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
+    ("random-2",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     2),
     ("random-1",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     1),
     ("do_nothing",   target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
 ]
@@ -93,7 +92,7 @@ for ana in analyses:
 policyIndices = range(len(policyNames))
 
 seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-seeds = [0,1]
+seeds = [0]
 
 def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
@@ -129,9 +128,9 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 1000
-    for i in range(5): # 12
-        bikes.append(startVal + i*600) 
+    startVal = 600
+    for i in range(16): # 12
+        bikes.append(startVal + i*200) 
 
     resultsStarvation = []  
     resultsCongestion = []
