@@ -22,11 +22,13 @@ def Surface3Dplot(bikes, policyNames, values, title):
     for p in range(len(policyNames)):  # copy results from 2D list to numpyarray
         for b in range(len(bikes[p])):
             Z[p][b] = values[p][b] 
-    surf = ax.plot_surface(bikes, policiesPosition, Z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
     ax.set_xlabel("number of bikes")
     ax.set_ylabel("rebalancing policy")
     ax.set_yticks(range(len(policyNames)))
     ax.set_yticklabels(policyNames)
+    norm = colors.Normalize(vmin=0, vmax=120)
+    scmap = plt.cm.ScalarMappable(norm = norm, cmap="coolwarm")
+    surf = ax.plot_surface(bikes, policiesPosition, Z, facecolors=scmap.to_rgba(Z), linewidth=0, antialiased=False)
     ax.set_zlim([0, 150])
     # https://stackoverflow.com/questions/6390393/matplotlib-make-tick-labels-font-size-smaller
     ax.tick_params(axis='both', which='major', labelsize=7)
@@ -52,7 +54,7 @@ def Surface3DplotFraction(bikes, policyNames, starv, cong, title):
     norm2 = colors.Normalize(vmin=0.0, vmax=100)
     scmap = plt.cm.ScalarMappable(norm = norm, cmap="coolwarm")
     scmap2 = plt.cm.ScalarMappable(norm = norm2, cmap=cm.BrBG)
-    surf = ax.plot_surface(bikes, policiesPosition, Z*2, facecolors=scmap.to_rgba(Z), shade=False)
+    surf = ax.plot_surface(bikes, policiesPosition, Z, facecolors=scmap.to_rgba(Z), shade=False)
     surf2 = ax.plot_surface(bikes, policiesPosition, (R*0)-100, facecolors=scmap2.to_rgba(R), shade=False)
     ax.set_zlim(-100, 120) 
     ax.set_xlabel("number of bikes", weight='bold')
@@ -128,8 +130,8 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 600
-    for i in range(16): # 12
+    startVal = 400
+    for i in range(18): # 12
         bikes.append(startVal + i*200) 
 
     resultsStarvation = []  
