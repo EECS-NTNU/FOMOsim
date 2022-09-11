@@ -26,14 +26,14 @@ def Surface3Dplot(bikes, policyNames, values, title):
     ax.set_ylabel("rebalancing policy")
     ax.set_yticks(range(len(policyNames)))
     ax.set_yticklabels(policyNames)
-    norm = colors.Normalize(vmin=0, vmax=120)
+    norm = colors.Normalize(vmin=0, vmax=100)
     scmap = plt.cm.ScalarMappable(norm = norm, cmap="coolwarm")
-    surf = ax.plot_surface(bikes, policiesPosition, Z, facecolors=scmap.to_rgba(Z), linewidth=0, antialiased=False)
-    ax.set_zlim([0, 150])
+    surf = ax.plot_surface(bikes, policiesPosition, Z, facecolors=scmap.to_rgba(Z), linewidth=0, antialiased=False, shade = False)
+    ax.set_zlim([0, 100])
     # https://stackoverflow.com/questions/6390393/matplotlib-make-tick-labels-font-size-smaller
     ax.tick_params(axis='both', which='major', labelsize=7)
     ax.tick_params(axis='both', which='minor', labelsize=12)
-    fig.colorbar(surf, shrink=0.3, aspect=5, )
+    fig.colorbar(scmap, shrink=0.3, aspect=5, )
     fig.suptitle(title)
     return fig, ax
 
@@ -50,13 +50,13 @@ def Surface3DplotFraction(bikes, policyNames, starv, cong, title):
     for p in range(len(policyNames)): # copy results from 2D list to numpyarray
         for b in range(len(bikes[p])):
             R[p][b] = (starv[p][b]/Z[p][b])*100 # Starvation in % of Lost trips  
-    norm = colors.Normalize(vmin=0, vmax=120)
+    norm = colors.Normalize(vmin=0, vmax=100)
     norm2 = colors.Normalize(vmin=0.0, vmax=100)
     scmap = plt.cm.ScalarMappable(norm = norm, cmap="coolwarm")
     scmap2 = plt.cm.ScalarMappable(norm = norm2, cmap=cm.BrBG)
     surf = ax.plot_surface(bikes, policiesPosition, Z, facecolors=scmap.to_rgba(Z), shade=False)
     surf2 = ax.plot_surface(bikes, policiesPosition, (R*0)-100, facecolors=scmap2.to_rgba(R), shade=False)
-    ax.set_zlim(-100, 120) 
+    ax.set_zlim(-100, 100) 
     ax.set_xlabel("number of bikes", weight='bold')
     ax.set_ylabel("rebalancing policy",  weight='bold')
     ax.set_yticks(range(len(policyNames)))
@@ -73,7 +73,7 @@ def Surface3DplotFraction(bikes, policyNames, starv, cong, title):
     fig.suptitle(title)
     return fig, ax
 
-DURATION = timeInMinutes(hours=48)
+DURATION = timeInMinutes(hours=24)
 instances = [ ("Oslo", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/", None,  None,   33,   0,    DURATION )]
 analyses = [
 #    Name,        target_state,                                 policy,                  numvehicles
@@ -94,7 +94,6 @@ for ana in analyses:
 policyIndices = range(len(policyNames))
 
 seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-seeds = [0]
 
 def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
@@ -130,8 +129,8 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 400
-    for i in range(18): # 12
+    startVal = 0
+    for i in range(26): # 12
         bikes.append(startVal + i*200) 
 
     resultsStarvation = []  
@@ -190,7 +189,7 @@ if __name__ == "__main__":
     fig, ax = Surface3Dplot(bikes, policyNames, resultsStarvation, "Starvation (" + '%' + " of trips)")
     fig, ax = Surface3Dplot(bikes, policyNames, resultsCongestion, "Congestion (" + '%' + " of trips)")
     fig, ax = Surface3Dplot(bikes, policyNames, resultsTotal, "Starvation + congestion (" + '%' + " of trips)")
-    fig, ax = Surface3DplotFraction(bikes, policyNames, resultsStarvation, resultsCongestion, "Oslo week 33, Lost trips (" + '%' + ") and starvation/congestion ratio)")
+    fig, ax = Surface3DplotFraction(bikes, policyNames, resultsStarvation, resultsCongestion, "Oslo week 33, Lost trips (" + '%' + ") and congestion-starvation ratio")
     
     plt.show()
     print(" bye bye")
