@@ -131,9 +131,9 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 1600
-    for i in range(8): # 12
-        bikes.append(startVal + i*200) 
+    startVal = 800
+    for i in range(12): # 12
+        bikes.append(startVal + i*400) 
 
     resultsStarvation = []  
     resultsCongestion = []
@@ -183,7 +183,7 @@ if __name__ == "__main__":
                 resultRowS.append(starv) 
                 resultRowC.append(cong) 
                 resultRowT.append(tot)
-                resultRowTrips.append(trips/100) 
+                resultRowTrips.append(trips/200) 
             resultsStarvation.append(resultRowS)
             resultsCongestion.append(resultRowC)
             resultsTotal.append(resultRowT)
@@ -197,7 +197,7 @@ if __name__ == "__main__":
 #    fig, ax = Surface3Dplot(bikes, policyNames, resultsStarvation, "Starvation (" + '%' + " of trips)")
 #    fig, ax = Surface3Dplot(bikes, policyNames, resultsCongestion, "Congestion (" + '%' + " of trips)")
     fig, ax = Surface3Dplot(bikes, policyNames, resultsTotal, "Starvation + congestion (" + '%' + " of trips)")
-    fig, ax = Surface3Dplot(bikes, policyNames, resultTrips, "No od Trips in 100s")
+    fig, ax = Surface3Dplot(bikes, policyNames, resultTrips, "No-of-trips/200")
 #    fig, ax = Surface3DplotFraction(bikes, policyNames, resultsStarvation, resultsCongestion, "Oslo week 33, Lost trips (" + '%' + ") and congestion-starvation ratio")
     
     plt.show()
