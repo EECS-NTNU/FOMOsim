@@ -81,8 +81,8 @@ analyses = [
 #    ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
 #   ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
 #    ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
-    ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8),
     ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
+    ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
     ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
     ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
 #    ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
@@ -134,9 +134,9 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 2000
-    for i in range(10): # 12
-        bikes.append(startVal + i*200) 
+    startVal = 0
+    for i in range(8): # 12
+        bikes.append(startVal + i*600) 
 
     resultsStarvation = []  
     resultsCongestion = []
