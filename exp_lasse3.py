@@ -98,7 +98,7 @@ for ana in analyses:
 policyIndices = range(len(policyNames))
 
 seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-seeds = [0] 
+seeds = [0, 1, 2] 
 
 def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
@@ -186,6 +186,7 @@ if __name__ == "__main__":
                 resultRowS.append(starv) 
                 resultRowC.append(cong) 
                 resultRowT.append(tot)
+                trips = trips - metric.get_aggregate_value("starvation") # todo, into variable for speed
                 resultRowTrips.append(trips/200) 
             resultsStarvation.append(resultRowS)
             resultsCongestion.append(resultRowC)
