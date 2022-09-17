@@ -81,12 +81,12 @@ analyses = [
 #    ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
 #   ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
     ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8), # TODO, fix this UGLY copy and paste code
-    ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
-    ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
-    ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
+    # ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
+    # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
+    # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
     ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
-    ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
-    ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
+    # ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
+    # ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
     ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
 #    ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
 #   ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
@@ -140,11 +140,18 @@ if __name__ == "__main__":
     startVal = 200
     for i in range(25): # 12
         bikes.append(startVal + i*200) 
+    startVal = 2000
+    for i in range(3): # 12
+        bikes.append(startVal + i*600)        
 
     resultsStarvation = []  
     resultsCongestion = []
     resultsTotal = []
-    resultTrips = []    
+    resultTrips = []
+    resultProfit = []
+    incomeTrip = 20 # TODO make a GUI widget for these
+    costStarvation = 2
+    costCongestion = 4    
 
     for instance in instances:
         print("  instance: ", instance[0])
@@ -155,7 +162,8 @@ if __name__ == "__main__":
             resultRowS = [] 
             resultRowC = [] 
             resultRowT = []
-            resultRowTrips = [] 
+            resultRowTrips = []
+            resultProfitRow = [] 
             for b in bikes:
                 print( "   number of bikes: ", b)
 
@@ -183,23 +191,28 @@ if __name__ == "__main__":
                 metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
                 trips = metric.get_aggregate_value("trips")
                 scale = 100 / trips
-                starv = scale * metric.get_aggregate_value("starvation")
-                cong = scale * metric.get_aggregate_value("congestion")
+                num_starvations = metric.get_aggregate_value("starvation") 
+                starv = scale * num_starvations
+                num_congestion = metric.get_aggregate_value("congestion") 
+                cong = scale * num_congestion
                 tot = starv + cong
                 resultRowS.append(starv) 
                 resultRowC.append(cong) 
                 resultRowT.append(tot)
-                trips = trips - metric.get_aggregate_value("starvation") # todo, into variable for speed
-                resultRowTrips.append(trips/200) 
+                trips = trips - num_starvations # todo, into variable for speed
+                resultRowTrips.append(trips/200)
+                resultProfitRow.append(trips*incomeTrip - num_starvations*costStarvation - num_congestion*costCongestion) 
             resultsStarvation.append(resultRowS)
             resultsCongestion.append(resultRowC)
             resultsTotal.append(resultRowT)
             resultTrips.append(resultRowTrips)
+            resultProfit.append(resultProfitRow)
 
     print(resultsStarvation)
     print(resultsCongestion)
     print(resultsTotal)
     print(resultTrips)
+    print(resultProfit)
 
 #    fig, ax = Surface3Dplot(bikes, policyNames, resultsStarvation, "Starvation (" + '%' + " of trips)")
 #    fig, ax = Surface3Dplot(bikes, policyNames, resultsCongestion, "Congestion (" + '%' + " of trips)")
