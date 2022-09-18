@@ -74,6 +74,42 @@ def Surface3DplotFraction(bikes, policyNames, starv, cong, title):
     fig.suptitle(title)
     return fig, ax
 
+def Surface3DplotTripsProfit(bikes, policyNames, trips, profit, title):
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    policiesPosition = range(len(policyNames))
+    bikes, policiesPosition = np.meshgrid(bikes, policiesPosition)
+    Z = bikes + policiesPosition # 2D numpyarray, addition is not used, but gives Z the right shape, Z behaves now as a reference to a 2D-matrix
+    Rint = np.copy(Z)
+    R = Rint.astype(float) 
+    for p in range(len(policyNames)): # copy results from 2D list to numpyarray
+        for b in range(len(bikes[p])):
+            Z[p][b] = trips[p][b]  # Z-value to plot, with zero at zero, in range 0 - 120 or more
+    for p in range(len(policyNames)):
+        for b in range(len(bikes[p])):
+            R[p][b] = profit[p][b] 
+    norm = colors.Normalize(vmin=0, vmax=100)
+    norm2 = colors.Normalize(vmin=0.0, vmax=100)
+    scmap = plt.cm.ScalarMappable(norm = norm, cmap="coolwarm")
+    scmap2 = plt.cm.ScalarMappable(norm = norm2, cmap=cm.BrBG)
+    surf = ax.plot_surface(bikes, policiesPosition, Z, facecolors=scmap.to_rgba(Z), shade=False) # upper surface
+    surf2 = ax.plot_surface(bikes, policiesPosition, (R*0)-100, facecolors=scmap2.to_rgba(R), shade=False) # lower flat surface
+    ax.set_zlim(-100, 100) 
+    ax.set_xlabel("number of bikes", weight='bold')
+    ax.set_ylabel("rebalancing policy",  weight='bold')
+    ax.set_yticks(range(len(policyNames)))
+    ax.set_yticklabels(policyNames)
+    # https://stackoverflow.com/questions/6390393/matplotlib-make-tick-labels-font-size-smaller
+    ax.tick_params(axis='both', which='major', labelsize=7)
+    ax.tick_params(axis='both', which='minor', labelsize=8)
+    # yaxis-set_(policies, policyNames)
+    cb = fig.colorbar(scmap, shrink=0.2, aspect=5, location = "right")
+    cb2 = fig.colorbar(scmap2, shrink=0.2, aspect=5, location = "bottom")
+    cb.set_label(label="Trips/200 in", size = 9)
+    cb2.set_label(label = "Profit/180kNOK", size = 9)
+    plt.tight_layout()
+    fig.suptitle(title)
+    return fig, ax
+
 DURATION = timeInMinutes(hours=24)
 instances = [ ("Oslo", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/", None,  None,   33,   0,    DURATION )]
 analyses = [
@@ -85,8 +121,8 @@ analyses = [
     # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
     # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
     ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
-    # ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
-    # ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
+    ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
+    ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
     ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
 #    ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
 #   ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
@@ -137,12 +173,9 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 200
-    for i in range(25): # 12
-        bikes.append(startVal + i*200) 
-    startVal = 2000
-    for i in range(3): # 12
-        bikes.append(startVal + i*600)        
+    startVal = 1600
+    for i in range(15): 
+        bikes.append(startVal + i*200)       
 
     resultsStarvation = []  
     resultsCongestion = []
@@ -201,7 +234,7 @@ if __name__ == "__main__":
                 resultRowT.append(tot)
                 trips = trips - num_starvations # todo, into variable for speed
                 resultRowTrips.append(trips/200)
-                resultProfitRow.append(trips*incomeTrip - num_starvations*costStarvation - num_congestion*costCongestion) 
+                resultProfitRow.append((trips*incomeTrip - num_starvations*costStarvation - num_congestion*costCongestion)/180000*100) 
             resultsStarvation.append(resultRowS)
             resultsCongestion.append(resultRowC)
             resultsTotal.append(resultRowT)
@@ -218,7 +251,9 @@ if __name__ == "__main__":
 #    fig, ax = Surface3Dplot(bikes, policyNames, resultsCongestion, "Congestion (" + '%' + " of trips)")
     fig, ax = Surface3Dplot(bikes, policyNames, resultsTotal, "Starvation + congestion (" + '%' + " of trips)")
     fig, ax = Surface3Dplot(bikes, policyNames, resultTrips, "No-of-trips/200")
-#    fig, ax = Surface3DplotFraction(bikes, policyNames, resultsStarvation, resultsCongestion, "Oslo week 33, Lost trips (" + '%' + ") and congestion-starvation ratio")
+    fig, ax = Surface3Dplot(bikes, policyNames, resultProfit, "Profit in percent of 180 kNOK")
+
+    fig, ax = Surface3DplotTripsProfit(bikes, policyNames, resultTrips, resultProfit, "Oslo week 33, No of trips and profit")
     
     plt.show()
     print(" bye bye")
