@@ -25,7 +25,7 @@ from helpers import *
 ###############################################################################
 
 # Duration of each simulation run
-DURATION = timeInMinutes(hours=48)
+DURATION = timeInMinutes(hours=18)
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
@@ -47,40 +47,44 @@ analyses = [
     ("equalprob",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
 ]        
 
-seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-# seeds = [ 0, 1] 
+#seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+seeds = [ 0] 
 
 ###############################################################################
 
-def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
+def lostTripsPlot(cities, policies, starv, serr, cong, cerr):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
-    fig.suptitle("FOMO simulator - lost trips results", fontsize=15)
-    
-    if len(cities) == 1:
-        subPlots = [ subPlots ]
-    w = 0.5
+    fig.suptitle("FOMO simulator - lost trips results\nImprovement from baseline (left bar) in % ", fontsize=15)
+    w = 0.3
     pos = []
     for city in range(len(cities)):
         pos.append([])
-        for i in range(len(cong[city])):
+        for i in range(len(policies)): # IMPROVED by more readable code here
             pos[city].append(starv[city][i] + cong[city][i])
-
-        subPlots[city].bar(policies, starv[city], w, label='Starvation')
-        subPlots[city].errorbar(policies, starv[city], yerr = starv_stdev[city], fmt='none', ecolor='red')
-        subPlots[city].bar(policies, cong[city], w, bottom=starv[city], label='Congestion')
+        baseline = starv[city][0] + cong[city][0] # first policy is always baseline
         
-        # skew the upper error-bar with delta to avoid that they can overwrite each other
-        delta = 0.05
+        policyLabels = [] # fix policy labels
+        for i in range(len(policies)):
+            if i > 0:
+                improved =  ( ((starv[city][i] + cong[city][i]) - baseline)/baseline)*100.0
+                policyLabels.append(policies[i] + "(" + "{:.1f}".format(improved) + "%)")
+            else:
+                policyLabels.append(policies[i]) # label for baseline
+
+        subPlots[city].bar(policyLabels, starv[city], w, label='Starvation')
+        subPlots[city].errorbar(policyLabels, starv[city], yerr = serr[city], fmt='none', ecolor='black')
+        subPlots[city].bar(policyLabels, cong[city], w, bottom=starv[city], label='Congestion')
+        
+        delta = 0.03 # skew the upper error-bar horisontally with delta to avoid that they can overwrite each other
         policiesPlussDelta = []
         for i in range(len(policies)):
             policiesPlussDelta.append(i + delta) 
-        subPlots[city].errorbar(policiesPlussDelta, pos[city], yerr= cong_stdev[city], fmt='none', ecolor='black')
+        subPlots[city].errorbar(policiesPlussDelta, pos[city], yerr= cerr[city], fmt='none', ecolor='black')
         subPlots[city].set_xlabel(cities[city])
         if city == 0:
             subPlots[city].set_ylabel("Violations (% of total number of trips)")
             subPlots[city].legend()
-
-
+    plt.show()
 ###############################################################################
 
 if __name__ == "__main__":
