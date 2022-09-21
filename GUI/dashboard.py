@@ -5,7 +5,7 @@ import re
 import PySimpleGUI as sg
 import matplotlib # TODO MARK-C
 
-import settings
+# import settings
 
 from helpers import dateAndTimeStr, writeWords, timeInMinutes
 
@@ -166,3 +166,5 @@ def GUI_main():
         if GUI_values["-POLICIES-"] != []:
             session.simPolicy = GUI_values["-POLICIES-"][0]
     
+###### Optional GUI, for test purposes uncomment the following two lines
+GUI_main()
