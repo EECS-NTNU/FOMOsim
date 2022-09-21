@@ -2,11 +2,21 @@ import jsonpickle
 import hashlib
 import os
 import math
+import fcntl
 
 import sim
 import settings
 
 savedStatesDirectory = "saved_states/"
+
+def lock(filename):
+    fd = open(filename + ".LOCK", 'w+')
+    fcntl.lockf(fd, fcntl.LOCK_EX)
+    return fd
+
+def unlock(fd, filename):
+    fd.close()
+    os.remove(filename)
 
 def get_initial_state(source, target_state=None, number_of_stations=None, number_of_bikes=None, bike_class="Bike", load_from_cache=True, **kwargs):
     # create filename
@@ -16,12 +26,15 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
     stateFilename = f"{savedStatesDirectory}/{checksum}.pickle.gz"
 
     # if exists, load from cache
+    lock_fd = lock(stateFilename)
+
     if load_from_cache:
         if os.path.isdir(savedStatesDirectory):
             # directory with saved states exists
             if os.path.isfile(stateFilename):
                 print("Loading state from file")
                 state = sim.State.load(stateFilename)
+                unlock(lock_fd, stateFilename)
                 return state
 
     # create initial state
@@ -45,6 +58,8 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
         os.makedirs(savedStatesDirectory, exist_ok=True) # first time
     print("Saving state to file")
     state.save(stateFilename)
+
+    unlock(lock_fd, stateFilename)
 
     return state
 
