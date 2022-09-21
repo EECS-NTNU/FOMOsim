@@ -70,7 +70,6 @@ def Surface3DplotFraction(bikes, policyNames, starv, cong, title):
     cb2 = fig.colorbar(scmap2, shrink=0.2, aspect=5, location = "bottom")
     cb.set_label(label="Lost trips in " + '%' + " of total trips", size = 9)
     cb2.set_label(label = "Congestion - starvation ratio", size = 9)
-    plt.tight_layout()
     fig.suptitle(title)
     return fig, ax
 
@@ -104,9 +103,8 @@ def Surface3DplotTripsProfit(bikes, policyNames, trips, profit, title):
     # yaxis-set_(policies, policyNames)
     cb = fig.colorbar(scmap, shrink=0.2, aspect=5, location = "right")
     cb2 = fig.colorbar(scmap2, shrink=0.2, aspect=5, location = "bottom")
-    cb.set_label(label="Trips/200 in", size = 9)
+    cb.set_label(label="Trips/200", size = 9)
     cb2.set_label(label = "Profit/180kNOK", size = 9)
-    plt.tight_layout()
     fig.suptitle(title)
     return fig, ax
 
@@ -114,21 +112,21 @@ DURATION = timeInMinutes(hours=24)
 instances = [ ("Oslo", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/", None,  None,   33,   0,    DURATION )]
 analyses = [
 #    Name,        target_state,                                 policy,                  numvehicles
-#    ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
-#   ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
+    ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
+    ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
     ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8), # TODO, fix this UGLY copy and paste code
-    # ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
-    # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
-    # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
+    ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
+    ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
+    ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
     ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
     ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
     ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
     ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
-#    ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
-#   ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
-    # ("random-2",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     2),
-    # ("random-1",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     1),
-    # ("do_nothing",   target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
+    ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
+    ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
+    ("random-2",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     2),
+    ("random-1",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     1),
+    ("do_nothing",   target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
 ]
 
 policyNames = []
@@ -137,7 +135,7 @@ for ana in analyses:
 policyIndices = range(len(policyNames))
 
 seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-seeds = [0] 
+# seeds = [0, 1, 2] 
 
 def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
@@ -173,8 +171,8 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 1600
-    for i in range(15): 
+    startVal = 200
+    for i in range(30): 
         bikes.append(startVal + i*200)       
 
     resultsStarvation = []  
