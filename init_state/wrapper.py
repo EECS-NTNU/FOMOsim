@@ -6,17 +6,9 @@ import fcntl
 
 import sim
 import settings
+from helpers import lock, unlock
 
 savedStatesDirectory = "saved_states/"
-
-def lock(filename):
-    fd = open(filename + ".LOCK", 'w+')
-    fcntl.lockf(fd, fcntl.LOCK_EX)
-    return fd
-
-def unlock(fd, filename):
-    fd.close()
-    os.remove(filename)
 
 def get_initial_state(source, target_state=None, number_of_stations=None, number_of_bikes=None, bike_class="Bike", load_from_cache=True, **kwargs):
     # create filename
@@ -26,7 +18,7 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
     stateFilename = f"{savedStatesDirectory}/{checksum}.pickle.gz"
 
     # if exists, load from cache
-    lock_fd = lock(stateFilename)
+    lock_handle = lock(stateFilename)
 
     if load_from_cache:
         if os.path.isdir(savedStatesDirectory):
@@ -34,7 +26,7 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
             if os.path.isfile(stateFilename):
                 print("Loading state from file")
                 state = sim.State.load(stateFilename)
-                unlock(lock_fd, stateFilename)
+                unlock(lock_handle)
                 return state
 
     # create initial state
@@ -59,7 +51,7 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
     print("Saving state to file")
     state.save(stateFilename)
 
-    unlock(lock_fd, stateFilename)
+    unlock(lock_handle)
 
     return state
 

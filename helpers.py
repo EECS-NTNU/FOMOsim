@@ -31,6 +31,19 @@ def readTime():
     return datetime.now().strftime("%H:%M:%S")
  
 ###############################################################################
+# file locking
+
+def lock(filename):
+    lockname = filename + ".LOCK"
+    fd = open(lockname, 'w+')
+    fcntl.lockf(fd, fcntl.LOCK_EX)
+    return (fd,lockname)
+
+def unlock(handle):
+    handle[0].close()
+    os.remove(handle[1])
+
+###############################################################################
 # logging
 
 trafficLoggDir = "log_files/" 

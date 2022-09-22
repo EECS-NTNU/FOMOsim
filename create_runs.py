@@ -73,8 +73,7 @@ if __name__ == "__main__":
         for analysis in analyses:
             simulations = []
 
-            for seed in seeds:
-                experimental_setup = dict(run=n, instance=instance, analysis=analysis, seed=seed, duration=DURATION)
-                with open(f"experimental_setups/setup_{n:04}.json", "w") as outfile:
-                    outfile.write(json.dumps(experimental_setup, indent=4))
-                n += 1
+            experimental_setup = dict(run=n, instance=instance, analysis=analysis, seeds=seeds, duration=DURATION)
+            with open(f"experimental_setups/setup_{n:04}.json", "w") as outfile:
+                outfile.write(json.dumps(experimental_setup, indent=4))
+            n += 1

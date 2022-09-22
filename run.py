@@ -29,11 +29,8 @@ from helpers import *
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <experimental_setup.json>")
-
-    else:
-        with open(sys.argv[1], "r") as infile:
+    for filename in sys.argv[1:]:
+        with open(filename, "r") as infile:
             experimental_setup = json.load(infile)
 
             initial_state = init_state.get_initial_state(source=init_state.cityBike, url=experimental_setup["instance"]["url"], week=experimental_setup["instance"]["week"],
@@ -41,34 +38,44 @@ if __name__ == "__main__":
                                                          number_of_bikes=experimental_setup["instance"]["numbikes"],
                                                          target_state=getattr(target_state, experimental_setup["analysis"]["target_state"]))
 
-            initial_state.set_seed(experimental_setup["seed"])
-            initial_state.set_num_vehicles(experimental_setup["analysis"]["numvehicles"])
+            simulations = []
 
-            if experimental_setup["analysis"]["policyargs"] != "":
-                args = experimental_setup["analysis"]["policyargs"].split(",")
-            else:
-                args = []
+            for seed in experimental_setup.seeds:
+                state_copy = copy.deepcopy(initial_state)
+                state_copy.set_seed(seed)
+                state_copy.set_num_vehicles(experimental_setup["analysis"]["numvehicles"])
 
-            simul = sim.Simulator(
-                initial_state = initial_state,
-                policy = getattr(policies, experimental_setup["analysis"]["policy"])(*args),
-                start_time = timeInMinutes(days=experimental_setup["instance"]["day"], hours=experimental_setup["instance"]["hour"]),
-                duration = experimental_setup["duration"],
-                verbose = True,
-            )
+                if experimental_setup["analysis"]["policyargs"] != "":
+                    args = experimental_setup["analysis"]["policyargs"].split(",")
+                else:
+                    args = []
 
-            simul.run()
+                simul = sim.Simulator(
+                    initial_state = state_copy,
+                    policy = getattr(policies, experimental_setup["analysis"]["policy"])(*args),
+                    start_time = timeInMinutes(days=experimental_setup["instance"]["day"], hours=experimental_setup["instance"]["hour"]),
+                    duration = experimental_setup["duration"],
+                    verbose = True,
+                )
 
-            lock_fd = lock("output.csv")
+                simul.run()
+
+                simulations.append(simul)
+
+            metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
+
+            lock_handle = lock("output.csv")
 
             f = open("output.csv", "a")
 
             f.write(str(experimental_setup["run"]) + ";")
-            f.write(str(simul.metrics.get_aggregate_value("trips")) + ";")
-            f.write(str(simul.metrics.get_aggregate_value("starvation")) + ";")
-            f.write(str(simul.metrics.get_aggregate_value("congestion")))
+            f.write(str(metric.get_aggregate_value("trips")) + ";")
+            f.write(str(metric.get_aggregate_value("starvation")) + ";")
+            f.write(str(metric.get_aggregate_value("congestion")) + ";")
+            f.write(str(metric.get_aggregate_value("starvation_stdev")) + ";")
+            f.write(str(metric.get_aggregate_value("congestion_stdev")))
 
             f.write("\n")
             f.close()
 
-            unlock(lock_fd, stateFilename)
+            unlock(lock_handle)
