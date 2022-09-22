@@ -1,21 +1,33 @@
 #!/bin/python3
 
 import os
+import math
 
-nodes = os.popen("gstat -a1l").read()
+lines = os.popen("gstat -a1l").read().splitlines()
 
-print(nodes)
+nodes = []
 
-# RUNS=(`ls experimental_setups`)
+for line in lines:
+    words = line.split()
+    node = words[0]
+    load = float(words[7][:-1])
+    if load < 2: 
+        nodes.append(node)
 
-# NUM_NODES=${#NODES[@]}
-# NUM_RUNS=${#RUNS[@]}
+runs = os.listdir("experimental_setups")
 
-# echo $RUNS
-# echo $NUM_RUNS
+runs_per_node = math.ceil(len(runs) / float(len(nodes)))
 
-# for (( i=0; i<$NUM_RUNS; i++ ))
-# do
-#   echo "Node "$i" is computing"
-#   echo screen -d -m -S node$i ssh "compute-"${NODES[$i]} run.py
-# done
+node_counter = 0
+
+while len(runs) > 0:
+    node = nodes[node_counter]
+    node_counter += 1
+
+    runs_for_node, runs = runs[:runs_per_node], runs[runs_per_node:]
+
+    args = " ".join(runs_for_node)
+
+    command = "screen -d -m -S " + node + " ssh " + node + " python3 run.py " + args
+
+    os.system(command)
