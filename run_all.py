@@ -26,7 +26,7 @@ while len(runs) > 0:
 
     runs_for_node, runs = runs[:runs_per_node], runs[runs_per_node:]
 
-    args = " ".join(runs_for_node)
+    args = " experimental_setups/".join(runs_for_node)
 
     command = "screen -d -m -S " + node + " ssh " + node + " python3 run.py " + args
 
