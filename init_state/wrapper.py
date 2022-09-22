@@ -7,9 +7,12 @@ import sim
 import settings
 from helpers import lock, unlock
 
-savedStatesDirectory = "saved_states/"
+savedStatesDirectory = "saved_states"
 
 def get_initial_state(source, target_state=None, number_of_stations=None, number_of_bikes=None, bike_class="Bike", load_from_cache=True, **kwargs):
+    if not os.path.isdir(savedStatesDirectory):
+        os.makedirs(savedStatesDirectory, exist_ok=True)
+
     # create filename
     all_args = {"source" : source, "target_state" : target_state, "number_of_stations" : number_of_stations, "number_of_bikes" : number_of_bikes, "bike_class" : bike_class}
     all_args.update(kwargs)
@@ -45,8 +48,6 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
         state.set_target_state(tstate)
 
     # save to cache
-    if not os.path.isdir(savedStatesDirectory):
-        os.makedirs(savedStatesDirectory, exist_ok=True) # first time
     print("Saving state to file")
     state.save(stateFilename)
 
