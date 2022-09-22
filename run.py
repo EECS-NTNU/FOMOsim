@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
             simulations = []
 
-            for seed in experimental_setup.seeds:
+            for seed in experimental_setup["seeds"]:
                 state_copy = copy.deepcopy(initial_state)
                 state_copy.set_seed(seed)
                 state_copy.set_num_vehicles(experimental_setup["analysis"]["numvehicles"])

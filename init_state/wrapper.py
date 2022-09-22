@@ -2,7 +2,6 @@ import jsonpickle
 import hashlib
 import os
 import math
-import fcntl
 
 import sim
 import settings

@@ -2,6 +2,7 @@
 
 import shutil
 import os
+import fcntl
 
 from datetime import datetime, date
 
