@@ -16,6 +16,11 @@ for line in lines:
 
 runs = os.listdir("experimental_setups")
 
+runs_with_path = []
+for run in runs:
+    runs_with_path.append("experimental_setups/" + run)
+runs = runs_with_path
+
 runs_per_node = math.ceil(len(runs) / float(len(nodes)))
 
 node_counter = 0
@@ -26,7 +31,7 @@ while len(runs) > 0:
 
     runs_for_node, runs = runs[:runs_per_node], runs[runs_per_node:]
 
-    args = " experimental_setups/".join(runs_for_node)
+    args = " ".join(runs_for_node)
 
     command = "screen -d -m -S " + node + " ssh " + node + " python3 run.py " + args
 
