@@ -25,7 +25,7 @@ from helpers import *
 ###############################################################################
 
 # Duration of each simulation run
-DURATION = timeInMinutes(hours=48)
+DURATION = timeInMinutes(hours=24)
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
@@ -74,7 +74,7 @@ def lostTripsPlot(cities, policies, starv, serr, cong, cerr):
         for i in range(len(policies)):
             if i > 0:
                 improved =  ( ((starv[city][i] + cong[city][i]) - baseline)/baseline)*100.0
-                policyLabels.append(policies[i] + "(" + "{:.1f}".format(improved) + "%)")
+                policyLabels.append(policies[i] + "\n(" + "{:.1f}".format(improved) + "%)")
             else:
                 policyLabels.append(policies[i]) # label for baseline
 
