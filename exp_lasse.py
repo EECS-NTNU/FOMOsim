@@ -53,7 +53,14 @@ seeds = [ 0]
 ###############################################################################
 
 def lostTripsPlot(cities, policies, starv, serr, cong, cerr):
-    fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
+    fig, plots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
+    subPlots = [] # fix that subPlots returns a list only when more than one plot. Tried squeezy=False but it did not work for this purpose 
+    if len(cities) == 1:
+        subPlots.append(plots)
+    else:
+        for p in plots:
+            subPlots.append(p)
+
     fig.suptitle("FOMO simulator - lost trips results\nImprovement from baseline (left bar) in % ", fontsize=15)
     w = 0.3
     pos = []
@@ -74,16 +81,16 @@ def lostTripsPlot(cities, policies, starv, serr, cong, cerr):
         subPlots[city].bar(policyLabels, starv[city], w, label='Starvation')
         subPlots[city].errorbar(policyLabels, starv[city], yerr = serr[city], fmt='none', ecolor='black')
         subPlots[city].bar(policyLabels, cong[city], w, bottom=starv[city], label='Congestion')
-        
+
         delta = 0.03 # skew the upper error-bar horisontally with delta to avoid that they can overwrite each other
         policiesPlussDelta = []
         for i in range(len(policies)):
-            policiesPlussDelta.append(i + delta) 
+            policiesPlussDelta.append(i + delta)
         subPlots[city].errorbar(policiesPlussDelta, pos[city], yerr= cerr[city], fmt='none', ecolor='black')
         subPlots[city].set_xlabel(cities[city])
-        if city == 0:
-            subPlots[city].set_ylabel("Violations (% of total number of trips)")
-            subPlots[city].legend()
+        subPlots[city].set_ylabel("Violations (% of total number of trips)")
+        subPlots[city].legend()
+
     plt.show()
 ###############################################################################
 
