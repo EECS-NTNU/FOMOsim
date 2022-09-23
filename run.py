@@ -68,9 +68,7 @@ if __name__ == "__main__":
 
             metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
 
-            print("Waiting for output lock")
             lock_handle = lock("output.csv")
-            print("Got output lock")
 
             f = open("output.csv", "a")
 

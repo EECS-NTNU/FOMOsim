@@ -30,9 +30,9 @@ DURATION = timeInMinutes(hours=24)
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
-    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
-    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
+    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        2000,        None,   33,   0,    6 ),
+    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      1000,        None,   33,   0,    6 ),
+    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   1000,        None,   33,   0,    6 ),
 #    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",     400,        None,    7,   0,    6 ),
 #    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  200,        None,   20,   0,    6 ),
 ]
@@ -137,6 +137,9 @@ if __name__ == "__main__":
             congestions_stdev[-1].append(scale * metric.get_aggregate_value("congestion_stdev"))
 
     ###############################################################################
+
+    print(starvations)
+    print(congestions)
 
     instance_names = [ instance[0] for instance in instances ]
     analysis_names = [ analysis[0] for analysis in analyses ]

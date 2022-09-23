@@ -110,6 +110,9 @@ if __name__ == "__main__":
                 starvations_stdev[-1].append(scale * run[instance_name][analysis_name][3])
                 congestions_stdev[-1].append(scale * run[instance_name][analysis_name][4])
 
+        print(starvations)
+        print(congestions)
+
         lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
 
         plt.show()
