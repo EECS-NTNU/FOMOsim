@@ -2,6 +2,7 @@ import jsonpickle
 import hashlib
 import os
 import math
+import sys
 
 import sim
 import settings
@@ -20,7 +21,9 @@ def get_initial_state(source, target_state=None, number_of_stations=None, number
     stateFilename = f"{savedStatesDirectory}/{checksum}.pickle.gz"
 
     # if exists, load from cache
+    print("Waiting for lock")
     lock_handle = lock(stateFilename)
+    print("Got lock")
 
     if load_from_cache:
         if os.path.isdir(savedStatesDirectory):

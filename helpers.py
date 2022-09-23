@@ -42,7 +42,7 @@ def lock(filename):
 
 def unlock(handle):
     handle[0].close()
-    os.remove(handle[1])
+#    os.remove(handle[1])
 
 ###############################################################################
 # logging

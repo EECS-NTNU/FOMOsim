@@ -31,6 +31,8 @@ if __name__ == "__main__":
 
     for filename in sys.argv[1:]:
         with open(filename, "r") as infile:
+            print("Running file", filename)
+
             experimental_setup = json.load(infile)
 
             initial_state = init_state.get_initial_state(source=init_state.cityBike, url=experimental_setup["instance"]["url"], week=experimental_setup["instance"]["week"],
@@ -41,6 +43,8 @@ if __name__ == "__main__":
             simulations = []
 
             for seed in experimental_setup["seeds"]:
+                print("Running seed", seed)
+
                 state_copy = copy.deepcopy(initial_state)
                 state_copy.set_seed(seed)
                 state_copy.set_num_vehicles(experimental_setup["analysis"]["numvehicles"])
@@ -55,7 +59,7 @@ if __name__ == "__main__":
                     policy = getattr(policies, experimental_setup["analysis"]["policy"])(*args),
                     start_time = timeInMinutes(days=experimental_setup["instance"]["day"], hours=experimental_setup["instance"]["hour"]),
                     duration = experimental_setup["duration"],
-                    verbose = True,
+                    verbose = False,
                 )
 
                 simul.run()
@@ -64,7 +68,9 @@ if __name__ == "__main__":
 
             metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
 
+            print("Waiting for output lock")
             lock_handle = lock("output.csv")
+            print("Got output lock")
 
             f = open("output.csv", "a")
 
@@ -79,3 +85,6 @@ if __name__ == "__main__":
             f.close()
 
             unlock(lock_handle)
+
+    print("Done")
+    sys.stdout.flush()
