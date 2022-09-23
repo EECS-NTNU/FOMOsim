@@ -75,6 +75,8 @@ if __name__ == "__main__":
             f = open("output.csv", "a")
 
             f.write(str(experimental_setup["run"]) + ";")
+            f.write(str(experimental_setup["instance"]["name"]) + ";")
+            f.write(str(experimental_setup["analysis"]["name"]) + ";")
             f.write(str(metric.get_aggregate_value("trips")) + ";")
             f.write(str(metric.get_aggregate_value("starvation")) + ";")
             f.write(str(metric.get_aggregate_value("congestion")) + ";")

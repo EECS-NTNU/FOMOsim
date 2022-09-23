@@ -55,12 +55,6 @@ seeds = list(range(10))
 
 if __name__ == "__main__":
 
-    starvations = []
-    congestions = []
-
-    starvations_stdev = []
-    congestions_stdev = []
-
     if os.path.exists(RUN_DIRECTORY):
         shutil.rmtree(RUN_DIRECTORY)
     os.mkdir(RUN_DIRECTORY)
@@ -68,12 +62,6 @@ if __name__ == "__main__":
     n = 0
 
     for instance in instances:
-        starvations.append([])
-        congestions.append([])
-
-        starvations_stdev.append([])
-        congestions_stdev.append([])
-
         for analysis in analyses:
             simulations = []
 
