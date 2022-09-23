@@ -1,6 +1,6 @@
 #!/bin/python3
 """
-FOMO simulator main program
+FOMO simulator, visualises results from a cluster run
 """
 
 import matplotlib.pyplot as plt

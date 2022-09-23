@@ -1,6 +1,6 @@
 #!/bin/python3
 """
-FOMO simulator main program
+FOMO simulator, create jobs to run on cluster
 """
 import os
 import shutil

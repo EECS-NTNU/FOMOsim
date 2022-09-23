@@ -1,6 +1,6 @@
 #!/bin/python3
 """
-FOMO simulator main program
+FOMO simulator, runs one experimental setup json-file
 """
 import copy
 import sys
