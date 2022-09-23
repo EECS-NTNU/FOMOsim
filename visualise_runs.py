@@ -63,14 +63,7 @@ if __name__ == "__main__":
     with open("output.csv", "r") as infile:
         lines = infile.readlines()
 
-        instance_names = []
-        analysis_names = []
-
-        starvations = []
-        congestions = []
-
-        starvations_stdev = []
-        congestions_stdev = []
+        run = {}
 
         for line in lines:
             words = line.split(';')
@@ -79,17 +72,41 @@ if __name__ == "__main__":
             instance_name = words[1]
             analysis_name = words[2]
             trips = float(words[3])
-            starvation = float(words[4])
-            congestion = float(words[5])
-            starvation_stdev = float(words[6])
-            congestion_stdev = float(words[7])
+            starvations = float(words[4])
+            congestions = float(words[5])
+            starvations_stdev = float(words[6])
+            congestions_stdev = float(words[7])
 
+            if instance_name not in run:
+                run[instance_name] = {}
+            run[instance_name][analysis_name] = (trips, starvations, congestions, starvations_stdev, congestions_stdev)
+
+        instance_names = []
+
+        starvations = []
+        congestions = []
+
+        starvations_stdev = []
+        congestions_stdev = []
+
+        for instance_name in run.keys():
             instance_names.append(instance_name)
-            analysis_names.append(analysis_name)
-            starvations.append(starvation)
-            congestions.append(congestions)
-            starvations_stdev.append(starvation_stdev)
-            congestions_stdev.append(congestion_stdev)
+
+            starvations.append([])
+            congestions.append([])
+
+            starvations_stdev.append([])
+            congestions_stdev.append([])
+
+            analysis_names = []
+
+            for analysis_name in run[instance_name].keys():
+                analysis_names.append(analysis_name)
+
+                starvations[-1].append(run[instance_name][analysis_name][1])
+                congestions[-1].append(run[instance_name][analysis_name][2])
+                starvations_stdev[-1].append(run[instance_name][analysis_name][3])
+                congestions_stdev[-1].append(run[instance_name][analysis_name][4])
 
         lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
 

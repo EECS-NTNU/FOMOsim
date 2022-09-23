@@ -33,8 +33,8 @@ instances = [
     ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
     ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
     ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
-    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",     400,        None,    7,   0,    6 ),
-    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  200,        None,   20,   0,    6 ),
+#    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",     400,        None,    7,   0,    6 ),
+#    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  200,        None,   20,   0,    6 ),
 ]
 
 # Enter analysis definition here
@@ -46,7 +46,7 @@ analyses = [
     ("equalprob",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
 ]        
 
-seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+seeds = list(range(10))
 
 ###############################################################################
 
