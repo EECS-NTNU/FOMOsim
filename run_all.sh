@@ -1,5 +1,5 @@
 #!/bin/bash
-NODES=(`gstat -a1l | grep compute-1 | awk '{ if(strtonum($8) < 2) printf("%04.1f %s\n", $8, $1); }' | sort | awk '{ print $2 }'`)
+NODES=(`gstat -a1l | grep compute-[13456789] | awk '{ if(strtonum($7) < 2) printf("%s\n", $1); }' | sort -r`)
 
 RUNS=(`ls experimental_setups`)
 
@@ -10,6 +10,8 @@ runs_per_node=`python3 -c "import math; print(math.ceil($num_runs / $num_nodes))
 
 node_counter=0
 run_counter=0
+
+rm -rf *.out *.err output.csv
 
 while [ $run_counter -lt $num_runs ]; do
     args=""
@@ -24,7 +26,7 @@ while [ $run_counter -lt $num_runs ]; do
     node_counter=$((node_counter + 1))
 
     echo "Sending to $node: $args"
-    ssh $node "cd /storage/users/djupdal/fomo; python3 run.py $args" > ${node}.log &
+    ssh $node "cd /storage/users/djupdal/fomo; python3 run.py $args" > ${node}.out 2> ${node}.err &
 done
 
 echo "Waiting for completion"
