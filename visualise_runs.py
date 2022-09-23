@@ -2,28 +2,8 @@
 """
 FOMO simulator main program
 """
-import copy
-import os
-import shutil
-import json
 
-import settings
-import sim
-import init_state
-import init_state.fosen_haldorsen
-import init_state.cityBike
-
-import policies
-import policies.fosen_haldorsen
-import policies.haflan_haga_spetalen
-
-from progress.bar import Bar
-
-import output
-import target_state
 import matplotlib.pyplot as plt
-
-from helpers import *
 
 ###############################################################################
 

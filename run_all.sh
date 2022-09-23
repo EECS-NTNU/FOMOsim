@@ -1,6 +1,6 @@
 #!/bin/bash
-NODES=(`gstat -a1l | grep compute-[13456789] | awk '{ if(strtonum($7) < 2) printf("%s\n", $1); }' | sort -r`)
 
+NODES=(`gstat -a1l | grep compute-[13456789] | awk '{ if(strtonum($7) < 2) printf("%s\n", $1); }' | sort -r`)
 RUNS=(`ls experimental_setups`)
 
 num_nodes=${#NODES[@]}
@@ -17,9 +17,9 @@ while [ $run_counter -lt $num_runs ]; do
     args=""
 
     for (( i=0 ; i < $runs_per_node ; i++ )); do
-	run=${RUNS[$run_counter]}
-	run_counter=$((run_counter + 1))
-	args="$args experimental_setups/$run"
+        run=${RUNS[$run_counter]}
+        run_counter=$((run_counter + 1))
+        args="$args experimental_setups/$run"
     done
 
     node=${NODES[$node_counter]}
