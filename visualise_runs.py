@@ -103,10 +103,12 @@ if __name__ == "__main__":
             for analysis_name in run[instance_name].keys():
                 analysis_names.append(analysis_name)
 
-                starvations[-1].append(run[instance_name][analysis_name][1])
-                congestions[-1].append(run[instance_name][analysis_name][2])
-                starvations_stdev[-1].append(run[instance_name][analysis_name][3])
-                congestions_stdev[-1].append(run[instance_name][analysis_name][4])
+                scale = 100 / run[instance_name][analysis_name][0]
+
+                starvations[-1].append(scale * run[instance_name][analysis_name][1])
+                congestions[-1].append(scale * run[instance_name][analysis_name][2])
+                starvations_stdev[-1].append(scale * run[instance_name][analysis_name][3])
+                congestions_stdev[-1].append(scale * run[instance_name][analysis_name][4])
 
         lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
 
