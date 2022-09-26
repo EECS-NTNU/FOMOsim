@@ -1,5 +1,5 @@
 #!/bin/bash
 
-NODES=`gstat`
+NODES=`gstat -a1l`
 
 echo $NODES
