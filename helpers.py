@@ -31,6 +31,31 @@ def readTime():
     return datetime.now().strftime("%H:%M:%S")
  
 ###############################################################################
+# file locking
+
+try:
+    import fcntl
+
+    def lock(filename):
+        print("Waiting for lock", filename)
+        lockname = filename + ".LOCK"
+        fd = open(lockname, 'w+')
+        fcntl.lockf(fd, fcntl.LOCK_EX)
+        print("Got lock")
+        return (fd,lockname)
+
+    def unlock(handle):
+        handle[0].close()
+    #    os.remove(handle[1])
+
+except ModuleNotFoundError:
+    def lock(filename):
+        return filename
+
+    def unlock(handle):
+        pass
+
+###############################################################################
 # logging
 
 trafficLoggDir = "log_files/" 
