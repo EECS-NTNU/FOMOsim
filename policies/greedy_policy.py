@@ -15,7 +15,7 @@ import init_state.entur.methods
 import init_state.entur.scripts
 
 class GreedyPolicy(Policy):
-    def __init__(self,criticality_measure='weighted_average'):
+    def __init__(self,criticality_measure='weighted_average',**kwargs):
         super().__init__()
 
         #Two options for :
@@ -29,21 +29,23 @@ class GreedyPolicy(Policy):
         #DEFINE SOME MORE PROPERTIES HERE!
         
         #- WEIGHTS
-        self.omega1 = 0.1     # time_to_violation
-        self.omega2 = 0.5     # net_demand
-        self.omega3 = 0.1     # driving_time
-        self.omega4 = 0.3     # deviation_from_target_state   (this was deviation when not visited)
+
         
         #- Choice of criticality measure
         self.criticality_measure = criticality_measure #  'deviation_from_target_state'  OR 'weighted_average'
         if self.criticality_measure == 'deviation_from_target_state':
             self.set_criticality_weights(0,0,0,1) # time_to_violation, net_demand, driving_time, deviation_target_state
         elif self.criticality_measure == 'weighted_average':
-            self.set_criticality_weights(0.1,0.5,0.1,0.3) # time_to_violation, net_demand, driving_time, deviation_target_state
- 
+            [w1,w2,w3,w4] = [0.1,0.5,0.1,0.3]
+            if 'crit_weights' in kwargs:
+                [w1,w2,w3,w4] = kwargs.get("crit_weights")    
+            self.set_criticality_weights(w1,w2,w3,w4) # time_to_violation, net_demand, driving_time, deviation_target_state
+            
         self.cutoff = 0.3       # to decide when to go the pickup or delivery station next
 
         self.set_time_of_service() #initialize with defaults, defined in super class   
+
+        
 
     def set_criticality_weights(self, omega1,omega2,omega3,omega4):
         self.omega1 = omega1     # time_to_violation

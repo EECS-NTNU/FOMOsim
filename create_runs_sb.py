@@ -54,18 +54,17 @@ for ts_abbr,ts in ts_map.items():
                     name=ts_abbr+'_'+pol_abbr+'_'+'V'+str(nv)+'_W'+str(crit_weight),
                     target_state=ts,
                     policy=pol,
-                    policyargs="",
-                    crit_weights= crit_weight,
+                    policykwargs={'crit_weights':crit_weight},
                     numvehicles=nv
                     ))
 
 
 # Enter analysis definition here
 # analyses = [
-#     dict(name="do_nothing", target_state="evenly_distributed_target_state", policy="DoNothing",    policyargs="", numvehicles=1, crit_weights="",),
-#     dict(name="evenly",     target_state="evenly_distributed_target_state", policy="GreedyPolicy", policyargs="", numvehicles=1, crit_weights=""),
-#     dict(name="outflow",    target_state="outflow_target_state",            policy="GreedyPolicy", policyargs="", numvehicles=1, crit_weights=""),
-#     dict(name="equalprob",  target_state="equal_prob_target_state",         policy="GreedyPolicy", policyargs="", numvehicles=1, crit_weights=""),
+#     dict(name="do_nothing", target_state="evenly_distributed_target_state", policy="DoNothing",    policykwargs={}, numvehicles=1 ),
+#     dict(name="evenly",     target_state="evenly_distributed_target_state", policy="GreedyPolicy", policykwargs={}, numvehicles=1),
+#     dict(name="outflow",    target_state="outflow_target_state",            policy="GreedyPolicy", policykwargs={}, numvehicles=1),
+#     dict(name="equalprob",  target_state="equal_prob_target_state",         policy="GreedyPolicy", policykwargs={}, numvehicles=1),
 # ]        
 
 seeds = list(range(10))

@@ -44,15 +44,15 @@ if __name__ == "__main__":
                 state_copy.set_seed(seed)
                 state_copy.set_num_vehicles(experimental_setup["analysis"]["numvehicles"])
 
-                if experimental_setup["analysis"]["policyargs"] != "":
-                    args = experimental_setup["analysis"]["policyargs"].split(",")
-                else:
-                    args = []
+                # if len(experimental_setup["analysis"]["policykwargs"]) != 0:
+                #     kwargs = experimental_setup["analysis"]["policykwargs"]
+                # else:
+                #     kwargs = {}
                 
-                exp_policy = getattr(policies, experimental_setup["analysis"]["policy"])(*args)
-                if experimental_setup["analysis"]["crit_weights"] != "":
-                    [w1,w2,w3,w4] = experimental_setup["analysis"]["crit_weights"]
-                    exp_policy.set_criticality_weights(w1,w2,w3,w4)
+                exp_policy = getattr(policies, experimental_setup["analysis"]["policy"])(*kwargs)
+                # if experimental_setup["analysis"]["crit_weights"] != "":
+                #     [w1,w2,w3,w4] = experimental_setup["analysis"]["crit_weights"]
+                #     exp_policy.set_criticality_weights(w1,w2,w3,w4)
                 simul = sim.Simulator(
                     initial_state = state_copy,
                     policy =exp_policy,
