@@ -2,6 +2,7 @@
 
 import shutil
 import os
+import numpy as np
 
 from datetime import datetime, date
 
@@ -119,3 +120,32 @@ def loggEvent(event, times=[]):
         writeWords(trafficLogg, ["VehicleArrival-at-time:", time])
     else:
         print(f"*** ERROR: Tried to log unknown event {words[0][1:]} ")
+
+
+###############################################################################
+# weight analysis
+
+def get_feasible_range(rest,lower,upper,delta):
+    if rest < lower:
+        range_output = [0]
+    else:
+        if rest <= upper:
+            ub = rest
+        else:
+            ub = upper
+        range_output = np.arange(lower,ub+delta,delta)
+    return range_output
+    
+
+def get_criticality_weights(delta, w1_range, w2_range,w3_range,w4_range):
+    weights = list()
+    precision = 3
+    for w1 in np.arange(w1_range[0],w1_range[1]+delta,delta):
+        rest = 1-w1
+        for w2 in get_feasible_range(rest,w2_range[0],w2_range[1],delta):
+            rest = 1-w1-w2
+            for w3 in get_feasible_range(rest,w3_range[0],w3_range[1],delta):
+                w4 = 1-w1-w2-w3
+                values = (w1,w2,w3,w4)
+                weights.append([round(value,precision) for value in values])
+    return weights
