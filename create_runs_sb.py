@@ -1,0 +1,114 @@
+#!/bin/python3
+"""
+FOMO simulator, create jobs to run on cluster
+"""
+import os
+import shutil
+import json
+import numpy as np
+
+from helpers import *
+
+RUN_DIRECTORY="experimental_setups"
+
+###############################################################################
+
+def get_feasible_range(rest,lower,upper):
+    if rest < lower:
+        range_output = [0]
+    else:
+        if rest <= upper:
+            ub = rest
+        else:
+            ub = upper
+        range_output = np.arange(lower,ub+delta,delta)
+    return range_output
+    
+
+def get_criticality_weights(delta, w1_range, w2_range,w3_range,w4_range):
+    weights = list()
+    precision = 3
+    for w1 in np.arange(w1_range[0],w1_range[1]+delta,delta):
+        rest = 1-w1
+        for w2 in get_feasible_range(rest,w2_range[0],w2_range[1]):
+            rest = 1-w1-w2
+            for w3 in get_feasible_range(rest,w3_range[0],w3_range[1]):
+                w4 = 1-w1-w2-w3
+                values = (w1,w2,w3,w4)
+                weights.append([round(value,precision) for value in values])
+    return weights
+
+###############################################################################
+
+# Duration of each simulation run
+DURATION = timeInMinutes(hours=24)
+
+# Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
+instances = [
+    dict(name="Oslo",        url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        numbikes=2000, numstations=None, week=33, day=0, hour=6),
+#    dict(name="Bergen",      url="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      numbikes=1000, numstations=None, week=33, day=0, hour=6),
+#    dict(name="Trondheim",   url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   numbikes=1000, numstations=None, week=33, day=0, hour=6),
+#    dict(name="Oslo-vinter", url="https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    numbikes=400,  numstations=None, week=7,  day=0, hour=6),
+#    dict(name="Edinburgh",   url="https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", numbikes=200,  numstations=None, week=20, day=0, hour=6),
+]
+
+
+ts_map = {
+    #"EDTS":"evenly_distributed_target_state",
+    "OFTS":"outflow_target_state",
+    #"EQTS":"equal_prob_target_state"
+        }
+policy_map = {
+    #abbreviation:name_of_policy
+    #"DN:""DoNothing",
+    "GRD":"GreedyPolicy"
+    }
+delta = 0.25
+w1_range= w2_range= w3_range= w4_range = [0,1]  # time_to_violation, net_demand, driving_time, deviation_target_state
+all_weights = get_criticality_weights(delta, w1_range, w2_range,w3_range,w4_range)
+policyargs=""
+number_of_vehicles = [2]
+
+analyses = []
+for ts_abbr,ts in ts_map.items():
+    for pol_abbr, pol in policy_map.items():
+        for nv in number_of_vehicles:
+            for crit_weight in all_weights:
+                analyses.append(dict(
+                    name=ts_abbr+'_'+pol_abbr+'_'+'V'+str(nv)+'_W'+str(crit_weight),
+                    target_state=ts,
+                    policy=pol,
+                    policyargs="",
+                    crit_weights= crit_weight,
+                    numvehicles=nv
+                    ))
+
+
+# Enter analysis definition here
+# analyses = [
+#     dict(name="do_nothing", target_state="evenly_distributed_target_state", policy="DoNothing",    policyargs="", numvehicles=1, crit_weights="",),
+#     dict(name="evenly",     target_state="evenly_distributed_target_state", policy="GreedyPolicy", policyargs="", numvehicles=1, crit_weights=""),
+#     dict(name="outflow",    target_state="outflow_target_state",            policy="GreedyPolicy", policyargs="", numvehicles=1, crit_weights=""),
+#     dict(name="equalprob",  target_state="equal_prob_target_state",         policy="GreedyPolicy", policyargs="", numvehicles=1, crit_weights=""),
+# ]        
+
+seeds = list(range(10))
+
+###############################################################################
+
+if __name__ == "__main__":
+
+    if os.path.exists(RUN_DIRECTORY):
+        shutil.rmtree(RUN_DIRECTORY)
+    os.mkdir(RUN_DIRECTORY)
+
+    n = 0
+
+    for instance in instances:
+        for analysis in analyses:
+            simulations = []
+
+            experimental_setup = dict(run=n, instance=instance, analysis=analysis, seeds=seeds, duration=DURATION)
+            with open(f"{RUN_DIRECTORY}/setup_{n:04}.json", "w") as outfile:
+                outfile.write(json.dumps(experimental_setup, indent=4))
+            n += 1

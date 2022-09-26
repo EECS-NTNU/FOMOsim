@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     for filename in sys.argv[1:]:
         with open(filename, "r") as infile:
-            print("Running file", filename)
+            print("Running file", filename) #filename='experimental_setups/setup_0063.json'
 
             experimental_setup = json.load(infile)
 
@@ -48,10 +48,14 @@ if __name__ == "__main__":
                     args = experimental_setup["analysis"]["policyargs"].split(",")
                 else:
                     args = []
-
+                
+                exp_policy = getattr(policies, experimental_setup["analysis"]["policy"])(*args)
+                if experimental_setup["analysis"]["crit_weights"] != "":
+                    [w1,w2,w3,w4] = experimental_setup["analysis"]["crit_weights"]
+                    exp_policy.set_criticality_weights(w1,w2,w3,w4)
                 simul = sim.Simulator(
                     initial_state = state_copy,
-                    policy = getattr(policies, experimental_setup["analysis"]["policy"])(*args),
+                    policy =exp_policy,
                     start_time = timeInMinutes(days=experimental_setup["instance"]["day"], hours=experimental_setup["instance"]["hour"]),
                     duration = experimental_setup["duration"],
                     verbose = False,

@@ -29,7 +29,10 @@ class GreedyPolicy(Policy):
         #DEFINE SOME MORE PROPERTIES HERE!
         
         #- WEIGHTS
-        
+        self.omega1 = 0.1     # time_to_violation
+        self.omega2 = 0.5     # net_demand
+        self.omega3 = 0.1     # driving_time
+        self.omega4 = 0.3     # deviation_from_target_state   (this was deviation when not visited)
         
         #- Choice of criticality measure
         self.criticality_measure = criticality_measure #  'deviation_from_target_state'  OR 'weighted_average'
