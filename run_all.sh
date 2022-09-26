@@ -28,7 +28,7 @@ while [ $run_counter -lt $num_runs ]; do
     node_counter=$((node_counter + 1))
 
     echo "Sending to $node: $args"
-    ssh $node "cd /storage/users/djupdal/fomo; python3 run.py $args" > ${node}.out 2> ${node}.err &
+    ssh $node "cd /storage/users/$USER/fomo; python3 run.py $args" > ${node}.out 2> ${node}.err &
 done
 
 echo "Waiting for completion"
