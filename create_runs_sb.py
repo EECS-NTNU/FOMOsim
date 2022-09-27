@@ -42,7 +42,7 @@ policy_map = {
 delta = 0.25
 w1_range= w2_range= w3_range= w4_range = [0,1]  # time_to_violation, net_demand, driving_time, deviation_target_state
 all_weights = get_criticality_weights(delta, w1_range, w2_range,w3_range,w4_range)
-policyargs=""
+policykwargs={}
 number_of_vehicles = [2]
 
 analyses = []
