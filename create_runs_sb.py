@@ -39,7 +39,7 @@ policy_map = {
     #"DN:""DoNothing",
     "GRD":"GreedyPolicy"
     }
-delta = 0.25
+delta = 0.1
 w1_range= w2_range= w3_range= w4_range = [0,1]  # time_to_violation, net_demand, driving_time, deviation_target_state
 all_weights = get_criticality_weights(delta, w1_range, w2_range,w3_range,w4_range)
 policyargs={}
@@ -54,8 +54,8 @@ for ts_abbr,ts in ts_map.items():
                     name=ts_abbr+'_'+pol_abbr+'_'+'V'+str(nv)+'_W'+str(crit_weight),
                     target_state=ts,
                     policy=pol,
-                    policyargs={'crit_weights':crit_weight},
-                    numvehicles=nv
+                    numvehicles=nv,
+                    policyargs={'crit_weights':crit_weight}
                     ))
 
 
@@ -67,7 +67,7 @@ for ts_abbr,ts in ts_map.items():
 #     dict(name="equalprob",  target_state="equal_prob_target_state",         policy="GreedyPolicy", policykwargs={}, numvehicles=1),
 # ]        
 
-seeds = list(range(10))
+seeds = list(range(20))
 
 ###############################################################################
 
@@ -87,3 +87,21 @@ if __name__ == "__main__":
             with open(f"{RUN_DIRECTORY}/setup_{n:04}.json", "w") as outfile:
                 outfile.write(json.dumps(experimental_setup, indent=4))
             n += 1
+
+f = open('analyses.csv','w')
+delim=';'
+f.write(delim.join(list(analyses[0].keys())))
+f.write("\n")
+for analysis in analyses:
+    f.write(analysis['name'] + ";")
+    f.write(analysis['target_state'] + ";")
+    f.write(analysis['policy'] + ";")
+    for key,value in analysis['policyargs'].items():
+        f.write(key + ";")
+        if isinstance(value, list):
+            for i in value:
+                f.write(str(i) + ";")
+        else:
+            f.write(str(value) + ";")
+    f.write("\n")
+f.close()

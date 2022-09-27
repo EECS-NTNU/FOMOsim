@@ -4,6 +4,7 @@ FOMO simulator, visualises results from a cluster run
 """
 
 import matplotlib.pyplot as plt
+import pandas as pd
 
 ###############################################################################
 
@@ -96,3 +97,15 @@ if __name__ == "__main__":
         lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
 
         plt.show()
+
+
+###############################################################################
+
+
+
+df = pd.read_csv ('output.csv',sep=';',names=['run',	'Instance',	'Analyses',	'trips',
+                                      'starvations','congestions','starvation_std'	,'congestion_std'])
+
+df['violations'] = df['starvations'] + df['congestions'] 
+
+df = df.sort_values(by=['violations'],ascending=True)
