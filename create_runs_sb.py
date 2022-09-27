@@ -51,7 +51,15 @@ all_weights = get_criticality_weights(delta, w1_range, w2_range,w3_range,w4_rang
 policyargs={}
 number_of_vehicles = [1,2]
 
-analyses = []
+do_nothing_analysis = dict(
+    name='do_nothing',
+    target_state="evenly_distributed_target_state",
+    policy='DoNothing',
+    numvehicles=1,
+    policyargs={}
+    )
+
+analyses = [do_nothing_analysis]   #reference_case
 for ts_abbr,ts in ts_map.items():
     for pol_abbr, pol in policy_map.items():
         for nv in number_of_vehicles:
@@ -63,14 +71,6 @@ for ts_abbr,ts in ts_map.items():
                     numvehicles=nv,
                     policyargs={'crit_weights':crit_weight}
                     ))
-
-analyses = analyses.append(dict(
-    name='do_nothing',
-    target_state="evenly_distributed_target_state",
-    policy='DoNothing',
-    numvehicles=1,
-    policyargs={}
-    ))
 
 # Enter analysis definition here
 # analyses = [
