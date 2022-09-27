@@ -44,18 +44,11 @@ if __name__ == "__main__":
                 state_copy.set_seed(seed)
                 state_copy.set_num_vehicles(experimental_setup["analysis"]["numvehicles"])
 
-                # if len(experimental_setup["analysis"]["policykwargs"]) != 0:
-                #     kwargs = experimental_setup["analysis"]["policykwargs"]
-                # else:
-                #     kwargs = {}
-                
-                exp_policy = getattr(policies, experimental_setup["analysis"]["policy"])(*kwargs)
-                # if experimental_setup["analysis"]["crit_weights"] != "":
-                #     [w1,w2,w3,w4] = experimental_setup["analysis"]["crit_weights"]
-                #     exp_policy.set_criticality_weights(w1,w2,w3,w4)
+                kwargs = experimental_setup["analysis"]["policyargs"]
+
                 simul = sim.Simulator(
                     initial_state = state_copy,
-                    policy =exp_policy,
+                    policy = getattr(policies, experimental_setup["analysis"]["policy"])(**kwargs),
                     start_time = timeInMinutes(days=experimental_setup["instance"]["day"], hours=experimental_setup["instance"]["hour"]),
                     duration = experimental_setup["duration"],
                     verbose = False,

@@ -26,10 +26,10 @@ instances = [
 
 # Enter analysis definition here
 analyses = [
-    dict(name="do_nothing", target_state="evenly_distributed_target_state", policy="DoNothing",    policyargs="", numvehicles=1),
-    dict(name="evenly",     target_state="evenly_distributed_target_state", policy="GreedyPolicy", policyargs="", numvehicles=1),
-    dict(name="outflow",    target_state="outflow_target_state",            policy="GreedyPolicy", policyargs="", numvehicles=1),
-    dict(name="equalprob",  target_state="equal_prob_target_state",         policy="GreedyPolicy", policyargs="", numvehicles=1),
+    dict(name="do_nothing", target_state="evenly_distributed_target_state", policy="DoNothing",    policyargs={}, numvehicles=1),
+    dict(name="evenly",     target_state="evenly_distributed_target_state", policy="GreedyPolicy", policyargs={'criticality_measure':'weighted_average'}, numvehicles=1),
+    dict(name="outflow",    target_state="outflow_target_state",            policy="GreedyPolicy", policyargs={'criticality_measure':'deviation_from_target_state'}, numvehicles=1),
+    dict(name="equalprob",  target_state="equal_prob_target_state",         policy="GreedyPolicy", policyargs={}, numvehicles=1),
 ]        
 
 seeds = list(range(10))
