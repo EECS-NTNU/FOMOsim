@@ -22,8 +22,8 @@ DURATION = timeInMinutes(hours=24)
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     dict(name="Oslo",        url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        numbikes=2000, numstations=None, week=33, day=0, hour=6),
-#    dict(name="Bergen",      url="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      numbikes=1000, numstations=None, week=33, day=0, hour=6),
-#    dict(name="Trondheim",   url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   numbikes=1000, numstations=None, week=33, day=0, hour=6),
+    dict(name="Bergen",      url="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      numbikes=1000, numstations=None, week=33, day=0, hour=6),
+    dict(name="Trondheim",   url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   numbikes=1000, numstations=None, week=33, day=0, hour=6),
 #    dict(name="Oslo-vinter", url="https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    numbikes=400,  numstations=None, week=7,  day=0, hour=6),
 #    dict(name="Edinburgh",   url="https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", numbikes=200,  numstations=None, week=20, day=0, hour=6),
 ]
@@ -39,11 +39,14 @@ policy_map = {
     #"DN:""DoNothing",
     "GRD":"GreedyPolicy"
     }
-delta = 0.1
-w1_range= w2_range= w3_range= w4_range = [0,1]  # time_to_violation, net_demand, driving_time, deviation_target_state
+delta = 0.01
+w1_range= [0,0]
+w2_range= [0.05,0.2]
+w3_range= [0.2,0.55]
+w4_range = [0.2,0.55]  # time_to_violation, net_demand, driving_time, deviation_target_state
 all_weights = get_criticality_weights(delta, w1_range, w2_range,w3_range,w4_range)
 policyargs={}
-number_of_vehicles = [2]
+number_of_vehicles = [1,2]
 
 analyses = []
 for ts_abbr,ts in ts_map.items():
