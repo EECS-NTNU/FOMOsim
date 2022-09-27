@@ -44,11 +44,11 @@ if __name__ == "__main__":
                 state_copy.set_seed(seed)
                 state_copy.set_num_vehicles(experimental_setup["analysis"]["numvehicles"])
 
-                kwargs = experimental_setup["analysis"]["policyargs"]
+                args = experimental_setup["analysis"]["policyargs"]
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
-                    policy = getattr(policies, experimental_setup["analysis"]["policy"])(**kwargs),
+                    policy = getattr(policies, experimental_setup["analysis"]["policy"])(**args),
                     start_time = timeInMinutes(days=experimental_setup["instance"]["day"], hours=experimental_setup["instance"]["hour"]),
                     duration = experimental_setup["duration"],
                     verbose = False,

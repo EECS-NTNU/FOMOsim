@@ -41,8 +41,7 @@ instances = [
 if True:
     analyses = [
         # Name,             target_state,                                   policy                                              numvehicles
-        ("grd_crt_even",    target_state.outflow_target_state,   policies.GreedyPolicy(
-                                                                            criticality_measure='deviation_from_target_state'),            1),
+        ("grd_crt_even",    target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),            1),
     ]    
 elif False:
     # Enter analysis definition here
@@ -50,13 +49,10 @@ elif False:
         # Name,             target_state,                                   policy                                              numvehicles
         # ("do_nothing",      target_state.outflow_target_state,              policies.DoNothing(),                               1),
         # ("grd_trgt_outfl",  target_state.outflow_target_state,              policies.GreedyPolicy(
-        #                                                                     criticality_measure='deviation_from_target_state'), 1),
-        # ("grd_crt_outfl",   target_state.outflow_target_state,              policies.GreedyPolicy(
-        #                                                                     criticality_measure='weighted_average'),            1),
-        ("grd_crt_even",    target_state.evenly_distributed_target_state,   policies.GreedyPolicy(
-                                                                            criticality_measure='weighted_average'),            1),
-        # ("grd_crt_equal",   target_state.equal_prob_target_state,           policies.GreedyPolicy(
-        #                                                                     criticality_measure='weighted_average'),            1),
+        #                                                                     crit_weights=[0,0,0,1]), 1),
+        # ("grd_crt_outfl",   target_state.outflow_target_state,              policies.GreedyPolicy(crit_weights=[0.25,0.25,0.25,0.25]),            1),
+        ("grd_crt_even",    target_state.evenly_distributed_target_state,   policies.GreedyPolicy(crit_weights=[0.25,0.25,0.25,0.25]),            1),
+        # ("grd_crt_equal",   target_state.equal_prob_target_state,           policies.GreedyPolicy(crit_weights=[0.25,0.25,0.25,0.25]),            1),
         #("grd_old",     target_state.outflow_target_state,       policies.GreedyPolicyOld(),                           1),
     ]      
     #outflow_target_state, evenly_distributed_target_state, equal_prob_target_state
@@ -64,31 +60,23 @@ else:
     analyses1 = [
         # Name,             target_state,                       policy                                      numvehicles
         
-        ("1a",  target_state.evenly_distributed_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                                'deviation_from_target_state'),             1),
-        ("1b",  target_state.outflow_target_state,              policies.GreedyPolicy(criticality_measure=
-                                                                'deviation_from_target_state'),             1),
-        ("1c",  target_state.equal_prob_target_state,           policies.GreedyPolicy(criticality_measure=
-                                                                'deviation_from_target_state'),             1),
+        ("1a",  target_state.evenly_distributed_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),             1),
+        ("1b",  target_state.outflow_target_state,              policies.GreedyPolicy(crit_weights=[0,0,0,1]),             1),
+        ("1c",  target_state.equal_prob_target_state,           policies.GreedyPolicy(crit_weights=[0,0,0,1]),             1),
     ]      
     
     analyses2 = [
         # Name,             target_state,                       policy                              numvehicles
         ("2a",  target_state.outflow_target_state,   policies.DoNothing(),                          1),
-        ("2b",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'deviation_from_target_state'),                1),
-        ("2c",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'weighted_average'),                           1),
+        ("2b",  target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),                1),
+        ("2c",  target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0.25,0.25,0.25,0.25]),                           1),
     ]  
     
     analyses3 = [
         # Name,             target_state,                       policy                              numvehicles
-        ("3_1",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'deviation_from_target_state'),                           1),
-        ("3_2",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'deviation_from_target_state'),                           2),
-        ("3_3",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'deviation_from_target_state'),                           3),
+        ("3_1",  target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),                           1),
+        ("3_2",  target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),                           2),
+        ("3_3",  target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),                           3),
     ]  
  
 analyses = analyses

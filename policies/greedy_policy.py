@@ -15,7 +15,7 @@ import init_state.entur.methods
 import init_state.entur.scripts
 
 class GreedyPolicy(Policy):
-    def __init__(self,criticality_measure='weighted_average',**kwargs):
+    def __init__(self,crit_weights=[0.1,0.5,0.1,0.3]):   #[0,0,0,1] for deviation from target state
         super().__init__()
 
         #Two options for :
@@ -25,21 +25,10 @@ class GreedyPolicy(Policy):
         #Then, next station can be based on
         # 1. Criticality Score
         # 2. Deviation from target state  (this is a special case of criticality score)
-
-        #DEFINE SOME MORE PROPERTIES HERE!
         
-        #- WEIGHTS
-
-        
-        #- Choice of criticality measure
-        self.criticality_measure = criticality_measure #  'deviation_from_target_state'  OR 'weighted_average'
-        if self.criticality_measure == 'deviation_from_target_state':
-            self.set_criticality_weights(0,0,0,1) # time_to_violation, net_demand, driving_time, deviation_target_state
-        elif self.criticality_measure == 'weighted_average':
-            [w1,w2,w3,w4] = [0.1,0.5,0.1,0.3]
-            if 'crit_weights' in kwargs:
-                [w1,w2,w3,w4] = kwargs.get("crit_weights")    
-            self.set_criticality_weights(w1,w2,w3,w4) # time_to_violation, net_demand, driving_time, deviation_target_state
+        #- WEIGHTS           
+        [w1,w2,w3,w4] = crit_weights
+        self.set_criticality_weights(w1,w2,w3,w4) # time_to_violation, net_demand, driving_time, deviation_target_state
             
         self.cutoff = 0.3       # to decide when to go the pickup or delivery station next
 
