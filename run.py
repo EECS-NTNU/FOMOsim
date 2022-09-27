@@ -75,7 +75,6 @@ if __name__ == "__main__":
             f.write(str(metric.get_aggregate_value("congestion")) + ";")
             f.write(str(metric.get_aggregate_value("starvation_stdev")) + ";")
             f.write(str(metric.get_aggregate_value("congestion_stdev")))
-            f.write()
 
 
             f.write("\n")
