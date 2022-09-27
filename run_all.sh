@@ -2,7 +2,7 @@
 
 # Distribute all json jobs to the cluster nodes
 
-NODES=(`gstat -a1l | grep compute-[13456789] | awk '{ if(strtonum($7) < 2) printf("%s\n", $1); }' | sort -r`)
+NODES=(`gstat -i 10.1.1.1 -a1l | grep compute-[13456789] | awk '{ if(strtonum($7) < 2) printf("%s\n", $1); }' | sort -r`)
 RUNS=(`ls experimental_setups`)
 
 num_nodes=${#NODES[@]}
