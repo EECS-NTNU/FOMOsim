@@ -17,7 +17,7 @@ RUN_DIRECTORY="experimental_setups"
 ###############################################################################
 
 # Duration of each simulation run
-DURATION = timeInMinutes(hours=24)
+DURATION = timeInMinutes(hours=24*7)
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
@@ -30,14 +30,14 @@ instances = [
 
 
 ts_map = {
-    "EDTS":"evenly_distributed_target_state",
+    #"EDTS":"evenly_distributed_target_state",
     "OFTS":"outflow_target_state",
-    "EQTS":"equal_prob_target_state"
+    #"EQTS":"equal_prob_target_state"
         }
 policy_map = {
     #abbreviation:name_of_policy
     "DN":"DoNothing",
-    "GRD":"GreedyPolicy"
+    #"GRD":"GreedyPolicy" #no need to find all combinations
     }
 
 delta = 0.1
@@ -64,6 +64,13 @@ for ts_abbr,ts in ts_map.items():
                     policyargs={'crit_weights':crit_weight}
                     ))
 
+analyses = analyses.append(dict(
+    name='do_nothing',
+    target_state="evenly_distributed_target_state",
+    policy='DoNothing',
+    numvehicles=1,
+    policyargs={}
+    ))
 
 # Enter analysis definition here
 # analyses = [

@@ -106,16 +106,19 @@ if __name__ == "__main__":
 
 df = pd.read_csv ('output.csv',sep=';',names=['run',	'Instance',	'Analyses',	'trips',
                                       'starvations','congestions','starvation_std'	,'congestion_std'])
-
-df['violations'] = df['starvations'] + df['congestions'] 
-
-df = df.sort_values(by=['violations'],ascending=True)
-
 for i in [1,2,3,4]:
 	df['w'+str(i)] = df['Analyses'].apply(lambda x: [float(w) for w in x.split('[')[1].split(']')[0].split(',')][i-1])
+df['violations'] = df['starvations'] + df['congestions'] 
+df['service_rate'] =  (1-df['violations']/df['trips'])*100
 
-df2 = df.loc[df['violations']<np.percentile(df['violations'],10)]
-df3 = df.loc[df['violations']>np.percentile(df['violations'],90)]
+df = df.sort_values(by=['service_rate'],ascending=False)
+df_TRD = df.loc[df['Instance']=='Trondheim']
+df_OSL = df.loc[df['Instance']=='Oslo']
+df_INSPECT = df.loc[df['w2']==0.2]
 
-df_extreme = df.loc[(df['w1']<0.001) | (df['w2']<0.001) | (df['w3']<0.001) | (df['w4']<0.001)] 
-df_single_measure = df.loc[(df['w1']>0.999) | (df['w2']>0.999) | (df['w3']>0.999) | (df['w4']>0.999)] 
+
+#df2 = df.loc[df['violations']<np.percentile(df['violations'],10)]
+#df3 = df.loc[df['violations']>np.percentile(df['violations'],90)]
+
+#df_extreme = df.loc[(df['w1']<0.001) | (df['w2']<0.001) | (df['w3']<0.001) | (df['w4']<0.001)] 
+#df_single_measure = df.loc[(df['w1']>0.999) | (df['w2']>0.999) | (df['w3']>0.999) | (df['w4']>0.999)] 
