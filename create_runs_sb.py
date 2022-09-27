@@ -36,8 +36,7 @@ ts_map = {
         }
 policy_map = {
     #abbreviation:name_of_policy
-    "DN":"DoNothing",
-    #"GRD":"GreedyPolicy" #no need to find all combinations
+    "GRD":"GreedyPolicy" #no need to find all combinations
     }
 
 delta = 0.1

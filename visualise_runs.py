@@ -104,14 +104,27 @@ if __name__ == "__main__":
 
 
 
-df = pd.read_csv ('output.csv',sep=';',names=['run',	'Instance',	'Analyses',	'trips',
-                                      'starvations','congestions','starvation_std'	,'congestion_std'])
+df = pd.read_csv ('output.csv',sep=';',names=['run',	'Instance',	'Analyses',
+                                              'target_state','policy','num_vehicles',
+                                              'trips','starvations','congestions',
+                                              'starvation_std'	,'congestion_std'])
+
+def extract_weights(string, index):
+    if '[' not in string:
+        output = 0
+    else:
+        output = [float(w) for w in string.split('[')[1].split(']')[0].split(',')][index-1]
+    return output
+
+
 for i in [1,2,3,4]:
-	df['w'+str(i)] = df['Analyses'].apply(lambda x: [float(w) for w in x.split('[')[1].split(']')[0].split(',')][i-1])
+	df['w'+str(i)] = df['Analyses'].apply(extract_weights,index=i)
 df['violations'] = df['starvations'] + df['congestions'] 
 df['service_rate'] =  (1-df['violations']/df['trips'])*100
 
 df = df.sort_values(by=['service_rate'],ascending=False)
+
+
 df_TRD = df.loc[df['Instance']=='Trondheim']
 df_OSL = df.loc[df['Instance']=='Oslo']
 df_INSPECT = df.loc[df['w2']==0.2]
