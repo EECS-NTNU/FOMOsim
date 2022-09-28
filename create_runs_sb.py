@@ -40,21 +40,14 @@ for week in weeks:
 ts_map = {
     #"EDTS":"evenly_distributed_target_state",
     "OFTS":"outflow_target_state",
-    #"EQTS":"equal_prob_target_state"
+    "EQTS":"equal_prob_target_state"
         }
 policy_map = {
     #abbreviation:name_of_policy
     "GRD":"GreedyPolicy" #no need to find all combinations
     }
 
-delta = 0.1
-w1_range = [0,0]
-w2_range = w3_range = w4_range = [0,1]
-# w1_range= [0,0]
-# w2_range= [0.05,0.2]
-# w3_range= [0.2,0.55]
-# w4_range = [0.2,0.55]  # time_to_violation, net_demand, driving_time, deviation_target_state
-all_weights = get_criticality_weights(delta, w1_range, w2_range,w3_range,w4_range)
+all_weights = get_criticality_weights2(4)
 policyargs={}
 number_of_vehicles = [1,2]
 

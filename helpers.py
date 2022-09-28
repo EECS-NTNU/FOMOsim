@@ -3,10 +3,8 @@
 import shutil
 import os
 import numpy as np
-<<<<<<< Updated upstream
-=======
 import itertools
->>>>>>> Stashed changes
+import copy
 
 from datetime import datetime, date
 
@@ -142,7 +140,7 @@ def get_feasible_range(rest,lower,upper,delta):
     
 
 def get_criticality_weights(delta, w1_range, w2_range,w3_range,w4_range):
-    weights = list()
+    all_weights = list()
     precision = 3
     for w1 in np.arange(w1_range[0],w1_range[1]+delta,delta):
         rest = 1-w1
@@ -151,39 +149,39 @@ def get_criticality_weights(delta, w1_range, w2_range,w3_range,w4_range):
             for w3 in get_feasible_range(rest,w3_range[0],w3_range[1],delta):
                 w4 = 1-w1-w2-w3
                 values = (w1,w2,w3,w4)
-                weights.append([round(value,precision) for value in values])
-    return weights
-<<<<<<< Updated upstream
-=======
+                all_weights.append([round(value,precision) for value in values])
+    return all_weights
+
+
 
 def get_criticality_weights2(num_weights):
     
     all_weights = []
-    weights_base = np.repeat(0,num_weights)
-    #single measure
-    for i in range(num_weights):
-        weight = copy.copy(weights_base)
-        weight[i] = 1
-        all_weights.append(weight)
+    weights_base = np.repeat(float(0.000),num_weights)
     
-    #combination of two:
-    factors = [1/x for x in [2,3,4]]
-    subsets = list(itertools.combinations([0,1,2,3], 2))
-    for (i,j) in subsets:
+    
+    for i in np.arange(1,num_weights+1):
         
-    num_weights = 2
-    #flat
-    factor_all = 1/num_weights
-    #linear increase
-    
-    
-    
-    for i in range(num_weights):
-        for factor in factors:
-            weight = copy.copy(weights_base)
-            weight[i] = 
-    
-    
-    
-    #flat strategy 
->>>>>>> Stashed changes
+        subsets = list(itertools.combinations(np.arange(0,num_weights), i))
+            
+        #flat strategy
+        factor = np.round(1/i,3) 
+        for subset in subsets:
+            weight = copy.deepcopy(weights_base)
+            for index in subset:
+                weight[int(index)] = factor
+            all_weights.append(weight)
+            
+        #linear increase strategy
+        if i > 1:
+            values = np.arange(1,i+1)
+            factors = [np.round(x/sum(values),3) for x in values]
+            for subset in subsets:
+                for indices in list(itertools.permutations(subset)):
+                    weight = copy.copy(weights_base)
+                    for j in range(len(indices)):
+                        weight[indices[j]] = factors[j]
+                    all_weights.append(weight)
+           
+
+    return all_weights
