@@ -6,6 +6,7 @@ import os
 import shutil
 import json
 import numpy as np
+import copy
 
 from helpers import *
 
@@ -22,7 +23,8 @@ DURATION = timeInMinutes(hours=24*7)
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 
 num_weeks = 6
-weeks = [round(x) for x in np.linspace(start=4,stop=48,num=num_weeks)]
+#weeks = [round(x) for x in np.linspace(start=4,stop=48,num=num_weeks)]   #little activity in week 48
+weeks = [10,20,33,40]
 
 instance_base_setups = [
 dict(name="Oslo_W33",        city = "Oslo",     url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        numbikes=2000, numstations=None, week=33, day=0, hour=6),
@@ -33,9 +35,10 @@ dict(name="Trondheim_W33",   city = "Trondheim",url="https://data.urbansharing.c
 instances = []
 for week in weeks:
      for instance in instance_base_setups:
-         instance['name'] = instance['city']+'_W'+ str(week)
-         instance['week'] = week
-         instances.append(instance)
+         instance_copy=copy.deepcopy(instance)
+         instance_copy['name']=instance_copy['city']+'_W'+ str(week)
+         instance_copy['week'] = week
+         instances.append(instance_copy)
 
 ts_map = {
     #"EDTS":"evenly_distributed_target_state",
