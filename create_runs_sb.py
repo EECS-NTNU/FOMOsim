@@ -20,14 +20,22 @@ RUN_DIRECTORY="experimental_setups"
 DURATION = timeInMinutes(hours=24*7)
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
-instances = [
-    dict(name="Oslo",        url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        numbikes=2000, numstations=None, week=33, day=0, hour=6),
-    dict(name="Bergen",      url="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      numbikes=1000, numstations=None, week=33, day=0, hour=6),
-    dict(name="Trondheim",   url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   numbikes=1000, numstations=None, week=33, day=0, hour=6),
-#    dict(name="Oslo-vinter", url="https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    numbikes=400,  numstations=None, week=7,  day=0, hour=6),
-#    dict(name="Edinburgh",   url="https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", numbikes=200,  numstations=None, week=20, day=0, hour=6),
+
+num_weeks = 6
+weeks = [round(x) for x in np.linspace(start=4,stop=48,num=num_weeks)]
+
+instance_base_setups = [
+dict(name="Oslo_W33",        city = "Oslo",     url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        numbikes=2000, numstations=None, week=33, day=0, hour=6),
+dict(name="Bergen_W33",      city = "Bergen",   url="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      numbikes=1000, numstations=None, week=33, day=0, hour=6),
+dict(name="Trondheim_W33",   city = "Trondheim",url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   numbikes=1000,numstations=None, week=33, day=0, hour=6)
 ]
 
+instances = []
+for week in weeks:
+     for instance in instance_base_setups:
+         instance['name'] = instance['city']+'_W'+ str(week)
+         instance['week'] = week
+         instances.append(instance)
 
 ts_map = {
     #"EDTS":"evenly_distributed_target_state",
@@ -100,20 +108,21 @@ if __name__ == "__main__":
                 outfile.write(json.dumps(experimental_setup, indent=4))
             n += 1
 
-f = open('analyses.csv','w')
-delim=';'
-f.write(delim.join(list(analyses[0].keys())))
-f.write("\n")
-for analysis in analyses:
-    f.write(analysis['name'] + ";")
-    f.write(analysis['target_state'] + ";")
-    f.write(analysis['policy'] + ";")
-    for key,value in analysis['policyargs'].items():
-        f.write(key + ";")
-        if isinstance(value, list):
-            for i in value:
-                f.write(str(i) + ";")
-        else:
-            f.write(str(value) + ";")
+    f = open('analyses.csv','w')
+    delim=';'
+    f.write(delim.join(list(analyses[0].keys())))
     f.write("\n")
-f.close()
+    for analysis in analyses:
+        f.write(analysis['name'] + ";")
+        f.write(analysis['city'] + ";")
+        f.write(analysis['target_state'] + ";")
+        f.write(analysis['policy'] + ";")
+        for key,value in analysis['policyargs'].items():
+            f.write(key + ";")
+            if isinstance(value, list):
+                for i in value:
+                    f.write(str(i) + ";")
+            else:
+                f.write(str(value) + ";")
+        f.write("\n")
+    f.close()
