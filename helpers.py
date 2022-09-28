@@ -170,7 +170,7 @@ def get_criticality_weights2(num_weights):
             weight = copy.deepcopy(weights_base)
             for index in subset:
                 weight[int(index)] = factor
-            all_weights.append(weight)
+            all_weights.append(list(weight))
             
         #linear increase strategy
         if i > 1:
@@ -181,7 +181,7 @@ def get_criticality_weights2(num_weights):
                     weight = copy.copy(weights_base)
                     for j in range(len(indices)):
                         weight[indices[j]] = factors[j]
-                    all_weights.append(weight)
+                    all_weights.append(list(weight))
            
 
     return all_weights
