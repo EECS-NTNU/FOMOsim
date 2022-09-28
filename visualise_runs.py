@@ -116,16 +116,22 @@ def extract_weights(string, index):
         output = [float(w) for w in string.split('[')[1].split(']')[0].split(',')][index-1]
     return output
 
+string = 'Trondheim_W48'
+
 
 for i in [1,2,3,4]:
 	df['w'+str(i)] = df['Analyses'].apply(extract_weights,index=i)
 df['violations'] = df['starvations'] + df['congestions'] 
 df['service_rate'] =  (1-df['violations']/df['trips'])*100
+df['week'] = df['Instance'].apply(lambda x: x.split('_W')[1] )
 
 df = df.sort_values(by=['service_rate'],ascending=False)
 
 
-df_TRD = df.loc[df['Instance']=='Trondheim']
+what_works_best = df.groupby(['w1', 'w2', 'w3','w4']).agg({'service_rate':'mean', 'violations':'mean'})
+what_works_best = what_works_best.sort_values(by=['service_rate'],ascending=False)
+
+
 df_OSL = df.loc[df['Instance']=='Oslo']
 df_INSPECT = df.loc[df['w2']==0.2]
 

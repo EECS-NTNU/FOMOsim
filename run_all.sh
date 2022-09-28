@@ -5,10 +5,11 @@
 TIMEOUT="24h"
 
 # These node groups are allowed:
-NODE_GROUPS="13456789"
+#NODE_GROUPS="13456789"
+NODE_GROUPS="356"
 
 # Maximum number of nodes this script will use:
-MAX_NODES=1000
+MAX_NODES=20
 
 # Don't use a node if it has a higher percent load than the following:
 LOAD_LIMIT=2
