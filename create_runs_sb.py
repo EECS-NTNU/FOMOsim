@@ -114,9 +114,9 @@ if __name__ == "__main__":
     f.write("\n")
     for analysis in analyses:
         f.write(analysis['name'] + ";")
-        f.write(analysis['city'] + ";")
         f.write(analysis['target_state'] + ";")
         f.write(analysis['policy'] + ";")
+        f.write(analysis['numvehicles'] + ";")
         for key,value in analysis['policyargs'].items():
             f.write(key + ";")
             if isinstance(value, list):
