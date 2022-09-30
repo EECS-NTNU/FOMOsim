@@ -9,8 +9,8 @@ FOMO_DIRECTORY="/storage/users/$USER/fomo"   # Where to find the FOMO directory
 # The following settings are only used when finding nodes automatically:
 
 NODE_ROWS="13456789"  # The node rows to pick from
-MAX_NODES=2           # Maximum number of nodes
-LOAD_LIMIT=2          # Don't use a node if it has a higher percent load than this
+MAX_NODES=1000        # Maximum number of nodes
+LOAD_LIMIT=0.01       # Don't use a node if it has a higher percent load than this
 
 ###############################################################################
 # Nodes specified on the command line
@@ -36,10 +36,10 @@ if [ $# -gt 0 ] ; then
         esac
     done
 
-    NODES=""
+    NODES=()
 
     for i in $NODENUMS; do
-        NODES="${NODES} compute-${ROW}-$i.local"
+        NODES+=("compute-${ROW}-$i.local")
     done
 
 ###############################################################################
