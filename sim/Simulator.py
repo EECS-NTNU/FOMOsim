@@ -1,6 +1,8 @@
 import copy
 import datetime
 from typing import List
+import time
+import sys
 
 import bisect
 import sim
@@ -25,19 +27,21 @@ class Simulator(LoadSave):
         policy,
         initial_state,
         start_time = 0,
+        cluster=False,
         verbose=False,
         label=None,
     ):
         super().__init__()
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
         self.policy = policy
-        self.init(duration=duration, initial_state=initial_state, start_time=start_time, verbose=verbose, label=label)
+        self.init(duration=duration, initial_state=initial_state, start_time=start_time, cluster=cluster, verbose=verbose, label=label)
 
     def init(
         self,
         start_time = 0,
         duration = 0,
         initial_state = None,
+        cluster = False,
         verbose = False,
         label = None,
     ):
@@ -54,11 +58,14 @@ class Simulator(LoadSave):
         # Add generate trip event to the event_queue
         self.event_queue.append(sim.GenerateBikeTrips(start_time))
         self.metrics = Metric()
+        self.cluster = cluster
         self.verbose = verbose
         if label is None:
           self.label = self.policy.__class__.__name__
         else:
           self.label = label
+        if cluster:
+            self.last_monotonic = time.monotonic()
         if verbose:
             self.progress_bar = IncrementalBar(
                 "Running Sim",
@@ -86,6 +93,13 @@ class Simulator(LoadSave):
             loggEvent(event)
 
         self.metrics.add_analysis_metrics(self)
+
+        monotonic = time.monotonic()
+        if self.cluster:
+            if (monotonic - self.last_monotonic) > 1:
+                print(".", end="")
+                sys.stdout.flush()
+                self.last_monotonic = monotonic
 
         return event
 

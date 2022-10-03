@@ -371,6 +371,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                     movedBikes = moveCount[station][day][hour][endStation]
                     movedBikesTotal = leaveCount[station][day][hour]
                     if movedBikesTotal > 0:
+#                    if False: # TEST code to enforce equal-prob
                         move_probabilities[station][day][hour].append(movedBikes/movedBikesTotal)
                     else:
                         equalProb = 1.0/len(stationMap)    
