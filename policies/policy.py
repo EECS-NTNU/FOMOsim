@@ -33,6 +33,18 @@ class Policy(abc.ABC):
         self.hour_from = hour_from
         self.hour_to = hour_to
 
+    def get_action(self, simul, vehicle):
+        """
+        This is called from the event simulator.  Policies should implement get_best_action(), not get_action()
+        """
+
+        if  self.hour_from <= simul.hour() < self.hour_to: 
+            return get_best_action(simul, vehicle)
+        else:
+            #TO DO: send to DEPOT instead of letting it dwell idle
+            next_location_id = simul.state.rng.choice([station.id for station in simul.state.stations.values()])  #  
+        return sim.Action([], [], [], next_location_id)
+
     def __repr__(self):
         return f"{self.__class__.__name__}"
 
