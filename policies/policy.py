@@ -42,8 +42,7 @@ class Policy(abc.ABC):
             return get_best_action(simul, vehicle)
         else:
             #TO DO: send to DEPOT instead of letting it dwell idle
-            next_location_id = simul.state.rng.choice([station.id for station in simul.state.stations.values()])  #  
-        return sim.Action([], [], [], next_location_id)
+            return sim.Action([], [], [], 0)
 
     def __repr__(self):
         return f"{self.__class__.__name__}"
