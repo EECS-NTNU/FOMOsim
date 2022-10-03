@@ -361,6 +361,9 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             leave_intensities[station].append([])
             move_probabilities[station].append([])
             for hour in range(24):
+                # test code Fig4
+                # arrive_intensities[station][day].append(4.0 * arriveCount[station][day][hour]/noOfYears)
+                # leave_intensities[station][day].append(4.0 * leaveCount[station][day][hour]/noOfYears)
                 arrive_intensities[station][day].append(arriveCount[station][day][hour]/noOfYears)
                 leave_intensities[station][day].append(leaveCount[station][day][hour]/noOfYears)
                 move_probabilities[station][day].append([])

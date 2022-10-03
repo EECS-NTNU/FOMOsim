@@ -25,12 +25,12 @@ from helpers import *
 ###############################################################################
 
 # Duration of each simulation run
-DURATION = timeInMinutes(hours=24)
+DURATION = timeInMinutes(hours=7)
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        3600,        None,   33,   0,    6 ),
+    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        2000,        None,   33,   0,    23 ),
     # ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
     # ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
     # ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",      400,        None,    7,   0,    6 ),
@@ -44,14 +44,25 @@ analyses = [
     ("random-1", target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),         1),
     ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
     ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
+    # ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
+    # ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
+    # ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
+    # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
+    # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
+    # ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
+    # ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8),
+    # ("outflow-9",    target_state.outflow_target_state,            policies.GreedyPolicy(),           9),
+    # ("outflow-10",    target_state.outflow_target_state,            policies.GreedyPolicy(),         10),
     ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
     # ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
     # ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
     # ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
 ]        
-
-seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-#seeds = [ 0] 
+seeds = [] 
+# for i in range(30):
+#     seeds.append(i)
+#seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+seeds = [ 0] 
 
 ###############################################################################
 
@@ -134,11 +145,11 @@ if __name__ == "__main__":
                                                         random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
                                                         target_state=analysis[1])        
 
-            # elif instance[0] == "Trondheim":
-            #     initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-            #                                             fromInclude=[2018,9], toInclude= [2021, 9],
-            #                                             random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
-            #                                             target_state=analysis[1])                                         
+            elif instance[0] == "Trondheim":
+                initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
+                                                        fromInclude=[2018,9], toInclude= [2021, 9],
+                                                        random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
+                                                        target_state=analysis[1])                                         
             elif instance[0] == "Edinburgh":
                 initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
                                                         fromInclude=[2018,9], toInclude= [2021, 9],
