@@ -17,7 +17,7 @@ import output
 from helpers import timeInMinutes
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(minutes=10, hours=0)
+DURATION = timeInMinutes(hours=24)
 WEEK = 34
 
 def main():
