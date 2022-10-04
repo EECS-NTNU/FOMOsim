@@ -40,8 +40,6 @@ class GreedyPolicy(Policy):
  
         self.cutoff = 0.3       # to decide when to go the pickup or delivery station next
 
-        self.set_time_of_service() #initialize with defaults, defined in super class   
-
     def set_criticality_weights(self, omega1,omega2,omega3,omega4):
         self.omega1 = omega1     # time_to_violation
         self.omega2 = omega2     # net_demand
