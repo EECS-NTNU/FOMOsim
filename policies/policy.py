@@ -11,6 +11,9 @@ class Policy(abc.ABC):
     Base Policy class
     """
 
+    def __init__(self):
+        self.set_time_of_service()
+
     @abc.abstractmethod
     def get_best_action(self, simul, vehicle):
         """
@@ -39,7 +42,7 @@ class Policy(abc.ABC):
         """
 
         if  self.hour_from <= simul.hour() < self.hour_to: 
-            return get_best_action(simul, vehicle)
+            return self.get_best_action(simul, vehicle)
         else:
             #TO DO: send to DEPOT instead of letting it dwell idle
             return sim.Action([], [], [], 0)
