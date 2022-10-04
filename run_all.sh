@@ -3,14 +3,13 @@
 
 # General settings
 
-
 TIMEOUT="24h"                                # A node times out after this amount of time
 FOMO_DIRECTORY="/storage/users/$USER/fomo"   # Where to find the FOMO directory 
 
 # The following settings are only used when finding nodes automatically:
 
 NODE_ROWS="13456789"  # The node rows to pick from     "13456789"
-MAX_NODES=50        # Maximum number of nodes
+MAX_NODES=2        # Maximum number of nodes
 LOAD_LIMIT=0.01       # Don't use a node if it has a higher percent load than this
 
 ###############################################################################
