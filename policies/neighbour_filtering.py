@@ -1,5 +1,6 @@
 """
 File containing the important neighbour filtering schema used to reduce the action space
+From HHS2021, only used in epsilon_greedy
 """
 
 

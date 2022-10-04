@@ -10,6 +10,8 @@ class GleditschHagenPolicy(Policy):
         self.variant = variant #Exact, RouteBased and PatternBased 
         super().__init__()  
         self.num_times_called = 0
+        # TO DO:
+        # - ADD THE WEIGHTS and other PARAMETERS HERE
         
     def get_best_action(self, simul, vehicle):
         if self.variant == 'PatternBased':
@@ -17,7 +19,6 @@ class GleditschHagenPolicy(Policy):
         elif self.variant == 'ColumnBased':
             print('not yet implemented')
             
-
     def PB_solve(self, simul, vehicle):
         
         vehicle_same_location = False #this can happen in the beginning of the simulation

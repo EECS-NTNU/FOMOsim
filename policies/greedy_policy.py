@@ -6,6 +6,7 @@ import copy
 from policies import Policy
 
 from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_to_violation
+from policies.criticality_scores import calculate_criticality_normalized
 
 import sim
 # import abc
@@ -28,6 +29,7 @@ class GreedyPolicy(Policy):
         
         #- WEIGHTS           
         [w1,w2,w3,w4] = crit_weights
+        self.crit_weights = crit_weights
         self.set_criticality_weights(w1,w2,w3,w4) # time_to_violation, net_demand, driving_time, deviation_target_state
             
         self.cutoff = 0.3       # to decide when to go the pickup or delivery station next
@@ -145,13 +147,18 @@ class GreedyPolicy(Policy):
                         potential_stations = potential_delivery_stations
     
                 #calculate criticalities for potential stations
-                criticalities = {station.id:self.calculate_criticality_normalized(simul,vehicle.location.id,station.id,net_demands[station.id],
-                                                                       max([abs(x) for x in list(net_demands.values())]),
-                                                                       max(list(driving_times.values())),
-                                                                       max(list(times_to_violation.values())),
-                                                                       max(list(deviations_from_target_state.values())),
-                                                                       planning_horizon=60) 
-                                 for station in potential_stations}                                                    
+                criticalities = {station.id:calculate_criticality_normalized(
+                    self.crit_weights,
+                    simul,
+                    vehicle.location.id,
+                    station.id,
+                    net_demands[station.id],
+                    max([abs(x) for x in list(net_demands.values())]),
+                    max(list(driving_times.values())),
+                    max(list(times_to_violation.values())),
+                    max(list(deviations_from_target_state.values()))
+                    ) for station in potential_stations}                                                    
+                
                 #sort to get the most promising ones
                 criticalities = dict(sorted(criticalities.items(), key=lambda item: item[1], reverse=True)) #descending order
                 
@@ -178,42 +185,5 @@ class GreedyPolicy(Policy):
     
         
        
-    def calculate_criticality_normalized(self,simul,start_station_id, potential_station_id,
-                                         net_demand_ps,max_net_demand,max_driving_time,
-                                         max_time_to_violation,max_deviation,
-                                         planning_horizon=60):  
-        
-        potential_station = simul.state.stations[potential_station_id]  
-        
-        driving_time = simul.state.get_vehicle_travel_time(start_station_id,potential_station_id)
-        driving_time_normalized = driving_time /max_driving_time #function of max, mean, median,...?
-        #OR USE max(simul.state.traveltime_matrix)
-        
-        #net demand for LOCKS (so positive values is parking of bikes)
-        #THIS SHOULD HAVE BEEN ABSOLUTE VALUE OF NET DEMAND. THIS IS NOT CLEAR IN THE PAPER!!!
-        net_demand_absolute = abs(net_demand_ps)
-        net_demand_normalized = 0
-        if max_net_demand != 0:
-            net_demand_normalized = net_demand_absolute/max_net_demand
-        
-        #ALTERNATIVELY: use station.get_arrive_intensity(day,hour) and station.get_leave_intensity(day,hour)
-        time_to_violation = calculate_time_to_violation(net_demand_ps,potential_station)
-        time_to_violation_normalized = 1
-        if max_time_to_violation > 0:
-            time_to_violation_normalized = time_to_violation/max_time_to_violation
-        
-        target_state = potential_station.get_target_state(simul.day(), simul.hour())
-        deviation_from_target_state = abs(target_state-len(potential_station.bikes))
-        deviation_from_target_state_normalized = 0
-        if max_deviation > 0:
-            deviation_from_target_state_normalized = deviation_from_target_state/max_deviation
-        
-        return round((
-            - self.omega1*time_to_violation_normalized  
-            + self.omega2*net_demand_normalized
-            - self.omega3*driving_time_normalized  
-            + self.omega4*deviation_from_target_state_normalized
-        ),3)
-        #high value implies a critical station
     
     

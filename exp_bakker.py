@@ -13,6 +13,7 @@ import init_state.cityBike
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
+import policies.gleditsch_hagen
 
 from progress.bar import Bar
 
@@ -26,14 +27,16 @@ from helpers import *
 #                               FOMO SIMULATOR                                #
 ###############################################################################
 
-DURATION = timeInMinutes(hours=24)
+DURATION = timeInMinutes(hours=2)
+
+NUM_SEEDS = 1
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
 #    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
-    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
-    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
+#    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
+    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    8 ),
 #   ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    None,        None,   33,   0,    6 ),
 #   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
 ]
@@ -42,6 +45,7 @@ if True:
     analyses = [
         # Name,             target_state,                                   policy                                              numvehicles
         ("grd_crt_even",    target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),            1),
+        ("gh_even",    target_state.outflow_target_state,   policies.gleditsch_hagen.GleditschHagenPolicy(),            1),
     ]    
 elif False:
     # Enter analysis definition here
@@ -81,7 +85,7 @@ else:
  
 analyses = analyses
 
-seeds = list(range(10))  # [0,1,2,....,N-1]
+seeds = list(range(NUM_SEEDS))  # [0,1,2,....,N-1]
 #seeds = [0]
 
 
@@ -152,5 +156,5 @@ if __name__ == "__main__":
     analysis_names = [ analysis[0] for analysis in analyses ]
 
     lostTripsPlot(city_names, analysis_names, starvations, congestions)
-    plt.savefig('violations_plot.png')
+    #plt.savefig('violations_plot.png')
     plt.show()
