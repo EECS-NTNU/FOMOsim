@@ -30,7 +30,7 @@ DURATION = timeInMinutes(hours=24)
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        3600,        None,   33,   0,    6 ),
+    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        2000,        None,   33,   0,    6 ),
     # ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
     #("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   800,        None,   28,   1,    6 ),
     # ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",      400,        None,    7,   0,    6 ),
@@ -45,13 +45,16 @@ analyses = [
     ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
     ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
     ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
-    # ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
-    # ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
-    # ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
+    ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
+    ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
+    ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
 ]        
 
 seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-#seeds = [ 0] 
+# seeds = [ 0] 
+seeds=[]
+for s in range(30):
+    seeds.append(s) 
 
 ###############################################################################
 
