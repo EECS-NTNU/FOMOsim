@@ -15,7 +15,6 @@ import policies.gleditsch_hagen
 import sim
 import output
 from helpers import timeInMinutes
-#   from GUI.dashboard import GUI_main
 
 START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(minutes=10, hours=0)
@@ -29,7 +28,6 @@ def main():
     # tstate = target_state.evenly_distributed_target_state
     # tstate = target_state.outflow_target_state
     tstate = target_state.equal_prob_target_state
-
 
     state = init_state.get_initial_state(source=init_state.cityBike,
                                          url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",

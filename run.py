@@ -4,6 +4,7 @@ FOMO simulator, runs one experimental setup json-file
 """
 import copy
 import sys
+from threading import Timer
 
 import sim
 import init_state
@@ -46,11 +47,14 @@ if __name__ == "__main__":
 
                 args = experimental_setup["analysis"]["policyargs"]
 
+                sys.stdout.flush()
+
                 simul = sim.Simulator(
                     initial_state = state_copy,
                     policy = getattr(policies, experimental_setup["analysis"]["policy"])(**args),
                     start_time = timeInMinutes(days=experimental_setup["instance"]["day"], hours=experimental_setup["instance"]["hour"]),
                     duration = experimental_setup["duration"],
+                    cluster = True,
                     verbose = False,
                 )
 
