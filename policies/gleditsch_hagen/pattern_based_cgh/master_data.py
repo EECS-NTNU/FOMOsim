@@ -1,6 +1,6 @@
 class MasterData:
     
-    def __init__(self,generated_routes, all_stations,simul,omega_v,omega_d,
+    def __init__(self,generated_routes, all_stations,omega_v,omega_d,
                  net_demand,pickup_station,deviation_not_visited, base_violations,target_state,
                  planning_horizon):
         
