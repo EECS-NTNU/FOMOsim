@@ -163,8 +163,8 @@ class GreedyPolicy(Policy):
     
         else:
             #TO DO: send to DEPOT instead of letting it dwell idle
-            next_location_id = simul.state.rng.choice([station.id for station in simul.state.stations.values()])  #  
-    
+            next_location_id = list(criticalities.keys())[0] 
+
         return sim.Action(
             batteries_to_swap,
             bikes_to_pickup,
