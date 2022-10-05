@@ -16,7 +16,7 @@ import init_state.entur.methods
 import init_state.entur.scripts
 
 class GreedyPolicy(Policy):
-    def __init__(self,crit_weights=[0.1,0.5,0.1,0.3]):   #[0,0,0,1] for deviation from target state
+    def __init__(self,crit_weights=[0.1,0.5,0.1,0.3], cutoff=0.3):   #[0,0,0,1] for deviation from target state
         super().__init__()
 
         #Two options for :
@@ -28,21 +28,13 @@ class GreedyPolicy(Policy):
         # 2. Deviation from target state  (this is a special case of criticality score)
         
         #- WEIGHTS           
-        [w1,w2,w3,w4] = crit_weights
         self.crit_weights = crit_weights
-        self.set_criticality_weights(w1,w2,w3,w4) # time_to_violation, net_demand, driving_time, deviation_target_state
-            
-        self.cutoff = 0.3       # to decide when to go the pickup or delivery station next
+        [self.omega1,self.omega2,self.omega3,self.omega4] = crit_weights # time_to_violation, net_demand, driving_time, deviation_target_state
+                    
+        self.cutoff = cutoff       # to decide when to go the pickup or delivery station next
 
         self.set_time_of_service() #initialize with defaults, defined in super class   
 
-        
-
-    def set_criticality_weights(self, omega1,omega2,omega3,omega4):
-        self.omega1 = omega1     # time_to_violation
-        self.omega2 = omega2     # net_demand
-        self.omega3 = omega3     # driving_time
-        self.omega4 = omega4     # deviation_from_target_state   (this was deviation when not visited)
 
 
     def get_best_action(self, simul, vehicle):
