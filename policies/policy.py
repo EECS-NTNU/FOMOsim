@@ -5,6 +5,7 @@ import copy
 
 import sim
 import abc
+from settings import *
 
 class Policy(abc.ABC):
     """
@@ -32,7 +33,7 @@ class Policy(abc.ABC):
         """
         pass
 
-    def set_time_of_service(self,hour_from=6, hour_to=20):
+    def set_time_of_service(self,hour_from=SERVICE_TIME_FROM, hour_to=SERVICE_TIME_TO):
         self.hour_from = hour_from
         self.hour_to = hour_to
 

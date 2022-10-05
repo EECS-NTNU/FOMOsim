@@ -8,9 +8,9 @@ FOMO_DIRECTORY="/storage/users/$USER/fomo"   # Where to find the FOMO directory
 
 # The following settings are only used when finding nodes automatically:
 
-NODE_ROWS="13456789"  # The node rows to pick from
-MAX_NODES=1000        # Maximum number of nodes
-LOAD_LIMIT=0.01       # Don't use a node if it has a higher percent load than this
+NODE_ROWS="13456789"  # The node rows to pick from     "13456789"
+MAX_NODES=20        # Maximum number of nodes
+LOAD_LIMIT=0.008       # Don't use a node if it has a higher percent load than this
 
 ###############################################################################
 # Nodes specified on the command line

@@ -6,7 +6,7 @@ from policies import Policy
 import sim
 
 class DoNothing(Policy):
-    def __init__(self):
+    def __init__(self, **kwargs):
         super().__init__()
 
     def get_best_action(self, simul, vehicle):

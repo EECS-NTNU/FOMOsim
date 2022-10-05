@@ -4,7 +4,7 @@ This file contains a random action policy
 import copy
 import math
 
-from policies import Policy, neighbour_filtering
+from policies import Policy
 import sim
 import abc
 from sim import State, Vehicle
