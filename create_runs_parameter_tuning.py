@@ -16,7 +16,7 @@ RUN_DIRECTORY="experimental_setups"
 ###############################################################################
 
 # Duration of each simulation run
-NUM_DAYS = 2
+NUM_DAYS = 7
 DURATION = timeInMinutes(hours=24*NUM_DAYS)
 NUM_SEEDS = 10
 
