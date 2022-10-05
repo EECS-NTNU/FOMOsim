@@ -25,7 +25,7 @@ from helpers import *
 ###############################################################################
 
 # Duration of each simulation run
-DURATION = timeInMinutes(hours=48)
+DURATION = timeInMinutes(hours=24)
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
@@ -51,7 +51,10 @@ analyses = [
 ]        
 
 seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-# seeds = [ 0,1] 
+# seeds = [ 0] 
+seeds=[]
+for s in range(30):
+    seeds.append(s) 
 
 ###############################################################################
 

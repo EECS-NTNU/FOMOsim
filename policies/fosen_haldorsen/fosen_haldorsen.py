@@ -17,7 +17,7 @@ class FosenHaldorsenPolicy(Policy):
         self.branching = branching
 
         self.time_horizon = time_horizon
-        self.handling_time = MINUTES_PER_ACTION
+        self.handling_time = settings.MINUTES_PER_ACTION
         self.flexibility = flexibility
         self.average_handling_time = average_handling_time
 
