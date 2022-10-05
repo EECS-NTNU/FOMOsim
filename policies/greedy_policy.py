@@ -33,9 +33,6 @@ class GreedyPolicy(Policy):
                     
         self.cutoff = cutoff       # to decide when to go the pickup or delivery station next
 
-        self.set_time_of_service() #initialize with defaults, defined in super class   
-
-
 
     def get_best_action(self, simul, vehicle):
         
