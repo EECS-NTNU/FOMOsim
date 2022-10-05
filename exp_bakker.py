@@ -13,6 +13,7 @@ import init_state.cityBike
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
+import policies.gleditsch_hagen
 
 from progress.bar import Bar
 
@@ -26,31 +27,36 @@ from helpers import *
 #                               FOMO SIMULATOR                                #
 ###############################################################################
 
-DURATION = timeInMinutes(hours=24)
+DURATION = timeInMinutes(hours=2)
+
+NUM_SEEDS = 1
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
-    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
-    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    6 ),
+#    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        None,        None,   33,   0,    6 ),
+#    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
+    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   None,        None,   33,   0,    8 ),
 #   ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    None,        None,   33,   0,    6 ),
-   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
+#   ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", None,        None,   33,   0,    6 ),
 ]
 
-if False:
+if True:
+    analyses = [
+        # Name,             target_state,                                   policy                                              numvehicles
+        ("grd_crt_even",    target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),            1),
+        ("gh_even",    target_state.outflow_target_state,   policies.gleditsch_hagen.GleditschHagenPolicy(),            1),
+    ]    
+elif False:
     # Enter analysis definition here
     analyses = [
         # Name,             target_state,                                   policy                                              numvehicles
         # ("do_nothing",      target_state.outflow_target_state,              policies.DoNothing(),                               1),
         # ("grd_trgt_outfl",  target_state.outflow_target_state,              policies.GreedyPolicy(
-        #                                                                     criticality_measure='deviation_from_target_state'), 1),
-        # ("grd_crt_outfl",   target_state.outflow_target_state,              policies.GreedyPolicy(
-        #                                                                     criticality_measure='weighted_average'),            1),
-        ("grd_crt_even",    target_state.evenly_distributed_target_state,   policies.GreedyPolicy(
-                                                                            criticality_measure='weighted_average'),            1),
-        # ("grd_crt_equal",   target_state.equal_prob_target_state,           policies.GreedyPolicy(
-        #                                                                     criticality_measure='weighted_average'),            1),
+        #                                                                     crit_weights=[0,0,0,1]), 1),
+        # ("grd_crt_outfl",   target_state.outflow_target_state,              policies.GreedyPolicy(crit_weights=[0.25,0.25,0.25,0.25]),            1),
+        ("grd_crt_even",    target_state.evenly_distributed_target_state,   policies.GreedyPolicy(crit_weights=[0.25,0.25,0.25,0.25]),            1),
+        # ("grd_crt_equal",   target_state.equal_prob_target_state,           policies.GreedyPolicy(crit_weights=[0.25,0.25,0.25,0.25]),            1),
         #("grd_old",     target_state.outflow_target_state,       policies.GreedyPolicyOld(),                           1),
     ]      
     #outflow_target_state, evenly_distributed_target_state, equal_prob_target_state
@@ -58,36 +64,28 @@ else:
     analyses1 = [
         # Name,             target_state,                       policy                                      numvehicles
         
-        ("1a",  target_state.outflow_target_state,              policies.GreedyPolicy(criticality_measure=
-                                                                'deviation_from_target_state'),             1),
-        ("1b",  target_state.evenly_distributed_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                                'deviation_from_target_state'),             1),
-        ("1c",  target_state.equal_prob_target_state,           policies.GreedyPolicy(criticality_measure=
-                                                                'deviation_from_target_state'),             1),
+        ("1a",  target_state.evenly_distributed_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),             1),
+        ("1b",  target_state.outflow_target_state,              policies.GreedyPolicy(crit_weights=[0,0,0,1]),             1),
+        ("1c",  target_state.equal_prob_target_state,           policies.GreedyPolicy(crit_weights=[0,0,0,1]),             1),
     ]      
     
     analyses2 = [
         # Name,             target_state,                       policy                              numvehicles
         ("2a",  target_state.outflow_target_state,   policies.DoNothing(),                          1),
-        ("2b",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'deviation_from_target_state'),                1),
-        ("2c",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'weighted_average'),                           1),
+        ("2b",  target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),                1),
+        ("2c",  target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0.25,0.25,0.25,0.25]),                           1),
     ]  
     
     analyses3 = [
         # Name,             target_state,                       policy                              numvehicles
-        ("3_1",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'weighted_average'),                           1),
-        ("3_2",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'weighted_average'),                           2),
-        ("3_3",  target_state.outflow_target_state,   policies.GreedyPolicy(criticality_measure=
-                                                     'weighted_average'),                           3),
+        ("3_1",  target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),                           1),
+        ("3_2",  target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),                           2),
+        ("3_3",  target_state.outflow_target_state,   policies.GreedyPolicy(crit_weights=[0,0,0,1]),                           3),
     ]  
  
-analyses = analyses1
+analyses = analyses
 
-seeds = list(range(20))  # [0,1,2,....,N-1]
+seeds = list(range(NUM_SEEDS))  # [0,1,2,....,N-1]
 #seeds = [0]
 
 
@@ -158,5 +156,5 @@ if __name__ == "__main__":
     analysis_names = [ analysis[0] for analysis in analyses ]
 
     lostTripsPlot(city_names, analysis_names, starvations, congestions)
-    plt.savefig('violations_plot.png')
+    #plt.savefig('violations_plot.png')
     plt.show()

@@ -5,6 +5,7 @@ FOMO simulator, runs one experimental setup json-file
 import copy
 import sys
 from threading import Timer
+from datetime import datetime
 
 import sim
 import init_state
@@ -27,7 +28,9 @@ if __name__ == "__main__":
 
     for filename in sys.argv[1:]:
         with open(filename, "r") as infile:
-            print("Running file", filename)
+            print("Running file", filename) #filename='experimental_setups/setup_0063.json'
+
+            time_start = datetime.now() 
 
             experimental_setup = json.load(infile)
 
@@ -71,11 +74,16 @@ if __name__ == "__main__":
             f.write(str(experimental_setup["run"]) + ";")
             f.write(str(experimental_setup["instance"]["name"]) + ";")
             f.write(str(experimental_setup["analysis"]["name"]) + ";")
+            f.write(str(experimental_setup["analysis"]["target_state"]) + ";")
+            f.write(str(experimental_setup["analysis"]["policy"]) + ";")
+            f.write(str(experimental_setup["analysis"]["numvehicles"]) + ";")
             f.write(str(metric.get_aggregate_value("trips")) + ";")
             f.write(str(metric.get_aggregate_value("starvation")) + ";")
             f.write(str(metric.get_aggregate_value("congestion")) + ";")
             f.write(str(metric.get_aggregate_value("starvation_stdev")) + ";")
-            f.write(str(metric.get_aggregate_value("congestion_stdev")))
+            f.write(str(metric.get_aggregate_value("congestion_stdev"))+ ";")
+            f.write(str(time_start)+ ";")
+            f.write(str(datetime.now()-time_start)) #duration
 
             f.write("\n")
             f.close()
