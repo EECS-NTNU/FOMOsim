@@ -36,7 +36,7 @@ class GleditschHagenPolicy(Policy):
                 if vehicle2.location == vehicle.location:
                     other_vehicle_at_same_location = True   #
         
-        PBCGH = PatternBasedCGH(simul, parameters, vehicle, other_vehicle_at_same_location)
+        PBCGH = PatternBasedCGH(simul, self.parameters, vehicle, other_vehicle_at_same_location)
         self.num_times_called+=1
         
         next_station, num_loading, num_unloading = PBCGH.return_solution(vehicle_index_input=vehicle.id)        
