@@ -60,7 +60,8 @@ ts_map = {
         }
 policy_map = {
     #abbreviation:name_of_policy
-    "GRD":"GreedyPolicy" #no need to find all combinations
+    "GRD":"GreedyPolicy", #no need to find all combinations
+    #"GHB":"policies.gleditsch_hagen.GleditschHagenPolicy"
     }
 
 all_weights = get_criticality_weights2(4)
@@ -79,7 +80,7 @@ for ts_abbr,ts in ts_map.items():
                     policyargs={'crit_weights':crit_weight}
                     ))
 
-#policies.gleditsch_hagen.GleditschHagenPolicy()
+
 
 # Enter analysis definition here
 # analyses = [
@@ -90,6 +91,10 @@ for ts_abbr,ts in ts_map.items():
 # ]        
 
 seeds = list(range(NUM_SEEDS))
+
+#num_analyses = len(analyses)
+#num_instances = len(instances)
+#print(num_analyses*num_instances)
 
 ###############################################################################
 
