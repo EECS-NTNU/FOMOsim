@@ -100,3 +100,44 @@ if __name__ == "__main__":
         plt.show()
 
 
+    ###############################################################################
+    ## Some postprocessing used by Steffen
+    ###############################################################################
+
+    df = pd.read_csv ('output.csv',sep=';',names=['run',	'Instance',	'Analyses',
+                                                'target_state','policy','num_vehicles',
+                                                'trips','starvations','congestions',
+                                                'starvation_std'	,'congestion_std'])
+
+    def extract_weights(string, index):
+        if '[' not in string:
+            output = 0
+        else:
+            output = [float(w) for w in string.split('[')[1].split(']')[0].split(',')][index-1]
+        return output
+
+    string = 'Trondheim_W48'
+
+
+    for i in [1,2,3,4]:
+        df['w'+str(i)] = df['Analyses'].apply(extract_weights,index=i)
+    df['violations'] = df['starvations'] + df['congestions'] 
+    df['service_rate'] =  (1-df['violations']/df['trips'])*100
+    df['week'] = df['Instance'].apply(lambda x: x.split('_W')[1] )
+
+    df = df.sort_values(by=['service_rate'],ascending=False)
+
+
+    what_works_best = df.groupby(['w1', 'w2', 'w3','w4']).agg({'service_rate':'mean', 'violations':'mean'})
+    what_works_best = what_works_best.sort_values(by=['service_rate'],ascending=False)
+
+
+    df_OSL = df.loc[df['Instance']=='Oslo']
+    df_INSPECT = df.loc[df['w2']==0.2]
+
+
+    #df2 = df.loc[df['violations']<np.percentile(df['violations'],10)]
+    #df3 = df.loc[df['violations']>np.percentile(df['violations'],90)]
+
+    #df_extreme = df.loc[(df['w1']<0.001) | (df['w2']<0.001) | (df['w3']<0.001) | (df['w4']<0.001)] 
+    #df_single_measure = df.loc[(df['w1']>0.999) | (df['w2']>0.999) | (df['w3']>0.999) | (df['w4']>0.999)] 
