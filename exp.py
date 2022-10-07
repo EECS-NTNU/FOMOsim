@@ -41,8 +41,8 @@ instances = [
 analyses = [
     # Name,        target_state,                                 policy,                  numvehicles
     ("do_nothing", target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
-    ("evenly",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
-    ("outflow",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
+    #("evenly",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
+    #("outflow",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
     ("equalprob",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
 ]        
 
