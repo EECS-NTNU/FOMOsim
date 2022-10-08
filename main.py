@@ -15,12 +15,17 @@ import policies.gleditsch_hagen
 import sim
 import output
 from helpers import timeInMinutes
+from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(hours=24)
 WEEK = 34
 
 def main():
+
+    cityTrafficStats()    
+    exit()
+
 
     ###############################################################################
     # Get initial state
