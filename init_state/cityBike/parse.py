@@ -119,44 +119,6 @@ def log_to_norm(mu_x, stdev_x):
 
     return (mu, stdev)
 
-def cityPerWeekStats(city):
-    print("cityPerWeekStats called for:")
-    print(tripDataDirectory + city)
-    tripDataPath = tripDataDirectory + city
-    fileList = os.listdir(tripDataPath)
-    yearsWeek = [] # for each week, count how many years we have data for that week
-    tripsPerWeek = []
-    for w in range(1, 54):
-        yearsWeek.append([])
-        tripsPerWeek.append(0)
-    for file in fileList:
-        if file.endswith(".json"):
-            print("*-", end='') # replace with progress-bar
-            jsonFile = open(os.path.join(tripDataPath, file), "r")
-            bikeData = json.loads(jsonFile.read())
-            for i in range(len(bikeData)):
-                year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
-                index = weekNo - 1 # weeks 1..53 are stored in array 0..52
-                if year not in yearsWeek[index]:
-                    yearsWeek[index].append(year)
-                tripsPerWeek[index] += 1
-    pass
-    print("Weekly traffic for city: " + city + ":")
-    data = []
-    for w in range(len(tripsPerWeek)):
-        if len(yearsWeek[w]) > 0:
-            print("Week ", w+1, ": ", tripsPerWeek[w]/len(yearsWeek[w]), end='')
-            data.append(tripsPerWeek[w]/len(yearsWeek[w]))
-            print(" (Total ", tripsPerWeek[w], " over ", len(yearsWeek[w]), "years)")
-        else:
-            print("Week: ", w+1, tripsPerWeek[w])
-            data.append(tripsPerWeek[w])
-
-    # TODO, reorganize code
-    import matplotlib.pyplot as plt
-
-    plt.plot(data)
-    # plt.show()
 
 
 
