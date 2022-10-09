@@ -64,3 +64,43 @@ def cityTrafficStats():
     plt.show()
     print("Plot is saved at CityTrafficPerWeek.pdf and numbers at CityTraffic.txt")
     
+def lostTripsPlot(cities, policies, starv, serr, cong, cerr):
+    fig, plots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
+    subPlots = [] # fix that subPlots returns a list only when more than one plot. Tried squeezy=False but it did not work for this purpose 
+    if len(cities) == 1:
+        subPlots.append(plots)
+    else:
+        for p in plots:
+            subPlots.append(p)
+
+    fig.suptitle("FOMO simulator - lost trips results\nImprovement from baseline (left bar) in % ", fontsize=15)
+    w = 0.3
+    pos = []
+    for city in range(len(cities)):
+        pos.append([])
+        for i in range(len(policies)): # IMPROVED by more readable code here
+            pos[city].append(starv[city][i] + cong[city][i])
+        baseline = starv[city][0] + cong[city][0] # first policy is always baseline
+        
+        policyLabels = [] # fix policy labels
+        for i in range(len(policies)):
+            if i > 0:
+                improved =  ( ((starv[city][i] + cong[city][i]) - baseline)/baseline)*100.0
+                policyLabels.append(policies[i] + "\n(" + "{:.1f}".format(improved) + "%)")
+            else:
+                policyLabels.append(policies[i]) # label for baseline
+
+        subPlots[city].bar(policyLabels, starv[city], w, label='Starvation')
+        subPlots[city].errorbar(policyLabels, starv[city], yerr = serr[city], fmt='none', ecolor='black')
+        subPlots[city].bar(policyLabels, cong[city], w, bottom=starv[city], label='Congestion')
+
+        delta = 0.03 # skew the upper error-bar horisontally with delta to avoid that they can overwrite each other
+        policiesPlussDelta = []
+        for i in range(len(policies)):
+            policiesPlussDelta.append(i + delta)
+        subPlots[city].errorbar(policiesPlussDelta, pos[city], yerr= cerr[city], fmt='none', ecolor='black')
+        subPlots[city].set_xlabel(cities[city])
+        subPlots[city].set_ylabel("Violations (% of total number of trips)")
+        subPlots[city].legend()
+
+    plt.show()
