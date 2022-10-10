@@ -394,18 +394,20 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     if totalBikes == 0:
         print("   Info: No bikes found in stations status file, assume it is set by wrapper.py") 
 
-    stations = sim.State.create_stations(num_stations=len(capacitiesList), capacities=capacitiesList)
-    sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatusList)
-    sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
-    # Create State object and return
+    statedata = {
+        "num_stations" : len(capacitiesList),
+        "capacities" : capacitiesList,
+        "bike_class" : "Bike",
+        "bikes_per_station" : bikeStartStatusList,
+        "leave_intensities" : leave_intensities,
+        "arrive_intensities" : arrive_intensities,
+        "move_probabilities" : move_probabilities,
+        "number_of_vehicles" : number_of_vehicles,
+        "random_seed" : random_seed,
+        "traveltime_matrix" : avgDuration,
+        "traveltime_matrix_stddev" : durationStdDev,
+        "traveltime_vehicle_matrix" : ttVehicleMatrix,
+        "traveltime_vehicle_matrix_stddev" : None,
+    }
 
-    state = sim.State.get_initial_state(stations=stations,
-                                        number_of_vehicles=number_of_vehicles,
-                                        random_seed=random_seed,
-                                        traveltime_matrix=avgDuration,
-                                        traveltime_matrix_stddev=durationStdDev,
-                                        traveltime_vehicle_matrix=ttVehicleMatrix,
-                                        # traveltime_vehicle_matrix_stddev =ttVehicleMatrixStdDev
-                                        traveltime_vehicle_matrix_stddev = None
-                                        ) 
-    return state
+    return statedata
