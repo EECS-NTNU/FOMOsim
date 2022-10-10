@@ -120,8 +120,6 @@ def log_to_norm(mu_x, stdev_x):
     return (mu, stdev)
 
 
-
-
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
     week=30, fromInclude=[2018, 5], toInclude=[2022,8], trafficMultiplier=1.0, number_of_vehicles=1,  random_seed=1):
 
