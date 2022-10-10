@@ -84,8 +84,8 @@ analyses = [
     # ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
     # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
     # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
-    ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
-    # ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
+    # ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
+    ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
     ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
     # ("evenly-8",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           8),
     # ("equalprob-8",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           8),
@@ -103,7 +103,7 @@ for ana in analyses:
 policyIndices = range(len(policyNames))
 
 seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-seeds = [0]
+seeds = [0, 1, 2]
 
 def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
