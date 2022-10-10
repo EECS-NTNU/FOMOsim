@@ -77,15 +77,15 @@ DURATION = timeInMinutes(hours=24)
 instances = [ ("Oslo", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/", None,  None,   33,   0,    DURATION )]
 analyses = [
 #    Name,        target_state,                                 policy,                  numvehicles
-    ("outflow-16",    target_state.outflow_target_state,            policies.GreedyPolicy(),          16),
-    ("outflow-12",    target_state.outflow_target_state,            policies.GreedyPolicy(),           12),
-    ("outflow-10",    target_state.outflow_target_state,            policies.GreedyPolicy(),           10),
-    ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8),
-    ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
-    ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
-    ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
+    # ("outflow-16",    target_state.outflow_target_state,            policies.GreedyPolicy(),          16),
+    # ("outflow-12",    target_state.outflow_target_state,            policies.GreedyPolicy(),           12),
+    # ("outflow-10",    target_state.outflow_target_state,            policies.GreedyPolicy(),           10),
+    # ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8),
+    # ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
+    # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
+    # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
     ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
-    ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
+    # ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
     ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
     # ("evenly-8",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           8),
     # ("equalprob-8",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           8),
@@ -103,7 +103,7 @@ for ana in analyses:
 policyIndices = range(len(policyNames))
 
 seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-seeds = [0, 1, 2]
+seeds = [0]
 
 def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     # set up number_of_bikes-values
     bikes = []
     startVal = 2000
-    for i in range(8): # 12
+    for i in range(5): # 12
         bikes.append(startVal + i*200) 
 
     resultsStarvation = []  
