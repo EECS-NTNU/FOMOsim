@@ -112,18 +112,18 @@ DURATION = timeInMinutes(hours=24)
 instances = [ ("Oslo", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/", None,  None,   33,   0,    DURATION )]
 analyses = [
 #    Name,        target_state,                                 policy,                  numvehicles
-    # # ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
-    # # ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
-    # # ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8), # TODO, fix this UGLY copy and paste code
-    # # ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
-    # # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
-    # # # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
-    # # ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
-    # # ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
-    # # ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
-    # # ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
-    # # # ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
-    # # ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
+    # ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
+    # ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
+    # ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8), # TODO, fix this UGLY copy and paste code
+    # ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
+    # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
+    # # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
+    # ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
+    # ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
+    # ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
+    # ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
+    # # ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
+    # ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
     # ("random-2",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     2),
     ("random-1",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     1),
     ("do_nothing",   target_state.evenly_distributed_target_state, policies.DoNothing(),              1),

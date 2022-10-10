@@ -103,7 +103,7 @@ for ana in analyses:
 policyIndices = range(len(policyNames))
 
 seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-seeds = [0, 1, 2]
+seeds = [0, ]
 
 def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
     fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
