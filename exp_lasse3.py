@@ -179,6 +179,7 @@ if __name__ == "__main__":
     resultsCongestion = []
     resultsTotal = []
     resultTrips = []
+    tripsStore =[]  
     resultProfit = []
     incomeTrip = 20 
     costStarvation = 2
@@ -234,6 +235,7 @@ if __name__ == "__main__":
                 tripsRow.append(trips)
                 resultRowTrips.append(trips/200)
                 resultProfitRow.append((trips*incomeTrip - num_starvations*costStarvation - num_congestion*costCongestion)/180000*100) 
+            tripsStore.append(tripsRow)    
             resultsStarvation.append(resultRowS)
             resultsCongestion.append(resultRowC)
             resultsTotal.append(resultRowT)
@@ -243,7 +245,7 @@ if __name__ == "__main__":
     for p in range(len(policyNames)):
         print(p, " ")
         for i in range(len(bikes)):
-            print(trips[p][i], " ", end="")
+            print(tripsStore[p][i], " ", end="")
         print()
     print(resultsStarvation)
     print(resultsCongestion)
