@@ -117,15 +117,15 @@ analyses = [
     # ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8), # TODO, fix this UGLY copy and paste code
     # ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
     # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
-    # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
-    ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
-    ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
-    ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
-    ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
-    # ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
+    # # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
+    # ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
+    # ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
+    # ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
+    # ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
+    # # ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
     # ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
     # ("random-2",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     2),
-    # ("random-1",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     1),
+    ("random-1",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     1),
     ("do_nothing",   target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
 ]
 
@@ -171,8 +171,8 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 200
-    for i in range(30): 
+    startVal = 2000
+    for i in range(5): 
         bikes.append(startVal + i*200)       
 
     resultsStarvation = []  
@@ -194,10 +194,10 @@ if __name__ == "__main__":
             resultRowC = [] 
             resultRowT = []
             resultRowTrips = []
+            tripsRow = []
             resultProfitRow = [] 
             for b in bikes:
                 print( "   number of bikes: ", b)
-
                 if instance[0] == "Oslo":
                     initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
                                                             fromInclude=[2020, 7], toInclude= [2022,8],
@@ -231,6 +231,7 @@ if __name__ == "__main__":
                 resultRowC.append(cong) 
                 resultRowT.append(tot)
                 trips = trips - num_starvations # todo, into variable for speed
+                tripsRow.append(trips)
                 resultRowTrips.append(trips/200)
                 resultProfitRow.append((trips*incomeTrip - num_starvations*costStarvation - num_congestion*costCongestion)/180000*100) 
             resultsStarvation.append(resultRowS)
@@ -239,6 +240,11 @@ if __name__ == "__main__":
             resultTrips.append(resultRowTrips)
             resultProfit.append(resultProfitRow)
 
+    for p in range(len(policyNames)):
+        print(p, " ")
+        for i in range(len(bikes)):
+            print(trips[p][i], " ", end="")
+        print()
     print(resultsStarvation)
     print(resultsCongestion)
     print(resultsTotal)
