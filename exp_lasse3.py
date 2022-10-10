@@ -242,8 +242,13 @@ if __name__ == "__main__":
             resultTrips.append(resultRowTrips)
             resultProfit.append(resultProfitRow)
 
+    print("number-of-Bikes-values")
+    for b in bikes:
+        print(b, end="")
+    print()
+
     for p in range(len(policyNames)):
-        print(p, " ")
+        print(policyNames[p], " ")
         for i in range(len(bikes)):
             print(tripsStore[p][i], " ", end="")
         print()
