@@ -31,20 +31,7 @@ def main():
     # tstate = target_state.outflow_target_state
     tstate = target_state.equal_prob_target_state
 
-    state = init_state.get_initial_state(source=init_state.cityBike,
-                                         url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
-                                         week=WEEK, random_seed=0,
-                                         target_state=tstate,
-                                         )
-
-    # state = init_state.get_initial_state(source=init_state.entur,
-    #                                      target_state=tstate,
-    #                                      entur_data_dir="test_data", entur_main_file="0900-entur-snapshot.csv", 
-    #                                      number_of_bikes = 150, number_of_clusters = 5, number_of_vehicles = 3, random_seed = 1)
-    
-    # state = init_state.get_initial_state(source=init_state.fosen_haldorsen,
-    #                                      target_state=tstate,
-    #                                      init_hour=START_TIME//60, number_of_stations=50, number_of_vehicles=3, random_seed=1)
+    state = init_state.read_initial_state("instances/Oslo", tstate);
 
     ###############################################################################
     # Set up policy
