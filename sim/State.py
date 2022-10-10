@@ -3,6 +3,8 @@ from sim.LoadSave import LoadSave
 import numpy as np
 from settings import *
 import copy
+import json
+import gzip
 
 class State(LoadSave):
     """
@@ -67,28 +69,32 @@ class State(LoadSave):
 
 
     @staticmethod
-    def create_stations(num_stations, capacities=None, original_ids=None, positions=None, depots = [], depot_capacities = None, charging_stations = []):
+    def get_initial_state(statedata):
+        # create stations
+
         stations = []
 
-        for station_id in range(num_stations):
+        for station_id in range(statedata["num_stations"]):
             capacity = DEFAULT_STATION_CAPACITY
-            if capacities is not None:
-                capacity = capacities[station_id]
+            if "capacities" in statedata:
+                capacity = statedata["capacities"][station_id]
 
             original_id = None
-            if original_ids is not None:
-                original_id = original_ids[station_id]
+            if "original_ids" in statedata:
+                original_id = statedata["original_ids"][station_id]
 
             position = None
-            if positions is not None:
-                position = positions[station_id]
+            if "positions" in statedata is not None:
+                position = statedata["positions"][station_id]
 
-            charging_station = station_id in charging_stations
+            charging_station = False
+            if "charging_stations" in statedata:
+                charging_station = station_id in statedata["charging_stations"]
 
-            if station_id in depots:
+            if ("depots" in statedata) and (station_id in statedata["depots"]):
                 depot_capacity = DEFAULT_DEPOT_CAPACITY
-                if depot_capacities is not None:
-                    depot_capacity = depot_capacities[depots.index(station_id)]
+                if "depot_capacities" in statedata:
+                    depot_capacity = statedata["depot_capacities"][depots.index(station_id)]
                 station = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
 
             else:
@@ -96,18 +102,15 @@ class State(LoadSave):
 
             stations.append(station)
 
-        return stations
+        # create bikes in stations
                 
-
-    @staticmethod
-    def create_bikes_in_stations(stations, bike_class, bikes_per_station):
         id_counter = 0
 
         for station in stations:
             bikes = []
 
-            for bike_id in range(bikes_per_station[station.id]):
-                if bike_class == "EBike":
+            for bike_id in range(statedata["bikes_per_station"][station.id]):
+                if statedata["bike_class"] == "EBike":
                     bikes.append(sim.EBike(bike_id=id_counter, battery=100))
                 else:
                     bikes.append(sim.Bike(bike_id=id_counter))
@@ -115,26 +118,23 @@ class State(LoadSave):
 
             station.set_bikes(bikes)
 
+        # set customer behaviour
 
-    @staticmethod
-    def set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities):
         for station in stations:
-            station.leave_intensity_per_iteration = leave_intensities[station.id]
-            station.arrive_intensity_per_iteration = arrive_intensities[station.id]
-            station.move_probabilities = move_probabilities[station.id]
-
-
-    @staticmethod
-    def get_initial_state(stations, number_of_vehicles, random_seed=None,
-                          traveltime_matrix=None, traveltime_matrix_stddev=None,
-                          traveltime_vehicle_matrix=None, traveltime_vehicle_matrix_stddev=None):
+            station.leave_intensity_per_iteration = statedata["leave_intensities"][station.id]
+            station.arrive_intensity_per_iteration = statedata["arrive_intensities"][station.id]
+            station.move_probabilities = statedata["move_probabilities"][station.id]
+        
+        # create state
 
         state = State(stations,
-                      traveltime_matrix=traveltime_matrix, traveltime_matrix_stddev=traveltime_matrix_stddev,
-                      traveltime_vehicle_matrix=traveltime_vehicle_matrix, traveltime_vehicle_matrix_stddev=traveltime_vehicle_matrix_stddev)
+                      traveltime_matrix=statedata["traveltime_matrix"],
+                      traveltime_matrix_stddev=statedata["traveltime_matrix_stddev"],
+                      traveltime_vehicle_matrix=statedata["traveltime_vehicle_matrix"],
+                      traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_matrix_stddev"])
 
-        state.set_num_vehicles(number_of_vehicles)
-        state.set_seed(random_seed)
+        state.set_num_vehicles(statedata["number_of_vehicles"])
+        state.set_seed(statedata["random_seed"])
 
         return state
 
