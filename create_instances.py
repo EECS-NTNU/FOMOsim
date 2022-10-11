@@ -55,7 +55,7 @@ instances = [
 if __name__ == "__main__":
 
     for instance in instances:
-        init_state.create_and_save_state(INSTANCE_DIRECTORY + "/" + instance["name"],
+        init_state.create_and_save_state(instance["name"], INSTANCE_DIRECTORY + "/" + instance["name"],
                                          source=init_state.cityBike,
                                          url=instance["url"],
                                          number_of_bikes=instance["numbikes"],
