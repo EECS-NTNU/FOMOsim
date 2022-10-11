@@ -74,64 +74,60 @@ class State(LoadSave):
 
         stations = []
 
-        for station_id in range(statedata["num_stations"]):
-            capacity = DEFAULT_STATION_CAPACITY
-            if "capacities" in statedata:
-                capacity = statedata["capacities"][station_id]
-
-            original_id = None
-            if "original_ids" in statedata:
-                original_id = statedata["original_ids"][station_id]
-
-            position = None
-            if "positions" in statedata is not None:
-                position = statedata["positions"][station_id]
-
-            charging_station = False
-            if "charging_stations" in statedata:
-                charging_station = station_id in statedata["charging_stations"]
-
-            if ("depots" in statedata) and (station_id in statedata["depots"]):
-                depot_capacity = DEFAULT_DEPOT_CAPACITY
-                if "depot_capacities" in statedata:
-                    depot_capacity = statedata["depot_capacities"][depots.index(station_id)]
-                station = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
-
-            else:
-                station = sim.Station(station_id, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
-
-            stations.append(station)
-
-        # create bikes in stations
-                
         id_counter = 0
 
-        for station in stations:
-            bikes = []
+        for station_id, station in enumerate(statedata["stations"]):
+            capacity = DEFAULT_STATION_CAPACITY
+            if "capacity" in station:
+                capacity = station["capacity"]
 
-            for bike_id in range(statedata["bikes_per_station"][station.id]):
+            original_id = None
+            if "original_id" in station:
+                original_id = station["original_id"]
+
+            position = None
+            if "position" in station:
+                position = station["position"]
+
+            charging_station = False
+            if "charging_station" in station:
+                charging_station = station["charging_station"]
+
+            if ("is_depot" in station) and station["is_depot"]:
+                depot_capacity = DEFAULT_DEPOT_CAPACITY
+                if "depot_capacity" in station:
+                    depot_capacity = station["depot_capacity"]
+                stationObj = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
+
+            else:
+                stationObj = sim.Station(station_id, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
+
+            # create bikes
+            bikes = []
+            for _ in range(station["num_bikes"]):
                 if statedata["bike_class"] == "EBike":
                     bikes.append(sim.EBike(bike_id=id_counter, battery=100))
                 else:
                     bikes.append(sim.Bike(bike_id=id_counter))
                 id_counter += 1
 
-            station.set_bikes(bikes)
+            stationObj.set_bikes(bikes)
 
-        # set customer behaviour
+            # set customer behaviour
 
-        for station in stations:
-            station.leave_intensity_per_iteration = statedata["leave_intensities"][station.id]
-            station.arrive_intensity_per_iteration = statedata["arrive_intensities"][station.id]
-            station.move_probabilities = statedata["move_probabilities"][station.id]
-        
+            stationObj.leave_intensity_per_iteration = station["leave_intensities"]
+            stationObj.arrive_intensity_per_iteration = station["arrive_intensities"]
+            stationObj.move_probabilities = station["move_probabilities"]
+
+            stations.append(stationObj)
+
         # create state
 
         state = State(stations,
-                      traveltime_matrix=statedata["traveltime_matrix"],
-                      traveltime_matrix_stddev=statedata["traveltime_matrix_stddev"],
-                      traveltime_vehicle_matrix=statedata["traveltime_vehicle_matrix"],
-                      traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_matrix_stddev"])
+                      traveltime_matrix=statedata["traveltime"],
+                      traveltime_matrix_stddev=statedata["traveltime_stdev"],
+                      traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
+                      traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"])
 
         state.set_num_vehicles(statedata["number_of_vehicles"])
         state.set_seed(statedata["random_seed"])
