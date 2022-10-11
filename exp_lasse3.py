@@ -179,7 +179,11 @@ if __name__ == "__main__":
     resultsCongestion = []
     resultsTotal = []
     resultTrips = []
-    tripsStore =[]  
+
+    tripsStore = []  
+    congStore = []
+    starvStore = []
+    
     resultProfit = []
     incomeTrip = 20 
     costStarvation = 2
@@ -195,7 +199,11 @@ if __name__ == "__main__":
             resultRowC = [] 
             resultRowT = []
             resultRowTrips = []
+
             tripsRow = []
+            congRow = []
+            starvRow = []
+
             resultProfitRow = [] 
             for b in bikes:
                 print( "   number of bikes: ", b)
@@ -231,27 +239,47 @@ if __name__ == "__main__":
                 resultRowS.append(starv) 
                 resultRowC.append(cong) 
                 resultRowT.append(tot)
+
+
                 trips = trips - num_starvations # todo, into variable for speed
-                tripsRow.append(trips)
+                tripsRow.append(int(trips))
+                congRow.append(int(num_congestion))
+                starvRow.append(int(num_starvations))
+
                 resultRowTrips.append(trips/200)
                 resultProfitRow.append((trips*incomeTrip - num_starvations*costStarvation - num_congestion*costCongestion)/180000*100) 
+
             tripsStore.append(tripsRow)    
+            congStore.append(congRow)    
+            starvStore.append(starvRow)    
+
             resultsStarvation.append(resultRowS)
             resultsCongestion.append(resultRowC)
             resultsTotal.append(resultRowT)
             resultTrips.append(resultRowTrips)
             resultProfit.append(resultProfitRow)
 
-    print("number-of-Bikes-values")
+    resultFile = open("output/costModel/simulatedTrips.txt", "w")
     for b in bikes:
-        print(b, end="")
-    print()
+        resultFile.write(str(b) + " ")
+    resultFile.write("\n") 
 
     for p in range(len(policyNames)):
-        print(policyNames[p], " ")
+        resultFile.write(policyNames[p] + "\n")
         for i in range(len(bikes)):
-            print(tripsStore[p][i], " ", end="")
-        print()
+            resultFile.write(str(tripsStore[p][i]) + " ")
+        resultFile.write("\n")
+        for i in range(len(bikes)):
+            resultFile.write(str(starvStore[p][i]) + " ")
+        resultFile.write("\n")
+        for i in range(len(bikes)):
+            resultFile.write(str(congStore[p][i]) + " ")
+        resultFile.write("\n")
+    resultFile.write("-end-\n")
+    
+
+    resultFile.close()
+    
     print(resultsStarvation)
     print(resultsCongestion)
     print(resultsTotal)
