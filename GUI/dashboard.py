@@ -14,6 +14,8 @@ from GUI.script import Session, doCommand, replayScript
 from GUI.GUI_layout import window
 from GUI.GUIhelpers import *
 
+from init_state.cityBike.parse import cityPerWeekStats
+
 def GUI_main():
     matplotlib.use("TkAgg") # TODO MARK-C
     session = Session("GUI_main_session")
@@ -33,7 +35,16 @@ def GUI_main():
         
         ###### SPECIAL BUTTONS GUI PART
         if GUI_event == "Fast-Track":  
-            userError("No code currently placed in FastTrack")
+            cityPerWeekStats("oslobysykkel")
+            cityPerWeekStats("bergenbysykkel")
+            cityPerWeekStats("trondheimbysykkel")
+            cityPerWeekStats("edinburghcyclehire")
+            cityPerWeekStats("oslovintersykkel")
+            import matplotlib.pyplot as plt
+            plt.show()
+            pass
+#            userError("No code currently placed in FastTrack")
+
 
         elif GUI_event == "main.py":
             print("Leaves GUI-dashboard-code, continues in main.py")
