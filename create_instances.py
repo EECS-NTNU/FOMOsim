@@ -17,11 +17,37 @@ INSTANCE_DIRECTORY="instances"
 
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
-    dict(name="Oslo",        url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        numbikes=2000, numstations=None, week=33),
-    dict(name="Bergen",      url="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      numbikes=1000, numstations=None, week=33),
-    dict(name="Trondheim",   url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   numbikes=1000, numstations=None, week=33),
-#    dict(name="Oslo-vinter", url="https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",    numbikes=400,  numstations=None, week=7),
-    dict(name="Edinburgh",   url="https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/", numbikes=200,  numstations=None, week=20),
+
+    dict(name="Oslo",
+         url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",
+         numbikes=2000,
+         numstations=None,
+         week=33),
+
+    dict(name="Bergen",
+         url="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",
+         numbikes=1000,
+         numstations=None,
+         week=33),
+
+    dict(name="Trondheim",
+         url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
+         numbikes=1000,
+         numstations=None,
+         week=33),
+
+    # dict(name="Oslo-vinter",
+    #      url="https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",
+    #      numbikes=400,
+    #      numstations=None,
+    #      week=7),
+
+    dict(name="Edinburgh",
+         url="https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",
+         numbikes=200,
+         numstations=None,
+         week=20),
+
 ]
 
 ###############################################################################
