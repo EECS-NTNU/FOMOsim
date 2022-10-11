@@ -12,8 +12,8 @@ import sim
 # import abc
 
 # import init_state
-import init_state.entur.methods
-import init_state.entur.scripts
+#import init_state.entur.methods
+#import init_state.entur.scripts
 
 class GreedyPolicy(Policy):
     def __init__(self,crit_weights=[0.1,0.5,0.1,0.3], cutoff=0.3):   #[0,0,0,1] for deviation from target state

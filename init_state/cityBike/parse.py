@@ -68,16 +68,17 @@ def download(url, YMpairs):
         os.makedirs(directory, exist_ok=True)
     file_list = os.listdir(directory)
 
-    progress = Bar("CityBike 1a/5: Download datafiles   ", max = len(YMpairs))
+    progress = Bar("CityBike 1/6: Download datafiles   ", max = len(YMpairs))
     notFoundYMpairs = []
     for p in YMpairs:
         if not loadMonth(p[0], p[1], file_list):
             notFoundYMpairs.append(p)
         progress.next()
     if len(notFoundYMpairs) > 0:
-        print("\n   Warning: Could not load tripdata from " + url + " for these year/month pairs:", end="") 
+        print("   Warning: Could not load tripdata from " + url + " for these year/month pairs:", end="") 
         for p in notFoundYMpairs:
             print(" " + str(p[0]) + "/" + str(p[1]), end="")
+        print()
     progress.finish()
 
     # check that stationinfo-file has been downloaded once, if not try to do so 
@@ -119,49 +120,9 @@ def log_to_norm(mu_x, stdev_x):
 
     return (mu, stdev)
 
-def cityPerWeekStats(city):
-    print("cityPerWeekStats called for:")
-    print(tripDataDirectory + city)
-    tripDataPath = tripDataDirectory + city
-    fileList = os.listdir(tripDataPath)
-    yearsWeek = [] # for each week, count how many years we have data for that week
-    tripsPerWeek = []
-    for w in range(1, 54):
-        yearsWeek.append([])
-        tripsPerWeek.append(0)
-    for file in fileList:
-        if file.endswith(".json"):
-            print("*-", end='') # replace with progress-bar
-            jsonFile = open(os.path.join(tripDataPath, file), "r")
-            bikeData = json.loads(jsonFile.read())
-            for i in range(len(bikeData)):
-                year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
-                index = weekNo - 1 # weeks 1..53 are stored in array 0..52
-                if year not in yearsWeek[index]:
-                    yearsWeek[index].append(year)
-                tripsPerWeek[index] += 1
-    pass
-    print("Weekly traffic for city: " + city + ":")
-    data = []
-    for w in range(len(tripsPerWeek)):
-        if len(yearsWeek[w]) > 0:
-            print("Week ", w+1, ": ", tripsPerWeek[w]/len(yearsWeek[w]), end='')
-            data.append(tripsPerWeek[w]/len(yearsWeek[w]))
-            print(" (Total ", tripsPerWeek[w], " over ", len(yearsWeek[w]), "years)")
-        else:
-            print("Week: ", w+1, tripsPerWeek[w])
-            data.append(tripsPerWeek[w])
-
-    # TODO, reorganize code
-    import matplotlib.pyplot as plt
-
-    plt.plot(data)
-    # plt.show()
-
-
 
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
-    week=30, fromInclude=[2018, 5], toInclude=[2022,8], number_of_vehicles=1,  random_seed=1):
+    week=30, fromInclude=[2018, 5], toInclude=[2022,8], trafficMultiplier=1.0, number_of_vehicles=1,  random_seed=1):
 
     """ Processes selected  trips downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pairs of stations without any registered trips an average duration is estimated via
@@ -228,7 +189,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     ###################################################################################################
     # Find stations with traffic for given week, loop thru all months in range given by fromInclude and toInclude, now in YMpairs
     fileList = os.listdir(tripDataPath)
-    progress = Bar("CityBike 1b/5: Read data from files, find stations with traffic for given week", max = len(fileList))
+    progress = Bar("CityBike 2/6: Read data from files, find stations with traffic for given week", max = len(fileList))
     trafficAtStation = {} # indexed by id, stores stations with at least one arrival or departure 
     for file in fileList:
         if file.endswith(".json"):
@@ -249,7 +210,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                         endId = bikeData[i]["end_station_id"]
                         if endId in stationNames:
                             trafficAtStation[endId] = True                     
-                print("   y:", y, " m:", f'{m:02d}', end="") 
+                #print("   y:", y, " m:", f'{m:02d}', end="") 
         progress.next()
     progress.finish()
 
@@ -293,7 +254,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     # process all stored trips for given city, store durations for the given week number
     fileList = os.listdir(tripDataPath)
     
-    progress = Bar("CityBike 2/5: Read data from files ", max = len(fileList))
+    progress = Bar("CityBike 3/6: Read data from files ", max = len(fileList))
     for file in fileList:
         if file.endswith(".json"):
             if int(file[5:7]) in weekMonths(week):
@@ -331,7 +292,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         raise Exception("*** Sorry, no trip data found for given city and week")
 
     # Calculate average durations, durations in minutes
-    progress = Bar("CityBike 3/5: Calculate durations  ", max = len(stationMap))
+    progress = Bar("CityBike 4/6: Calculate durations  ", max = len(stationMap))
     avgDuration = []
     durationStdDev = []
 
@@ -370,7 +331,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         progress.next()
     progress.finish()
 
-    progress = Bar("CityBike 4/5: Calculate traveltime ", max = len(stationMap))
+    progress = Bar("CityBike 5/6: Calculate traveltime ", max = len(stationMap))
     ttVehicleMatrix = []
     #ttVehicleMatrixStdDev = []
     for s in stationMap:
@@ -387,7 +348,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     progress.finish()
     
     # Calculate arrive and leave-intensities and move_probabilities
-    progress = Bar("CityBike 5/5: Calculate intensities", max = len(stationMap))
+    progress = Bar("CityBike 6/6: Calculate intensities", max = len(stationMap))
     noOfYears = len(years)
     arrive_intensities = []  
     leave_intensities = []
@@ -401,11 +362,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             leave_intensities[station].append([])
             move_probabilities[station].append([])
             for hour in range(24):
-                # test code Fig4
-                # arrive_intensities[station][day].append(4.0 * arriveCount[station][day][hour]/noOfYears)
-                # leave_intensities[station][day].append(4.0 * leaveCount[station][day][hour]/noOfYears)
-                arrive_intensities[station][day].append(arriveCount[station][day][hour]/noOfYears)
-                leave_intensities[station][day].append(leaveCount[station][day][hour]/noOfYears)
+                arrive_intensities[station][day].append(trafficMultiplier * arriveCount[station][day][hour]/noOfYears)
+                leave_intensities[station][day].append(trafficMultiplier * leaveCount[station][day][hour]/noOfYears)
                 move_probabilities[station][day].append([])
                 for endStation in range(len(stationMap)):
                     movedBikes = moveCount[station][day][hour][endStation]
@@ -420,32 +378,30 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     progress.finish()
 
     # Create stations
-    # capacities must be converted from map to list, to avoid changing code in state.py
-    capacitiesList = []
-    for stationId in stationMap:
-        capacitiesList.append(stationCapacities[stationId])
-    
-    bikeStartStatusList = []
-    totalBikes = 0
-    for stationId in stationMap:
-        bikesThere = int(bikeStartStatus[stationId])
-        bikeStartStatusList.append(bikesThere)
-        totalBikes += bikesThere
-    if totalBikes == 0:
-        print("   Info: No bikes found in stations status file, assume it is set by wrapper.py") 
 
-    stations = sim.State.create_stations(num_stations=len(capacitiesList), capacities=capacitiesList)
-    sim.State.create_bikes_in_stations(stations, "Bike", bikeStartStatusList)
-    sim.State.set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities)
-    # Create State object and return
+    stations = []
+    for i, station_id in enumerate(stationMap):
+        station = {}
+        station["id"] = i
+        station["is_depot"] = False
+        station["capacity"] = stationCapacities[station_id]
+        station["num_bikes"] = bikeStartStatus[station_id]
+        station["leave_intensities"] = leave_intensities[i]
+        station["arrive_intensities"] = arrive_intensities[i]
+        station["move_probabilities"] = move_probabilities[i]
+        stations.append(station)
 
-    state = sim.State.get_initial_state(stations=stations,
-                                        number_of_vehicles=number_of_vehicles,
-                                        random_seed=random_seed,
-                                        traveltime_matrix=avgDuration,
-                                        traveltime_matrix_stddev=durationStdDev,
-                                        traveltime_vehicle_matrix=ttVehicleMatrix,
-                                        # traveltime_vehicle_matrix_stddev =ttVehicleMatrixStdDev
-                                        traveltime_vehicle_matrix_stddev = None
-                                        ) 
-    return state
+    # Create state
+
+    statedata = {
+        "stations" : stations,
+        "bike_class" : "Bike",
+        "traveltime" : avgDuration,
+        "traveltime_stdev" : durationStdDev,
+        "traveltime_vehicle" : ttVehicleMatrix,
+        "traveltime_vehicle_stdev" : None,
+        "number_of_vehicles" : number_of_vehicles,
+        "random_seed" : random_seed,
+    }
+
+    return statedata

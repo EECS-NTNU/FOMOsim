@@ -3,6 +3,8 @@ from sim.LoadSave import LoadSave
 import numpy as np
 from settings import *
 import copy
+import json
+import gzip
 
 class State(LoadSave):
     """
@@ -67,74 +69,68 @@ class State(LoadSave):
 
 
     @staticmethod
-    def create_stations(num_stations, capacities=None, original_ids=None, positions=None, depots = [], depot_capacities = None, charging_stations = []):
+    def get_initial_state(statedata):
+        # create stations
+
         stations = []
 
-        for station_id in range(num_stations):
-            capacity = DEFAULT_STATION_CAPACITY
-            if capacities is not None:
-                capacity = capacities[station_id]
-
-            original_id = None
-            if original_ids is not None:
-                original_id = original_ids[station_id]
-
-            position = None
-            if positions is not None:
-                position = positions[station_id]
-
-            charging_station = station_id in charging_stations
-
-            if station_id in depots:
-                depot_capacity = DEFAULT_DEPOT_CAPACITY
-                if depot_capacities is not None:
-                    depot_capacity = depot_capacities[depots.index(station_id)]
-                station = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
-
-            else:
-                station = sim.Station(station_id, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
-
-            stations.append(station)
-
-        return stations
-                
-
-    @staticmethod
-    def create_bikes_in_stations(stations, bike_class, bikes_per_station):
         id_counter = 0
 
-        for station in stations:
-            bikes = []
+        for station_id, station in enumerate(statedata["stations"]):
+            capacity = DEFAULT_STATION_CAPACITY
+            if "capacity" in station:
+                capacity = station["capacity"]
 
-            for bike_id in range(bikes_per_station[station.id]):
-                if bike_class == "EBike":
+            original_id = None
+            if "original_id" in station:
+                original_id = station["original_id"]
+
+            position = None
+            if "position" in station:
+                position = station["position"]
+
+            charging_station = False
+            if "charging_station" in station:
+                charging_station = station["charging_station"]
+
+            if ("is_depot" in station) and station["is_depot"]:
+                depot_capacity = DEFAULT_DEPOT_CAPACITY
+                if "depot_capacity" in station:
+                    depot_capacity = station["depot_capacity"]
+                stationObj = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
+
+            else:
+                stationObj = sim.Station(station_id, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
+
+            # create bikes
+            bikes = []
+            for _ in range(station["num_bikes"]):
+                if statedata["bike_class"] == "EBike":
                     bikes.append(sim.EBike(bike_id=id_counter, battery=100))
                 else:
                     bikes.append(sim.Bike(bike_id=id_counter))
                 id_counter += 1
 
-            station.set_bikes(bikes)
+            stationObj.set_bikes(bikes)
 
+            # set customer behaviour
 
-    @staticmethod
-    def set_customer_behaviour(stations, leave_intensities, arrive_intensities, move_probabilities):
-        for station in stations:
-            station.leave_intensity_per_iteration = leave_intensities[station.id]
-            station.arrive_intensity_per_iteration = arrive_intensities[station.id]
-            station.move_probabilities = move_probabilities[station.id]
+            stationObj.leave_intensity_per_iteration = station["leave_intensities"]
+            stationObj.arrive_intensity_per_iteration = station["arrive_intensities"]
+            stationObj.move_probabilities = station["move_probabilities"]
 
+            stations.append(stationObj)
 
-    @staticmethod
-    def get_initial_state(stations, number_of_vehicles, random_seed=None,
-                          traveltime_matrix=None, traveltime_matrix_stddev=None,
-                          traveltime_vehicle_matrix=None, traveltime_vehicle_matrix_stddev=None):
+        # create state
 
         state = State(stations,
-                      traveltime_matrix=traveltime_matrix, traveltime_matrix_stddev=traveltime_matrix_stddev,
-                      traveltime_vehicle_matrix=traveltime_vehicle_matrix, traveltime_vehicle_matrix_stddev=traveltime_vehicle_matrix_stddev)
+                      traveltime_matrix=statedata["traveltime"],
+                      traveltime_matrix_stddev=statedata["traveltime_stdev"],
+                      traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
+                      traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"])
 
-        state.set_num_vehicles(number_of_vehicles)
-        state.set_seed(random_seed)
+        state.set_num_vehicles(statedata["number_of_vehicles"])
+        state.set_seed(statedata["random_seed"])
 
         return state
 
