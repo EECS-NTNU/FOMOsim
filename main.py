@@ -36,9 +36,9 @@ def main():
     ###############################################################################
     # Set up policy
 
-    policy = policies.DoNothing()
+    # policy = policies.DoNothing()
     # policy = policies.RandomActionPolicy()
-    # policy = policies.GreedyPolicy()
+    policy = policies.GreedyPolicy()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')

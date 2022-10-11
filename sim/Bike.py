@@ -20,4 +20,4 @@ class Bike(Location):
       return False
 
     def __repr__(self):
-        return f"ID-{self.id}"
+        return f"ID-{self.id}-{self.lat}-{self.lon}"
