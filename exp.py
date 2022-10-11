@@ -27,24 +27,47 @@ from helpers import *
 # Duration of each simulation run
 DURATION = timeInMinutes(hours=24)
 
-# Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
-instances = [
-    # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        2000,        None,   33,   0,    6 ),
-    ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      1000,        None,   33,   0,    6 ),
-    ("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   1000,        None,   33,   0,    6 ),
-#    ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",     400,        None,    7,   0,    6 ),
-#    ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  200,        None,   20,   0,    6 ),
-]
+# Enter instances here
+instances = [ "Oslo", "Bergen", "Trondheim", "Edinburgh" ]
 
 # Enter analysis definition here
 analyses = [
-    # Name,        target_state,                                 policy,                  numvehicles
-    ("do_nothing", target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
-    ("evenly",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
-    ("outflow",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
-    ("equalprob",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
-]        
+
+    dict(name="do_nothing",
+         target_state="evenly_distributed_target_state",
+         policy="DoNothing",
+         policyargs={},
+         numvehicles=1,
+         day=0,
+         hour=6),
+
+    #flat strategy
+    dict(name="evenly",
+         target_state="evenly_distributed_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
+         numvehicles=1,
+         day=0,
+         hour=6),    
+
+    #deviation_from_target_state
+    dict(name="outflow",
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=1,
+         day=0,
+         hour=6),     
+
+    dict(name="equalprob",
+         target_state="equal_prob_target_state",
+         policy="GreedyPolicy",
+         policyargs={},
+         numvehicles=1,
+         day=0,
+         hour=6),
+
+]
 
 seeds = list(range(10))
 
@@ -81,6 +104,8 @@ def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
 
 ###############################################################################
 
+INSTANCE_DIRECTORY="instances"
+
 if __name__ == "__main__":
 
     starvations = []
@@ -90,7 +115,7 @@ if __name__ == "__main__":
     congestions_stdev = []
 
     for instance in instances:
-        print("  instance: ", instance[0])
+        print("  instance: ", instance)
 
         starvations.append([])
         congestions.append([])
@@ -99,11 +124,13 @@ if __name__ == "__main__":
         congestions_stdev.append([])
 
         for analysis in analyses:
-            print("    analysis: ", analysis[0])
+            print("    analysis: ", analysis["name"])
 
-            initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                         random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
-                                                         target_state=analysis[1])
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=getattr(target_state, analysis["target_state"]))
+
+            initial_state.set_num_vehicles(analysis["numvehicles"])
+
+            policyargs = analysis["policyargs"]
 
             simulations = []
 
@@ -112,12 +139,11 @@ if __name__ == "__main__":
 
                 state_copy = copy.deepcopy(initial_state)
                 state_copy.set_seed(seed)
-                state_copy.set_num_vehicles(analysis[3])
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
-                    policy = analysis[2],
-                    start_time = timeInMinutes(days=instance[5], hours=instance[6]),
+                    policy = getattr(policies, analysis["policy"])(**policyargs),
+                    start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
                     duration = DURATION,
                     verbose = True,
                 )
@@ -141,8 +167,8 @@ if __name__ == "__main__":
     print(starvations)
     print(congestions)
 
-    instance_names = [ instance[0] for instance in instances ]
-    analysis_names = [ analysis[0] for analysis in analyses ]
+    instance_names = instances
+    analysis_names = [ analysis["name"] for analysis in analyses ]
 
     lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
 
