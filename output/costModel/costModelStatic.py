@@ -42,8 +42,6 @@ def plot_function(starvation, congestion):
         p.legend(policies)
     plt.show()
 
-interact(plot_function, 
-         starvation = widgets.FloatSlider(value=1, min=0, max=20, step=0.1),
-         congestion = widgets.FloatSlider(value=1, min=0, max=20, step=0.1))
+interact(plot_function, starvation = 2, congestion = 4)
 
 print("bye bye")
