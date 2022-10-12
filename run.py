@@ -9,7 +9,6 @@ from datetime import datetime
 
 import sim
 import init_state
-import init_state.fosen_haldorsen
 import init_state.cityBike
 
 import policies
@@ -38,9 +37,10 @@ if __name__ == "__main__":
 
             initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"], target_state=getattr(target_state, experimental_setup["analysis"]["target_state"]))
 
-            initial_state.set_num_vehicles(experimental_setup["analysis"]["numvehicles"])
-
             policyargs = experimental_setup["analysis"]["policyargs"]
+            policy = getattr(policies, experimental_setup["analysis"]["policy"])(**policyargs)
+
+            initial_state.set_vehicles([policy]*experimental_setup["analysis"]["numvehicles"])
 
             simulations = []
             for seed in experimental_setup["seeds"]:
@@ -53,7 +53,6 @@ if __name__ == "__main__":
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
-                    policy = getattr(policies, experimental_setup["analysis"]["policy"])(**policyargs),
                     start_time = timeInMinutes(days=experimental_setup["analysis"]["day"], hours=experimental_setup["analysis"]["hour"]),
                     duration = experimental_setup["duration"],
                     cluster = True,

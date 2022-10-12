@@ -10,10 +10,11 @@ class Vehicle:
 
     def __init__(
         self,
-        vehicle_id: int,
-        start_location: Union[Station, Depot],
-        battery_inventory_capacity: int,
-        bike_inventory_capacity: int,
+        vehicle_id,
+        start_location,
+        policy,
+        battery_inventory_capacity,
+        bike_inventory_capacity,
     ):
         
         self.id = vehicle_id
@@ -23,6 +24,7 @@ class Vehicle:
         self.bike_inventory = {}
         self.bike_inventory_capacity = bike_inventory_capacity
         self.location = start_location
+        self.policy = policy
         self.eta = 0
         self.handling_time = MINUTES_PER_ACTION
         self.parking_time = MINUTES_CONSTANT_PER_ACTION

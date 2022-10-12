@@ -7,7 +7,6 @@ import copy
 import settings
 import sim
 import init_state
-import init_state.fosen_haldorsen
 import init_state.cityBike
 
 import policies
@@ -28,7 +27,8 @@ from helpers import *
 DURATION = timeInMinutes(hours=24)
 
 # Enter instances here
-instances = [ "Oslo", "Bergen", "Trondheim", "Edinburgh" ]
+#instances = [ "Oslo", "Bergen", "Trondheim", "Edinburgh" ]
+instances = [ "Trondheim", "Edinburgh" ]
 
 # Enter analysis definition here
 analyses = [
@@ -50,22 +50,22 @@ analyses = [
          day=0,
          hour=6),    
 
-    #deviation_from_target_state
-    dict(name="outflow",
-         target_state="outflow_target_state",
-         policy="GreedyPolicy",
-         policyargs={'crit_weights':[0,0,0,1]},
-         numvehicles=1,
-         day=0,
-         hour=6),     
+    # #deviation_from_target_state
+    # dict(name="outflow",
+    #      target_state="outflow_target_state",
+    #      policy="GreedyPolicy",
+    #      policyargs={'crit_weights':[0,0,0,1]},
+    #      numvehicles=1,
+    #      day=0,
+    #      hour=6),     
 
-    dict(name="equalprob",
-         target_state="equal_prob_target_state",
-         policy="GreedyPolicy",
-         policyargs={},
-         numvehicles=1,
-         day=0,
-         hour=6),
+    # dict(name="equalprob",
+    #      target_state="equal_prob_target_state",
+    #      policy="GreedyPolicy",
+    #      policyargs={},
+    #      numvehicles=1,
+    #      day=0,
+    #      hour=6),
 
 ]
 
@@ -126,11 +126,13 @@ if __name__ == "__main__":
         for analysis in analyses:
             print("    analysis: ", analysis["name"])
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=getattr(target_state, analysis["target_state"]))
-
-            initial_state.set_num_vehicles(analysis["numvehicles"])
-
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance,
+                                                          target_state=getattr(target_state, analysis["target_state"]))
+            
             policyargs = analysis["policyargs"]
+            policy = getattr(policies, analysis["policy"])(**policyargs)
+
+            initial_state.set_vehicles([policy]*analysis["numvehicles"])
 
             simulations = []
 
@@ -142,7 +144,6 @@ if __name__ == "__main__":
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
-                    policy = getattr(policies, analysis["policy"])(**policyargs),
                     start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
                     duration = DURATION,
                     verbose = True,

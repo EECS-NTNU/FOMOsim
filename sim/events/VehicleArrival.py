@@ -21,7 +21,7 @@ class VehicleArrival(Event):
         """
         arrival_time = 0
         # find the best action from the current world state
-        action = world.policy.get_action(world, self.vehicle)
+        action = self.vehicle.policy.get_action(world, self.vehicle)
         if isinstance(action, tuple):
             action, _ = action
 
