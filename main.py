@@ -18,7 +18,8 @@ from helpers import timeInMinutes
 from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=24)
+NUM_DAYS = 7
+DURATION = timeInMinutes(hours=24*NUM_DAYS)
 WEEK = 34
 
 def main():
