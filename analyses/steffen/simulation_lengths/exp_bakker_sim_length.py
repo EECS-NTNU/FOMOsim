@@ -63,7 +63,7 @@ def main(instance):
     ###############################################################################
     # Get initial state
 
-    tstate = target_state.evenly_distributed_target_state
+    tstate = target_state.equal_prob_target_state
     
     if instance == 'Oslo':
         url_link = 'https://data.urbansharing.com/oslobysykkel.no/trips/v1/'
@@ -83,7 +83,9 @@ def main(instance):
     ###############################################################################
     # Set up policy
 
-    policy = policies.DoNothing()
+    #do analysis for both donothing as well as greedy
+    #policy = policies.DoNothing()
+    policy = policies.GreedyPolicy()
 
     ###############################################################################
     # Set up simulator

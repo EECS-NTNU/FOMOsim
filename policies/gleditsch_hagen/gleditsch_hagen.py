@@ -40,7 +40,7 @@ class GleditschHagenPolicy(Policy):
         self.num_times_called+=1
         
         next_station, num_loading, num_unloading = PBCGH.return_solution(vehicle_index_input=vehicle.id)        
-        bikes_to_swap = []
+        batteries_to_swap = []
         bikes_to_pickup =  []
         bikes_to_pickup = [bike.id for bike in vehicle.location.get_bikes()][0:int(num_loading)]
         #for i in range(int(num_loading)):
@@ -52,7 +52,7 @@ class GleditschHagenPolicy(Policy):
         #    bikes_to_deliver.append(i) #just pick the first ones
 
         return sim.Action(
-            bikes_to_swap,
+            batteries_to_swap,
             bikes_to_pickup,
             bikes_to_deliver,
             next_station, #this is the id
