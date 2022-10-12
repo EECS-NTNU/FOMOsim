@@ -39,6 +39,9 @@ def plot_function(starvation, congestion):
         p.set_xlabel("Number of bikes")
         p.set_xticks(range(len(bikes)))
         p.set_xticklabels(bikes)
+        for label in p.get_xticklabels():
+            label.set_rotation(40)
+            label.set_fontsize('x-small')
         p.legend(policies)
     plt.show()
 
