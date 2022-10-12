@@ -42,6 +42,7 @@ def plot_function(starvation, congestion):
         p.legend(policies)
     plt.show()
 
-interact(plot_function, starvation = 2, congestion = 4)
+# interact(plot_function, starvation = 2, congestion = 4)
+plot_function(starvation = 2, congestion = 4)
 
 print("bye bye")

@@ -10,7 +10,7 @@ def readVector(textLine):
         values.append(v)
     return values
 
-results = open("output/costModel/simulatedTrips.txt")
+results = open("simulatedTrips.txt")
 policies = []
 trips = []
 starv = []
@@ -45,5 +45,3 @@ def plot_function(starvation, congestion):
 interact(plot_function, 
          starvation = widgets.FloatSlider(value=1, min=0, max=20, step=0.1),
          congestion = widgets.FloatSlider(value=1, min=0, max=20, step=0.1))
-
-print("bye bye")
