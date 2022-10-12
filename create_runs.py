@@ -22,10 +22,7 @@ instances = [ "Oslo", "Bergen", "Trondheim", "Edinburgh" ]
 analyses = [
 
     dict(name="do_nothing",
-         target_state="evenly_distributed_target_state",
-         policy="DoNothing",
-         policyargs={},
-         numvehicles=1,
+         numvehicles=0,
          day=0,
          hour=6),
 

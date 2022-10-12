@@ -35,12 +35,16 @@ if __name__ == "__main__":
 
             experimental_setup = json.load(infile)
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"], target_state=getattr(target_state, experimental_setup["analysis"]["target_state"]))
+            tstate = None
+            if "target_state" in experimental_setup["analysis"]:
+                tstate = getattr(target_state, experimental_setup["analysis"]["target_state"])
 
-            policyargs = experimental_setup["analysis"]["policyargs"]
-            policy = getattr(policies, experimental_setup["analysis"]["policy"])(**policyargs)
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"], target_state=tstate)
 
-            initial_state.set_vehicles([policy]*experimental_setup["analysis"]["numvehicles"])
+            if experimental_setup["analysis"]["numvehicles"] > 0:
+                policyargs = experimental_setup["analysis"]["policyargs"]
+                policy = getattr(policies, experimental_setup["analysis"]["policy"])(**policyargs)
+                initial_state.set_vehicles([policy]*experimental_setup["analysis"]["numvehicles"])
 
             simulations = []
             for seed in experimental_setup["seeds"]:
@@ -72,8 +76,12 @@ if __name__ == "__main__":
             f.write(str(experimental_setup["run"]) + ";")
             f.write(str(experimental_setup["instance"]) + ";")
             f.write(str(experimental_setup["analysis"]["name"]) + ";")
-            f.write(str(experimental_setup["analysis"]["target_state"]) + ";")
-            f.write(str(experimental_setup["analysis"]["policy"]) + ";")
+            if "target_state" in experimental_setup["analysis"]:
+                f.write(str(experimental_setup["analysis"]["target_state"]))
+            f.write(";")
+            if "policy" in experimental_setup["analysis"]:
+                f.write(str(experimental_setup["analysis"]["policy"]))
+            f.write(";")
             f.write(str(experimental_setup["analysis"]["numvehicles"]) + ";")
             f.write(str(metric.get_aggregate_value("trips")) + ";")
             f.write(str(metric.get_aggregate_value("starvation")) + ";")

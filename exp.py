@@ -27,17 +27,13 @@ from helpers import *
 DURATION = timeInMinutes(hours=24)
 
 # Enter instances here
-#instances = [ "Oslo", "Bergen", "Trondheim", "Edinburgh" ]
-instances = [ "Trondheim", "Edinburgh" ]
+instances = [ "Oslo", "Bergen", "Trondheim", "Edinburgh" ]
 
 # Enter analysis definition here
 analyses = [
 
     dict(name="do_nothing",
-         target_state="evenly_distributed_target_state",
-         policy="DoNothing",
-         policyargs={},
-         numvehicles=1,
+         numvehicles=0,
          day=0,
          hour=6),
 
@@ -50,22 +46,22 @@ analyses = [
          day=0,
          hour=6),    
 
-    # #deviation_from_target_state
-    # dict(name="outflow",
-    #      target_state="outflow_target_state",
-    #      policy="GreedyPolicy",
-    #      policyargs={'crit_weights':[0,0,0,1]},
-    #      numvehicles=1,
-    #      day=0,
-    #      hour=6),     
+    #deviation_from_target_state
+    dict(name="outflow",
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=1,
+         day=0,
+         hour=6),     
 
-    # dict(name="equalprob",
-    #      target_state="equal_prob_target_state",
-    #      policy="GreedyPolicy",
-    #      policyargs={},
-    #      numvehicles=1,
-    #      day=0,
-    #      hour=6),
+    dict(name="equalprob",
+         target_state="equal_prob_target_state",
+         policy="GreedyPolicy",
+         policyargs={},
+         numvehicles=1,
+         day=0,
+         hour=6),
 
 ]
 
@@ -126,13 +122,16 @@ if __name__ == "__main__":
         for analysis in analyses:
             print("    analysis: ", analysis["name"])
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance,
-                                                          target_state=getattr(target_state, analysis["target_state"]))
-            
-            policyargs = analysis["policyargs"]
-            policy = getattr(policies, analysis["policy"])(**policyargs)
+            tstate = None
+            if "target_state" in analysis:
+                tstate = getattr(target_state, analysis["target_state"])
 
-            initial_state.set_vehicles([policy]*analysis["numvehicles"])
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
+            
+            if analysis["numvehicles"] > 0:
+                policyargs = analysis["policyargs"]
+                policy = getattr(policies, analysis["policy"])(**policyargs)
+                initial_state.set_vehicles([policy]*analysis["numvehicles"])
 
             simulations = []
 

@@ -35,7 +35,6 @@ def main():
     ###############################################################################
     # Set up policy
 
-    # policy = policies.DoNothing()
     # policy = policies.RandomActionPolicy()
     policy = policies.GreedyPolicy()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
