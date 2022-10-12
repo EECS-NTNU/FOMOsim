@@ -9,7 +9,6 @@ from datetime import datetime
 
 import sim
 import init_state
-import init_state.fosen_haldorsen
 import init_state.cityBike
 
 import policies
@@ -24,6 +23,8 @@ from helpers import *
 
 ###############################################################################
 
+INSTANCE_DIRECTORY="instances"
+
 if __name__ == "__main__":
 
     for filename in sys.argv[1:]:
@@ -34,28 +35,25 @@ if __name__ == "__main__":
 
             experimental_setup = json.load(infile)
 
-            initial_state = init_state.get_initial_state(source=init_state.cityBike, url=experimental_setup["instance"]["url"], week=experimental_setup["instance"]["week"],
-                                                         random_seed=0, number_of_stations=experimental_setup["instance"]["numstations"],
-                                                         number_of_bikes=experimental_setup["instance"]["numbikes"],
-                                                         target_state=getattr(target_state, experimental_setup["analysis"]["target_state"]))
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"], target_state=getattr(target_state, experimental_setup["analysis"]["target_state"]))
+
+            policyargs = experimental_setup["analysis"]["policyargs"]
+            policy = getattr(policies, experimental_setup["analysis"]["policy"])(**policyargs)
+
+            initial_state.set_vehicles([policy]*experimental_setup["analysis"]["numvehicles"])
 
             simulations = []
-
             for seed in experimental_setup["seeds"]:
                 print("Running seed", seed)
 
                 state_copy = copy.deepcopy(initial_state)
                 state_copy.set_seed(seed)
-                state_copy.set_num_vehicles(experimental_setup["analysis"]["numvehicles"])
-
-                args = experimental_setup["analysis"]["policyargs"]
 
                 sys.stdout.flush()
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
-                    policy = getattr(policies, experimental_setup["analysis"]["policy"])(**args),
-                    start_time = timeInMinutes(days=experimental_setup["instance"]["day"], hours=experimental_setup["instance"]["hour"]),
+                    start_time = timeInMinutes(days=experimental_setup["analysis"]["day"], hours=experimental_setup["analysis"]["hour"]),
                     duration = experimental_setup["duration"],
                     cluster = True,
                     verbose = False,
@@ -72,7 +70,7 @@ if __name__ == "__main__":
             f = open("output.csv", "a")
 
             f.write(str(experimental_setup["run"]) + ";")
-            f.write(str(experimental_setup["instance"]["name"]) + ";")
+            f.write(str(experimental_setup["instance"]) + ";")
             f.write(str(experimental_setup["analysis"]["name"]) + ";")
             f.write(str(experimental_setup["analysis"]["target_state"]) + ";")
             f.write(str(experimental_setup["analysis"]["policy"]) + ";")

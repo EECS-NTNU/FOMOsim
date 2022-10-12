@@ -129,9 +129,6 @@ class State(LoadSave):
                       traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
                       traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"])
 
-        state.set_num_vehicles(statedata["number_of_vehicles"])
-        state.set_seed(statedata["random_seed"])
-
         return state
 
     def calculate_traveltime(self, speed):
@@ -152,10 +149,10 @@ class State(LoadSave):
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
 
-    def set_num_vehicles(self, number_of_vehicles):
+    def set_vehicles(self, policies):
         self.vehicles = []
-        for vehicle_id in range(number_of_vehicles):
-            self.vehicles.append(sim.Vehicle(vehicle_id, self.locations[0],
+        for vehicle_id, policy in enumerate(policies):
+            self.vehicles.append(sim.Vehicle(vehicle_id, self.locations[0], policy, 
                                              VEHICLE_BATTERY_INVENTORY, VEHICLE_BIKE_INVENTORY))
 
     def set_move_probabilities(self, move_probabilities):
@@ -225,7 +222,7 @@ class State(LoadSave):
         else:
             return self.traveltime_vehicle_matrix[start_location_id][end_location_id]
 
-    def do_action(self, action: sim.Action, vehicle: sim.Vehicle, time: int):
+    def do_action(self, action, vehicle, time):
         """
         Performs an action on the state -> changing the state
         :param time: at what time the action is performed

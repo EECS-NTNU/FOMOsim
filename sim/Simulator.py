@@ -24,7 +24,6 @@ class Simulator(LoadSave):
     def __init__(
         self,
         duration,
-        policy,
         initial_state,
         start_time = 0,
         cluster=False,
@@ -33,7 +32,6 @@ class Simulator(LoadSave):
     ):
         super().__init__()
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
-        self.policy = policy
         self.init(duration=duration, initial_state=initial_state, start_time=start_time, cluster=cluster, verbose=verbose, label=label)
 
     def init(
@@ -61,7 +59,7 @@ class Simulator(LoadSave):
         self.cluster = cluster
         self.verbose = verbose
         if label is None:
-          self.label = self.policy.__class__.__name__
+          self.label = "Sim"
         else:
           self.label = label
         if cluster:
@@ -74,7 +72,8 @@ class Simulator(LoadSave):
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
 
-        self.policy.init_sim(self)
+        for vehicle in self.state.vehicles:
+            vehicle.policy.init_sim(self)
 
     def __repr__(self):
         string = f"<Sim with {self.time} of {self.end_time} elapsed. {len(self.event_queue)} events in event_queue>"
@@ -150,7 +149,6 @@ class Simulator(LoadSave):
     def sloppycopy(self, *args):
         new_sim = Simulator(
             0,
-            self.policy,
             self.state.sloppycopy(),
             self.time,
             self.verbose,

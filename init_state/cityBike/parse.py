@@ -122,7 +122,7 @@ def log_to_norm(mu_x, stdev_x):
 
 
 def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/", 
-    week=30, fromInclude=[2018, 5], toInclude=[2022,8], number_of_vehicles=1,  random_seed=1):
+    week=30, fromInclude=[2018, 5], toInclude=[2022,8], trafficMultiplier=1.0):
 
     """ Processes selected  trips downloaded for the city, calculates average trip duration for every pair of stations, including
         back-to-start trips. For pairs of stations without any registered trips an average duration is estimated via
@@ -362,11 +362,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             leave_intensities[station].append([])
             move_probabilities[station].append([])
             for hour in range(24):
-                # test code Fig4
-                # arrive_intensities[station][day].append(4.0 * arriveCount[station][day][hour]/noOfYears)
-                # leave_intensities[station][day].append(4.0 * leaveCount[station][day][hour]/noOfYears)
-                arrive_intensities[station][day].append(arriveCount[station][day][hour]/noOfYears)
-                leave_intensities[station][day].append(leaveCount[station][day][hour]/noOfYears)
+                arrive_intensities[station][day].append(trafficMultiplier * arriveCount[station][day][hour]/noOfYears)
+                leave_intensities[station][day].append(trafficMultiplier * leaveCount[station][day][hour]/noOfYears)
                 move_probabilities[station][day].append([])
                 for endStation in range(len(stationMap)):
                     movedBikes = moveCount[station][day][hour][endStation]
@@ -403,8 +400,6 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         "traveltime_stdev" : durationStdDev,
         "traveltime_vehicle" : ttVehicleMatrix,
         "traveltime_vehicle_stdev" : None,
-        "number_of_vehicles" : number_of_vehicles,
-        "random_seed" : random_seed,
     }
 
     return statedata

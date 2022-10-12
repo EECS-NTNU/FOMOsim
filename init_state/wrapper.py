@@ -50,9 +50,10 @@ def read_initial_state(jsonFilename, target_state=None, load_from_cache=True):
 
     return None
 
-def create_and_save_state(filename, source, number_of_stations=None, number_of_bikes=None, bike_class="Bike", **kwargs):
+def create_and_save_state(name, filename, source, number_of_stations=None, number_of_bikes=None, bike_class="Bike", **kwargs):
     # create initial state
-    statedata = source.get_initial_state(**kwargs)
+    statedata = { "name" : name }
+    statedata.update(source.get_initial_state(**kwargs))
 
     # create subset of stations
     if number_of_stations is not None:
