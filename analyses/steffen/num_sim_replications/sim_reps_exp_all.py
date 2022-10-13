@@ -52,10 +52,11 @@ DURATION = timeInMinutes(hours=24*NUM_DAYS)
 
 #analysis settings
 alpha = 0.05
-gamma = 0.05 #relative error
+gamma = 0.1 #relative error
 min_num_seeds = 4
 
 cities = ["Oslo","Bergen","Trondheim","Edinburgh"]
+
 abbrvs = {"Oslo": 'OS',
           "Bergen": 'BG',
           "Trondheim":'TD' ,
@@ -67,6 +68,8 @@ weeks = {"Oslo": [10,22,31,50],
           "Edinburgh":[10,22,31,50]
           }
 instances = [abbrvs[city]+'_W'+str(week) for city in cities for week in weeks[city]]
+#instances = ['TD_W21']
+
 INSTANCE_DIRECTORY="instances"
 
 analysis = dict(name="outflow",
@@ -134,7 +137,9 @@ if __name__ == "__main__":
         starv_finished=False
         cong_finished=False
 
-        while not (starv_finished and cong_finished ):
+
+        finished = False
+        while not finished:
 
             n += 1
 
@@ -149,8 +154,10 @@ if __name__ == "__main__":
             simul.run()
 
             scale = 100 / simul.metrics.get_aggregate_value("trips")
-            starvations.append(scale*simul.metrics.get_aggregate_value("starvation"))
-            congestions.append(scale*simul.metrics.get_aggregate_value("congestion"))
+            starv = scale*simul.metrics.get_aggregate_value("starvation")
+            cong = scale*simul.metrics.get_aggregate_value("congestion")
+            starvations.append(starv)
+            congestions.append(cong)
 
             mean_starv = np.mean(starvations)
             mean_cong = np.mean(congestions)
@@ -162,10 +169,16 @@ if __name__ == "__main__":
                     starv_finished = True
                     n_starvations.append(n) 
 
-            if cong_finished == True:
+            if cong_finished == False:
                 if (ci_half_length(n,alpha,std_cong) / np.abs(mean_cong) <= gamma/(1-gamma)):
                     cong_finished = True
                     n_congestions.append(n)
+            
+            if starv_finished and cong_finished:
+                finished = True
+
+            if n > 60:
+                finished = True
 
     results = pd.DataFrame(list(zip(instances, n_starvations,n_congestions)),
                columns =['instance', 'n_starv','n_cong'])
