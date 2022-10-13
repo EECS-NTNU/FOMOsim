@@ -63,6 +63,7 @@ class BikeArrival(Event):
                 else:
                     world.state.bike_in_use(self.bike)
 
+                arrival_station.metrics.add_aggregate_metric(world, "congestion", 1)
                 world.metrics.add_aggregate_metric(world, "congestion", 1)
 
         # set time of world to this event's time

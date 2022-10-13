@@ -67,8 +67,10 @@ class BikeDeparture(Event):
             world.state.bike_in_use(bike)
 
         else:
+            departure_station.metrics.add_aggregate_metric(world, "starvation", 1)
             world.metrics.add_aggregate_metric(world, "starvation", 1)
 
+        departure_station.metrics.add_aggregate_metric(world, "trips", 1)
         world.metrics.add_aggregate_metric(world, "trips", 1)
 
         # set time of world to this event's time

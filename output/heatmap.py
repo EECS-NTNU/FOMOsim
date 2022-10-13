@@ -2,30 +2,38 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def visualize_heatmap(simulator):
-    for station in simulator.state.stations.values():
-        print(station.get_lat(), station.get_lon())
+    minX = None
+    maxX = None
+    minY = None
+    maxY = None
+    xx = []
+    yy = []
+    cc = []
 
-    # bBox = ((46.5309, 46.8690, 24.5562, 24.9353))
+    for station in simulator.state.locations:
+        x = station.get_lon()
+        y = station.get_lat()
+        if (minX is None) or (x < minX): minX = x
+        if (maxX is None) or (x > maxX): maxX = x
+        if (minY is None) or (y < minY): minY = y
+        if (maxY is None) or (y > maxY): maxY = y
+        xx.append(x)
+        yy.append(y)
+        color = 1
+        cc.append((color,0,1-color))
 
-    # mapImage = plt.imread("map.png")
+    if simulator.state.mapdata is not None:
+        print(simulator.state.mapdata)
+        filename = simulator.state.mapdata[0]
+        bBox = simulator.state.mapdata[1]
 
-    # x = [46.659107,
-    #      46.702409,
-    #      46.712409,
-    #      46.722409,
-    #      46.732409]
+        image = plt.imread(filename)
+        aspect = (maxX-minX)/(maxY-minY)
+        fig, ax = plt.subplots()
+        ax.scatter(xx, yy, c=cc, s=20)
+        ax.set_title('Heatmap')
+        ax.set_xlim(bBox[0],bBox[1])
+        ax.set_ylim(bBox[2],bBox[3])
+        ax.imshow(image, extent = bBox, aspect=aspect)
 
-    # y = [24.768269,
-    #      24.680454,
-    #      24.680454,
-    #      24.680454,
-    #      24.680454]
-
-    # fig, ax = plt.subplots(figsize = (8,7))
-    # ax.scatter(x, y, c='black', s=40)
-    # ax.set_title('Plotting Spatial Data on Riyadh Map')
-    # ax.set_xlim(bBox[0],bBox[1])
-    # ax.set_ylim(bBox[2],bBox[3])
-    # ax.imshow(mapImage, zorder=0, extent = bBox, aspect= 'equal')
-
-    # plt.show()
+        plt.show()

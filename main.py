@@ -19,7 +19,7 @@ from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
 NUM_DAYS = 7
-DURATION = timeInMinutes(hours=24*NUM_DAYS)
+DURATION = timeInMinutes(hours=1)
 WEEK = 34
 
 def main():
@@ -31,7 +31,7 @@ def main():
     # tstate = target_state.outflow_target_state
     tstate = target_state.equal_prob_target_state
 
-    state = init_state.read_initial_state("instances/Trondheim", tstate);
+    state = init_state.read_initial_state("instances/TD_W17", tstate);
 
     ###############################################################################
     # Set up policy
