@@ -196,8 +196,9 @@ if __name__ == "__main__":
                columns =['instance', 'n_starv','n_cong'])
     print(results)
     
-    directory = 'analyses/steffen/num_sim_replications'
-    results.to_csv(directory+'/num_rep_analysis.csv')
+    directory = 'analyses/steffen/num_sim_replications/'
+    filename = 'num_rep_analysis_gamma'+str(gamma)+'_alpha'+str(alpha)
+    results.to_csv(directory+filename+'.csv')
 
             
             
