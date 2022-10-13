@@ -52,7 +52,8 @@ DURATION = timeInMinutes(hours=24*NUM_DAYS)
 
 #analysis settings
 alpha = 0.05
-gamma = 0.1 #relative error
+gamma = 0.05 #relative error
+gamma_star = gamma/(1-gamma)
 min_num_seeds = 4
 
 cities = ["Oslo","Bergen","Trondheim","Edinburgh"]
@@ -108,6 +109,7 @@ if __name__ == "__main__":
         starvations = []
         congestions = []
         for seed in range(min_num_seeds):
+            #seed = 0
 
             state_copy = copy.deepcopy(initial_state)
             state_copy.set_seed(seed)
@@ -137,6 +139,9 @@ if __name__ == "__main__":
         starv_finished=False
         cong_finished=False
 
+        n_max = 60
+        n_starv = n_max
+        n_cong = n_max 
 
         finished = False
         while not finished:
@@ -164,26 +169,33 @@ if __name__ == "__main__":
             std_starv = np.std(starvations)
             std_cong = np.std(congestions)
 
+
             if starv_finished==False:
-                if (ci_half_length(n,alpha,std_starv) / np.abs(mean_starv) <= gamma/(1-gamma)):
+                normalized_half = ci_half_length(n,alpha,std_starv) / np.abs(mean_starv)
+                if normalized_half <= gamma_star:
                     starv_finished = True
-                    n_starvations.append(n) 
+                    n_starv = n 
 
             if cong_finished == False:
-                if (ci_half_length(n,alpha,std_cong) / np.abs(mean_cong) <= gamma/(1-gamma)):
+                normalized_half = ci_half_length(n,alpha,std_cong) / np.abs(mean_cong)
+                if normalized_half <= gamma_star:
                     cong_finished = True
-                    n_congestions.append(n)
+                    n_cong = n
             
             if starv_finished and cong_finished:
                 finished = True
 
-            if n > 60:
+            if n > n_max:
                 finished = True
+
+            if finished:
+                n_starvations.append(n_starv)
+                n_congestions.append(n_cong)
 
     results = pd.DataFrame(list(zip(instances, n_starvations,n_congestions)),
                columns =['instance', 'n_starv','n_cong'])
     print(results)
-    results.to_csv('num_rep_analysis.csv')
+    
     directory = 'analyses/steffen/num_sim_replications'
     results.to_csv(directory+'/num_rep_analysis.csv')
 
