@@ -16,6 +16,7 @@ class State(LoadSave):
         stations = [],
         vehicles = [],
         bikes_in_use = {}, # bikes not parked at any station
+        mapdata=None,
         traveltime_matrix=None,
         traveltime_matrix_stddev=None,
         traveltime_vehicle_matrix=None,
@@ -43,6 +44,7 @@ class State(LoadSave):
         if traveltime_vehicle_matrix is None:
             self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
 
+        self.mapdata = mapdata
 
     def sloppycopy(self, *args):
         locationscopy = []
@@ -123,7 +125,12 @@ class State(LoadSave):
 
         # create state
 
+        mapdata = None
+        if "map" in statedata:
+            mapdata = (statedata["map"], statedata["map_boundingbox"])
+
         state = State(stations,
+                      mapdata = mapdata,
                       traveltime_matrix=statedata["traveltime"],
                       traveltime_matrix_stddev=statedata["traveltime_stdev"],
                       traveltime_vehicle_matrix=statedata["traveltime_vehicle"],

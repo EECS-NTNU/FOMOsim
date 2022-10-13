@@ -38,6 +38,12 @@ numbikes = {"Oslo": 2000,
           "Edinburgh":200
           }
 
+maps = {"Oslo": ("oslo.png", (10.6111, 10.9050, 59.8400, 59.9895)),
+        "Bergen": ("bergen.png", (5.2484, 5.3953, 60.3501, 60.4346)),
+        "Trondheim": ("trondheim.png", (10.3339, 10.4808, 63.3930, 63.4597)),
+        "Edinburgh": ("edinburgh.png", (-3.2592, -3.1122, 55.9109, 55.9936)),
+        }
+
 instances = []
 
 for city in cities:
@@ -47,7 +53,8 @@ for city in cities:
                url=urls[city],
                numbikes=numbikes[city],
                numstations=None,
-               week=week
+               week=week,
+               mapdata=maps[city],
           ))
 
 # # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
@@ -98,4 +105,5 @@ if __name__ == "__main__":
                                          number_of_bikes=instance["numbikes"],
                                          number_of_stations=instance["numstations"],
                                          week=instance["week"],
+                                         mapdata=instance["mapdata"],
                                          )
