@@ -383,6 +383,7 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     for i, station_id in enumerate(stationMap):
         station = {}
         station["id"] = i
+        station["location"] = (stationLocations[station_id].latitude, stationLocations[station_id].longitude)
         station["is_depot"] = False
         station["capacity"] = stationCapacities[station_id]
         station["num_bikes"] = bikeStartStatus[station_id]

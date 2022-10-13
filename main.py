@@ -31,7 +31,7 @@ def main():
     # tstate = target_state.outflow_target_state
     tstate = target_state.equal_prob_target_state
 
-    state = init_state.read_initial_state("instances/Oslo", tstate);
+    state = init_state.read_initial_state("instances/Trondheim", tstate);
 
     ###############################################################################
     # Set up policy
@@ -69,10 +69,11 @@ def main():
 
     output.write_csv(simulator, "output.csv", WEEK, hourly = False)
 
-    output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    # output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    # output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    # output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
 
+    output.visualize_heatmap(simulator)
 
 if __name__ == "__main__":
     main()
