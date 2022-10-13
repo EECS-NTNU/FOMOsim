@@ -86,8 +86,8 @@ class State(LoadSave):
                 original_id = station["original_id"]
 
             position = None
-            if "position" in station:
-                position = station["position"]
+            if "location" in station:
+                position = station["location"]
 
             charging_station = False
             if "charging_station" in station:
