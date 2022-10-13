@@ -31,7 +31,7 @@ def main():
     # tstate = target_state.outflow_target_state
     tstate = target_state.equal_prob_target_state
 
-    state = init_state.read_initial_state("instances/TD_W17", tstate);
+    state = init_state.read_initial_state("instances/OS_W31", tstate);
 
     ###############################################################################
     # Set up policy
@@ -73,7 +73,7 @@ def main():
     # output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
     # output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
 
-    output.visualize_heatmap(simulator)
+    output.visualize_heatmap(simulator, "trips")
 
 if __name__ == "__main__":
     main()
