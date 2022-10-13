@@ -18,9 +18,9 @@ from helpers import timeInMinutes
 from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-NUM_DAYS = 7
-DURATION = timeInMinutes(hours=24*NUM_DAYS)
-instance = 'OS_W33'
+DURATION = timeInMinutes(days=7)
+INSTANCE = 'OS_W31'
+WEEK = 31
 
 def main():
 
@@ -31,9 +31,7 @@ def main():
     # tstate = target_state.outflow_target_state
     tstate = target_state.equal_prob_target_state
 
-    #state = init_state.read_initial_state("instances/Oslo", tstate);
-    state = init_state.read_initial_state("instances/"+instance, tstate);
-
+    state = init_state.read_initial_state("instances/"+INSTANCE, tstate);
 
     ###############################################################################
     # Set up policy
@@ -75,7 +73,7 @@ def main():
     # output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
     # output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
 
-    output.visualize_heatmap(simulator)
+    output.visualize_heatmap(simulator, "trips")
 
 if __name__ == "__main__":
     main()

@@ -32,8 +32,11 @@ def read_initial_state(jsonFilename, target_state=None, load_from_cache=True):
             return state
 
     with gzip.open(f"{jsonFilename}.json.gz", "r") as infile:
+        dirname = os.path.dirname(jsonFilename);
+
         # load json state
         statedata = json.load(infile)
+        if("map" in statedata): statedata["map"] = dirname + "/" + statedata["map"]
         state = sim.State.get_initial_state(statedata)
 
         # calculate target state
@@ -50,9 +53,13 @@ def read_initial_state(jsonFilename, target_state=None, load_from_cache=True):
 
     return None
 
-def create_and_save_state(name, filename, source, number_of_stations=None, number_of_bikes=None, bike_class="Bike", **kwargs):
+def create_and_save_state(name, filename, source, number_of_stations=None, number_of_bikes=None, bike_class="Bike", mapdata=None, **kwargs):
     # create initial state
     statedata = { "name" : name }
+    if mapdata is not None:
+        statedata["map"] = mapdata[0]
+        statedata["map_boundingbox"] = mapdata[1]
+
     statedata.update(source.get_initial_state(**kwargs))
 
     # create subset of stations

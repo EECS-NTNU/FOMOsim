@@ -1,6 +1,7 @@
 from shapely.geometry import MultiPoint
 import numpy as np
 from sim.Location import Location
+import sim
 from settings import STATION_CENTER_DELTA, BATTERY_LIMIT, DEFAULT_STATION_CAPACITY
 import copy
 
@@ -35,6 +36,8 @@ class Station(Location):
         self.capacity = int(capacity)
         self.original_id = original_id
         self.charging_station = charging_station
+
+        self.metrics = sim.Metric()
 
         if len(self.bikes) > self.capacity:
             self.capacity = len(self.bikes)
