@@ -109,24 +109,28 @@ def Surface3DplotTripsProfit(bikes, policyNames, trips, profit, title):
     return fig, ax
 
 DURATION = timeInMinutes(hours=24)
-instances = [ ("Oslo", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/", None,  None,   33,   0,    DURATION )]
+
+instance = 'OS_W31'
+
+# instances = [ ("Oslo", "https://data.urbansharing.com/oslobysykkel.no/trips/v1/", None,  None,   33,   0,    DURATION )]
+
 analyses = [
 #    Name,        target_state,                                 policy,                  numvehicles
     # ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
     # ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
-    # # ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8), # TODO, fix this UGLY copy and paste code
-    # # ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
-    # # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
-    # # # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
-    # # ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
-    # # ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
+    # ("outflow-8",    target_state.outflow_target_state,            policies.GreedyPolicy(),           8), # TODO, fix this UGLY copy and paste code
+    # ("outflow-7",    target_state.outflow_target_state,            policies.GreedyPolicy(),           7),
+    # ("outflow-6",    target_state.outflow_target_state,            policies.GreedyPolicy(),           6),
+    # ("outflow-5",    target_state.outflow_target_state,            policies.GreedyPolicy(),           5),
+    # ("outflow-4",    target_state.outflow_target_state,            policies.GreedyPolicy(),           4),
+    # ("outflow-3",    target_state.outflow_target_state,            policies.GreedyPolicy(),           3),
     # ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
     # ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
     # ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
     # ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
-    ("random-2",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     2),
+    # ("random-2",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     2),
     ("random-1",     target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),     1),
-    ("do_nothing",   target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
+    # ("do_nothing",   target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
 ]
 
 policyNames = []
@@ -172,9 +176,9 @@ if __name__ == "__main__":
 
     # set up number_of_bikes-values
     bikes = []
-    startVal = 1000
-    for i in range(5): 
-        bikes.append(startVal + i*400)       
+    startVal = 200
+    for i in range(30): 
+        bikes.append(startVal + i*200)       
 
     resultsStarvation = []  
     resultsCongestion = []
@@ -190,75 +194,74 @@ if __name__ == "__main__":
     costStarvation = 2
     costCongestion = 4    
 
-    for instance in instances:
-        print("  instance: ", instance[0])
-        starvations.append([])
-        congestions.append([])
-        for analysis in analyses:
-            print("    analysis: ", analysis[0])        
-            resultRowS = [] 
-            resultRowC = [] 
-            resultRowT = []
-            resultRowTrips = []
+    # print("  instance: ", instance[0])
+    starvations.append([])
+    congestions.append([])
+    for analysis in analyses:
+        print("    analysis: ", analysis[0])        
+        resultRowS = [] 
+        resultRowC = [] 
+        resultRowT = []
+        resultRowTrips = []
 
-            tripsRow = []
-            congRow = []
-            starvRow = []
+        tripsRow = []
+        congRow = []
+        starvRow = []
 
-            resultProfitRow = [] 
-            for b in bikes:
-                print( "   number of bikes: ", b)
-                if instance[0] == "Oslo":
-                    initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                            fromInclude=[2020, 7], toInclude= [2022,8],
-                                                            random_seed=0, number_of_stations=instance[3], number_of_bikes=b,
-                                                            target_state=analysis[1])
-                simulations = []
-                for seed in seeds:
-                    print("      seed: ", seed)
-                    state_copy = copy.deepcopy(initial_state)
-                    state_copy.set_seed(seed)
-                    state_copy.set_num_vehicles(analysis[3])
-                    simul = sim.Simulator(
-                        initial_state = state_copy,
-                        policy = analysis[2],
-                        start_time = timeInMinutes(days=instance[5], hours=instance[6]),
-                        duration = DURATION,
-                        verbose = True,
-                    )             
-                    simul.run()
-                    simulations.append(simul)
+        resultProfitRow = [] 
+        for b in bikes:
+            print( "   number of bikes: ", b)
+            tstate = target_state.equal_prob_target_state
+            state = init_state.read_initial_state("instances/" + instance, tstate);
+            policy = policies.GreedyPolicy()
+            state.set_vehicles([policy]) 
 
-                metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
-                trips = metric.get_aggregate_value("trips")
-                scale = 100 / trips
-                num_starvations = metric.get_aggregate_value("starvation") 
-                starv = scale * num_starvations
-                num_congestion = metric.get_aggregate_value("congestion") 
-                cong = scale * num_congestion
-                tot = starv + cong
-                resultRowS.append(starv) 
-                resultRowC.append(cong) 
-                resultRowT.append(tot)
+            simulations =[]     
+            for seed in seeds:
+                print("      seed: ", seed)
+                state_copy = copy.deepcopy(state)
+                state_copy.set_seed(seed)
+                state_copy.set_vehicles(analysis[3])
+                simul = sim.Simulator(
+                    initial_state = state_copy,
+                    policy = analysis[2],
+                    start_time = timeInMinutes(days=instance[5], hours=instance[6]),
+                    duration = DURATION,
+                    verbose = True,
+                )             
+                simul.run()
+                simulations.append(simul)
+
+            metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
+            trips = metric.get_aggregate_value("trips")
+            scale = 100 / trips
+            num_starvations = metric.get_aggregate_value("starvation") 
+            starv = scale * num_starvations
+            num_congestion = metric.get_aggregate_value("congestion") 
+            cong = scale * num_congestion
+            tot = starv + cong
+            resultRowS.append(starv) 
+            resultRowC.append(cong) 
+            resultRowT.append(tot)
 
 
-                trips = trips - num_starvations # todo, into variable for speed
-                tripsRow.append(int(trips))
-                congRow.append(int(num_congestion))
-                starvRow.append(int(num_starvations))
+            trips = trips - num_starvations # todo, into variable for speed
+            tripsRow.append(int(trips))
+            congRow.append(int(num_congestion))
+            starvRow.append(int(num_starvations))
 
-                resultRowTrips.append(trips/200)
-                resultProfitRow.append((trips*incomeTrip - num_starvations*costStarvation - num_congestion*costCongestion)/180000*100) 
+            resultRowTrips.append(trips/200)
+            resultProfitRow.append((trips*incomeTrip - num_starvations*costStarvation - num_congestion*costCongestion)/180000*100) 
 
-            tripsStore.append(tripsRow)    
-            congStore.append(congRow)    
-            starvStore.append(starvRow)    
+        tripsStore.append(tripsRow)    
+        congStore.append(congRow)    
+        starvStore.append(starvRow)    
 
-            resultsStarvation.append(resultRowS)
-            resultsCongestion.append(resultRowC)
-            resultsTotal.append(resultRowT)
-            resultTrips.append(resultRowTrips)
-            resultProfit.append(resultProfitRow)
+        resultsStarvation.append(resultRowS)
+        resultsCongestion.append(resultRowC)
+        resultsTotal.append(resultRowT)
+        resultTrips.append(resultRowTrips)
+        resultProfit.append(resultProfitRow)
 
     resultFile = open("output/costModel/simulatedTrips.txt", "w")
     for b in bikes:
