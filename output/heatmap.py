@@ -6,10 +6,15 @@ def visualize_heatmap(simulator, metric):
     yy = []
     cc = []
 
+    maxValue = 0
+    for station in simulator.state.locations:
+        if station.metrics.get_aggregate_value(metric) > maxValue:
+            maxValue = station.metrics.get_aggregate_value(metric)
+
     for station in simulator.state.locations:
         xx.append(station.get_lon())
         yy.append(station.get_lat())
-        color = station.metrics.get_aggregate_value(metric) / simulator.metrics.get_aggregate_value(metric)
+        color = station.metrics.get_aggregate_value(metric) / maxValue
         cc.append((color,0,1-color))
 
     if simulator.state.mapdata is not None:
