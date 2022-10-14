@@ -27,7 +27,7 @@ from helpers import *
 DURATION = timeInMinutes(hours=24)
 
 # Enter instances here
-instances = [ "Oslo", "Bergen", "Trondheim", "Edinburgh" ]
+instances = [ "OS_W31", "TD_W34", "BG_W35", "EH_W31" ]
 
 # Enter analysis definition here
 analyses = [
