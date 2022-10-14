@@ -15,7 +15,7 @@ INSTANCE_DIRECTORY="instances"
 
 ###############################################################################
 
-cities = ["Oslo","Bergen","Trondheim","Edinburgh"]
+cities = ["Oslo"]
 abbrvs = {"Oslo": 'OS',
           "Bergen": 'BG',
           "Trondheim":'TD' ,
@@ -38,7 +38,7 @@ numbikes = {"Oslo": 2000,
           "Edinburgh":200
           }
 
-maps = {"Oslo": ("oslo.png", (10.6111, 10.9050, 59.8400, 59.9895)),
+maps = {"Oslo": ("oslo.png", (10.6365, 10.8631, 59.8843, 59.9569)),
         "Bergen": ("bergen.png", (5.2484, 5.3953, 60.3501, 60.4346)),
         "Trondheim": ("trondheim.png", (10.3339, 10.4808, 63.3930, 63.4597)),
         "Edinburgh": ("edinburgh.png", (-3.2592, -3.1122, 55.9109, 55.9936)),
