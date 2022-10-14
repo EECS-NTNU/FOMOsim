@@ -240,7 +240,7 @@ if __name__ == "__main__":
                 scale = 100 / trip
                 starvations.append(scale*starvation)
                 congestions.append(scale*congestion)
-                violations.append(scale*congestion)
+                violations.append(scale*violation)
 
             n_starvations.append(approximate_num_reps_absolute(starvations,beta,alpha,5))
             n_congestions.append(approximate_num_reps_absolute(congestions,beta,alpha,5))
