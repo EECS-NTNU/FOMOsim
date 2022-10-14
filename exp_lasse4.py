@@ -27,6 +27,8 @@ from output.plots import lostTripsPlot
 # Duration of each simulation run
 DURATION = timeInMinutes(hours=24)
 
+instances = [ "BG_W25", "EH_W22"]
+
 # Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
 instances = [
     # Name,         URL,                                                          numbikes, numstations, week, day, hour
@@ -34,23 +36,39 @@ instances = [
 ]
 
 # Enter analysis definition here
+# analyses = [
+#     # Name,        target_state,                                  policy,                   numvehicles     trafficMultiplier 
+#     ("do_no",   target_state.evenly_distributed_target_state,     policies.DoNothing(),          1,     1.0),
+#     ("out-1",   target_state.outflow_target_state,                policies.GreedyPolicy(),       1,     1.0),
+#     ("out-2",   target_state.outflow_target_state,                policies.GreedyPolicy(),       2,     1.0),
+#     ("do_no-1.5",   target_state.evenly_distributed_target_state, policies.DoNothing(),          1,     1.5),
+#     ("out-1-1.5",   target_state.outflow_target_state,            policies.GreedyPolicy(),       1,     1.5),
+#     ("out-2-1.5",   target_state.outflow_target_state,            policies.GreedyPolicy(),       2,     1.5),
+#     ("do_no-2.0",   target_state.evenly_distributed_target_state, policies.DoNothing(),          1,     2.0),
+#     ("out-1-2.0",   target_state.outflow_target_state,            policies.GreedyPolicy(),       1,     2.0),
+#     ("out-2-2.0",   target_state.outflow_target_state,            policies.GreedyPolicy(),       2,     2.0),
+#     ("do_no-4.0",   target_state.evenly_distributed_target_state, policies.DoNothing(),          1,     4.0),
+#     ("out-1-4.0",   target_state.outflow_target_state,            policies.GreedyPolicy(),       1,     4.0),
+#     ("out-2-4.0",   target_state.outflow_target_state,            policies.GreedyPolicy(),       2,     4.0),
+# ]        
+
 analyses = [
-    # Name,        target_state,                                  policy,                   numvehicles     trafficMultiplier 
-    ("do_no",   target_state.evenly_distributed_target_state,     policies.DoNothing(),          1,     1.0),
-    ("out-1",   target_state.outflow_target_state,                policies.GreedyPolicy(),       1,     1.0),
-    ("out-2",   target_state.outflow_target_state,                policies.GreedyPolicy(),       2,     1.0),
-    ("do_no-1.5",   target_state.evenly_distributed_target_state, policies.DoNothing(),          1,     1.5),
-    ("out-1-1.5",   target_state.outflow_target_state,            policies.GreedyPolicy(),       1,     1.5),
-    ("out-2-1.5",   target_state.outflow_target_state,            policies.GreedyPolicy(),       2,     1.5),
-    ("do_no-2.0",   target_state.evenly_distributed_target_state, policies.DoNothing(),          1,     2.0),
-    ("out-1-2.0",   target_state.outflow_target_state,            policies.GreedyPolicy(),       1,     2.0),
-    ("out-2-2.0",   target_state.outflow_target_state,            policies.GreedyPolicy(),       2,     2.0),
-    ("do_no-4.0",   target_state.evenly_distributed_target_state, policies.DoNothing(),          1,     4.0),
-    ("out-1-4.0",   target_state.outflow_target_state,            policies.GreedyPolicy(),       1,     4.0),
-    ("out-2-4.0",   target_state.outflow_target_state,            policies.GreedyPolicy(),       2,     4.0),
-]        
+    dict(name="do_nothing", numvehicles=0, day=0, hour=6),
+
+    dict(name="evenly", target_state="evenly_distributed_target_state", policy="GreedyPolicy",  
+        policyargs={'crit_weights':[0.25,0.25,0.25,0.25]}     # flat strategy 
+        , numvehicles=1, day=0, hour=6), 
+
+    dict(name="outflow", target_state="outflow_target_state",policy="GreedyPolicy", 
+        policyargs={'crit_weights':[0,0,0,1]} # deviation_from_target_state
+        , numvehicles=1,day=0,hour=6), 
+
+    dict(name="equalprob", target_state="equal_prob_target_state", policy="GreedyPolicy",
+        policyargs={}, numvehicles=1, day=0, hour=6),
+]
+
 seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-seeds = [ 0, 1] 
+seeds = [ 0] 
 ###############################################################################
 
 
