@@ -1,103 +1,44 @@
 #!/bin/python3
-"""
-FOMO simulator main program
-"""
+# exp_lasse.py
 import copy
-
-import settings
 import sim
 import init_state
 import init_state.fosen_haldorsen
 import init_state.cityBike
-
-import policies
-import policies.fosen_haldorsen
-import policies.haflan_haga_spetalen
-
-from progress.bar import Bar
-
-import output
-import target_state
-import matplotlib.pyplot as plt
-
+from output.plots import lostTripsPlot
 from helpers import *
 
-###############################################################################
-
-# Duration of each simulation run
 DURATION = timeInMinutes(hours=24)
-
-# Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
-instances = [
-    # Name,         URL,                                                          numbikes, numstations, week, day, hour
-    ("Oslo",        "https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        1400,        None,   33,   0,    6 ),
-    # ("Bergen",      "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      None,        None,   33,   0,    6 ),
-    #("Trondheim",   "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   800,        None,   28,   1,    6 ),
-    # ("Oslo-vinter", "https://data.urbansharing.com/oslovintersykkel.no/trips/v1/",      400,        None,    7,   0,    6 ),
-    # ("Edinburgh",   "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",  200,        None,   20,   0,    6 ),
-]
-
-# Enter analysis definition here
+instances = ["EH_W22"]
 analyses = [
-    # Name,        target_state,                                 policy,                  numvehicles   
-    ("do_nothing", target_state.evenly_distributed_target_state, policies.DoNothing(),              1),
-    ("random-1", target_state.evenly_distributed_target_state, policies.RandomActionPolicy(),         1),
-    ("evenly-1",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           1),
-    ("outflow-1",    target_state.outflow_target_state,            policies.GreedyPolicy(),           1),
-    ("equalprob-1",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           1),
-    ("evenly-2",     target_state.evenly_distributed_target_state, policies.GreedyPolicy(),           2),
-    ("outflow-2",    target_state.outflow_target_state,            policies.GreedyPolicy(),           2),
-    ("equalprob-2",  target_state.equal_prob_target_state,         policies.GreedyPolicy(),           2),
-]        
-seeds = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-# seeds = [ 0] 
-# seeds = []
-# for s in range(30):
-#     seeds.append(s) 
+    dict(name="do_nothing",
+         numvehicles=0,
+         day=0,
+         hour=6),
+    dict(name="evenly",     #flat strategy
+         target_state="evenly_distributed_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
+         numvehicles=1,
+         day=0,
+         hour=6),    
+    dict(name="outflow",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=1,
+         day=0,
+         hour=6),     
+    dict(name="equalprob",
+         target_state="equal_prob_target_state",
+         policy="GreedyPolicy",
+         policyargs={},
+         numvehicles=1,
+         day=0,
+         hour=6),
+]    
 
-###############################################################################
-
-def lostTripsPlot(cities, policies, starv, serr, cong, cerr):
-    fig, plots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
-    subPlots = [] # fix that subPlots returns a list only when more than one plot. Tried squeezy=False but it did not work for this purpose 
-    if len(cities) == 1:
-        subPlots.append(plots)
-    else:
-        for p in plots:
-            subPlots.append(p)
-
-    fig.suptitle("FOMO simulator - lost trips results\nImprovement from baseline (left bar) in % ", fontsize=15)
-    w = 0.3
-    pos = []
-    for city in range(len(cities)):
-        pos.append([])
-        for i in range(len(policies)): # IMPROVED by more readable code here
-            pos[city].append(starv[city][i] + cong[city][i])
-        baseline = starv[city][0] + cong[city][0] # first policy is always baseline
-        
-        policyLabels = [] # fix policy labels
-        for i in range(len(policies)):
-            if i > 0:
-                improved =  ( ((starv[city][i] + cong[city][i]) - baseline)/baseline)*100.0
-                policyLabels.append(policies[i] + "\n(" + "{:.1f}".format(improved) + "%)")
-            else:
-                policyLabels.append(policies[i]) # label for baseline
-
-        subPlots[city].bar(policyLabels, starv[city], w, label='Starvation')
-        subPlots[city].errorbar(policyLabels, starv[city], yerr = serr[city], fmt='none', ecolor='black')
-        subPlots[city].bar(policyLabels, cong[city], w, bottom=starv[city], label='Congestion')
-
-        delta = 0.03 # skew the upper error-bar horisontally with delta to avoid that they can overwrite each other
-        policiesPlussDelta = []
-        for i in range(len(policies)):
-            policiesPlussDelta.append(i + delta)
-        subPlots[city].errorbar(policiesPlussDelta, pos[city], yerr= cerr[city], fmt='none', ecolor='black')
-        subPlots[city].set_xlabel(cities[city])
-        subPlots[city].set_ylabel("Violations (% of total number of trips)")
-        subPlots[city].legend()
-
-    plt.show()
-###############################################################################
+seeds = list(range(5))
 
 if __name__ == "__main__":
 
@@ -188,7 +129,4 @@ if __name__ == "__main__":
     analysis_names = [ analysis[0] for analysis in analyses ]
 
     lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
-
-    plt.show()
-
-    print(" bye bye")
+#    print(" bye bye")
