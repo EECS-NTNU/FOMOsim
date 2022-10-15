@@ -143,5 +143,3 @@ if __name__ == "__main__":
     lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
 
     plt.show()
-
-    print(" bye bye")

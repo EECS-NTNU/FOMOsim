@@ -2,7 +2,9 @@
 import json 
 import os
 import matplotlib.pyplot as plt
+from matplotlib import cm, colors
 from init_state.cityBike.parse import tripDataDirectory
+import numpy as np
 from helpers import yearWeekNoAndDay
 from progress.bar import Bar
     
@@ -65,6 +67,8 @@ def cityTrafficStats():
     print("Plot is saved at CityTrafficPerWeek.pdf and numbers at CityTraffic.txt")
     
 def lostTripsPlot(cities, policies, starv, serr, cong, cerr):
+    # After 14 october cities is called instanceNames, and policies is analysisNames in the calling code. TODO could renew code to reflect this, if we get time to do so
+    # This applies to other procedures also
     fig, plots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
     subPlots = [] # fix that subPlots returns a list only when more than one plot. Tried squeezy=False but it did not work for this purpose 
     if len(cities) == 1:
@@ -100,8 +104,8 @@ def lostTripsPlot(cities, policies, starv, serr, cong, cerr):
             policiesPlussDelta.append(i + delta)
         subPlots[city].errorbar(policiesPlussDelta, pos[city], yerr= cerr[city], fmt='none', ecolor='black')
         subPlots[city].set_xlabel(cities[city])
-        subPlots[city].set_ylabel("Violations (% of total number of trips)")
         subPlots[city].legend()
+    subPlots[city].set_ylabel("Violations (% of total number of trips)")
 
     plt.show()
 

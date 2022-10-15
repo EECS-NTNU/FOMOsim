@@ -129,4 +129,3 @@ if __name__ == "__main__":
     analysis_names = [ analysis[0] for analysis in analyses ]
 
     lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
-#    print(" bye bye")
