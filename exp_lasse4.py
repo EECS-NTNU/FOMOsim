@@ -16,9 +16,15 @@ from helpers import *
 from output.plots import lostTripsPlot
 
 DURATION = timeInMinutes(hours=24)
-instances = ["OS_W31", "EH_W22"]
-# instances = ["EH_W22"]
+instances = ["OS_W31"]
+# instances = ["EH_W22", "EH_W31"]
 analyses = [
+
+    dict(name="do_nothing-1000",
+         numbikes= 1000, # testing
+         numvehicles=0,
+         day=0,
+         hour=6),
 
     dict(name="do_nothing",
          numvehicles=0,
@@ -52,14 +58,12 @@ analyses = [
          hour=6),
 
 ]
-seeds = list(range(5))
+seeds = list(range(3))
 INSTANCE_DIRECTORY="instances"
 
 if __name__ == "__main__":
-
     starvations = []
     congestions = []
-
     starvations_stdev = []
     congestions_stdev = []
 
@@ -86,6 +90,8 @@ if __name__ == "__main__":
                 policy = getattr(policies, analysis["policy"])(**policyargs)
                 initial_state.set_vehicles([policy]*analysis["numvehicles"])
 
+            # TODO wish to be able to set num_bikes here in a similar manner as numvehicles
+
             simulations = []
             for seed in seeds:
                 print("      seed: ", seed)
@@ -110,15 +116,9 @@ if __name__ == "__main__":
             congestions_stdev[-1].append(scale * metric.get_aggregate_value("congestion_stdev"))
 
     ###############################################################################
-
     print(starvations)
     print(congestions)
-
     instance_names = instances
     analysis_names = [ analysis["name"] for analysis in analyses ]
-
     lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
-
     plt.show()
-
-    print(" bye bye")
