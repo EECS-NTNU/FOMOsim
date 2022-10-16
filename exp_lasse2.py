@@ -13,7 +13,7 @@ from output.plots import Surface3Dplot, Surface3DplotFraction
 DURATION = timeInMinutes(hours=24)
 INSTANCE_DIRECTORY="instances"
 
-instances = ["OS_W31", "EH_W22"] # just one in this case
+instances = ["OS_W31"] # just one in this case
 
 analyses = [
     dict(name="do_nothing",
