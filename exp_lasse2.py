@@ -27,20 +27,20 @@ analyses = [
          numvehicles=1,
          day=0,
          hour=6),    
-    # dict(name="outflow",    #deviation_from_target_state
-    #      target_state="outflow_target_state",
-    #      policy="GreedyPolicy",
-    #      policyargs={'crit_weights':[0,0,0,1]},
-    #      numvehicles=1,
-    #      day=0,
-    #      hour=6),     
-    # dict(name="equalprob",
-    #      target_state="equal_prob_target_state",
-    #      policy="GreedyPolicy",
-    #      policyargs={},
-    #      numvehicles=1,
-    #      day=0,
-    #      hour=6),
+    dict(name="outflow",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=1,
+         day=0,
+         hour=6),     
+    dict(name="equalprob",
+         target_state="equal_prob_target_state",
+         policy="GreedyPolicy",
+         policyargs={},
+         numvehicles=1,
+         day=0,
+         hour=6),
 ]    
  
 policyNames = []
@@ -126,11 +126,10 @@ if __name__ == "__main__":
     print(resultsTotal)
 
     fig, ax = Surface3Dplot(bikes, policyNames, resultsStarvation, "Starvation (" + '%' + " of trips)")
-
-    plt.show()
-
     fig, ax = Surface3Dplot(bikes, policyNames, resultsCongestion, "Congestion (" + '%' + " of trips)")
     fig, ax = Surface3Dplot(bikes, policyNames, resultsTotal, "Starvation + congestion (" + '%' + " of trips)")
     fig, ax = Surface3DplotFraction(bikes, policyNames, resultsStarvation, resultsCongestion, "Oslo week 33, Lost trips (" + '%' + ") and congestion-starvation ratio")
     
     plt.show()
+
+    pass
