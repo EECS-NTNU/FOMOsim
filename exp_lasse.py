@@ -5,11 +5,14 @@ import sim
 import init_state
 import init_state.fosen_haldorsen
 import init_state.cityBike
+import policies
+import target_state
 from output.plots import lostTripsPlot
 from helpers import *
 
 DURATION = timeInMinutes(hours=24)
-instances = ["EH_W22"]
+INSTANCE_DIRECTORY="instances"
+instances = ["OS_W31"]
 analyses = [
     dict(name="do_nothing",
          numvehicles=0,
@@ -49,8 +52,7 @@ if __name__ == "__main__":
     congestions_stdev = []
 
     for instance in instances:
-        print("  instance: ", instance[0])
-
+        print("  instance: ", instance)
         starvations.append([])
         congestions.append([])
 
@@ -58,63 +60,35 @@ if __name__ == "__main__":
         congestions_stdev.append([])
 
         for analysis in analyses:
-            print("    analysis: ", analysis[0])
+            print("    analysis: ", analysis["name"])   
 
-            if instance[0] == "Oslo":
-                initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                        fromInclude=[2020, 7], toInclude= [2022,8],
-                                                        random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
-                                                        target_state=analysis[1])
-            elif instance[0] == "Oslo-vinter":
-                initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                        fromInclude=[2018, 12], toInclude= [2019, 3],
-                                                        random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
-                                                        target_state=analysis[1])
-                                                        
-            elif instance[0] == "Bergen":
-                initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                        fromInclude=[2018, 9], toInclude= [2021, 9],
-                                                        random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
-                                                        target_state=analysis[1])        
+            tstate = None
+            if "target_state" in analysis:
+                tstate = getattr(target_state, analysis["target_state"])
 
-            elif instance[0] == "Trondheim":
-                initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                        fromInclude=[2018,9], toInclude= [2021, 9],
-                                                        random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
-                                                        target_state=analysis[1])                                         
-            elif instance[0] == "Edinburgh":
-                initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                        fromInclude=[2018,9], toInclude= [2021, 9],
-                                                        random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
-                                                        target_state=analysis[1])
-            else:
-                initial_state = init_state.get_initial_state(source=init_state.cityBike, url=instance[1], week=instance[4],
-                                                         random_seed=0, number_of_stations=instance[3], number_of_bikes=instance[2],
-                                                         target_state=analysis[1])
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
+            
+            if analysis["numvehicles"] > 0:
+                policyargs = analysis["policyargs"]
+                policy = getattr(policies, analysis["policy"])(**policyargs)
+                initial_state.set_vehicles([policy]*analysis["numvehicles"])
 
             simulations = []
-
             for seed in seeds:
                 print("      seed: ", seed)
-
                 state_copy = copy.deepcopy(initial_state)
                 state_copy.set_seed(seed)
-                state_copy.set_num_vehicles(analysis[3])
-
+    
                 simul = sim.Simulator(
                     initial_state = state_copy,
-                    policy = analysis[2],
-                    start_time = timeInMinutes(days=instance[5], hours=instance[6]),
+                    start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
                     duration = DURATION,
                     verbose = True,
                 )
-                
                 simul.run()
-
                 simulations.append(simul)
 
             metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
-
             scale = 100 / metric.get_aggregate_value("trips")
 
             starvations[-1].append(scale * metric.get_aggregate_value("starvation"))
@@ -125,7 +99,7 @@ if __name__ == "__main__":
 
     ###############################################################################
 
-    instance_names = [ instance[0] for instance in instances ]
-    analysis_names = [ analysis[0] for analysis in analyses ]
+    instance_names = instances
+    analysis_names = [ analysis["name"] for analysis in analyses ]
 
     lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
