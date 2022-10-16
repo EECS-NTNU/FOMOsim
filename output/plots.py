@@ -2,7 +2,9 @@
 import json 
 import os
 import matplotlib.pyplot as plt
+from matplotlib import cm, colors
 from init_state.cityBike.parse import tripDataDirectory
+import numpy as np
 from helpers import yearWeekNoAndDay
 from progress.bar import Bar
     
@@ -65,6 +67,8 @@ def cityTrafficStats():
     print("Plot is saved at CityTrafficPerWeek.pdf and numbers at CityTraffic.txt")
     
 def lostTripsPlot(cities, policies, starv, serr, cong, cerr):
+    # After 14 october cities is called instanceNames, and policies is analysisNames in the calling code. TODO could renew code to reflect this, if we get time to do so
+    # This applies to other procedures also
     fig, plots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
     subPlots = [] # fix that subPlots returns a list only when more than one plot. Tried squeezy=False but it did not work for this purpose 
     if len(cities) == 1:
@@ -100,7 +104,101 @@ def lostTripsPlot(cities, policies, starv, serr, cong, cerr):
             policiesPlussDelta.append(i + delta)
         subPlots[city].errorbar(policiesPlussDelta, pos[city], yerr= cerr[city], fmt='none', ecolor='black')
         subPlots[city].set_xlabel(cities[city])
-        subPlots[city].set_ylabel("Violations (% of total number of trips)")
         subPlots[city].legend()
+    subPlots[city].set_ylabel("Violations (% of total number of trips)")
 
     plt.show()
+
+def Surface3Dplot(bikes, policyNames, values, title):
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    policiesPosition = range(len(policyNames))
+    bikes, policiesPosition = np.meshgrid(bikes, policiesPosition)
+    values2D = bikes + policiesPosition*100 # 2D numpyarray
+    Z = values2D # Z behaves as a pointer/reference to values2D
+    for p in range(len(policyNames)):  # copy results from 2D list to numpyarray
+        for b in range(len(bikes[p])):
+            Z[p][b] = values[p][b] 
+    ax.set_xlabel("number of bikes")
+    ax.set_ylabel("rebalancing policy")
+    ax.set_yticks(range(len(policyNames)))
+    ax.set_yticklabels(policyNames)
+    norm = colors.Normalize(vmin=0, vmax=100)
+    scmap = plt.cm.ScalarMappable(norm = norm, cmap="coolwarm")
+    surf = ax.plot_surface(bikes, policiesPosition, Z, facecolors=scmap.to_rgba(Z), linewidth=0, antialiased=False, shade = False)
+    ax.set_zlim([0, 100])
+    # https://stackoverflow.com/questions/6390393/matplotlib-make-tick-labels-font-size-smaller
+    ax.tick_params(axis='both', which='major', labelsize=7)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
+    fig.colorbar(scmap, shrink=0.3, aspect=5, )
+    fig.suptitle(title)
+    return fig, ax
+
+def Surface3DplotFraction(bikes, policyNames, starv, cong, title):
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    policiesPosition = range(len(policyNames))
+    bikes, policiesPosition = np.meshgrid(bikes, policiesPosition)
+    Z = bikes + policiesPosition # 2D numpyarray, addition is not used, but gives Z the right shape, Z behaves now as a reference to a 2D-matrix
+    Rint = np.copy(Z)
+    R = Rint.astype(float) 
+    for p in range(len(policyNames)): # copy results from 2D list to numpyarray
+        for b in range(len(bikes[p])):
+            Z[p][b] = starv[p][b] + cong[p][b] # Z-value to plot, with zero at zero, in range 0 - 120 or more
+    for p in range(len(policyNames)): # copy results from 2D list to numpyarray
+        for b in range(len(bikes[p])):
+            R[p][b] = (starv[p][b]/Z[p][b])*100 # Starvation in % of Lost trips  
+    norm = colors.Normalize(vmin=0, vmax=100)
+    norm2 = colors.Normalize(vmin=0.0, vmax=100)
+    scmap = plt.cm.ScalarMappable(norm = norm, cmap="coolwarm")
+    scmap2 = plt.cm.ScalarMappable(norm = norm2, cmap=cm.BrBG)
+    surf = ax.plot_surface(bikes, policiesPosition, Z, facecolors=scmap.to_rgba(Z), shade=False)
+    surf2 = ax.plot_surface(bikes, policiesPosition, (R*0)-100, facecolors=scmap2.to_rgba(R), shade=False)
+    ax.set_zlim(-100, 100) 
+    ax.set_xlabel("number of bikes", weight='bold')
+    ax.set_ylabel("rebalancing policy",  weight='bold')
+    ax.set_yticks(range(len(policyNames)))
+    ax.set_yticklabels(policyNames)
+    # https://stackoverflow.com/questions/6390393/matplotlib-make-tick-labels-font-size-smaller
+    ax.tick_params(axis='both', which='major', labelsize=7)
+    ax.tick_params(axis='both', which='minor', labelsize=8)
+    # yaxis-set_(policies, policyNames)
+    cb = fig.colorbar(scmap, shrink=0.2, aspect=5, location = "right")
+    cb2 = fig.colorbar(scmap2, shrink=0.2, aspect=5, location = "bottom")
+    cb.set_label(label="Lost trips in " + '%' + " of total trips", size = 9)
+    cb2.set_label(label = "Congestion - starvation ratio", size = 9)
+    fig.suptitle(title)
+    return fig, ax
+
+def Surface3DplotTripsProfit(bikes, policyNames, trips, profit, title):
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    policiesPosition = range(len(policyNames))
+    bikes, policiesPosition = np.meshgrid(bikes, policiesPosition)
+    Z = bikes + policiesPosition # 2D numpyarray, addition is not used, but gives Z the right shape, Z behaves now as a reference to a 2D-matrix
+    Rint = np.copy(Z)
+    R = Rint.astype(float) 
+    for p in range(len(policyNames)): # copy results from 2D list to numpyarray
+        for b in range(len(bikes[p])):
+            Z[p][b] = trips[p][b]  # Z-value to plot, with zero at zero, in range 0 - 120 or more
+    for p in range(len(policyNames)):
+        for b in range(len(bikes[p])):
+            R[p][b] = profit[p][b] 
+    norm = colors.Normalize(vmin=0, vmax=100)
+    norm2 = colors.Normalize(vmin=0.0, vmax=100)
+    scmap = plt.cm.ScalarMappable(norm = norm, cmap="coolwarm")
+    scmap2 = plt.cm.ScalarMappable(norm = norm2, cmap=cm.BrBG)
+    surf = ax.plot_surface(bikes, policiesPosition, Z, facecolors=scmap.to_rgba(Z), shade=False) # upper surface
+    surf2 = ax.plot_surface(bikes, policiesPosition, (R*0)-100, facecolors=scmap2.to_rgba(R), shade=False) # lower flat surface
+    ax.set_zlim(-100, 100) 
+    ax.set_xlabel("number of bikes", weight='bold')
+    ax.set_ylabel("rebalancing policy",  weight='bold')
+    ax.set_yticks(range(len(policyNames)))
+    ax.set_yticklabels(policyNames)
+    # https://stackoverflow.com/questions/6390393/matplotlib-make-tick-labels-font-size-smaller
+    ax.tick_params(axis='both', which='major', labelsize=7)
+    ax.tick_params(axis='both', which='minor', labelsize=8)
+    # yaxis-set_(policies, policyNames)
+    cb = fig.colorbar(scmap, shrink=0.2, aspect=5, location = "right")
+    cb2 = fig.colorbar(scmap2, shrink=0.2, aspect=5, location = "bottom")
+    cb.set_label(label="Trips/200", size = 9)
+    cb2.set_label(label = "Profit/180kNOK", size = 9)
+    fig.suptitle(title)
+    return fig, ax

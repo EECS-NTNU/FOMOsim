@@ -18,8 +18,8 @@ from progress.bar import Bar
 import output
 import target_state
 import matplotlib.pyplot as plt
-
 from helpers import *
+from output.plots import lostTripsPlot
 
 ###############################################################################
 
@@ -65,38 +65,8 @@ analyses = [
 
 ]
 
-seeds = list(range(10))
-
-###############################################################################
-
-def lostTripsPlot(cities, policies, starv, starv_stdev, cong, cong_stdev):
-    fig, subPlots = plt.subplots(nrows=1, ncols=len(cities), sharey=True)
-    fig.suptitle("FOMO simulator - lost trips results", fontsize=15)
-    
-    if len(cities) == 1:
-        subPlots = [ subPlots ]
-    w = 0.3
-    pos = []
-    for city in range(len(cities)):
-        pos.append([])
-        for i in range(len(cong[city])):
-            pos[city].append(starv[city][i] + cong[city][i])
-
-        subPlots[city].bar(policies, starv[city], w, label='Starvation')
-        subPlots[city].errorbar(policies, starv[city], yerr = starv_stdev[city], fmt='none', ecolor='red')
-        subPlots[city].bar(policies, cong[city], w, bottom=starv[city], label='Congestion')
-        
-        # skew the upper error-bar with delta to avoid that they can overwrite each other
-        delta = 0.05
-        policiesPlussDelta = []
-        for i in range(len(policies)):
-            policiesPlussDelta.append(i + delta) 
-        subPlots[city].errorbar(policiesPlussDelta, pos[city], yerr= cong_stdev[city], fmt='none', ecolor='black')
-        subPlots[city].set_xlabel(cities[city])
-        if city == 0:
-            subPlots[city].set_ylabel("Violations (% of total number of trips)")
-            subPlots[city].legend()
-
+#seeds = list(range(10))
+seeds = list(range(3))
 
 ###############################################################################
 
@@ -173,5 +143,3 @@ if __name__ == "__main__":
     lostTripsPlot(instance_names, analysis_names, starvations, starvations_stdev, congestions, congestions_stdev)
 
     plt.show()
-
-    print(" bye bye")
