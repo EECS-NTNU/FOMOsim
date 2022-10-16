@@ -27,20 +27,20 @@ analyses = [
          numvehicles=1,
          day=0,
          hour=6),    
-    dict(name="outflow",    #deviation_from_target_state
-         target_state="outflow_target_state",
-         policy="GreedyPolicy",
-         policyargs={'crit_weights':[0,0,0,1]},
-         numvehicles=1,
-         day=0,
-         hour=6),     
-    dict(name="equalprob",
-         target_state="equal_prob_target_state",
-         policy="GreedyPolicy",
-         policyargs={},
-         numvehicles=1,
-         day=0,
-         hour=6),
+    # dict(name="outflow",    #deviation_from_target_state
+    #      target_state="outflow_target_state",
+    #      policy="GreedyPolicy",
+    #      policyargs={'crit_weights':[0,0,0,1]},
+    #      numvehicles=1,
+    #      day=0,
+    #      hour=6),     
+    # dict(name="equalprob",
+    #      target_state="equal_prob_target_state",
+    #      policy="GreedyPolicy",
+    #      policyargs={},
+    #      numvehicles=1,
+    #      day=0,
+    #      hour=6),
 ]    
  
 policyNames = []
@@ -68,6 +68,7 @@ if __name__ == "__main__":
         print("  instance: ", instance)
         starvations.append([])
         congestions.append([])
+
         for analysis in analyses:
             print("    analysis: ", analysis["name"])       
             resultRowS = [] 
@@ -77,35 +78,35 @@ if __name__ == "__main__":
             for b in bikes:
                 print( "   number of bikes: ", b)
 
-            tstate = None
-            if "target_state" in analysis:
-                tstate = getattr(target_state, analysis["target_state"])
+                tstate = None
+                if "target_state" in analysis:
+                    tstate = getattr(target_state, analysis["target_state"])
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
-            
-            if analysis["numvehicles"] > 0:
-                policyargs = analysis["policyargs"]
-                policy = getattr(policies, analysis["policy"])(**policyargs)
-                initial_state.set_vehicles([policy]*analysis["numvehicles"])
+                initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
+                
+                if analysis["numvehicles"] > 0:
+                    policyargs = analysis["policyargs"]
+                    policy = getattr(policies, analysis["policy"])(**policyargs)
+                    initial_state.set_vehicles([policy]*analysis["numvehicles"])
 
-            # TODO prøv sette antall sykler her ... // AVENTER diskusjon mandag  --- sendte mail Steffen 
-            # 
+                # TODO prøv sette antall sykler her ... // AVENTER diskusjon mandag  --- sendte mail Steffen 
+                # 
 
-            simulations =[]     
-            for seed in seeds:
-                print("      seed: ", seed)
-                state_copy = copy.deepcopy(initial_state)
-                state_copy.set_seed(seed)
-      
-                simul = sim.Simulator(
-                    initial_state = state_copy,
-                    start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
-                    duration = DURATION,
-                    verbose = True,
-                )
-                    
-                simul.run()
-                simulations.append(simul)
+                simulations =[]     
+                for seed in seeds:
+                    print("      seed: ", seed)
+                    state_copy = copy.deepcopy(initial_state)
+                    state_copy.set_seed(seed)
+        
+                    simul = sim.Simulator(
+                        initial_state = state_copy,
+                        start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
+                        duration = DURATION,
+                        verbose = True,
+                    )
+                        
+                    simul.run()
+                    simulations.append(simul)
  
                 metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
                 scale = 100 / metric.get_aggregate_value("trips")
@@ -115,6 +116,7 @@ if __name__ == "__main__":
                 resultRowS.append(starv) 
                 resultRowC.append(cong) 
                 resultRowT.append(tot) 
+
             resultsStarvation.append(resultRowS)
             resultsCongestion.append(resultRowC)
             resultsTotal.append(resultRowT)
@@ -124,6 +126,9 @@ if __name__ == "__main__":
     print(resultsTotal)
 
     fig, ax = Surface3Dplot(bikes, policyNames, resultsStarvation, "Starvation (" + '%' + " of trips)")
+
+    plt.show()
+
     fig, ax = Surface3Dplot(bikes, policyNames, resultsCongestion, "Congestion (" + '%' + " of trips)")
     fig, ax = Surface3Dplot(bikes, policyNames, resultsTotal, "Starvation + congestion (" + '%' + " of trips)")
     fig, ax = Surface3DplotFraction(bikes, policyNames, resultsStarvation, resultsCongestion, "Oslo week 33, Lost trips (" + '%' + ") and congestion-starvation ratio")

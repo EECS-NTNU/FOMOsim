@@ -16,7 +16,8 @@ from helpers import *
 from output.plots import lostTripsPlot
 
 DURATION = timeInMinutes(hours=24)
-instances = ["OS_W31"]
+INSTANCE_DIRECTORY="instances"
+instances = ["OS_W31", "OS_W21"]
 # instances = ["EH_W22", "EH_W31"]
 analyses = [
 
@@ -59,7 +60,7 @@ analyses = [
 
 ]
 seeds = list(range(3))
-INSTANCE_DIRECTORY="instances"
+
 
 if __name__ == "__main__":
     starvations = []
