@@ -12,9 +12,14 @@ from helpers import lock, unlock
 
 savedStatesDirectory = "saved_states"
 
-def read_initial_state(jsonFilename, target_state=None, load_from_cache=True):
+def read_initial_state(jsonFilename, target_state=None, number_of_stations=None, number_of_bikes=None, load_from_cache=True):
     # create filename
-    all_args = {"target_state" : target_state, "jsonFilename" : jsonFilename}
+    all_args = {
+        "target_state" : target_state,
+        "number_of_stations" : number_of_stations,
+        "number_of_bikes" : number_of_bikes,
+        "jsonFilename" : jsonFilename
+    }
     checksum = hashlib.sha256(jsonpickle.encode(all_args).encode('utf-8')).hexdigest()
     stateFilename = f"{savedStatesDirectory}/{checksum}.pickle.gz"
 
@@ -36,7 +41,18 @@ def read_initial_state(jsonFilename, target_state=None, load_from_cache=True):
 
         # load json state
         statedata = json.load(infile)
+
+        # create subset of stations
+        if number_of_stations is not None:
+            create_station_subset(statedata, number_of_stations)
+
+        # override number of bikes
+        if number_of_bikes is not None:
+            set_num_bikes(statedata, number_of_bikes)
+        
+        # set path to map
         if("map" in statedata): statedata["map"] = dirname + "/" + statedata["map"]
+
         state = sim.State.get_initial_state(statedata)
 
         # calculate target state
@@ -53,7 +69,7 @@ def read_initial_state(jsonFilename, target_state=None, load_from_cache=True):
 
     return None
 
-def create_and_save_state(name, filename, source, number_of_stations=None, number_of_bikes=None, bike_class="Bike", mapdata=None, **kwargs):
+def create_and_save_state(name, filename, source, number_of_stations=None, number_of_bikes=None, mapdata=None, **kwargs):
     # create initial state
     statedata = { "name" : name }
     if mapdata is not None:

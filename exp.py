@@ -37,31 +37,37 @@ analyses = [
          day=0,
          hour=6),
 
-    #flat strategy
-    dict(name="evenly",
-         target_state="evenly_distributed_target_state",
-         policy="GreedyPolicy",
-         policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
-         numvehicles=1,
-         day=0,
-         hour=6),    
-
-    #deviation_from_target_state
-    dict(name="outflow",
-         target_state="outflow_target_state",
-         policy="GreedyPolicy",
-         policyargs={'crit_weights':[0,0,0,1]},
-         numvehicles=1,
-         day=0,
-         hour=6),     
-
-    dict(name="equalprob",
-         target_state="equal_prob_target_state",
-         policy="GreedyPolicy",
-         policyargs={},
-         numvehicles=1,
+    dict(name="do_nothing-100",
+         numbikes=100,
+         numvehicles=0,
          day=0,
          hour=6),
+
+    # #flat strategy
+    # dict(name="evenly",
+    #      target_state="evenly_distributed_target_state",
+    #      policy="GreedyPolicy",
+    #      policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
+    #      numvehicles=1,
+    #      day=0,
+    #      hour=6),    
+
+    # #deviation_from_target_state
+    # dict(name="outflow",
+    #      target_state="outflow_target_state",
+    #      policy="GreedyPolicy",
+    #      policyargs={'crit_weights':[0,0,0,1]},
+    #      numvehicles=1,
+    #      day=0,
+    #      hour=6),     
+
+    # dict(name="equalprob",
+    #      target_state="equal_prob_target_state",
+    #      policy="GreedyPolicy",
+    #      policyargs={},
+    #      numvehicles=1,
+    #      day=0,
+    #      hour=6),
 
 ]
 
@@ -96,7 +102,11 @@ if __name__ == "__main__":
             if "target_state" in analysis:
                 tstate = getattr(target_state, analysis["target_state"])
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance,
+                                                          target_state=tstate,
+                                                          number_of_stations=analysis.get("numstations", None),
+                                                          number_of_bikes=analysis.get("numbikes", None),
+                                                          )
             
             if analysis["numvehicles"] > 0:
                 policyargs = analysis["policyargs"]
