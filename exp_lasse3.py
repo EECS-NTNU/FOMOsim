@@ -107,9 +107,6 @@ if __name__ == "__main__":
                 policy = getattr(policies, analysis["policy"])(**policyargs)
                 initial_state.set_vehicles([policy]*analysis["numvehicles"])
 
-            # TODO prøv sette antall sykler her ... // AVENTER diskusjon mandag  --- sendte mail Steffen 
-            # 
-
             simulations =[]     
             for seed in seeds:
                 print("      seed: ", seed)

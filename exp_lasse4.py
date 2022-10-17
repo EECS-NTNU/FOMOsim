@@ -91,8 +91,6 @@ if __name__ == "__main__":
                 policy = getattr(policies, analysis["policy"])(**policyargs)
                 initial_state.set_vehicles([policy]*analysis["numvehicles"])
 
-            # TODO wish to be able to set num_bikes here in a similar manner as numvehicles
-
             simulations = []
             for seed in seeds:
                 print("      seed: ", seed)
