@@ -101,7 +101,7 @@ if __name__ == "__main__":
             if "target_state" in analysis:
                 tstate = getattr(target_state, analysis["target_state"])
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate, number_of_bikes=b)
             
             if analysis["numvehicles"] > 0:
                 policyargs = analysis["policyargs"]
