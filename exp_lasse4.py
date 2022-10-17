@@ -17,7 +17,7 @@ from output.plots import lostTripsPlot
 
 DURATION = timeInMinutes(hours=24)
 INSTANCE_DIRECTORY="instances"
-instances = ["OS_W31", "OS_W21"]
+instances = ["OS_W31", "OS_W22"]
 # instances = ["EH_W22", "EH_W31"]
 analyses = [
 
