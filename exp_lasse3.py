@@ -56,7 +56,6 @@ if __name__ == "__main__":
     starvations = []
     congestions = []
 
-    # set up number_of_bikes-values *************************** MOVE to analyses above see e-mail TODO
     bikes = []
     startVal = 1000
     for i in range(5): 
