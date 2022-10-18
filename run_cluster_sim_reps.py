@@ -91,148 +91,15 @@ if __name__ == "__main__":
 
                 results = None
 
-                n_starvations = []
-                n_congestions = []
-                n_violations = []
-
-                mean_starv = []
-                mean_cong = []
-                mean_violations = []
-                mean_trips = []
-                
-                std_starv = []
-                std_cong = []
-
                 #for instance in instances:
                 
                 if analysis_type == 'relative1':
                 
-                    #FIRST DO THE MINIMUM NUMBER OF SEEDS
-                    
-                    starvations = []
-                    congestions = []
-                    for seed in range(min_num_seeds):
-                        #seed = 0
-
-                        state_copy = copy.deepcopy(initial_state)
-                        state_copy.set_seed(seed)
-
-                        simul = sim.Simulator(
-                            initial_state = state_copy,
-                            start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
-                            duration = DURATION,
-                            verbose = True,
-                        )
-                        
-                        simul.run()
-
-                        scale = 100 / simul.metrics.get_aggregate_value("trips")
-                        starvations.append(scale*simul.metrics.get_aggregate_value("starvation"))
-                        congestions.append(scale*simul.metrics.get_aggregate_value("congestion"))
-                        
-
-                    #THEN, START ON THE ITERATIVE PROCEDURE
-
-                    n = min_num_seeds
-                    
-                    starv_finished=False
-                    cong_finished=False
-
-                    n_starv = n_max
-                    n_cong = n_max 
-
-                    finished = False
-                    while not finished:
-
-                        n += 1
-
-                        state_copy = copy.deepcopy(initial_state)
-                        state_copy.set_seed(n)
-                        simul = sim.Simulator(
-                            initial_state = state_copy,
-                            start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
-                            duration = DURATION,
-                            verbose = True,
-                        )
-                        simul.run()
-
-                        scale = 100 / simul.metrics.get_aggregate_value("trips")
-                        starv = scale*simul.metrics.get_aggregate_value("starvation")
-                        cong = scale*simul.metrics.get_aggregate_value("congestion")
-                        starvations.append(starv)
-                        congestions.append(cong)
-
-                        mean_starv = np.mean(starvations)
-                        mean_cong = np.mean(congestions)
-                        std_starv = np.std(starvations)
-                        std_cong = np.std(congestions)
-
-
-                        if starv_finished==False:
-                            normalized_half = ci_half_length(n,alpha,std_starv) / np.abs(mean_starv)
-                            if normalized_half <= gamma_star:
-                                starv_finished = True
-                                n_starv = n 
-
-                        if cong_finished == False:
-                            normalized_half = ci_half_length(n,alpha,std_cong) / np.abs(mean_cong)
-                            if normalized_half <= gamma_star:
-                                cong_finished = True
-                                n_cong = n
-                        
-                        if starv_finished and cong_finished:
-                            finished = True
-
-                        if n > n_max:
-                            finished = True
-
-                        if finished:
-                            n_starvations.append(n_starv)
-                            n_congestions.append(n_cong)
+                    print('to do')
 
                 elif analysis_type == 'absolute':
 
-                    starvations = []
-                    congestions = []
-                    violations = []
-                    trips = []
-
-                    for seed in range(n_max):
-                        #seed = 0
-
-                        state_copy = copy.deepcopy(initial_state)
-                        state_copy.set_seed(seed)
-
-                        simul = sim.Simulator(
-                            initial_state = state_copy,
-                            start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
-                            duration = DURATION,
-                            verbose = True,
-                        )
-                        
-                        simul.run()
-
-                        trip = simul.metrics.get_aggregate_value("trips")
-                        starvation = simul.metrics.get_aggregate_value("starvation")
-                        congestion = simul.metrics.get_aggregate_value("congestion")
-                        violation = starvation+congestion
-                        
-                        scale = 100 / trip
-                        starvations.append(scale*starvation)
-                        congestions.append(scale*congestion)
-                        violations.append(scale*violation)
-
-                    n_starvations.append(approximate_num_reps_absolute(starvations,beta,alpha,5))
-                    n_congestions.append(approximate_num_reps_absolute(congestions,beta,alpha,5))
-                    n_violations.append(approximate_num_reps_absolute(violations,beta,alpha,5))
-                    
-                    mean_starv.append(np.mean(starvations))
-                    mean_cong.append(np.mean(congestions))
-                    mean_violations.append(np.mean(violations))
-                    mean_trips.append(np.mean(trip))
-
-                    std_starv.append(np.std(starvations))
-                    std_cong.append(np.std(congestions))
+                    print('to do')
                     
                 elif analysis_type == 'absolute_iterate':
 
@@ -313,23 +180,13 @@ if __name__ == "__main__":
                             if ci_half_length(n,alpha,std_starv) <= beta:
                                 starv_finished = True
                                 n_starv = n 
-                                n_starvations.append(n_starv)
                         if cong_finished == False:
                             if ci_half_length(n,alpha,std_cong) <= beta:
                                 cong_finished = True
                                 n_cong = n
-                                n_congestions.append(n_cong)
                         
                         if (starv_finished and cong_finished) or (n > n_max):
                             finished = True
-                    
-                            mean_starv.append(np.mean(starvations))
-                            mean_cong.append(np.mean(congestions))
-                            mean_violations.append(np.mean(violations))
-                            mean_trips.append(np.mean(trip))
-
-                            std_starv.append(np.std(starvations))
-                            std_cong.append(np.std(congestions))
 
                 directory = 'analyses/steffen/num_sim_replications/'
                 lock_handle = lock(directory+"output_num_reps.csv")
