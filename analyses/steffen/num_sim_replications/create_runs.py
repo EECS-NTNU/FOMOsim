@@ -36,7 +36,7 @@ instances = [abbrvs[city]+'_W'+str(week) for city in cities for week in weeks[ci
 
 
 #perform the following analysis for two different policies!!!
-analysis = dict(name="outflow",
+analysis = dict(name="num_reps_1_veh",
          target_state="outflow_target_state",
          policy="GreedyPolicy",
          policyargs={},

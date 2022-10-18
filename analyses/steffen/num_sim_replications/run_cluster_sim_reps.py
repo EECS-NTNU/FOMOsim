@@ -82,6 +82,8 @@ if __name__ == "__main__":
                 time_start = datetime.now() 
 
                 experimental_setup = json.load(infile)
+                analysis = experimental_setup["analysis"]
+                DURATION = experimental_setup["duration"]
 
                 tstate = None
                 if "target_state" in experimental_setup["analysis"]:
