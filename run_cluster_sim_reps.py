@@ -7,6 +7,9 @@ FOMO simulator main program
 """
 import copy
 
+import sys
+from threading import Timer
+
 import settings
 import sim
 import init_state
