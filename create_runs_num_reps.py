@@ -1,16 +1,4 @@
-####################################
-# set the right working directory #
-###################################
-
-import os 
-import sys
-from pathlib import Path
-
-desired_path = Path(__file__).parents[3]
-os.chdir(desired_path)
-#print(os. getcwd())
-
-sys.path.insert(0, '') #make sure the modules are found in the new working directory
+#    MOVE TO MAIN FOLDER!!!
 
 ###############################################################################
 
