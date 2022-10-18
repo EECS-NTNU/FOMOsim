@@ -5,7 +5,8 @@
 
 TIMEOUT="24h"                                # A node times out after this amount of time
 FOMO_DIRECTORY="/storage/users/$USER/fomo"   # Where to find the FOMO directory 
-RUN_SCRIPT="/storage/users/$USER/fomo/analyses/steffen/num_sim_replications/run_cluster_sim_reps"   # Where to find the FOMO directory 
+RUN_SCRIPT="/storage/users/$USER/fomo/analyses/steffen/num_sim_replications/run_cluster_sim_reps.py"   # Where to find the FOMO directory 
+EXP_SETUP="/storage/users/$USER/fomo/experimental_setups"
 
 # The following settings are only used when finding nodes automatically:
 
@@ -75,7 +76,7 @@ while [ $run_counter -lt $num_runs ]; do
         run=${RUNS[$run_counter]}
         echo "  " $run
         run_counter=$((run_counter + 1))
-        args="$args experimental_setups/$run"
+        args="$args EXP_SETUP/$run"
     done
 
     ssh $node "cd ${FOMO_DIRECTORY}; shopt -s huponexit; timeout ${TIMEOUT} python3 RUN_SCRIPT $args" > ${node}.out 2> ${node}.err &
