@@ -7,6 +7,7 @@ TIMEOUT="24h"                                # A node times out after this amoun
 FOMO_DIRECTORY="/storage/users/$USER/fomo"   # Where to find the FOMO directory 
 RUN_SCRIPT="/storage/users/$USER/fomo/analyses/steffen/num_sim_replications/run_cluster_sim_reps.py"   # Where to find the FOMO directory 
 EXP_SETUP="/storage/users/$USER/fomo/experimental_setups"
+RUNS=(`ls /storage/users/$USER/fomo/experimental_setups`)
 
 # The following settings are only used when finding nodes automatically:
 
@@ -53,7 +54,7 @@ fi
 
 ###############################################################################
 
-RUNS=(`ls experimental_setups`)
+
 
 num_nodes=${#NODES[@]}
 num_runs=${#RUNS[@]}
