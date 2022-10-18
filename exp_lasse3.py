@@ -57,8 +57,8 @@ if __name__ == "__main__":
     congestions = []
 
     bikes = []
-    startVal = 1000
-    for i in range(5): 
+    startVal = 200
+    for i in range(30): 
         bikes.append(startVal + i*200)       
 
     resultsStarvation = []   
