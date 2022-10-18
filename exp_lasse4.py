@@ -20,13 +20,6 @@ INSTANCE_DIRECTORY="instances"
 instances = ["OS_W31", "OS_W22"]
 # instances = ["EH_W22", "EH_W31"]
 analyses = [
-
-    dict(name="do_nothing-1000",
-         numbikes= 1000, # testing
-         numvehicles=0,
-         day=0,
-         hour=6),
-
     dict(name="do_nothing",
          numvehicles=0,
          day=0,
