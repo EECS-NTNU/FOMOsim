@@ -22,11 +22,19 @@ import shutil
 import json
 import numpy as np
 import copy
+from pandas import *
 
 from helpers import *
 
 RUN_DIRECTORY="experimental_setups"
 
+some_runs_already_performed = True
+
+finished_tasks = []
+if some_runs_already_performed:
+    xls = ExcelFile('completed_tasks.xlsx')
+    df = xls.parse(xls.sheet_names[0])
+    finished_tasks = list(df.sort_values('task_finished')['task_finished'].values)
 
 ###############################################################################
 
@@ -115,29 +123,29 @@ if __name__ == "__main__":
 
     for instance in instances:
         for analysis in analyses:
-            simulations = []
-
-            experimental_setup = dict(run=n, instance=instance, analysis=analysis, seeds=list(range(num_seeds[instance])), duration=DURATION)
-            with open(f"{RUN_DIRECTORY}/setup_{n:04}.json", "w") as outfile:
-                outfile.write(json.dumps(experimental_setup, indent=4))
+            if n not in finished_tasks:
+                simulations = []
+                experimental_setup = dict(run=n, instance=instance, analysis=analysis, seeds=list(range(num_seeds[instance])), duration=DURATION)
+                with open(f"{RUN_DIRECTORY}/setup_{n:04}.json", "w") as outfile:
+                    outfile.write(json.dumps(experimental_setup, indent=4))
             n += 1
 
-    f = open('analyses.csv','w')
-    delim=';'
-    f.write(delim.join(list(analyses[0].keys())))
-    f.write("\n")
-    for analysis in analyses:
-        f.write(analysis['name'] + ";")
-        f.write(str(analysis['numvehicles']) + ";")
-        if analysis['numvehicles']>0:
-            f.write(analysis['target_state'] + ";")
-            f.write(analysis['policy'] + ";")
-            for key,value in analysis['policyargs'].items():
-                f.write(key + ";")
-                if isinstance(value, list):
-                    for i in value:
-                        f.write(str(i) + ";")
-                else:
-                    f.write(str(value) + ";")
-        f.write("\n")
-    f.close()
+    # f = open('analyses.csv','w')
+    # delim=';'
+    # f.write(delim.join(list(analyses[0].keys())))
+    # f.write("\n")
+    # for analysis in analyses:
+    #     f.write(analysis['name'] + ";")
+    #     f.write(str(analysis['numvehicles']) + ";")
+    #     if analysis['numvehicles']>0:
+    #         f.write(analysis['target_state'] + ";")
+    #         f.write(analysis['policy'] + ";")
+    #         for key,value in analysis['policyargs'].items():
+    #             f.write(key + ";")
+    #             if isinstance(value, list):
+    #                 for i in value:
+    #                     f.write(str(i) + ";")
+    #             else:
+    #                 f.write(str(value) + ";")
+    #     f.write("\n")
+    # f.close()
