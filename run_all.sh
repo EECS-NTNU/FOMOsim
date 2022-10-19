@@ -78,7 +78,7 @@ while [ $run_counter -lt $num_runs ]; do
         args="$args experimental_setups/$run"
     done
 
-    ssh $node "cd ${FOMO_DIRECTORY}; shopt -s huponexit; timeout ${TIMEOUT} python3 run_cluster_sim_reps.py $args" > ${node}.out 2> ${node}.err &
+    ssh $node "cd ${FOMO_DIRECTORY}; shopt -s huponexit; timeout ${TIMEOUT} python3 run.py $args" > ${node}.out 2> ${node}.err &
 
     echo
 done
