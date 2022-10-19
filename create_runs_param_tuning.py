@@ -37,7 +37,7 @@ NUM_SEEDS = 10
 
 # Enter instance definition here.  
 
-cities = ["Oslo","Bergen","Trondheim","Edinburgh"]
+cities = ["Oslo","Bergen","Trondheim"] #"Edinburgh"
 abbrvs = {"Oslo": 'OS',
           "Bergen": 'BG',
           "Trondheim":'TD' ,
@@ -69,8 +69,8 @@ analyses = [do_nothing_analysis]   #reference_case
 
 ts_map = {
     #"EDTS":"evenly_distributed_target_state",
-    #"OFTS":"outflow_target_state",
-    "EQTS":"equal_prob_target_state"
+    "OFTS":"outflow_target_state",
+    #"EQTS":"equal_prob_target_state"
         }
 policy_map = {
     #abbreviation:name_of_policy
