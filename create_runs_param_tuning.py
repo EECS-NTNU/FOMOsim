@@ -132,15 +132,12 @@ if __name__ == "__main__":
         if analysis['numvehicles']>0:
             f.write(analysis['target_state'] + ";")
             f.write(analysis['policy'] + ";")
-        else:
-            f.write(";")
-            f.write(";")
-        for key,value in analysis['policyargs'].items():
-            f.write(key + ";")
-            if isinstance(value, list):
-                for i in value:
-                    f.write(str(i) + ";")
-            else:
-                f.write(str(value) + ";")
+            for key,value in analysis['policyargs'].items():
+                f.write(key + ";")
+                if isinstance(value, list):
+                    for i in value:
+                        f.write(str(i) + ";")
+                else:
+                    f.write(str(value) + ";")
         f.write("\n")
     f.close()
