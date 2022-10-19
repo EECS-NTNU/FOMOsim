@@ -189,13 +189,15 @@ if __name__ == "__main__":
                             finished = True
 
                 directory = 'analyses/steffen/num_sim_replications/'
+                
                 lock_handle = lock(directory+"output_num_reps.csv")
+                
                 f = open(directory+"output_num_reps.csv", "a")
                 
-                f.write(analysis_type + ";")
-                f.write(alpha + ";")
-                f.write(beta + ";")
-                f.write(gamma + ";")
+                f.write(str(analysis_type) + ";")
+                f.write(str(alpha) + ";")
+                f.write(str(beta) + ";")
+                f.write(str(gamma) + ";")
                 f.write(str(experimental_setup["instance"]) + ";")
                 f.write(str(experimental_setup["analysis"]["name"]) + ";")
 
@@ -206,15 +208,15 @@ if __name__ == "__main__":
                     f.write(str(experimental_setup["analysis"]["policy"]))
                 f.write(";")
                 f.write(str(experimental_setup["analysis"]["numvehicles"]) + ";")
-                f.write(np.mean(starvations) + ";")
-                f.write(np.mean(congestions) + ";")
-                f.write(np.mean(violations) + ";")
-                f.write(np.mean(trip) + ";")
-                f.write(np.std(starvations) + ";")
-                f.write(np.std(congestions) + ";")
-                f.write(n_starv + ";")
-                f.write(n_cong + ";")
-                f.write(round_to_multiple(np.max(n_cong,n_starv),5,'up') + ";")
+                f.write(str(np.mean(starvations)) + ";")
+                f.write(str(np.mean(congestions)) + ";")
+                f.write(str(np.mean(violations)) + ";")
+                f.write(str(np.mean(trip)) + ";")
+                f.write(str(np.std(starvations)) + ";")
+                f.write(str(np.std(congestions)) + ";")
+                f.write(str(n_starv) + ";")
+                f.write(str(n_cong) + ";")
+                f.write(str(round_to_multiple(np.max(n_cong,n_starv),5,'up')) + ";")
                 f.write(str(time_start)+ ";")
                 f.write(str(datetime.now()-time_start)) #duration
 
