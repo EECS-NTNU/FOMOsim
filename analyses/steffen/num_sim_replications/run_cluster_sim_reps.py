@@ -52,16 +52,10 @@ analysis_type = 'absolute_iterate' #relative1,absolute,absolute_iterate
 
 INSTANCE_DIRECTORY="instances"
 
-from math import ceil, floor
-def round_to_multiple(number, multiple, direction='up'):
-    if direction == 'nearest':
-        return multiple * round(number / multiple)
-    elif direction == 'up':
-        return multiple * ceil(number+0.5 / multiple)
-    elif direction == 'down':
-        return multiple * floor(number / multiple)
-    else:
-        return multiple * round(number / multiple)
+from math import ceil
+def round_up_to_multiple_of_n(number, n):
+    return ceil((number+0.05) / n)* n
+    
 
 if __name__ == "__main__":
 
@@ -216,7 +210,7 @@ if __name__ == "__main__":
                 f.write(str(np.std(congestions)) + ";")
                 f.write(str(n_starv) + ";")
                 f.write(str(n_cong) + ";")
-                f.write(str(round_to_multiple(np.max(n_cong,n_starv),5,'up')) + ";")
+                f.write(str(round_up_to_multiple_of_n(max(n_cong,n_starv),5)) + ";")
                 f.write(str(time_start)+ ";")
                 f.write(str(datetime.now()-time_start)) #duration
 
