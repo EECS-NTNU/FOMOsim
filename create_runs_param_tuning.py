@@ -22,7 +22,7 @@ import shutil
 import json
 import numpy as np
 import copy
-from pandas import ExcelFile
+import csv
 
 from helpers import *
 
@@ -32,9 +32,10 @@ some_runs_already_performed = True
 
 finished_tasks = []
 if some_runs_already_performed:
-    xls = ExcelFile('completed_tasks.xlsx')
-    df = xls.parse(xls.sheet_names[0])
-    finished_tasks = list(df.sort_values('task_finished')['task_finished'].values)
+    finished_tasks = []
+    with open('completed_tasks.csv', newline='') as f:
+        for row in csv.reader(f):
+            finished_tasks.append(int(row[0]))
 
 ###############################################################################
 
