@@ -22,7 +22,7 @@ import shutil
 import json
 import numpy as np
 import copy
-from pandas import *
+from pandas import ExcelFile
 
 from helpers import *
 
