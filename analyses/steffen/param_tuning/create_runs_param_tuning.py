@@ -1,3 +1,18 @@
+#JUST MOVE TO THE MAIN FOLDER!!
+
+# import os 
+# import sys
+# from pathlib import Path
+
+# path = Path(__file__).parents[3]
+# os.chdir(path)
+# #print(os. getcwd())
+
+# sys.path.insert(0, '') #make sure the modules are found in the new working directory
+
+###############################################################################
+
+
 #!/bin/python3
 """
 FOMO simulator, create jobs to run on cluster
@@ -20,26 +35,27 @@ NUM_DAYS = 7
 DURATION = timeInMinutes(hours=24*NUM_DAYS)
 NUM_SEEDS = 10
 
-# Enter instance definition here.  For numbikes and numstations, enter 'None' to use dataset default
+# Enter instance definition here.  
 
-num_weeks = 6
-#weeks = [round(x) for x in np.linspace(start=4,stop=48,num=num_weeks)]   #little activity in week 48
-weeks = [10,20,33,40]
+cities = ["Oslo","Bergen","Trondheim","Edinburgh"]
+abbrvs = {"Oslo": 'OS',
+          "Bergen": 'BG',
+          "Trondheim":'TD' ,
+          "Edinburgh":'EH'
+          }
+weeks = {"Oslo": [10,22,31,50],
+          "Bergen": [8,25,35,45],
+          "Trondheim":[17,21,34,44] ,
+          "Edinburgh":[10,22,31,50]
+          }
+instances = [abbrvs[city]+'_W'+str(week) for city in cities for week in weeks[city]]
 
-instance_base_setups = [
-dict(name="Oslo_W33",        city = "Oslo",     url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",        numbikes=2000, numstations=None, week=33, day=0, hour=6),
-dict(name="Bergen_W33",      city = "Bergen",   url="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",      numbikes=1000, numstations=None, week=33, day=0, hour=6),
-dict(name="Trondheim_W33",   city = "Trondheim",url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",   numbikes=1000,numstations=None, week=33, day=0, hour=6),
-dict(name="Edinburgh_W33",   city = "Edinburgh",url="https://data.urbansharing.com/edinburghcyclehire.com/trips/v1//",   numbikes=200,numstations=None, week=33, day=0, hour=6)
-]
-
-instances = []
-for week in weeks:
-     for instance in instance_base_setups:
-         instance_copy=copy.deepcopy(instance)
-         instance_copy['name']=instance_copy['city']+'_W'+ str(week)
-         instance_copy['week'] = week
-         instances.append(instance_copy)
+num_seeds = {
+    "EH_W10":10, "EH_W22":10, "EH_W31":10,	"EH_W50":10,	
+    "TD_W17":30, "TD_W21":30,	"TD_W34":45,	"TD_W44":35,	
+    "BG_W25":35,	"BG_W35":30,	"BG_W45":45, "BG_W8":35,	
+    "OS_W10":15,"OS_W22":25,"OS_W31":25,"OS_W50":15,
+}
 
 # ANALYSES
 
@@ -64,7 +80,8 @@ policy_map = {
     #"GHB":"policies.gleditsch_hagen.GleditschHagenPolicy"
     }
 
-all_weights = get_criticality_weights2(4)
+all_weights = get_criticality_weights2(4) #75 combinations (my calculations gave 74, check the difference)
+
 policyargs={}
 number_of_vehicles = [1,2]
 
@@ -77,24 +94,16 @@ for ts_abbr,ts in ts_map.items():
                     target_state=ts,
                     policy=pol,
                     numvehicles=nv,
+                    day = 0,
+                    hour = 6,
                     policyargs={'crit_weights':crit_weight}
                     ))
 
 
 
-# Enter analysis definition here
-# analyses = [
-#     dict(name="do_nothing", target_state="evenly_distributed_target_state", policy="DoNothing",    policykwargs={}, numvehicles=1 ),
-#     dict(name="evenly",     target_state="evenly_distributed_target_state", policy="GreedyPolicy", policykwargs={}, numvehicles=1),
-#     dict(name="outflow",    target_state="outflow_target_state",            policy="GreedyPolicy", policykwargs={}, numvehicles=1),
-#     dict(name="equalprob",  target_state="equal_prob_target_state",         policy="GreedyPolicy", policykwargs={}, numvehicles=1),
-# ]        
 
-seeds = list(range(NUM_SEEDS))
 
-#num_analyses = len(analyses)
-#num_instances = len(instances)
-#print(num_analyses*num_instances)
+#seeds = list(range(NUM_SEEDS))
 
 ###############################################################################
 
@@ -110,7 +119,7 @@ if __name__ == "__main__":
         for analysis in analyses:
             simulations = []
 
-            experimental_setup = dict(run=n, instance=instance, analysis=analysis, seeds=seeds, duration=DURATION)
+            experimental_setup = dict(run=n, instance=instance, analysis=analysis, seeds=list(range(num_seeds[instance])), duration=DURATION)
             with open(f"{RUN_DIRECTORY}/setup_{n:04}.json", "w") as outfile:
                 outfile.write(json.dumps(experimental_setup, indent=4))
             n += 1
