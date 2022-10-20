@@ -3,6 +3,7 @@
 FOMO simulator, visualises results from a cluster run
 """
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -20,10 +21,9 @@ os.chdir('C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\GitHub\\FOMO-sim\\fomo')
 if __name__ == "__main__":
 
 
-        df = pd.read_csv (os.getcwd()+'\\analyses\\steffen\\param_tuning\\output.csv',sep=';',names=['run',	'instance',	'analyses',
-                                                'target_state','policy','num_vehicles',
-                                                'trips','starvations','congestions',
-                                                'starvation_std'	,'congestion_std'])
+        df = pd.read_csv (os.getcwd()+'\\analyses\\steffen\\param_tuning\\output_param_tuning_all.csv',sep=';',
+                            names=['run',	'instance',	'analyses','target_state','policy','num_vehicles',
+                            'trips','starvations','congestions','starvation_std'	,'congestion_std', 'time_start','duration'])
 
 
         #1. extract weights data
@@ -52,15 +52,18 @@ if __name__ == "__main__":
         instances = df['instance'].unique()
 
         # REMOVE EDINBURGH (if it exists)
-        df = df.loc[(df['city']!='Edinburgh')]
+        df = df.loc[(df['city']!='EH')]
 
         df_init = copy.deepcopy(df)
 
         # Focus on 1 or 2 vehicles
 
+        output = {nv:None for nv in [1,2]}
+
         for num_veh in [1,2]:
             #num_veh = 1
-            df = df_init.loc[(df_init['num_vehicles']==num_veh)]
+            df = copy.deepcopy(df_init.loc[(df_init['num_vehicles']==num_veh)])
+            df = pd.concat([df,df_init.loc[(df_init['num_vehicles']==0)]])
 
             all_results = pd.DataFrame({'instance':instances})
             all_results = all_results.sort_values(by=['instance'],ascending=True)
@@ -73,19 +76,23 @@ if __name__ == "__main__":
             aggregate_across_instances = df.groupby(['w1', 'w2', 'w3','w4']).agg({'lost_trips':'mean', 'violations':'mean'})
             aggregate_across_instances = aggregate_across_instances.sort_values(by=['lost_trips'],ascending=True).reset_index()
             
-            what_works_best = aggregate_across_instances.sort_values(by=['lost_trips'],ascending=True).reset_index().head(20)
+            what_works_best = aggregate_across_instances.sort_values(by=['lost_trips'],ascending=True).reset_index().head(5)
+            print('best 5 on average:')
+            print(what_works_best)
             # TIME TO VIOLATION IS BEST
             # Followed by some two factors
 
-            what_works_worst = aggregate_across_instances.sort_values(by=['lost_trips'],ascending=False).reset_index().head(20)
+            what_works_worst = aggregate_across_instances.sort_values(by=['lost_trips'],ascending=False).reset_index().head(5)
+            print('worst 5 on average:')
+            print(what_works_worst)
             # NOT STEERING AT ALL IS WORST  -> skip this
             # BRIEFLY AFTER FOLLOWED BY DRIVING TIME, but also some mixes. 
 
-            avg_best_config = what_works_best.head(1)[['w1','w2','w3','w4']].values.flatten().tolist()
+            avg_best_config = what_works_best.iloc[0][['w1','w2','w3','w4']].values.flatten().tolist()
             avg_best_config = [str(i) for i in avg_best_config]
             best_string = ", ".join(avg_best_config)
             
-            avg_worst_config = what_works_worst.iloc[1][['w1','w2','w3','w4']].values.flatten().tolist()
+            avg_worst_config = what_works_worst.iloc[1][['w1','w2','w3','w4']].values.flatten().tolist()  #the worst one is do nothing, so pick second element
             avg_worst_config = [str(i) for i in avg_worst_config]
             worst_string = ", ".join(avg_worst_config)
 
@@ -115,7 +122,7 @@ if __name__ == "__main__":
                     policy_best[instance] = df_subset['analyses'][0]   #(instance,num_veh)
                     lost_trips[instance] = df_subset['lost_trips'][0]
 
-                df_subset = df_init.loc[(df_init['instance']==instance)&(df_init['policy']=='DoNothing')].reset_index() 
+                df_subset = df_init.loc[(df_init['instance']==instance)&(df_init['num_vehicles']==0)].reset_index() 
                 
                 if len(df_subset)>0:
                     lost_trips_dn[instance] = df_subset['lost_trips'][0]
@@ -142,7 +149,7 @@ if __name__ == "__main__":
             ## 3: Plotting
             ###############################################################################
 
-            city_ranking = {'Trondheim':1,'Bergen':2,'Oslo':3}
+            city_ranking = {'TD':1,'BG':2,'OS':3}
 
             all_results['week'] = all_results['instance'].apply(lambda x: x.split('_W')[1])
             all_results['city'] = all_results['instance'].apply(lambda x: x.split('_W')[0])
@@ -151,21 +158,46 @@ if __name__ == "__main__":
             all_results = all_results.sort_values(by=['week'],ascending=True)
             all_results = all_results.sort_values(by=['city_ranking'],ascending=True)
 
-            ax = plt.gca()
+            output[num_veh] = all_results
+
+
+        fig, axs  = plt.subplots(2, 1, sharex=True)
+
+        for num_vehicles, ax in zip([1,2], axs.ravel()):
+            #actual plot
+            
+            df_plot = output[num_vehicles]
+
             ax.set_xlabel("instance")
             ax.set_ylabel("lost trips (%)")
+            ax.set_title(str(num_vehicles)+' vehicle')
 
-            all_results.plot(kind='line',x='instance',y='lost_trips_dn',      style='.:', color='blue',ax=ax)
-            all_results.plot(kind='line',x='instance',y='lost_trips_avg_worst',  style='.-', color='red',ax=ax)   #ax=ax
+            ax.plot(df_plot['instance'],df_plot['lost_trips_dn'],label='do nothing',
+                    color='red', linestyle = 'dashed', marker='.')
+            ax.plot(df_plot['instance'],df_plot['lost_trips_avg_worst'],label='avg. worst',
+                    color='orange', linestyle = 'dashed', marker='.')
             
-            all_results.plot(kind='line',x='instance',y='lost_trips_avg_best',  style='.-', color='red',ax=ax)   #ax=ax
-            all_results.plot(kind='line',x='instance',y='lost_trips_best',      style='.:', color='green',ax=ax)
+            ax.plot(df_plot['instance'],df_plot['lost_trips_avg_best'],label='avg. best',
+                    color='blue', linestyle = 'dashed', marker='.')
+            ax.plot(df_plot['instance'],df_plot['lost_trips_best'],label='best',
+                    color='green', linestyle = 'dashed', marker='.')
+            
             
             #https://stackoverflow.com/questions/43941245/line-plot-with-data-points-in-pandas
 
-            ax.fill_between(all_results['instance'], all_results['lost_trips_best'], all_results['lost_trips_avg_best'])
+            #ax.fill_between(all_results['instance'], all_results['lost_trips_best'], all_results['lost_trips_avg_best'])
 
-            plt.show()
+        plt.legend(loc="upper left")
+        
+        fact = 0.75
+        fig_size = [18.5, 10.5]
+        fig.set_size_inches(fig_size[0]*fact, fig_size[1]*fact)
+        #plt.subplots_adjust())
+        
+        location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\FOMO\Results\\Steffen\\ParameterTuning\\'
+        filename = 'par_tuning_res_6am_8pm.pdf'
+        plt.savefig(location+filename, dpi=150)
+        plt.show()
 
             #https://matplotlib.org/stable/gallery/lines_bars_and_markers/fill_between_demo.html
 
