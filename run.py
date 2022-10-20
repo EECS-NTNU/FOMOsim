@@ -39,7 +39,8 @@ if __name__ == "__main__":
             if "target_state" in experimental_setup["analysis"]:
                 tstate = getattr(target_state, experimental_setup["analysis"]["target_state"])
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"], target_state=tstate)
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"], 
+                                                            target_state=tstate, load_from_cache=False ) #load from cache sometimes gives errors on cluster
 
             if experimental_setup["analysis"]["numvehicles"] > 0:
                 policyargs = experimental_setup["analysis"]["policyargs"]
