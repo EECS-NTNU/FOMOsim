@@ -136,6 +136,8 @@ if __name__ == "__main__":
                                                     'lost_trips_dn':lost_trips_dn.values()
                                                     })
             
+            output_best
+            
             all_results = pd.merge(all_results, output_best, on=['instance'])
 
 

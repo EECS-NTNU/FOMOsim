@@ -16,9 +16,14 @@ import sim
 #import init_state.entur.scripts
 
 class GreedyPolicy(Policy):
-    def __init__(self,crit_weights=[0.1,0.5,0.1,0.3], cutoff=0.3):   #[0,0,0,1] for deviation from target state
+    def __init__(self,crit_weights=[0.1,0.5,0.1,0.3], cutoff=0.3, hour_from=None, hour_to=None):   #[0,0,0,1] for deviation from target state
         super().__init__()
 
+        if hour_from is not None:
+            self.hour_from = hour_from
+        if hour_to is not None:
+            self.hour_to = hour_to
+            
         #Two options for :
         # 1. Aim for target state THIS SHOULD BE THE STANDARD
         # 2. Maximum pick-up or delivery amount (somewhat of a special case of target state)
