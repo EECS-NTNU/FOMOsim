@@ -33,9 +33,10 @@ some_runs_already_performed = True
 finished_tasks = []
 if some_runs_already_performed:
     finished_tasks = []
-    with open('completed_tasks.csv', newline='') as f:
+    with open('completed_tasks2.csv', newline='') as f:
         for row in csv.reader(f):
             finished_tasks.append(int(row[0]))
+
 
 ###############################################################################
 
@@ -124,7 +125,7 @@ if __name__ == "__main__":
 
     for instance in instances:
         for analysis in analyses:
-            if n not in finished_tasks:
+            if (n not in finished_tasks):
                 simulations = []
                 experimental_setup = dict(run=n, instance=instance, analysis=analysis, seeds=list(range(num_seeds[instance])), duration=DURATION)
                 with open(f"{RUN_DIRECTORY}/setup_{n:04}.json", "w") as outfile:
