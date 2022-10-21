@@ -41,7 +41,7 @@ analyses = [
          hour=6),
 ]    
 
-seeds = list(range(5))
+seeds = list(range(3))
 
 if __name__ == "__main__":
 

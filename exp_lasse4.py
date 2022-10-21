@@ -17,16 +17,9 @@ from output.plots import lostTripsPlot
 
 DURATION = timeInMinutes(hours=24)
 INSTANCE_DIRECTORY="instances"
-instances = ["OS_W31", "OS_W21"]
+instances = ["OS_W31", "OS_W22"]
 # instances = ["EH_W22", "EH_W31"]
 analyses = [
-
-    dict(name="do_nothing-1000",
-         numbikes= 1000, # testing
-         numvehicles=0,
-         day=0,
-         hour=6),
-
     dict(name="do_nothing",
          numvehicles=0,
          day=0,
@@ -90,8 +83,6 @@ if __name__ == "__main__":
                 policyargs = analysis["policyargs"]
                 policy = getattr(policies, analysis["policy"])(**policyargs)
                 initial_state.set_vehicles([policy]*analysis["numvehicles"])
-
-            # TODO wish to be able to set num_bikes here in a similar manner as numvehicles
 
             simulations = []
             for seed in seeds:

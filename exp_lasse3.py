@@ -56,10 +56,9 @@ if __name__ == "__main__":
     starvations = []
     congestions = []
 
-    # set up number_of_bikes-values *************************** MOVE to analyses above see e-mail TODO
     bikes = []
-    startVal = 1000
-    for i in range(5): 
+    startVal = 200
+    for i in range(30): 
         bikes.append(startVal + i*200)       
 
     resultsStarvation = []   
@@ -101,15 +100,12 @@ if __name__ == "__main__":
             if "target_state" in analysis:
                 tstate = getattr(target_state, analysis["target_state"])
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate, number_of_bikes=b)
             
             if analysis["numvehicles"] > 0:
                 policyargs = analysis["policyargs"]
                 policy = getattr(policies, analysis["policy"])(**policyargs)
                 initial_state.set_vehicles([policy]*analysis["numvehicles"])
-
-            # TODO prøv sette antall sykler her ... // AVENTER diskusjon mandag  --- sendte mail Steffen 
-            # 
 
             simulations =[]     
             for seed in seeds:

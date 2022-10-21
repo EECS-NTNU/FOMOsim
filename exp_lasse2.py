@@ -16,8 +16,11 @@ INSTANCE_DIRECTORY="instances"
 instances = ["OS_W31"] # just one in this case
 
 analyses = [
-    dict(name="do_nothing",
-         numvehicles=0,
+    dict(name="equalprob",
+         target_state="equal_prob_target_state",
+         policy="GreedyPolicy",
+         policyargs={},
+         numvehicles=1,
          day=0,
          hour=6),
     dict(name="evenly",     #flat strategy
@@ -34,11 +37,8 @@ analyses = [
          numvehicles=1,
          day=0,
          hour=6),     
-    dict(name="equalprob",
-         target_state="equal_prob_target_state",
-         policy="GreedyPolicy",
-         policyargs={},
-         numvehicles=1,
+    dict(name="do_nothing",
+         numvehicles=0,
          day=0,
          hour=6),
 ]    
@@ -48,16 +48,15 @@ for ana in analyses:
     policyNames.append(ana["name"])
 policyIndices = range(len(policyNames))
 
-seeds = list(range(2))
+seeds = list(range(10))
 
 if __name__ == "__main__":
     starvations = []
     congestions = []
 
-    # set up number_of_bikes-values *************************** MOVE to analyses above see e-mail TODO
     bikes = []
-    startVal = 1000
-    for i in range(3): 
+    startVal = 200
+    for i in range(30): 
         bikes.append(startVal + i*200)      
 
     resultsStarvation = []  
