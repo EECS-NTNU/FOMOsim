@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     #output_param_tuning_all.csv
     #output_param_tuning_shorter_service.csv
-    df = pd.read_csv (os.getcwd()+'\\analyses\\steffen\\param_tuning\\output_param_tuning_shorter_service.csv',sep=';',
+    df = pd.read_csv (os.getcwd()+'\\analyses\\steffen\\param_tuning\\output_param_tuning_all.csv',sep=';',
                         names=['run',	'instance',	'analyses','target_state','policy','num_vehicles',
                         'trips','starvations','congestions','starvation_std'	,'congestion_std', 'time_start','duration'])
 
@@ -142,15 +142,13 @@ if __name__ == "__main__":
         all_results = pd.merge(all_results, output_best, on=['instance'])
 
 
+        #df_subset = df.loc[(df['instance']=='OS_W22')].reset_index()
+
+
         #----------#
         #how performs each best one across the others?
         #----------#
 
-
-
-        ###############################################################################
-        ## 3: Plotting
-        ###############################################################################
 
         city_ranking = {'TD':1,'BG':2,'OS':3}
 
@@ -162,6 +160,10 @@ if __name__ == "__main__":
         all_results = all_results.sort_values(by=['city_ranking'],ascending=True)
 
         output[num_veh] = all_results
+
+    ###############################################################################
+    ## 3: Plotting
+    ###############################################################################
 
 
     fig, axs  = plt.subplots(2, 1, sharex=True)
@@ -206,21 +208,3 @@ if __name__ == "__main__":
 
 
 
-
-
-
-
-
-        #df2 = df.loc[df['violations']<np.percentile(df['violations'],10)]
-        #df3 = df.loc[df['violations']>np.percentile(df['violations'],90)]
-
-        #df_extreme = df.loc[(df['w1']<0.001) | (df['w2']<0.001) | (df['w3']<0.001) | (df['w4']<0.001)] 
-        #df_single_measure = df.loc[(df['w1']>0.999) | (df['w2']>0.999) | (df['w3']>0.999) | (df['w4']>0.999)] 
-
-
-
-        ################
-        ## ANALYSIS 1 ##
-        ################
-
-        # TO DO

@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     for filename in sys.argv[1:]:
         with open(filename, "r") as infile: #infile= open(filename, "r")
-            print("Running file", filename) #filename='experimental_setups/setup_0063.json'
+            print("Running file", filename) #filename='experimental_setups/setup_0003.json'
 
             time_start = datetime.now() 
 
