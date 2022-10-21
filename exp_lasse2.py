@@ -48,7 +48,7 @@ for ana in analyses:
     policyNames.append(ana["name"])
 policyIndices = range(len(policyNames))
 
-seeds = list(range(10))
+seeds = list(range(5))
 
 if __name__ == "__main__":
     starvations = []
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     bikes = []
     startVal = 200
-    for i in range(30): 
+    for i in range(24): 
         bikes.append(startVal + i*200)      
 
     resultsStarvation = []  
@@ -65,6 +65,8 @@ if __name__ == "__main__":
 
     for instance in instances:
         print("  instance: ", instance)
+
+    
         starvations.append([])
         congestions.append([])
 
@@ -81,7 +83,7 @@ if __name__ == "__main__":
                 if "target_state" in analysis:
                     tstate = getattr(target_state, analysis["target_state"])
 
-                initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
+                initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate, number_of_bikes=b)
                 
                 if analysis["numvehicles"] > 0:
                     policyargs = analysis["policyargs"]
