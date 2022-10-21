@@ -16,7 +16,7 @@ import sim
 #import init_state.entur.scripts
 
 class GreedyPolicy(Policy):
-    def __init__(self,crit_weights=[0.1,0.5,0.1,0.3], cutoff=0.3, service_hours=None):   #[0,0,0,1] for deviation from target state
+    def __init__(self,crit_weights=[0.1,0.2,0.3,0.4], cutoff=0.3, service_hours=None):   #[0,0,0,1] for deviation from target state
         super().__init__()
 
         if service_hours is not None:
