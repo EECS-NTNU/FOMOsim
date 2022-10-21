@@ -37,7 +37,7 @@ def readTime():
 # file locking
 
 try:
-    import fcntl
+    import fcntl   #not available on windows
 
     def lock(filename):
         print("Waiting for lock", filename)
@@ -57,6 +57,9 @@ except ModuleNotFoundError:
 
     def unlock(handle):
         pass
+
+
+#Windows: https://superfastpython.com/multiprocessing-mutex-lock-in-python/
 
 ###############################################################################
 # logging

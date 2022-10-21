@@ -61,10 +61,10 @@ weeks = {"Oslo": [10,22,31,50],
 instances = [abbrvs[city]+'_W'+str(week) for city in cities for week in weeks[city]]
 
 num_seeds = {
-    "EH_W10":10, "EH_W22":10, "EH_W31":10,	"EH_W50":10,	
+    "EH_W10":10, "EH_W22":10,   "EH_W31":10,	"EH_W50":10,	
     "TD_W17":30, "TD_W21":30,	"TD_W34":45,	"TD_W44":35,	
-    "BG_W25":35,	"BG_W35":30,	"BG_W45":45, "BG_W8":35,	
-    "OS_W10":15,"OS_W22":25,"OS_W31":25,"OS_W50":15,
+    "BG_W8":35, "BG_W25":35,	"BG_W35":30,	"BG_W45":45, 	
+    "OS_W10":15,"OS_W22":25,    "OS_W31":25,    "OS_W50":15,
 }
 
 # ANALYSES
@@ -107,7 +107,7 @@ for ts_abbr,ts in ts_map.items():
                     policyargs={'crit_weights':crit_weight,'service_hours':[8,16]}
                     ))
 
-
+#print(len(analyses)*len(instances))
 
 
 
