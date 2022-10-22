@@ -26,6 +26,7 @@ analyses = [
          hour=6),
 
     dict(name="random",
+         policy="RandomActionPolicy",
          policyargs={},
          numvehicles=1,
          day=0,
