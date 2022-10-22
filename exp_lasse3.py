@@ -47,7 +47,9 @@ analyses = [
          day=0,
          hour=6),
     dict(name="random",
-         numvehicles=0,
+         policy="RandomActionPolicy",
+         policyargs={},
+         numvehicles=1,
          day=0,
          hour=6),
     dict(name="do_nothing",
@@ -65,7 +67,7 @@ for ana in analyses:
     policyNames.append(ana["name"])
 policyIndices = range(len(policyNames))
 
-seeds = list(range(3))
+seeds = list(range(1))
  
 if __name__ == "__main__":
     starvations = []
@@ -73,7 +75,8 @@ if __name__ == "__main__":
 
     bikes = []
     startVal = 1600
-    for i in range(14): 
+#    for i in range(14): 
+    for i in range(3): 
         bikes.append(startVal + i*200)       
 
     resultsStarvation = []   
