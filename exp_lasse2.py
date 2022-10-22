@@ -11,32 +11,107 @@ from helpers import *
 from output.plots import Surface3Dplot, Surface3DplotFraction 
       
 DURATION = timeInMinutes(hours=24)
-INSTANCE_DIRECTORY="instances"
+INSTANCE_DIRECTORY="instances/extra"
 
-instances = ["OS_W31"] # just one in this case
+instances = ["OS_W33"] # just one in this case
 
 analyses = [
-    dict(name="equalprob",
-         target_state="equal_prob_target_state",
+    dict(name="outflow-16",    #deviation_from_target_state
+         target_state="outflow_target_state",
          policy="GreedyPolicy",
-         policyargs={},
-         numvehicles=1,
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=16,
          day=0,
-         hour=6),
-    dict(name="evenly",     #flat strategy
-         target_state="evenly_distributed_target_state",
+         hour=6), 
+    dict(name="outflow-12",    #deviation_from_target_state
+         target_state="outflow_target_state",
          policy="GreedyPolicy",
-         policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
-         numvehicles=1,
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=12,
          day=0,
-         hour=6),    
-    dict(name="outflow",    #deviation_from_target_state
+         hour=6), 
+    dict(name="outflow-10",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=10,
+         day=0,
+         hour=6), 
+    dict(name="outflow-8",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=8,
+         day=0,
+         hour=6), 
+    dict(name="outflow-7",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=7,
+         day=0,
+         hour=6), 
+    dict(name="outflow-6",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=6,
+         day=0,
+         hour=6), 
+    dict(name="outflow-5",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=5,
+         day=0,
+         hour=6), 
+    dict(name="outflow-4",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=4,
+         day=0,
+         hour=6), 
+    dict(name="outflow-3",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=3,
+         day=0,
+         hour=6), 
+    dict(name="outflow-2",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=2,
+         day=0,
+         hour=6), 
+    dict(name="outflow-1",    #deviation_from_target_state
          target_state="outflow_target_state",
          policy="GreedyPolicy",
          policyargs={'crit_weights':[0,0,0,1]},
          numvehicles=1,
          day=0,
-         hour=6),     
+         hour=6), 
+    # dict(name="equalprob",
+    #      target_state="equal_prob_target_state",
+    #      policy="GreedyPolicy",
+    #      policyargs={},
+    #      numvehicles=1,
+    #      day=0,
+    #      hour=6),
+    # dict(name="evenly",     #flat strategy
+    #      target_state="evenly_distributed_target_state",
+    #      policy="GreedyPolicy",
+    #      policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
+    #      numvehicles=1,
+    #      day=0,
+    #      hour=6),    
+    
+    dict(name="do_nothing",
+         numvehicles=0,
+         day=0,
+         hour=6),
     dict(name="do_nothing",
          numvehicles=0,
          day=0,
@@ -48,15 +123,15 @@ for ana in analyses:
     policyNames.append(ana["name"])
 policyIndices = range(len(policyNames))
 
-seeds = list(range(5))
+seeds = list(range(3))
 
 if __name__ == "__main__":
     starvations = []
     congestions = []
 
     bikes = []
-    startVal = 200
-    for i in range(24): 
+    startVal = 2000
+    for i in range(8): 
         bikes.append(startVal + i*200)      
 
     resultsStarvation = []  
