@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 from output.plots import Surface3Dplot, Surface3DplotTripsProfit 
 
 DURATION = timeInMinutes(hours=24)
-INSTANCE_DIRECTORY="instances"
+INSTANCE_DIRECTORY="instances/extra"
 
-instance = "OS_W31" # just one in this case
+instance = "OS_W33" # just one in this case
 
 analyses = [
     dict(name="outflow-8",    #deviation_from_target_state
@@ -67,7 +67,7 @@ for ana in analyses:
     policyNames.append(ana["name"])
 policyIndices = range(len(policyNames))
 
-seeds = list(range(1))
+seeds = list(range(10))
  
 if __name__ == "__main__":
     starvations = []
