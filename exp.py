@@ -37,37 +37,31 @@ analyses = [
          day=0,
          hour=6),
 
-    dict(name="do_nothing-100",
-         numbikes=100,
-         numvehicles=0,
+    #flat strategy
+    dict(name="evenly",
+         target_state="evenly_distributed_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
+         numvehicles=1,
+         day=0,
+         hour=6),    
+
+    #deviation_from_target_state
+    dict(name="outflow",
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=1,
+         day=0,
+         hour=6),     
+
+    dict(name="equalprob",
+         target_state="equal_prob_target_state",
+         policy="GreedyPolicy",
+         policyargs={},
+         numvehicles=1,
          day=0,
          hour=6),
-
-    # #flat strategy
-    # dict(name="evenly",
-    #      target_state="evenly_distributed_target_state",
-    #      policy="GreedyPolicy",
-    #      policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
-    #      numvehicles=1,
-    #      day=0,
-    #      hour=6),    
-
-    # #deviation_from_target_state
-    # dict(name="outflow",
-    #      target_state="outflow_target_state",
-    #      policy="GreedyPolicy",
-    #      policyargs={'crit_weights':[0,0,0,1]},
-    #      numvehicles=1,
-    #      day=0,
-    #      hour=6),     
-
-    # dict(name="equalprob",
-    #      target_state="equal_prob_target_state",
-    #      policy="GreedyPolicy",
-    #      policyargs={},
-    #      numvehicles=1,
-    #      day=0,
-    #      hour=6),
 
 ]
 
