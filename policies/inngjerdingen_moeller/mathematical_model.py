@@ -16,7 +16,7 @@ def run_model(data):
     W_S = data.W_S
     W_R = data.W_R
 
-    T_bar = data.T_bar
+    T_bar = time_periods[-1]
     T_D = data.T_D 
     T_DD = data.T_DD
     T_W = data.T_W
@@ -24,6 +24,7 @@ def run_model(data):
     T_C = data.T_C
     T_DC = data.T_DC
     T_H = data.T_H
+    tau= data.tau
     
     L_0 = data.L_0
     L_T = data.L_T
@@ -55,13 +56,16 @@ def run_model(data):
 
     #Constraints
     #Station balance:
-    #m.addConstr(L_0[i]+quicksum(r_L))
+    m.addConstr(L_0[i]+quicksum(r_L[(j, i, t-T_DC[i][j])]-r_B[(j, i, t-T_DW[i][j])]-r_L[(i, j, t)]+r_B[(i, j, t)] for j in neighboring_stations[i])+D[i][t]+quicksum(q_U[(i, v, t)]-q_L[(i, v, t)] for v in vehicles) + s[(i, t)] - c[(i, t)] == l[(i, t)] for t in range(1,2) for i in stations)
+    m.addConstr(l[(i, t-1)]+quicksum(r_L[(j, i, t-T_DC[i][j])]-r_B[(j, i, t-T_DW[i][j])]-r_L[(i, j, t)]+r_B[(i, j, t)] for j in neighboring_stations[i])+D[i][t]+quicksum(q_U[(i, v, t)]-q_L[(i, v, t)] for v in vehicles) + s[(i, t)] - c[(i, t)] == l[(i, t)] for t in range(2,T_bar+1) for i in stations)
+    
+    m.addConstr(l[(i, t)] <= Q_S[i] for i in stations for t in time_periods)
 
     #Deviations:
     m.addConstr(d[(i)] >= L_T[i]-l[(i, T_bar)] for i in stations)
     m.addConstr(d[(i)] >= l[(i,T_bar)]-L_T[i] for i in stations)
 
-    #Vehicle constraints
+    #Vehicle constraints:
     m.addConstr(quicksum(x[(j, i, t-T_DD[i][j], v)] for j in stations_with_source_sink) == quicksum(x[(i, k, t, v)] for k in stations_with_source_sink) for i in stations for t in range(1,T_bar) for v in vehicles)
     m.addConstr(quickSum(x[(0, j, 0, v)] for j in stations_with_source_sink) == 1 for v in vehicles)
     m.addConstr(quicksum(x[(i, 0, T_bar-T_DD[i][0], v)] for i in stations_with_source_sink) == 1 for v in vehicles)
@@ -69,11 +73,20 @@ def run_model(data):
     m.addConstr(quicksum(q[(0, i, 0, v)] for i in stations) == Q_0[v] for v in vehicles)
     m.addConstr(quicksum(q[(j, i, t-T_DD[i][j], v)] for j in stations_with_source_sink) - q_U[(i, v, t)] + q_L[(i, v, t)] == quicksum(q[(i, k, t, v)] for k in stations_with_source_sink) for i in stations for t in range(1, T_bar+1) for v in vehicles)
     m.addConstr(q[(i, j, t, v)] <= Q_V[v]*x[(i, j, t, v)] for  i in stations for j in stations for t in time_periods for v in vehicles)
-
     
-
+    #Raviv constraints:
+    m.addConstr(quicksum(T_D[i][j]*x[(i, j, t-T_DD[i][j], v)] for i in stations_with_source_sink for j in stations_with_source_sink for t in range(0, t_marked+1))+quicksum(T_H*(q_L[(i, t, v)]+q_U[(i, t, v)]) for i in stations_with_source_sink for t in range(0, t_marked+1)) <= t_marked*tau for t_marked in range(1, T_bar+1) for v in vehicles)
+    m.addConstr(quicksum(T_D[i][j]*x[(i, j, t-T_DD[i][j], v)] for i in stations_with_source_sink for j in stations_with_source_sink for t in range(0, t_marked+1))+quicksum(T_H*(q_L[(i, t, v)]+q_U[(i, t, v)]) for i in stations_with_source_sink for t in range(0, t_marked+1)) >= (t_marked-2)*tau for t_marked in range(1, T_bar+1) for v in vehicles)
+    
+    #Loading/unloading quantities 
+    m.addConstr(q_L[(i, t, v)] <= 2*T_H*quicksum(x[(i, j, t, v)]for j in stations_with_source_sink) for i in stations_with_source_sink for t in range(0, T_bar+1) for v in vehicles)
+    m.addConstr(q_L[(i, t, v)] <= Q_S[i]*quicksum(x[(i, j, t, v)]for j in stations_with_source_sink) for i in stations_with_source_sink for t in range(0, T_bar+1) for v in vehicles)
+    m.addConstr(q_L[(i, t, v)] <= Q_V[v]*quicksum(x[(i, j, t, v)]for j in stations_with_source_sink) for i in stations_with_source_sink for t in range(0, T_bar+1) for v in vehicles)
+    m.addConstr(q_U[(i, t, v)] <= 2*T_H*quicksum(x[(i, j, t, v)]for j in stations_with_source_sink) for i in stations_with_source_sink for t in range(0, T_bar+1) for v in vehicles)
+    m.addConstr(q_U[(i, t, v)] <= Q_S[i]*quicksum(x[(i, j, t, v)]for j in stations_with_source_sink) for i in stations_with_source_sink for t in range(0, T_bar+1) for v in vehicles)
+    m.addConstr(q_U[(i, t, v)] <= Q_V[v]*quicksum(x[(i, j, t, v)]for j in stations_with_source_sink) for i in stations_with_source_sink for t in range(0, T_bar+1) for v in vehicles)
+    
     #Objective function
-
     m.setObjective(quicksum(quicksum(W_C*c[(i, t)] + W_S*s[(i, t)] + quicksum(W_R*(T_W[i][j]*r_B[(i, j, t)]+T_C[i][j]*r_L[(i, j, t)]) for j in neighboring_stations[i]) for t in time_periods)+ W_D*d[(i)] for i in stations), GRB.MINIMIZE)
 
     m.optimize()
