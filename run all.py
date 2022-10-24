@@ -25,7 +25,7 @@ from multiprocessing.pool import Pool
 ###############################################################################
 
 INSTANCE_DIRECTORY="instances"
-LOCAL_MACHINE_TEST = True
+LOCAL_MACHINE_TEST = False
 
 def simulation_main(seed,state_copy,experimental_setup):
     
@@ -80,10 +80,8 @@ if __name__ == "__main__":
 
             numprocesses = int(np.floor(3/4*os.cpu_count()))
             with Pool(processes=numprocesses) as pool:  #use cpu_count()
-                print('Number of CPUs used:' + str(numprocesses))
-                
+                #print('Number of CPUs used:' + str(numprocesses))
                 arguments = [(seed,copy.deepcopy(initial_state),experimental_setup) for seed in experimental_setup["seeds"]]
-                
                 for simul in pool.starmap(simulation_main, arguments):  #starmap_async
                     simulations.append(simul)
 

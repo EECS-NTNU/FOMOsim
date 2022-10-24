@@ -110,7 +110,7 @@ for ts_abbr,ts in ts_map.items():
                     numvehicles=nv,
                     day = 0,
                     hour = 6,
-                    policyargs={'service_hours':[8,16]}
+                    policyargs={'crit_weights':crit_weight,'service_hours':[8,16]}
                     ))
 
 

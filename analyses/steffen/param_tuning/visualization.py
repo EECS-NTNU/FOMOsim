@@ -13,6 +13,7 @@ import copy
 #if __name__ == "__main__":
 import os
 os.chdir('C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\GitHub\\FOMO-sim\\fomo')
+filename = 'output_param_tuning2_shorter_service.csv' #'output_param_tuning_all.csv'
 
 ###############################################################################
 ## Some postprocessing used by Steffen
@@ -22,7 +23,7 @@ if __name__ == "__main__":
 
     #output_param_tuning_all.csv
     #output_param_tuning_shorter_service.csv
-    df = pd.read_csv (os.getcwd()+'\\analyses\\steffen\\param_tuning\\output_param_tuning_all.csv',sep=';',
+    df = pd.read_csv (os.getcwd()+'\\analyses\\steffen\\param_tuning\\'+filename,sep=';',
                         names=['run',	'instance',	'analyses','target_state','policy','num_vehicles',
                         'trips','starvations','congestions','starvation_std'	,'congestion_std', 'time_start','duration'])
 
