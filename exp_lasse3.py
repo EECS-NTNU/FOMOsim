@@ -13,15 +13,25 @@ import matplotlib.pyplot as plt
 from output.plots import Surface3Dplot, Surface3DplotTripsProfit 
 
 DURATION = timeInMinutes(hours=24)
-INSTANCE_DIRECTORY="instances"
+INSTANCE_DIRECTORY="instances/extra"
 
-instance = "OS_W31" # just one in this case
+instance = "OS_W33" # just one in this case
 
 analyses = [
-    dict(name="do_nothing",
-         numvehicles=0,
+    dict(name="outflow-8",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=8,
          day=0,
-         hour=6),
+         hour=6), 
+    dict(name="outflow-1",    #deviation_from_target_state
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=1,
+         day=0,
+         hour=6),     
     dict(name="evenly",     #flat strategy
          target_state="evenly_distributed_target_state",
          policy="GreedyPolicy",
@@ -29,18 +39,25 @@ analyses = [
          numvehicles=1,
          day=0,
          hour=6),    
-    dict(name="outflow",    #deviation_from_target_state
-         target_state="outflow_target_state",
-         policy="GreedyPolicy",
-         policyargs={'crit_weights':[0,0,0,1]},
-         numvehicles=1,
-         day=0,
-         hour=6),     
     dict(name="equalprob",
          target_state="equal_prob_target_state",
          policy="GreedyPolicy",
          policyargs={},
          numvehicles=1,
+         day=0,
+         hour=6),
+    dict(name="random",
+         policy="RandomActionPolicy",
+         policyargs={},
+         numvehicles=1,
+         day=0,
+         hour=6),
+    dict(name="do_nothing",
+         numvehicles=0,
+         day=0,
+         hour=6),
+    dict(name="do_nothing", # duplicate to get a square with right color
+         numvehicles=0,
          day=0,
          hour=6),
 ]    
@@ -50,15 +67,16 @@ for ana in analyses:
     policyNames.append(ana["name"])
 policyIndices = range(len(policyNames))
 
-seeds = list(range(3))
+seeds = list(range(10))
  
 if __name__ == "__main__":
     starvations = []
     congestions = []
 
     bikes = []
-    startVal = 200
-    for i in range(30): 
+    startVal = 1600
+#    for i in range(14): 
+    for i in range(3): 
         bikes.append(startVal + i*200)       
 
     resultsStarvation = []   

@@ -16,12 +16,19 @@ from helpers import *
 from output.plots import lostTripsPlot
 
 DURATION = timeInMinutes(hours=24)
-INSTANCE_DIRECTORY="instances"
-instances = ["OS_W31", "OS_W22"]
+INSTANCE_DIRECTORY="instances/extra"
+instances = ["OS_W33"]
 # instances = ["EH_W22", "EH_W31"]
 analyses = [
     dict(name="do_nothing",
          numvehicles=0,
+         day=0,
+         hour=6),
+
+    dict(name="random",
+         policy="RandomActionPolicy",
+         policyargs={},
+         numvehicles=1,
          day=0,
          hour=6),
 
@@ -50,9 +57,33 @@ analyses = [
          numvehicles=1,
          day=0,
          hour=6),
+    dict(name="evenly-2",
+         target_state="evenly_distributed_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
+         numvehicles=2,
+         day=0,
+         hour=6),    
+
+    #deviation_from_target_state
+    dict(name="outflow-2",
+         target_state="outflow_target_state",
+         policy="GreedyPolicy",
+         policyargs={'crit_weights':[0,0,0,1]},
+         numvehicles=2,
+         day=0,
+         hour=6),     
+
+    dict(name="equalprob-2",
+         target_state="equal_prob_target_state",
+         policy="GreedyPolicy",
+         policyargs={},
+         numvehicles=2,
+         day=0,
+         hour=6),
 
 ]
-seeds = list(range(3))
+seeds = list(range(2))
 
 
 if __name__ == "__main__":
@@ -77,7 +108,7 @@ if __name__ == "__main__":
             if "target_state" in analysis:
                 tstate = getattr(target_state, analysis["target_state"])
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate, number_of_bikes=2000)
 
             if analysis["numvehicles"] > 0:
                 policyargs = analysis["policyargs"]
