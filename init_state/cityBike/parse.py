@@ -374,20 +374,18 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             move_probabilities[station].append([])
             for hour in range(24):
                 arrCount = list(arriveCount[station][day][hour].values())
-                if len(arrCount) > 0:
-                    arrive_intensities[station][day].append(trafficMultiplier * np.mean(arrCount))
-                    arrive_intensities_stdev[station][day].append(trafficMultiplier * np.std(arrCount))
-                else:
-                    arrive_intensities[station][day].append(0)
-                    arrive_intensities_stdev[station][day].append(0)
+                for i in range(len(arrCount), noOfYears):
+                    arrCount.append(0)
+
+                arrive_intensities[station][day].append(trafficMultiplier * np.mean(arrCount))
+                arrive_intensities_stdev[station][day].append(trafficMultiplier * np.std(arrCount))
 
                 lCount = list(leaveCount[station][day][hour].values())
-                if len(lCount) > 0:
-                    leave_intensities[station][day].append(trafficMultiplier * np.mean(lCount))
-                    leave_intensities_stdev[station][day].append(trafficMultiplier * np.std(lCount))
-                else:
-                    leave_intensities[station][day].append(0)
-                    leave_intensities_stdev[station][day].append(0)
+                for i in range(len(lCount), noOfYears):
+                    lCount.append(0)
+
+                leave_intensities[station][day].append(trafficMultiplier * np.mean(lCount))
+                leave_intensities_stdev[station][day].append(trafficMultiplier * np.std(lCount))
                     
                 move_probabilities[station][day].append([])
                 for endStation in range(len(stationMap)):
