@@ -15,7 +15,7 @@ import output
 from helpers import timeInMinutes
 
 DURATION = timeInMinutes(hours=24)
-instance = 'OS_W31'
+instance = 'EH_W22'
 INSTANCE_DIRECTORY="instances"
 analysis = dict(name="equalprob",
          target_state="equal_prob_target_state",
