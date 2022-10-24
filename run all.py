@@ -21,7 +21,7 @@ import json
 
 from helpers import *
 
-from multiprocessing.pool import Pool
+from multiprocessing.pool import Pool, current_process
 ###############################################################################
 
 INSTANCE_DIRECTORY="instances"
@@ -45,7 +45,10 @@ def simulation_main(seed,state_copy,experimental_setup):
     )
 
     simul.run()
-    print("Finished running seed", seed)
+    print("Finished running seed ", seed, ' using process ', print(current_process().name))
+    
+    sys.stdout.flush()
+
     return simul
 
 if __name__ == "__main__":
@@ -80,10 +83,12 @@ if __name__ == "__main__":
 
             numprocesses = int(np.floor(3/4*os.cpu_count()))
             with Pool(processes=numprocesses) as pool:  #use cpu_count()
-                #print('Number of CPUs used:' + str(numprocesses))
+                print('Number of CPUs used:' + str(numprocesses))
+                sys.stdout.flush()
                 arguments = [(seed,copy.deepcopy(initial_state),experimental_setup) for seed in experimental_setup["seeds"]]
                 for simul in pool.starmap(simulation_main, arguments):  #starmap_async
                     simulations.append(simul)
+                    
 
             metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
 
