@@ -21,15 +21,47 @@ import json
 
 from helpers import *
 
+from multiprocessing.pool import Pool, current_process
 ###############################################################################
 
 INSTANCE_DIRECTORY="instances"
+LOCAL_MACHINE_TEST = False
+
+def simulation_main(seed,state_copy,experimental_setup):
+    
+    print("Running seed", seed)
+
+    state_copy.set_seed(seed) 
+
+    sys.stdout.flush()
+
+    simul = sim.Simulator(
+        initial_state = state_copy,
+        start_time = timeInMinutes(days=experimental_setup["analysis"]["day"], 
+        hours=experimental_setup["analysis"]["hour"]),
+        duration = experimental_setup["duration"],
+        cluster = True,
+        verbose = False,
+    )
+
+    simul.run()
+    print("Finished running seed ", seed, ' using process ', print(current_process().name))
+    
+    sys.stdout.flush()
+
+    return simul
 
 if __name__ == "__main__":
 
-    for filename in sys.argv[1:]:
-        with open(filename, "r") as infile: #infile= open(filename, "r")
-            print("Running file", filename) #filename='experimental_setups/setup_0003.json'
+    if LOCAL_MACHINE_TEST:
+        tasks = ['experimental_setups/setup_0003.json']
+    else:
+        tasks = sys.argv[1:]
+
+    for filename in tasks:
+    #infile= open(filename, "r")
+        with open(filename, "r") as infile: 
+            print("Running file", filename) 
 
             time_start = datetime.now() 
 
@@ -48,25 +80,15 @@ if __name__ == "__main__":
                 initial_state.set_vehicles([policy]*experimental_setup["analysis"]["numvehicles"])
 
             simulations = []
-            for seed in experimental_setup["seeds"]:
-                print("Running seed", seed)
 
-                state_copy = copy.deepcopy(initial_state)
-                state_copy.set_seed(seed)
-
+            numprocesses = int(np.floor(3/4*os.cpu_count()))
+            with Pool(processes=numprocesses) as pool:  #use cpu_count()
+                print('Number of CPUs used:' + str(numprocesses))
                 sys.stdout.flush()
-
-                simul = sim.Simulator(
-                    initial_state = state_copy,
-                    start_time = timeInMinutes(days=experimental_setup["analysis"]["day"], hours=experimental_setup["analysis"]["hour"]),
-                    duration = experimental_setup["duration"],
-                    cluster = True,
-                    verbose = False,
-                )
-
-                simul.run()
-
-                simulations.append(simul)
+                arguments = [(seed,copy.deepcopy(initial_state),experimental_setup) for seed in experimental_setup["seeds"]]
+                for simul in pool.starmap(simulation_main, arguments):  #starmap_async
+                    simulations.append(simul)
+                    
 
             metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
 
