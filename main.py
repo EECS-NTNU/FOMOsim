@@ -30,7 +30,18 @@ def main():
     # tstate = target_state.outflow_target_state
     tstate = target_state.equal_prob_target_state
 
-    state = init_state.read_initial_state("instances/"+INSTANCE, tstate);
+    # the following is for creating a new initial state from trip data
+    state = init_state.get_initial_state(name="Oslo",
+                                         source=init_state.cityBike,
+                                         target_state=tstate,
+                                         number_of_stations=None,
+                                         number_of_bikes=2000,
+                                         mapdata=("instances/oslo.png", (10.6365, 10.8631, 59.8843, 59.9569)),
+                                         url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",
+                                         week=31)
+
+    # the following is for reading a precalculated initial state from a json file
+    # state = init_state.read_initial_state("instances/"+INSTANCE, tstate);
 
     ###############################################################################
     # Set up policy

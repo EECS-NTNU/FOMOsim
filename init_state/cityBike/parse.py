@@ -244,8 +244,8 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
             leaveCount[station].append([])
             moveCount[station].append([])
             for hour in range(24):
-                arriveCount[station][day].append(0)
-                leaveCount[station][day].append(0)
+                arriveCount[station][day].append({})
+                leaveCount[station][day].append({})
                 stationList = []
                 for i in range(len(stationMap)):
                     stationList.append(0)
@@ -271,17 +271,22 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
                     if (startStationNo >= 0) and (endStationNo >= 0):
                         # both end and start of trip are active stations
                         year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
-                        if year not in years:
-                            years.append(year)
                         hour = int(bikeData[i]["ended_at"][11:13])
-                        if weekNo == week:
-                            arriveCount[endStationNo][weekDay][hour] += 1
-                        year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
                         if year not in years:
                             years.append(year)
-                        hour = int(bikeData[i]["started_at"][11:13])
+                        if year not in arriveCount[endStationNo][weekDay][hour]:
+                            arriveCount[endStationNo][weekDay][hour][year] = 0
                         if weekNo == week:
-                            leaveCount[startStationNo][weekDay][hour] += 1
+                            arriveCount[endStationNo][weekDay][hour][year] += 1
+
+                        year, weekNo, weekDay = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
+                        hour = int(bikeData[i]["started_at"][11:13])
+                        if year not in years:
+                            years.append(year)
+                        if year not in leaveCount[startStationNo][weekDay][hour]:
+                            leaveCount[startStationNo][weekDay][hour][year] = 0
+                        if weekNo == week:
+                            leaveCount[startStationNo][weekDay][hour][year] += 1
                             moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
                             durations[startStationNo][endStationNo].append(bikeData[i]["duration"]/60) # duration in minutes
         progress.next()
@@ -351,23 +356,43 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
     progress = Bar("CityBike 6/6: Calculate intensities", max = len(stationMap))
     noOfYears = len(years)
     arrive_intensities = []  
+    arrive_intensities_stdev = []  
     leave_intensities = []
+    leave_intensities_stdev = []
     move_probabilities= []     
     for station in range(len(stationMap)):
         arrive_intensities.append([])
+        arrive_intensities_stdev.append([])
         leave_intensities.append([])
+        leave_intensities_stdev.append([])
         move_probabilities.append([])
         for day in range(7):
             arrive_intensities[station].append([])
+            arrive_intensities_stdev[station].append([])
             leave_intensities[station].append([])
+            leave_intensities_stdev[station].append([])
             move_probabilities[station].append([])
             for hour in range(24):
-                arrive_intensities[station][day].append(trafficMultiplier * arriveCount[station][day][hour]/noOfYears)
-                leave_intensities[station][day].append(trafficMultiplier * leaveCount[station][day][hour]/noOfYears)
+                arrCount = list(arriveCount[station][day][hour].values())
+                if len(arrCount) > 0:
+                    arrive_intensities[station][day].append(trafficMultiplier * np.mean(arrCount))
+                    arrive_intensities_stdev[station][day].append(trafficMultiplier * np.std(arrCount))
+                else:
+                    arrive_intensities[station][day].append(0)
+                    arrive_intensities_stdev[station][day].append(0)
+
+                lCount = list(leaveCount[station][day][hour].values())
+                if len(lCount) > 0:
+                    leave_intensities[station][day].append(trafficMultiplier * np.mean(lCount))
+                    leave_intensities_stdev[station][day].append(trafficMultiplier * np.std(lCount))
+                else:
+                    leave_intensities[station][day].append(0)
+                    leave_intensities_stdev[station][day].append(0)
+                    
                 move_probabilities[station][day].append([])
                 for endStation in range(len(stationMap)):
                     movedBikes = moveCount[station][day][hour][endStation]
-                    movedBikesTotal = leaveCount[station][day][hour]
+                    movedBikesTotal = np.sum(lCount)
                     if movedBikesTotal > 0:
 #                    if False: # TEST code to enforce equal-prob
                         move_probabilities[station][day][hour].append(movedBikes/movedBikesTotal)
@@ -388,7 +413,9 @@ def get_initial_state(url="https://data.urbansharing.com/oslobysykkel.no/trips/v
         station["capacity"] = stationCapacities[station_id]
         station["num_bikes"] = bikeStartStatus[station_id]
         station["leave_intensities"] = leave_intensities[i]
+        station["leave_intensities_stdev"] = leave_intensities_stdev[i]
         station["arrive_intensities"] = arrive_intensities[i]
+        station["arrive_intensities_stdev"] = arrive_intensities_stdev[i]
         station["move_probabilities"] = move_probabilities[i]
         stations.append(station)
 
