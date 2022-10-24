@@ -2,7 +2,6 @@
 """
 FOMO simulator example
 """
-
 from settings import *
 import init_state
 import init_state.cityBike
@@ -15,75 +14,50 @@ import sim
 import output
 from helpers import timeInMinutes
 
-from output.plots import cityTrafficStats
-
-START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=1)
-INSTANCE = 'OS_W31'
+DURATION = timeInMinutes(hours=24)
+instance = 'OS_W31'
+INSTANCE_DIRECTORY="instances"
+analysis = dict(name="equalprob",
+         target_state="equal_prob_target_state",
+         policy="GreedyPolicy",
+         policyargs={},
+         numvehicles=1,
+         day=0,
+         hour=6)
 
 def main():
-
-    ###############################################################################
-    # Get initial state
-
-    # tstate = target_state.evenly_distributed_target_state
-    # tstate = target_state.outflow_target_state
-    tstate = target_state.equal_prob_target_state
-
-    # the following is for creating a new initial state from trip data
-    state = init_state.get_initial_state(name="Oslo",
-                                         source=init_state.cityBike,
-                                         target_state=tstate,
-                                         number_of_stations=None,
-                                         number_of_bikes=2000,
-                                         mapdata=("instances/oslo.png", (10.6365, 10.8631, 59.8843, 59.9569)),
-                                         url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",
-                                         week=31)
-
-    # the following is for reading a precalculated initial state from a json file
-    # state = init_state.read_initial_state("instances/"+INSTANCE, tstate);
-
-    ###############################################################################
-    # Set up policy
-
-    # policy = policies.RandomActionPolicy()
-    policy = policies.GreedyPolicy()
-    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
-    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
-    # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
-    
-    state.set_vehicles([policy])
-
-    ###############################################################################
-    # Set up simulator
+    tstate = None
+    if "target_state" in analysis:
+        tstate = getattr(target_state, analysis["target_state"])
+    initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance,
+                                                          target_state=tstate,
+                                                          number_of_stations=analysis.get("numstations", None),
+                                                          number_of_bikes=analysis.get("numbikes", None),
+                                                          )
+    if analysis["numvehicles"] > 0:
+        policyargs = analysis["policyargs"]
+    policy = getattr(policies, analysis["policy"])(**policyargs)
+    initial_state.set_vehicles([policy]*analysis["numvehicles"])
 
     simulator = sim.Simulator(
-        initial_state = state,
-        start_time = START_TIME,
+        initial_state = initial_state,
+        start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
         duration = DURATION,
         verbose = True,
     )
-
-    ###############################################################################
-    # Run simulator
-
     simulator.run()
 
-    ###############################################################################
     # Output
-
     print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
 
-    WEEK = int(INSTANCE[4:len(INSTANCE)])   # extracts week number from instance name
+    WEEK = int(instance[4:len(instance)])   # extracts week number from instance name
     output.write_csv(simulator, "output.csv", week=WEEK, hourly = False)
-
     # output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
     # output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
     # output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
-
     output.visualize_heatmap([simulator], "trips")
 
 if __name__ == "__main__":
