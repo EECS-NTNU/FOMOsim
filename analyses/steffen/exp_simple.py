@@ -1,4 +1,3 @@
-
 import os 
 import sys
 from pathlib import Path
@@ -23,6 +22,7 @@ import copy
 import sim
 import init_state
 import init_state.cityBike
+import demand
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
@@ -44,7 +44,7 @@ analyses = [
     #      hour=6),
 
     dict(name="test-2",
-         target_state="USTargetState",
+         target_state="OutflowTargetState",   #USTargetState
          policy="GreedyPolicy",
          policyargs={},
          numvehicles=1,
@@ -61,8 +61,8 @@ if __name__ == "__main__":
     starvations_stdev = []
     congestions_stdev = []
 
-    for instance in instances:
-        print("  instance: ", instance)
+    for INSTANCE in instances:
+        print("  instance: ", INSTANCE)
 
         starvations.append([])
         congestions.append([])
@@ -77,7 +77,9 @@ if __name__ == "__main__":
             if "target_state" in analysis:
                 tstate = getattr(target_state, analysis["target_state"])
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate, number_of_bikes=2000)
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + INSTANCE) #,number_of_bikes=2000
+
+            dmand = demand.Demand()
 
             if analysis["numvehicles"] > 0:
                 policyargs = analysis["policyargs"]
@@ -92,6 +94,8 @@ if __name__ == "__main__":
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
+                    target_state = tstate,
+                    demand=dmand,
                     start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
                     duration = DURATION,
                     verbose = True,
