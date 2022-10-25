@@ -14,8 +14,8 @@ class Depot(Station):
         depot_id: int,
         depot_capacity = DEFAULT_DEPOT_CAPACITY,
         bikes = [],
-        leave_intensity_per_iteration=None,
-        arrive_intensity_per_iteration=None,
+        leave_intensities=None,
+        arrive_intensities=None,
         center_location=None,
         move_probabilities=None,
         average_number_of_bikes=None,
@@ -25,7 +25,7 @@ class Depot(Station):
         charging_station = None,
     ):
         super().__init__(
-            depot_id, bikes, leave_intensity_per_iteration, arrive_intensity_per_iteration,
+            depot_id, bikes, leave_intensities, arrive_intensities,
             center_location, move_probabilities, average_number_of_bikes, target_state,
             capacity, original_id, charging_station
         )
@@ -40,8 +40,8 @@ class Depot(Station):
             self.id,
             self.depot_capacity,
             list(copy.deepcopy(self.bikes).values()),
-            leave_intensity_per_iteration=self.leave_intensity_per_iteration,
-            arrive_intensity_per_iteration=self.arrive_intensity_per_iteration,
+            leave_intensities=self.leave_intensities,
+            arrive_intensities=self.arrive_intensities,
             center_location=self.get_location(),
             move_probabilities=self.move_probabilities,
             average_number_of_bikes=self.average_number_of_bikes,

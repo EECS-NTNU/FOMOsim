@@ -14,8 +14,10 @@ class Station(Location):
         self,
         station_id,
         bikes = [],
-        leave_intensity_per_iteration=None,
-        arrive_intensity_per_iteration=None,
+        leave_intensities=None,
+        leave_intensities_stdev=None,
+        arrive_intensities=None,
+        arrive_intensities_stdev=None,
         center_location=None,
         move_probabilities=None,
         average_number_of_bikes=None,
@@ -29,8 +31,10 @@ class Station(Location):
             station_id, target_state=target_state
         )
         self.set_bikes(bikes)
-        self.leave_intensity_per_iteration = leave_intensity_per_iteration
-        self.arrive_intensity_per_iteration = arrive_intensity_per_iteration
+        self.leave_intensities = leave_intensities
+        self.leave_intensities_stdev = leave_intensities_stdev
+        self.arrive_intensities = arrive_intensities
+        self.arrive_intensities_stdev = arrive_intensities_stdev
         self.average_number_of_bikes = average_number_of_bikes
         self.move_probabilities = move_probabilities
         self.capacity = int(capacity)
@@ -46,8 +50,10 @@ class Station(Location):
         return Station(
             self.id,
             list(copy.deepcopy(self.bikes).values()),
-            leave_intensity_per_iteration=self.leave_intensity_per_iteration,
-            arrive_intensity_per_iteration=self.arrive_intensity_per_iteration,
+            leave_intensities=self.leave_intensities,
+            leave_intensities_stdev=self.leave_intensities_stdev,
+            arrive_intensities=self.arrive_intensities,
+            arrive_intensities_stdev=self.arrive_intensities_stdev,
             center_location=self.get_location(),
             move_probabilities=self.move_probabilities,
             average_number_of_bikes=self.average_number_of_bikes,
@@ -72,10 +78,16 @@ class Station(Location):
         return self.move_probabilities[day % 7][hour % 24]
 
     def get_arrive_intensity(self, day, hour):
-        return self.arrive_intensity_per_iteration[day % 7][hour % 24]
+        return self.arrive_intensities[day % 7][hour % 24]
+
+    def get_arrive_intensity_stdev(self, day, hour):
+        return self.arrive_intensities_stdev[day % 7][hour % 24]
 
     def get_leave_intensity(self, day, hour):
-        return self.leave_intensity_per_iteration[day % 7][hour % 24]
+        return self.leave_intensities[day % 7][hour % 24]
+
+    def get_leave_intensity_stdev(self, day, hour):
+        return self.leave_intensities_stdev[day % 7][hour % 24]
 
     def get_target_state(self, day, hour):
         if self.target_state:
