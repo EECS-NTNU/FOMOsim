@@ -9,7 +9,7 @@ import math
 import policies
 import json
 
-def us_target_state(state):
+def us_target_state_from_file(state):
     # initialize target_state matrix
     target_state = []
     for st in state.locations:
