@@ -29,6 +29,7 @@ def main():
     # tstate = target_state.evenly_distributed_target_state
     # tstate = target_state.outflow_target_state
     tstate = target_state.equal_prob_target_state
+    # tstate = target_state.us_target_state
 
     # the following is for creating a new initial state from trip data
     state = init_state.get_initial_state(name="Oslo",

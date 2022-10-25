@@ -85,7 +85,7 @@ ts_map = {
     "ED":"evenly_distributed_target_state",
     "OF":"outflow_target_state",
     "EQ":"equal_prob_target_state",
-    #"EQUS":"equal_prob_target_state_US"
+    "US":"us_target_state"
     }
 policy_map = {
     #abbreviation:name_of_policy

@@ -21,9 +21,7 @@ import json
 
 from helpers import *
 
-from multiprocessing.pool import Pool
-from multiprocessing import current_process
-
+from multiprocessing.pool import Pool, current_process
 ###############################################################################
 
 INSTANCE_DIRECTORY="instances"
@@ -83,7 +81,8 @@ if __name__ == "__main__":
 
             simulations = []
 
-            numprocesses = int(np.floor(3/4*os.cpu_count()))
+            factor = 4/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
+            numprocesses = int(np.floor(factor*os.cpu_count()))
             with Pool(processes=numprocesses) as pool:  #use cpu_count()
                 print('Number of CPUs used:' + str(numprocesses))
                 sys.stdout.flush()

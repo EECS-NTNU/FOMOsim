@@ -17,17 +17,11 @@ def us_target_state(state):
         for day in range(7):
             target_state[st.id].append([])
 
-    #target states are defined externally
-    with open('init_state//fosen_haldorsen//station.json', 'r') as f:
-        target_state_json = json.load(f)
-
     for st in state.locations:
         target = {}
-        if st.original_id in target_state_json.keys():
-            target = {int(k): int(v) for k, v in target_state_json[st.original_id].items()}
-        else:
-            for hour in range(0, 24):
-                target[hour] = st.capacity // 2
+
+        for hour in range(0, 24):
+            target[hour] = st.capacity // 2
 
         for hour in range(24):
             target_state[st.id][0].append(target[hour])
