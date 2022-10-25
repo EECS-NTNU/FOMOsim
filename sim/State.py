@@ -277,7 +277,7 @@ class State(LoadSave):
                 delivery_bike = vehicle.drop_off(delivery_bike_id)
 
                 # Adding bike to current station and changing coordinates of bike
-                vehicle.location.add_bike(self.rng, delivery_bike)
+                vehicle.location.add_bike(delivery_bike)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)

@@ -2,22 +2,21 @@
 """
 FOMO simulator main program
 """
+
 import copy
+from progress.bar import Bar
+import matplotlib.pyplot as plt
 
 import settings
 import sim
 import init_state
 import init_state.cityBike
-
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
-
-from progress.bar import Bar
-
-import output
 import target_state
-import matplotlib.pyplot as plt
+import demand
+import output
 from helpers import *
 from output.plots import lostTripsPlot
 
@@ -39,7 +38,7 @@ analyses = [
 
     #flat strategy
     dict(name="evenly",
-         target_state="evenly_distributed_target_state",
+         target_state="EvenlyDistributedTargetState",
          policy="GreedyPolicy",
          policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
          numvehicles=1,
@@ -48,7 +47,7 @@ analyses = [
 
     #deviation_from_target_state
     dict(name="outflow",
-         target_state="outflow_target_state",
+         target_state="OutflowTargetState",
          policy="GreedyPolicy",
          policyargs={'crit_weights':[0,0,0,1]},
          numvehicles=1,
@@ -56,7 +55,7 @@ analyses = [
          hour=6),     
 
     dict(name="equalprob",
-         target_state="equal_prob_target_state",
+         target_state="EqualProbTargetState",
          policy="GreedyPolicy",
          policyargs={},
          numvehicles=1,
@@ -65,8 +64,7 @@ analyses = [
 
 ]
 
-#seeds = list(range(10))
-seeds = list(range(3))
+seeds = list(range(10))
 
 ###############################################################################
 
@@ -92,23 +90,25 @@ if __name__ == "__main__":
         for analysis in analyses:
             print("    analysis: ", analysis["name"])
 
+            # set up target state
             tstate = None
             if "target_state" in analysis:
-                tstate = getattr(target_state, analysis["target_state"])
+                tstate = getattr(target_state, analysis["target_state"])()
 
+            # set up initial state
             initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance,
-                                                          target_state=tstate,
                                                           number_of_stations=analysis.get("numstations", None),
                                                           number_of_bikes=analysis.get("numbikes", None),
                                                           )
             
+            # set up vehicles
             if analysis["numvehicles"] > 0:
                 policyargs = analysis["policyargs"]
                 policy = getattr(policies, analysis["policy"])(**policyargs)
                 initial_state.set_vehicles([policy]*analysis["numvehicles"])
 
+            # run simulations, one for each seed
             simulations = []
-
             for seed in seeds:
                 print("      seed: ", seed)
 
@@ -117,6 +117,8 @@ if __name__ == "__main__":
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
+                    target_state = tstate,
+                    demand = demand.Demand(),
                     start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
                     duration = DURATION,
                     verbose = True,
@@ -125,6 +127,8 @@ if __name__ == "__main__":
                 simul.run()
 
                 simulations.append(simul)
+
+            # record output
 
             metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
 
