@@ -28,7 +28,7 @@ from helpers import *
 
 RUN_DIRECTORY="experimental_setups"
 
-some_runs_already_performed = True
+some_runs_already_performed = False
 
 finished_tasks = []
 if some_runs_already_performed:
@@ -82,10 +82,11 @@ analyses = [do_nothing_analysis]   #reference_case
 
 
 ts_map = {
-    "ED":"evenly_distributed_target_state",
-    "OF":"outflow_target_state",
-    "EQ":"equal_prob_target_state",
-    "US":"us_target_state"
+    #"ED":"evenly_distributed_target_state",
+    #"OF":"outflow_target_state",
+    #"EQ":"equal_prob_target_state",
+    #"HALF":"us_target_state",
+    "EQUS":"equal_prob_target_state_US",
     }
 policy_map = {
     #abbreviation:name_of_policy

@@ -13,7 +13,7 @@ import copy
 #if __name__ == "__main__":
 import os
 os.chdir('C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\GitHub\\FOMO-sim\\fomo')
-filename = 'output_target_state1.csv' #'output_param_tuning_all.csv'
+filename = 'output_target_state_final.csv' #'output_param_tuning_all.csv'
 
 ###############################################################################
 ## Some postprocessing used by Steffen
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     # Focus on 1 or 2 vehicles
 
 
-    target_states = {'OF':'outflow_target_state', 'ED':'evenly_distributed_target_state', 'EQ':'equal_prob_target_state'}
+    target_states = {'OF':'outflow_target_state', 'ED':'evenly_distributed_target_state', 'EQ':'equal_prob_target_state','US':'us_target_state'}
     weights_mapping = {'critic': [0.1,0.2,0.3,0.4],'ts_dev': [0.0,0.0,0.0,1.0]}
     
 
