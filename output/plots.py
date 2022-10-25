@@ -8,7 +8,7 @@ import numpy as np
 from helpers import yearWeekNoAndDay
 from progress.bar import Bar
     
-def cityPerWeekStats(p, textFile, city, weeksToMark):
+def cityPerWeekStats(p, textFile, city, weeksToMark, color):
     # TODO, no error handling yet. Assume data is loaded
     tripDataPath = tripDataDirectory + city
     fileList = os.listdir(tripDataPath)
@@ -43,8 +43,8 @@ def cityPerWeekStats(p, textFile, city, weeksToMark):
             data.append(tripsPerWeek[w])
         xValues.append(w+1)
     textFile.write("\n")       
-#    p.plot(xValues, data, '-gD', markevery=weeksToMark, label='selected weeks')
-    p.plot(xValues, data, '-gD', markevery=weeksToMark)
+    lineLayout = '-' + color + 'D'
+    p.plot(xValues, data, lineLayout, markevery=weeksToMark)
     pass
 
 def cityTrafficStats(): # call this from main to produce figure used in paper
@@ -52,16 +52,16 @@ def cityTrafficStats(): # call this from main to produce figure used in paper
     fig, p = plt.subplots()
     f = open(f"{tripDataDirectory}/CityTraffic.txt", "w")
     labels = []
-    # cityPerWeekStats(p, f, "oslobysykkel", [10, 22, 34, 46])
-    # labels.append("Oslo")
-    # cityPerWeekStats(p, f, "bergenbysykkel", [8, 25, 35, 45])
-    # labels.append("Bergen")
-    # cityPerWeekStats(p, f, "trondheimbysykkel", [17, 21, 34, 44])
-    # labels.append("Trondheim")
-    cityPerWeekStats(p, f, "edinburghcyclehire", [10, 22, 31, 50])
+    cityPerWeekStats(p, f, "oslobysykkel", [10, 22, 34, 46], 'b')
+    labels.append("Oslo")
+    cityPerWeekStats(p, f, "bergenbysykkel", [8, 25, 35, 45], 'r')
+    labels.append("Bergen")
+    cityPerWeekStats(p, f, "trondheimbysykkel", [17, 21, 34, 44], 'g')
+    labels.append("Trondheim")
+    cityPerWeekStats(p, f, "edinburghcyclehire", [10, 22, 31, 50], 'm')
     labels.append("Edinburgh")
-    cityPerWeekStats(p, f, "oslovintersykkel", [12, 33]) # skipped due to very little trip data
-    labels.append("Oslo-vinter") 
+    # cityPerWeekStats(p, f, "oslovintersykkel", [12, 33], 'b') # skipped due to very little trip data
+    # labels.append("Oslo-vinter") 
     p.set_ylabel("Trips pr. week")
     p.set_xlabel("Week no (1..53)")
     p.legend(labels)
