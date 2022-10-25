@@ -14,7 +14,7 @@ import sim
 import output
 from helpers import timeInMinutes
 
-DURATION = timeInMinutes(hours=24)
+DURATION = timeInMinutes(hours=1)
 instance = 'EH_W22'
 INSTANCE_DIRECTORY="instances"
 analysis = dict(name="equalprob",
