@@ -11,6 +11,7 @@ import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
+import demand
 import sim
 import output
 from helpers import timeInMinutes
@@ -26,14 +27,9 @@ def main():
     ###############################################################################
     # Get initial state
 
-    # tstate = target_state.evenly_distributed_target_state
-    # tstate = target_state.outflow_target_state
-    tstate = target_state.equal_prob_target_state
-
     # the following is for creating a new initial state from trip data
     state = init_state.get_initial_state(name="Oslo",
                                          source=init_state.cityBike,
-                                         target_state=tstate,
                                          number_of_stations=None,
                                          number_of_bikes=2000,
                                          mapdata=("instances/oslo.png", (10.6365, 10.8631, 59.8843, 59.9569)),
@@ -55,10 +51,24 @@ def main():
     state.set_vehicles([policy])
 
     ###############################################################################
+    # Set up target state
+
+    # tstate = target_state.EvenlyDistributedTargetState()
+    # tstate = target_state.OutflowTargetState()
+    tstate = target_state.EqualProbTargetState()
+
+    ###############################################################################
+    # Set up demand
+
+    dmand = demand.Demand()
+
+    ###############################################################################
     # Set up simulator
 
     simulator = sim.Simulator(
         initial_state = state,
+        target_state = tstate,
+        demand = dmand,
         start_time = START_TIME,
         duration = DURATION,
         verbose = True,

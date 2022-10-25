@@ -1,17 +1,17 @@
 import sim
+from target_state import TargetState
 
-def evenly_distributed_target_state(state):
-    num_bikes = len(state.get_all_bikes())
-    num_stations = len(state.stations)
-    target_state = []
-    for st in state.locations:
-        target_state.append([])
-        for day in range(7):
-            target_state[st.id].append([])
-            for hour in range(24):
-                if isinstance(st, sim.Depot):
-                    target_state[st.id][day].append(0)
-                else:
-                    target_state[st.id][day].append(num_bikes // num_stations)
-    return target_state
+class EvenlyDistributedTargetState(TargetState):
 
+    def __init__(self):
+        super().__init__()
+
+    def update_target_state(self, state, day, hour):
+        num_bikes = len(state.get_all_bikes())
+        num_stations = len(state.stations)
+
+        for st in state.locations:
+            if isinstance(st, sim.Depot):
+                st.target_state[day][hour] = 0
+            else:
+                st.target_state[day][hour] = num_bikes // num_stations

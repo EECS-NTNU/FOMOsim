@@ -12,12 +12,11 @@ from helpers import lock, unlock
 
 savedStatesDirectory = "saved_states"
 
-def get_initial_state(name, source, target_state=None, number_of_stations=None, number_of_bikes=None, mapdata=None, load_from_cache=True, **kwargs):
+def get_initial_state(name, source, number_of_stations=None, number_of_bikes=None, mapdata=None, load_from_cache=True, **kwargs):
     # create filename
     all_args = {
         "name" : name,
         "source" : source,
-        "target_state" : target_state,
         "number_of_stations" : number_of_stations,
         "number_of_bikes" : number_of_bikes,
         "mapdata" : mapdata,
@@ -57,11 +56,6 @@ def get_initial_state(name, source, target_state=None, number_of_stations=None, 
 
     state = sim.State.get_initial_state(statedata)
 
-    # calculate target state
-    if target_state is not None:
-        tstate = target_state(state)
-        state.set_target_state(tstate)
-
     # save to cache
     print("Saving state to file")
     state.save(stateFilename)
@@ -69,10 +63,9 @@ def get_initial_state(name, source, target_state=None, number_of_stations=None, 
     unlock(lock_handle)
     return state
 
-def read_initial_state(jsonFilename, target_state=None, number_of_stations=None, number_of_bikes=None, load_from_cache=True):
+def read_initial_state(jsonFilename, number_of_stations=None, number_of_bikes=None, load_from_cache=True):
     # create filename
     all_args = {
-        "target_state" : target_state,
         "number_of_stations" : number_of_stations,
         "number_of_bikes" : number_of_bikes,
         "jsonFilename" : jsonFilename
@@ -111,11 +104,6 @@ def read_initial_state(jsonFilename, target_state=None, number_of_stations=None,
         if("map" in statedata): statedata["map"] = dirname + "/" + statedata["map"]
 
         state = sim.State.get_initial_state(statedata)
-
-        # calculate target state
-        if target_state is not None:
-            tstate = target_state(state)
-            state.set_target_state(tstate)
 
         # save to cache
         print("Saving state to file")

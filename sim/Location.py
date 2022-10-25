@@ -5,11 +5,10 @@ class Location:
     Base location class. All classes representing a geographic position inherit from the Location class
     """
 
-    def __init__(self, lat, lon, location_id, target_state = None):
+    def __init__(self, lat, lon, location_id):
         self.lat = lat
         self.lon = lon
         self.id = location_id
-        self.target_state = target_state
         self.bikes = []
 
     def get_lat(self):
@@ -26,7 +25,7 @@ class Location:
         self.lat = None
 
     def get_target_state(self, day, hour):
-        return 0
+        return self.target_state[day % 7][hour % 24]
 
     def get_arrive_intensity(self, day, hour):
         return 0

@@ -9,6 +9,8 @@ import sim
 import settings
 from sim.LoadSave import LoadSave
 from sim import Metric
+import target_state
+import demand
 
 from progress.bar import IncrementalBar
 
@@ -22,30 +24,35 @@ class Simulator(LoadSave):
     """
 
     def __init__(
-        self,
-        duration,
-        initial_state,
-        start_time = 0,
-        cluster=False,
-        verbose=False,
-        label=None,
+            self,
+            duration,
+            initial_state,
+            target_state,
+            demand,
+            start_time = 0,
+            cluster=False,
+            verbose=False,
+            label=None,
     ):
         super().__init__()
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
-        self.init(duration=duration, initial_state=initial_state, start_time=start_time, cluster=cluster, verbose=verbose, label=label)
+        self.init(duration=duration, initial_state=initial_state, target_state=target_state, demand=demand, start_time=start_time, cluster=cluster, verbose=verbose, label=label)
 
     def init(
         self,
+        initial_state,
+        target_state,
+        demand,
         start_time = 0,
         duration = 0,
-        initial_state = None,
         cluster = False,
         verbose = False,
         label = None,
     ):
         self.end_time = start_time + duration
-        if initial_state is not None:
-            self.state = initial_state
+        self.state = initial_state
+        self.target_state = target_state
+        self.demand = demand
         self.time = start_time
         self.event_queue: List[sim.Event] = []
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
@@ -116,6 +123,9 @@ class Simulator(LoadSave):
         It then pops events from this queue. The queue is always sorted in by the time of the events.
         """
         while self.time < self.end_time:
+            # TODO: check time
+            self.demand.update_demands(self.state, self.day(), self.hour())
+            self.target_state.update_target_state(self.state, self.day(), self.hour())
             self.full_step()
             if self.verbose:
                 self.progress_bar.next()
