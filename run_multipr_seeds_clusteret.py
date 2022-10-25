@@ -21,7 +21,8 @@ import json
 
 from helpers import *
 
-from multiprocessing.pool import Pool, current_process
+from multiprocessing.pool import Pool
+from multiprocessing import current_process
 ###############################################################################
 
 INSTANCE_DIRECTORY="instances"
