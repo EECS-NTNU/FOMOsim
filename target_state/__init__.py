@@ -2,3 +2,4 @@ from .target_state import TargetState
 from .evenly_distributed_target_state import EvenlyDistributedTargetState
 from .outflow_target_state import OutflowTargetState
 from .equal_prob_target_state import EqualProbTargetState
+from .us_target_state import USTargetState
