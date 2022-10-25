@@ -9,6 +9,9 @@ os.chdir(path)
 
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
+####
+
+#DEPRECIATED!!
 
 ####
 
@@ -41,7 +44,7 @@ analyses = [
     #      hour=6),
 
     dict(name="test-2",
-         target_state="equal_prob_target_state_us",
+         target_state="USTargetState",
          policy="GreedyPolicy",
          policyargs={},
          numvehicles=1,
