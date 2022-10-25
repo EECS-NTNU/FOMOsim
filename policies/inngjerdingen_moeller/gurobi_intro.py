@@ -5,8 +5,12 @@ from gurobipy import *
 #define model
 m=Model("test")
 
+dic = dict()
+dic["One"] = 1
+dic["Two"] = 2
+
 #create variables:
-x=m.addVar(vtype=GRB.BINARY, name="x")
+x=m.addVar({(i) for i in dic.keys()}, vtype=GRB.BINARY, name="x")
 y=m.addVar(vtype=GRB.BINARY, name="y")
 z=m.addVar(vtype=GRB.BINARY, name="z")
 

@@ -1,17 +1,8 @@
 
-class Station():
-    def __init__(self, station_id):
-        self.station_ID = station_id
-        self.neighboring_stations = []
-    
-    def add_neighbors(self, neighbors):
-        for neighbor in neighbors:
-            self.neighboring_stations.append(neighbor)
+from policies.gleditsch_hagen.utils import calculate_net_demand
 
-class Vehicle():
-    def __init__(self, vehicle_id):
-        self.vehicle_ID = vehicle_id
-        self.carrying_capacity = 20     #hard coded for now
+import sim
+
 
 # ------------ TESTING DATA MANUALLY ---------------
 source = Station(0)
@@ -30,7 +21,7 @@ class MILP_data():
         self.stations_with_source_sink = [0, 1, 2, 3]
         self.neighboring_stations = [[],[2],[1],[]]
         #self.vehicles = [vehicle]
-        self.vehicles = [1]
+        self.vehicles = [vehicle]
         self.time_periods = [0,1,2,3,4,5]
 
 
@@ -45,10 +36,10 @@ class MILP_data():
             [0,1,0,3.1], 
             [0,6.7,3.1,0]]
 
-        self.T_DD = [[0,0,0,0], #number of timeperiods
-                [0,0,1,2], 
-                [0,1,0,2], 
-                [0,2,1,0]]
+        self.T_DD = [[1,0,0,0], #number of timeperiods
+                [0,1,1,2], 
+                [0,1,1,2], 
+                [0,2,1,1]]
 
         self.T_W = [[0,0,0,0],
                 [0,0,2,14],
@@ -75,9 +66,9 @@ class MILP_data():
         self.L_0 = [0,15,2,1]
         self.L_T = [10,10,10,10,10]
 
-        self.D = [[0.5,0.6,0.2,-0.2,-0.1], [-0.5,0.6,-0.2,0,-0.2], [0.1,0.3,0.1,-0.3,-0.1]]
+        self.D = [[0,0,0,0,0,0], [0,0.5,0.6,0.2,-0.2,-0.1], [0,-0.5,0.6,-0.2,0,-0.2], [0,0.1,0.3,0.1,-0.3,-0.1]]
 
-        self.Q_0 = [3]
+        self.Q_0 = {vehicle: 3}
         self.Q_V = [6]
         self.Q_S = [0,20,20,20]
 
