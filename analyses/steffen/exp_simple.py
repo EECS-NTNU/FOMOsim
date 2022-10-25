@@ -41,7 +41,7 @@ analyses = [
     #      hour=6),
 
     dict(name="test-2",
-         target_state="us_target_state",
+         target_state="equal_prob_target_state_us",
          policy="GreedyPolicy",
          policyargs={},
          numvehicles=1,

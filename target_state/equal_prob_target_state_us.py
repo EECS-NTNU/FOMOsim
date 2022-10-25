@@ -10,7 +10,7 @@ import math
 import policies
 
 
-def equal_prob_target_state_US(state):
+def equal_prob_target_state_us(state):
     # initialize target_state matrix
     target_state = []
     for st in state.locations:
@@ -34,13 +34,13 @@ def equal_prob_target_state_US(state):
                 cap = st.capacity
                 leave = st.get_leave_intensity(day, hour)
                 arrive = st.get_arrive_intensity(day, hour)
-                leave_std = st.get_leave_intensity_std(day, hour)
-                arrive_std = st.get_arrive_intensity_std(day, hour)
+                leave_std = st.leave_intensities_std[day % 7][hour % 24]
+                arrive_std = st.arrive_intensities_std[day % 7][hour % 24]
 
                 if (leave_std==0) or (arrive_std==0):
-                    ts = num_bikes // num_stations
+                    ts = num_bikes // num_stations  #why not half the capacity
                 else:
-                    ts = round((leave_std*(cap-arrive)+arrive_std*leave)/(leave_std+arrive_std))
+                    ts = round((leave_std*(cap-arrive)+arrive_std*leave)/(leave_std+arrive_std)) # do we need to round? No!
                 target_state[st.id][day][hour] = ts
 
             progress.next()
