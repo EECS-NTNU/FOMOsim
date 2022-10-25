@@ -116,15 +116,12 @@ class Station(Location):
         else:
             return 0, 0
 
-    def add_bike(self, rng, bike):
+    def add_bike(self, bike):
         if len(self.bikes) >= self.capacity:
             return False
         # Adding bike to bike list
         self.bikes[bike.id] = bike
-        # Changing coordinates of bike to this location + some delta
-        delta_lat = rng.uniform(-STATION_CENTER_DELTA, STATION_CENTER_DELTA)
-        delta_lon = rng.uniform(-STATION_CENTER_DELTA, STATION_CENTER_DELTA)
-        bike.set_location(self.get_lat() + delta_lat, self.get_lon() + delta_lon)
+        bike.set_location(self.get_lat(), self.get_lon())
         return True
 
     def remove_bike(self, bike):

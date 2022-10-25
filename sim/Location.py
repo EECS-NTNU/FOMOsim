@@ -25,7 +25,7 @@ class Location:
         self.lat = None
 
     def get_target_state(self, day, hour):
-        return self.target_state[day % 7][hour % 24]
+        return 0
 
     def get_arrive_intensity(self, day, hour):
         return 0

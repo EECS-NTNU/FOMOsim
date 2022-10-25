@@ -36,7 +36,7 @@ class BikeArrival(Event):
             self.bike.travel(self.travel_time)
 
             # add bike to the arrived station (location is changed in add_bike method)
-            if arrival_station.add_bike(world.state.rng, self.bike):
+            if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:
                     world.state.remove_used_bike(self.bike)
             else:
