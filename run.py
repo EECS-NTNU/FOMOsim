@@ -38,8 +38,7 @@ if __name__ == "__main__":
                 tstate = getattr(target_state, experimental_setup["analysis"]["target_state"])()
 
             # set up initial state
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"],
-                                                          load_from_cache=False ) #load from cache sometimes gives errors on cluster
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"])
 
             # set up vehicles
             if experimental_setup["analysis"]["numvehicles"] > 0:

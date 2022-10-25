@@ -10,34 +10,7 @@ import sim
 import settings
 from helpers import lock, unlock
 
-savedStatesDirectory = "saved_states"
-
-def get_initial_state(name, source, number_of_stations=None, number_of_bikes=None, mapdata=None, load_from_cache=True, **kwargs):
-    # create filename
-    all_args = {
-        "name" : name,
-        "source" : source,
-        "number_of_stations" : number_of_stations,
-        "number_of_bikes" : number_of_bikes,
-        "mapdata" : mapdata,
-    }
-    all_args.update(kwargs)
-    checksum = hashlib.sha256(jsonpickle.encode(all_args).encode('utf-8')).hexdigest()
-    stateFilename = f"{savedStatesDirectory}/{checksum}.pickle.gz"
-
-    if not os.path.isdir(savedStatesDirectory):
-        os.makedirs(savedStatesDirectory, exist_ok=True)
-
-    lock_handle = lock(stateFilename)
-
-    if load_from_cache:
-        if os.path.isfile(stateFilename):
-            # load from cache
-            print("Loading state from file")
-            state = sim.State.load(stateFilename)
-            unlock(lock_handle)
-            return state
-
+def get_initial_state(name, source, number_of_stations=None, number_of_bikes=None, mapdata=None, **kwargs):
     # create initial state
     statedata = { "name" : name }
     if mapdata is not None:
@@ -56,36 +29,9 @@ def get_initial_state(name, source, number_of_stations=None, number_of_bikes=Non
 
     state = sim.State.get_initial_state(statedata)
 
-    # save to cache
-    print("Saving state to file")
-    state.save(stateFilename)
-
-    unlock(lock_handle)
     return state
 
-def read_initial_state(jsonFilename, number_of_stations=None, number_of_bikes=None, load_from_cache=True):
-    # create filename
-    all_args = {
-        "number_of_stations" : number_of_stations,
-        "number_of_bikes" : number_of_bikes,
-        "jsonFilename" : jsonFilename
-    }
-    checksum = hashlib.sha256(jsonpickle.encode(all_args).encode('utf-8')).hexdigest()
-    stateFilename = f"{savedStatesDirectory}/{checksum}.pickle.gz"
-
-    if not os.path.isdir(savedStatesDirectory):
-        os.makedirs(savedStatesDirectory, exist_ok=True)
-
-    lock_handle = lock(stateFilename)
-
-    if load_from_cache:
-        if os.path.isfile(stateFilename):
-            # load from cache
-            print("Loading state from file")
-            state = sim.State.load(stateFilename)
-            unlock(lock_handle)
-            return state
-
+def read_initial_state(jsonFilename, number_of_stations=None, number_of_bikes=None):
     with gzip.open(f"{jsonFilename}.json.gz", "r") as infile:
         dirname = os.path.dirname(jsonFilename);
 
@@ -105,11 +51,6 @@ def read_initial_state(jsonFilename, number_of_stations=None, number_of_bikes=No
 
         state = sim.State.get_initial_state(statedata)
 
-        # save to cache
-        print("Saving state to file")
-        state.save(stateFilename)
-
-        unlock(lock_handle)
         return state
 
     return None
