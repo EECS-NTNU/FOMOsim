@@ -28,7 +28,7 @@ analyses = [
 
     #flat strategy
     dict(name="evenly",
-         target_state="evenly_distributed_target_state",
+         target_state="EvenlyDistributedTargetState",
          policy="GreedyPolicy",
          policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
          numvehicles=1,
@@ -37,7 +37,7 @@ analyses = [
 
     #deviation_from_target_state
     dict(name="outflow",
-         target_state="outflow_target_state",
+         target_state="OutflowTargetState",
          policy="GreedyPolicy",
          policyargs={'crit_weights':[0,0,0,1]},
          numvehicles=1,
@@ -45,7 +45,7 @@ analyses = [
          hour=6),     
 
     dict(name="equalprob",
-         target_state="equal_prob_target_state",
+         target_state="EqualProbTargetState",
          policy="GreedyPolicy",
          policyargs={},
          numvehicles=1,

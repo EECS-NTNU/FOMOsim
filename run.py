@@ -6,19 +6,16 @@ import copy
 import sys
 from threading import Timer
 from datetime import datetime
+import json
 
 import sim
 import init_state
 import init_state.cityBike
-
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
-
 import target_state
-
-import json
-
+import demand
 from helpers import *
 
 ###############################################################################
@@ -35,18 +32,22 @@ if __name__ == "__main__":
 
             experimental_setup = json.load(infile)
 
+            # set up target state
             tstate = None
             if "target_state" in experimental_setup["analysis"]:
-                tstate = getattr(target_state, experimental_setup["analysis"]["target_state"])
+                tstate = getattr(target_state, experimental_setup["analysis"]["target_state"])()
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"], 
-                                                            target_state=tstate, load_from_cache=False ) #load from cache sometimes gives errors on cluster
+            # set up initial state
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"],
+                                                          load_from_cache=False ) #load from cache sometimes gives errors on cluster
 
+            # set up vehicles
             if experimental_setup["analysis"]["numvehicles"] > 0:
                 policyargs = experimental_setup["analysis"]["policyargs"]
                 policy = getattr(policies, experimental_setup["analysis"]["policy"])(**policyargs)
                 initial_state.set_vehicles([policy]*experimental_setup["analysis"]["numvehicles"])
 
+            # run simulations, one for each seed
             simulations = []
             for seed in experimental_setup["seeds"]:
                 print("Running seed", seed)
@@ -58,6 +59,8 @@ if __name__ == "__main__":
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
+                    target_state = tstate,
+                    demand = demand.Demand(),
                     start_time = timeInMinutes(days=experimental_setup["analysis"]["day"], hours=experimental_setup["analysis"]["hour"]),
                     duration = experimental_setup["duration"],
                     cluster = True,
@@ -67,6 +70,8 @@ if __name__ == "__main__":
                 simul.run()
 
                 simulations.append(simul)
+
+            # record output
 
             metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
 

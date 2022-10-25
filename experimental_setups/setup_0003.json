@@ -1,23 +1,14 @@
 {
     "run": 3,
-    "instance": "OS_W10",
+    "instance": "OS_W31",
     "analysis": {
-        "name": "OFTS_GRD_V1_W[0.0, 0.0, 1.0, 0.0]",
-        "target_state": "outflow_target_state",
+        "name": "equalprob",
+        "target_state": "EqualProbTargetState",
         "policy": "GreedyPolicy",
+        "policyargs": {},
         "numvehicles": 1,
         "day": 0,
-        "hour": 6,
-        "policyargs": {
-            "crit_weights": [
-                0.0,
-                0.0,
-                1.0,
-                0.0
-            ],
-            "hour_from": 8,
-            "hour_to": 4
-        }
+        "hour": 6
     },
     "seeds": [
         0,
@@ -29,12 +20,7 @@
         6,
         7,
         8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14
+        9
     ],
-    "duration": 10080
+    "duration": 1440
 }

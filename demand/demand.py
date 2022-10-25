@@ -15,6 +15,7 @@ class Demand():
         pass
 
     def update_demands(self, state, day, hour):
+        # default implementation just copies historical demand
         for st in state.locations:
             st.leave_intensities = st.historical_leave_intensities.copy()
             st.arrive_intensities = st.historical_arrive_intensities.copy()

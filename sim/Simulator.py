@@ -125,7 +125,8 @@ class Simulator(LoadSave):
         while self.time < self.end_time:
             # TODO: check time
             self.demand.update_demands(self.state, self.day(), self.hour())
-            self.target_state.update_target_state(self.state, self.day(), self.hour())
+            if self.target_state is not None:
+                self.target_state.update_target_state(self.state, self.day(), self.hour())
             self.full_step()
             if self.verbose:
                 self.progress_bar.next()

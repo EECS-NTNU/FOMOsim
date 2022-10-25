@@ -90,14 +90,14 @@ def main():
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
 
-    #WEEK = int(INSTANCE[4:len(INSTANCE)])   # extracts week number from instance name
-    #output.write_csv(simulator, "output.csv", week=WEEK, hourly = False)
+    WEEK = int(INSTANCE[4:len(INSTANCE)])   # extracts week number from instance name
+    output.write_csv(simulator, "output.csv", week=WEEK, hourly = False)
 
-    #output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    #output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    #output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
 
-    #output.visualize_heatmap([simulator], "trips")
+    output.visualize_heatmap([simulator], "trips")
 
 if __name__ == "__main__":
     main()
