@@ -75,8 +75,7 @@ if __name__ == "__main__":
 
     bikes = []
     startVal = 1600
-#    for i in range(14): 
-    for i in range(3): 
+    for i in range(15): 
         bikes.append(startVal + i*200)       
 
     resultsStarvation = []   
@@ -189,9 +188,13 @@ if __name__ == "__main__":
     resultFile.write("-end-\n")
     resultFile.close()
     
+    fig, ax = Surface3Dplot(bikes, policyNames, resultsStarvation, "Starvation (" + '%' + " of trips)")
+    fig, ax = Surface3Dplot(bikes, policyNames, resultsCongestion, "Congestion (" + '%' + " of trips)")
     fig, ax = Surface3Dplot(bikes, policyNames, resultsTotal, "Starvation + congestion (" + '%' + " of trips)")
     fig, ax = Surface3Dplot(bikes, policyNames, resultTrips, "No-of-trips/200")
     fig, ax = Surface3Dplot(bikes, policyNames, resultProfit, "Profit in percent of 180 kNOK")
     fig, ax = Surface3DplotTripsProfit(bikes, policyNames, resultTrips, resultProfit, "Oslo week 33, No of trips and profit")
     
     plt.show()
+
+    print("-fin-")
