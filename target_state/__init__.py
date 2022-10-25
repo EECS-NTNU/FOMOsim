@@ -2,4 +2,5 @@ from .evenly_distributed_target_state import evenly_distributed_target_state
 from .outflow_target_state import outflow_target_state
 from .us_target_state import us_target_state
 from .equal_prob_target_state import equal_prob_target_state
-from .us_target_state import us_target_state
+from .equal_prob_target_state_us import equal_prob_target_state_us
+from .us_target_state_from_file import us_target_state_from_file
