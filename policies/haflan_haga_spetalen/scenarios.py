@@ -34,7 +34,7 @@ def generate_scenarios(state: sim.State, start_time = 0, end_time = 7*24*60, num
                         )
                         end_cluster_indices = state.rng.choice(
                             cluster_indices,
-                            p=cluster.get_leave_distribution(state, day, hour),
+                            p=cluster.get_move_probabilities(state, day, hour),
                             size=number_of_trips,
                         ).tolist()
                         one_scenario.append((cluster.id, number_of_trips, end_cluster_indices))

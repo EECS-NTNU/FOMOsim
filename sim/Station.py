@@ -90,7 +90,7 @@ class Station(Location):
     def get_target_state(self, day, hour):
         return self.target_state[day % 7][hour % 24]
 
-    def get_leave_distribution(self, state, day, hour):
+    def get_move_probabilities(self, state, day, hour):
         if self.move_probabilities is None:
             mp = []
             for station in range(len(state.locations)):

@@ -31,7 +31,7 @@ class BikeDeparture(Event):
             if FULL_TRIP:
                 # get a arrival station from the leave prob distribution
 
-                p=departure_station.get_leave_distribution(world.state, world.day(), world.hour())
+                p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
                 sum = 0.0
                 for i in range(len(p)):
                     sum += p[i]
