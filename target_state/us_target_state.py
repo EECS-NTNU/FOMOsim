@@ -1,32 +1,24 @@
 import sim
-from progress.bar import Bar
-import os
-import sys
-import numpy as np
-import copy
-import settings
-import math
-import policies
-import json
+from target_state import TargetState
 
-def us_target_state(state):
-    # initialize target_state matrix
-    target_state = []
-    for st in state.locations:
-        target_state.append([])
-        for day in range(7):
-            target_state[st.id].append([])
+class USTargetState(TargetState):
 
-    for st in state.locations:
-        target = {}
+    def __init__(self):
+        super().__init__()
 
-        for hour in range(0, 24):
-            target[hour] = st.capacity // 2
+    def update_target_state(self, state, day, hour):
+        num_bikes = len(state.get_all_bikes())
+        num_stations = len(state.stations)
 
-        for hour in range(24):
-            target_state[st.id][0].append(target[hour])
+        for st in state.stations.values():
+            cap = st.capacity
+            leave = st.historical_leave_intensities[day][hour]
+            arrive = st.historical_arrive_intensities[day][hour]
+            leave_std = st.historical_leave_intensities_stdev[day][hour]
+            arrive_std = st.historical_arrive_intensities_stdev[day][hour]
 
-        for day in range(1, 7):
-            target_state[st.id][day] = target_state[st.id][0]
-
-    return target_state
+            if (leave_std==0) or (arrive_std==0):
+                ts = num_bikes // num_stations
+            else:
+                ts = round((leave_std*(cap-arrive)+arrive_std*leave)/(leave_std+arrive_std))
+            st.target_state[day][hour] = ts
