@@ -2,9 +2,6 @@
 """
 FOMO simulator, create jobs to run on cluster
 """
-import os
-import shutil
-import json
 
 import init_state
 import init_state.cityBike
