@@ -8,7 +8,7 @@ import numpy as np
 from helpers import yearWeekNoAndDay
 from progress.bar import Bar
     
-def cityPerWeekStats(p, textFile, city):
+def cityPerWeekStats(p, textFile, city, weeksToMark, color):
     # TODO, no error handling yet. Assume data is loaded
     tripDataPath = tripDataDirectory + city
     fileList = os.listdir(tripDataPath)
@@ -43,22 +43,25 @@ def cityPerWeekStats(p, textFile, city):
             data.append(tripsPerWeek[w])
         xValues.append(w+1)
     textFile.write("\n")       
-    p.plot(xValues, data)
+    lineLayout = '-' + color + 'D'
+    p.plot(xValues, data, lineLayout, markevery=weeksToMark)
+    pass
 
-def cityTrafficStats():
+def cityTrafficStats(): # call this from main to produce figure used in paper
     print("Generating traffic statistics for all cities with stored traffic data")
     fig, p = plt.subplots()
     f = open(f"{tripDataDirectory}/CityTraffic.txt", "w")
     labels = []
-    cityPerWeekStats(p, f, "oslobysykkel")
+    cityPerWeekStats(p, f, "oslobysykkel", [10, 22, 34, 46], 'b')
     labels.append("Oslo")
-    cityPerWeekStats(p, f, "bergenbysykkel")
+    cityPerWeekStats(p, f, "bergenbysykkel", [8, 25, 35, 45], 'r')
     labels.append("Bergen")
-    cityPerWeekStats(p, f, "trondheimbysykkel")
+    cityPerWeekStats(p, f, "trondheimbysykkel", [17, 21, 34, 44], 'g')
     labels.append("Trondheim")
-    cityPerWeekStats(p, f, "edinburghcyclehire")
+    cityPerWeekStats(p, f, "edinburghcyclehire", [10, 22, 31, 50], 'm')
     labels.append("Edinburgh")
-    # cityPerWeekStats("oslovintersykkel") # skipped due to very little trip data
+    # cityPerWeekStats(p, f, "oslovintersykkel", [12, 33], 'b') # skipped due to very little trip data
+    # labels.append("Oslo-vinter") 
     p.set_ylabel("Trips pr. week")
     p.set_xlabel("Week no (1..53)")
     p.legend(labels)
