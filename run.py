@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
             simulations = []
 
-            factor = 4/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
+            factor = 2/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
             numprocesses = int(np.floor(factor*os.cpu_count()))
             with Pool(processes=numprocesses) as pool:  #use cpu_count()
                 print('Number of CPUs used:' + str(numprocesses))

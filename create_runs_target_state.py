@@ -1,14 +1,14 @@
 #JUST MOVE TO THE MAIN FOLDER!!
 
-# import os 
-# import sys
-# from pathlib import Path
+import os 
+import sys
+from pathlib import Path
 
-# path = Path(__file__).parents[3]
-# os.chdir(path)
-# #print(os. getcwd())
+path = Path(__file__).parents[3]
+os.chdir(path)
+#print(os. getcwd())
 
-# sys.path.insert(0, '') #make sure the modules are found in the new working directory
+sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
 ###############################################################################
 
@@ -28,12 +28,12 @@ from helpers import *
 
 RUN_DIRECTORY="experimental_setups"
 
-some_runs_already_performed = False
+some_runs_already_performed = True
 
 finished_tasks = []
 if some_runs_already_performed:
     finished_tasks = []
-    with open('completed_tasks2.csv', newline='') as f:
+    with open('completed_tasks.csv', newline='') as f:
         for row in csv.reader(f):
             finished_tasks.append(int(row[0]))
 
@@ -113,7 +113,9 @@ for ts_abbr,ts in ts_map.items():
                     policyargs={'crit_weights':crit_weight,'service_hours':[8,16]}
                     ))
 
-
+print(len(analyses))
+print(len(instances))
+print(len(analyses)*len(instances))
 
 ###############################################################################
 
