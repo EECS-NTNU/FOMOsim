@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
             tstate = None
             if "target_state" in analysis:
-                tstate = getattr(target_state, analysis["target_state"])
+                tstate = getattr(target_state, analysis["target_state"])()
 
             initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + INSTANCE) #,number_of_bikes=2000
 
