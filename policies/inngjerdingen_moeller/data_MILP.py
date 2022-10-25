@@ -15,11 +15,12 @@ vehicle = Vehicle(1)
 class MILP_data():
     def __init__(self):
         #Sets
-        #self.stations = [station1, station2, station3]
         self.stations = [1, 2, 3]
-        #self.stations_with_source_sink = [source, station1, station2, station3]
         self.stations_with_source_sink = [0, 1, 2, 3]
         self.neighboring_stations = [[],[2],[1],[]]
+
+        
+
         #self.vehicles = [vehicle]
         self.vehicles = [vehicle]
         self.time_periods = [0,1,2,3,4,5]
