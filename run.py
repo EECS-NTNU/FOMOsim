@@ -32,7 +32,7 @@ from multiprocessing import current_process
 INSTANCE_DIRECTORY="instances"
 LOCAL_MACHINE_TEST = False
 
-def simulation_main(seed,state_copy,experimental_setup,trgt_state):
+def simulation_main(seed,state_copy,experimental_setup):
     
     print("Running seed", seed)
 
