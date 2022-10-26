@@ -55,13 +55,15 @@ class Simulator(LoadSave):
         self.demand = demand
         self.time = start_time
         self.event_queue: List[sim.Event] = []
+
+        # Add generate trip event to the event_queue
+        self.event_queue.append(sim.GenerateBikeTrips(start_time))
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.vehicles:
             self.event_queue.append(
                 sim.VehicleArrival(self.time, vehicle)
             )
-        # Add generate trip event to the event_queue
-        self.event_queue.append(sim.GenerateBikeTrips(start_time))
+
         self.metrics = Metric()
         self.cluster = cluster
         self.verbose = verbose
@@ -107,13 +109,20 @@ class Simulator(LoadSave):
                 sys.stdout.flush()
                 self.last_monotonic = monotonic
 
-        return event
-
     def full_step(self):
         while True:
-            event = self.single_step()
+            event = self.event_queue[0]
+
             if isinstance(event, sim.GenerateBikeTrips):
+                d = int((event.time // (60*24)) % 7)
+                h = int((event.time // 60) % 24)
+                self.demand.update_demands(self.state, d, h)
+                if self.target_state is not None:
+                    self.target_state.update_target_state(self.state, d, h)
+                self.single_step()
                 break
+
+            self.single_step()
 
     def run(self):
         """
@@ -123,10 +132,6 @@ class Simulator(LoadSave):
         It then pops events from this queue. The queue is always sorted in by the time of the events.
         """
         while self.time < self.end_time:
-            # TODO: check time
-            self.demand.update_demands(self.state, self.day(), self.hour())
-            if self.target_state is not None:
-                self.target_state.update_target_state(self.state, self.day(), self.hour())
             self.full_step()
             if self.verbose:
                 self.progress_bar.next()
