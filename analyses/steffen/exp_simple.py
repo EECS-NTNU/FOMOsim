@@ -8,12 +8,6 @@ os.chdir(path)
 
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
-####
-
-#DEPRECIATED!!
-
-####
-
 
 #!/bin/python3
 # exp_lasse4.py

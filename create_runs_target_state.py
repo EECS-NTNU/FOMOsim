@@ -80,6 +80,11 @@ do_nothing_analysis = dict(name="do_nothing",
          
 analyses = [do_nothing_analysis]   #reference_case
 
+number_of_vehicles = [1,2]
+
+all_weights = [ [0,0,0,1],
+                [0.1,0.2,0.3,0.4],
+                ]
 
 ts_map = {
     #"ED":"EvenlyDistributedTargetState",
@@ -95,10 +100,6 @@ policy_map = {
     }
 
 policyargs={}
-number_of_vehicles = [1,2]
-
-all_weights = [ [0,0,0,1],
-                [0.1,0.2,0.3,0.4]]
 
 for ts_abbr,ts in ts_map.items():
     for pol_abbr, pol in policy_map.items():
@@ -117,6 +118,7 @@ for ts_abbr,ts in ts_map.items():
 print(len(analyses))
 print(len(instances))
 print(len(analyses)*len(instances))
+print(analyses)
 
 ###############################################################################
 
