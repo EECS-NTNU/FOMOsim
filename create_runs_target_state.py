@@ -1,14 +1,14 @@
 #JUST MOVE TO THE MAIN FOLDER!!
 
-# import os 
-# import sys
-# from pathlib import Path
+import os 
+import sys
+from pathlib import Path
 
-# path = Path(__file__).parents[3]
-# os.chdir(path)
-# #print(os. getcwd())
+path = Path(__file__).parents[3]
+os.chdir(path)
+#print(os. getcwd())
 
-# sys.path.insert(0, '') #make sure the modules are found in the new working directory
+sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
 ###############################################################################
 
@@ -28,7 +28,7 @@ from helpers import *
 
 RUN_DIRECTORY="experimental_setups"
 
-some_runs_already_performed = False
+some_runs_already_performed = True
 
 finished_tasks = []
 if some_runs_already_performed:
