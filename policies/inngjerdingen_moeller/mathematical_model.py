@@ -8,6 +8,7 @@ def run_model(data):
     stations = data.stations
     stations_with_source_sink = data.stations_with_source_sink
     neighboring_stations = data.neighboring_stations
+    possible_previous_stations=data.possible_previous_stations
     vehicles = data.vehicles
     time_periods = data.time_periods
 
@@ -69,6 +70,11 @@ def run_model(data):
 
     #Vehicle constraints:
     #m.addConstrs(quicksum(x[(j, i, t-T_DD[j][i], v)] for j in stations_with_source_sink) == quicksum(x[(i, k, t, v)] for k in stations_with_source_sink) for i in stations for t in range(1,T_bar) for v in vehicles)
+    
+    #using the set with possible previous stations:
+    m.addConstrs(quicksum(x[(j, i, t-T_DD[j][i], v)] for j in possible_previous_stations[i][t]) == quicksum(x[(i, k, t, v)] for k in stations_with_source_sink) for i in stations for t in range(1,T_bar) for v in vehicles)
+
+
     m.addConstrs(quicksum(x[(0, j, 0, v)] for j in stations_with_source_sink) == 1 for v in vehicles)
     m.addConstrs(quicksum(x[(i, 0, T_bar-T_DD[i][0], v)] for i in stations_with_source_sink) == 1 for v in vehicles)
 

@@ -1,11 +1,12 @@
 
-from policies.gleditsch_hagen.utils import calculate_net_demand
+from dataclasses import dataclass
+#from policies.gleditsch_hagen.utils import calculate_net_demand
 
 import sim
 
 
 # ------------ TESTING DATA MANUALLY ---------------
-source = Station(0)
+Source = Station(0)
 station1 = Station(1)
 station2 = Station(2)
 station3 = Station(3)
@@ -18,14 +19,19 @@ class MILP_data():
         self.stations = [1, 2, 3]
         self.stations_with_source_sink = [0, 1, 2, 3]
         self.neighboring_stations = [[],[2],[1],[]]
-
-        
-
-        #self.vehicles = [vehicle]
         self.vehicles = [vehicle]
         self.time_periods = [0,1,2,3,4,5]
+        
+        self.possible_previous_stations = [[[],[],[],[],[],[]], [[],[],[],[],[],[]], [[],[],[],[],[],[]]] #[station][time_period]
 
+        for i in self.stations:
+                for t in self.time_periods:
+                        for j in self.stations_with_source_sink:
+                                if(t-self.T_DD[i][j]>=0):
+                                        self.possible_previous_stations[i-1][t].append(j)
 
+        #self.possible_previous_stations = [[[0], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]], [[0], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]], [[0], [0, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]]]
+    
             #Parameters
         self.W_D = 0.1
         self.W_C = 0.3
@@ -69,8 +75,11 @@ class MILP_data():
 
         self.D = [[0,0,0,0,0,0], [0,0.5,0.6,0.2,-0.2,-0.1], [0,-0.5,0.6,-0.2,0,-0.2], [0,0.1,0.3,0.1,-0.3,-0.1]]
 
-        self.Q_0 = {vehicle: 3}
+        #self.Q_0 = {vehicle: 3}
         self.Q_V = [6]
         self.Q_S = [0,20,20,20]
 
         self.tau = 5
+
+d=MILP_data()
+print(d.possible_previous_stations)    
