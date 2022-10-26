@@ -73,10 +73,12 @@ num_seeds = {
 
 # ANALYSES
 
-do_nothing_analysis = dict(name="do_nothing",
-         numvehicles=0,
-         day=0,
-         hour=6)
+do_nothing_analysis = dict(
+    name="do_nothing",
+    #target_state = None,
+    numvehicles=0,
+    day=0,
+    hour=6)
          
 analyses = [do_nothing_analysis]   #reference_case
 

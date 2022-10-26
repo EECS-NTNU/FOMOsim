@@ -64,7 +64,9 @@ def main_code(windows_lock,filename):
 
             sys.stdout.flush()
 
-            trgt_state = getattr(target_state, experimental_setup["analysis"]["target_state"])()
+            trgt_state = None
+            if experimental_setup["analysis"]["numvehicles"] > 0:
+                trgt_state = getattr(target_state, experimental_setup["analysis"]["target_state"])()
 
             simul = sim.Simulator(
                 initial_state = state_copy,
