@@ -19,6 +19,10 @@ sys.path.insert(0, '') #make sure the modules are found in the new working direc
 
 ##############################################################
 
+# TO DO: update to new setup
+
+##############################################################
+
 import copy
 
 import settings
@@ -34,7 +38,7 @@ import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
-
+import demand
 from progress.bar import Bar
 
 import output
@@ -56,51 +60,46 @@ START_TIME = timeInMinutes(hours=7)
 NUM_DAYS = 3*7
 DURATION = timeInMinutes(hours=24*NUM_DAYS)
 WEEK = 34
-instance = 'Oslo'
+
+instance = 'OS_W22'
 
 def main(instance):
 
     ###############################################################################
     # Get initial state
 
-    tstate = target_state.equal_prob_target_state
     
-    if instance == 'Oslo':
-        url_link = 'https://data.urbansharing.com/oslobysykkel.no/trips/v1/'
-    elif instance == 'Trondheim':
-        url_link = "https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/"
-    elif instance == "Bergen":
-        url_link = "https://data.urbansharing.com/bergenbysykkel.no/trips/v1/"
-    elif instance =="Edinburgh":
-        url_link = "https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/"
-
-    state = init_state.get_initial_state(source=init_state.cityBike,
-                                         url=url_link,
-                                         week=WEEK, random_seed=0,
-                                         target_state=tstate,
-                                         )
+    
+    state = init_state.read_initial_state("instances/"+INSTANCE);
+    state.set_seed(1)
 
     ###############################################################################
     # Set up policy
 
+    tstate = target_state.EqualProbTargetState()
+
     #do analysis for both donothing as well as greedy
     #policy = policies.DoNothing()
     policy = policies.GreedyPolicy()
+
+    state.set_vehicles([policy])
+
+    ###############################################################################
+    # Set up demand
+
+    dmand = demand.Demand()
 
     ###############################################################################
     # Set up simulator
 
     simulator = sim.Simulator(
         initial_state = state,
-        policy = policy,
+        target_state = tstate,
+        demand = dmand,
         start_time = START_TIME,
         duration = DURATION,
         verbose = True,
     )
-
-    ###############################################################################
-    # Run simulator
-
     simulator.run()
 
     ###############################################################################

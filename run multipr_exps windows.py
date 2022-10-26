@@ -64,9 +64,11 @@ def main_code(windows_lock,filename):
 
             sys.stdout.flush()
 
+            trgt_state = getattr(target_state, experimental_setup["analysis"]["target_state"])()
+
             simul = sim.Simulator(
                 initial_state = state_copy,
-                target_state = getattr(target_state, experimental_setup["analysis"]["target_state"])(),
+                target_state = trgt_state,
                 demand = demand.Demand(),
                 start_time = timeInMinutes( days=experimental_setup["analysis"]["day"], 
                                             hours=experimental_setup["analysis"]["hour"]),

@@ -28,7 +28,7 @@ import init_state.cityBike
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
-
+import demand
 from progress.bar import Bar
 
 import output
@@ -40,6 +40,12 @@ from scipy.stats import t, norm
 
 from helpers import *
 from analyses.steffen.num_sim_replications.helpers import *
+
+##############################################
+
+# Needs to be updated with the new changes (how to read an initial state and so on)
+
+###############################################################################
 
 ###############################################################################
 

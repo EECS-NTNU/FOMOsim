@@ -12,6 +12,10 @@ os.chdir(desired_path)
 
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
+##############################################
+
+# Needs to be updated with the new changes (how to read an initial state and so on)
+
 ###############################################################################
 
 #!/bin/python3

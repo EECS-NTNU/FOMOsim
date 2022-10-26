@@ -118,7 +118,7 @@ for ts_abbr,ts in ts_map.items():
 print(len(analyses))
 print(len(instances))
 print(len(analyses)*len(instances))
-print(analyses)
+
 
 ###############################################################################
 

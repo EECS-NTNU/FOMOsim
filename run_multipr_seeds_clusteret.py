@@ -11,6 +11,7 @@ import sim
 import init_state
 import init_state.cityBike
 
+
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
@@ -40,9 +41,11 @@ def simulation_main(seed,state_copy,experimental_setup):
 
     sys.stdout.flush()
 
+    trgt_state = getattr(target_state, experimental_setup["analysis"]["target_state"])()
+
     simul = sim.Simulator(
         initial_state = state_copy,
-        target_state = getattr(target_state, experimental_setup["analysis"]["target_state"])(),
+        target_state = trgt_state,
         demand = demand.Demand(),
         start_time = timeInMinutes( days=experimental_setup["analysis"]["day"], 
                                     hours=experimental_setup["analysis"]["hour"]),
