@@ -14,6 +14,7 @@ import init_state.cityBike
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
+import demand
 
 import target_state
 
@@ -23,6 +24,9 @@ from helpers import *
 
 from multiprocessing.pool import Pool
 from multiprocessing import current_process
+
+
+
 ###############################################################################
 
 INSTANCE_DIRECTORY="instances"
@@ -36,10 +40,16 @@ def simulation_main(seed,state_copy,experimental_setup):
 
     sys.stdout.flush()
 
+    trgt_state = None
+    if experimental_setup["analysis"]["numvehicles"] > 0:
+        trgt_state = getattr(target_state, experimental_setup["analysis"]["target_state"])()
+
     simul = sim.Simulator(
         initial_state = state_copy,
-        start_time = timeInMinutes(days=experimental_setup["analysis"]["day"], 
-        hours=experimental_setup["analysis"]["hour"]),
+        target_state = trgt_state, #getattr(target_state, experimental_setup["analysis"]["target_state"])(),
+        demand = demand.Demand(),
+        start_time = timeInMinutes( days=experimental_setup["analysis"]["day"], 
+                                    hours=experimental_setup["analysis"]["hour"]),
         duration = experimental_setup["duration"],
         cluster = True,
         verbose = False,
@@ -68,12 +78,8 @@ if __name__ == "__main__":
 
             experimental_setup = json.load(infile)
 
-            tstate = None
-            if "target_state" in experimental_setup["analysis"]:
-                tstate = getattr(target_state, experimental_setup["analysis"]["target_state"])
-
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"], 
-                                                            target_state=tstate, load_from_cache=False ) #load from cache sometimes gives errors on cluster
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"])
+                                                            #number_of_stations,number_of_bikes
 
             if experimental_setup["analysis"]["numvehicles"] > 0:
                 policyargs = experimental_setup["analysis"]["policyargs"]

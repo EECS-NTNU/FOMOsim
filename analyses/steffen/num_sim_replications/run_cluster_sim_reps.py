@@ -18,7 +18,7 @@ import init_state.cityBike
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
-
+import demand
 from progress.bar import Bar
 
 import output
@@ -36,8 +36,6 @@ import json
 
 
 ###############################################################################
-
-# Duration of each simulation run
 
 
 
@@ -69,12 +67,8 @@ if __name__ == "__main__":
                 analysis = experimental_setup["analysis"]
                 DURATION = experimental_setup["duration"]
 
-                tstate = None
-                if "target_state" in experimental_setup["analysis"]:
-                    tstate = getattr(target_state, experimental_setup["analysis"]["target_state"])
-
-                initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"], target_state=tstate)
-
+                initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"])
+           
                 if experimental_setup["analysis"]["numvehicles"] > 0:
                     policyargs = experimental_setup["analysis"]["policyargs"]
                     policy = getattr(policies, experimental_setup["analysis"]["policy"])(**policyargs)
@@ -110,6 +104,8 @@ if __name__ == "__main__":
 
                         simul = sim.Simulator(
                             initial_state = state_copy,
+                            target_state = getattr(target_state, experimental_setup["analysis"]["target_state"])(),
+                            demand = demand.Demand(),
                             start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
                             duration = DURATION,
                             verbose = True,
