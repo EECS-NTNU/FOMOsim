@@ -1,17 +1,16 @@
 
-from dataclasses import dataclass
 #from policies.gleditsch_hagen.utils import calculate_net_demand
 
 import sim
 
 
 # ------------ TESTING DATA MANUALLY ---------------
-Source = Station(0)
-station1 = Station(1)
-station2 = Station(2)
-station3 = Station(3)
+# Source = Station(0)
+# station1 = Station(1)
+# station2 = Station(2)
+# station3 = Station(3)
 
-vehicle = Vehicle(1)
+vehicle = sim.Vehicle(1)
 
 class MILP_data():
     def __init__(self):
@@ -21,7 +20,8 @@ class MILP_data():
         self.neighboring_stations = [[],[2],[1],[]]
         self.vehicles = [vehicle]
         self.time_periods = [0,1,2,3,4,5]
-        
+
+
         self.possible_previous_stations = [[[],[],[],[],[],[]], [[],[],[],[],[],[]], [[],[],[],[],[],[]]] #[station][time_period]
 
         for i in self.stations:
