@@ -65,7 +65,8 @@ if __name__ == "__main__":
     # Focus on 1 or 2 vehicles
 
 
-    target_states = {'OF':'outflow_target_state', 'ED':'evenly_distributed_target_state', 'EQ':'equal_prob_target_state','US':'us_target_state'}
+    target_states = {'Outflow':'outflow_target_state', 'Even':'evenly_distributed_target_state', 
+                    'EqualProb':'equal_prob_target_state','HalfCap':'us_target_state', 'UrbanSharing':'USTargetState'}
     weights_mapping = {'critic': [0.1,0.2,0.3,0.4],'ts_dev': [0.0,0.0,0.0,1.0]}
     
 
@@ -102,9 +103,9 @@ if __name__ == "__main__":
                 df_sub = (df[(df['target_state']==ts_name) & (df['num_vehicles']==num_veh) ])
                 df_sub = df_sub.sort_values(by=['week'],ascending=True)
                 df_sub = df_sub.sort_values(by=['city_ranking'],ascending=True)
-                print(ts)
-                print(df_sub)
-                ax.plot(df_sub['instance'],df_sub['lost_trips'],label=ts_name, linestyle = 'dashed', marker='.')
+                #print(ts)
+                #print(df_sub)
+                ax.plot(df_sub['instance'],df_sub['lost_trips'],label=ts, linestyle = 'dashed', marker='.')
             df_sub = (df[(df['num_vehicles']==0) ])
             df_sub = df_sub.sort_values(by=['week'],ascending=True)
             df_sub = df_sub.sort_values(by=['city_ranking'],ascending=True)
@@ -123,7 +124,7 @@ if __name__ == "__main__":
             #plt.subplots_adjust())
             
             location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\FOMO\Results\\Steffen\\target_state\\'
-            filename = 'ts_nv'+str(num_veh)+'_'+weight_name+'.pdf'
+            filename = 'ts_nv'+str(num_veh)+'_'+weight_name+'.png'   #.pdf
             plt.savefig(location+filename, dpi=150)
             plt.show()
 

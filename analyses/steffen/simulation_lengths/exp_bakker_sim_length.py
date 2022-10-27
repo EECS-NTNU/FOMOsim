@@ -19,10 +19,6 @@ sys.path.insert(0, '') #make sure the modules are found in the new working direc
 
 ##############################################################
 
-# TO DO: update to new setup
-
-##############################################################
-
 import copy
 
 import settings
@@ -61,7 +57,6 @@ NUM_DAYS = 3*7
 DURATION = timeInMinutes(hours=24*NUM_DAYS)
 WEEK = 34
 
-instance = 'OS_W22'
 
 def main(instance):
 
@@ -70,13 +65,13 @@ def main(instance):
 
     
     
-    state = init_state.read_initial_state("instances/"+INSTANCE);
+    state = init_state.read_initial_state("instances/"+instance);
     state.set_seed(1)
 
     ###############################################################################
     # Set up policy
 
-    tstate = target_state.EqualProbTargetState()
+    tstate = target_state.USTargetState()
 
     #do analysis for both donothing as well as greedy
     #policy = policies.DoNothing()
@@ -141,5 +136,5 @@ def main(instance):
 
 if __name__ == "__main__":
     
-    for instance in ['Oslo','Trondheim']: #'Edinburgh','Bergen'
+    for instance in ['OS_W32','TD_W34']: #'Edinburgh','Bergen'
         main(instance)
