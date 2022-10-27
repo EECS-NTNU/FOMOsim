@@ -10,6 +10,7 @@ FOMO simulator main program
 import os 
 import sys
 from pathlib import Path
+from turtle import color
 
 path = Path(__file__).parents[3]
 os.chdir(path)
@@ -73,11 +74,9 @@ def main(instance):
 
     tstate = target_state.USTargetState()
 
-    #do analysis for both donothing as well as greedy
-    #policy = policies.DoNothing()
-    policy = policies.GreedyPolicy()
+    #policy = policies.GreedyPolicy()
 
-    state.set_vehicles([policy])
+    state.set_vehicles([])  #this is DoNothing policy
 
     ###############################################################################
     # Set up demand
@@ -125,16 +124,30 @@ def main(instance):
         df_merged['cong'] = df_merged['congestions']/df_merged['trips']*100
         df_merged['starv'] = df_merged['starvations']/df_merged['trips']*100
         df_merged['time'] = df_merged['time']/(60*24)
+        x = df_merged['time']
         df_merged = df_merged.set_index('time')
-        ax = df_merged[['starv','cong']].plot.area(title=instance)
+        
+        y = np.vstack([df_merged['cong'], df_merged['starv']])
+        labels = ["congestions ", "starvations"]
+
+        fig, ax = plt.subplots()
+        color_map = ["#9b59b6", "#e74c3c", "#34495e", "#2ecc71"]
+        ax.stackplot(x, df_merged['cong'], df_merged['starv'],labels=labels,colors = color_map)
+        ax.legend(loc='upper left')
         ax.set_xlabel("time in days")
         ax.set_ylabel("lost trips (%)")
+        ax.set_title(instance)
         plt.show()
+        
+        # ax = df_merged[['starv','cong']].plot.area(title=instance)
+        # ax.set_xlabel("time in days")
+        # ax.set_ylabel("lost trips (%)")
+        # plt.show()
 
     
     plot_lost_trips_over_time(metric,instance)
 
 if __name__ == "__main__":
     
-    for instance in ['OS_W32','TD_W34']: #'Edinburgh','Bergen'
+    for instance in ['OS_W31','TD_W34']: 
         main(instance)
