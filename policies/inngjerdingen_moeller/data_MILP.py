@@ -1,8 +1,26 @@
 
 #from policies.gleditsch_hagen.utils import calculate_net_demand
 
-import sim
 
+####################################
+# set the right working directory #
+###################################
+
+import os 
+import sys
+from pathlib import Path
+
+path = Path(__file__).parents[2]
+os.chdir(path)
+#print(os. getcwd())
+
+sys.path.insert(0, '') #make sure the modules are found in the new working directory
+
+##############################################################
+
+
+import sim
+import policies
 
 # ------------ TESTING DATA MANUALLY ---------------
 # Source = Station(0)
@@ -10,7 +28,8 @@ import sim
 # station2 = Station(2)
 # station3 = Station(3)
 
-vehicle = sim.Vehicle(1)
+station1 = sim.Station(1,[], 2,3,None, None, None, 10, 20, None, None)
+vehicle1 = sim.Vehicle(1, station1, policies.GreedyPolicy(), 0, 6)
 
 class MILP_data():
     def __init__(self):
@@ -18,20 +37,13 @@ class MILP_data():
         self.stations = [1, 2, 3]
         self.stations_with_source_sink = [0, 1, 2, 3]
         self.neighboring_stations = [[],[2],[1],[]]
-        self.vehicles = [vehicle]
+        self.vehicles = [vehicle1]
         self.time_periods = [0,1,2,3,4,5]
 
 
-        self.possible_previous_stations = [[[],[],[],[],[],[]], [[],[],[],[],[],[]], [[],[],[],[],[],[]]] #[station][time_period]
+        self.possible_previous_stations = [[[],[],[],[],[],[]],[[],[],[],[],[],[]], [[],[],[],[],[],[]], [[],[],[],[],[],[]]] #[station][time_period]
 
-        for i in self.stations:
-                for t in self.time_periods:
-                        for j in self.stations_with_source_sink:
-                                if(t-self.T_DD[i][j]>=0):
-                                        self.possible_previous_stations[i-1][t].append(j)
-
-        #self.possible_previous_stations = [[[0], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]], [[0], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]], [[0], [0, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]]]
-    
+       
             #Parameters
         self.W_D = 0.1
         self.W_C = 0.3
@@ -75,11 +87,20 @@ class MILP_data():
 
         self.D = [[0,0,0,0,0,0], [0,0.5,0.6,0.2,-0.2,-0.1], [0,-0.5,0.6,-0.2,0,-0.2], [0,0.1,0.3,0.1,-0.3,-0.1]]
 
-        #self.Q_0 = {vehicle: 3}
-        self.Q_V = [6]
+        self.Q_0 = {vehicle1: 3}
+        self.Q_V = {vehicle1: 6}
         self.Q_S = [0,20,20,20]
 
         self.tau = 5
+
+        for j in self.stations:
+                for t in self.time_periods:
+                        for i in self.stations_with_source_sink:
+                                if(t-self.T_DD[i][j]>=0):
+                                        self.possible_previous_stations[j][t].append(i)
+
+        #self.possible_previous_stations = [[[0], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]], [[0], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]], [[0], [0, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]]]
+    
 
 d=MILP_data()
 print(d.possible_previous_stations)    
