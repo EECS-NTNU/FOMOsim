@@ -44,7 +44,7 @@ analysis = dict(name="num_reps_1_veh",
 # Enter analysis definition here
 analyses = [analysis]
 
-seeds = list(range(10)) #not being used in the actual analysis
+seeds = list(range(30)) #not being used in the actual analysis
 
 ###############################################################################
 
