@@ -77,6 +77,8 @@ def run_in_parallel(seed,state_copy,experimental_setup):
     
     simul.run()
 
+    return simul
+
 
 if __name__ == "__main__":
 
