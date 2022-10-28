@@ -1,3 +1,18 @@
+#JUST MOVE TO THE MAIN FOLDER!!
+
+import os 
+import sys
+from pathlib import Path
+
+path = Path(__file__).parents[3]
+os.chdir(path)
+#print(os. getcwd())
+
+sys.path.insert(0, '') #make sure the modules are found in the new working directory
+
+###############################################################################
+
+
 #!/bin/python3
 """
 FOMO simulator, visualises results from a cluster run
@@ -9,17 +24,20 @@ import pandas as pd
 import numpy as np
 import copy
 
+import os
+print(os.getcwd())
+
+#os.chdir('C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\GitHub\\FOMO-sim\\fomo')
+#filename = 'output_param_tuning_all.csv' #'output_param_tuning_all.csv'
+
 from analyses.steffen.num_sim_replications.helpers import ci_half_length
 from create_runs_base_settings import * #SEEDS, ABBRVS2
 
-import os
-
-#os.chdir('C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\GitHub\\FOMO-sim\\fomo')
-filename = 'output_param_tuning_all.csv' #'output_param_tuning_all.csv'
 
 
 
-print(os.getcwd())
+
+
 
 
 
@@ -31,6 +49,7 @@ if __name__ == "__main__":
 
     #output_param_tuning_all.csv
     #output_param_tuning_shorter_service.csv
+    filename = 'output_param_tuning_all.csv'
     df = pd.read_csv (os.getcwd()+'\\analyses\\steffen\\param_tuning\\'+filename,sep=';',
                         names=['run',	'instance',	'analyses','target_state','policy','num_vehicles',
                         'trips','starvations','congestions','starvations_std'	,'congestions_std', 'time_start','duration'])
@@ -52,7 +71,7 @@ if __name__ == "__main__":
     df['violations'] = df['starvations'] + df['congestions'] 
     df['violations_std'] = np.sqrt(df['starvations_std']**2 + df['congestions_std']**2)
 
-    factor = 100*df['trips']
+    factor = 100/df['trips']
     df['cong_trips'] =  df['congestions']*factor
     df['cong_trips_std'] =  df['congestions_std']*factor
     df['starv_trips'] =  df['starvations']*factor
@@ -202,30 +221,32 @@ if __name__ == "__main__":
         ax.set_title(str(num_vehicles)+' vehicle')
 
         x = df_plot['instance']
-        y = ['lost_trips_dn','lost_trips_avg_worst','lost_trips_avg_best','lost_trips_best']
+        y_name = ['lost_trips_dn','lost_trips_avg_worst','lost_trips_avg_best','lost_trips_best']
+        seeds = [NUM_SEEDS[instance] for instance in x]
         labels=['Do nothing','Worst policy (avg.)','Best policy (avg.)','Best policy (per instance)']
         colors = ['red','orange','blue','green']
-        for i in range(len(y)):
-            std = df_plot[y[i]+'_std']
-            N = NUM_SEEDS[df_plot['instance']]
+        for i in range(len(y_name)):
+            y = df_plot[y_name[i]]
+            std = df_plot[y_name[i]+'_std']
+            N = seeds[i]
             half_length = ci_half_length(n=N,alpha=0.05,sample_std=std)    
-            ax.plot(x,df_plot[y[i]],label=labels[i], color=colors[i], linestyle = 'dashed', marker='.')
-            ax.fill_between(x,df_plot[y[i]]-ci,df_plot[y[i]]+ci,color=colors[i], alpha=.1)  
+            ax.plot(x,y,label=labels[i], color=colors[i], linestyle = 'dashed', marker='.')
+            ax.fill_between(x,y-half_length,y+half_length,color=colors[i], alpha=.2)  
         #https://stackoverflow.com/questions/43941245/line-plot-with-data-points-in-pandas
 
         #ax.fill_between(all_results['instance'], all_results['lost_trips_best'], all_results['lost_trips_avg_best'])
 
-    plt.legend(loc="upper left")
-    
-    fact = 0.75
-    fig_size = [18.5, 10.5]
-    fig.set_size_inches(fig_size[0]*fact, fig_size[1]*fact)
-    #plt.subplots_adjust())
-    
-    location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\FOMO\Results\\Steffen\\ParameterTuning\\'
-    filename = 'par_tuning_res_6am_8pm_numveh'+num_vehicles+'.pdf'
-    plt.savefig(location+filename, dpi=150)
-    plt.show()
+        plt.legend(loc="upper left")
+        
+        fact = 0.75
+        fig_size = [18.5, 10.5]
+        fig.set_size_inches(fig_size[0]*fact, fig_size[1]*fact)
+        #plt.subplots_adjust())
+        
+        location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\FOMO\Results\\Steffen\\ParameterTuning\\'
+        filename = 'par_tuning_res_6am_8pm_numveh'+str(num_vehicles)+'.pdf'
+        plt.savefig(location+filename, dpi=150)
+        plt.show()
 
         #https://matplotlib.org/stable/gallery/lines_bars_and_markers/fill_between_demo.html
 
