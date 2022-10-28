@@ -9,6 +9,7 @@
 import os 
 import sys
 from pathlib import Path
+import random
 
 path = Path(__file__).parents[2]        # The path seems to be correct either way, sys.path.insert makes the difference
 os.chdir(path)
@@ -21,7 +22,7 @@ sys.path.insert(0, '') #make sure the modules are found in the new working direc
 
 import sim
 import policies
-from settings import DEFAULT_DEPOT_CAPACITY, MINUTES_PER_ACTION
+from settings import BIKE_SPEED, DEFAULT_DEPOT_CAPACITY, MINUTES_CONSTANT_PER_ACTION, MINUTES_PER_ACTION, VEHICLE_SPEED
 
 # ------------ TESTING DATA MANUALLY ---------------
 source = sim.Station(0,capacity=DEFAULT_DEPOT_CAPACITY)
@@ -43,12 +44,15 @@ class MILP_data():
                 self.time_periods = [0,1,2,3,4,5]
                 self.possible_previous_stations_driving = dict()        #{(station,time): [list of stations]}
                 self.possible_previous_stations_cycling = dict()        #{(station,time): [list of stations]}
+                self.possible_previous_stations_walking = dict()        #{(station,time): [list of stations]}
 
                 #Parameters
                 self.W_D = 0.1
                 self.W_C = 0.3
                 self.W_S = 0.3
                 self.W_R = 0.3
+
+                self.neighboring_limit= 0.3 #km
 
                 self.T_D = dict()       #{(station,station):time}
                 self.T_DD = dict()       #{(station,station):timeperiods}
@@ -72,20 +76,85 @@ class MILP_data():
 
         # ------------ DEFINING MEMBER FUNCTIONS ---------------
 
-        def set_possible_previous_stations_driving(self):
+        def set_possible_previous_stations(self, travel_time_dict, possible_previous_stations_dict):
                 for j in self.stations:
                         for t in self.time_periods:
                                 for i in self.stations_with_source_sink:
-                                        if(t-self.T_DD[i][j]>=0):
-                                                self.possible_previous_stations_driving[(j,t)] = i
+                                        if(t-travel_time_dict.get((i,j)) >= 0):
+                                                possible_previous_stations_dict[(j,t)] = i
 
-        def set_possible_previous_stations_cycling(self):
-                for j in self.stations:
-                        for t in self.time_periods:
-                                for i in self.stations_with_source_sink:
-                                        if(t-self.T_DC[i][j]>=0):
-                                                self.possible_previous_stations_cycling[(j,t)] = i
-    
+        def set_neighboring_stations(self):
+                for station in self.stations:
+                        self.neighboring_stations[station]=[]
+                        for candidate in self.stations:
+                                if station != candidate:
+                                        distance = station.distance_to(candidate.get_lat(),candidate.get_lon()) 
+                                        if distance <= self.neighboring_limit:
+                                                self.neighboring_stations[station].append(candidate)
+
+
+        def initialize_traveltime_dict(self, travel_time_dict, speed, discrete=False, driving=False): 
+                for start_station in self.stations_with_source_sink:
+                        for end_station in self.stations_with_source_sink:
+                                travel_time = (start_station.distance_to(end_station.get_lat(),end_station.get_lon()) / speed)
+                                if driving == True:
+                                        travel_time += MINUTES_CONSTANT_PER_ACTION #parking time included in driving time 
+                                if discrete == False:
+                                        travel_time_dict[(start_station,end_station)] = travel_time
+                                else:
+                                        travel_time_dict[(start_station,end_station)] = (travel_time//self.tau)+1
+                
+        def set_L_O(self):
+                for station in self.stations:
+                        self.L_0[station] = station.number_of_bikes()
+
+        def set_L_T(self):
+                for station in self.stations:
+                        #self.L_T[station] = station.get_target_state()                 #must be fixed before simulation
+                        self.L_T[station] = station.capacity//2
+
+        def set_D(self):
+                for station in self.stations:
+                        for time in self.time_periods:
+                                self.D[(station, time)] = self.tau*(station.get_arrive_intensity(random.randint(0,6), random.randint(8,22)) - station.get_leave_distribution(random.randint(0,6), random.randint(8,22))) #must be changed to simulate the real time
+
+        def set_Q_0(self):
+                for vehicle in self.vehicles:
+                        self.Q_0[vehicle] = vehicle.get_bike_inventory()
+        
+        def set_Q_V(self):
+                for vehicle in self.vehicles:
+                        self.Q_V[vehicle] = vehicle.bike_inventory_capacity
+        
+        def set_Q_S(self): 
+                for station in self.stations:
+                        self.Q_S[station] = station.capacity
+
+
+        def initalize_parameters(self):
+                self.initialize_traveltime_dict(self, self.T_D, VEHICLE_SPEED, discrete=False, driving=True)
+                self.initialize_traveltime_dict(self, self.T_DD, VEHICLE_SPEED, discrete=True, driving=True)
+                self.initialize_traveltime_dict(self, self.T_W, WALKING_SPEED, discrete=False, driving=False)
+                self.initialize_traveltime_dict(self, self.T_DW, WALKING_SPEED, discrete=True, driving=False)
+                self.initialize_traveltime_dict(self, self.T_C, BIKE_SPEED, discrete=False, driving=False)
+                self.initialize_traveltime_dict(self, self.T_DC, BIKE_SPEED, discrete=True, driving=False)
+
+                self.set_possible_previous_stations(self, self.T_DD, self.possible_previous_stations_driving)
+                self.set_possible_previous_stations(self, self.T_DC, self.possible_previous_stations_cycling)
+                self.set_possible_previous_stations(self, self.T_DW, self.possible_previous_stations_walking)
+
+                self.set_neighboring_stations(self)
+
+                self.set_L_O()
+                self.set_L_T()
+                
+                self.set_D()
+                
+                self.set_Q_0()
+                self.set_Q_V()
+                self.set_Q_S()
+
+
 
 d=MILP_data()
 d.set_possible_previous_stations()
