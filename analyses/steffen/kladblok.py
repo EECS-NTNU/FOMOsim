@@ -107,7 +107,7 @@ if __name__ == "__main__":
         perc_lost_trips = scale*(simul.metrics.get_aggregate_value("starvation")+
                             simul.metrics.get_aggregate_value("congestion"))
         simul.metrics.add_metric(simul,'perc_lost_trips',perc_lost_trips)
-
+        print(simul.metrics.metrics['perc_lost_trips'])
         simulations.append(simul)
         
         #scale = 100 / simul.metrics.get_aggregate_value("trips")
@@ -115,6 +115,7 @@ if __name__ == "__main__":
         #congestions.append(scale*simul.metrics.get_aggregate_value("congestion"))
 
     metric = sim.Metric.merge_metrics([simul.metrics for simul in simulations])  #merging the seeds into something overordnet
+    print(metric.metrics['perc_lost_trips'])
 
     scale = 100 / metric.get_aggregate_value("trips")
 

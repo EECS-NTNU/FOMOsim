@@ -63,7 +63,6 @@ def simulation_main(seed,state_copy,experimental_setup):
                         simul.metrics.get_aggregate_value("congestion"))
     simul.metrics.add_metric(simul,'perc_lost_trips',perc_lost_trips)
 
-
     sys.stdout.flush()
 
     return simul
