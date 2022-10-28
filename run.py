@@ -1,75 +1,46 @@
-
-###############################################################################
-
 #!/bin/python3
 """
-FOMO simulator main program
+FOMO simulator, runs one experimental setup json-file
 """
 import copy
-
 import sys
 from threading import Timer
+from datetime import datetime
 
-import settings
 import sim
 import init_state
 import init_state.cityBike
+
 
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 import demand
-from progress.bar import Bar
 
-import output
 import target_state
-import matplotlib.pyplot as plt
-
-import pandas as pd
-import numpy as np
-from scipy.stats import t, norm
-
-from helpers import *
-from analyses.steffen.num_sim_replications.helpers import ci_half_length, approximate_num_reps_absolute
-from create_runs_base_settings import *
 
 import json
 
+from helpers import *
+
 from multiprocessing.pool import Pool
 from multiprocessing import current_process
-from multiprocessing import Manager
 
-
-from math import ceil
+from create_runs_base_settings import *
 
 
 ###############################################################################
 
-
-
-#analysis settings
-alpha = 0.05
-gamma = 0.05 #relative error
-gamma_star = gamma/(1-gamma)
-beta = 0.25 #absolute error
-min_num_seeds = 4
-n_max = 6  #60
-analysis_type = 'absolute' #relative1,absolute,absolute_iterate
-CPU_FACTOR = 2/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
-
 INSTANCE_DIRECTORY="instances"
 LOCAL_MACHINE_TEST = False
 
-def round_up_to_multiple_of_n(number, n):
-    return ceil((number+0.05) / n)* n
-    
-
-def run_in_parallel(seed,state_copy,experimental_setup):
+def simulation_main(seed,state_copy,experimental_setup):
     
     print("Running seed", seed)
-    sys.stdout.flush()
 
-    state_copy.set_seed(seed)
+    state_copy.set_seed(seed) 
+
+    sys.stdout.flush()
 
     trgt_state = None
     if experimental_setup["analysis"]["numvehicles"] > 0:
@@ -77,19 +48,26 @@ def run_in_parallel(seed,state_copy,experimental_setup):
 
     simul = sim.Simulator(
         initial_state = state_copy,
-        target_state=trgt_state,
-        demand=demand.Demand(),
-        start_time = timeInMinutes(days=experimental_setup["analysis"]["day"], hours=experimental_setup["analysis"]["hour"]),
-        duration = DURATION,
-        verbose = True,
+        target_state = trgt_state,
+        demand = demand.Demand(),
+        start_time = timeInMinutes( days=experimental_setup["analysis"]["day"], 
+                                    hours=experimental_setup["analysis"]["hour"]),
+        duration = experimental_setup["duration"],
+        cluster = True,
+        verbose = False,
     )
-    
+
     simul.run()
     print("Finished running seed ", seed, ' using process ', print(current_process().name))
+    
+    scale = 100 / simul.metrics.get_aggregate_value("trips")
+    perc_lost_trips = scale*(simul.metrics.get_aggregate_value("starvation")+
+                        simul.metrics.get_aggregate_value("congestion"))
+    simul.metrics.add_metric(simul,'perc_lost_trips',perc_lost_trips)
+
     sys.stdout.flush()
 
     return simul
-
 
 if __name__ == "__main__":
 
@@ -99,228 +77,62 @@ if __name__ == "__main__":
         tasks = sys.argv[1:]
 
     for filename in tasks:
-            with open(filename, "r") as infile:
-                print("Running file", filename) #filename='experimental_setups/setup_0063.json'
+    #infile= open(filename, "r")
+        with open(filename, "r") as infile: 
+            print("Running file", filename) 
 
-                time_start = datetime.now() 
+            time_start = datetime.now() 
 
-                experimental_setup = json.load(infile)
-                analysis = experimental_setup["analysis"]
-                DURATION = experimental_setup["duration"]
+            experimental_setup = json.load(infile)
 
-                initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"])
-           
-                if experimental_setup["analysis"]["numvehicles"] > 0:
-                    policyargs = experimental_setup["analysis"]["policyargs"]
-                    policy = getattr(policies, experimental_setup["analysis"]["policy"])(**policyargs)
-                    initial_state.set_vehicles([policy]*experimental_setup["analysis"]["numvehicles"])
-                
-                starvations = []
-                congestions = []
-                violations = []
-                trips = []
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"])
+                                                            #number_of_stations,number_of_bikes
 
-                if analysis_type == 'relative1':
-                
-                    print('to do')
+            if experimental_setup["analysis"]["numvehicles"] > 0:
+                policyargs = experimental_setup["analysis"]["policyargs"]
+                policy = getattr(policies, experimental_setup["analysis"]["policy"])(**policyargs)
+                initial_state.set_vehicles([policy]*experimental_setup["analysis"]["numvehicles"])
 
-                elif analysis_type == 'absolute':
+            simulations = []
 
-                    # Alternative 1
-                    #Seems like it works!
-                    numprocesses = int(np.floor(CPU_FACTOR*os.cpu_count()))
-                    with Pool(processes=numprocesses) as pool:  #use cpu_count()
-                        print('Number of CPUs used:' + str(numprocesses))
-                        sys.stdout.flush()
-                        arguments = [(seed,copy.deepcopy(initial_state),experimental_setup) 
-                                        for seed in range(n_max)]
-                        for simul in pool.starmap(run_in_parallel, arguments):  #starmap_async
-                            trip = simul.metrics.get_aggregate_value("trips")
-                            starvation = simul.metrics.get_aggregate_value("starvation")
-                            congestion = simul.metrics.get_aggregate_value("congestion")
-                            violation = starvation+congestion
-                            
-                            scale = 100 / trip
-                            starvations.append(scale*starvation)
-                            congestions.append(scale*congestion)
-                            violations.append(scale*violation)
-
-                    # #Alternative 2
-                    # state_copy = copy.deepcopy(initial_state)
-
-                    # for seed in range(n_max):  
-                        
-                    #     print("Running seed", seed)
-
-                    #     state_copy.set_seed(seed)
-
-                    #     trgt_state = None
-                    #     if experimental_setup["analysis"]["numvehicles"] > 0:
-                    #         trgt_state = getattr(target_state, experimental_setup["analysis"]["target_state"])()
-
-                    #     simul = sim.Simulator(
-                    #         initial_state = state_copy,
-                    #         target_state=trgt_state,
-                    #         demand=demand.Demand(),
-                    #         start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
-                    #         duration = DURATION,
-                    #         verbose = True,
-                    #     )
-                        
-                    #     simul.run()
-                    #     print("Finished running seed ", seed)
-
-
-                    #     trip = simul.metrics.get_aggregate_value("trips")
-                    #     starvation = simul.metrics.get_aggregate_value("starvation")
-                    #     congestion = simul.metrics.get_aggregate_value("congestion")
-                    #     violation = starvation+congestion
-                        
-                    #     scale = 100 / trip
-                    #     starvations.append(scale*starvation)
-                    #     congestions.append(scale*congestion)
-                    #     violations.append(scale*violation)
-
-
-
-                    n_starv = approximate_num_reps_absolute(starvations,beta,alpha,5)
-                    n_cong = approximate_num_reps_absolute(congestions,beta,alpha,5)
-                    n_viol = approximate_num_reps_absolute(violations,beta,alpha,5)
+            factor = 2/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
+            numprocesses = int(np.floor(factor*os.cpu_count()))
+            with Pool(processes=numprocesses) as pool:  #use cpu_count()
+                print('Number of CPUs used:' + str(numprocesses))
+                sys.stdout.flush()
+                arguments = [(seed,copy.deepcopy(initial_state),experimental_setup) for seed in experimental_setup["seeds"]]
+                for simul in pool.starmap(simulation_main, arguments):  #starmap_async
+                    simulations.append(simul)
                     
-                    
-                elif analysis_type == 'absolute_iterate':
 
-                    for seed in range(min_num_seeds):
-                        #seed = 0
+            metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
 
-                        state_copy = copy.deepcopy(initial_state)
-                        state_copy.set_seed(seed)
+            lock_handle = lock("output.csv")
 
-                        simul = sim.Simulator(
-                            initial_state = state_copy,
-                            target_state = getattr(target_state, experimental_setup["analysis"]["target_state"])(),
-                            demand = demand.Demand(),
-                            start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
-                            duration = DURATION,
-                            verbose = True,
-                        )
-                        
-                        simul.run()
+            f = open("output.csv", "a")
 
-                        trip = simul.metrics.get_aggregate_value("trips")
-                        starvation = simul.metrics.get_aggregate_value("starvation")
-                        congestion = simul.metrics.get_aggregate_value("congestion")
-                        violation = starvation+congestion
-                        
-                        scale = 100 / trip
-                        starvations.append(scale*starvation)
-                        congestions.append(scale*congestion)
-                        violations.append(scale*violation)
+            f.write(str(experimental_setup["run"]) + ";")
+            f.write(str(experimental_setup["instance"]) + ";")
+            f.write(str(experimental_setup["analysis"]["name"]) + ";")
+            if "target_state" in experimental_setup["analysis"]:
+                f.write(str(experimental_setup["analysis"]["target_state"]))
+            f.write(";")
+            if "policy" in experimental_setup["analysis"]:
+                f.write(str(experimental_setup["analysis"]["policy"]))
+            f.write(";")
+            f.write(str(experimental_setup["analysis"]["numvehicles"]) + ";")
+            f.write(str(metric.get_aggregate_value("trips")) + ";")
+            f.write(str(metric.get_aggregate_value("starvation")) + ";")
+            f.write(str(metric.get_aggregate_value("congestion")) + ";")
+            f.write(str(metric.get_aggregate_value("starvation_stdev")) + ";")
+            f.write(str(metric.get_aggregate_value("congestion_stdev"))+ ";")
+            f.write(str(time_start)+ ";")
+            f.write(str(datetime.now()-time_start)) #duration
 
+            f.write("\n")
+            f.close()
 
-                    #THEN, START ON THE ITERATIVE PROCEDURE
-
-                    n = min_num_seeds
-                    
-                    starv_finished=False
-                    cong_finished=False
-
-                    n_starv = n_max
-                    n_cong = n_max 
-
-                    finished = False
-                    while not finished:
-
-                        n += 1
-
-                        state_copy = copy.deepcopy(initial_state)
-                        state_copy.set_seed(n)
-                        simul = sim.Simulator(
-                            initial_state = state_copy,
-                            start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
-                            duration = DURATION,
-                            verbose = True,
-                        )
-                        simul.run()
-
-                        trip = simul.metrics.get_aggregate_value("trips")
-                        starvation = simul.metrics.get_aggregate_value("starvation")
-                        congestion = simul.metrics.get_aggregate_value("congestion")
-                        violation = starvation+congestion
-                        
-                        scale = 100 / trip
-                        starvations.append(scale*starvation)
-                        congestions.append(scale*congestion)
-                        violations.append(scale*violation)
-
-                        mean_trips = np.mean(trips)
-                        mean_starv = np.mean(starvations)
-                        mean_cong = np.mean(congestions)
-                        std_starv = np.std(starvations)
-                        std_cong = np.std(congestions)
-
-
-                        if starv_finished==False:
-                            if ci_half_length(n,alpha,std_starv) <= beta:
-                                starv_finished = True
-                                n_starv = n 
-                        if cong_finished == False:
-                            if ci_half_length(n,alpha,std_cong) <= beta:
-                                cong_finished = True
-                                n_cong = n
-                        
-                        if (starv_finished and cong_finished) or (n > n_max):
-                            finished = True
-
-                #directory = 'analyses/steffen/num_sim_replications/'
-                
-                lock_handle = lock("output_num_reps.csv")
-                
-                f = open("output_num_reps.csv", "a")
-                
-                f.write(str(analysis_type) + ";")
-                f.write(str(alpha) + ";")
-                f.write(str(beta) + ";")
-                f.write(str(gamma) + ";")
-                f.write(str(experimental_setup["instance"]) + ";")
-                f.write(str(experimental_setup["analysis"]["name"]) + ";")
-
-                if "target_state" in experimental_setup["analysis"]:
-                    f.write(str(experimental_setup["analysis"]["target_state"]))
-                f.write(";")
-                if "policy" in experimental_setup["analysis"]:
-                    f.write(str(experimental_setup["analysis"]["policy"]))
-                f.write(";")
-                f.write(str(experimental_setup["analysis"]["numvehicles"]) + ";")
-                f.write(str(np.mean(starvations)) + ";")
-                f.write(str(np.mean(congestions)) + ";")
-                f.write(str(np.mean(violations)) + ";")
-                f.write(str(np.mean(trip)) + ";")
-                f.write(str(np.std(starvations)) + ";")
-                f.write(str(np.std(congestions)) + ";")
-                f.write(str(n_starv) + ";")
-                f.write(str(n_cong) + ";")
-                f.write(str(round_up_to_multiple_of_n(max(n_cong,n_starv),5)) + ";")
-                f.write(str(time_start)+ ";")
-                f.write(str(datetime.now()-time_start)) #duration
-
-                f.write("\n")
-                f.close()
-
-                unlock(lock_handle)
+            unlock(lock_handle)
 
     print("Done")
     sys.stdout.flush()
-
-
-
-            
-            
-
-            
-
-
-
-
-
-

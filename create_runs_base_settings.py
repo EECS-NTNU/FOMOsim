@@ -11,6 +11,8 @@ CITIES = [  "Oslo",
             "Trondheim",
             "Edinburgh",
             ]
+CITY_RANKING = {'EH':0,'TD':1,'BG':2,'OS':3}
+
 ABBRVS = {"Oslo": 'OS',
           "Bergen": 'BG',
           "Trondheim":'TD' ,
@@ -27,8 +29,15 @@ WEEKS = {"Oslo": [10,22,31,50],
 
 NUM_SEEDS = {
     "EH_W10":10,"EH_W22":10,    "EH_W31":10,	"EH_W50":10,	
-    "TD_W17":30,"TD_W21":30,    "TD_W34":45,	"TD_W44":35,	
-    "BG_W8":35, "BG_W25":35,    "BG_W35":30,	"BG_W45":45,    	
-    "OS_W10":15,"OS_W22":25,    "OS_W31":25,    "OS_W50":15,
+    "TD_W17":10,"TD_W21":15,    "TD_W34":15,	"TD_W44":10,	
+    "BG_W8":10, "BG_W25":10,    "BG_W35":10,	"BG_W45":15,    	
+    "OS_W10":15,"OS_W22":70,    "OS_W31":70,    "OS_W50":30,
 }
+
+# NUM_SEEDS = {
+#     "EH_W10":10,"EH_W22":10,    "EH_W31":10,	"EH_W50":10,	
+#     "TD_W17":10,"TD_W21":15,    "TD_W34":15,	"TD_W44":10,	
+#     "BG_W8":10, "BG_W25":10,    "BG_W35":10,	"BG_W45":15,    	
+#     "OS_W10":15,"OS_W22":30,    "OS_W31":30,    "OS_W50":30,
+# }
 

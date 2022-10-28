@@ -2,6 +2,7 @@
 
 import shutil
 import os
+import sys
 import numpy as np
 import itertools
 import copy
@@ -36,27 +37,29 @@ def readTime():
 ###############################################################################
 # file locking
 
-try:
-    import fcntl   #not available on windows
+if 'win' not in sys.platform: 
 
-    def lock(filename):
-        print("Waiting for lock", filename)
-        lockname = filename + ".LOCK"
-        fd = open(lockname, 'w+')
-        fcntl.lockf(fd, fcntl.LOCK_EX)
-        print("Got lock")
-        return (fd,lockname)
+    try:
+        import fcntl   #not available on windows
 
-    def unlock(handle):
-        handle[0].close()
-    #    os.remove(handle[1])
+        def lock(filename):
+            print("Waiting for lock", filename)
+            lockname = filename + ".LOCK"
+            fd = open(lockname, 'w+')
+            fcntl.lockf(fd, fcntl.LOCK_EX)
+            print("Got lock")
+            return (fd,lockname)
 
-except ModuleNotFoundError:
-    def lock(filename):
-        return filename
+        def unlock(handle):
+            handle[0].close()
+        #    os.remove(handle[1])
 
-    def unlock(handle):
-        pass
+    except ModuleNotFoundError:
+        def lock(filename):
+            return filename
+
+        def unlock(handle):
+            pass
 
 
 #Windows: https://superfastpython.com/multiprocessing-mutex-lock-in-python/

@@ -192,7 +192,7 @@ if __name__ == "__main__":
         #----------#
 
 
-        city_ranking = {'EH':0,'TD':1,'BG':2,'OS':3}
+        city_ranking = CITY_RANKING 
 
         all_results['week'] = all_results['instance'].apply(lambda x: int(x.split('_W')[1]))
         all_results['city'] = all_results['instance'].apply(lambda x: x.split('_W')[0])
