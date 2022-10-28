@@ -117,6 +117,9 @@ if __name__ == "__main__":
     metric = sim.Metric.merge_metrics([simul.metrics for simul in simulations])  #merging the seeds into something overordnet
     print(metric.metrics['perc_lost_trips'])
 
+    print(metric.metrics["perc_lost_trips"])
+    print(metric.get_aggregate_value("perc_lost_trips"))
+
     scale = 100 / metric.get_aggregate_value("trips")
 
     lost_trips_starv.append(scale * metric.get_aggregate_value("starvation"))

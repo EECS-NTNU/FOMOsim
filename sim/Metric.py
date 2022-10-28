@@ -172,8 +172,12 @@ class Metric:
                     stdev = np.std(values)
 
                 # add metric
-                metric.add_metric_time(time, key, mean)
-                metric.add_metric_time(time, key + "_stdev", stdev)
+                if (key not in metric.metrics) or (metric.metrics[key][-1][0] != time):
+                    if (key in metric.metrics) and (metric.metrics[key][-1][0] == time):
+                        assert metric.metrics[key][-1][0] == mean
+                        assert metric.metrics[key + "_stdev"][-1][0] == stdev
+                    metric.add_metric_time(time, key, mean)
+                    metric.add_metric_time(time, key + "_stdev", stdev)
 
                 # get next time
                 mintime = sys.maxsize
