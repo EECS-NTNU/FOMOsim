@@ -46,12 +46,12 @@ from analyses.steffen.num_sim_replications.helpers import *
 # Duration of each simulation run
 
 START_TIME = timeInMinutes(hours=7)
-NUM_DAYS = 7
+NUM_DAYS = 1
 DURATION = timeInMinutes(hours=24*NUM_DAYS)
 instance = "BG_W35"
 INSTANCE_DIRECTORY="instances"
 
-analysis = dict(name="equalprob",
+analysis = dict(name="half_greedy",
          target_state="HalfCapacityTargetState",
          policy="GreedyPolicy",
          policyargs={},
@@ -75,7 +75,7 @@ if __name__ == "__main__":
         policy = getattr(policies, analysis["policy"])(**policyargs)
         initial_state.set_vehicles([policy]*analysis["numvehicles"])
 
-    num_seeds = 5
+    num_seeds = 2
     seeds = list(range(num_seeds))
 
     lost_trips_starv = []

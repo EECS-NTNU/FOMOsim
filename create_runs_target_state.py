@@ -42,9 +42,8 @@ if some_runs_already_performed:
 ###############################################################################
 
 # Duration of each simulation run
-NUM_DAYS = 7
-DURATION = timeInMinutes(hours=24*NUM_DAYS)
-NUM_SEEDS = 10
+#NUM_DAYS = 7
+#DURATION = timeInMinutes(hours=24*NUM_DAYS)
 
 # Enter instance definition here.  
 
@@ -80,11 +79,12 @@ all_weights = [ [0,0,0,1],
                 ]
 
 ts_map = {
-    #"ED":"EvenlyDistributedTargetState",
+    "EVEN":"EvenlyDistributedTargetState",
+    "HALF":"HalfCapacityTargetState",
+    "EQUAL":"USTargetState",
+    #
     #"OF":"OutflowTargetState",
     #"EQ":"EqualProbTargetState",
-    #"HALF":"us_target_state",
-    "EQUS":"USTargetState",
     }
 policy_map = {
     #abbreviation:name_of_policy

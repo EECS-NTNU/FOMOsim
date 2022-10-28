@@ -61,6 +61,14 @@ if 'win' not in sys.platform:
         def unlock(handle):
             pass
 
+else:
+    def lock(filename):
+            return filename
+
+    def unlock(handle):
+        pass
+
+
 
 #Windows: https://superfastpython.com/multiprocessing-mutex-lock-in-python/
 
