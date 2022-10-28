@@ -44,3 +44,8 @@ for i in ['instance','N_starv','N_cong','N_FINAL','starvations','congestions','t
         string +=' & '+str(value)
     print(string)
 
+string = ''
+for i,j in zip(df['instance'],df['N_FINAL']):
+    string+= '"'+str(i)+'":'+str(j)+','
+print(string)
+
