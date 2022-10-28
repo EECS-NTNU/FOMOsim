@@ -54,7 +54,8 @@ from matplotlib import gridspec
 ###############################################################################
 
 START_TIME = timeInMinutes(hours=7)
-NUM_DAYS = 3*7
+NUM_WEEKS = 4
+NUM_DAYS = NUM_WEEKS*7
 DURATION = timeInMinutes(hours=24*NUM_DAYS)
 WEEK = 34
 
@@ -137,7 +138,13 @@ def main(instance):
         ax.set_xlabel("time in days")
         ax.set_ylabel("lost trips (%)")
         ax.set_title(instance)
-        plt.show()
+        
+        location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\FOMO\Results\\Steffen\\LengthOfSimulation\\'
+        filename = 'convergence_do_nothing_'+str(instance)
+        extensions = ['.png','.pdf']
+        for ext in extensions:
+            plt.savefig(location+filename+ext, dpi=150)
+        #plt.show()
         
         # ax = df_merged[['starv','cong']].plot.area(title=instance)
         # ax.set_xlabel("time in days")

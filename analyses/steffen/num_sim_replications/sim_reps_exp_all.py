@@ -12,10 +12,6 @@ os.chdir(desired_path)
 
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
-##############################################
-
-# Needs to be updated with the new changes (how to read an initial state and so on)
-
 ###############################################################################
 
 #!/bin/python3
@@ -32,6 +28,7 @@ import init_state.cityBike
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
+import demand
 
 from progress.bar import Bar
 
@@ -110,9 +107,9 @@ if __name__ == "__main__":
 
         tstate = None
         if "target_state" in analysis:
-            tstate = getattr(target_state, analysis["target_state"])
+            tstate = getattr(target_state, analysis["target_state"])()
 
-        initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
+        initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance)
 
         if analysis["numvehicles"] > 0:
             policyargs = analysis["policyargs"]
@@ -136,6 +133,8 @@ if __name__ == "__main__":
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
+                    target_state = tstate,
+                    demand = demand.Demand(),
                     start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
                     duration = DURATION,
                     verbose = True,
@@ -222,6 +221,8 @@ if __name__ == "__main__":
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
+                    target_state=tstate,
+                    demand=demand.Demand(),
                     start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
                     duration = DURATION,
                     verbose = True,

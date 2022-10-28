@@ -7,16 +7,17 @@ import shutil
 import json
 
 from helpers import *
+from create_runs_base_settings import *
 
 RUN_DIRECTORY="experimental_setups"
 
 ###############################################################################
 
 # Duration of each simulation run
-DURATION = timeInMinutes(hours=24)
+#DURATION = timeInMinutes(hours=24)
 
 # Enter instances here
-instances = [ "OS_W31", "TD_W34", "BG_W35", "EH_W31" ]
+instances = INSTANCES #[ "OS_W31", "TD_W34", "BG_W35", "EH_W31" ]
 
 # Enter analysis definition here
 analyses = [

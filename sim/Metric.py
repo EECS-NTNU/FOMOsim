@@ -22,6 +22,16 @@ class Metric:
         if(sim.time > self.max_time):
             self.max_time = sim.time
 
+    # def add_metric(self, metric, value):
+    #     if metric not in self.metrics:
+    #         self.metrics[metric] = []
+
+    #     self.metrics[metric].append(value)
+    #     if((self.min_time == 0) or (self.min_time > value[0])):
+    #         self.min_time = value[0]
+    #     if(value[0] > self.max_time):
+    #         self.max_time = value[0]
+
     def add_metric_time(self, time, metric, value):
         if metric not in self.metrics:
             self.metrics[metric] = []
@@ -130,15 +140,20 @@ class Metric:
                 if key not in keys:
                     keys.append(key)
 
+        min_time = sys.maxsize
+        for m in metrics:
+            if m.min_time < min_time:
+                min_time = m.min_time
+
         max_time = 0
         for m in metrics:
             if m.max_time > max_time:
                 max_time = m.max_time
 
         for key in keys:
-            pointers = [0] * len(metrics)
+            pointers = [-1] * len(metrics)
             
-            time = metrics[0].min_time
+            time = min_time
 
             while time <= max_time:
                 # get value
@@ -157,8 +172,12 @@ class Metric:
                     stdev = np.std(values)
 
                 # add metric
-                metric.add_metric_time(time, key, mean)
-                metric.add_metric_time(time, key + "_stdev", stdev)
+                if (key not in metric.metrics) or (metric.metrics[key][-1][0] != time):
+                    if (key in metric.metrics) and (metric.metrics[key][-1][0] == time):
+                        assert metric.metrics[key][-1][0] == mean
+                        assert metric.metrics[key + "_stdev"][-1][0] == stdev
+                    metric.add_metric_time(time, key, mean)
+                    metric.add_metric_time(time, key + "_stdev", stdev)
 
                 # get next time
                 mintime = sys.maxsize

@@ -2,7 +2,7 @@ import numpy as np
 from scipy.stats import t, norm
 
 def ci_half_length(n,alpha,sample_std):
-    delta = t.ppf(1-alpha/2, n-1, loc=0, scale=1) * np.sqrt(sample_std**2/n) 
+    delta = t.ppf(1-alpha/2, n-1, loc=0, scale=1) * sample_std/np.sqrt(n) 
     return delta
 
 def approximate_num_reps_relative1(random_sample,gamma,alpha,n0):
