@@ -36,6 +36,8 @@ import json
 
 from multiprocessing.pool import Pool
 from multiprocessing import current_process
+from multiprocessing import Manager
+
 
 from math import ceil
 
@@ -54,12 +56,16 @@ n_max = 60
 analysis_type = 'absolute' #relative1,absolute,absolute_iterate
 
 INSTANCE_DIRECTORY="instances"
+LOCAL_MACHINE_TEST = True
 
 def round_up_to_multiple_of_n(number, n):
     return ceil((number+0.05) / n)* n
     
 
 def run_in_parallel(seed,state_copy,experimental_setup):
+    
+    print("Running seed", seed)
+
     state_copy.set_seed(seed)
 
     trgt_state = None
@@ -76,13 +82,19 @@ def run_in_parallel(seed,state_copy,experimental_setup):
     )
     
     simul.run()
+    print("Finished running seed ", seed, ' using process ', print(current_process().name))
 
     return simul
 
 
 if __name__ == "__main__":
 
-    for filename in sys.argv[1:]:
+    if LOCAL_MACHINE_TEST:
+        tasks = ['experimental_setups/setup_0003.json']
+    else:
+        tasks = sys.argv[1:]
+
+    for filename in tasks:
             with open(filename, "r") as infile:
                 print("Running file", filename) #filename='experimental_setups/setup_0063.json'
 
@@ -110,23 +122,62 @@ if __name__ == "__main__":
 
                 elif analysis_type == 'absolute':
 
-                    factor = 2/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
-                    numprocesses = int(np.floor(factor*os.cpu_count()))
-                    with Pool(processes=numprocesses) as pool:  #use cpu_count()
-                        print('Number of CPUs used:' + str(numprocesses))
-                        sys.stdout.flush()
-                        arguments = [(seed,copy.deepcopy(initial_state),experimental_setup) 
-                                        for seed in range(n_max)]
-                        for simul in pool.starmap(run_in_parallel, arguments):  #starmap_async
-                            trip = simul.metrics.get_aggregate_value("trips")
-                            starvation = simul.metrics.get_aggregate_value("starvation")
-                            congestion = simul.metrics.get_aggregate_value("congestion")
-                            violation = starvation+congestion
+                    
+                    # SOMEHOW THIS DOES NOT WORK AT THE MOMENT
+                    # factor = 2/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
+                    # numprocesses = int(np.floor(factor*os.cpu_count()))
+                    # with Pool(processes=numprocesses) as pool:  #use cpu_count()
+                    #     print('Number of CPUs used:' + str(numprocesses))
+                    #     sys.stdout.flush()
+                    #     arguments = [(seed,copy.deepcopy(initial_state),experimental_setup) 
+                    #                     for seed in range(n_max)]
+                    #     for simul in pool.starmap(run_in_parallel, arguments):  #starmap_async
+                    #         trip = simul.metrics.get_aggregate_value("trips")
+                    #         starvation = simul.metrics.get_aggregate_value("starvation")
+                    #         congestion = simul.metrics.get_aggregate_value("congestion")
+                    #         violation = starvation+congestion
                             
-                            scale = 100 / trip
-                            starvations.append(scale*starvation)
-                            congestions.append(scale*congestion)
-                            violations.append(scale*violation)
+                    #         scale = 100 / trip
+                    #         starvations.append(scale*starvation)
+                    #         congestions.append(scale*congestion)
+                    #         violations.append(scale*violation)
+
+                    state_copy = copy.deepcopy(initial_state)
+
+                    for seed in range(n_max):  
+                        
+                        print("Running seed", seed)
+
+                        state_copy.set_seed(seed)
+
+                        trgt_state = None
+                        if experimental_setup["analysis"]["numvehicles"] > 0:
+                            trgt_state = getattr(target_state, experimental_setup["analysis"]["target_state"])()
+
+                        simul = sim.Simulator(
+                            initial_state = state_copy,
+                            target_state=trgt_state,
+                            demand=demand.Demand(),
+                            start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
+                            duration = DURATION,
+                            verbose = True,
+                        )
+                        
+                        simul.run()
+                        print("Finished running seed ", seed)
+
+
+                        trip = simul.metrics.get_aggregate_value("trips")
+                        starvation = simul.metrics.get_aggregate_value("starvation")
+                        congestion = simul.metrics.get_aggregate_value("congestion")
+                        violation = starvation+congestion
+                        
+                        scale = 100 / trip
+                        starvations.append(scale*starvation)
+                        congestions.append(scale*congestion)
+                        violations.append(scale*violation)
+
+
 
                     n_starv = approximate_num_reps_absolute(starvations,beta,alpha,5)
                     n_cong = approximate_num_reps_absolute(congestions,beta,alpha,5)
