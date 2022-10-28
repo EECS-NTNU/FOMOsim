@@ -89,4 +89,5 @@ class MILP_data():
 
 d=MILP_data()
 d.set_possible_previous_stations()
-print(d.possible_previous_stations)    
+print(d.possible_previous_stations)
+print("heiiiiiiii")    
