@@ -15,6 +15,7 @@ import init_state.cityBike
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
+import demand
 
 import target_state
 
@@ -26,6 +27,8 @@ from multiprocessing.pool import Pool
 from multiprocessing import Manager
 
 import numpy as np
+
+
 
 ###############################################################################
 
@@ -44,12 +47,8 @@ def main_code(windows_lock,filename):
 
         experimental_setup = json.load(infile)
 
-        tstate = None
-        if "target_state" in experimental_setup["analysis"]:
-            tstate = getattr(target_state, experimental_setup["analysis"]["target_state"])
-
-        initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"], 
-                                                        target_state=tstate, load_from_cache=True ) #load from cache sometimes gives errors on cluster
+        initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + experimental_setup["instance"])
+                                                            #number_of_stations,number_of_bikes
 
         if experimental_setup["analysis"]["numvehicles"] > 0:
             policyargs = experimental_setup["analysis"]["policyargs"]
@@ -65,15 +64,27 @@ def main_code(windows_lock,filename):
 
             sys.stdout.flush()
 
+            trgt_state = None
+            if experimental_setup["analysis"]["numvehicles"] > 0:
+                trgt_state = getattr(target_state, experimental_setup["analysis"]["target_state"])()
+
             simul = sim.Simulator(
                 initial_state = state_copy,
-                start_time = timeInMinutes(days=experimental_setup["analysis"]["day"], hours=experimental_setup["analysis"]["hour"]),
+                target_state = trgt_state,
+                demand = demand.Demand(),
+                start_time = timeInMinutes( days=experimental_setup["analysis"]["day"], 
+                                            hours=experimental_setup["analysis"]["hour"]),
                 duration = experimental_setup["duration"],
-                cluster = True,
+                cluster = False,
                 verbose = False,
             )
 
             simul.run()
+
+            scale = 100 / simul.metrics.get_aggregate_value("trips")
+            perc_lost_trips = scale*(simul.metrics.get_aggregate_value("starvation")+
+                                simul.metrics.get_aggregate_value("congestion"))
+            simul.metrics.add_metric(simul,'perc_lost_trips',perc_lost_trips)
 
             simulations.append(simul)
 
