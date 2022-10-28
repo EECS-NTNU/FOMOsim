@@ -140,7 +140,7 @@ class Metric:
                 if key not in keys:
                     keys.append(key)
 
-        min_time = 0
+        min_time = sys.maxsize
         for m in metrics:
             if m.min_time < min_time:
                 min_time = m.min_time
