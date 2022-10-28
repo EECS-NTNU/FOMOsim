@@ -14,7 +14,8 @@ import random
 path = Path(__file__).parents[2]        # The path seems to be correct either way, sys.path.insert makes the difference
 os.chdir(path)
 # print(os. getcwd())
-
+#path = "../../sim" #gått opp to mapper
+#path = "./adasd/Asdads" #./ samme mappe
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
 ##############################################################
@@ -22,25 +23,32 @@ sys.path.insert(0, '') #make sure the modules are found in the new working direc
 
 import sim
 import policies
-from settings import BIKE_SPEED, DEFAULT_DEPOT_CAPACITY, MINUTES_CONSTANT_PER_ACTION, MINUTES_PER_ACTION, VEHICLE_SPEED
+from settings import BIKE_SPEED, DEFAULT_DEPOT_CAPACITY, MINUTES_CONSTANT_PER_ACTION, MINUTES_PER_ACTION, VEHICLE_SPEED, WALKING_SPEED
+from init_state.wrapper import read_initial_state
 
 # ------------ TESTING DATA MANUALLY ---------------
-source = sim.Station(0,capacity=DEFAULT_DEPOT_CAPACITY)
-station1 = sim.Station(1)
-station2 = sim.Station(2)
-station3 = sim.Station(3)
+filename = "instances/EH_W10"
+state = read_initial_state(filename)
+policy = policies.GreedyPolicy()
+state.set_vehicles([policy])
+source = sim.Depot(1000)
 
-vehicle1 = sim.Vehicle(1, source, policies.GreedyPolicy(), 0, 6)
+#source = sim.Station(0,capacity=DEFAULT_DEPOT_CAPACITY)
+#station1 = sim.Station(1)
+#station2 = sim.Station(2)
+#station3 = sim.Station(3)
+#vehicle1 = sim.Vehicle(1, source, policies.GreedyPolicy(), 0, 6)
 
 class MILP_data():
         def __init__(self):
                 #Sets
                 # self.stations = [1, 2, 3]
-                self.stations = [station1, station2, station3]
+                self.stations = state.stations
                 # self.stations_with_source_sink = [0, 1, 2, 3]
-                self.stations_with_source_sink = [source, station1, station2, station3]
+                # self.stations_with_source_sink = [source, station1, station2, station3]
+                self.stations_with_source_sink = state.stations
                 self.neighboring_stations = dict()      #{station: [list of stations]}
-                self.vehicles = [vehicle1]
+                self.vehicles = state.vehicles
                 self.time_periods = [0,1,2,3,4,5]
                 self.possible_previous_stations_driving = dict()        #{(station,time): [list of stations]}
                 self.possible_previous_stations_cycling = dict()        #{(station,time): [list of stations]}
@@ -132,18 +140,19 @@ class MILP_data():
 
 
         def initalize_parameters(self):
-                self.initialize_traveltime_dict(self, self.T_D, VEHICLE_SPEED, discrete=False, driving=True)
-                self.initialize_traveltime_dict(self, self.T_DD, VEHICLE_SPEED, discrete=True, driving=True)
-                self.initialize_traveltime_dict(self, self.T_W, WALKING_SPEED, discrete=False, driving=False)
-                self.initialize_traveltime_dict(self, self.T_DW, WALKING_SPEED, discrete=True, driving=False)
-                self.initialize_traveltime_dict(self, self.T_C, BIKE_SPEED, discrete=False, driving=False)
-                self.initialize_traveltime_dict(self, self.T_DC, BIKE_SPEED, discrete=True, driving=False)
+                self.stations_with_source_sink[10000] = source 
+                self.initialize_traveltime_dict(self.T_D, VEHICLE_SPEED, discrete=False, driving=True)
+                self.initialize_traveltime_dict(self.T_DD, VEHICLE_SPEED, discrete=True, driving=True)
+                self.initialize_traveltime_dict(self.T_W, WALKING_SPEED, discrete=False, driving=False)
+                self.initialize_traveltime_dict(self.T_DW, WALKING_SPEED, discrete=True, driving=False)
+                self.initialize_traveltime_dict(self.T_C, BIKE_SPEED, discrete=False, driving=False)
+                self.initialize_traveltime_dict(self.T_DC, BIKE_SPEED, discrete=True, driving=False)
 
-                self.set_possible_previous_stations(self, self.T_DD, self.possible_previous_stations_driving)
-                self.set_possible_previous_stations(self, self.T_DC, self.possible_previous_stations_cycling)
-                self.set_possible_previous_stations(self, self.T_DW, self.possible_previous_stations_walking)
+                self.set_possible_previous_stations(self.T_DD, self.possible_previous_stations_driving)
+                self.set_possible_previous_stations(self.T_DC, self.possible_previous_stations_cycling)
+                self.set_possible_previous_stations(self.T_DW, self.possible_previous_stations_walking)
 
-                self.set_neighboring_stations(self)
+                self.set_neighboring_stations()
 
                 self.set_L_O()
                 self.set_L_T()
@@ -157,6 +166,5 @@ class MILP_data():
 
 
 d=MILP_data()
-d.set_possible_previous_stations()
-print(d.possible_previous_stations)
+d.initalize_parameters()
 print("heiiiiiiii")    
