@@ -81,6 +81,11 @@ def main_code(windows_lock,filename):
 
             simul.run()
 
+            scale = 100 / simul.metrics.get_aggregate_value("trips")
+            perc_lost_trips = scale*(simul.metrics.get_aggregate_value("starvation")+
+                                simul.metrics.get_aggregate_value("congestion"))
+            simul.metrics.add_metric(simul,'perc_lost_trips',perc_lost_trips)
+
             simulations.append(simul)
 
         metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])

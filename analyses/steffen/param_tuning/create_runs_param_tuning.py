@@ -78,9 +78,11 @@ analyses = [do_nothing_analysis]   #reference_case
 
 
 ts_map = {
-    #"EDTS":"evenly_distributed_target_state",
-    "OFTS":"outflow_target_state",
-    #"EQTS":"equal_prob_target_state"
+    #"EVEN":"EvenlyDistributedTargetState",
+    #"HALF":"HalfCapacityTargetState",
+    "EQUAL":"USTargetState"
+    #"OFTS":"OutflowTargetState",
+    #"EQTS":"EqualProbTargetState"
         }
 policy_map = {
     #abbreviation:name_of_policy

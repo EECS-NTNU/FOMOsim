@@ -59,6 +59,11 @@ def simulation_main(seed,state_copy,experimental_setup):
     simul.run()
     print("Finished running seed ", seed, ' using process ', print(current_process().name))
     
+    scale = 100 / simul.metrics.get_aggregate_value("trips")
+    perc_lost_trips = scale*(simul.metrics.get_aggregate_value("starvation")+
+                        simul.metrics.get_aggregate_value("congestion"))
+    simul.metrics.add_metric(simul,'perc_lost_trips',perc_lost_trips)
+
     sys.stdout.flush()
 
     return simul

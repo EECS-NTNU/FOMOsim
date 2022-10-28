@@ -18,7 +18,7 @@ class USTargetState(TargetState):
             arrive_std = st.historical_arrive_intensities_stdev[day][hour]
 
             if (leave_std==0) or (arrive_std==0):
-                ts = num_bikes // num_stations
+                ts = st.capacity/2 #num_bikes // num_stations
             else:
-                ts = round((leave_std*(cap-arrive)+arrive_std*leave)/(leave_std+arrive_std))
+                ts = (leave_std*(cap-arrive)+arrive_std*leave)/(leave_std+arrive_std)
             st.target_state[day][hour] = ts

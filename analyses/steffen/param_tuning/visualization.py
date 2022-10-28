@@ -25,7 +25,7 @@ if __name__ == "__main__":
     #output_param_tuning_shorter_service.csv
     df = pd.read_csv (os.getcwd()+'\\analyses\\steffen\\param_tuning\\'+filename,sep=';',
                         names=['run',	'instance',	'analyses','target_state','policy','num_vehicles',
-                        'trips','starvations','congestions','starvation_std'	,'congestion_std', 'time_start','duration'])
+                        'trips','starvations','congestions','starvations_std'	,'congestions_std', 'time_start','duration'])
 
 
     #1. extract weights data
@@ -42,11 +42,16 @@ if __name__ == "__main__":
 
     #calculate some additional statistics
     df['violations'] = df['starvations'] + df['congestions'] 
-    df['violations_std'] = np.sqrt(df['starvation_std']**2 + df['congestion_std']**2)
+    df['violations_std'] = np.sqrt(df['starvations_std']**2 + df['congestions_std']**2)
 
-    df['cong_trips'] =  (df['congestions']/df['trips'])*100
-    df['starv_trips'] =  (df['starvations']/df['trips'])*100
+    factor = 100*df['trips']
+    df['cong_trips'] =  df['congestions']*factor
+    df['cong_trips_std'] =  df['congestions_std']*factor
+    df['starv_trips'] =  df['starvations']*factor
+    df['starv_trips_std'] =  df['starvations_std']*factor
     df['lost_trips'] = df['cong_trips'] + df['starv_trips'] 
+    df['lost_trips_std'] = df['violations_std']*factor
+
     df['week'] = df['instance'].apply(lambda x: x.split('_W')[1])
     df['city'] = df['instance'].apply(lambda x: x.split('_W')[0])
 
