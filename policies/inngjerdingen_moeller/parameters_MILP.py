@@ -10,9 +10,9 @@ import os
 import sys
 from pathlib import Path
 
-path = Path(__file__).parents[2]
+path = Path(__file__).parents[2]        # The path seems to be correct either way, sys.path.insert makes the difference
 os.chdir(path)
-#print(os. getcwd())
+# print(os. getcwd())
 
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
@@ -21,22 +21,24 @@ sys.path.insert(0, '') #make sure the modules are found in the new working direc
 
 import sim
 import policies
+from settings import DEFAULT_DEPOT_CAPACITY
 
 # ------------ TESTING DATA MANUALLY ---------------
-# Source = Station(0)
-# station1 = Station(1)
-# station2 = Station(2)
-# station3 = Station(3)
+source = sim.Station(0,capacity=DEFAULT_DEPOT_CAPACITY)
+station1 = sim.Station(1)
+station2 = sim.Station(2)
+station3 = sim.Station(3)
 
-station1 = sim.Station(1,[], 2,3,None, None, None, 10, 20, None, None)
-vehicle1 = sim.Vehicle(1, station1, policies.GreedyPolicy(), 0, 6)
+vehicle1 = sim.Vehicle(1, source, policies.GreedyPolicy(), 0, 6)
 
 class MILP_data():
     def __init__(self):
         #Sets
-        self.stations = [1, 2, 3]
-        self.stations_with_source_sink = [0, 1, 2, 3]
-        self.neighboring_stations = [[],[2],[1],[]]
+        # self.stations = [1, 2, 3]
+        self.stations = [station1, station2, station3]
+        # self.stations_with_source_sink = [0, 1, 2, 3]
+        self.stations_with_source_sink = [source, station1, station2, station3]
+        self.neighboring_stations = [[] for i in range(len(self.stations_with_source_sink))]
         self.vehicles = [vehicle1]
         self.time_periods = [0,1,2,3,4,5]
 

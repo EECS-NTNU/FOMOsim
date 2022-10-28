@@ -1,6 +1,6 @@
 
 from gurobipy import *
-from data_MILP import *
+from policies.inngjerdingen_moeller.parameters_MILP import *
 
 def run_model(data):
     m = Model("MILP")
