@@ -221,6 +221,8 @@ if __name__ == "__main__":
 
                 simul = sim.Simulator(
                     initial_state = state_copy,
+                    target_state=tstate,
+                    demand=demand.Demand(),
                     start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
                     duration = DURATION,
                     verbose = True,
