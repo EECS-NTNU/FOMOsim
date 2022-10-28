@@ -31,6 +31,7 @@ from scipy.stats import t, norm
 
 from helpers import *
 from analyses.steffen.num_sim_replications.helpers import ci_half_length, approximate_num_reps_absolute
+from create_runs_base_settings import *
 
 import json
 
@@ -52,11 +53,12 @@ gamma = 0.05 #relative error
 gamma_star = gamma/(1-gamma)
 beta = 0.25 #absolute error
 min_num_seeds = 4
-n_max = 60
+n_max = 6  #60
 analysis_type = 'absolute' #relative1,absolute,absolute_iterate
+CPU_FACTOR = 2/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
 
 INSTANCE_DIRECTORY="instances"
-LOCAL_MACHINE_TEST = True
+LOCAL_MACHINE_TEST = False
 
 def round_up_to_multiple_of_n(number, n):
     return ceil((number+0.05) / n)* n
@@ -65,6 +67,7 @@ def round_up_to_multiple_of_n(number, n):
 def run_in_parallel(seed,state_copy,experimental_setup):
     
     print("Running seed", seed)
+    sys.stdout.flush()
 
     state_copy.set_seed(seed)
 
@@ -76,13 +79,14 @@ def run_in_parallel(seed,state_copy,experimental_setup):
         initial_state = state_copy,
         target_state=trgt_state,
         demand=demand.Demand(),
-        start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
+        start_time = timeInMinutes(days=experimental_setup["analysis"]["day"], hours=experimental_setup["analysis"]["hour"]),
         duration = DURATION,
         verbose = True,
     )
     
     simul.run()
     print("Finished running seed ", seed, ' using process ', print(current_process().name))
+    sys.stdout.flush()
 
     return simul
 
@@ -122,60 +126,60 @@ if __name__ == "__main__":
 
                 elif analysis_type == 'absolute':
 
-                    
-                    # SOMEHOW THIS DOES NOT WORK AT THE MOMENT
-                    # factor = 2/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
-                    # numprocesses = int(np.floor(factor*os.cpu_count()))
-                    # with Pool(processes=numprocesses) as pool:  #use cpu_count()
-                    #     print('Number of CPUs used:' + str(numprocesses))
-                    #     sys.stdout.flush()
-                    #     arguments = [(seed,copy.deepcopy(initial_state),experimental_setup) 
-                    #                     for seed in range(n_max)]
-                    #     for simul in pool.starmap(run_in_parallel, arguments):  #starmap_async
-                    #         trip = simul.metrics.get_aggregate_value("trips")
-                    #         starvation = simul.metrics.get_aggregate_value("starvation")
-                    #         congestion = simul.metrics.get_aggregate_value("congestion")
-                    #         violation = starvation+congestion
+                    # Alternative 1
+                    #Seems like it works!
+                    numprocesses = int(np.floor(CPU_FACTOR*os.cpu_count()))
+                    with Pool(processes=numprocesses) as pool:  #use cpu_count()
+                        print('Number of CPUs used:' + str(numprocesses))
+                        sys.stdout.flush()
+                        arguments = [(seed,copy.deepcopy(initial_state),experimental_setup) 
+                                        for seed in range(n_max)]
+                        for simul in pool.starmap(run_in_parallel, arguments):  #starmap_async
+                            trip = simul.metrics.get_aggregate_value("trips")
+                            starvation = simul.metrics.get_aggregate_value("starvation")
+                            congestion = simul.metrics.get_aggregate_value("congestion")
+                            violation = starvation+congestion
                             
-                    #         scale = 100 / trip
-                    #         starvations.append(scale*starvation)
-                    #         congestions.append(scale*congestion)
-                    #         violations.append(scale*violation)
+                            scale = 100 / trip
+                            starvations.append(scale*starvation)
+                            congestions.append(scale*congestion)
+                            violations.append(scale*violation)
 
-                    state_copy = copy.deepcopy(initial_state)
+                    # #Alternative 2
+                    # state_copy = copy.deepcopy(initial_state)
 
-                    for seed in range(n_max):  
+                    # for seed in range(n_max):  
                         
-                        print("Running seed", seed)
+                    #     print("Running seed", seed)
 
-                        state_copy.set_seed(seed)
+                    #     state_copy.set_seed(seed)
 
-                        trgt_state = None
-                        if experimental_setup["analysis"]["numvehicles"] > 0:
-                            trgt_state = getattr(target_state, experimental_setup["analysis"]["target_state"])()
+                    #     trgt_state = None
+                    #     if experimental_setup["analysis"]["numvehicles"] > 0:
+                    #         trgt_state = getattr(target_state, experimental_setup["analysis"]["target_state"])()
 
-                        simul = sim.Simulator(
-                            initial_state = state_copy,
-                            target_state=trgt_state,
-                            demand=demand.Demand(),
-                            start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
-                            duration = DURATION,
-                            verbose = True,
-                        )
+                    #     simul = sim.Simulator(
+                    #         initial_state = state_copy,
+                    #         target_state=trgt_state,
+                    #         demand=demand.Demand(),
+                    #         start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
+                    #         duration = DURATION,
+                    #         verbose = True,
+                    #     )
                         
-                        simul.run()
-                        print("Finished running seed ", seed)
+                    #     simul.run()
+                    #     print("Finished running seed ", seed)
 
 
-                        trip = simul.metrics.get_aggregate_value("trips")
-                        starvation = simul.metrics.get_aggregate_value("starvation")
-                        congestion = simul.metrics.get_aggregate_value("congestion")
-                        violation = starvation+congestion
+                    #     trip = simul.metrics.get_aggregate_value("trips")
+                    #     starvation = simul.metrics.get_aggregate_value("starvation")
+                    #     congestion = simul.metrics.get_aggregate_value("congestion")
+                    #     violation = starvation+congestion
                         
-                        scale = 100 / trip
-                        starvations.append(scale*starvation)
-                        congestions.append(scale*congestion)
-                        violations.append(scale*violation)
+                    #     scale = 100 / trip
+                    #     starvations.append(scale*starvation)
+                    #     congestions.append(scale*congestion)
+                    #     violations.append(scale*violation)
 
 
 
@@ -268,11 +272,11 @@ if __name__ == "__main__":
                         if (starv_finished and cong_finished) or (n > n_max):
                             finished = True
 
-                directory = 'analyses/steffen/num_sim_replications/'
+                #directory = 'analyses/steffen/num_sim_replications/'
                 
-                lock_handle = lock(directory+"output_num_reps.csv")
+                lock_handle = lock("output_num_reps.csv")
                 
-                f = open(directory+"output_num_reps.csv", "a")
+                f = open("output_num_reps.csv", "a")
                 
                 f.write(str(analysis_type) + ";")
                 f.write(str(alpha) + ";")
@@ -304,6 +308,9 @@ if __name__ == "__main__":
                 f.close()
 
                 unlock(lock_handle)
+
+    print("Done")
+    sys.stdout.flush()
 
 
 
