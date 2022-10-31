@@ -38,7 +38,8 @@ if some_runs_already_performed:
     with open('completed_tasks3.csv', newline='') as f:
         for row in csv.reader(f):
             finished_tasks.append(int(row[0]))
-print(len(finished_tasks))
+
+print('number of finished tasks: ', str(len(finished_tasks)))
 
 ###############################################################################
 
@@ -97,7 +98,7 @@ for ts_abbr,ts in ts_map.items():
                     policyargs={'crit_weights':crit_weight,'service_hours':[8,16]}
                     ))
 
-print(len(analyses)*len(instances))
+print('max number of analyses: ', len(analyses)*len(instances))
 
 
 

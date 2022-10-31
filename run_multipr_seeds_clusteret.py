@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
 
             for seed in experimental_setup["seeds"]:
-                simul = simulation_main(copy.deepcopy(seed,copy.deepcopy(initial_state),experimental_setup))
+                simul = simulation_main(seed,copy.deepcopy(initial_state),experimental_setup)
                 simulations.append(simul)   
 
             #----------------------------------------------
