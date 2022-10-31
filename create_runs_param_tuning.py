@@ -30,12 +30,12 @@ from helpers import *
 
 RUN_DIRECTORY="experimental_setups"
 
-some_runs_already_performed = False
+some_runs_already_performed = True
 
 finished_tasks = []
 if some_runs_already_performed:
     finished_tasks = []
-    with open('completed_tasks2.csv', newline='') as f:
+    with open('completed_tasks3.csv', newline='') as f:
         for row in csv.reader(f):
             finished_tasks.append(int(row[0]))
 
@@ -97,7 +97,7 @@ for ts_abbr,ts in ts_map.items():
                     policyargs={'crit_weights':crit_weight,'service_hours':[8,16]}
                     ))
 
-#print(len(analyses)*len(instances))
+print(len(analyses)*len(instances))
 
 
 

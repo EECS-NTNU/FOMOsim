@@ -114,6 +114,10 @@ if __name__ == "__main__":
         #starvations.append(scale*simul.metrics.get_aggregate_value("starvation"))
         #congestions.append(scale*simul.metrics.get_aggregate_value("congestion"))
 
+        simul.state.bikes_in_use
+        for station in simul.state.stations:
+            print('to do bike info duration for the metric')
+
     metric = sim.Metric.merge_metrics([simul.metrics for simul in simulations])  #merging the seeds into something overordnet
     print(metric.metrics["perc_lost_trips"])
     print(metric.get_aggregate_value("perc_lost_trips"))
