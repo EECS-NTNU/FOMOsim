@@ -34,6 +34,9 @@ from create_runs_base_settings import *
 INSTANCE_DIRECTORY="instances"
 LOCAL_MACHINE_TEST = False
 
+CPU_FACTOR = 2/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
+MAX_CPU = 8
+
 def simulation_main(seed,state_copy,experimental_setup):
     
     print("Running seed", seed)
@@ -95,8 +98,7 @@ if __name__ == "__main__":
 
             simulations = []
 
-            factor = 2/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
-            numprocesses = min(15,int(np.floor(factor*os.cpu_count())))
+            numprocesses = min(MAX_CPU,int(np.floor(CPU_FACTOR*os.cpu_count())))
             with Pool(processes=numprocesses) as pool:  #use cpu_count()
                 print('Number of CPUs used:' + str(numprocesses))
                 sys.stdout.flush()
@@ -122,10 +124,10 @@ if __name__ == "__main__":
             f.write(";")
             f.write(str(experimental_setup["analysis"]["numvehicles"]) + ";")
             f.write(str(metric.get_aggregate_value("trips")) + ";")
-            f.write(str(metric.get_aggregate_value("starvation")) + ";")
-            f.write(str(metric.get_aggregate_value("congestion")) + ";")
-            f.write(str(metric.get_aggregate_value("starvation_stdev")) + ";")
-            f.write(str(metric.get_aggregate_value("congestion_stdev"))+ ";")
+            f.write(str(round(metric.get_aggregate_value("starvation"),2)) + ";")
+            f.write(str(round(metric.get_aggregate_value("congestion"),2)) + ";")
+            f.write(str(round(metric.get_aggregate_value("starvation_stdev"),2)) + ";")
+            f.write(str(round(metric.get_aggregate_value("congestion_stdev"),2))+ ";")
             f.write(str(time_start)+ ";")
             f.write(str(datetime.now()-time_start)) #duration
 
