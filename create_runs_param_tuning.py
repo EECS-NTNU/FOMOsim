@@ -38,7 +38,7 @@ if some_runs_already_performed:
     with open('completed_tasks3.csv', newline='') as f:
         for row in csv.reader(f):
             finished_tasks.append(int(row[0]))
-
+print(len(finished_tasks))
 
 ###############################################################################
 
