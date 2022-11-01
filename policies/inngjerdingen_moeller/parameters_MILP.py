@@ -58,7 +58,7 @@ class MILP_data():
                 self.W_S = 0.3
                 self.W_R = 0.3
 
-                self.neighboring_limit= 0.3 #km
+                self.neighboring_limit= 0.6 #km
 
                 self.T_D = dict()       #{(station_ID,station_ID):time}
                 self.T_DD = dict()       #{(station_ID,station_ID):timeperiods}
@@ -90,13 +90,22 @@ class MILP_data():
                 source = sim.Depot(self.DEPOT_ID)     
                 self.stations_with_source_sink[source.id] = source
 
-        def set_possible_previous_stations(self, travel_time_dict, possible_previous_stations_dict):
+        def set_possible_previous_stations(self, travel_time_dict, possible_previous_stations_dict, driving=False, walking=False):
                 for j in self.stations:
                         for t in self.time_periods:
                                 possible_previous_stations_dict[(j,t)]=[]
-                                for i in self.stations_with_source_sink:
-                                        if(t-travel_time_dict.get((i,j)) >= 0):
-                                                possible_previous_stations_dict[(j,t)].append(i)
+                                if driving == True:
+                                        for i in self.stations_with_source_sink:
+                                                if(t-travel_time_dict.get((i,j)) >= 0):
+                                                        possible_previous_stations_dict[(j,t)].append(i)
+                                else:
+                                        for i in self.stations:
+                                                if i != j:
+                                                        if(t-travel_time_dict.get((i,j)) >= 0):
+                                                                if walking == True and i not in self.neighboring_stations[j]:
+                                                                        pass 
+                                                                else:
+                                                                        possible_previous_stations_dict[(j,t)].append(i)
 
         def set_neighboring_stations(self):
                 for station in self.stations:
@@ -104,6 +113,7 @@ class MILP_data():
                         for candidate in self.stations:
                                 if station != candidate:
                                         distance = self.stations[station].distance_to(self.stations[candidate].get_lat(),self.stations[candidate].get_lon()) 
+                                        #print(station,",",candidate,": ",distance)
                                         if distance <= self.neighboring_limit:
                                                 self.neighboring_stations[station].append(candidate)
 
@@ -163,12 +173,14 @@ class MILP_data():
                 self.initialize_traveltime_dict(self.T_DW, WALKING_SPEED, discrete=True, driving=False)
                 self.initialize_traveltime_dict(self.T_C, BIKE_SPEED, discrete=False, driving=False)
                 self.initialize_traveltime_dict(self.T_DC, BIKE_SPEED, discrete=True, driving=False)
-
-                self.set_possible_previous_stations(self.T_DD, self.possible_previous_stations_driving)
-                self.set_possible_previous_stations(self.T_DC, self.possible_previous_stations_cycling)
-                self.set_possible_previous_stations(self.T_DW, self.possible_previous_stations_walking)
-
+                
                 self.set_neighboring_stations()
+                
+                self.set_possible_previous_stations(self.T_DD, self.possible_previous_stations_driving, driving=True)
+                self.set_possible_previous_stations(self.T_DC, self.possible_previous_stations_cycling)
+                self.set_possible_previous_stations(self.T_DW, self.possible_previous_stations_walking, walking= True)
+
+                
 
                 self.set_L_O()
                 self.set_L_T()
