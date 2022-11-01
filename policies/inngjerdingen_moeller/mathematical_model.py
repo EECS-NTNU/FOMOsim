@@ -1,3 +1,9 @@
+import os
+import sys
+from pathlib import Path
+path = Path(__file__).parents[2]     
+os.chdir(path)
+sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
 from gurobipy import *
 from policies.inngjerdingen_moeller.parameters_MILP import *
@@ -9,7 +15,10 @@ def run_model(data):
     stations = data.stations
     stations_with_source_sink = data.stations_with_source_sink
     neighboring_stations = data.neighboring_stations
-    possible_previous_stations=data.possible_previous_stations
+    possible_previous_stations_driving = data.possible_previous_stations_driving
+    possible_previous_stations_cycling = data.possible_previous_stations_cycling
+    possible_previous_stations_walking = data.possible_previous_stations_walking
+
     vehicles = data.vehicles
     time_periods = data.time_periods
 
@@ -27,7 +36,9 @@ def run_model(data):
     T_C = data.T_C
     T_DC = data.T_DC
     T_H = data.T_H
-    tau= data.tau
+
+    TAU= data.TAU
+    DEPOT_ID= data.DEPOT_ID
     
     L_0 = data.L_0
     L_T = data.L_T
@@ -81,8 +92,8 @@ def run_model(data):
     m.addConstrs(q[(i, j, t, v)] <= Q_V[v]*x[(i, j, t, v)] for  i in stations for j in stations for t in time_periods for v in vehicles)
     
     #Raviv constraints:
-    m.addConstrs(quicksum(T_D[i][j]*x[(i, j, t-T_DD[i][j], v)] for t in range(1, t_marked+1) for i in stations_with_source_sink for j in stations_with_source_sink)+quicksum(T_H*(q_L[(i, t, v)]+q_U[(i, t, v)]) for i in stations_with_source_sink for t in range(0, t_marked+1)) <= t_marked*tau for t_marked in range(1, T_bar+1) for v in vehicles)
-    m.addConstrs(quicksum(T_D[i][j]*x[(i, j, t-T_DD[i][j], v)] for t in range(1, t_marked+1) for i in stations_with_source_sink for j in stations_with_source_sink)+quicksum(T_H*(q_L[(i, t, v)]+q_U[(i, t, v)]) for i in stations_with_source_sink for t in range(0, t_marked+1)) >= (t_marked-2)*tau for t_marked in range(1, T_bar+1) for v in vehicles)
+    m.addConstrs(quicksum(T_D[i][j]*x[(i, j, t-T_DD[i][j], v)] for t in range(1, t_marked+1) for i in stations_with_source_sink for j in stations_with_source_sink)+quicksum(T_H*(q_L[(i, t, v)]+q_U[(i, t, v)]) for i in stations_with_source_sink for t in range(0, t_marked+1)) <= t_marked*TAU for t_marked in range(1, T_bar+1) for v in vehicles)
+    m.addConstrs(quicksum(T_D[i][j]*x[(i, j, t-T_DD[i][j], v)] for t in range(1, t_marked+1) for i in stations_with_source_sink for j in stations_with_source_sink)+quicksum(T_H*(q_L[(i, t, v)]+q_U[(i, t, v)]) for i in stations_with_source_sink for t in range(0, t_marked+1)) >= (t_marked-2)*TAU for t_marked in range(1, T_bar+1) for v in vehicles)
     
     #Loading/unloading quantities 
     m.addConstrs(q_L[(i, t, v)] <= 2*T_H*quicksum(x[(i, j, t, v)]for j in stations_with_source_sink) for i in stations_with_source_sink for t in range(1, T_bar+1) for v in vehicles)
@@ -100,4 +111,6 @@ def run_model(data):
     return m
 
 test_data = MILP_data()
+test_data.initalize_parameters()
+
 run_model(test_data)
