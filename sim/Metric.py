@@ -50,6 +50,39 @@ class Metric:
             return self.aggregate[metric]
         return False
 
+    def getLen(self, metric):
+        if metric in self.metrics:
+            return len(self.metrics[metric])
+        return 0
+
+    def getSum(self, metric):
+        sum = 0
+        if metric in self.metrics:
+            for _,val in self.metrics[metric]:
+                sum += val
+        return sum
+
+    def getAvg(self, metric):
+        if metric in self.metrics:
+            return getSum(metric) / getLen(metric)
+        return 0
+
+    def getMax(self, metric):
+        max = 0
+        if metric in self.metrics:
+            for _,val in self.metrics[metric]:
+                if val > max:
+                    max = val
+        return max
+
+    def getMin(self, metric):
+        min = sys.maxsize
+        if metric in self.metrics:
+            for _,val in self.metrics[metric]:
+                if val < min:
+                    min = val
+        return min
+
     def add_aggregate_metric(self, sim, metric, value):
         if metric not in self.metrics:
             self.metrics[metric] = []
@@ -94,11 +127,6 @@ class Metric:
                 else:
                     return (None, i)
         return (self.metrics[metric][i][1], i)
-
-    def getLen(self, metric):
-        if metric in self.metrics:
-            return len(self.metrics[metric])
-        return 0
 
     def values(self, metric):
         return [item[1] for item in self.metrics[metric]]
@@ -181,17 +209,17 @@ class Metric:
                         if(t <= time):
                             values.append(v)
 
+                # add metric
                 if len(values) > 0:
                     mean = np.mean(values)
                     stdev = np.std(values)
 
-                # add metric
-                if (key not in metric.metrics) or (metric.metrics[key][-1][0] != time):
-                    if (key in metric.metrics) and (metric.metrics[key][-1][0] == time):
-                        assert metric.metrics[key][-1][0] == mean
-                        assert metric.metrics[key + "_stdev"][-1][0] == stdev
-                    metric.add_metric_time(time, key, mean)
-                    metric.add_metric_time(time, key + "_stdev", stdev)
+                    if (key not in metric.metrics) or (metric.metrics[key][-1][0] != time):
+                        if (key in metric.metrics) and (metric.metrics[key][-1][0] == time):
+                            assert metric.metrics[key][-1][0] == mean
+                            assert metric.metrics[key + "_stdev"][-1][0] == stdev
+                        metric.add_metric_time(time, key, mean)
+                        metric.add_metric_time(time, key + "_stdev", stdev)
 
                 # get next time
                 mintime = sys.maxsize
