@@ -3,11 +3,13 @@ from progress.bar import Bar
 
 import sim
 
-def totime(ts, startdate):
+def totime(ts):
+    weektext = "2022 " + str(1) + " 1 00:00"
+    startdate=datetime.datetime.strptime(weektext, "%Y %W %w %H:%M")
     return datetime.datetime.fromtimestamp(startdate.timestamp() + ts * 60)
 
 # TODO: needs cleanup
-def write_csv(instances, filename, week=None, hourly=False, mode="w", parameters=None):
+def write_csv(instances, filename, hourly=False, mode="w", parameters=None):
     f = open(filename, mode)
 
     if type(instances) is list:
@@ -15,10 +17,6 @@ def write_csv(instances, filename, week=None, hourly=False, mode="w", parameters
     else:
         metric = instances.metrics
     
-    if week is not None:
-        weektext = "2022 " + str(week) + " 1 00:00"
-        startdate=datetime.datetime.strptime(weektext, "%Y %W %w %H:%M")
-
     keys = sorted(metric.metrics.keys())
 
     if parameters is not None:
@@ -49,13 +47,7 @@ def write_csv(instances, filename, week=None, hourly=False, mode="w", parameters
                 for _, value in parameters:
                     f.write(str(value) + ";")
 
-            if week is not None:
-                f.write(str(totime(time, startdate)) + ";")
-            else:
-                if hourly:
-                    f.write(str(last_hour) + ";")
-                else:
-                    f.write(str(time) + ";")
+            f.write(totime(time).strftime("%a %H:%M.%f") + ";")
 
             for m in keys:
                 value, idx[m] = metric.getValue(m, idx[m], time)

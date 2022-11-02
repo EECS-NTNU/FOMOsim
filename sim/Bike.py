@@ -1,4 +1,5 @@
 from sim.Location import Location
+from sim.Metric import Metric
 from settings import *
 
 class Bike(Location):
@@ -9,9 +10,13 @@ class Bike(Location):
     def __init__(self, lat: float = 0, lon: float = 0, bike_id: int = 0):
         super().__init__(lat, lon, bike_id)
         self.battery = 100.0
+        self.metrics = Metric()
 
-    def travel(self, travel_time):
-      pass
+    def travel(self, simul, travel_time, congested = False):
+        if congested:
+            self.metrics.add_metric(simul, "travel_time_congested", travel_time)
+        else:
+            self.metrics.add_metric(simul, "travel_time", travel_time)
 
     def usable(self):
       return True
