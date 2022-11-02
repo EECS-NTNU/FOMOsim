@@ -12,9 +12,12 @@ class Metric:
         self.min_time = 0
         self.max_time = 0
 
+        self.aggregate = {}
+
     def add_metric(self, sim, metric, value):
         if metric not in self.metrics:
             self.metrics[metric] = []
+            self.aggregate[metric] = False
 
         self.metrics[metric].append((sim.time, value))
         if((self.min_time == 0) or (self.min_time > sim.time)):
@@ -42,9 +45,15 @@ class Metric:
         if(time > self.max_time):
             self.max_time = time
 
+    def isAggregate(self, metric):
+        if metric in self.aggregate:
+            return self.aggregate[metric]
+        return False
+
     def add_aggregate_metric(self, sim, metric, value):
         if metric not in self.metrics:
             self.metrics[metric] = []
+            self.aggregate[metric] = False
 
         series = self.metrics[metric]
         last_time = -1
@@ -86,8 +95,13 @@ class Metric:
                     return (None, i)
         return (self.metrics[metric][i][1], i)
 
+    def getLen(self, metric):
+        if metric in self.metrics:
+            return len(self.metrics[metric])
+        return 0
+
     def values(self, metric):
-        return [item[1] for item in metrics[metric]]
+        return [item[1] for item in self.metrics[metric]]
 
     def get_all_metrics(self):
         """
