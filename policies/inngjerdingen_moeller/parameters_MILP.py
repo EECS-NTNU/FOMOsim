@@ -27,7 +27,7 @@ from settings import BIKE_SPEED, DEFAULT_DEPOT_CAPACITY, MINUTES_CONSTANT_PER_AC
 from init_state.wrapper import read_initial_state
 
 # ------------ TESTING DATA MANUALLY ---------------
-filename = "instances/EH_W10"
+filename = "instances/TD_W17"
 state = read_initial_state(filename)
 policy = policies.GreedyPolicy()
 state.set_vehicles([policy])
@@ -46,7 +46,7 @@ class MILP_data():
                 self.stations = state.stations #{staton_ID: station_object}
                 self.stations_with_source_sink = dict() #{staton_ID: station_object}
                 self.neighboring_stations = dict()      #{station_ID: [list of station_IDs]}
-                self.vehicles = state.vehicles 
+                self.vehicles = dict()                  #{vehicle_ID: vehicle_object}
                 self.time_periods = [0,1,2,3,4,5]
                 self.possible_previous_stations_driving = dict()        #{(station_ID,time): [list of station_IDs]}
                 self.possible_previous_stations_cycling = dict()        #{(station_ID,time): [list of station_IDs]}
@@ -54,12 +54,13 @@ class MILP_data():
 
                 #Parameters
                 self.W_D = 0.1
-                self.W_C = 0.3
-                self.W_S = 0.3
-                self.W_R = 0.3
+                self.W_C = 1
+                self.W_S = 1
+                self.W_R = 1
 
                 self.neighboring_limit= 0.6 #km
 
+                self.TW_max = (self.neighboring_limit/WALKING_SPEED)*60      #max walking time between neighbors
                 self.T_D = dict()       #{(station_ID,station_ID):time}
                 self.T_DD = dict()       #{(station_ID,station_ID):timeperiods}
                 self.T_W = dict()       #{(station_ID,station_ID):time}
@@ -78,7 +79,7 @@ class MILP_data():
                 self.Q_V = dict()       #{vehicle: capacity}
                 self.Q_S = dict()       #{station_ID: capacity}
 
-                self.TAU = 5    #length of time period
+                self.TAU = 5    #length of time period, minutes
 
                 self.DEPOT_ID = 10000
 
@@ -101,7 +102,7 @@ class MILP_data():
                                 else:
                                         for i in self.stations:
                                                 if i != j:
-                                                        if(t-travel_time_dict.get((i,j)) >= 0):
+                                                        if(t-travel_time_dict.get((i,j)) >= 1):
                                                                 if walking == True and i not in self.neighboring_stations[j]:
                                                                         pass 
                                                                 else:
@@ -113,16 +114,20 @@ class MILP_data():
                         for candidate in self.stations:
                                 if station != candidate:
                                         distance = self.stations[station].distance_to(self.stations[candidate].get_lat(),self.stations[candidate].get_lon()) 
-                                        #print(station,",",candidate,": ",distance)
+                                        # print(station,",",candidate,": ",distance)
                                         if distance <= self.neighboring_limit:
                                                 self.neighboring_stations[station].append(candidate)
+
+        def initialize_vehicles(self):
+                for vehicle in state.vehicles:
+                        self.vehicles[vehicle.vehicle_id] = vehicle
 
 
         def initialize_traveltime_dict(self, travel_time_dict, speed, discrete=False, driving=False): 
                 for start_station in self.stations_with_source_sink:
                         for end_station in self.stations_with_source_sink:
                                 travel_time = (self.stations_with_source_sink[start_station].distance_to(self.stations_with_source_sink[end_station].get_lat()
-                                ,self.stations_with_source_sink[end_station].get_lon()) / speed)
+                                ,self.stations_with_source_sink[end_station].get_lon()) / speed) * 60     # minutes
                                 if driving == True and start_station != end_station:
                                         travel_time += MINUTES_PER_ACTION #parking time included in driving time 
                                 if discrete == False:
@@ -149,16 +154,18 @@ class MILP_data():
 
         def set_D(self):
                 for station in self.stations:
+                        day = random.randint(0,6)
+                        hour = random.randint(8,18)
                         for time in self.time_periods:
-                                self.D[(station, time)] = self.TAU*(self.stations[station].get_arrive_intensity(random.randint(0,6), random.randint(8,22)) - self.stations[station].get_leave_intensity(random.randint(0,6), random.randint(8,22))) #must be changed to simulate the real time
+                                self.D[(station, time)] = self.TAU*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) #must be changed to simulate the real time
 
         def set_Q_0(self):
                 for vehicle in self.vehicles:
-                        self.Q_0[vehicle] = len(vehicle.get_bike_inventory())
+                        self.Q_0[vehicle] = len(self.vehicles[vehicle].get_bike_inventory())
         
         def set_Q_V(self):
                 for vehicle in self.vehicles:
-                        self.Q_V[vehicle] = vehicle.bike_inventory_capacity
+                        self.Q_V[vehicle] = self.vehicles[vehicle].bike_inventory_capacity
         
         def set_Q_S(self): 
                 for station in self.stations:
@@ -167,6 +174,7 @@ class MILP_data():
         
         def initalize_parameters(self):
                 self.initialize_stations_with_source_sink()
+                self.initialize_vehicles()
                 self.initialize_traveltime_dict(self.T_D, VEHICLE_SPEED, discrete=False, driving=True)
                 self.initialize_traveltime_dict(self.T_DD, VEHICLE_SPEED, discrete=True, driving=True)
                 self.initialize_traveltime_dict(self.T_W, WALKING_SPEED, discrete=False, driving=False)
