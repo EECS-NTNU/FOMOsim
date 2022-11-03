@@ -10,6 +10,7 @@ import os
 import sys
 from pathlib import Path
 import random
+random.seed(10)
 
 path = Path(__file__).parents[2]        # The path seems to be correct either way, sys.path.insert makes the difference
 os.chdir(path)
@@ -30,7 +31,7 @@ from init_state.wrapper import read_initial_state
 filename = "instances/TD_W17"
 state = read_initial_state(filename)
 policy = policies.GreedyPolicy()
-state.set_vehicles([policy])
+state.set_vehicles([policy, policy])
 
 
 #source = sim.Station(0,capacity=DEFAULT_DEPOT_CAPACITY)

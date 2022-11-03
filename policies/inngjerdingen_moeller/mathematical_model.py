@@ -107,7 +107,7 @@ def run_model(data):
     m.addConstrs(q_U[(i, t, v)] <= Q_V[v]*quicksum(x[(i, j, t, v)]for j in stations_with_source_sink) for i in stations for t in range(1, T_bar+1) for v in vehicles)
     
     #Objective function
-    m.setObjective(quicksum(quicksum(W_C*c[(i, t)] + W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*T_C[(i,j)]*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
+    m.setObjective(quicksum(quicksum(W_C*c[(i, t)] + W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
 
     m.optimize()
     m.printAttr("X")
