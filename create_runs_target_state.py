@@ -25,10 +25,11 @@ import copy
 import csv
 
 from helpers import *
+from create_runs_base_settings import *
 
 RUN_DIRECTORY="experimental_setups"
 
-some_runs_already_performed = False
+some_runs_already_performed = True
 
 finished_tasks = []
 if some_runs_already_performed:
@@ -41,9 +42,8 @@ if some_runs_already_performed:
 ###############################################################################
 
 # Duration of each simulation run
-NUM_DAYS = 7
-DURATION = timeInMinutes(hours=24*NUM_DAYS)
-NUM_SEEDS = 10
+#NUM_DAYS = 7
+#DURATION = timeInMinutes(hours=24*NUM_DAYS)
 
 # Enter instance definition here.  
 
@@ -52,41 +52,39 @@ cities = [  "Oslo",
             "Trondheim",
             #"Edinburgh",
             ]
-abbrvs = {"Oslo": 'OS',
-          "Bergen": 'BG',
-          "Trondheim":'TD' ,
-          "Edinburgh":'EH'
-          }
-weeks = {"Oslo": [10,22,31,50],
-          "Bergen": [8,25,35,45],
-          "Trondheim":[17,21,34,44] ,
-          "Edinburgh":[10,22,31,50]
-          }
+
+#cities = CITIES
+abbrvs = ABBRVS
+weeks = WEEKS
+
 instances = [abbrvs[city]+'_W'+str(week) for city in cities for week in weeks[city]]
 
-num_seeds = {
-    "EH_W10":10,"EH_W22":10,    "EH_W31":10,	"EH_W50":10,	
-    "TD_W17":30,"TD_W21":30,    "TD_W34":45,	"TD_W44":35,	
-    "BG_W8":35, "BG_W25":35,    "BG_W35":30,	"BG_W45":45,    	
-    "OS_W10":15,"OS_W22":25,    "OS_W31":25,    "OS_W50":15,
-}
+num_seeds = NUM_SEEDS
 
 # ANALYSES
 
-do_nothing_analysis = dict(name="do_nothing",
-         numvehicles=0,
-         day=0,
-         hour=6)
+do_nothing_analysis = dict(
+    name="do_nothing",
+    #target_state = None,
+    numvehicles=0,
+    day=0,
+    hour=6)
          
 analyses = [do_nothing_analysis]   #reference_case
 
+number_of_vehicles = [1,2]
+
+all_weights = [ [0,0,0,1],
+                [0.1,0.2,0.3,0.4],
+                ]
 
 ts_map = {
-    #"ED":"EvenlyDistributedTargetState",
+    "EVEN":"EvenlyDistributedTargetState",
+    "HALF":"HalfCapacityTargetState",
+    "EQUAL":"USTargetState",
+    #
     #"OF":"OutflowTargetState",
     #"EQ":"EqualProbTargetState",
-    #"HALF":"us_target_state",
-    "EQUS":"USTargetState",
     }
 policy_map = {
     #abbreviation:name_of_policy
@@ -95,10 +93,6 @@ policy_map = {
     }
 
 policyargs={}
-number_of_vehicles = [1,2]
-
-all_weights = [ [0,0,0,1],
-                [0.1,0.2,0.3,0.4]]
 
 for ts_abbr,ts in ts_map.items():
     for pol_abbr, pol in policy_map.items():
@@ -117,6 +111,7 @@ for ts_abbr,ts in ts_map.items():
 print(len(analyses))
 print(len(instances))
 print(len(analyses)*len(instances))
+
 
 ###############################################################################
 

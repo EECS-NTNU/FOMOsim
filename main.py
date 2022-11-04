@@ -78,20 +78,31 @@ def main():
     )
     simulator.run()
 
-    # Output
+    # Output to console
+
     print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
 
-    WEEK = int(INSTANCE[4:len(INSTANCE)])   # extracts week number from instance name
-    output.write_csv(simulator, "output.csv", week=WEEK, hourly = False)
+    # Output to file
 
-    output.visualize_trips([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    output.visualize_starvation([simulator], title=("Week " + str(WEEK)), week=WEEK)
-    output.visualize_congestion([simulator], title=("Week " + str(WEEK)), week=WEEK)
+    output.write_csv(simulator, "output.csv", hourly = False)
 
-    output.visualize_heatmap([simulator], "trips")
+    # Plot to screen
+
+    output.visualize([simulator.metrics], metric="trips")
+    output.visualize([simulator.metrics], metric="starvation")
+    output.visualize([simulator.metrics], metric="congestion")
+    output.visualize_heatmap([simulator], metric="trips")
+
+    # show travel times for a given bike
+    bikes = simulator.state.get_all_bikes()
+    bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
+    print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
+    output.visualize([bikes[11].metrics], metric="travel_time")
+    output.visualize([bikes[11].metrics], metric="travel_time_congested")
+
 
 if __name__ == "__main__":
     main()

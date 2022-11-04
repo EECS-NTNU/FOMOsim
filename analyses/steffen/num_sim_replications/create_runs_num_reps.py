@@ -11,6 +11,7 @@ import shutil
 import json
 
 from helpers import *
+from create_runs_base_settings import * 
 
 RUN_DIRECTORY="experimental_setups"
 INSTANCE_DIRECTORY="instances"
@@ -19,29 +20,21 @@ INSTANCE_DIRECTORY="instances"
 ###############################################################################
 
 # Duration of each simulation run
-START_TIME = timeInMinutes(hours=7)
-NUM_DAYS = 7
-DURATION = timeInMinutes(hours=24*NUM_DAYS)
+# NUM_DAYS = 7
+# DURATION = timeInMinutes(hours=24*NUM_DAYS)
 
 # Enter instances here
-cities = ["Oslo","Bergen","Trondheim","Edinburgh"]
-abbrvs = {"Oslo": 'OS',
-          "Bergen": 'BG',
-          "Trondheim":'TD' ,
-          "Edinburgh":'EH'
-          }
-weeks = {"Oslo": [10,22,31,50],
-          "Bergen": [8,25,35,45],
-          "Trondheim":[17,21,34,44] ,
-          "Edinburgh":[10,22,31,50]
-          }
+cities = CITIES
+abbrvs = ABBRVS
+weeks = WEEKS
+
 instances = [abbrvs[city]+'_W'+str(week) for city in cities for week in weeks[city]]
 #instances = ['TD_W21','TD_W34']
 
 
 #perform the following analysis for two different policies!!!
 analysis = dict(name="num_reps_1_veh",
-         target_state="outflow_target_state",
+         target_state="USTargetState",
          policy="GreedyPolicy",
          policyargs={},
          numvehicles=1,
@@ -51,7 +44,7 @@ analysis = dict(name="num_reps_1_veh",
 # Enter analysis definition here
 analyses = [analysis]
 
-seeds = list(range(10))
+seeds = list(range(30)) #not being used in the actual analysis
 
 ###############################################################################
 

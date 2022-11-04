@@ -28,7 +28,7 @@ import init_state.cityBike
 import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
-
+import demand
 from progress.bar import Bar
 
 import output
@@ -48,7 +48,7 @@ from analyses.steffen.num_sim_replications.helpers import *
 START_TIME = timeInMinutes(hours=7)
 NUM_DAYS = 7
 DURATION = timeInMinutes(hours=24*NUM_DAYS)
-instance = "BG_w35"
+instance = "BG_W35"
 INSTANCE_DIRECTORY="instances"
 
 analysis = dict(name="equalprob",
@@ -66,9 +66,9 @@ if __name__ == "__main__":
 
     tstate = None
     if "target_state" in analysis:
-        tstate = getattr(target_state, analysis["target_state"])
+        tstate = getattr(target_state, analysis["target_state"])()
 
-    initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate)
+    initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance)
     
     if analysis["numvehicles"] > 0:
         policyargs = analysis["policyargs"]
@@ -92,6 +92,8 @@ if __name__ == "__main__":
 
         simul = sim.Simulator(
             initial_state = state_copy,
+            target_state = tstate,
+            demand = demand.Demand(),
             start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
             duration = DURATION,
             verbose = True,
