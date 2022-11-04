@@ -44,6 +44,9 @@ def cityPerWeekStats(p, textFile, city, weeksToMark, color):
         xValues.append(w+1)
     textFile.write("\n")       
     lineLayout = '-' + color + 'D'
+    # adjust weeksToMark since plotted results are in array [0..52] while weekNo is in [1..53]
+    for i in range(len(weeksToMark)):
+        weeksToMark[i] = weeksToMark[i] - 1
     p.plot(xValues, data, lineLayout, markevery=weeksToMark)
     pass
 
