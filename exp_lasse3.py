@@ -8,6 +8,7 @@ import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 import target_state
+import demand
 from helpers import *
 import matplotlib.pyplot as plt
 from output.plots import Surface3Dplot, Surface3DplotTripsProfit 
@@ -117,7 +118,8 @@ if __name__ == "__main__":
             if "target_state" in analysis:
                 tstate = getattr(target_state, analysis["target_state"])
 
-            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance, target_state=tstate, number_of_bikes=b)
+            initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance,  
+                number_of_stations=analysis.get("numstations", None), number_of_bikes=b)
             
             if analysis["numvehicles"] > 0:
                 policyargs = analysis["policyargs"]
@@ -132,6 +134,8 @@ if __name__ == "__main__":
       
                 simul = sim.Simulator(
                     initial_state = state_copy,
+                    target_state = tstate,
+                    demand = demand.Demand(),
                     start_time = timeInMinutes(days=analysis["day"], hours=analysis["hour"]),
                     duration = DURATION,
                     verbose = True,
