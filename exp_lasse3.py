@@ -3,10 +3,9 @@
 import copy
 import sim
 import init_state
+import init_state.fosen_haldorsen
 import init_state.cityBike
 import policies
-import policies.fosen_haldorsen
-import policies.haflan_haga_spetalen
 import target_state
 import demand
 from helpers import *
@@ -20,28 +19,28 @@ instance = "OS_W33" # just one in this case
 
 analyses = [
     dict(name="outflow-8",    #deviation_from_target_state
-         target_state="outflow_target_state",
+         target_state="OutflowTargetState",
          policy="GreedyPolicy",
          policyargs={'crit_weights':[0,0,0,1]},
          numvehicles=8,
          day=0,
          hour=6), 
     dict(name="outflow-1",    #deviation_from_target_state
-         target_state="outflow_target_state",
+         target_state="OutflowTargetState",
          policy="GreedyPolicy",
          policyargs={'crit_weights':[0,0,0,1]},
          numvehicles=1,
          day=0,
          hour=6),     
     dict(name="evenly",     #flat strategy
-         target_state="evenly_distributed_target_state",
+         target_state="EvenlyDistributedTargetState",
          policy="GreedyPolicy",
          policyargs={'crit_weights':[0.25,0.25,0.25,0.25]},
          numvehicles=1,
          day=0,
          hour=6),    
     dict(name="equalprob",
-         target_state="equal_prob_target_state",
+         target_state="EqualProbTargetState",
          policy="GreedyPolicy",
          policyargs={},
          numvehicles=1,
@@ -116,7 +115,7 @@ if __name__ == "__main__":
 
             tstate = None
             if "target_state" in analysis:
-                tstate = getattr(target_state, analysis["target_state"])
+                tstate = getattr(target_state, analysis["target_state"])()
 
             initial_state = init_state.read_initial_state(INSTANCE_DIRECTORY + "/" + instance,  
                 number_of_stations=analysis.get("numstations", None), number_of_bikes=b)
