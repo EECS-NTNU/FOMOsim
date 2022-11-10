@@ -29,9 +29,9 @@ from init_state.wrapper import read_initial_state
 
 # ------------ TESTING DATA MANUALLY ---------------
 filename = "instances/TD_W34"
-state = read_initial_state(filename)
+state1 = read_initial_state(filename)
 policy = policies.GreedyPolicy()
-state.set_vehicles([policy])
+state1.set_vehicles([policy])
 
 
 #source = sim.Station(0,capacity=DEFAULT_DEPOT_CAPACITY)
@@ -41,7 +41,7 @@ state.set_vehicles([policy])
 #vehicle1 = sim.Vehicle(1, source, policies.GreedyPolicy(), 0, 6)
 
 class MILP_data():
-        def __init__(self):
+        def __init__(self, state):
                 #Sets
                 
                 self.stations = state.stations #{staton_ID: station_object}
@@ -202,7 +202,7 @@ class MILP_data():
 
 
 
-d=MILP_data()
+d=MILP_data(state1)
 d.initalize_parameters()
 print("TESTING COMPLETE")
 print(d.T_D[(-1,0)])
