@@ -161,7 +161,7 @@ class MILP_data():
                                 self.D[(station, time)] = (self.TAU/60)*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) # demand per time period
 
         def set_Q_0(self):
-                for vehicle in self.vehicles:
+                for vehicle in self.vehicles: 
                         self.Q_0[vehicle] = len(self.vehicles[vehicle].get_bike_inventory())
         
         def set_Q_V(self):
