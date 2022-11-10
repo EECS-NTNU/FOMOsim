@@ -28,10 +28,10 @@ from settings import BIKE_SPEED, DEFAULT_DEPOT_CAPACITY, MINUTES_CONSTANT_PER_AC
 from init_state.wrapper import read_initial_state
 
 # ------------ TESTING DATA MANUALLY ---------------
-filename = "instances/TD_W17"
+filename = "instances/TD_W34"
 state = read_initial_state(filename)
 policy = policies.GreedyPolicy()
-state.set_vehicles([policy, policy])
+state.set_vehicles([policy])
 
 
 #source = sim.Station(0,capacity=DEFAULT_DEPOT_CAPACITY)
@@ -61,7 +61,7 @@ class MILP_data():
 
                 self.neighboring_limit= 0.6 #km
 
-                self.TW_max = (self.neighboring_limit/WALKING_SPEED)*60      #max walking time between neighbors
+                self.TW_max = (self.neighboring_limit/WALKING_SPEED)*60      #max walking time between neighbors in minutes
                 self.T_D = dict()       #{(station_ID,station_ID):time}
                 self.T_DD = dict()       #{(station_ID,station_ID):timeperiods}
                 self.T_W = dict()       #{(station_ID,station_ID):time}
@@ -82,15 +82,15 @@ class MILP_data():
 
                 self.TAU = 5    #length of time period, minutes
 
-                self.DEPOT_ID = 10000
+                self.DEPOT_ID = -1
 
         # ------------ DEFINING MEMBER FUNCTIONS ---------------
 
         def initialize_stations_with_source_sink(self):
                 for station_ID in self.stations:
                         self.stations_with_source_sink[station_ID] = self.stations[station_ID]
-                source = sim.Depot(self.DEPOT_ID)     
-                self.stations_with_source_sink[source.id] = source
+                source = self.DEPOT_ID     
+                self.stations_with_source_sink[source] = source
 
         def set_possible_previous_stations(self, travel_time_dict, possible_previous_stations_dict, driving=False, walking=False):
                 for j in self.stations:
@@ -125,9 +125,9 @@ class MILP_data():
 
 
         def initialize_traveltime_dict(self, travel_time_dict, speed, discrete=False, driving=False): 
-                for start_station in self.stations_with_source_sink:
-                        for end_station in self.stations_with_source_sink:
-                                travel_time = (self.stations_with_source_sink[start_station].distance_to(self.stations_with_source_sink[end_station].get_lat()
+                for start_station in self.stations:
+                        for end_station in self.stations:
+                                travel_time = (self.stations[start_station].distance_to(self.stations[end_station].get_lat()
                                 ,self.stations_with_source_sink[end_station].get_lon()) / speed) * 60     # minutes
                                 if driving == True and start_station != end_station:
                                         travel_time += MINUTES_PER_ACTION #parking time included in driving time 
@@ -153,12 +153,12 @@ class MILP_data():
                         #self.L_T[station] = station.get_target_state()                 #must be fixed before simulation
                         self.L_T[station] = self.stations[station].capacity//2
 
-        def set_D(self):
+        def set_D(self, day, hour):
+                day = day
+                hour = hour
                 for station in self.stations:
-                        day = random.randint(0,6)
-                        hour = random.randint(8,18)
                         for time in self.time_periods:
-                                self.D[(station, time)] = self.TAU*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) #must be changed to simulate the real time
+                                self.D[(station, time)] = (self.TAU/60)*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) # demand per time period
 
         def set_Q_0(self):
                 for vehicle in self.vehicles:
@@ -194,7 +194,7 @@ class MILP_data():
                 self.set_L_O()
                 self.set_L_T()
                 
-                self.set_D()
+                self.set_D(0, 8)    
                 
                 self.set_Q_0()
                 self.set_Q_V()
@@ -202,6 +202,10 @@ class MILP_data():
 
 
 
-# d=MILP_data()
-# d.initalize_parameters()
-# print("heiiiiiiii")    
+d=MILP_data()
+d.initalize_parameters()
+print("TESTING COMPLETE")
+print(d.T_D[(-1,0)])
+print(d.T_D[(9,-1)])
+print(d.T_DD[(-1,0)])
+print(d.T_DD[(9,-1)])
