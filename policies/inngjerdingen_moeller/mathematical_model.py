@@ -120,6 +120,6 @@ def run_model(data, roaming=True):
     return m
 
 
-test_data = MILP_data()
-test_data.initalize_parameters() 
-run_model(test_data, roaming = False)
+# test_data = MILP_data()
+# test_data.initalize_parameters() 
+# run_model(test_data, roaming = False)

@@ -26,24 +26,29 @@ import sim
 import policies
 from settings import BIKE_SPEED, DEFAULT_DEPOT_CAPACITY, MINUTES_CONSTANT_PER_ACTION, MINUTES_PER_ACTION, VEHICLE_SPEED, WALKING_SPEED
 from init_state.wrapper import read_initial_state
+from target_state import equal_prob_target_state
+from helpers import timeInMinutes
 
 # ------------ TESTING DATA MANUALLY ---------------
 filename = "instances/TD_W34"
-state1 = read_initial_state(filename)
+tstate = equal_prob_target_state
+state1 = read_initial_state(filename, tstate)
 policy = policies.GreedyPolicy()
 state1.set_vehicles([policy])
+simul1 = sim.Simulator(
+        initial_state = state1,
+        start_time = timeInMinutes(hours=7),
+        duration = timeInMinutes(hours=1),
+        verbose = True,
+)
 
-
-#source = sim.Station(0,capacity=DEFAULT_DEPOT_CAPACITY)
-#station1 = sim.Station(1)
-#station2 = sim.Station(2)
-#station3 = sim.Station(3)
-#vehicle1 = sim.Vehicle(1, source, policies.GreedyPolicy(), 0, 6)
 
 class MILP_data():
-        def __init__(self, state):
+        def __init__(self, simul):
                 #Sets
                 
+                self.simul = simul
+                self.state = simul.state
                 self.stations = state.stations #{staton_ID: station_object}
                 self.stations_with_source_sink = dict() #{staton_ID: station_object}
                 self.neighboring_stations = dict()      #{station_ID: [list of station_IDs]}
@@ -120,7 +125,7 @@ class MILP_data():
                                                 self.neighboring_stations[station].append(candidate)
 
         def initialize_vehicles(self):
-                for vehicle in state.vehicles:
+                for vehicle in self.state.vehicles:
                         self.vehicles[vehicle.vehicle_id] = vehicle
 
 
@@ -150,8 +155,9 @@ class MILP_data():
 
         def set_L_T(self):
                 for station in self.stations:
-                        #self.L_T[station] = station.get_target_state()                 #must be fixed before simulation
-                        self.L_T[station] = self.stations[station].capacity//2
+                        self.L_T[station] = self.stations[station].get_target_state(self.simul.day(), self.simul.hour())
+                        #self.L_T[station] = self.stations[station].capacity//2
+
 
         def set_D(self, day, hour):
                 day = day
@@ -202,7 +208,7 @@ class MILP_data():
 
 
 
-d=MILP_data(state1)
+d=MILP_data(simul1)
 d.initalize_parameters()
 print("TESTING COMPLETE")
 print(d.T_D[(-1,0)])
