@@ -18,17 +18,10 @@ sys.path.insert(0, '') #make sure the modules are found in the new working direc
 ##############################################################
 
 
-import sim
-import policies
-from settings import BIKE_SPEED, DEFAULT_DEPOT_CAPACITY, MINUTES_CONSTANT_PER_ACTION, MINUTES_PER_ACTION, VEHICLE_SPEED, WALKING_SPEED
-from init_state.wrapper import read_initial_state
-from target_state import equal_prob_target_state
-from helpers import timeInMinutes
-
-
+from settings import BIKE_SPEED, MINUTES_PER_ACTION, VEHICLE_SPEED, WALKING_SPEED, MINUTES_CONSTANT_PER_ACTION
 
 class MILP_data():
-        def __init__(self, simul):
+        def __init__(self, simul, time_horizon=25, tau=5):
                 #Sets
                 
                 self.simul = simul
@@ -37,7 +30,7 @@ class MILP_data():
                 self.stations_with_source_sink = dict() #{staton_ID: station_object}
                 self.neighboring_stations = dict()      #{station_ID: [list of station_IDs]}
                 self.vehicles = dict()                  #{vehicle_ID: vehicle_object}
-                self.time_periods = [0,1,2,3,4,5]
+                self.time_periods = []
                 self.possible_previous_stations_driving = dict()        #{(station_ID,time): [list of station_IDs]}
                 self.possible_previous_stations_cycling = dict()        #{(station_ID,time): [list of station_IDs]}
                 self.possible_previous_stations_walking = dict()        #{(station_ID,time): [list of station_IDs]}
@@ -69,11 +62,18 @@ class MILP_data():
                 self.Q_V = dict()       #{vehicle: capacity}
                 self.Q_S = dict()       #{station_ID: capacity}
 
-                self.TAU = 5    #length of time period, minutes
+                self.TAU = tau    #length of time period, minutes
+                self.time_horizon = time_horizon #length of time horizon in minutes
 
                 self.DEPOT_ID = -1
 
         # ------------ DEFINING MEMBER FUNCTIONS ---------------
+
+        def initialize_time_periods(self):
+                num_time_periods=self.time_horizon//self.TAU  #number of time periods are rounded down to nearest integer
+                for period in range(0,num_time_periods+1):
+                        self.time_periods.append(period)
+        
 
         def initialize_stations_with_source_sink(self):
                 for station_ID in self.stations:
@@ -119,7 +119,7 @@ class MILP_data():
                                 travel_time = (self.stations[start_station].distance_to(self.stations[end_station].get_lat()
                                 ,self.stations_with_source_sink[end_station].get_lon()) / speed) * 60     # minutes
                                 if driving == True and start_station != end_station:
-                                        travel_time += MINUTES_PER_ACTION #parking time included in driving time 
+                                        travel_time += MINUTES_CONSTANT_PER_ACTION #parking time included in driving time (1 min)
                                 if discrete == False:
                                         travel_time_dict[(start_station,end_station)] = travel_time
                                 else:
@@ -140,7 +140,7 @@ class MILP_data():
         def set_L_T(self):
                 for station in self.stations:
                         self.L_T[station] = self.stations[station].get_target_state(self.simul.day(), self.simul.hour())
-                        #self.L_T[station] = self.stations[station].capacity//2
+                        #self.L_T[station] = (self.stations[station].capacity//2)
 
 
         def set_D(self, day, hour):
@@ -164,6 +164,7 @@ class MILP_data():
 
         
         def initalize_parameters(self):
+                self.initialize_time_periods()
                 self.initialize_stations_with_source_sink()
                 self.initialize_vehicles()
                 self.initialize_traveltime_dict(self.T_D, VEHICLE_SPEED, discrete=False, driving=True)
@@ -184,34 +185,8 @@ class MILP_data():
                 self.set_L_O()
                 self.set_L_T()
                 
-                self.set_D(0, 8)    
+                self.set_D(self.simul.day(), self.simul.hour())    
                 
                 self.set_Q_0()
                 self.set_Q_V()
                 self.set_Q_S()
-
-
-
-if __name__ == "__main__":
-# ------------ TESTING DATA MANUALLY ---------------
-        filename = "instances/TD_W34"
-        tstate = equal_prob_target_state
-        state1 = read_initial_state(filename, tstate)
-        policy = policies.GreedyPolicy()
-        state1.set_vehicles([policy])
-        simul1 = sim.Simulator(
-                initial_state = state1,
-                start_time = timeInMinutes(hours=7),
-                duration = timeInMinutes(hours=1),
-                verbose = True,
-        )
-
-        d=MILP_data(simul1)
-        d.initalize_parameters()
-        print("TESTING COMPLETE")
-        print(d.T_D[(-1,0)])
-        print(d.T_D[(9,-1)])
-        print(d.T_DD[(-1,0)])
-        print(d.T_DD[(9,-1)])
-        run_model(d, True)
-# -------------------------------------------------
