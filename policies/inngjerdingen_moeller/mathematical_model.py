@@ -6,7 +6,7 @@ os.chdir(path)
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
 from gurobipy import *
-from policies.inngjerdingen_moeller.parameters_MILP import *
+
 
 def run_model(data, roaming=True):
     m = Model("MILP")
@@ -119,7 +119,3 @@ def run_model(data, roaming=True):
     m.printAttr("X")
     return m
 
-
-# test_data = MILP_data()
-# test_data.initalize_parameters() 
-# run_model(test_data, roaming = False)

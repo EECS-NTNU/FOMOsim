@@ -10,7 +10,7 @@ class InngjerdingenMoellerPolicy(Policy):
         super().__init__()
 
     def get_best_action(self, simul, vehicle):
-        data = MILP_data(simul.state)
+        data = MILP_data(simul)
         gurobi_output=run_model(data, self.roaming)
         bikes_to_pickup, bikes_to_deliver, next_station = self.return_solution(gurobi_output)
         

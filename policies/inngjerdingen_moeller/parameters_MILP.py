@@ -9,14 +9,10 @@
 import os 
 import sys
 from pathlib import Path
-import random
-random.seed(10)
 
 path = Path(__file__).parents[2]        # The path seems to be correct either way, sys.path.insert makes the difference
 os.chdir(path)
 # print(os. getcwd())
-#path = "../../sim" #gått opp to mapper
-#path = "./adasd/Asdads" #./ samme mappe
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
 ##############################################################
@@ -29,18 +25,6 @@ from init_state.wrapper import read_initial_state
 from target_state import equal_prob_target_state
 from helpers import timeInMinutes
 
-# ------------ TESTING DATA MANUALLY ---------------
-filename = "instances/TD_W34"
-tstate = equal_prob_target_state
-state1 = read_initial_state(filename, tstate)
-policy = policies.GreedyPolicy()
-state1.set_vehicles([policy])
-simul1 = sim.Simulator(
-        initial_state = state1,
-        start_time = timeInMinutes(hours=7),
-        duration = timeInMinutes(hours=1),
-        verbose = True,
-)
 
 
 class MILP_data():
@@ -49,7 +33,7 @@ class MILP_data():
                 
                 self.simul = simul
                 self.state = simul.state
-                self.stations = state.stations #{staton_ID: station_object}
+                self.stations = self.state.stations #{staton_ID: station_object}
                 self.stations_with_source_sink = dict() #{staton_ID: station_object}
                 self.neighboring_stations = dict()      #{station_ID: [list of station_IDs]}
                 self.vehicles = dict()                  #{vehicle_ID: vehicle_object}
@@ -208,10 +192,26 @@ class MILP_data():
 
 
 
-d=MILP_data(simul1)
-d.initalize_parameters()
-print("TESTING COMPLETE")
-print(d.T_D[(-1,0)])
-print(d.T_D[(9,-1)])
-print(d.T_DD[(-1,0)])
-print(d.T_DD[(9,-1)])
+if __name__ == "__main__":
+# ------------ TESTING DATA MANUALLY ---------------
+        filename = "instances/TD_W34"
+        tstate = equal_prob_target_state
+        state1 = read_initial_state(filename, tstate)
+        policy = policies.GreedyPolicy()
+        state1.set_vehicles([policy])
+        simul1 = sim.Simulator(
+                initial_state = state1,
+                start_time = timeInMinutes(hours=7),
+                duration = timeInMinutes(hours=1),
+                verbose = True,
+        )
+
+        d=MILP_data(simul1)
+        d.initalize_parameters()
+        print("TESTING COMPLETE")
+        print(d.T_D[(-1,0)])
+        print(d.T_D[(9,-1)])
+        print(d.T_DD[(-1,0)])
+        print(d.T_DD[(9,-1)])
+        run_model(d, True)
+# -------------------------------------------------
