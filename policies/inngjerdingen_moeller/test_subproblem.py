@@ -11,8 +11,8 @@ from helpers import timeInMinutes
 
 if __name__ == "__main__":
 # ------------ TESTING DATA MANUALLY ---------------
-        #filename = "instances/EH_W31"
-        filename = "instances/TD_W34"
+        filename = "instances/EH_W31"
+        #filename = "instances/TD_W34"
         #filename = "instances/OS_W31"
 
         #tstate = equal_prob_target_state
@@ -21,7 +21,7 @@ if __name__ == "__main__":
         state1 = read_initial_state(filename, tstate)
         policy = policies.GreedyPolicy()
         
-        state1.set_vehicles([policy])
+        state1.set_vehicles([policy, policy])
         
         simul1 = sim.Simulator(
                 initial_state = state1,
@@ -29,6 +29,9 @@ if __name__ == "__main__":
                 duration = timeInMinutes(hours=1),
                 verbose = True,
         )
+
+        simul1.state.vehicles[1].location = state1.get_location_by_id(2)
+        simul1.state.vehicles[1].eta = 6
 
         d=MILP_data(simul1, 25, 5)
         d.initalize_parameters()

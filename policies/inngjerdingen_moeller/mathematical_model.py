@@ -75,10 +75,9 @@ def run_model(data, roaming=True):
 
     #Constraints
 
-    #Fixate vehicle start station for arriving vehicle
+    #Fixate vehicle start station
     for vehicle in vehicles:
-        if vehicles[vehicle].eta == 0:
-            m.addConstr(x[(-1, vehicles[vehicle].location.id, 0,vehicle)] == 1)
+        m.addConstr(x[(-1, vehicles[vehicle].location.id, 0,vehicle)] == 1)
 
     #Station balance:
     m.addConstrs(l[(i, 0)] == L_0[i] for i in stations)

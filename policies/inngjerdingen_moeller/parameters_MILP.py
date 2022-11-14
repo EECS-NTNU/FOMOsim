@@ -160,6 +160,13 @@ class MILP_data():
                 for station in self.stations:
                         self.Q_S[station] = self.stations[station].capacity
 
+        def initialize_vehicle_ETAs(self):
+                for vehicle in self.vehicles:
+                        if self.vehicles[vehicle].eta > 0:
+                                self.T_D[(-1, self.vehicles[vehicle].location.id)] = self.vehicles[vehicle].eta
+                                self.T_DD[(-1, self.vehicles[vehicle].location.id)] = (self.vehicles[vehicle].eta//self.TAU)+1
+
+
         
         def initalize_parameters(self):
                 self.initialize_time_periods()
@@ -171,6 +178,7 @@ class MILP_data():
                 self.initialize_traveltime_dict(self.T_DW, WALKING_SPEED, discrete=True, driving=False)
                 self.initialize_traveltime_dict(self.T_C, BIKE_SPEED, discrete=False, driving=False)
                 self.initialize_traveltime_dict(self.T_DC, BIKE_SPEED, discrete=True, driving=False)
+                self.initialize_vehicle_ETAs()
                 
                 self.set_neighboring_stations()
                 
