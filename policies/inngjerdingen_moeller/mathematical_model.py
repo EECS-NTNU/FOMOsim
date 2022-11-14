@@ -10,7 +10,9 @@ from gurobipy import *
 
 def run_model(data, roaming=True):
     m = Model("MILP")
-
+    m.setParam('TimeLimit', 60*60) #time limit in seconds
+    m.setParam('OutputFlag', True)
+    
     #Sets
     stations = data.stations
     stations_with_source_sink = data.stations_with_source_sink
@@ -124,5 +126,9 @@ def run_model(data, roaming=True):
         m.setObjective(quicksum(quicksum(W_C*c[(i, t)] + W_S*s[(i, t)] for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
     m.optimize()
     m.printAttr("X")
+
     return m
+
+    
+
 
