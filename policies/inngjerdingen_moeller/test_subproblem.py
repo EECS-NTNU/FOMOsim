@@ -15,8 +15,8 @@ if __name__ == "__main__":
         filename = "instances/TD_W34"
         #filename = "instances/OS_W31"
 
-        tstate = equal_prob_target_state
-        #tstate = evenly_distributed_target_state
+        #tstate = equal_prob_target_state
+        tstate = evenly_distributed_target_state
         
         state1 = read_initial_state(filename, tstate)
         policy = policies.GreedyPolicy()
@@ -30,7 +30,7 @@ if __name__ == "__main__":
                 verbose = True,
         )
 
-        d=MILP_data(simul1, 20, 5)
+        d=MILP_data(simul1, 25, 5)
         d.initalize_parameters()
         print("TESTING COMPLETE")
         run_model(d, True)

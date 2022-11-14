@@ -51,7 +51,6 @@ def run_model(data, roaming=True):
     Q_S = data.Q_S
 
 
-    
     #Variables
     if roaming == True:
         r_B = m.addVars({(i, j, t) for i in stations for j in neighboring_stations[i] for t in range(1, T_bar+1)},lb=0, vtype=GRB.CONTINUOUS, name="r_B")
@@ -70,7 +69,15 @@ def run_model(data, roaming=True):
     l = m.addVars({(i, t) for i in stations for t in time_periods},lb=0, vtype=GRB.CONTINUOUS, name="l") 
 
 
+
+
     #Constraints
+
+    #Fixate vehicle start station for arriving vehicle
+    for vehicle in vehicles:
+        if vehicles[vehicle].eta == 0:
+            m.addConstr(x[(-1, vehicles[vehicle].location.id, 0,vehicle)] == 1)
+
     #Station balance:
     m.addConstrs(l[(i, 0)] == L_0[i] for i in stations)
     if roaming == True:

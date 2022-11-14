@@ -36,12 +36,12 @@ class MILP_data():
                 self.possible_previous_stations_walking = dict()        #{(station_ID,time): [list of station_IDs]}
 
                 #Parameters
-                self.W_D = 0.1
+                self.W_D = 0.01
                 self.W_C = 1
                 self.W_S = 1
                 self.W_R = 1
 
-                self.neighboring_limit= 0.6 #km
+                self.neighboring_limit= 0.35 #km
 
                 self.TW_max = (self.neighboring_limit/WALKING_SPEED)*60      #max walking time between neighbors in minutes
                 self.T_D = dict()       #{(station_ID,station_ID):time}
@@ -139,13 +139,11 @@ class MILP_data():
 
         def set_L_T(self):
                 for station in self.stations:
-                        self.L_T[station] = self.stations[station].get_target_state(self.simul.day(), self.simul.hour())
-                        #self.L_T[station] = (self.stations[station].capacity//2)
+                        #self.L_T[station] = self.stations[station].get_target_state(self.simul.day(), self.simul.hour())
+                        self.L_T[station] = (self.stations[station].capacity//2)
 
 
         def set_D(self, day, hour):
-                day = day
-                hour = hour
                 for station in self.stations:
                         for time in self.time_periods:
                                 self.D[(station, time)] = (self.TAU/60)*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) # demand per time period
@@ -179,8 +177,6 @@ class MILP_data():
                 self.set_possible_previous_stations(self.T_DD, self.possible_previous_stations_driving, driving=True)
                 self.set_possible_previous_stations(self.T_DC, self.possible_previous_stations_cycling)
                 self.set_possible_previous_stations(self.T_DW, self.possible_previous_stations_walking, walking= True)
-
-                
 
                 self.set_L_O()
                 self.set_L_T()
