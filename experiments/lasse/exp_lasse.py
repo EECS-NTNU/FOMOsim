@@ -1,5 +1,6 @@
 #!/bin/python3
 # exp_lasse.py
+# Contact Lasse Natvig if you have questions about this experiment
 import copy
 import sim
 import init_state

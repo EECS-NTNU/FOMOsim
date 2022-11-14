@@ -1,5 +1,7 @@
 #!/bin/python3
 # exp_lasse4.py
+# Contact Lasse Natvig if you have questions about this experiment
+
 import copy
 # import settings
 import sim
