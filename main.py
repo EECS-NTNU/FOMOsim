@@ -11,6 +11,7 @@ import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
+import policies.inngjerdingen_moeller.inngjerdingen_moeller
 import sim
 import output
 from helpers import timeInMinutes
@@ -19,8 +20,8 @@ from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(hours=1)
-INSTANCE = 'OS_W31'
-WEEK = 31
+INSTANCE = 'TD_W34'
+WEEK = 34
 
 def main():
 
@@ -37,7 +38,8 @@ def main():
     # Set up policy
 
     # policy = policies.RandomActionPolicy()
-    policy = policies.GreedyPolicy()
+    # policy = policies.GreedyPolicy()
+    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')

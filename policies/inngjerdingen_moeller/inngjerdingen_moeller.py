@@ -17,7 +17,7 @@ class InngjerdingenMoellerPolicy(Policy):
         next_station, bikes_to_pickup, bikes_to_deliver  = self.return_solution(gurobi_output, vehicle)
         
         return sim.Action(
-            None,
+            [],               # batteries to swap
             bikes_to_pickup, #list of bike id's
             bikes_to_deliver, #list of bike id's
             next_station, #id
@@ -45,9 +45,9 @@ class InngjerdingenMoellerPolicy(Policy):
                 unloading_quantity += var.x
         
         for bike in range(0, int(loading_quantity)):
-            loading_ids.append(vehicle.location.bikes[bike])
+            loading_ids.append(vehicle.location.bikes[bike].id)
         for bike in range(0,unloading_quantity):
-            unloading_ids.append(vehicle.location.bikes[bike])
+            unloading_ids.append(vehicle.location.bikes[bike].id)
 
         return station_id, loading_ids, unloading_ids   
 
