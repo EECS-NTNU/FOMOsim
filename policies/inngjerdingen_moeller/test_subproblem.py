@@ -1,5 +1,6 @@
 from parameters_MILP import MILP_data
 from mathematical_model import run_model
+from inngjerdingen_moeller import InngjerdingenMoellerPolicy
 
 import sim
 import policies
@@ -31,10 +32,14 @@ if __name__ == "__main__":
         )
 
         simul1.state.vehicles[1].location = state1.get_location_by_id(2)
-        simul1.state.vehicles[1].eta = 6
+        simul1.state.vehicles[1].eta = 9
 
-        d=MILP_data(simul1, 25, 5)
-        d.initalize_parameters()
-        print("TESTING COMPLETE")
-        run_model(d, True)
+        # d=MILP_data(simul1, 25, 5)
+        # d.initalize_parameters()
+        # print("TESTING COMPLETE")
+        # gurobi_output = run_model(d, True)
+
+        test = InngjerdingenMoellerPolicy(policy)
+        test.get_best_action(simul1, simul1.state.vehicles[0])
+
 # ----------------------------------------------------
