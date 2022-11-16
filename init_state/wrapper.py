@@ -84,7 +84,7 @@ def set_num_bikes(statedata, n):
 
     # don't place more bikes than capacity
     if n > total_capacity:
-        n = total_capacity
+        n = total_capacity 
 
     # place bikes at stations, scaled for capacity
     scale = n / total_capacity

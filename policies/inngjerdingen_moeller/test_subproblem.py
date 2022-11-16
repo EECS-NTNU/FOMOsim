@@ -18,12 +18,12 @@ if __name__ == "__main__":
         #filename = "instances/OS_W31"
 
         START_DAY = 0 #0 -> monday
-        START_HOUR = 8 #8 -> 08:00 am
+        START_HOUR = 12 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
 
         state1 = read_initial_state(filename)
-        state1.set_seed(1)
+        state1.set_seed(1) 
         
         # tstate = target_state.EvenlyDistributedTargetState()
         # tstate = target_state.OutflowTargetState()
@@ -35,7 +35,7 @@ if __name__ == "__main__":
         
         policy = policies.GreedyPolicy()
         
-        state1.set_vehicles([policy, policy]) #number of policy objects in list determines number of vehicles
+        state1.set_vehicles([policy]) #number of policy objects in list determines number of vehicles
         
         
         dmand = demand.Demand()
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                 verbose = True,
         )
      
-        d=MILP_data(simul1, 20, 5) #input parameters determine time horizon and length of time period (tau)
+        d=MILP_data(simul1, 25, 5) #input parameters determine time horizon and length of time period (tau)
         d.initalize_parameters()
         print("TESTING COMPLETE")
         m=run_model(d, True) #True if run model with roaming
