@@ -48,7 +48,7 @@ def main():
 
     # policy = policies.RandomActionPolicy()
     # policy = policies.GreedyPolicy()
-    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy()
+    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=15)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
@@ -60,8 +60,9 @@ def main():
 
     # tstate = target_state.EvenlyDistributedTargetState()
     # tstate = target_state.OutflowTargetState()
-    tstate = target_state.EqualProbTargetState()
+    # tstate = target_state.EqualProbTargetState()
     # tstate = target_state.USTargetState()
+    tstate = target_state.HalfCapacityTargetState()
 
     ###############################################################################
     # Set up demand

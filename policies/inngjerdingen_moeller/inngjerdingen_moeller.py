@@ -2,6 +2,7 @@ from policies import Policy
 import sim
 from policies.inngjerdingen_moeller.parameters_MILP import MILP_data
 from policies.inngjerdingen_moeller.mathematical_model import run_model
+from policies.inngjerdingen_moeller.visualize_subproblem import Visualizer
 
 class InngjerdingenMoellerPolicy(Policy):
     def __init__(self, roaming = True, time_horizon=25, tau=5):
@@ -15,7 +16,8 @@ class InngjerdingenMoellerPolicy(Policy):
         data.initalize_parameters()
         gurobi_output=run_model(data, self.roaming)
         next_station, bikes_to_pickup, bikes_to_deliver  = self.return_solution(gurobi_output, vehicle)
-        
+        #v=Visualizer(gurobi_output,data)
+        #v.visualize_route()
         return sim.Action(
             [],               # batteries to swap
             bikes_to_pickup, #list of bike id's
@@ -43,11 +45,14 @@ class InngjerdingenMoellerPolicy(Policy):
                 loading_quantity += var.x
             elif name == 'q_U' and int(indices[2]) == vehicle.id and round(var.x,0) > 0 and int(indices[0]) == vehicle.location.id:
                 unloading_quantity += var.x
-        
-        for bike in range(0, int(loading_quantity)):
-            loading_ids.append(vehicle.location.bikes[bike].id)
-        for bike in range(0,unloading_quantity):
-            unloading_ids.append(vehicle.location.bikes[bike].id)
+        if not (loading_quantity == 0 and unloading_quantity == 0):
+
+            bikes_at_station = list(vehicle.location.bikes.values()) #creates list of bike objects
+            bikes_at_vehicle = vehicle.get_bike_inventory() 
+            for bike in range(0, int(loading_quantity)): 
+                loading_ids.append(bikes_at_station[bike].id)
+            for bike in range(0,int(unloading_quantity)):
+                unloading_ids.append(bikes_at_vehicle[bike].id)
 
         return station_id, loading_ids, unloading_ids   
 

@@ -139,8 +139,8 @@ class MILP_data():
 
         def set_L_T(self):
                 for station in self.stations:
-                        #self.L_T[station] = self.stations[station].get_target_state(self.simul.day(), self.simul.hour())
-                        self.L_T[station] = (self.stations[station].capacity//2)
+                        self.L_T[station] = self.stations[station].get_target_state(self.simul.day(), self.simul.hour())
+                        #self.L_T[station] = (self.stations[station].capacity//2)
 
 
         def set_D(self, day, hour):
@@ -163,8 +163,8 @@ class MILP_data():
         def initialize_vehicle_ETAs(self):
                 for vehicle in self.vehicles:
                         if self.vehicles[vehicle].eta > 0:
-                                self.T_D[(-1, self.vehicles[vehicle].location.id)] = self.vehicles[vehicle].eta
-                                self.T_DD[(-1, self.vehicles[vehicle].location.id)] = (self.vehicles[vehicle].eta//self.TAU)+1
+                                self.T_D[(-1, self.vehicles[vehicle].location.id)] = (self.vehicles[vehicle].eta - self.simul.time)
+                                self.T_DD[(-1, self.vehicles[vehicle].location.id)] = ((self.vehicles[vehicle].eta - self.simul.time)//self.TAU)+1
 
 
         

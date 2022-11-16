@@ -86,7 +86,7 @@ class Station(Location):
 
     def spare_capacity(self):
         return self.capacity - len(self.bikes)
-
+    
     def get_target_state(self, day, hour):
         return self.target_state[day % 7][hour % 24]
 

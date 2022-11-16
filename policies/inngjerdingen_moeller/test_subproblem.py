@@ -4,9 +4,9 @@ from inngjerdingen_moeller import InngjerdingenMoellerPolicy
 
 import sim
 import policies
-
+import demand
 from init_state.wrapper import read_initial_state
-from target_state import equal_prob_target_state, evenly_distributed_target_state
+import target_state
 from helpers import timeInMinutes
 from visualize_subproblem import Visualizer
 
@@ -17,23 +17,41 @@ if __name__ == "__main__":
         filename = "instances/TD_W34"
         #filename = "instances/OS_W31"
 
-        #tstate = equal_prob_target_state
-        tstate = evenly_distributed_target_state
+        START_DAY = 0
+        START_TIME = timeInMinutes(hours=7)
+        DURATION = timeInMinutes(hours=1)
+
+        state1 = read_initial_state(filename)
+        state1.set_seed(1)
         
-        state1 = read_initial_state(filename, tstate)
+        # tstate = target_state.EvenlyDistributedTargetState()
+        # tstate = target_state.OutflowTargetState()
+        # tstate = target_state.EqualProbTargetState()
+        # tstate = target_state.USTargetState()
+        tstate = target_state.HalfCapacityTargetState()
+        tstate.update_target_state(state1,START_DAY,7)
+        
         policy = policies.GreedyPolicy()
         
-        state1.set_vehicles([policy])
+        state1.set_vehicles([policy, policy])
         
+        
+        dmand = demand.Demand()
+        dmand.update_demands(state1,START_DAY,START_TIME)
+
         simul1 = sim.Simulator(
                 initial_state = state1,
-                start_time = timeInMinutes(hours=15), #hours=7, hours=11 or hours=15
-                duration = timeInMinutes(hours=1),
+                target_state = tstate,
+                demand = dmand,
+                start_time = START_TIME,
+                duration = DURATION,
                 verbose = True,
         )
-
-        d=MILP_data(simul1, 25, 5)
+     
+        d=MILP_data(simul1, 20, 5)
         d.initalize_parameters()
         print("TESTING COMPLETE")
-        run_model(d, True)
+        m=run_model(d, True)
+        v=Visualizer(m,d)
+        v.visualize_route()
 # ----------------------------------------------------

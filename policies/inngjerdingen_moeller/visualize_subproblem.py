@@ -1,7 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import sim
-from parameters_MILP import MILP_data
 from gurobipy import *
 
 class Visualizer():
@@ -72,9 +70,9 @@ class Visualizer():
             ax.text(lon+x_offset, lat, "Load: "+ str(loading_dict[station]))
 
         for station in unloading_dict:
-                    lat = station.get_lat()
-                    lon = station.get_lon()
-                    ax.text(lon+x_offset, lat-y_offset, "Unload: "+ str(unloading_dict[station]))
+            lat = station.get_lat()
+            lon = station.get_lon()
+            ax.text(lon+x_offset, lat-y_offset, "Unload: "+ str(unloading_dict[station]))
             
         plt.show()
 
