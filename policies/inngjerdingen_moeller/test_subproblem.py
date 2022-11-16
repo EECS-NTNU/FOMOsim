@@ -17,8 +17,9 @@ if __name__ == "__main__":
         filename = "instances/TD_W34"
         #filename = "instances/OS_W31"
 
-        START_DAY = 0
-        START_TIME = timeInMinutes(hours=7)
+        START_DAY = 0 #0 -> monday
+        START_HOUR = 8 #8 -> 08:00 am
+        START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
 
         state1 = read_initial_state(filename)
@@ -29,15 +30,16 @@ if __name__ == "__main__":
         # tstate = target_state.EqualProbTargetState()
         # tstate = target_state.USTargetState()
         tstate = target_state.HalfCapacityTargetState()
-        tstate.update_target_state(state1,START_DAY,7)
+        
+        tstate.update_target_state(state1,START_DAY,START_HOUR)
         
         policy = policies.GreedyPolicy()
         
-        state1.set_vehicles([policy, policy])
+        state1.set_vehicles([policy, policy]) #number of policy objects in list determines number of vehicles
         
         
         dmand = demand.Demand()
-        dmand.update_demands(state1,START_DAY,START_TIME)
+        dmand.update_demands(state1, START_DAY, START_HOUR)
 
         simul1 = sim.Simulator(
                 initial_state = state1,
@@ -48,10 +50,10 @@ if __name__ == "__main__":
                 verbose = True,
         )
      
-        d=MILP_data(simul1, 20, 5)
+        d=MILP_data(simul1, 20, 5) #input parameters determine time horizon and length of time period (tau)
         d.initalize_parameters()
         print("TESTING COMPLETE")
-        m=run_model(d, True)
+        m=run_model(d, True) #True if run model with roaming
         v=Visualizer(m,d)
         v.visualize_route()
 # ----------------------------------------------------
