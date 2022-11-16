@@ -102,7 +102,17 @@ class State(LoadSave):
                 stationObj = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
 
             else:
-                stationObj = sim.Station(station_id, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
+                stationObj = sim.Station(station_id,
+                                         capacity=capacity,
+                                         original_id=original_id,
+                                         center_location=position,
+                                         charging_station=charging_station,
+                                         leave_intensities = station["leave_intensities"],
+                                         leave_intensities_stdev = station["leave_intensities_stdev"],
+                                         arrive_intensities = station["arrive_intensities"],
+                                         arrive_intensities_stdev = station["arrive_intensities_stdev"],
+                                         move_probabilities = station["move_probabilities"],
+                                         )
 
             # create bikes
             bikes = []
@@ -114,12 +124,6 @@ class State(LoadSave):
                 id_counter += 1
 
             stationObj.set_bikes(bikes)
-
-            # set customer behaviour
-
-            stationObj.leave_intensity_per_iteration = station["leave_intensities"]
-            stationObj.arrive_intensity_per_iteration = station["arrive_intensities"]
-            stationObj.move_probabilities = station["move_probabilities"]
 
             stations.append(stationObj)
 
@@ -273,7 +277,7 @@ class State(LoadSave):
                 delivery_bike = vehicle.drop_off(delivery_bike_id)
 
                 # Adding bike to current station and changing coordinates of bike
-                vehicle.location.add_bike(self.rng, delivery_bike)
+                vehicle.location.add_bike(delivery_bike)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)

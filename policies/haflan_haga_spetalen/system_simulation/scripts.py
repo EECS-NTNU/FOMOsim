@@ -51,7 +51,7 @@ def system_simulate(state, day, hour):
         start_cluster.remove_scooter(scooter)
         travel_time = state.get_travel_time(start_cluster.id, end_cluster.id)
         scooter.travel(travel_time)
-        end_cluster.add_bike(state.rng, scooter)
+        end_cluster.add_bike(scooter)
 
     return (
         [(start, end, flow) for (start, end), flow in list(flow_counter.items())],

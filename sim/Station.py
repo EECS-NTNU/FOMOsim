@@ -14,8 +14,10 @@ class Station(Location):
         self,
         station_id,
         bikes = [],
-        leave_intensity_per_iteration=None,
-        arrive_intensity_per_iteration=None,
+        leave_intensities=None,
+        leave_intensities_stdev=None,
+        arrive_intensities=None,
+        arrive_intensities_stdev=None,
         center_location=None,
         move_probabilities=None,
         average_number_of_bikes=None,
@@ -25,18 +27,32 @@ class Station(Location):
         charging_station = None,
     ):
         super().__init__(
-            *(center_location if center_location else self.__compute_center(bikes)),
-            station_id, target_state=target_state
+            *(center_location if center_location else self.__compute_center(bikes)), station_id
         )
+
         self.set_bikes(bikes)
-        self.leave_intensity_per_iteration = leave_intensity_per_iteration
-        self.arrive_intensity_per_iteration = arrive_intensity_per_iteration
-        self.average_number_of_bikes = average_number_of_bikes
+
+        self.historical_leave_intensities = leave_intensities
+        self.historical_leave_intensities_stdev = leave_intensities_stdev
+        self.historical_arrive_intensities = arrive_intensities
+        self.historical_arrive_intensities_stdev = arrive_intensities_stdev
+
         self.move_probabilities = move_probabilities
+
+        self.average_number_of_bikes = average_number_of_bikes
         self.capacity = int(capacity)
         self.original_id = original_id
         self.charging_station = charging_station
 
+        if target_state is not None:
+            self.target_state = target_state
+        else:
+            self.target_state = []
+            for day in range(7):
+                self.target_state.append([])
+                for hour in range(24):
+                    self.target_state[day].append(0)
+            
         self.metrics = sim.Metric()
 
         if len(self.bikes) > self.capacity:
@@ -46,10 +62,18 @@ class Station(Location):
         return Station(
             self.id,
             list(copy.deepcopy(self.bikes).values()),
-            leave_intensity_per_iteration=self.leave_intensity_per_iteration,
-            arrive_intensity_per_iteration=self.arrive_intensity_per_iteration,
-            center_location=self.get_location(),
+
+            historical_leave_intensities=self.historical_leave_intensities,
+            historical_leave_intensities_stdev=self.historical_leave_intensities_stdev,
+            historical_arrive_intensities=self.historical_arrive_intensities,
+            historical_arrive_intensities_stdev=self.historical_arrive_intensities_stdev,
+
+            leave_intensities=self.leave_intensities,
+            arrive_intensities=self.arrive_intensities,
+
             move_probabilities=self.move_probabilities,
+
+            center_location=self.get_location(),
             average_number_of_bikes=self.average_number_of_bikes,
             target_state=self.target_state,
             capacity=self.capacity,
@@ -63,7 +87,10 @@ class Station(Location):
     def spare_capacity(self):
         return self.capacity - len(self.bikes)
 
-    def get_leave_distribution(self, state, day, hour):
+    def get_target_state(self, day, hour):
+        return self.target_state[day % 7][hour % 24]
+
+    def get_move_probabilities(self, state, day, hour):
         if self.move_probabilities is None:
             mp = []
             for station in range(len(state.locations)):
@@ -72,16 +99,10 @@ class Station(Location):
         return self.move_probabilities[day % 7][hour % 24]
 
     def get_arrive_intensity(self, day, hour):
-        return self.arrive_intensity_per_iteration[day % 7][hour % 24]
+        return self.arrive_intensities[day % 7][hour % 24]
 
     def get_leave_intensity(self, day, hour):
-        return self.leave_intensity_per_iteration[day % 7][hour % 24]
-
-    def get_target_state(self, day, hour):
-        if self.target_state:
-            return self.target_state[day % 7][hour % 24]
-        else:
-            return 0
+        return self.leave_intensities[day % 7][hour % 24]
 
     def number_of_bikes(self):
         return len(self.bikes)
@@ -95,15 +116,12 @@ class Station(Location):
         else:
             return 0, 0
 
-    def add_bike(self, rng, bike):
+    def add_bike(self, bike):
         if len(self.bikes) >= self.capacity:
             return False
         # Adding bike to bike list
         self.bikes[bike.id] = bike
-        # Changing coordinates of bike to this location + some delta
-        delta_lat = rng.uniform(-STATION_CENTER_DELTA, STATION_CENTER_DELTA)
-        delta_lon = rng.uniform(-STATION_CENTER_DELTA, STATION_CENTER_DELTA)
-        bike.set_location(self.get_lat() + delta_lat, self.get_lon() + delta_lon)
+        bike.set_location(self.get_lat(), self.get_lon())
         return True
 
     def remove_bike(self, bike):

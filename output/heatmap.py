@@ -17,6 +17,10 @@ def visualize_heatmap(simulators, metric):
         if metrics.get_aggregate_value(metric) > maxValue:
             maxValue = metrics.get_aggregate_value(metric)
 
+    if maxValue == 0:
+        print("*** Too short simulation, no trips done, will return without producng a heatmap") # Happens for EH_W22 1 hour simulation
+        return
+
     for location in simulators[0].state.locations:
         xx.append(location.get_lon())
         yy.append(location.get_lat())

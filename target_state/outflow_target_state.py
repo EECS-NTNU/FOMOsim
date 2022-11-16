@@ -1,45 +1,30 @@
 import sim
-from progress.bar import Bar
-import os
-import sys
-import numpy as np
-import copy
-import settings
-import math
-import policies
+from target_state import TargetState
 
-def outflow_target_state(state):
-    # initialize target_state matrix
-    target_state = []
-    for st in state.locations:
-        target_state.append([])
-        for day in range(7):
-            target_state[st.id].append([])
-            for hour in range(24):
-                target_state[st.id][day].append(0)
+class OutflowTargetState(TargetState):
 
-    for day in range(7):
-        for hour in range(24):
-            # set ideal state to net outflow of bikes
-            total_target_state = 0
+    def __init__(self):
+        super().__init__()
 
-            for st in state.stations.values():
-                outflow = st.get_leave_intensity(day, hour) - st.get_arrive_intensity(day, hour)
-                if outflow > 0:
-                    target_state[st.id][day][hour] = 2
-                    total_target_state += 2
-                else:
-                    target_state[st.id][day][hour] = 1
-                    total_target_state += 1
+    def update_target_state(self, state, day, hour):
+        # set ideal state to net outflow of bikes
+        total_target_state = 0
 
-            # scale ideal states so that sum is close to total number of bikes
-            scale_factor = len(state.get_all_bikes()) / total_target_state
-            for st in state.stations.values():
-                target = int(target_state[st.id][day][hour] * scale_factor)
-                if target > (0.7 * st.capacity):
-                    target = 0.7 * st.capacity
-                if target < (0.3 * st.capacity):
-                    target = 0.3 * st.capacity
-                target_state[st.id][day][hour] = target
+        for st in state.stations.values():
+            outflow = st.get_leave_intensity(day, hour) - st.get_arrive_intensity(day, hour)
+            if outflow > 0:
+                st.target_state[day][hour] = 2
+                total_target_state += 2
+            else:
+                st.target_state[day][hour] = 1
+                total_target_state += 1
 
-    return target_state
+        # scale ideal states so that sum is close to total number of bikes
+        scale_factor = len(state.get_all_bikes()) / total_target_state
+        for st in state.stations.values():
+            target = int(st.target_state[day][hour] * scale_factor)
+            if target > (0.7 * st.capacity):
+                target = 0.7 * st.capacity
+            if target < (0.3 * st.capacity):
+                target = 0.3 * st.capacity
+            st.target_state[day][hour] = target

@@ -16,9 +16,12 @@ import sim
 #import init_state.entur.scripts
 
 class GreedyPolicy(Policy):
-    def __init__(self,crit_weights=[0.1,0.5,0.1,0.3], cutoff=0.3):   #[0,0,0,1] for deviation from target state
+    def __init__(self,crit_weights=[0.1,0.2,0.3,0.4], cutoff=0.3, service_hours=None):   #[0,0,0,1] for deviation from target state
         super().__init__()
 
+        if service_hours is not None:
+            self.set_time_of_service(service_hours[0],service_hours[1])
+            
         #Two options for :
         # 1. Aim for target state THIS SHOULD BE THE STANDARD
         # 2. Maximum pick-up or delivery amount (somewhat of a special case of target state)
@@ -100,8 +103,10 @@ class GreedyPolicy(Policy):
             and not vehicle.is_at_depot() and (len(simul.state.depots) > 0)):
             next_location_id = list(simul.state.depots.values())[0].id  # TO DO: go to nearest depot, not just the first
         else:
+            #FILTERING
             tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
             potential_stations = [station for station in simul.state.stations.values() if station.id not in tabu_list]
+            
             net_demands = {station.id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
                             for station in potential_stations}
             target_states = {station.id:station.get_target_state(simul.day(), simul.hour()) 

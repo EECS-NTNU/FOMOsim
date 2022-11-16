@@ -10,32 +10,28 @@ import sim
 import settings
 from helpers import lock, unlock
 
-savedStatesDirectory = "saved_states"
+def get_initial_state(name, source, number_of_stations=None, number_of_bikes=None, mapdata=None, **kwargs):
+    # create initial state
+    statedata = { "name" : name }
+    if mapdata is not None:
+        statedata["map"] = mapdata[0]
+        statedata["map_boundingbox"] = mapdata[1]
 
-def read_initial_state(jsonFilename, target_state=None, number_of_stations=None, number_of_bikes=None, load_from_cache=True):
-    # create filename
-    all_args = {
-        "target_state" : target_state,
-        "number_of_stations" : number_of_stations,
-        "number_of_bikes" : number_of_bikes,
-        "jsonFilename" : jsonFilename
-    }
-    checksum = hashlib.sha256(jsonpickle.encode(all_args).encode('utf-8')).hexdigest()
-    stateFilename = f"{savedStatesDirectory}/{checksum}.pickle.gz"
+    statedata.update(source.get_initial_state(**kwargs))
 
-    if not os.path.isdir(savedStatesDirectory):
-        os.makedirs(savedStatesDirectory, exist_ok=True)
+    # create subset of stations
+    if number_of_stations is not None:
+        create_station_subset(statedata, number_of_stations)
 
-    lock_handle = lock(stateFilename)
+    # override number of bikes
+    if number_of_bikes is not None:
+        set_num_bikes(statedata, number_of_bikes)
 
-    if load_from_cache:
-        if os.path.isfile(stateFilename):
-            # load from cache
-            print("Loading state from file")
-            state = sim.State.load(stateFilename)
-            unlock(lock_handle)
-            return state
+    state = sim.State.get_initial_state(statedata)
 
+    return state
+
+def read_initial_state(jsonFilename, number_of_stations=None, number_of_bikes=None):
     with gzip.open(f"{jsonFilename}.json.gz", "r") as infile:
         dirname = os.path.dirname(jsonFilename);
 
@@ -55,16 +51,6 @@ def read_initial_state(jsonFilename, target_state=None, number_of_stations=None,
 
         state = sim.State.get_initial_state(statedata)
 
-        # calculate target state
-        if target_state is not None:
-            tstate = target_state(state)
-            state.set_target_state(tstate)
-
-        # save to cache
-        print("Saving state to file")
-        state.save(stateFilename)
-
-        unlock(lock_handle)
         return state
 
     return None
@@ -158,5 +144,6 @@ def create_station_subset(statedata, n):
                 for from_station in subset:
                     incoming += from_station["leave_intensities"][day][hour] * from_station["move_probabilities"][day][hour][station_id]
                 station["arrive_intensities"][day][hour] = incoming
+                station["arrive_intensities_stdev"][day][hour] = 0
 
     statedata["stations"] = subset

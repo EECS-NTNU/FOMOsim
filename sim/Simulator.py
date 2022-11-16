@@ -9,6 +9,8 @@ import sim
 import settings
 from sim.LoadSave import LoadSave
 from sim import Metric
+import target_state
+import demand
 
 from progress.bar import IncrementalBar
 
@@ -22,39 +24,46 @@ class Simulator(LoadSave):
     """
 
     def __init__(
-        self,
-        duration,
-        initial_state,
-        start_time = 0,
-        cluster=False,
-        verbose=False,
-        label=None,
+            self,
+            duration,
+            initial_state,
+            target_state,
+            demand,
+            start_time = 0,
+            cluster=False,
+            verbose=False,
+            label=None,
     ):
         super().__init__()
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
-        self.init(duration=duration, initial_state=initial_state, start_time=start_time, cluster=cluster, verbose=verbose, label=label)
+        self.init(duration=duration, initial_state=initial_state, target_state=target_state, demand=demand, start_time=start_time, cluster=cluster, verbose=verbose, label=label)
 
     def init(
         self,
+        initial_state,
+        target_state,
+        demand,
         start_time = 0,
         duration = 0,
-        initial_state = None,
         cluster = False,
         verbose = False,
         label = None,
     ):
         self.end_time = start_time + duration
-        if initial_state is not None:
-            self.state = initial_state
+        self.state = initial_state
+        self.target_state = target_state
+        self.demand = demand
         self.time = start_time
         self.event_queue: List[sim.Event] = []
+
+        # Add generate trip event to the event_queue
+        self.event_queue.append(sim.GenerateBikeTrips(start_time))
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.vehicles:
             self.event_queue.append(
                 sim.VehicleArrival(self.time, vehicle)
             )
-        # Add generate trip event to the event_queue
-        self.event_queue.append(sim.GenerateBikeTrips(start_time))
+
         self.metrics = Metric()
         self.cluster = cluster
         self.verbose = verbose
@@ -100,13 +109,20 @@ class Simulator(LoadSave):
                 sys.stdout.flush()
                 self.last_monotonic = monotonic
 
-        return event
-
     def full_step(self):
         while True:
-            event = self.single_step()
+            event = self.event_queue[0]
+
             if isinstance(event, sim.GenerateBikeTrips):
+                d = int((event.time // (60*24)) % 7)
+                h = int((event.time // 60) % 24)
+                self.demand.update_demands(self.state, d, h)
+                if self.target_state is not None:
+                    self.target_state.update_target_state(self.state, d, h)
+                self.single_step()
                 break
+
+            self.single_step()
 
     def run(self):
         """

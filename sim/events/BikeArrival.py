@@ -12,14 +12,16 @@ class BikeArrival(Event):
         time, 
         travel_time,
         bike,
-        arrival_station_id: int,
-        departure_station_id: int,
+        arrival_station_id,
+        departure_station_id,
+        congested = False
     ):
         super().__init__(time + travel_time)
         self.bike = bike
         self.arrival_station_id = arrival_station_id
         self.departure_station_id = departure_station_id
         self.travel_time = travel_time
+        self.congested = congested
 
     def perform(self, world) -> None:
         """
@@ -33,10 +35,10 @@ class BikeArrival(Event):
             self.bike = world.state.get_used_bike()
 
         if self.bike is not None:
-            self.bike.travel(self.travel_time)
+            self.bike.travel(world, self.travel_time, self.congested)
 
             # add bike to the arrived station (location is changed in add_bike method)
-            if arrival_station.add_bike(world.state.rng, self.bike):
+            if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:
                     world.state.remove_used_bike(self.bike)
             else:
@@ -57,6 +59,7 @@ class BikeArrival(Event):
                             self.bike,
                             next_station.id,
                             arrival_station.id,
+                            congested = True
                         )
                     )
 
