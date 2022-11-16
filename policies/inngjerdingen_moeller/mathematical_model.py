@@ -71,7 +71,7 @@ def run_model(data, roaming=True):
     l = m.addVars({(i, t) for i in stations for t in time_periods},lb=0, vtype=GRB.CONTINUOUS, name="l") 
 
 
-
+ 
 
     #Constraints
 

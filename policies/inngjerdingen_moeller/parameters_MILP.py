@@ -131,7 +131,7 @@ class MILP_data():
                                 travel_time_dict[(self.DEPOT_ID,station)] = 0
                         else:
                                 travel_time_dict[(station,self.DEPOT_ID)] = 1                
-                                travel_time_dict[(self.DEPOT_ID,station)] = 1
+                                travel_time_dict[(self.DEPOT_ID,station)] = 1 
                 
         def set_L_O(self):
                 for station in self.stations:
