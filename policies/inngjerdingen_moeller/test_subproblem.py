@@ -3,7 +3,6 @@ from mathematical_model import run_model
 from inngjerdingen_moeller import InngjerdingenMoellerPolicy
 
 import sim
-import policies
 import demand
 from init_state.wrapper import read_initial_state
 import target_state
@@ -14,11 +13,11 @@ from visualize_subproblem import Visualizer
 if __name__ == "__main__":
 # ------------ TESTING DATA MANUALLY ---------------
         #filename = "instances/EH_W31"
-        filename = "instances/TD_W34"
+        filename = "instances/TD_W34" 
         #filename = "instances/OS_W31"
 
         START_DAY = 0 #0 -> monday
-        START_HOUR = 13 #8 -> 08:00 am
+        START_HOUR = 16 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
 
@@ -33,7 +32,7 @@ if __name__ == "__main__":
         
         tstate.update_target_state(state1,START_DAY,START_HOUR)
         
-        policy = policies.GreedyPolicy()
+        policy = InngjerdingenMoellerPolicy()
         
         state1.set_vehicles([policy]) #number of policy objects in list determines number of vehicles
         

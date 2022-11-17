@@ -127,13 +127,13 @@ def run_model(data, roaming=True):
         
         #with discounting:
         m.setObjective(quicksum(quicksum(W_S*DF[t]*s[(i, t)] + quicksum(W_R*DF[t]*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*DF[t]*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
+        
+        # Loading penalty:
+        # m.setObjective(quicksum(quicksum(W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i) + quicksum(0.01*(q_L[(i, t, v)] +q_U[(i, t, v)]) for v in vehicles) for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
+
     else:
         m.setObjective(quicksum(quicksum(W_C*c[(i, t)] + W_S*s[(i, t)] for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
     m.optimize()
     m.printAttr("X")
 
     return m
-
-    
-
-
