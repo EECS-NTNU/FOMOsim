@@ -9,6 +9,7 @@
 import os 
 import sys
 from pathlib import Path
+import json
 
 path = Path(__file__).parents[2]        # The path seems to be correct either way, sys.path.insert makes the difference
 os.chdir(path)
@@ -26,6 +27,7 @@ class MILP_data():
                 
                 self.simul = simul
                 self.state = simul.state
+
                 self.stations = self.state.stations #{staton_ID: station_object}
                 self.stations_with_source_sink = dict() #{staton_ID: station_object}
                 self.neighboring_stations = dict()      #{station_ID: [list of station_IDs]}
@@ -177,30 +179,86 @@ class MILP_data():
                         self.discounting_factors.append(discount_factor)
 
         
+        # dictionary = d.L_0
+        
+        # # Serializing json
+        # json_object = json.dumps(dictionary, indent=4)
+        
+        # # Writing to sample.json
+        # with open("sample.json", "w") as outfile:
+        #         outfile.write(json_object)
+        
+        # with open("sample.json", "r") as infile:
+        #         L_1= json.load(infile)
+        # print(L_1)
+
+        def dump_static_data(self):
+                filename = (self.state.mapdata[0]).split('.')[0] +'_static_data.json'
+                T_D = {str(k): v for k, v in self.T_D.items()}
+                T_DD = {str(k): v for k, v in self.T_DD.items()}
+                T_C = {str(k): v for k, v in self.T_C.items()}
+                T_DC = {str(k): v for k, v in self.T_DC.items()}
+                T_W = {str(k): v for k, v in self.T_W.items()}
+                T_DW = {str(k): v for k, v in self.T_DW.items()}
+                json_dict = {"T_D": T_D, "T_DD": T_DD, "T_C": T_C, "T_DC": T_DC, "T_W":T_W, "T_DW":T_DW, "neighboring_stations": self.neighboring_stations}
+        
+                json_object = json.dumps(json_dict,indent=4)
+                with open(filename, "w") as outfile:
+                        outfile.write(json_object)
+
+        def read_static_data(self):
+                filename = (self.state.mapdata[0]).split('.')[0] +'_static_data.json'
+                with open(filename,'r') as infile:
+                        json_dict = json.load(infile)
+                for dic in json_dict:
+                        time_dict= json_dict[dic]
+                        for key, value in time_dict.items():
+                                self.T_D[key] = value
+
+
+
+        # initializing string
+test_str = "(7, 8, 9)"
+ 
+# printing original string
+print("The original string is : " + test_str)
+ 
+# Convert Tuple String to Integer Tuple
+# Using tuple() + int() + replace() + split()
+res = tuple(int(num) for num in test_str.replace('(', '').replace(')', '').replace('...', '').split(', '))
+ 
+# printing result
+print("The tuple after conversion is : " + str(res))
+                                
+
         def initalize_parameters(self):
                 self.initialize_time_periods()
                 self.initialize_stations_with_source_sink()
                 self.initialize_vehicles()
-                self.initialize_traveltime_dict(self.T_D, VEHICLE_SPEED, discrete=False, driving=True)
-                self.initialize_traveltime_dict(self.T_DD, VEHICLE_SPEED, discrete=True, driving=True)
-                self.initialize_traveltime_dict(self.T_W, WALKING_SPEED, discrete=False, driving=False)
-                self.initialize_traveltime_dict(self.T_DW, WALKING_SPEED, discrete=True, driving=False)
-                self.initialize_traveltime_dict(self.T_C, BIKE_SPEED, discrete=False, driving=False)
-                self.initialize_traveltime_dict(self.T_DC, BIKE_SPEED, discrete=True, driving=False)
+                if os.path.exists((self.state.mapdata[0]).split('.')[0] +'_static_data.json'):
+                        self.read_static_data()
+                else:
+                        self.initialize_traveltime_dict(self.T_D, VEHICLE_SPEED, discrete=False, driving=True)
+                        self.initialize_traveltime_dict(self.T_DD, VEHICLE_SPEED, discrete=True, driving=True)
+                        self.initialize_traveltime_dict(self.T_W, WALKING_SPEED, discrete=False, driving=False)
+                        self.initialize_traveltime_dict(self.T_DW, WALKING_SPEED, discrete=True, driving=False)
+                        self.initialize_traveltime_dict(self.T_C, BIKE_SPEED, discrete=False, driving=False)
+                        self.initialize_traveltime_dict(self.T_DC, BIKE_SPEED, discrete=True, driving=False)
+                        self.set_neighboring_stations()
+                        self.dump_static_data()
+                
                 self.initialize_vehicle_ETAs()
                 self.initialize_discounting_factors(0.9)
-                
-                self.set_neighboring_stations()
-                
+
                 self.set_possible_previous_stations(self.T_DD, self.possible_previous_stations_driving, driving=True)
                 self.set_possible_previous_stations(self.T_DC, self.possible_previous_stations_cycling)
                 self.set_possible_previous_stations(self.T_DW, self.possible_previous_stations_walking, walking= True)
 
                 self.set_L_O()
                 self.set_L_T()
-                
+
                 self.set_D(self.simul.day(), self.simul.hour())    
-                
+
                 self.set_Q_0()
                 self.set_Q_V()
                 self.set_Q_S()
