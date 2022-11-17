@@ -36,10 +36,10 @@ class MILP_data():
                 self.possible_previous_stations_walking = dict()        #{(station_ID,time): [list of station_IDs]}
 
                 #Parameters
-                self.W_D = 0.01
-                self.W_C = 1
-                self.W_S = 1
-                self.W_R = 1
+                self.W_D = 0.1
+                self.W_C = 0.45
+                self.W_S = 0.45
+                self.W_R = 0.45
 
                 self.neighboring_limit= 0.35 #km
 
