@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-path = Path(__file__).parents[2]     
+path = Path(__file__).parents[2]
 os.chdir(path)
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
@@ -23,12 +23,14 @@ def run_model(data, roaming=True):
 
     vehicles = data.vehicles
     time_periods = data.time_periods
+   
 
     #Parameters
     W_D = data.W_D
     W_C = data.W_C
     W_S = data.W_S
     W_R = data.W_R
+    DF = data.discounting_factors
 
     TW_max = data.TW_max
     T_bar = time_periods[-1]
@@ -51,6 +53,7 @@ def run_model(data, roaming=True):
     Q_0 = data.Q_0
     Q_V = data.Q_V
     Q_S = data.Q_S
+
 
 
     #Variables
@@ -120,7 +123,10 @@ def run_model(data, roaming=True):
     
     #Objective function
     if roaming == True:
-        m.setObjective(quicksum(quicksum(W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
+        #m.setObjective(quicksum(quicksum(W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
+        
+        #with discounting:
+        m.setObjective(quicksum(quicksum(W_S*DF[t]*s[(i, t)] + quicksum(W_R*DF[t]*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*DF[t]*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
     else:
         m.setObjective(quicksum(quicksum(W_C*c[(i, t)] + W_S*s[(i, t)] for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
     m.optimize()

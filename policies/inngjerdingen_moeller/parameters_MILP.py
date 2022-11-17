@@ -36,10 +36,10 @@ class MILP_data():
                 self.possible_previous_stations_walking = dict()        #{(station_ID,time): [list of station_IDs]}
 
                 #Parameters
-                self.W_D = 0.01
-                self.W_C = 1
-                self.W_S = 1
-                self.W_R = 1
+                self.W_D = 0.1
+                self.W_C = 0.45 #only in use when roaming = False
+                self.W_S = 0.45
+                self.W_R = 0.45
 
                 self.neighboring_limit= 0.35 #km
 
@@ -66,6 +66,8 @@ class MILP_data():
                 self.time_horizon = time_horizon #length of time horizon in minutes
 
                 self.DEPOT_ID = -1
+
+                self.discounting_factors = []
 
         # ------------ DEFINING MEMBER FUNCTIONS ---------------
 
@@ -166,6 +168,13 @@ class MILP_data():
                                 self.T_D[(-1, self.vehicles[vehicle].location.id)] = (self.vehicles[vehicle].eta - self.simul.time)
                                 self.T_DD[(-1, self.vehicles[vehicle].location.id)] = ((self.vehicles[vehicle].eta - self.simul.time)//self.TAU)+1
 
+        def initialize_discounting_factors(self, end_factor): #end_factor is discounting factor in last time period
+                nPeriods = len(self.time_periods)-1 #time_periods less period 0 
+                rate = (1/end_factor)**(1/nPeriods)-1
+                self.discounting_factors.append(0) #0 on element 0, will not be used
+                for period in range(0,nPeriods):
+                        discount_factor = 1/((1+rate)**period) #1 in period 1
+                        self.discounting_factors.append(discount_factor)
 
         
         def initalize_parameters(self):
@@ -179,6 +188,7 @@ class MILP_data():
                 self.initialize_traveltime_dict(self.T_C, BIKE_SPEED, discrete=False, driving=False)
                 self.initialize_traveltime_dict(self.T_DC, BIKE_SPEED, discrete=True, driving=False)
                 self.initialize_vehicle_ETAs()
+                self.initialize_discounting_factors(0.9)
                 
                 self.set_neighboring_stations()
                 

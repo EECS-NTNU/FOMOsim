@@ -18,7 +18,7 @@ if __name__ == "__main__":
         #filename = "instances/OS_W31"
 
         START_DAY = 0 #0 -> monday
-        START_HOUR = 12 #8 -> 08:00 am
+        START_HOUR = 13 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
 
