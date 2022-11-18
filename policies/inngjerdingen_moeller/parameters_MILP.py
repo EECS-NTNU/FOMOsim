@@ -179,21 +179,9 @@ class MILP_data():
                         self.discounting_factors.append(discount_factor)
 
         
-        # dictionary = d.L_0
-        
-        # # Serializing json
-        # json_object = json.dumps(dictionary, indent=4)
-        
-        # # Writing to sample.json
-        # with open("sample.json", "w") as outfile:
-        #         outfile.write(json_object)
-        
-        # with open("sample.json", "r") as infile:
-        #         L_1= json.load(infile)
-        # print(L_1)
 
         def dump_static_data(self):
-                filename = (self.state.mapdata[0]).split('.')[0] +'_static_data.json'
+                filename = 'policies/inngjerdingen_moeller/saved_time_data/' + (self.state.mapdata[0]).split('.')[0].split('/')[1] +'_static_data.json'
                 T_D = {str(k): v for k, v in self.T_D.items()}
                 T_DD = {str(k): v for k, v in self.T_DD.items()}
                 T_C = {str(k): v for k, v in self.T_C.items()}
@@ -207,35 +195,29 @@ class MILP_data():
                         outfile.write(json_object)
 
         def read_static_data(self):
-                filename = (self.state.mapdata[0]).split('.')[0] +'_static_data.json'
+                filename = 'policies/inngjerdingen_moeller/saved_time_data/' + (self.state.mapdata[0]).split('.')[0].split('/')[1] +'_static_data.json'
                 with open(filename,'r') as infile:
                         json_dict = json.load(infile)
-                for dic in json_dict:
-                        time_dict= json_dict[dic]
-                        for key, value in time_dict.items():
-                                self.T_D[key] = value
+                self.convert_dict(json_dict["T_D"], self.T_D)
+                self.convert_dict(json_dict["T_DD"], self.T_DD)
+                self.convert_dict(json_dict["T_C"], self.T_C)
+                self.convert_dict(json_dict["T_DC"], self.T_DC)
+                self.convert_dict(json_dict["T_W"], self.T_W)
+                self.convert_dict(json_dict["T_DW"], self.T_DW)
+                for key, value in json_dict["neighboring_stations"].items():
+                        self.neighboring_stations[int(key)] = value
+                
+        def convert_dict(self, string_dict, original_dict):
+                for key, value in string_dict.items():
+                        tuple_key = tuple(int(num) for num in key.replace('(', '').replace(')', '').replace('...', '').split(', '))
+                        original_dict[tuple_key] = value
 
-
-
-        # initializing string
-test_str = "(7, 8, 9)"
- 
-# printing original string
-print("The original string is : " + test_str)
- 
-# Convert Tuple String to Integer Tuple
-# Using tuple() + int() + replace() + split()
-res = tuple(int(num) for num in test_str.replace('(', '').replace(')', '').replace('...', '').split(', '))
- 
-# printing result
-print("The tuple after conversion is : " + str(res))
-                                
 
         def initalize_parameters(self):
                 self.initialize_time_periods()
                 self.initialize_stations_with_source_sink()
                 self.initialize_vehicles()
-                if os.path.exists((self.state.mapdata[0]).split('.')[0] +'_static_data.json'):
+                if os.path.exists('policies/inngjerdingen_moeller/saved_time_data/' + (self.state.mapdata[0]).split('.')[0].split('/')[1] +'_static_data.json'):
                         self.read_static_data()
                 else:
                         self.initialize_traveltime_dict(self.T_D, VEHICLE_SPEED, discrete=False, driving=True)

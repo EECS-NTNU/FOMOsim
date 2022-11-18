@@ -137,6 +137,6 @@ def run_model(data, roaming=True):
     else:
         m.setObjective(quicksum(quicksum(W_C*c[(i, t)] + W_S*s[(i, t)] for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
     m.optimize()
-    #m.printAttr("X")
+    m.printAttr("X")
 
     return m

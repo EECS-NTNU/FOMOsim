@@ -13,8 +13,8 @@ import json
 
 if __name__ == "__main__":
 # ------------ TESTING DATA MANUALLY ---------------
-        filename = "instances/EH_W31"
-        #filename = "instances/TD_W34" 
+        #filename = "instances/EH_W31"
+        filename = "instances/TD_W34" 
         #filename = "instances/OS_W31"
 
         START_DAY = 0 #0 -> monday ,days other than 0 results in target inventory = 0 for all stations
@@ -36,7 +36,7 @@ if __name__ == "__main__":
         policy = InngjerdingenMoellerPolicy()
         
         state1.set_vehicles([policy]) #number of policy objects in list determines number of vehicles
-        state1.vehicles[0].location = state1.locations[1] #initial vehicle position
+        # state1.vehicles[0].location = state1.locations[1] #initial vehicle position
         
         dmand = demand.Demand()
         dmand.update_demands(state1, START_DAY, START_HOUR)
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                 verbose = True,
         )
      
-        d=MILP_data(simul1, 15, 5) #input parameters determine time horizon and length of time period (tau)
+        d=MILP_data(simul1, 25, 5) #input parameters determine time horizon and length of time period (tau)
         d.initalize_parameters()
         print("TESTING COMPLETE")
         m=run_model(d, True) #True if run model with roaming
