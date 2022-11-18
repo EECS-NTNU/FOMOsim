@@ -16,8 +16,8 @@ class InngjerdingenMoellerPolicy(Policy):
         data.initalize_parameters()
         gurobi_output=run_model(data, self.roaming)
         next_station, bikes_to_pickup, bikes_to_deliver  = self.return_solution(gurobi_output, vehicle)
-        #v=Visualizer(gurobi_output,data)
-        #v.visualize_route()
+        v=Visualizer(gurobi_output,data)
+        v.visualize_route()
         return sim.Action(
             [],               # batteries to swap
             bikes_to_pickup, #list of bike id's
@@ -32,21 +32,24 @@ class InngjerdingenMoellerPolicy(Policy):
         unloading_quantity = 0
         loading_ids = []
         unloading_ids = []
-        station_id = None
+        station_id = vehicle.location.id
         for var in gurobi_output.getVars():
             variable = var.varName.strip("]").split("[")
             name = variable[0]
             indices = variable[1].split(',')
-            if name == 'x' and int(indices[3]) == vehicle.id and round(var.x,0) == 1 and int(indices[1]) != vehicle.location.id:
+            if name == 'x' and int(indices[3]) == vehicle.id and round(var.x,0) == 1 and int(indices[1]) != vehicle.location.id and int(indices[1]) != -1:
                 if int(indices[2]) < first_move_period:
                     first_move_period = int(indices[2])
                     station_id = int(indices[1])
-            elif name == 'q_L' and int(indices[2]) == vehicle.id and round(var.x,0) > 0 and int(indices[0]) == vehicle.location.id:
+        for var in gurobi_output.getVars():
+            variable = var.varName.strip("]").split("[")
+            name = variable[0]
+            indices = variable[1].split(',')
+            if name == 'q_L' and int(indices[2]) == vehicle.id and round(var.x,0) > 0 and int(indices[0]) == vehicle.location.id and int(indices[1]) <= first_move_period:
                 loading_quantity += var.x
-            elif name == 'q_U' and int(indices[2]) == vehicle.id and round(var.x,0) > 0 and int(indices[0]) == vehicle.location.id:
+            elif name == 'q_U' and int(indices[2]) == vehicle.id and round(var.x,0) > 0 and int(indices[0]) == vehicle.location.id and int(indices[1]) <= first_move_period:
                 unloading_quantity += var.x
         if not (loading_quantity == 0 and unloading_quantity == 0):
-
             bikes_at_station = list(vehicle.location.bikes.values()) #creates list of bike objects
             bikes_at_vehicle = vehicle.get_bike_inventory() 
             for bike in range(0, int(loading_quantity)): 

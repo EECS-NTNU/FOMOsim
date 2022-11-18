@@ -72,7 +72,7 @@ class Visualizer():
         for station in unloading_dict:
             lat = station.get_lat()
             lon = station.get_lon()
-            ax.text(lon+x_offset, lat-y_offset, "Unload: "+ str(unloading_dict[station]))
+            ax.text(lon+x_offset, lat, "Unload: "+ str(unloading_dict[station]))
             
         plt.show()
 

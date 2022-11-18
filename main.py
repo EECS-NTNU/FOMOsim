@@ -20,8 +20,8 @@ from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(hours=1)
-INSTANCE = 'EH_W31'
-WEEK = 31
+INSTANCE = 'TD_W34'
+WEEK = 34
 
 def main():
 
@@ -109,4 +109,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main() 
+
