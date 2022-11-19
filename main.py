@@ -53,16 +53,16 @@ def main():
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
     
-    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state
 
-    # tstate = target_state.EvenlyDistributedTargetState()
+    tstate = target_state.EvenlyDistributedTargetState()
     # tstate = target_state.OutflowTargetState()
     # tstate = target_state.EqualProbTargetState()
     # tstate = target_state.USTargetState()
-    tstate = target_state.HalfCapacityTargetState()
+    # tstate = target_state.HalfCapacityTargetState()
 
     ###############################################################################
     # Set up demand
@@ -83,7 +83,7 @@ def main():
     simulator.run()
 
     # Output to console
-
+    print(f"Different choices = {simulator.metrics.get_aggregate_value('different_choice')}")
     print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
@@ -94,7 +94,7 @@ def main():
     output.write_csv(simulator, "output.csv", hourly = False)
 
     # Plot to screen
-
+    output.visualize([simulator.metrics], metric="different_choice")
     output.visualize([simulator.metrics], metric="trips")
     output.visualize([simulator.metrics], metric="starvation")
     output.visualize([simulator.metrics], metric="congestion")
