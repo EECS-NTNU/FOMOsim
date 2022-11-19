@@ -18,18 +18,21 @@ if __name__ == "__main__":
         #filename = "instances/OS_W31"
 
         START_DAY = 0 #0 -> monday ,days other than 0 results in target inventory = 0 for all stations
-        START_HOUR = 8 #8 -> 08:00 am
+        START_HOUR = 16 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
 
         state1 = read_initial_state(filename)
         state1.set_seed(1) 
-        
+
+        dmand = demand.Demand()
+        dmand.update_demands(state1, START_DAY, START_HOUR)
+
         # tstate = target_state.EvenlyDistributedTargetState()
         # tstate = target_state.OutflowTargetState()
         # tstate = target_state.EqualProbTargetState()
-        # tstate = target_state.USTargetState()
-        tstate = target_state.HalfCapacityTargetState()
+        tstate = target_state.USTargetState()
+        # tstate = target_state.HalfCapacityTargetState()
         
         tstate.update_target_state(state1,START_DAY,START_HOUR)
         
@@ -38,8 +41,7 @@ if __name__ == "__main__":
         state1.set_vehicles([policy]) #number of policy objects in list determines number of vehicles
         # state1.vehicles[0].location = state1.locations[1] #initial vehicle position
         
-        dmand = demand.Demand()
-        dmand.update_demands(state1, START_DAY, START_HOUR)
+
 
         simul1 = sim.Simulator(
                 initial_state = state1,
