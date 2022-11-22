@@ -56,6 +56,9 @@ if __name__ == "__main__":
         d.initalize_parameters()
         print("TESTING COMPLETE")
         m=run_model(d, True) #True if run model with roaming
+        # m.printAttr("X")
+        print("Runtime of experiment was", str(round(m.Runtime,2)))
+        print("MIP gap was ", str(m.MIPGap))
         v=Visualizer(m,d)
         v.visualize_route() 
 # ----------------------------------------------------
