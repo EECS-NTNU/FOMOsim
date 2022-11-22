@@ -19,6 +19,11 @@ class VehicleArrival(Event):
         """
         :param world: world object
         """
+
+        world_time = world.time;
+
+        super().perform(world)
+
         arrival_time = 0
         # find the best action from the current world state
         action = self.vehicle.policy.get_action(world, self.vehicle)
@@ -29,7 +34,7 @@ class VehicleArrival(Event):
         arrival_station_id = self.vehicle.location.id
 
         # perform the best action on the state and send vehicle to new location
-        refill_time = world.state.do_action(action, self.vehicle, world.time)
+        refill_time = world.state.do_action(action, self.vehicle, world_time)
 
         action_time = (
             action.get_action_time(
@@ -39,9 +44,6 @@ class VehicleArrival(Event):
         )
 
         driving_time = world.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
-
-        # set time of world to this event's time
-        super(VehicleArrival, self).perform(world)
 
         # Compute the arrival time for the Vehicle arrival event created by the action
         arrival_time += self.time + action_time

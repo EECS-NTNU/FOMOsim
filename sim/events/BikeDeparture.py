@@ -18,6 +18,8 @@ class BikeDeparture(Event):
         :param world: world object
         """
 
+        super().perform(world)
+
         # get departure station
         departure_station = world.state.get_location_by_id(self.departure_station_id)
 
@@ -72,9 +74,6 @@ class BikeDeparture(Event):
 
         departure_station.metrics.add_aggregate_metric(world, "trips", 1)
         world.metrics.add_aggregate_metric(world, "trips", 1)
-
-        # set time of world to this event's time
-        super(BikeDeparture, self).perform(world)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, departing from station {self.departure_station_id}>"
