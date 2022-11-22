@@ -14,7 +14,8 @@ class GenerateBikeTrips(Event):
         super().__init__(time)
 
     def perform(self, world) -> None:
-        super(GenerateBikeTrips, self).perform(world)
+
+        super().perform(world)
 
         for departure_station in world.state.locations:
             # poisson process to select number of trips in a iteration
