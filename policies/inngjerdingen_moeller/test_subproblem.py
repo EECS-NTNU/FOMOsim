@@ -52,7 +52,7 @@ if __name__ == "__main__":
                 verbose = True,
         )
      
-        d=MILP_data(simul1, 25, 5) #input parameters determine time horizon and length of time period (tau)
+        d=MILP_data(simul1, 15, 5) #input parameters determine time horizon and length of time period (tau)
         d.initalize_parameters()
         print("TESTING COMPLETE")
         m=run_model(d, True) #True if run model with roaming
