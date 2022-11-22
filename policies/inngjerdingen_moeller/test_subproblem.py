@@ -8,7 +8,82 @@ from init_state.wrapper import read_initial_state
 import target_state
 from helpers import timeInMinutes
 from visualize_subproblem import Visualizer
-import json
+
+
+def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau, duration, number_of_runs, number_of_vehicles, roaming):
+        results = dict()
+        start_stations = [0,5,10,15,20,25,30,35,40]
+        for test_number in range(0, number_of_runs):
+                if test_number > 2 and test_number < 6:
+                        start_hour = 12
+                elif test_number > 5:
+                        start_hour = 16
+                test_state = read_initial_state(filename)
+                test_state.set_seed(1)
+                test_demand = demand.Demand()
+                test_demand.update_demands(test_state, start_day, start_hour)
+                start_time = timeInMinutes(hours=start_hour)
+                t_state.update_target_state(test_state, start_day, start_hour)
+                policy = InngjerdingenMoellerPolicy()
+                test_state.set_vehicles([policy for _ in range(0,number_of_vehicles)])
+                for vehicle in range(0,number_of_vehicles):
+                        test_state.vehicles[vehicle].location = test_state.locations[start_stations[test_number] + 5*vehicle]
+                test_simul = sim.Simulator(
+                        initial_state = test_state,
+                        target_state = t_state,
+                        demand = test_demand,
+                        start_time = start_time,
+                        duration = duration,
+                        verbose = True,
+                )
+                d = MILP_data(test_simul, time_horizon, tau)
+                d.initalize_parameters()
+                m=run_model(d, roaming)
+                results[test_number] = [round(m.Runtime,2), m.MIPGap]
+                print("\n----Test run number:", str(test_number), "----")
+                print("Start hour:", str(start_hour))
+                print("Runtime of experiment was", str(round(m.Runtime,2)))
+                print("MIP gap was ", str(m.MIPGap))
+                # v=Visualizer(m,d)
+                # v.visualize_route()
+        total_runtime = 0
+        total_MIPGap = 0
+        for run in range(0, number_of_runs):
+                total_runtime += results[run][0]
+                total_MIPGap += results[run][1]
+        avg_runtime = total_runtime/number_of_runs
+        avg_MIPGap = total_MIPGap/number_of_runs
+        print("\n--------TESTING COMPLETE--------")
+        print("Average runtime:", str(round(avg_runtime, 2)))
+        print("Average MIP-gap", str(avg_MIPGap))
+
+
+def test_single_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau, duration, number_of_vehicles, roaming):
+        test_state = read_initial_state(filename)
+        test_state.set_seed(1)
+        test_demand = demand.Demand()
+        test_demand.update_demands(test_state, start_day, start_hour)
+        start_time = timeInMinutes(hours=start_hour)
+        t_state.update_target_state(test_state, start_day, start_hour)
+        policy = InngjerdingenMoellerPolicy()
+        test_state.set_vehicles([policy for _ in range(0, number_of_vehicles)])
+        for vehicle in range(0,number_of_vehicles):
+                        test_state.vehicles[vehicle].location = test_state.locations[0 + 10*vehicle]
+        test_simul = sim.Simulator(
+                initial_state = test_state,
+                target_state = t_state,
+                demand = test_demand,
+                start_time = start_time,
+                duration = duration,
+                verbose = True,
+        )
+        d = MILP_data(test_simul, time_horizon, tau)
+        d.initalize_parameters()
+        m=run_model(d, roaming)
+        print("Runtime of experiment was", str(round(m.Runtime,2)))
+        print("MIP gap was ", str(m.MIPGap))
+        v=Visualizer(m,d)
+        v.visualize_route()
 
 
 if __name__ == "__main__":
@@ -18,47 +93,22 @@ if __name__ == "__main__":
         #filename = "instances/OS_W31"
 
         START_DAY = 0 #0 -> monday ,days other than 0 results in target inventory = 0 for all stations
-        START_HOUR = 16 #8 -> 08:00 am
+        START_HOUR = 8 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
-
-        state1 = read_initial_state(filename)
-        state1.set_seed(1) 
-
-        dmand = demand.Demand()
-        dmand.update_demands(state1, START_DAY, START_HOUR)
+        time_horizon = 25
+        tau = 5
+        number_of_runs = 9
+        number_of_vehicles = 1
+        roaming = True
 
         # tstate = target_state.EvenlyDistributedTargetState()
         # tstate = target_state.OutflowTargetState()
         # tstate = target_state.EqualProbTargetState()
         tstate = target_state.USTargetState()
         # tstate = target_state.HalfCapacityTargetState()
-        
-        tstate.update_target_state(state1,START_DAY,START_HOUR)
-        
-        policy = InngjerdingenMoellerPolicy()
-        
-        state1.set_vehicles([policy]) #number of policy objects in list determines number of vehicles
-        # state1.vehicles[0].location = state1.locations[1] #initial vehicle position
-        
 
-
-        simul1 = sim.Simulator(
-                initial_state = state1,
-                target_state = tstate,
-                demand = dmand,
-                start_time = START_TIME,
-                duration = DURATION,
-                verbose = True,
-        )
-     
-        d=MILP_data(simul1, 15, 5) #input parameters determine time horizon and length of time period (tau)
-        d.initalize_parameters()
-        print("TESTING COMPLETE")
-        m=run_model(d, True) #True if run model with roaming
-        # m.printAttr("X")
-        print("Runtime of experiment was", str(round(m.Runtime,2)))
-        print("MIP gap was ", str(m.MIPGap))
-        v=Visualizer(m,d)
-        v.visualize_route() 
+        
+        test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles, roaming)
+        # test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
 # ----------------------------------------------------

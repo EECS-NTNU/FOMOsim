@@ -16,14 +16,15 @@ class InngjerdingenMoellerPolicy(Policy):
         data.initalize_parameters()
         gurobi_output = run_model(data, self.roaming)
         next_station, bikes_to_pickup, bikes_to_deliver  = self.return_solution(gurobi_output, vehicle)
+        # gurobi_output.printAttr("X")
         #v=Visualizer(gurobi_output,data)
         #v.visualize_route()
 
         # Compare without roaming
-        gurobi_output_no_roaming = run_model(data, False)
-        next_station2, bikes_to_pickup2, bikes_to_deliver2  = self.return_solution(gurobi_output_no_roaming, vehicle)
-        if next_station2 != next_station or bikes_to_pickup2 != bikes_to_pickup or bikes_to_deliver2 != bikes_to_deliver:
-            simul.metrics.add_aggregate_metric(simul, "different_choice", 1)
+        # gurobi_output_no_roaming = run_model(data, False)
+        # next_station2, bikes_to_pickup2, bikes_to_deliver2  = self.return_solution(gurobi_output_no_roaming, vehicle)
+        # if next_station2 != next_station or bikes_to_pickup2 != bikes_to_pickup or bikes_to_deliver2 != bikes_to_deliver:
+        #     simul.metrics.add_aggregate_metric(simul, "different_choice", 1)
         
         return sim.Action(
             [],               # batteries to swap
