@@ -10,7 +10,7 @@ from gurobipy import *
 
 def run_model(data, roaming=True):
     m = Model("MILP")
-    m.setParam('TimeLimit', 60*60) #time limit in seconds
+    m.setParam('TimeLimit', 15*60) #time limit in seconds
     m.setParam('OutputFlag', False)
     
     #Sets
