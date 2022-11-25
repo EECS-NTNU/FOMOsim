@@ -75,7 +75,7 @@ class MILP_data():
 
         def initialize_time_periods(self):
                 num_time_periods=self.time_horizon//self.TAU  #number of time periods are rounded down to nearest integer
-                for period in range(0,num_time_periods+1):
+                for period in range(0,int(num_time_periods)+1):
                         self.time_periods.append(period)
         
 
@@ -150,7 +150,7 @@ class MILP_data():
         def set_D(self, day, hour):
                 for station in self.stations:
                         for time in self.time_periods:
-                                self.D[(station, time)] = (self.TAU/60)*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) # demand per time period
+                                self.D[(station, time)] = 10*(self.TAU/60)*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) # demand per time period
 
         def set_Q_0(self):
                 for vehicle in self.vehicles: 

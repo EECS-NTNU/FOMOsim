@@ -12,7 +12,7 @@ from visualize_subproblem import Visualizer
 
 def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau, duration, number_of_runs, number_of_vehicles, roaming):
         results = dict()
-        start_stations = [0,5,10,15,20,25,30,35,40]
+        start_stations = [1,5,10,15,20,25,30,35,40]
         for test_number in range(0, number_of_runs):
                 if test_number > 2 and test_number < 6:
                         start_hour = 12
@@ -39,8 +39,10 @@ def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau
                 d = MILP_data(test_simul, time_horizon, tau)
                 d.initalize_parameters()
                 m=run_model(d, roaming)
+                # sol = policy.return_solution(m,test_state.vehicles[0])
+                # print(sol)
                 results[test_number] = [round(m.Runtime,2), m.MIPGap]
-                print("\n----Test run number:", str(test_number), "----")
+                print("\n----Test run number:", str(test_number+1), "----")
                 print("Start hour:", str(start_hour))
                 print("Runtime of experiment was", str(round(m.Runtime,2)))
                 print("MIP gap was ", str(m.MIPGap))
@@ -90,18 +92,18 @@ if __name__ == "__main__":
 # ------------ TESTING DATA MANUALLY ---------------
         #filename = "instances/EH_W31"
         filename = "instances/TD_W34" 
-        #filename = "instances/OS_W31"
+        # filename = "instances/OS_W31"
 
         START_DAY = 0 #0 -> monday ,days other than 0 results in target inventory = 0 for all stations
         START_HOUR = 8 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
-        time_horizon = 25
+        time_horizon = 15
         tau = 5
         number_of_runs = 9
         number_of_vehicles = 1
         roaming = True
-
+ 
         # tstate = target_state.EvenlyDistributedTargetState()
         # tstate = target_state.OutflowTargetState()
         # tstate = target_state.EqualProbTargetState()

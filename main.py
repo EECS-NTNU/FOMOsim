@@ -19,7 +19,7 @@ from helpers import timeInMinutes
 from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=1)
+DURATION = timeInMinutes(hours=24*5)
 INSTANCE = 'TD_W34'
 WEEK = 34
 
@@ -53,15 +53,15 @@ def main():
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
     
-    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state
 
-    tstate = target_state.EvenlyDistributedTargetState()
+    # tstate = target_state.EvenlyDistributedTargetState()
     # tstate = target_state.OutflowTargetState()
     # tstate = target_state.EqualProbTargetState()
-    # tstate = target_state.USTargetState()
+    tstate = target_state.USTargetState()
     # tstate = target_state.HalfCapacityTargetState()
 
     ###############################################################################

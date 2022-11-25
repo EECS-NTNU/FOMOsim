@@ -10,7 +10,7 @@ from gurobipy import *
 
 def run_model(data, roaming=True):
     m = Model("MILP")
-    m.setParam('TimeLimit', 60*60) #time limit in seconds
+    m.setParam('TimeLimit', 15*60) #time limit in seconds
     m.setParam('OutputFlag', False)
     
     #Sets
@@ -106,7 +106,7 @@ def run_model(data, roaming=True):
     m.addConstrs(quicksum(x[(i, DEPOT_ID, T_bar, v)] for i in stations_with_source_sink) == 1 for v in vehicles)
 
     m.addConstrs(quicksum(q[(DEPOT_ID, i, 0, v)] for i in stations) == Q_0[v] for v in vehicles)
-    m.addConstrs(quicksum(q[(j, i, t-T_DD[(i,j)], v)] for j in possible_previous_stations_driving[(i,t)]) - q_U[(i, t, v)] + q_L[(i, t, v)] == quicksum(q[(i, k, t, v)] for k in stations_with_source_sink) for i in stations for t in range(1, T_bar+1) for v in vehicles)
+    m.addConstrs(quicksum(q[(j, i, t-T_DD[(j,i)], v)] for j in possible_previous_stations_driving[(i,t)]) - q_U[(i, t, v)] + q_L[(i, t, v)] == quicksum(q[(i, k, t, v)] for k in stations_with_source_sink) for i in stations for t in range(1, T_bar+1) for v in vehicles)
     m.addConstrs(q[(i, j, t, v)] <= Q_V[v]*x[(i, j, t, v)] for  i in stations_with_source_sink for j in stations_with_source_sink for t in time_periods for v in vehicles)
     
     #Raviv constraints:
@@ -123,10 +123,10 @@ def run_model(data, roaming=True):
     
     #Objective function
     if roaming == True:
-        #m.setObjective(quicksum(quicksum(W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
+        # m.setObjective(quicksum(quicksum(W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
         
         #with discounting:
-        #m.setObjective(quicksum(quicksum(W_S*DF[t]*s[(i, t)] + quicksum(W_R*DF[t]*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*DF[t]*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
+        # m.setObjective(quicksum(quicksum(W_S*DF[t]*s[(i, t)] + quicksum(W_R*DF[t]*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*DF[t]*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
         
         # Loading penalty:
         # m.setObjective(quicksum(quicksum(W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i) + quicksum(0.01*(q_L[(i, t, v)] +q_U[(i, t, v)]) for v in vehicles) for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
