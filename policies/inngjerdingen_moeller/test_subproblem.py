@@ -28,6 +28,7 @@ def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau
                 test_state.set_vehicles([policy for _ in range(0,number_of_vehicles)])
                 for vehicle in range(0,number_of_vehicles):
                         test_state.vehicles[vehicle].location = test_state.locations[start_stations[test_number] + 5*vehicle]
+                        #test_state.vehicles[vehicle].location = test_state.locations[start_stations[test_number]]
                 test_simul = sim.Simulator(
                         initial_state = test_state,
                         target_state = t_state,
@@ -70,7 +71,7 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         policy = InngjerdingenMoellerPolicy()
         test_state.set_vehicles([policy for _ in range(0, number_of_vehicles)])
         for vehicle in range(0,number_of_vehicles):
-                        test_state.vehicles[vehicle].location = test_state.locations[0 + 10*vehicle]
+                        test_state.vehicles[vehicle].location = test_state.locations[5 + 10*vehicle]
         test_simul = sim.Simulator(
                 initial_state = test_state,
                 target_state = t_state,
@@ -112,5 +113,5 @@ if __name__ == "__main__":
 
         
         test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles, roaming)
-        # test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
+        #test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
 # ----------------------------------------------------
