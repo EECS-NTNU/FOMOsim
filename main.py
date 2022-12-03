@@ -19,7 +19,8 @@ from helpers import timeInMinutes
 from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=24*5)
+#DURATION = timeInMinutes(hours=24*5)
+DURATION = timeInMinutes(hours=2)
 INSTANCE = 'TD_W34'
 WEEK = 34
 
@@ -83,24 +84,35 @@ def main():
     simulator.run()
 
     # Output to console
-    print(f"Different choices = {simulator.metrics.get_aggregate_value('different_choice')}")
     print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
 
+    #If comparissons between roaming=True and roaming=False: 
+    print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
+    print(f"Different pickup quantities = {simulator.metrics.get_aggregate_value('different_pickup_quantity')}")
+    print(f"Different deliver quantities = {simulator.metrics.get_aggregate_value('different_deliver_quantity')}")
+    print(f"Number of subproblems solved = {simulator.metrics.get_aggregate_value('number_of_subproblems')}")
+    
     # Output to file
 
     output.write_csv(simulator, "output.csv", hourly = False)
 
     # Plot to screen
-    output.visualize([simulator.metrics], metric="different_choice")
     output.visualize([simulator.metrics], metric="trips")
     output.visualize([simulator.metrics], metric="starvation")
     output.visualize([simulator.metrics], metric="congestion")
     output.visualize_heatmap([simulator], metric="trips")
 
-    # show travel times for a given bike
+#If comparissons between roaming=True and roaming=False : 
+    output.visualize([simulator.metrics], metric="different_station_choice")
+    output.visualize([simulator.metrics], metric="different_pickup_quantity")
+    output.visualize([simulator.metrics], metric="different_deliver_quantity")
+    output.visualize([simulator.metrics], metric="number_of_subproblems")
+    
+    
+# show travel times for a given bike
     bikes = simulator.state.get_all_bikes()
     bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
     print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
