@@ -11,7 +11,7 @@ from gurobipy import *
 def run_model(data, roaming=True):
     m = Model("MILP")
     m.setParam('TimeLimit', 15*60) #time limit in seconds
-    m.setParam('OutputFlag', False)
+    m.setParam('OutputFlag', True)
     
     #Sets
     stations = data.stations
@@ -81,12 +81,12 @@ def run_model(data, roaming=True):
     #                 if t!=0 and t!=1:
     #                     x[(i,j,t,v)].VType = GRB.CONTINUOUS
 
-    for i in stations:
-        for v in vehicles:
-                for t in range(1,T_bar+1):
-                    if t!=1:
-                        q_L[(i,t,v)].VType = GRB.CONTINUOUS
-                        q_U[(i,t,v)].VType = GRB.CONTINUOUS
+    # for i in stations:
+    #     for v in vehicles:
+    #             for t in range(1,T_bar+1):
+    #                 if t!=1:
+    #                     q_L[(i,t,v)].VType = GRB.CONTINUOUS
+    #                     q_U[(i,t,v)].VType = GRB.CONTINUOUS
 
     
     #Constraints

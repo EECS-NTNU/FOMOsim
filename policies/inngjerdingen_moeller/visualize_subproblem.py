@@ -27,7 +27,7 @@ class Visualizer():
         loading_dict= dict() #stores the quantities loaded on different stations
         unloading_dict= dict() 
         for var in self.gurobi_output.getVars():
-            if round(var.x,0) != 0:
+            if round(var.x,2) != 0:
                 variable = var.varName.strip("]").split("[")
                 name = variable[0]
                 indices = variable[1].split(',')
@@ -51,18 +51,18 @@ class Visualizer():
                 if name == 'q_L':
                     load_station = self.parameters_data.stations.get(int(indices[0])) #returns station object 
                     if loading_dict.get(load_station) == None: #the station has no prior loading
-                        loading_dict[load_station] = round(var.x,0)
+                        loading_dict[load_station] = round(var.x,2)
                     else:
-                        loading_dict[load_station] += round(var.x,0)
+                        loading_dict[load_station] += round(var.x,2)
 
 
 
                 if name == 'q_U':
                     unload_station = self.parameters_data.stations.get(int(indices[0]))
                     if unloading_dict.get(unload_station) == None: #the station has no prior loading
-                                    unloading_dict[unload_station] = round(var.x,0)
+                                    unloading_dict[unload_station] = round(var.x,2)
                     else:
-                        unloading_dict[unload_station] += round(var.x,0)
+                        unloading_dict[unload_station] += round(var.x,2)
         
         for station in loading_dict:
             lat = station.get_lat()

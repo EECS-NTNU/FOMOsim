@@ -131,15 +131,21 @@ class MILP_data():
 
                 for station in self.stations_with_source_sink:
                         if discrete == False:
-                                travel_time_dict[(station,self.DEPOT_ID)] = 0 
+                                travel_time_dict[(station,self.DEPOT_ID)] = 0
                                 travel_time_dict[(self.DEPOT_ID,station)] = 0
                         else:
                                 travel_time_dict[(station,self.DEPOT_ID)] = 1                
-                                travel_time_dict[(self.DEPOT_ID,station)] = 1 
+                                travel_time_dict[(self.DEPOT_ID,station)] = 1
                 
         def set_L_O(self):
                 for station in self.stations:
-                        self.L_0[station] = self.stations[station].number_of_bikes()
+                        #self.L_0[station] = self.stations[station].number_of_bikes()
+                        
+                        #Code for creating more variation in initial inventory 
+                        if station%2 == 0: #even number stations:
+                                self.L_0[station] = min(self.stations[station].number_of_bikes()+5,self.stations[station].capacity) 
+                        else:
+                                self.L_0[station] = max(self.stations[station].number_of_bikes()-5,0) 
 
         def set_L_T(self):
                 for station in self.stations:
