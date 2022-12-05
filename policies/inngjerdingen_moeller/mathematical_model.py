@@ -73,9 +73,22 @@ def run_model(data, roaming=True):
 
     l = m.addVars({(i, t) for i in stations for t in time_periods},lb=0, vtype=GRB.CONTINUOUS, name="l") 
 
+    #Variable relaxation:
+    # for i in stations_with_source_sink:
+    #     for j in stations_with_source_sink:
+    #         for v in vehicles:
+    #             for t in time_periods:
+    #                 if t!=0 and t!=1:
+    #                     x[(i,j,t,v)].VType = GRB.CONTINUOUS
 
- 
+    for i in stations:
+        for v in vehicles:
+                for t in range(1,T_bar+1):
+                    if t!=1:
+                        q_L[(i,t,v)].VType = GRB.CONTINUOUS
+                        q_U[(i,t,v)].VType = GRB.CONTINUOUS
 
+    
     #Constraints
 
     #Fixate vehicle start station
@@ -123,7 +136,7 @@ def run_model(data, roaming=True):
     
     #Objective function
     if roaming == True:
-        # m.setObjective(quicksum(quicksum(W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
+        #m.setObjective(quicksum(quicksum(W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
         
         #with discounting:
         # m.setObjective(quicksum(quicksum(W_S*DF[t]*s[(i, t)] + quicksum(W_R*DF[t]*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*DF[t]*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
