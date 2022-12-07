@@ -169,6 +169,6 @@ class Visualizer():
         for station in self.parameters_data.stations.values():
             lat = station.get_lat()
             lon = station.get_lon()
-            ax.text(lon, lat, str(self.parameters_data.L_0[station.id]), size = 6, color="black", bbox={'facecolor': 'silver', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
+            ax.text(lon, lat, str(station.id), size = 6, color="black", bbox={'facecolor': 'silver', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
             
         plt.show()
