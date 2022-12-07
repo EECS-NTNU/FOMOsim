@@ -154,7 +154,7 @@ class State(LoadSave):
 
     def set_locations(self, locations):
         self.locations = locations
-        self.stations = { station.id : station for station in locations if not isinstance(station, sim.Depot) }
+        self.stations = { station.id : station for station in locations }
         self.depots = { station.id : station for station in locations if isinstance(station, sim.Depot) }
 
     def set_seed(self, seed):
