@@ -2,6 +2,7 @@
 """
 FOMO simulator example
 """
+
 from settings import *
 import init_state
 import init_state.cityBike

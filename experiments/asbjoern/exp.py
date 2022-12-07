@@ -4,8 +4,12 @@ FOMO simulator main program
 """
 
 import copy
+import os
+import sys
 from progress.bar import Bar
 import matplotlib.pyplot as plt
+
+sys.path.insert(1, os.path.join(sys.path[0], '../..'))
 
 import settings
 import sim
