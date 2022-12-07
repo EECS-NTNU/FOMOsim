@@ -30,7 +30,7 @@ class PatternBasedCGH:
         
         #first do some data preprocessing. These calculations are necessary for several stages in the cgh
 
-        self.all_stations = simul.state.stations.values() 
+        self.all_stations = simul.state.locations 
         self.pickup_stations = []
         self.delivery_stations = []
         

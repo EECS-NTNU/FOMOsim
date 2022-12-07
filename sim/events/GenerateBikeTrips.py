@@ -43,7 +43,7 @@ class GenerateBikeTrips(Event):
                 world.add_event(departure_event)
 
         if not FULL_TRIP:
-            for arrival_station in world.state.stations.values():
+            for arrival_station in world.state.locations:
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(
                     world.state.rng.poisson(arrival_station.get_arrive_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
