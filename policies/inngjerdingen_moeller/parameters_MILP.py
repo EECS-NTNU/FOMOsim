@@ -139,13 +139,13 @@ class MILP_data():
                 
         def set_L_O(self):
                 for station in self.stations:
-                        #self.L_0[station] = self.stations[station].number_of_bikes()
+                        self.L_0[station] = self.stations[station].number_of_bikes()
                         
                         #Code for creating more variation in initial inventory 
-                        if station%2 == 0: #even number stations:
-                                self.L_0[station] = min(self.stations[station].number_of_bikes()+5,self.stations[station].capacity) 
-                        else:
-                                self.L_0[station] = max(self.stations[station].number_of_bikes()-5,0) 
+                        # if station%2 == 0: #even number stations:
+                        #         self.L_0[station] = min(self.stations[station].number_of_bikes()+5,self.stations[station].capacity) 
+                        # else:
+                        #         self.L_0[station] = max(self.stations[station].number_of_bikes()-5,0) 
 
         def set_L_T(self):
                 for station in self.stations:
@@ -156,11 +156,12 @@ class MILP_data():
         def set_D(self, day, hour):
                 for station in self.stations:
                         for time in self.time_periods:
-                                self.D[(station, time)] = 10*(self.TAU/60)*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) # demand per time period
+                                self.D[(station, time)] = (self.TAU/60)*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) # demand per time period
 
         def set_Q_0(self):
                 for vehicle in self.vehicles: 
                         self.Q_0[vehicle] = len(self.vehicles[vehicle].get_bike_inventory())
+                        # self.Q_0[vehicle] = 5
         
         def set_Q_V(self):
                 for vehicle in self.vehicles:
@@ -250,3 +251,7 @@ class MILP_data():
                 self.set_Q_0()
                 self.set_Q_V()
                 self.set_Q_S()
+
+        def print_neighbor_info(self, station_ID):
+                for neighbor in self.neighboring_stations[station_ID]:
+                        print("Station ID:", str(neighbor), "Inventory:", str(self.L_0[neighbor]), "Capacity:", str(self.Q_S[neighbor]), "Walking distance:", str(round(self.T_D[(neighbor, station_ID)],1)))
