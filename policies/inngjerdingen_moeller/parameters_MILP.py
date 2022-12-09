@@ -139,13 +139,13 @@ class MILP_data():
                 
         def set_L_O(self):
                 for station in self.stations:
-                        #self.L_0[station] = self.stations[station].number_of_bikes()
+                        self.L_0[station] = self.stations[station].number_of_bikes()
                         
-                        #Code for creating more variation in initial inventory 
-                        if station%2 == 0: #even number stations:
-                                self.L_0[station] = min(self.stations[station].number_of_bikes()+5,self.stations[station].capacity) 
-                        else:
-                                self.L_0[station] = max(self.stations[station].number_of_bikes()-5,0) 
+                        # Code for creating more variation in initial inventory 
+                        # if station%2 == 0: #even number stations:
+                        #         self.L_0[station] = min(self.stations[station].number_of_bikes()+5,self.stations[station].capacity) 
+                        # else:
+                        #         self.L_0[station] = max(self.stations[station].number_of_bikes()-5,0) 
 
         def set_L_T(self):
                 for station in self.stations:
@@ -156,11 +156,12 @@ class MILP_data():
         def set_D(self, day, hour):
                 for station in self.stations:
                         for time in self.time_periods:
-                                self.D[(station, time)] = 10*(self.TAU/60)*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) # demand per time period
+                                self.D[(station, time)] = (self.TAU/60)*(self.stations[station].get_arrive_intensity(day, hour) - self.stations[station].get_leave_intensity(day, hour)) # demand per time period
 
         def set_Q_0(self):
                 for vehicle in self.vehicles: 
                         self.Q_0[vehicle] = len(self.vehicles[vehicle].get_bike_inventory())
+                        # self.Q_0[vehicle] = 10 
         
         def set_Q_V(self):
                 for vehicle in self.vehicles:
