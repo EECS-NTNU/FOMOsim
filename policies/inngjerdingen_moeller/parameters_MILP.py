@@ -161,7 +161,7 @@ class MILP_data():
         def set_Q_0(self):
                 for vehicle in self.vehicles: 
                         self.Q_0[vehicle] = len(self.vehicles[vehicle].get_bike_inventory())
-                        # self.Q_0[vehicle] = 5
+                        # self.Q_0[vehicle] = 10
         
         def set_Q_V(self):
                 for vehicle in self.vehicles:
@@ -255,3 +255,18 @@ class MILP_data():
         def print_neighbor_info(self, station_ID):
                 for neighbor in self.neighboring_stations[station_ID]:
                         print("Station ID:", str(neighbor), "Inventory:", str(self.L_0[neighbor]), "Capacity:", str(self.Q_S[neighbor]), "Walking distance:", str(round(self.T_D[(neighbor, station_ID)],1)))
+
+        def deep_dive_test_2(self):
+                self.L_0[36] = 0
+                self.L_0[51] = 0
+                self.L_0[48] = 0
+                self.L_0[19] = 0
+                self.L_0[12] = 0
+                self.L_0[9] = 0
+
+                self.L_T[36] = 10
+                self.L_T[51] = 10
+                self.L_T[48] = 10
+                self.L_T[19] = 10
+                self.L_T[12] = 10
+                self.L_T[9] = 10
