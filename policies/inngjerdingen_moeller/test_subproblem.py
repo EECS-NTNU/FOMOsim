@@ -12,7 +12,7 @@ from visualize_subproblem import Visualizer
 
 def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau, duration, number_of_runs, number_of_vehicles, roaming):
         results = dict()
-        start_stations = [0,5,10,15,20,25,30,35,40]
+        start_stations = [4,5,10,15,20,25,30,35,40]
         for test_number in range(0, number_of_runs):
                 if test_number > 2 and test_number < 6:
                         start_hour = 12
@@ -71,7 +71,7 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         policy = InngjerdingenMoellerPolicy()
         test_state.set_vehicles([policy for _ in range(0, number_of_vehicles)])
         for vehicle in range(0,number_of_vehicles):
-                        test_state.vehicles[vehicle].location = test_state.locations[40 + 10*vehicle]
+                        test_state.vehicles[vehicle].location = test_state.locations[55 + 10*vehicle]
         test_simul = sim.Simulator(
                 initial_state = test_state,
                 target_state = t_state,
@@ -82,14 +82,17 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         )
         d = MILP_data(test_simul, time_horizon, tau)
         d.initalize_parameters()
+        # d.print_neighbor_info(36)
+        # d.deep_dive_test_2()
         m=run_model(d, roaming)
         
-        m.printAttr("X")
+        # m.printAttr("X")
         print("Runtime of experiment was", str(round(m.Runtime,2)))
         print("MIP gap was ", str(m.MIPGap))
         v=Visualizer(m,d)
-        v.visualize_route()
-
+        # v.visualize_route()
+        v.visualize_map_and_route()
+        # v.visualize_stations()
 
 if __name__ == "__main__":
 # ------------ TESTING DATA MANUALLY ---------------
@@ -101,7 +104,7 @@ if __name__ == "__main__":
         START_HOUR = 8 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
-        time_horizon = 30
+        time_horizon = 25
         tau = 5
         number_of_runs = 9
         number_of_vehicles = 1
@@ -114,6 +117,7 @@ if __name__ == "__main__":
         # tstate = target_state.HalfCapacityTargetState()
 
         
-        #test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles, roaming)
+        # test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles, roaming)
         test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
+        
 # ----------------------------------------------------

@@ -136,9 +136,10 @@ def run_model(data, roaming=True):
     
     #Objective function
     if roaming == True:
-        #m.setObjective(quicksum(quicksum(W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
+        # Original:
+        # m.setObjective(quicksum(quicksum(W_S*s[(i, t)] + quicksum(W_R*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
         
-        #with discounting:
+        # With discounting:
         # m.setObjective(quicksum(quicksum(W_S*DF[t]*s[(i, t)] + quicksum(W_R*DF[t]*(T_W[(i,j)]/TW_max)*r_B[(i, j, t)] for j in neighboring_stations[i]) + quicksum(W_R*DF[t]*((T_C[(i,j)]+T_W[(i,j)])/TW_max)*r_L[(i, j, t)] for j in stations if j != i)  for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
         
         # Loading penalty:
