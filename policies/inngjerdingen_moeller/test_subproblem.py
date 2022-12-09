@@ -90,7 +90,7 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         print("Runtime of experiment was", str(round(m.Runtime,2)))
         print("MIP gap was ", str(m.MIPGap))
         v=Visualizer(m,d)
-        # v.visualize_route()
+        # v.visualize_route() 
         v.visualize_map_and_route()
         # v.visualize_stations()
 
@@ -99,16 +99,17 @@ if __name__ == "__main__":
         #filename = "instances/EH_W31"
         filename = "instances/TD_W34" 
         # filename = "instances/OS_W31"
+        # filename = "instances/BG_W35"
 
         START_DAY = 0 #0 -> monday ,days other than 0 results in target inventory = 0 for all stations
-        START_HOUR = 8 #8 -> 08:00 am
+        START_HOUR = 12 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
-        time_horizon = 20
+        time_horizon = 25
         tau = 5
         number_of_runs = 9
         number_of_vehicles = 1
-        roaming = True
+        roaming = False
  
         # tstate = target_state.EvenlyDistributedTargetState()
         # tstate = target_state.OutflowTargetState()
