@@ -109,7 +109,7 @@ class Visualizer():
                     lon = station.get_lon()
                     #ax.plot(lon, lat, 'bo') #dot at station
                     ax.text(lon, lat, str(indices[0]), color="blue", bbox={'facecolor': 'white', 'edgecolor': 'blue', 'boxstyle':'round'}) #textbox with station_id
-                    ax.text(lon - x_offset, lat, str(self.parameters_data.L_0[station.id]), size = 6, color="blue")
+                    ax.text(lon - x_offset, lat, str(self.parameters_data.L_0[station.id]), size = 6, color="blue", bbox={'facecolor': 'white', 'edgecolor': 'blue', 'boxstyle':'circle'})
                     if indices[1]!= indices[0] and indices[1]!='-1': #end station
                         end_station = self.parameters_data.stations.get(int(indices[1]))
                         end_lat = end_station.get_lat()

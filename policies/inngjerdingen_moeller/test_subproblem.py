@@ -83,7 +83,7 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         d = MILP_data(test_simul, time_horizon, tau)
         d.initalize_parameters()
         # d.print_neighbor_info(36)
-        # d.deep_dive_test_2()
+        d.deep_dive_test_2()
         m=run_model(d, roaming)
         
         # m.printAttr("X")
