@@ -82,11 +82,11 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         )
         d = MILP_data(test_simul, time_horizon, tau)
         d.initalize_parameters()
-        # d.print_neighbor_info(36)
+        # d.print_neighbor_info(16)
         d.deep_dive_test_2()
         m=run_model(d, roaming)
         
-        # m.printAttr("X")
+        m.printAttr("X")
         print("Runtime of experiment was", str(round(m.Runtime,2)))
         print("MIP gap was ", str(m.MIPGap))
         v=Visualizer(m,d)
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         START_HOUR = 8 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
-        time_horizon = 25
+        time_horizon = 20
         tau = 5
         number_of_runs = 9
         number_of_vehicles = 1

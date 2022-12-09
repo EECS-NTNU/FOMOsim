@@ -78,7 +78,7 @@ class Visualizer():
 
     def visualize_map_and_route(self):
         vehicle_colors = ['red', 'green', 'pink', "purple"]
-        x_offset = 0.0025
+        x_offset = 0.0014
         y_offset = 0.00125
         filename = self.parameters_data.state.mapdata[0]
         bBox = self.parameters_data.state.mapdata[1]
@@ -109,7 +109,7 @@ class Visualizer():
                     lon = station.get_lon()
                     #ax.plot(lon, lat, 'bo') #dot at station
                     ax.text(lon, lat, str(indices[0]), color="blue", bbox={'facecolor': 'white', 'edgecolor': 'blue', 'boxstyle':'round'}) #textbox with station_id
-                    ax.text(lon - x_offset, lat, str(self.parameters_data.L_0[station.id]), size = 6, color="blue", bbox={'facecolor': 'white', 'edgecolor': 'blue', 'boxstyle':'circle'})
+                    ax.text(lon - x_offset, lat, str(self.parameters_data.L_0[station.id]), size = 10, color="blue", bbox={'facecolor': 'white', 'edgecolor': 'blue', 'boxstyle':'circle'})
                     if indices[1]!= indices[0] and indices[1]!='-1': #end station
                         end_station = self.parameters_data.stations.get(int(indices[1]))
                         end_lat = end_station.get_lat()
@@ -148,7 +148,12 @@ class Visualizer():
             if station not in plotted_stations:
                 lat = station.get_lat()
                 lon = station.get_lon()
-                ax.text(lon, lat, str(self.parameters_data.L_0[station.id]), size = 6, color="black", bbox={'facecolor': 'silver', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
+                if self.parameters_data.L_0[station.id] == 0:
+                    ax.text(lon, lat, str(self.parameters_data.L_0[station.id]), size = 10, color="black", bbox={'facecolor': 'lightcoral', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
+                elif self.parameters_data.L_0[station.id] == self.parameters_data.Q_S[station.id]:
+                    ax.text(lon, lat, str(self.parameters_data.L_0[station.id]), size = 10, color="black", bbox={'facecolor': 'yellow', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
+                else:
+                    ax.text(lon, lat, str(self.parameters_data.L_0[station.id]), size = 10, color="black", bbox={'facecolor': 'silver', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
             
         plt.show()
     
@@ -169,6 +174,6 @@ class Visualizer():
         for station in self.parameters_data.stations.values():
             lat = station.get_lat()
             lon = station.get_lon()
-            ax.text(lon, lat, str(station.id), size = 6, color="black", bbox={'facecolor': 'silver', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
+            ax.text(lon, lat, str(station.id), size = 6, color="black", bbox={'facecolor': 'lightskyblue', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
             
         plt.show()
