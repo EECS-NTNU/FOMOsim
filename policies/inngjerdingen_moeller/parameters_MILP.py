@@ -160,8 +160,8 @@ class MILP_data():
 
         def set_Q_0(self):
                 for vehicle in self.vehicles: 
-                        # self.Q_0[vehicle] = len(self.vehicles[vehicle].get_bike_inventory())
-                        self.Q_0[vehicle] = 20
+                        self.Q_0[vehicle] = len(self.vehicles[vehicle].get_bike_inventory())
+                        # self.Q_0[vehicle] = 10
         
         def set_Q_V(self):
                 for vehicle in self.vehicles:
@@ -257,10 +257,24 @@ class MILP_data():
                         print("Station ID:", str(neighbor), "Inventory:", str(self.L_0[neighbor]), "Capacity:", str(self.Q_S[neighbor]), "Walking distance:", str(round(self.T_D[(neighbor, station_ID)],1)))
 
         def deep_dive_test_2(self):
-                station_list = [36,51,48,19,12,9]
-                for station in station_list:
-                        self.L_0[station] = 0
-                        # self.L_T[station] = 10
-                        for timeperiod in self.time_periods:
-                                self.D[(station, timeperiod)] = -0.5
+
+                # station_list = [36,51,48,19,12,9]
+                # for station in station_list:
+                #         self.L_0[station] = 0
+                #         # self.L_T[station] = 10
+                #         for timeperiod in self.time_periods:
+                #                 self.D[(station, timeperiod)] = -0.5
                 
+
+
+                # Example solution:
+                self.L_0[35] =15
+                self.L_0[54] = 15
+                self.L_0[40] = 0
+                self.L_0[27] = 0
+                
+                for timeperiod in self.time_periods:
+                        self.D[(35, timeperiod)] = 1
+                        self.D[(54, timeperiod)] = 1
+                        self.D[(40, timeperiod)] = -1
+                        self.D[(27, timeperiod)] = -1

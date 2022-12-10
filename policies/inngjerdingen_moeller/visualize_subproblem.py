@@ -9,7 +9,7 @@ class Visualizer():
 
     def visualize_route(self):
         vehicle_colors= ['red', 'green', 'pink', "purple"]
-        x_offset= 0.002
+        x_offset= 0.00175
         y_offset= 0.00125
         filename = self.parameters_data.state.mapdata[0]
         bBox = self.parameters_data.state.mapdata[1]
@@ -37,7 +37,7 @@ class Visualizer():
                     lat = station.get_lat()
                     lon = station.get_lon()
                     #ax.plot(lon, lat, 'bo') #dot at station
-                    ax.text(lon, lat, str(indices[0]), color="blue", bbox={'facecolor': 'none', 'edgecolor': 'blue', 'boxstyle':'round'}) #textbox with station_id
+                    ax.text(lon, lat, str(indices[0]), color="blue", bbox={'facecolor': 'white', 'edgecolor': 'blue', 'boxstyle':'round'}) #textbox with station_id
                     if indices[1]!= indices[0] and indices[1]!='-1': #end station
                         end_station = self.parameters_data.stations.get(int(indices[1]))
                         end_lat = end_station.get_lat()
