@@ -71,7 +71,7 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         policy = InngjerdingenMoellerPolicy()
         test_state.set_vehicles([policy for _ in range(0, number_of_vehicles)])
         for vehicle in range(0,number_of_vehicles):
-                        test_state.vehicles[vehicle].location = test_state.locations[55 + 10*vehicle]
+                        test_state.vehicles[vehicle].location = test_state.locations[1 + 10*vehicle]
         test_simul = sim.Simulator(
                 initial_state = test_state,
                 target_state = t_state,
@@ -91,13 +91,13 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         print("MIP gap was ", str(m.MIPGap))
         v=Visualizer(m,d)
         # v.visualize_route() 
-        v.visualize_map_and_route()
-        # v.visualize_stations()
+        # v.visualize_map_and_route()
+        v.visualize_stations()
 
 if __name__ == "__main__":
 # ------------ TESTING DATA MANUALLY ---------------
-        #filename = "instances/EH_W31"
-        filename = "instances/TD_W34" 
+        filename = "instances/EH_W31"
+        # filename = "instances/TD_W34" 
         # filename = "instances/OS_W31"
         # filename = "instances/BG_W35"
 
