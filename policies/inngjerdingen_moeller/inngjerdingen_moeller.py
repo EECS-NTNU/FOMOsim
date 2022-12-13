@@ -30,6 +30,12 @@ class InngjerdingenMoellerPolicy(Policy):
             simul.metrics.add_aggregate_metric(simul, "different_pickup_quantity", 1)
         elif len(bikes_to_deliver2) != len(bikes_to_deliver):
             simul.metrics.add_aggregate_metric(simul, "different_deliver_quantity", 1)
+        
+        if next_station2 != next_station and (len(bikes_to_pickup2) != len(bikes_to_pickup) or len(bikes_to_deliver2) != len(bikes_to_deliver)):
+            simul.metrics.add_aggregate_metric(simul, "overlap", 1)
+
+        if next_station2 == next_station and len(bikes_to_pickup2) == len(bikes_to_pickup) and len(bikes_to_deliver2) == len(bikes_to_deliver):
+            simul.metrics.add_aggregate_metric(simul, "same_choice", 1)
 
         simul.metrics.add_aggregate_metric(simul, "number_of_subproblems", 1) 
         

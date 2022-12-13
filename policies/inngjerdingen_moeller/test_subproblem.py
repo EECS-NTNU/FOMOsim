@@ -91,9 +91,9 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         # m.printAttr("X")
         print("Runtime of experiment was", str(round(m.Runtime,2)))
         print("MIP gap was ", str(m.MIPGap))
-        v=Visualizer(m,d)
-        # v.visualize_route() 
-        v.visualize_map_and_route()
+        # v=Visualizer(m,d)
+        # v.visualize_route()
+        # v.visualize_map_and_route()
         # v.visualize_stations()
 
 if __name__ == "__main__":
@@ -120,7 +120,7 @@ if __name__ == "__main__":
         # tstate = target_state.HalfCapacityTargetState()
 
         
-        # test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles, roaming)
-        test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
+        test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles, roaming)
+        # test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
         
 # ----------------------------------------------------
