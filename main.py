@@ -93,6 +93,8 @@ def main():
     print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
     print(f"Different pickup quantities = {simulator.metrics.get_aggregate_value('different_pickup_quantity')}")
     print(f"Different deliver quantities = {simulator.metrics.get_aggregate_value('different_deliver_quantity')}")
+    print(f"Number of overlaps = {simulator.metrics.get_aggregate_value('overlap')}")
+    print(f"Number of identical choices = {simulator.metrics.get_aggregate_value('same_choice')}")
     print(f"Number of subproblems solved = {simulator.metrics.get_aggregate_value('number_of_subproblems')}")
     
     # Output to file

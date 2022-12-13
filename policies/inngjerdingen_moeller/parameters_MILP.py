@@ -160,8 +160,8 @@ class MILP_data():
 
         def set_Q_0(self):
                 for vehicle in self.vehicles: 
-                        # self.Q_0[vehicle] = len(self.vehicles[vehicle].get_bike_inventory())
-                        self.Q_0[vehicle] = 20
+                        self.Q_0[vehicle] = len(self.vehicles[vehicle].get_bike_inventory())
+                        # self.Q_0[vehicle] = 20
         
         def set_Q_V(self):
                 for vehicle in self.vehicles:
