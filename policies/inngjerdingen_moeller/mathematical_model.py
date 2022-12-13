@@ -115,7 +115,7 @@ def run_model(data, roaming=True):
     m.addConstrs(quicksum(x[(i, j, t, v)] for i in stations_with_source_sink for j in stations_with_source_sink) <= 1 for t in time_periods for v in vehicles)
     m.addConstrs(quicksum(x[(DEPOT_ID, j, t, v)] for j in stations_with_source_sink for t in time_periods) == 1 for v in vehicles)
 
-    m.addConstrs(quicksum(x[(DEPOT_ID, j, 0, v)] for j in stations_with_source_sink) == 1 for v in vehicles)
+    # m.addConstrs(quicksum(x[(DEPOT_ID, j, 0, v)] for j in stations_with_source_sink) == 1 for v in vehicles) # Not needed, taken out
     m.addConstrs(quicksum(x[(i, DEPOT_ID, T_bar, v)] for i in stations_with_source_sink) == 1 for v in vehicles)
 
     m.addConstrs(quicksum(q[(DEPOT_ID, i, 0, v)] for i in stations) == Q_0[v] for v in vehicles)
