@@ -8,7 +8,8 @@ class Visualizer():
         self.parameters_data = parameters_data
 
     def visualize_route(self):
-        vehicle_colors= ['red', 'green', 'pink', "purple"]
+        vehicle_colors= ['red', 'lime', 'pink']
+        time_colors=['maroon','darkgreen','deeppink']
         x_offset= 0.00175
         y_offset= 0.00125
         filename = self.parameters_data.state.mapdata[0]
@@ -22,7 +23,7 @@ class Visualizer():
         ax.set_title('Subproblem')
         ax.set_xlim(bBox[0],bBox[1])
         ax.set_ylim(bBox[2],bBox[3])
-        ax.imshow(image, extent = bBox, aspect=aspect)
+        ax.imshow(image, extent = bBox, aspect=aspect, alpha=0.6)
        
         loading_dict= dict() #stores the quantities loaded on different stations
         unloading_dict= dict() 
@@ -44,9 +45,9 @@ class Visualizer():
                         end_lon = end_station.get_lon()
                         xx=[lon, end_lon]
                         yy=[lat, end_lat]
-                        ax.plot(xx,yy,linewidth=1, color= vehicle_colors[vehicle_id])
+                        ax.plot(xx,yy,linewidth=3, color= vehicle_colors[vehicle_id])
                         driving_time= str(round(self.parameters_data.T_D.get((int(indices[0]),int(indices[1]))),1))
-                        ax.text((lon+end_lon)/2, (lat+end_lat)/2, driving_time + " min", color=vehicle_colors[vehicle_id])
+                        ax.text((lon+end_lon)/2, (lat+end_lat)/2, driving_time + " min", color=time_colors[vehicle_id],weight='bold')
 
                 if name == 'q_L':
                     load_station = self.parameters_data.stations.get(int(indices[0])) #returns station object 
@@ -67,17 +68,18 @@ class Visualizer():
         for station in loading_dict:
             lat = station.get_lat()
             lon = station.get_lon()
-            ax.text(lon+x_offset, lat, "Load: "+ str(loading_dict[station]))
+            ax.text(lon+x_offset, lat, "Load: "+ str(loading_dict[station]),weight='bold')
 
         for station in unloading_dict:
             lat = station.get_lat()
             lon = station.get_lon()
-            ax.text(lon+x_offset, lat, "Unload: "+ str(unloading_dict[station]))
+            ax.text(lon+x_offset, lat, "Unload: "+ str(unloading_dict[station]),weight='bold')
             
         plt.show()
 
     def visualize_map_and_route(self):
-        vehicle_colors = ['red', 'green', 'pink', "purple"]
+        vehicle_colors = ['red', 'green', 'pink',]
+        time_colors=['maroon','darkgreen','deeppink']
         x_offset = 0.0014
         y_offset = 0.00125
         filename = self.parameters_data.state.mapdata[0]
@@ -91,7 +93,7 @@ class Visualizer():
         ax.set_title('Subproblem and system state')
         ax.set_xlim(bBox[0],bBox[1])
         ax.set_ylim(bBox[2],bBox[3])
-        ax.imshow(image, extent = bBox, aspect=aspect)
+        ax.imshow(image, extent = bBox, aspect=aspect, alpha=0.6)
        
         loading_dict= dict() #stores the quantities loaded on different stations
         unloading_dict= dict() 
@@ -116,9 +118,9 @@ class Visualizer():
                         end_lon = end_station.get_lon()
                         xx=[lon, end_lon]
                         yy=[lat, end_lat]
-                        ax.plot(xx,yy,linewidth=1, color= vehicle_colors[vehicle_id])
+                        ax.plot(xx,yy,linewidth=3, color= vehicle_colors[vehicle_id])
                         driving_time= str(round(self.parameters_data.T_D.get((int(indices[0]),int(indices[1]))),1))
-                        ax.text((lon+end_lon)/2, (lat+end_lat)/2, driving_time + " min", color=vehicle_colors[vehicle_id])
+                        ax.text((lon+end_lon)/2, (lat+end_lat)/2, driving_time + " min", color=time_colors[vehicle_id],weight='bold')
 
                 if name == 'q_L':
                     load_station = self.parameters_data.stations.get(int(indices[0])) #returns station object 
@@ -137,12 +139,12 @@ class Visualizer():
         for station in loading_dict:
             lat = station.get_lat()
             lon = station.get_lon()
-            ax.text(lon+x_offset, lat, "Load: "+ str(loading_dict[station]))
+            ax.text(lon+x_offset, lat, "Load: "+ str(loading_dict[station]),weight='bold')
 
         for station in unloading_dict:
             lat = station.get_lat()
             lon = station.get_lon()
-            ax.text(lon+x_offset, lat, "Unload: "+ str(unloading_dict[station]))
+            ax.text(lon+x_offset, lat, "Unload: "+ str(unloading_dict[station]),weight='bold')
 
         for station in self.parameters_data.stations.values():
             if station not in plotted_stations:
