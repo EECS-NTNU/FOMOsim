@@ -31,12 +31,18 @@ def main():
     # "https://gbfs.urbansharing.com/" + extractCityAndDomainFromURL(url)
 
     # the following is for creating a new initial state from trip data
-    state = init_state.get_initial_state(source=init_state.csv_reader,
-                                         name="New York",
-                                         urlHistorical="https://s3.amazonaws.com/tripdata/",
-                                         filename_format="%Y%m-citibike-tripdata.csv.zip",
-                                         urlGbfs="http://gbfs.citibikenyc.com/gbfs/en",
-                                         week=31)
+    # state = init_state.get_initial_state(source=init_state.csv_reader,
+    #                                      name="NewYork",
+    #                                      urlHistorical="https://s3.amazonaws.com/tripdata/",
+    #                                      filename_format="%Y%m-citibike-tripdata.csv.zip",
+    #                                      urlGbfs="http://gbfs.citibikenyc.com/gbfs/en",
+    #                                      week=10)
+
+    state = init_state.get_initial_state(source=init_state.cityBike,
+                                         name="Trondheim",
+                                         urlHistorical="https://data.urbansharing.com/trondheimbysykkel/trips/v1/",
+                                         urlGbfs="https://gbfs.urbansharing.com/trondheimbysykkel.no",
+                                         week=34)
 
     # the following is for reading a precalculated initial state from a json file
     # state = init_state.read_initial_state("instances/"+INSTANCE);

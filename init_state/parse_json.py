@@ -5,8 +5,7 @@ import os
 import os.path
 import requests
 import geopy.distance
-import datetime
-from datetime import date
+from datetime import date, datetime
 import numpy as np
 import statistics
 from statistics import fmean, stdev 
@@ -56,7 +55,7 @@ def downloadStationInfo(gbfsStart, tripDataPath):
         stationInfoFile = open(f"{tripDataPath}/stationinfo.text", "w")
         stationInfoFile.write(stationInfo.text)
         stationInfoFile.close()
-        print("   Info: station information has been read from urbansharing.com")
+        print("   Info: station information has been read from " + gbfsStart)
   
     if not os.path.isfile(f"{tripDataPath}/stationstatus.text"):
         gbfsTailStatus = "/station_status.json"
@@ -67,12 +66,26 @@ def downloadStationInfo(gbfsStart, tripDataPath):
         stationStatusFile = open(f"{tripDataPath}/stationstatus.text", "w")
         stationStatusFile.write(stationStatus.text)
         stationStatusFile.close()
-        print("   Info: station status has been read from urbansharing.com")
+        print("   Info: station status has been read from " + gbfsStart)
+    # else:
+    #     print("   Info: stations status was found locally on your computer from an earlier run")
+
+def weekMonths(weekNo): # produce a list of months that can be in a given week no. Note that isocalendar 
+                        # does not handle week no = 53 <<== TODO
+    if weekNo == 53:
+        months = [1,12]
     else:
-        print("   Info: stations status was found locally on your computer from an earlier run")
+        months = [] 
+        for year in range (2018, date.today().year + 1):
+            monday = date.fromisocalendar(year, weekNo, 1)
+            sunday = date.fromisocalendar(year, weekNo, 7)
+            if monday.month not in months:
+                months.append(monday.month)
+            if sunday.month not in months:
+                months.append(sunday.month)
+    return months
 
-
-def parse_json(tripDataPath, YMpairs, week):
+def parse_json(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
 
     class StationLocation: 
         def __init__(self, stationId, longitude, latitude):
@@ -89,7 +102,7 @@ def parse_json(tripDataPath, YMpairs, week):
     stationStatusData = allData["data"]
 
     stationLocations = {} # dict with key stationId
-    bikeStartStatus = {}
+    stationNumBikes = {}
     stationCapacities = {}
     stationNames = {}
     trafficAtStation = {}
@@ -104,7 +117,7 @@ def parse_json(tripDataPath, YMpairs, week):
         stationNames[id] = stationInfoData["stations"][i]["name"]
 
         if stationStatusData["stations"][i]["station_id"]  == id: # check that it is same station
-            bikeStartStatus[id] = stationStatusData["stations"][i]["num_bikes_available"]
+            stationNumBikes[id] = stationStatusData["stations"][i]["num_bikes_available"]
         else:
             raise Exception("Error: stationInfoData and stationStatusData differs")
     
@@ -139,17 +152,18 @@ def parse_json(tripDataPath, YMpairs, week):
 
     stationMap = {}
     stationNo = 0
-    withOutTraffic = []
+    # withOutTraffic = []
     for stationId in stationNames:
-        if not stationId in trafficAtStation:
-            withOutTraffic.append(stationNames[stationId])
-        else:
+        if stationId in trafficAtStation:
             stationMap[stationId] = stationNo
             stationNo += 1
-    if len(withOutTraffic) > 0:
-        print("   Info: These stations without traffic in week ", str(week), " are neglected.")
-        for name in withOutTraffic:
-            print(name) 
+        # else:
+        #     withOutTraffic.append(stationNames[stationId])
+
+    # if len(withOutTraffic) > 0:
+    #     print("   Info: These stations without traffic in week ", str(week), " are neglected.")
+    #     for name in withOutTraffic:
+    #         print(name) 
 
     arriveCount = []
     leaveCount = []
@@ -211,9 +225,14 @@ def parse_json(tripDataPath, YMpairs, week):
                         if year not in leaveCount[startStationNo][weekDay][hour]:
                             leaveCount[startStationNo][weekDay][hour][year] = 0
                         if weekNo == week:
+                            started_at = datetime.strptime(bikeData[i]["started_at"][0:19], "%Y-%m-%d %H:%M:%S")
+                            ended_at = datetime.strptime(bikeData[i]["ended_at"][0:19], "%Y-%m-%d %H:%M:%S")
+                            delta = ended_at - started_at
+                            duration = delta.days * 24 * 60 + delta.seconds / 60
+
                             leaveCount[startStationNo][weekDay][hour][year] += 1
                             moveCount[startStationNo][weekDay][hour][endStationNo] += 1    
-                            durations[startStationNo][endStationNo].append(bikeData[i]["duration"]/60) # duration in minutes
+                            durations[startStationNo][endStationNo].append(duration)
         progress.next()
     progress.finish()
 

@@ -17,7 +17,7 @@ def get_initial_state(name, source, number_of_stations=None, number_of_bikes=Non
         statedata["map"] = mapdata[0]
         statedata["map_boundingbox"] = mapdata[1]
 
-    statedata.update(source.get_initial_state(**kwargs))
+    statedata.update(source.get_initial_state(city=name, **kwargs))
 
     # create subset of stations
     if number_of_stations is not None:
@@ -62,7 +62,7 @@ def create_and_save_state(name, filename, source, number_of_stations=None, numbe
         statedata["map"] = mapdata[0]
         statedata["map_boundingbox"] = mapdata[1]
 
-    statedata.update(source.get_initial_state(**kwargs))
+    statedata.update(source.get_initial_state(city=name, **kwargs))
 
     # create subset of stations
     if number_of_stations is not None:
