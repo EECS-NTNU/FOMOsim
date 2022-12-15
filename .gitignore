@@ -1,5 +1,6 @@
 stateParams.txt
-init_state/cityBike/data/
+experimental_setups/
+init_state/data/
 GUI/scripts
 GUI/results
 GUI/loggFiles
