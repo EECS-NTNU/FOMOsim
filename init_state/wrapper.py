@@ -5,19 +5,58 @@ import os
 import math
 import sys
 import gzip
+import contextily as ctx
+import geopy.distance
+import geopandas
+import rasterio
+from rasterio.plot import show as rioshow
+from shapely.geometry import box
+import matplotlib.pyplot as plt
+from PIL import Image as im
 
 import sim
 import settings
 from helpers import lock, unlock
 
-def get_initial_state(name, source, number_of_stations=None, number_of_bikes=None, mapdata=None, city=None, **kwargs):
-    # create initial state
-    statedata = { "name" : name }
-    if mapdata is not None:
-        statedata["map"] = mapdata[0]
-        statedata["map_boundingbox"] = mapdata[1]
+def createMap(instance_directory, statedata):
+    filename = statedata["name"] + ".png"
+    filepath = instance_directory + "/" + filename
 
+    # find bounding box of all stations
+    east = -180
+    west = 180
+    north = -180
+    south = 180
+    for st in statedata["stations"]:
+        lat, lon = st["location"]
+        if east < lon: east = lon
+        if west > lon: west = lon
+        if north < lat: north = lat
+        if south > lat: south = lat
+
+    # add some space around the outer stations
+    north = geopy.distance.distance(0.5).destination((north, 0), bearing=0)[0]
+    south = geopy.distance.distance(0.5).destination((south, 0), bearing=180)[0]
+    east = geopy.distance.distance(0.5).destination((0, east), bearing=90)[1]
+    west = geopy.distance.distance(0.5).destination((0, west), bearing=270)[1]
+
+    # create map
+    img, _ = ctx.bounds2img(west, south, east, north, source=ctx.providers.OpenStreetMap.Mapnik, ll=True)
+    data = im.fromarray(img)
+    data.save(filepath)
+
+    # add map to statedata
+    statedata["map"] = filename
+    statedata["map_boundingbox"] = (west, east, south, north)
+
+def get_initial_state(name, source, number_of_stations=None, number_of_bikes=None, city=None, **kwargs):
     if city is None: city = name
+
+    # create initial state
+    statedata = {
+        "name" : name,
+        "city" : city,
+    }
 
     statedata.update(source.get_initial_state(city=city, **kwargs))
 
@@ -57,14 +96,14 @@ def read_initial_state(jsonFilename, number_of_stations=None, number_of_bikes=No
 
     return None
 
-def create_and_save_state(name, filename, source, number_of_stations=None, number_of_bikes=None, mapdata=None, city=None, **kwargs):
-    # create initial state
-    statedata = { "name" : name }
-    if mapdata is not None:
-        statedata["map"] = mapdata[0]
-        statedata["map_boundingbox"] = mapdata[1]
-
+def create_and_save_state(name, instance_directory, source, number_of_stations=None, number_of_bikes=None, city=None, **kwargs):
     if city is None: city = name
+
+    # create initial state
+    statedata = {
+        "name" : name,
+        "city" : city,
+    }
 
     statedata.update(source.get_initial_state(city=city, **kwargs))
 
@@ -76,8 +115,11 @@ def create_and_save_state(name, filename, source, number_of_stations=None, numbe
     if number_of_bikes is not None:
         set_num_bikes(statedata, number_of_bikes)
 
+    createMap(instance_directory, statedata)
+
     # save to json
-    with gzip.open(f"{filename}.json.gz", "w") as outfile:
+    filename=instance_directory + "/" + name + ".json.gz"
+    with gzip.open(filename, "w") as outfile:
         outfile.write(json.dumps(statedata, indent=4).encode())
 
 def set_num_bikes(statedata, n):

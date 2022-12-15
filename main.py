@@ -21,7 +21,7 @@ from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(hours=24)
-INSTANCE = 'OS_W31'
+INSTANCE = 'TD_W34'
 
 def main():
 
@@ -52,14 +52,14 @@ def main():
     #                                      urlGbfs="https://gbfs.divvybikes.com/gbfs/en",
     #                                      week=34)
 
-    state = init_state.get_initial_state(source=init_state.json_source,
-                                         name="Trondheim",
-                                         urlHistorical="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
-                                         urlGbfs="https://gbfs.urbansharing.com/trondheimbysykkel.no",
-                                         week=34)
+    # state = init_state.get_initial_state(source=init_state.json_source,
+    #                                      name="Trondheim",
+    #                                      urlHistorical="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
+    #                                      urlGbfs="https://gbfs.urbansharing.com/trondheimbysykkel.no",
+    #                                      week=34)
 
     # the following is for reading a precalculated initial state from a json file
-    # state = init_state.read_initial_state("instances/"+INSTANCE);
+    state = init_state.read_initial_state("instances/"+INSTANCE);
 
     state.set_seed(1)
 

@@ -6,7 +6,6 @@ import json
 import os
 import os.path
 import requests
-import geopy.distance
 import gzip
 import datetime
 from datetime import date
