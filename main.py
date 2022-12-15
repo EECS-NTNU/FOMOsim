@@ -5,8 +5,8 @@ FOMO simulator example
 
 from settings import *
 import init_state
-import init_state.cityBike
-import init_state.csv_reader
+import init_state.json_source
+import init_state.csv_source
 import target_state
 import policies
 import policies.fosen_haldorsen
@@ -31,32 +31,32 @@ def main():
     # "https://gbfs.urbansharing.com/" + extractCityAndDomainFromURL(url)
 
     # the following is for creating a new initial state from trip data
-    state = init_state.get_initial_state(source=init_state.csv_reader,
-                                         name="NewYork",
-                                         urlHistorical="https://s3.amazonaws.com/tripdata/",
-                                         filename_format="%Y%m-citibike-tripdata.csv.zip",
-                                         urlGbfs="http://gbfs.citibikenyc.com/gbfs/en",
-                                         week=34)
+    # state = init_state.get_initial_state(source=init_state.csv_source,
+    #                                      name="NewYork",
+    #                                      urlHistorical="https://s3.amazonaws.com/tripdata/",
+    #                                      filename_format="%Y%m-citibike-tripdata.csv.zip",
+    #                                      urlGbfs="http://gbfs.citibikenyc.com/gbfs/en",
+    #                                      week=34)
 
-    # state = init_state.get_initial_state(source=init_state.csv_reader,
+    # state = init_state.get_initial_state(source=init_state.csv_source,
     #                                      name="Boston",
     #                                      urlHistorical="https://s3.amazonaws.com/hubway-data/",
     #                                      filename_format="%Y%m-bluebikes-tripdata.zip",
     #                                      urlGbfs="https://gbfs.bluebikes.com/gbfs/en",
     #                                      week=34)
 
-    # state = init_state.get_initial_state(source=init_state.csv_reader,
+    # state = init_state.get_initial_state(source=init_state.csv_source,
     #                                      name="Chicago",
     #                                      urlHistorical="https://divvy-tripdata.s3.amazonaws.com/",
     #                                      filename_format="%Y%m-divvy-tripdata.zip",
     #                                      urlGbfs="https://gbfs.divvybikes.com/gbfs/en",
     #                                      week=34)
 
-    # state = init_state.get_initial_state(source=init_state.cityBike,
-    #                                      name="Trondheim",
-    #                                      urlHistorical="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
-    #                                      urlGbfs="https://gbfs.urbansharing.com/trondheimbysykkel.no",
-    #                                      week=34)
+    state = init_state.get_initial_state(source=init_state.json_source,
+                                         name="Trondheim",
+                                         urlHistorical="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
+                                         urlGbfs="https://gbfs.urbansharing.com/trondheimbysykkel.no",
+                                         week=34)
 
     # the following is for reading a precalculated initial state from a json file
     # state = init_state.read_initial_state("instances/"+INSTANCE);

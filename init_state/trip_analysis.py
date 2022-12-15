@@ -15,6 +15,8 @@ from progress.bar import Bar
 import settings
 from helpers import yearWeekNoAndDay
 
+tripDataDirectory = "init_state/data/"
+
 def generateYMpairs(fromInclude, toInclude):
     yearMonthPairs = []
     y = fromInclude[0]
@@ -86,7 +88,7 @@ def weekMonths(weekNo): # produce a list of months that can be in a given week n
                 months.append(sunday.month)
     return months
 
-def parse_json(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
+def tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
 
     class StationLocation: 
         def __init__(self, stationId, longitude, latitude):

@@ -19,8 +19,6 @@ import settings
 import init_state
 from helpers import yearWeekNoAndDay
 
-tripDataDirectory = "init_state/data/" # location of tripData
-
 def download(url, YMpairs, tripDataPath):    
 
     def loadMonth(yearNo, monthNo, alreadyLoadedFiles):
@@ -73,7 +71,7 @@ def get_initial_state(city, urlHistorical, urlGbfs, week, fromInclude=[2018, 5],
         for every station and move probabilities for every pair of stations. These structures are indexed by station, week and hour.
     """
 
-    tripDataPath = tripDataDirectory + city
+    tripDataPath = init_state.tripDataDirectory + city
     if not os.path.isdir(tripDataPath):
         os.makedirs(tripDataPath, exist_ok=True)
 
@@ -82,4 +80,4 @@ def get_initial_state(city, urlHistorical, urlGbfs, week, fromInclude=[2018, 5],
     download(urlHistorical, YMpairs, tripDataPath) 
     init_state.downloadStationInfo(urlGbfs, tripDataPath)
 
-    return init_state.parse_json(tripDataPath, YMpairs, week, trafficMultiplier)
+    return init_state.tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier)

@@ -11,8 +11,6 @@ import gzip
 
 import init_state
 
-tripDataDirectory = "init_state/data/"
-
 def save_json(csvf, filename):
     csvReader = csv.DictReader(csvf)
     trips = []
@@ -80,7 +78,7 @@ def download(url, city, filename_format, YMpairs, directory):
 
 def get_initial_state(city, urlHistorical, urlGbfs, week, filename_format, fromInclude=[2017, 1], toInclude=[2022,11], trafficMultiplier=1.0):
 
-    tripDataPath = f"{tripDataDirectory}{city}"
+    tripDataPath = f"{init_state.tripDataDirectory}{city}"
     if not os.path.isdir(tripDataPath):
         os.makedirs(tripDataPath, exist_ok=True)
 
@@ -89,4 +87,4 @@ def get_initial_state(city, urlHistorical, urlGbfs, week, filename_format, fromI
     download(urlHistorical, city, filename_format, YMpairs, tripDataPath)
     init_state.downloadStationInfo(urlGbfs, tripDataPath)
 
-    return init_state.parse_json(tripDataPath, YMpairs, week, trafficMultiplier)
+    return init_state.tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier)

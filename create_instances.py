@@ -4,8 +4,8 @@ FOMO simulator, create jobs to run on cluster
 """
 
 import init_state
-import init_state.cityBike
-import init_state.csv_reader
+import init_state.json_source
+import init_state.csv_source
 
 from helpers import *
 
@@ -15,7 +15,7 @@ INSTANCE_DIRECTORY="instances"
 
 instances = [
 
-    dict(source=init_state.csv_reader,
+    dict(source=init_state.csv_source,
          city="NewYork",
          abbrv="NY",
          urlHistorical="https://s3.amazonaws.com/tripdata/",
@@ -26,7 +26,7 @@ instances = [
          numstations=None,
          weeks=[31]),
 
-    dict(source=init_state.csv_reader,
+    dict(source=init_state.csv_source,
          city="Boston",
          abbrv="BO",
          urlHistorical="https://s3.amazonaws.com/hubway-data/",
@@ -37,7 +37,7 @@ instances = [
          numstations=None,
          weeks=[31]),
 
-    dict(source=init_state.csv_reader,
+    dict(source=init_state.csv_source,
          city="Chicago",
          abbrv="CH",
          urlHistorical="https://divvy-tripdata.s3.amazonaws.com/",
@@ -48,7 +48,7 @@ instances = [
          numstations=None,
          weeks=[31]),
 
-    # dict(source=init_state.cityBike,
+    # dict(source=init_state.json_source,
     #      city="Oslo",
     #      abbrv="OS",
     #      urlHistorical="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",
@@ -57,7 +57,7 @@ instances = [
     #      numstations=None,
     #      weeks=[10,22,31,50]),
 
-    # dict(source=init_state.cityBike,
+    # dict(source=init_state.json_source,
     #      city="Bergen",
     #      abbrv="BG",
     #      urlHistorical="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",
@@ -66,7 +66,7 @@ instances = [
     #      numstations=None,
     #      weeks=[8,25,35,45]),
 
-    # dict(source=init_state.cityBike,
+    # dict(source=init_state.json_source,
     #      city="Trondheim",
     #      abbrv="TD",
     #      urlHistorical="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
@@ -75,7 +75,7 @@ instances = [
     #      numstations=None,
     #      weeks=[17,21,34,44]),
 
-    # dict(source=init_state.cityBike,
+    # dict(source=init_state.json_source,
     #      city="Edinburgh",
     #      abbrv="EH",
     #      urlHistorical="https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",
@@ -94,7 +94,7 @@ if __name__ == "__main__":
         for week in instance["weeks"]:
             instance_name = instance["abbrv"]+'_W'+str(week)
 
-            if instance["source"] == init_state.csv_reader:
+            if instance["source"] == init_state.csv_source:
                 init_state.create_and_save_state(name=instance_name, 
                                                  city=instance["city"],
                                                  filename=INSTANCE_DIRECTORY + "/" + instance_name,
