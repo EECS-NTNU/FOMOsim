@@ -55,26 +55,27 @@ def save_json(csvf, filename):
     with gzip.open(filename, "wb") as file:
         file.write(json.dumps(trips).encode())
 
-def download(url, city, filename_format, YMpairs, directory):
+def download(week, url, city, filename_format, YMpairs, directory):
     for year, month in YMpairs:
-        filename = f"{directory}/{year}-{month:02}.json.gz"
-        if not os.path.exists(filename):
-            address = url + filename_format.replace('%Y', f"{year}").replace('%m', f"{month:02}")
-            print(f"Downloading {address}");
-            data = requests.get(address)
-            if data.status_code == 200:
-                if filename_format.endswith("zip"):
-                    z = zipfile.ZipFile(io.BytesIO(data.content))
-                    for zf in z.infolist():
-                        if zf.filename.endswith("csv"):
-                            # unzip first csv file in zip-archive
-                            csvf = io.StringIO(z.read(z.infolist()[0]).decode())
-                            save_json(csvf, filename)
-                            break
-                    z.close()
-                if filename_format.endswith("csv"):
-                    csvf = io.StringIO(data.content.decode())
-                    save_json(csvf, filename)
+        if month in init_state.weekMonths(week):
+            filename = f"{directory}/{year}-{month:02}.json.gz"
+            if not os.path.exists(filename):
+                address = url + filename_format.replace('%Y', f"{year}").replace('%m', f"{month:02}")
+                print(f"Downloading {address}");
+                data = requests.get(address)
+                if data.status_code == 200:
+                    if filename_format.endswith("zip"):
+                        z = zipfile.ZipFile(io.BytesIO(data.content))
+                        for zf in z.infolist():
+                            if zf.filename.endswith("csv"):
+                                # unzip first csv file in zip-archive
+                                csvf = io.StringIO(z.read(z.infolist()[0]).decode())
+                                save_json(csvf, filename)
+                                break
+                        z.close()
+                    if filename_format.endswith("csv"):
+                        csvf = io.StringIO(data.content.decode())
+                        save_json(csvf, filename)
 
 def get_initial_state(city, urlHistorical, urlGbfs, week, filename_format, fromInclude=[2017, 1], toInclude=[2022,11], trafficMultiplier=1.0):
 
@@ -84,7 +85,7 @@ def get_initial_state(city, urlHistorical, urlGbfs, week, filename_format, fromI
 
     YMpairs = init_state.generateYMpairs(fromInclude, toInclude)
 
-    download(urlHistorical, city, filename_format, YMpairs, tripDataPath)
+    download(week, urlHistorical, city, filename_format, YMpairs, tripDataPath)
     init_state.downloadStationInfo(urlGbfs, tripDataPath)
 
     return init_state.tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier)

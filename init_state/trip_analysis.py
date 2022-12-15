@@ -58,7 +58,7 @@ def downloadStationInfo(gbfsStart, tripDataPath):
         stationInfoFile = gzip.open(f"{tripDataPath}/stationinfo.text.gz", "wb")
         stationInfoFile.write(stationInfo.text.encode())
         stationInfoFile.close()
-        print("   Info: station information has been read from " + gbfsStart)
+        # print("   Info: station information has been read from " + gbfsStart)
   
     if not os.path.isfile(f"{tripDataPath}/stationstatus.text"):
         gbfsTailStatus = "/station_status.json"
@@ -69,7 +69,7 @@ def downloadStationInfo(gbfsStart, tripDataPath):
         stationStatusFile = gzip.open(f"{tripDataPath}/stationstatus.text.gz", "wb")
         stationStatusFile.write(stationStatus.text.encode())
         stationStatusFile.close()
-        print("   Info: station status has been read from " + gbfsStart)
+        # print("   Info: station status has been read from " + gbfsStart)
     # else:
     #     print("   Info: stations status was found locally on your computer from an earlier run")
 
@@ -131,7 +131,7 @@ def tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
     ###################################################################################################
     # Find stations with traffic for given week, loop thru all months in range given by fromInclude and toInclude, now in YMpairs
     fileList = os.listdir(tripDataPath)
-    progress = Bar("Read data from files, find stations with traffic for given week", max = len(fileList))
+    progress = Bar("Find stations with traffic    ", max = len(fileList))
     trafficAtStation = {} # indexed by id, stores stations with at least one arrival or departure 
     for file in fileList:
         if file.endswith(".json.gz"):
@@ -139,20 +139,21 @@ def tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
             m = int(file[5:7])
 
             if [y, m] in YMpairs: 
-                jsonFile = gzip.open(os.path.join(tripDataPath, file), "rb")
-                bikeData = json.loads(jsonFile.read())
-                for i in range(len(bikeData)):
-                    dummy1, weekNo, dummy2 = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
-                    if weekNo == week:
-                        startId = bikeData[i]["start_station_id"]
-                        if startId in stationNames:
-                            trafficAtStation[startId] = True 
-                    dummy1, weekNo, dummy2 = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
-                    if weekNo == week:
-                        endId = bikeData[i]["end_station_id"]
-                        if endId in stationNames:
-                            trafficAtStation[endId] = True                     
-                #print("   y:", y, " m:", f'{m:02d}', end="") 
+                if int(file[5:7]) in weekMonths(week):
+                    jsonFile = gzip.open(os.path.join(tripDataPath, file), "rb")
+                    bikeData = json.loads(jsonFile.read())
+                    for i in range(len(bikeData)):
+                        dummy1, weekNo, dummy2 = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
+                        if weekNo == week:
+                            startId = bikeData[i]["start_station_id"]
+                            if startId in stationNames:
+                                trafficAtStation[startId] = True 
+                        dummy1, weekNo, dummy2 = yearWeekNoAndDay(bikeData[i]["ended_at"][0:10])
+                        if weekNo == week:
+                            endId = bikeData[i]["end_station_id"]
+                            if endId in stationNames:
+                                trafficAtStation[endId] = True                     
+                    #print("   y:", y, " m:", f'{m:02d}', end="") 
         progress.next()
     progress.finish()
 
@@ -199,7 +200,7 @@ def tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
     
     years = [] 
 
-    progress = Bar("Read data from files ", max = len(fileList))
+    progress = Bar("Read data from files          ", max = len(fileList))
     for file in fileList:
         if file.endswith(".json.gz"):
             if int(file[5:7]) in weekMonths(week):
@@ -247,7 +248,7 @@ def tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
         raise Exception("*** Sorry, no trip data found for given city and week")
 
     # Calculate average durations, durations in minutes
-    progress = Bar("Calculate durations  ", max = len(stationMap))
+    progress = Bar("Calculate durations           ", max = len(stationMap))
     avgDuration = []
     durationStdDev = []
 
@@ -286,7 +287,7 @@ def tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
         progress.next()
     progress.finish()
 
-    progress = Bar("Calculate traveltime ", max = len(stationMap))
+    progress = Bar("Calculate traveltime          ", max = len(stationMap))
     ttVehicleMatrix = []
     #ttVehicleMatrixStdDev = []
     for s in stationMap:
@@ -303,7 +304,7 @@ def tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
     progress.finish()
     
     # Calculate arrive and leave-intensities and move_probabilities
-    progress = Bar("Calculate intensities", max = len(stationMap))
+    progress = Bar("Calculate intensities         ", max = len(stationMap))
     noOfYears = len(years)
     arrive_intensities = []  
     arrive_intensities_stdev = []  

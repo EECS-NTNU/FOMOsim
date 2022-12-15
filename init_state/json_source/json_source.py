@@ -18,7 +18,7 @@ import settings
 import init_state
 from helpers import yearWeekNoAndDay
 
-def download(url, YMpairs, tripDataPath):    
+def download(week, url, YMpairs, tripDataPath):    
 
     def loadMonth(yearNo, monthNo, alreadyLoadedFiles):
         fileName = f"{yearNo}-{monthNo:02}.json.gz"
@@ -51,8 +51,9 @@ def download(url, YMpairs, tripDataPath):
     progress = Bar("Download datafiles   ", max = len(YMpairs))
     notFoundYMpairs = []
     for p in YMpairs:
-        if not loadMonth(p[0], p[1], file_list):
-            notFoundYMpairs.append(p)
+        if p[1] in init_state.weekMonths(week):
+            if not loadMonth(p[0], p[1], file_list):
+                notFoundYMpairs.append(p)
         progress.next()
     if len(notFoundYMpairs) > 0:
         print("   Warning: Could not load tripdata from " + url + " for these year/month pairs:", end="") 
@@ -76,7 +77,7 @@ def get_initial_state(city, urlHistorical, urlGbfs, week, fromInclude=[2018, 5],
 
     YMpairs = init_state.generateYMpairs(fromInclude, toInclude)
 
-    download(urlHistorical, YMpairs, tripDataPath) 
+    download(week, urlHistorical, YMpairs, tripDataPath) 
     init_state.downloadStationInfo(urlGbfs, tripDataPath)
 
     return init_state.tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier)

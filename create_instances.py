@@ -91,6 +91,8 @@ if __name__ == "__main__":
         for week in instance["weeks"]:
             instance_name = instance["abbrv"]+'_W'+str(week)
 
+            print(f"\n\nGenerating instance {instance_name}\n")
+
             if instance["source"] == init_state.csv_source:
                 init_state.create_and_save_state(name=instance_name, 
                                                  city=instance["city"],
