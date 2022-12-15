@@ -18,9 +18,9 @@ from helpers import timeInMinutes
 
 from output.plots import cityTrafficStats
 
-START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=24*5)
-#DURATION = timeInMinutes(hours=2)
+START_TIME = timeInMinutes(hours=6)
+DURATION = timeInMinutes(hours=16)
+# DURATION = timeInMinutes(hours=2)
 INSTANCE = 'TD_W34'
 WEEK = 34
 
@@ -90,12 +90,13 @@ def main():
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
 
     #If comparissons between roaming=True and roaming=False: 
-    print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
-    print(f"Different pickup quantities = {simulator.metrics.get_aggregate_value('different_pickup_quantity')}")
-    print(f"Different deliver quantities = {simulator.metrics.get_aggregate_value('different_deliver_quantity')}")
-    print(f"Number of overlaps = {simulator.metrics.get_aggregate_value('overlap')}")
-    print(f"Number of identical choices = {simulator.metrics.get_aggregate_value('same_choice')}")
-    print(f"Number of subproblems solved = {simulator.metrics.get_aggregate_value('number_of_subproblems')}")
+    print(f"Different station choices = {simulator.metrics.get_aggregate_value('Different station choice')}")
+    print(f"Different pickup quantities = {simulator.metrics.get_aggregate_value('Different pickup quantity')}")
+    print(f"Different deliver quantities = {simulator.metrics.get_aggregate_value('Different delivery quantity')}")
+    print(f"Number of overlaps = {simulator.metrics.get_aggregate_value('Overlap')}")
+    print(f"Number of identical choices = {simulator.metrics.get_aggregate_value('Same choice')}")
+    print(f"Number of subproblems solved = {simulator.metrics.get_aggregate_value('Number of subproblems')}")
+    print(f"Number of different choices = {simulator.metrics.get_aggregate_value('Different choice')}")
     
     # Output to file
 
@@ -108,10 +109,13 @@ def main():
     output.visualize_heatmap([simulator], metric="trips")
 
 #If comparissons between roaming=True and roaming=False : 
-    output.visualize([simulator.metrics], metric="different_station_choice")
-    output.visualize([simulator.metrics], metric="different_pickup_quantity")
-    output.visualize([simulator.metrics], metric="different_deliver_quantity")
-    output.visualize([simulator.metrics], metric="number_of_subproblems")
+    output.visualize([simulator.metrics], metric="Different station choice")
+    output.visualize([simulator.metrics], metric="Different pickup quantity")
+    output.visualize([simulator.metrics], metric="Different delivery quantity")
+    output.visualize([simulator.metrics], metric="Number of subproblems")
+    output.visualize([simulator.metrics], metric="Different choice")
+    output.visualize([simulator.metrics], metric="Same choice")
+    output.visualize([simulator.metrics], metric="Overlap")
     
     
 # show travel times for a given bike
