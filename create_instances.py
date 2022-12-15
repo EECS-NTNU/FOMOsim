@@ -5,6 +5,7 @@ FOMO simulator, create jobs to run on cluster
 
 import init_state
 import init_state.cityBike
+import init_state.csv_reader
 
 from helpers import *
 
@@ -20,20 +21,32 @@ instances = [
          urlHistorical="https://s3.amazonaws.com/tripdata/",
          urlGbfs="http://gbfs.citibikenyc.com/gbfs/en",
          filename_format="%Y%m-citibike-tripdata.csv.zip",
-         mapdata=("oslo.png", (10.6365, 10.8631, 59.8843, 59.9569)),
+         mapdata=None,
          numbikes=None,
          numstations=None,
          weeks=[31]),
 
-    dict(source=init_state.cityBike,
-         city="Trondheim",
-         abbrv="TD",
-         urlHistorical="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
-         urlGbfs="https://gbfs.urbansharing.com/trondheimbysykkel",
-         mapdata=("trondheim.png", (10.3339, 10.4808, 63.3930, 63.4597)),
+    dict(source=init_state.csv_reader,
+         city="Boston",
+         abbrv="BO",
+         urlHistorical="https://s3.amazonaws.com/hubway-data/",
+         urlGbfs="https://gbfs.bluebikes.com/gbfs/en",
+         filename_format="%Y%m-bluebikes-tripdata.zip",
+         mapdata=None,
          numbikes=None,
          numstations=None,
-         weeks=[34]),
+         weeks=[31]),
+
+    dict(source=init_state.csv_reader,
+         city="Chicago",
+         abbrv="CH",
+         urlHistorical="https://divvy-tripdata.s3.amazonaws.com/",
+         urlGbfs="https://gbfs.divvybikes.com/gbfs/en",
+         filename_format="%Y%m-divvy-tripdata.zip",
+         mapdata=None,
+         numbikes=None,
+         numstations=None,
+         weeks=[31]),
 
     # dict(source=init_state.cityBike,
     #      city="Oslo",
@@ -82,8 +95,9 @@ if __name__ == "__main__":
             instance_name = instance["abbrv"]+'_W'+str(week)
 
             if instance["source"] == init_state.csv_reader:
-                init_state.create_and_save_state(instance_name, 
-                                                 INSTANCE_DIRECTORY + "/" + instance_name,
+                init_state.create_and_save_state(name=instance_name, 
+                                                 city=instance["city"],
+                                                 filename=INSTANCE_DIRECTORY + "/" + instance_name,
                                                  source=instance["source"],
                                                  urlHistorical=instance["urlHistorical"],
                                                  urlGbfs=instance["urlGbfs"],
@@ -95,8 +109,9 @@ if __name__ == "__main__":
                                                  )
 
             else:
-                init_state.create_and_save_state(instance_name, 
-                                                 INSTANCE_DIRECTORY + "/" + instance_name,
+                init_state.create_and_save_state(name=instance_name,
+                                                 city=instance["city"],
+                                                 filename=INSTANCE_DIRECTORY + "/" + instance_name,
                                                  source=instance["source"],
                                                  urlHistorical=instance["urlHistorical"],
                                                  urlGbfs=instance["urlGbfs"],

@@ -1,6 +1,7 @@
 from xml.dom.expatbuilder import parseString
 import sim
 import json
+import gzip
 import os
 import os.path
 import requests
@@ -52,8 +53,8 @@ def downloadStationInfo(gbfsStart, tripDataPath):
         stationInfo =  requests.get(address)
         if stationInfo.status_code != 200: # 200 is OK, non-existent files will have status 404
             raise Exception("*** Error: could not read station info from: " + address)
-        stationInfoFile = open(f"{tripDataPath}/stationinfo.text", "w")
-        stationInfoFile.write(stationInfo.text)
+        stationInfoFile = gzip.open(f"{tripDataPath}/stationinfo.text.gz", "wb")
+        stationInfoFile.write(stationInfo.text.encode())
         stationInfoFile.close()
         print("   Info: station information has been read from " + gbfsStart)
   
@@ -63,8 +64,8 @@ def downloadStationInfo(gbfsStart, tripDataPath):
         stationStatus =  requests.get(address)
         if stationStatus.status_code != 200: # 200 is OK, non-existent files will have status 404
             raise Exception("*** Error: could not read station status from: " + address)
-        stationStatusFile = open(f"{tripDataPath}/stationstatus.text", "w")
-        stationStatusFile.write(stationStatus.text)
+        stationStatusFile = gzip.open(f"{tripDataPath}/stationstatus.text.gz", "wb")
+        stationStatusFile.write(stationStatus.text.encode())
         stationStatusFile.close()
         print("   Info: station status has been read from " + gbfsStart)
     # else:
@@ -93,11 +94,11 @@ def parse_json(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
             self.longitude = longitude
             self.latitude = latitude
 
-    stationInfoFile = open(f"{tripDataPath}/stationinfo.text", "r")
+    stationInfoFile = gzip.open(f"{tripDataPath}/stationinfo.text.gz", "rb")
     allData = json.loads(stationInfoFile.read())
     stationInfoData = allData["data"]
 
-    stationStatusFile = open(f"{tripDataPath}/stationstatus.text", "r")
+    stationStatusFile = gzip.open(f"{tripDataPath}/stationstatus.text.gz", "rb")
     allData = json.loads(stationStatusFile.read())
     stationStatusData = allData["data"]
 
@@ -106,6 +107,12 @@ def parse_json(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
     stationCapacities = {}
     stationNames = {}
     trafficAtStation = {}
+
+    # Get num_bikes_available from stationStatusData
+    for i in range(len(stationStatusData["stations"])):
+        id = stationStatusData["stations"][i]["station_id"]
+        numBikes = stationStatusData["stations"][i]["num_bikes_available"]
+        stationNumBikes[id] = numBikes
 
     # Read info about active stations
     for i in range(len(stationInfoData["stations"])): # loop thru all active stations
@@ -116,10 +123,7 @@ def parse_json(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
         stationCapacities[id] = stationInfoData["stations"][i]["capacity"]
         stationNames[id] = stationInfoData["stations"][i]["name"]
 
-        if stationStatusData["stations"][i]["station_id"]  == id: # check that it is same station
-            stationNumBikes[id] = stationStatusData["stations"][i]["num_bikes_available"]
-        else:
-            raise Exception("Error: stationInfoData and stationStatusData differs")
+    assert(len(stationNumBikes) == len(stationLocations))
     
 
     ###################################################################################################
@@ -128,12 +132,12 @@ def parse_json(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
     progress = Bar("Read data from files, find stations with traffic for given week", max = len(fileList))
     trafficAtStation = {} # indexed by id, stores stations with at least one arrival or departure 
     for file in fileList:
-        if file.endswith(".json"):
+        if file.endswith(".json.gz"):
             y = int(file[0:4])
             m = int(file[5:7])
 
             if [y, m] in YMpairs: 
-                jsonFile = open(os.path.join(tripDataPath, file), "r")
+                jsonFile = gzip.open(os.path.join(tripDataPath, file), "rb")
                 bikeData = json.loads(jsonFile.read())
                 for i in range(len(bikeData)):
                     dummy1, weekNo, dummy2 = yearWeekNoAndDay(bikeData[i]["started_at"][0:10])
@@ -195,9 +199,9 @@ def parse_json(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
 
     progress = Bar("Read data from files ", max = len(fileList))
     for file in fileList:
-        if file.endswith(".json"):
+        if file.endswith(".json.gz"):
             if int(file[5:7]) in weekMonths(week):
-                jsonFile = open(os.path.join(tripDataPath, file), "r")
+                jsonFile = gzip.open(os.path.join(tripDataPath, file), "rb")
                 bikeData = json.loads(jsonFile.read())
                 for i in range(len(bikeData)):
                     startStationNo = -1

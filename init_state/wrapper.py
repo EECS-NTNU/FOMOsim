@@ -10,14 +10,16 @@ import sim
 import settings
 from helpers import lock, unlock
 
-def get_initial_state(name, source, number_of_stations=None, number_of_bikes=None, mapdata=None, **kwargs):
+def get_initial_state(name, source, number_of_stations=None, number_of_bikes=None, mapdata=None, city=None, **kwargs):
     # create initial state
     statedata = { "name" : name }
     if mapdata is not None:
         statedata["map"] = mapdata[0]
         statedata["map_boundingbox"] = mapdata[1]
 
-    statedata.update(source.get_initial_state(city=name, **kwargs))
+    if city is None: city = name
+
+    statedata.update(source.get_initial_state(city=city, **kwargs))
 
     # create subset of stations
     if number_of_stations is not None:
@@ -55,14 +57,16 @@ def read_initial_state(jsonFilename, number_of_stations=None, number_of_bikes=No
 
     return None
 
-def create_and_save_state(name, filename, source, number_of_stations=None, number_of_bikes=None, mapdata=None, **kwargs):
+def create_and_save_state(name, filename, source, number_of_stations=None, number_of_bikes=None, mapdata=None, city=None, **kwargs):
     # create initial state
     statedata = { "name" : name }
     if mapdata is not None:
         statedata["map"] = mapdata[0]
         statedata["map_boundingbox"] = mapdata[1]
 
-    statedata.update(source.get_initial_state(city=name, **kwargs))
+    if city is None: city = name
+
+    statedata.update(source.get_initial_state(city=city, **kwargs))
 
     # create subset of stations
     if number_of_stations is not None:

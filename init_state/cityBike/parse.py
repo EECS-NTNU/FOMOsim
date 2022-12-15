@@ -7,6 +7,7 @@ import os
 import os.path
 import requests
 import geopy.distance
+import gzip
 import datetime
 from datetime import date
 import numpy as np
@@ -23,7 +24,7 @@ tripDataDirectory = "init_state/data/" # location of tripData
 def download(url, YMpairs, tripDataPath):    
 
     def loadMonth(yearNo, monthNo, alreadyLoadedFiles):
-        fileName = f"{yearNo}-{monthNo:02}.json"
+        fileName = f"{yearNo}-{monthNo:02}.json.gz"
         if fileName in alreadyLoadedFiles:
             if yearNo == datetime.date.today().year  and monthNo == datetime.date.today().month:
                 print("   Warning: We found locally stored trip-data for the current month, it will be used, BUT the file should be deleted since it is incomplete")
@@ -39,8 +40,8 @@ def download(url, YMpairs, tripDataPath):
             data = requests.get(address)
             if data.status_code == 200: # non-existent files will have status 404
                 # print(f"downloads {city} {fileName} ...") # debug
-                dataOut = open(f"{tripDataPath}/{fileName}", "w")
-                dataOut.write(data.text)
+                dataOut = gzip.open(f"{tripDataPath}/{fileName}", "w")
+                dataOut.write(data.text.encode())
                 dataOut.close()
                 return True
             else:
