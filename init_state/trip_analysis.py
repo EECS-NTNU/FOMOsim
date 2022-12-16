@@ -49,7 +49,7 @@ def log_to_norm(mu_x, stdev_x):
 
 def downloadStationInfo(gbfsStart, tripDataPath):
     # check that stationinfo-file has been downloaded once, if not try to do so 
-    if not os.path.isfile(f"{tripDataPath}/stationinfo.text"): 
+    if not os.path.isfile(f"{tripDataPath}/stationinfo.text.gz"): 
         gbfsTailInfo = "/station_information.json"
         address = gbfsStart + gbfsTailInfo
         stationInfo =  requests.get(address)
@@ -60,7 +60,7 @@ def downloadStationInfo(gbfsStart, tripDataPath):
         stationInfoFile.close()
         # print("   Info: station information has been read from " + gbfsStart)
   
-    if not os.path.isfile(f"{tripDataPath}/stationstatus.text"):
+    if not os.path.isfile(f"{tripDataPath}/stationstatus.text.gz"):
         gbfsTailStatus = "/station_status.json"
         address = gbfsStart + gbfsTailStatus  
         stationStatus =  requests.get(address)
@@ -232,10 +232,13 @@ def tripAnalysis(tripDataPath, YMpairs, week, trafficMultiplier=1.0):
                         if year not in leaveCount[startStationNo][weekDay][hour]:
                             leaveCount[startStationNo][weekDay][hour][year] = 0
                         if weekNo == week:
-                            started_at = datetime.strptime(bikeData[i]["started_at"][0:19], "%Y-%m-%d %H:%M:%S")
-                            ended_at = datetime.strptime(bikeData[i]["ended_at"][0:19], "%Y-%m-%d %H:%M:%S")
-                            delta = ended_at - started_at
-                            duration = delta.days * 24 * 60 + delta.seconds / 60
+                            if "duration" in bikeData[i]:
+                                duration = bikeData[i]["duration"]/60
+                            else:
+                                started_at = datetime.strptime(bikeData[i]["started_at"][0:19], "%Y-%m-%d %H:%M:%S")
+                                ended_at = datetime.strptime(bikeData[i]["ended_at"][0:19], "%Y-%m-%d %H:%M:%S")
+                                delta = ended_at - started_at
+                                duration = delta.days * 24 * 60 + delta.seconds / 60
 
                             leaveCount[startStationNo][weekDay][hour][year] += 1
                             moveCount[startStationNo][weekDay][hour][endStationNo] += 1    

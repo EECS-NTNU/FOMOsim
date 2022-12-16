@@ -28,30 +28,7 @@ def main():
     ###############################################################################
     # Get initial state
 
-    # "https://gbfs.urbansharing.com/" + extractCityAndDomainFromURL(url)
-
     # the following is for creating a new initial state from trip data
-    # state = init_state.get_initial_state(source=init_state.csv_source,
-    #                                      name="NewYork",
-    #                                      urlHistorical="https://s3.amazonaws.com/tripdata/",
-    #                                      filename_format="%Y%m-citibike-tripdata.csv.zip",
-    #                                      urlGbfs="http://gbfs.citibikenyc.com/gbfs/en",
-    #                                      week=34)
-
-    # state = init_state.get_initial_state(source=init_state.csv_source,
-    #                                      name="Boston",
-    #                                      urlHistorical="https://s3.amazonaws.com/hubway-data/",
-    #                                      filename_format="%Y%m-bluebikes-tripdata.zip",
-    #                                      urlGbfs="https://gbfs.bluebikes.com/gbfs/en",
-    #                                      week=34)
-
-    # state = init_state.get_initial_state(source=init_state.csv_source,
-    #                                      name="Chicago",
-    #                                      urlHistorical="https://divvy-tripdata.s3.amazonaws.com/",
-    #                                      filename_format="%Y%m-divvy-tripdata.zip",
-    #                                      urlGbfs="https://gbfs.divvybikes.com/gbfs/en",
-    #                                      week=34)
-
     # state = init_state.get_initial_state(source=init_state.json_source,
     #                                      name="Trondheim",
     #                                      urlHistorical="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
@@ -110,21 +87,21 @@ def main():
 
     # Output to file
 
-    output.write_csv(simulator, "output.csv", hourly = False)
+    # output.write_csv(simulator, "output.csv", hourly = False)
 
-    # Plot to screen
+    # # Plot to screen
 
-    output.visualize([simulator.metrics], metric="trips")
-    output.visualize([simulator.metrics], metric="starvation")
-    output.visualize([simulator.metrics], metric="congestion")
-    output.visualize_heatmap([simulator], metric="trips")
+    # output.visualize([simulator.metrics], metric="trips")
+    # output.visualize([simulator.metrics], metric="starvation")
+    # output.visualize([simulator.metrics], metric="congestion")
+    # output.visualize_heatmap([simulator], metric="trips")
 
-    # show travel times for a given bike
-    bikes = simulator.state.get_all_bikes()
-    bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
-    print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
-    output.visualize([bikes[11].metrics], metric="travel_time")
-    output.visualize([bikes[11].metrics], metric="travel_time_congested")
+    # # show travel times for a given bike
+    # bikes = simulator.state.get_all_bikes()
+    # bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
+    # print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
+    # output.visualize([bikes[11].metrics], metric="travel_time")
+    # output.visualize([bikes[11].metrics], metric="travel_time_congested")
 
 
 if __name__ == "__main__":

@@ -48,7 +48,7 @@ def download(week, url, YMpairs, tripDataPath):
 
     file_list = os.listdir(tripDataPath)
 
-    progress = Bar("Download datafiles   ", max = len(YMpairs))
+    progress = Bar("Download datafiles            ", max = len(YMpairs))
     notFoundYMpairs = []
     for p in YMpairs:
         if p[1] in init_state.weekMonths(week):
