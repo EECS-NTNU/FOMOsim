@@ -35,10 +35,10 @@ def createMap(instance_directory, statedata):
         if south > lat: south = lat
 
     # add some space around the outer stations
-    north = geopy.distance.distance(0.5).destination((north, 0), bearing=0)[0]
-    south = geopy.distance.distance(0.5).destination((south, 0), bearing=180)[0]
-    east = geopy.distance.distance(0.5).destination((0, east), bearing=90)[1]
-    west = geopy.distance.distance(0.5).destination((0, west), bearing=270)[1]
+    north = geopy.distance.distance(meters=500).destination((north, 0), bearing=0)[0]
+    south = geopy.distance.distance(meters=500).destination((south, 0), bearing=180)[0]
+    east = geopy.distance.distance(meters=500).destination((0, east), bearing=90)[1]
+    west = geopy.distance.distance(meters=500).destination((0, west), bearing=270)[1]
 
     # create map
     img, _ = ctx.bounds2img(west, south, east, north, source=ctx.providers.OpenStreetMap.Mapnik, ll=True)
