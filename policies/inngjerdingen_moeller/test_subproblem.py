@@ -91,8 +91,8 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         # m.printAttr("X")
         print("Runtime of experiment was", str(round(m.Runtime,2)))
         print("MIP gap was ", str(m.MIPGap))
-        # v=Visualizer(m,d)
-        # v.visualize_route()
+        v=Visualizer(m,d)
+        v.visualize_route()
         # v.visualize_map_and_route()
         # v.visualize_stations()
 
