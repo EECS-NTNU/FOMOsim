@@ -30,7 +30,7 @@ class BikeArrival(Event):
 
         super().perform(world)
 
-        # get arrival station
+        # get arrival station 
         arrival_station = world.state.get_location_by_id(self.arrival_station_id)
 
         if not FULL_TRIP:
@@ -70,6 +70,10 @@ class BikeArrival(Event):
 
                 arrival_station.metrics.add_aggregate_metric(world, "congestion", 1)
                 world.metrics.add_aggregate_metric(world, "congestion", 1)
+                
+                distance = arrival_station.distance_to(next_station.get_lat(), next_station.get_lon())
+                arrival_station.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
+                world.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_station_id}>"

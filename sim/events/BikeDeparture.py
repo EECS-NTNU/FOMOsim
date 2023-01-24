@@ -2,6 +2,7 @@ import sim
 from sim import Event
 from settings import *
 import numpy as np
+import random
 
 class BikeDeparture(Event):
     """
@@ -31,7 +32,7 @@ class BikeDeparture(Event):
             bike = available_bikes.pop(0)
 
             if FULL_TRIP:
-                # get a arrival station from the leave prob distribution
+                # get an arrival station from the leave prob distribution
 
                 p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
                 sum = 0.0
@@ -69,8 +70,57 @@ class BikeDeparture(Event):
             world.state.bike_in_use(bike)
 
         else:
-            departure_station.metrics.add_aggregate_metric(world, "starvation", 1)
-            world.metrics.add_aggregate_metric(world, "starvation", 1)
+            if FULL_TRIP:
+                closest_neighbour_with_bikes = world.state.get_neighbours(departure_station,1,not_empty=True)[0]
+                distance = departure_station.distance_to(closest_neighbour_with_bikes.get_lat(), closest_neighbour_with_bikes.get_lon())
+                random_roaming_limit = random.triangular(0,MAX_ROAMING_DISTANCE)
+                if distance<=random_roaming_limit:
+                    available_bikes = closest_neighbour_with_bikes.get_available_bikes()
+                    bike=available_bikes.pop(0)
+                    p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
+                    sum = 0.0
+                    for i in range(len(p)):
+                        sum += p[i]
+                    p_normalized = []
+                    for i in range(len(p)):
+                        if sum > 0:
+                            p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
+                        else:
+                            p_normalized.append(1/len(p))
+                    arrival_station = world.state.rng.choice(world.state.locations, p = p_normalized)
+
+                    travel_time = world.state.get_travel_time(
+                        closest_neighbour_with_bikes.id,
+                        arrival_station.id,) + world.state.get_travel_time(departure_station.id,
+                        closest_neighbour_with_bikes.id)*(BIKE_SPEED/WALKING_SPEED) 
+                    #total travel time, roaming for bike from departure station to neighbour + cycling to arrival station
+
+                    # calculate arrival time
+
+                    # create an arrival event for the departed bike
+                    world.add_event(
+                        sim.BikeArrival(
+                            self.time,
+                            travel_time,
+                            bike,
+                            arrival_station.id,
+                            closest_neighbour_with_bikes.id,
+                        )
+                    )
+
+                    # remove bike from the departure station
+                    closest_neighbour_with_bikes.remove_bike(bike)
+
+                    world.state.bike_in_use(bike)
+
+                    departure_station.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
+                    world.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
+                    departure_station.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
+                    world.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
+
+                else:
+                    departure_station.metrics.add_aggregate_metric(world, "starvation", 1) 
+                    world.metrics.add_aggregate_metric(world, "starvation", 1)
 
         departure_station.metrics.add_aggregate_metric(world, "trips", 1)
         world.metrics.add_aggregate_metric(world, "trips", 1)

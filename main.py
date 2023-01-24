@@ -19,7 +19,7 @@ from helpers import timeInMinutes
 from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=24*5)
+DURATION = timeInMinutes(hours=5)
 #DURATION = timeInMinutes(hours=2)
 INSTANCE = 'TD_W34'
 WEEK = 34
@@ -49,7 +49,7 @@ def main():
 
     # policy = policies.RandomActionPolicy()
     # policy = policies.GreedyPolicy()
-    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=25)
+    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=15)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
@@ -89,13 +89,13 @@ def main():
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
 
-    #If comparissons between roaming=True and roaming=False: 
-    print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
-    print(f"Different pickup quantities = {simulator.metrics.get_aggregate_value('different_pickup_quantity')}")
-    print(f"Different deliver quantities = {simulator.metrics.get_aggregate_value('different_deliver_quantity')}")
-    print(f"Number of overlaps = {simulator.metrics.get_aggregate_value('overlap')}")
-    print(f"Number of identical choices = {simulator.metrics.get_aggregate_value('same_choice')}")
-    print(f"Number of subproblems solved = {simulator.metrics.get_aggregate_value('number_of_subproblems')}")
+    # #If comparissons between roaming=True and roaming=False: 
+    # print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
+    # print(f"Different pickup quantities = {simulator.metrics.get_aggregate_value('different_pickup_quantity')}")
+    # print(f"Different deliver quantities = {simulator.metrics.get_aggregate_value('different_deliver_quantity')}")
+    # print(f"Number of overlaps = {simulator.metrics.get_aggregate_value('overlap')}")
+    # print(f"Number of identical choices = {simulator.metrics.get_aggregate_value('same_choice')}")
+    # print(f"Number of subproblems solved = {simulator.metrics.get_aggregate_value('number_of_subproblems')}")
     
     # Output to file
 
@@ -106,12 +106,16 @@ def main():
     output.visualize([simulator.metrics], metric="starvation")
     output.visualize([simulator.metrics], metric="congestion")
     output.visualize_heatmap([simulator], metric="trips")
+    
+    output.visualize([simulator.metrics], metric="roaming for bikes")
+    output.visualize([simulator.metrics], metric="roaming distance for bikes")
+    output.visualize([simulator.metrics], metric="roaming distance for locks")
 
-#If comparissons between roaming=True and roaming=False : 
-    output.visualize([simulator.metrics], metric="different_station_choice")
-    output.visualize([simulator.metrics], metric="different_pickup_quantity")
-    output.visualize([simulator.metrics], metric="different_deliver_quantity")
-    output.visualize([simulator.metrics], metric="number_of_subproblems")
+# #If comparissons between roaming=True and roaming=False : 
+#     output.visualize([simulator.metrics], metric="different_station_choice")
+#     output.visualize([simulator.metrics], metric="different_pickup_quantity")
+#     output.visualize([simulator.metrics], metric="different_deliver_quantity")
+#     output.visualize([simulator.metrics], metric="number_of_subproblems")
     
     
 # show travel times for a given bike
