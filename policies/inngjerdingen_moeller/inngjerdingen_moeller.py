@@ -20,27 +20,27 @@ class InngjerdingenMoellerPolicy(Policy):
         #v=Visualizer(gurobi_output,data)
         #v.visualize_route()
 
+################################################################################
         #Compare without roaming
-        gurobi_output_no_roaming = run_model(data, False)
-        next_station2, bikes_to_pickup2, bikes_to_deliver2  = self.return_solution(gurobi_output_no_roaming, vehicle)
-        if next_station2 != next_station: 
-            simul.metrics.add_aggregate_metric(simul, "Different station choice", 1)
+        # gurobi_output_no_roaming = run_model(data, False)
+        # next_station2, bikes_to_pickup2, bikes_to_deliver2  = self.return_solution(gurobi_output_no_roaming, vehicle)
+        # if next_station2 != next_station: 
+        #     simul.metrics.add_aggregate_metric(simul, "different_station_choice", 1)
 
-        if len(bikes_to_pickup2) != len(bikes_to_pickup): #only care about length of bicycle list
-            simul.metrics.add_aggregate_metric(simul, "Different pickup quantity", 1)
-        elif len(bikes_to_deliver2) != len(bikes_to_deliver):
-            simul.metrics.add_aggregate_metric(simul, "Different delivery quantity", 1)
+        # if len(bikes_to_pickup2) != len(bikes_to_pickup): #only care about length of bicycle list
+        #     simul.metrics.add_aggregate_metric(simul, "different_pickup_quantity", 1)
+        # elif len(bikes_to_deliver2) != len(bikes_to_deliver):
+        #     simul.metrics.add_aggregate_metric(simul, "different_deliver_quantity", 1)
         
-        if next_station2 != next_station and (len(bikes_to_pickup2) != len(bikes_to_pickup) or len(bikes_to_deliver2) != len(bikes_to_deliver)):
-            simul.metrics.add_aggregate_metric(simul, "Overlap", 1)
+        # if next_station2 != next_station and (len(bikes_to_pickup2) != len(bikes_to_pickup) or len(bikes_to_deliver2) != len(bikes_to_deliver)):
+        #     simul.metrics.add_aggregate_metric(simul, "overlap", 1)
 
-        if next_station2 == next_station and len(bikes_to_pickup2) == len(bikes_to_pickup) and len(bikes_to_deliver2) == len(bikes_to_deliver):
-            simul.metrics.add_aggregate_metric(simul, "Same choice", 1)
+        # if next_station2 == next_station and len(bikes_to_pickup2) == len(bikes_to_pickup) and len(bikes_to_deliver2) == len(bikes_to_deliver):
+        #     simul.metrics.add_aggregate_metric(simul, "same_choice", 1)
 
-        if next_station2 != next_station or len(bikes_to_pickup2) != len(bikes_to_pickup) or len(bikes_to_deliver2) != len(bikes_to_deliver):
-            simul.metrics.add_aggregate_metric(simul, "Different choice", 1)
-
-        simul.metrics.add_aggregate_metric(simul, "Number of subproblems", 1) 
+        # simul.metrics.add_aggregate_metric(simul, "number_of_subproblems", 1) 
+        
+################################################################################
         
         return sim.Action(
             [],               # batteries to swap

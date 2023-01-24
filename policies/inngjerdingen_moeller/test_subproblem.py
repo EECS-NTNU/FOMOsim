@@ -12,7 +12,9 @@ from visualize_subproblem import Visualizer
 
 def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau, duration, number_of_runs, number_of_vehicles, roaming):
         results = dict()
-        start_stations = [0,5,10,15,20,25,30,35,40]
+        start_stations = [0,5,10,15,20,25,30,35,40] #use this for Trondheim
+        # start_stations = [4,5,10,15,20,25,30,35,40] #use this for Oslo
+        # start_stations = [0,1,2,3,4,5,6,7,0,  1,2,3,4,5,6,7,0,1, 2,3,4,5,6,7,0,1,2] #use this for Edinburgh
         for test_number in range(0, number_of_runs):
                 if test_number > 2 and test_number < 6:
                         start_hour = 12
@@ -27,8 +29,8 @@ def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau
                 policy = InngjerdingenMoellerPolicy()
                 test_state.set_vehicles([policy for _ in range(0,number_of_vehicles)])
                 for vehicle in range(0,number_of_vehicles):
-                        test_state.vehicles[vehicle].location = test_state.locations[start_stations[test_number] + 5*vehicle]
-                        #test_state.vehicles[vehicle].location = test_state.locations[start_stations[test_number]]
+                        test_state.vehicles[vehicle].location = test_state.locations[start_stations[test_number] + 5*vehicle]  #use this for Trondheim and Oslo
+                        # test_state.vehicles[vehicle].location = test_state.locations[start_stations[test_number+9*vehicle]] #use this for Edinburgh
                 test_simul = sim.Simulator(
                         initial_state = test_state,
                         target_state = t_state,
@@ -86,25 +88,26 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         # d.deep_dive_test_2()
         m=run_model(d, roaming)
         
-        m.printAttr("X")
+        # m.printAttr("X")
         print("Runtime of experiment was", str(round(m.Runtime,2)))
         print("MIP gap was ", str(m.MIPGap))
-        # v=Visualizer(m,d)
-        # v.visualize_route()
+        v=Visualizer(m,d)
+        v.visualize_route()
         # v.visualize_map_and_route()
         # v.visualize_stations()
 
 if __name__ == "__main__":
 # ------------ TESTING DATA MANUALLY ---------------
-        #filename = "instances/EH_W31"
+        # filename = "instances/EH_W31"
         filename = "instances/TD_W34" 
         # filename = "instances/OS_W31"
+        # filename = "instances/BG_W35"
 
         START_DAY = 0 #0 -> monday ,days other than 0 results in target inventory = 0 for all stations
         START_HOUR = 8 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
-        time_horizon = 35
+        time_horizon = 15
         tau = 5
         number_of_runs = 9
         number_of_vehicles = 1

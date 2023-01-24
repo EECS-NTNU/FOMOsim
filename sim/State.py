@@ -300,6 +300,7 @@ class State(LoadSave):
         is_sorted=True,
         exclude=None,
         not_full=False,
+        not_empty=False
     ):
         """
         Get sorted list of stations closest to input station
@@ -324,6 +325,19 @@ class State(LoadSave):
                         if state_location.id != location.id
                         and state_location.id not in (exclude if exclude else [])
                         and state_location.spare_capacity() >= 1
+                    ],
+                    key=lambda state_location: self.traveltime_matrix[location.id][
+                        state_location.id
+                    ],
+                )
+            elif not_empty:
+                neighbours = sorted(
+                    [
+                        state_location
+                        for state_location in self.locations
+                        if state_location.id != location.id
+                        and state_location.id not in (exclude if exclude else [])
+                        and len(state_location.get_available_bikes()) >= 1
                     ],
                     key=lambda state_location: self.traveltime_matrix[location.id][
                         state_location.id
