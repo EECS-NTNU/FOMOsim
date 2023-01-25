@@ -4,7 +4,8 @@ FOMO simulator, create jobs to run on cluster
 """
 
 import init_state
-import init_state.cityBike
+import init_state.json_source
+import init_state.csv_source
 
 from helpers import *
 
@@ -14,34 +15,69 @@ INSTANCE_DIRECTORY="instances"
 
 instances = [
 
-    dict(city="Oslo",
+    dict(source=init_state.csv_source,
+         city="NewYork",
+         abbrv="NY",
+         urlHistorical="https://s3.amazonaws.com/tripdata/",
+         urlGbfs="http://gbfs.citibikenyc.com/gbfs/en",
+         filename_format="%Y%m-citibike-tripdata.csv.zip",
+         numbikes=None,
+         numstations=None,
+         weeks=[31]),
+
+    dict(source=init_state.csv_source,
+         city="Boston",
+         abbrv="BO",
+         urlHistorical="https://s3.amazonaws.com/hubway-data/",
+         urlGbfs="https://gbfs.bluebikes.com/gbfs/en",
+         filename_format="%Y%m-bluebikes-tripdata.zip",
+         numbikes=None,
+         numstations=None,
+         weeks=[31]),
+
+    # does not work because station_id is not set correctly (mismatch gbfs and historical data)
+    # dict(source=init_state.csv_source,
+    #      city="Chicago",
+    #      abbrv="CH",
+    #      urlHistorical="https://divvy-tripdata.s3.amazonaws.com/",
+    #      urlGbfs="https://gbfs.divvybikes.com/gbfs/en",
+    #      filename_format="%Y%m-divvy-tripdata.zip",
+    #      numbikes=None,
+    #      numstations=None,
+    #      weeks=[31]),
+
+    dict(source=init_state.json_source,
+         city="Oslo",
          abbrv="OS",
-         url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",
-         mapdata=("oslo.png", (10.6365, 10.8631, 59.8843, 59.9569)),
+         urlHistorical="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",
+         urlGbfs="https://gbfs.urbansharing.com/oslobysykkel.no",
          numbikes=2885,
          numstations=None,
          weeks=[10,22,31,50]),
 
-    dict(city="Bergen",
+    dict(source=init_state.json_source,
+         city="Bergen",
          abbrv="BG",
-         url="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",
-         mapdata=("bergen.png", (5.2484, 5.3953, 60.3501, 60.4346)),
+         urlHistorical="https://data.urbansharing.com/bergenbysykkel.no/trips/v1/",
+         urlGbfs="https://gbfs.urbansharing.com/bergenbysykkel.no",
          numbikes=1000,
          numstations=None,
          weeks=[8,25,35,45]),
 
-    dict(city="Trondheim",
+    dict(source=init_state.json_source,
+         city="Trondheim",
          abbrv="TD",
-         url="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
-         mapdata=("trondheim.png", (10.3339, 10.4808, 63.3930, 63.4597)),
+         urlHistorical="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
+         urlGbfs="https://gbfs.urbansharing.com/trondheimbysykkel.no",
          numbikes=768,
          numstations=None,
          weeks=[17,21,34,44]),
 
-    dict(city="Edinburgh",
+    dict(source=init_state.json_source,
+         city="Edinburgh",
          abbrv="EH",
-         url="https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",
-         mapdata=("edinburgh.png", (-3.2592, -3.1122, 55.9109, 55.9936)),
+         urlHistorical="https://data.urbansharing.com/edinburghcyclehire.com/trips/v1/",
+         urlGbfs="https://gbfs.urbansharing.com/edinburghcyclehire.com",
          numbikes=140,
          numstations=None,
          weeks=[10,22,31,50]),
@@ -55,12 +91,30 @@ if __name__ == "__main__":
     for instance in instances:
         for week in instance["weeks"]:
             instance_name = instance["abbrv"]+'_W'+str(week)
-            init_state.create_and_save_state(instance_name, 
-                                             INSTANCE_DIRECTORY + "/" + instance_name,
-                                             source=init_state.cityBike,
-                                             url=instance["url"],
-                                             number_of_bikes=instance["numbikes"],
-                                             number_of_stations=instance["numstations"],
-                                             week=week,
-                                             mapdata=instance["mapdata"],
-                                             )
+
+            print(f"\n\nGenerating instance {instance_name}\n")
+
+            if instance["source"] == init_state.csv_source:
+                init_state.create_and_save_state(name=instance_name, 
+                                                 city=instance["city"],
+                                                 instance_directory=INSTANCE_DIRECTORY,
+                                                 source=instance["source"],
+                                                 urlHistorical=instance["urlHistorical"],
+                                                 urlGbfs=instance["urlGbfs"],
+                                                 filename_format=instance["filename_format"],
+                                                 number_of_bikes=instance["numbikes"],
+                                                 number_of_stations=instance["numstations"],
+                                                 week=week,
+                                                 )
+
+            else:
+                init_state.create_and_save_state(name=instance_name,
+                                                 city=instance["city"],
+                                                 instance_directory=INSTANCE_DIRECTORY,
+                                                 source=instance["source"],
+                                                 urlHistorical=instance["urlHistorical"],
+                                                 urlGbfs=instance["urlGbfs"],
+                                                 number_of_bikes=instance["numbikes"],
+                                                 number_of_stations=instance["numstations"],
+                                                 week=week,
+                                                 )

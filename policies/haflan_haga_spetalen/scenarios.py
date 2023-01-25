@@ -28,7 +28,7 @@ def generate_scenarios(state: sim.State, start_time = 0, end_time = 7*24*60, num
                 cluster_indices = np.arange(len(state.locations))
                 for i in range(number_of_scenarios):
                     one_scenario = []
-                    for cluster in state.stations.values():
+                    for cluster in state.locations:
                         number_of_trips = round(
                             state.rng.poisson(cluster.get_leave_intensity(day, hour))
                         )

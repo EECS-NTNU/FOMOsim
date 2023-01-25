@@ -31,7 +31,7 @@ class State(LoadSave):
         self.vehicles = vehicles
         self.bikes_in_use = bikes_in_use
 
-        self.set_locations(stations)
+        self.set_stations(stations)
 
         self.traveltime_matrix = traveltime_matrix
         self.traveltime_matrix_stddev = traveltime_matrix_stddev
@@ -152,9 +152,9 @@ class State(LoadSave):
         
         return traveltime_matrix
 
-    def set_locations(self, locations):
+    def set_stations(self, locations):
         self.locations = locations
-        self.stations = { station.id : station for station in locations if not isinstance(station, sim.Depot) }
+        self.stations = { station.id : station for station in locations }
         self.depots = { station.id : station for station in locations if isinstance(station, sim.Depot) }
 
     def set_seed(self, seed):

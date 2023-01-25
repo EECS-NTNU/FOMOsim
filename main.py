@@ -2,9 +2,11 @@
 """
 FOMO simulator example
 """
+
 from settings import *
 import init_state
-import init_state.cityBike
+import init_state.json_source
+import init_state.csv_source
 import target_state
 import policies
 import policies.fosen_haldorsen
@@ -30,13 +32,11 @@ def main():
     # Get initial state
 
     # the following is for creating a new initial state from trip data
-    # state = init_state.get_initial_state(name="Oslo",
-    #                                      source=init_state.cityBike,
-    #                                      number_of_stations=None,
-    #                                      number_of_bikes=2000,
-    #                                      mapdata=("instances/oslo.png", (10.6365, 10.8631, 59.8843, 59.9569)),
-    #                                      url="https://data.urbansharing.com/oslobysykkel.no/trips/v1/",
-    #                                      week=31)
+    # state = init_state.get_initial_state(source=init_state.json_source,
+    #                                      name="Trondheim",
+    #                                      urlHistorical="https://data.urbansharing.com/trondheimbysykkel.no/trips/v1/",
+    #                                      urlGbfs="https://gbfs.urbansharing.com/trondheimbysykkel.no",
+    #                                      week=34)
 
     # the following is for reading a precalculated initial state from a json file
     state = init_state.read_initial_state("instances/"+INSTANCE);
@@ -101,7 +101,8 @@ def main():
 
     output.write_csv(simulator, "output.csv", hourly = False)
 
-    # Plot to screen
+    # # Plot to screen
+
     output.visualize([simulator.metrics], metric="trips")
     output.visualize([simulator.metrics], metric="starvation")
     output.visualize([simulator.metrics], metric="congestion")
