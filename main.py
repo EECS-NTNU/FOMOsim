@@ -21,15 +21,10 @@ from helpers import timeInMinutes
 from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-<<<<<<< HEAD
 DURATION = timeInMinutes(hours=24*3)
 #DURATION = timeInMinutes(hours=2)
-INSTANCE = 'TD_W34'
-WEEK = 34
-=======
-DURATION = timeInMinutes(hours=24)
-INSTANCE = 'TD_W34'
->>>>>>> main
+INSTANCE = 'OS_W31'
+WEEK = 31
 
 def main():
 
@@ -106,12 +101,8 @@ def main():
 
     output.write_csv(simulator, "output.csv", hourly = False)
 
-<<<<<<< HEAD
-    # Plot to screen
-=======
     # # Plot to screen
 
->>>>>>> main
     output.visualize([simulator.metrics], metric="trips")
     output.visualize([simulator.metrics], metric="starvation")
     output.visualize([simulator.metrics], metric="congestion")
@@ -130,6 +121,7 @@ def main():
     
 # show travel times for a given bike
     bikes = simulator.state.get_all_bikes()
+    print(len(bikes))
     bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
     print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
     output.visualize([bikes[11].metrics], metric="travel_time")

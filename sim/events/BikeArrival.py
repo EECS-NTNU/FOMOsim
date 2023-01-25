@@ -77,3 +77,4 @@ class BikeArrival(Event):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_station_id}>"
+ 
