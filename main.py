@@ -12,7 +12,7 @@ import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
-import policies.inngjerdingen_moeller.inngjerdingen_moeller
+import policies.inngjerdingen_moeller
 import sim
 import output
 import demand
@@ -21,10 +21,10 @@ from helpers import timeInMinutes
 from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=5)
+DURATION = timeInMinutes(hours=7)
 #DURATION = timeInMinutes(hours=2)
-INSTANCE = 'TD_W34'
-WEEK = 34
+INSTANCE = 'OS_W31'
+WEEK = 31
 
 def main():
 
@@ -48,8 +48,8 @@ def main():
     # Each vehicle has an associated policy
 
     # policy = policies.RandomActionPolicy()
-    # policy = policies.GreedyPolicy()
-    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=15)
+    policy = policies.GreedyPolicy()
+    # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=15)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
@@ -87,7 +87,13 @@ def main():
     print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
+    print(f"Roaming for bikes = {simulator.metrics.get_aggregate_value('roaming for bikes')}")
+    print(f"Roaming distance for bikes = {simulator.metrics.get_aggregate_value('roaming distance for bikes')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
+    print(f"Roaming distance for locks = {simulator.metrics.get_aggregate_value('roaming distance for locks')}")
+    
+    results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
+    results_visualizer.visualize_violations_and_roaming()
 
     # #If comparissons between roaming=True and roaming=False: 
     # print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
@@ -106,11 +112,11 @@ def main():
     output.visualize([simulator.metrics], metric="trips")
     output.visualize([simulator.metrics], metric="starvation")
     output.visualize([simulator.metrics], metric="congestion")
-    output.visualize_heatmap([simulator], metric="trips")
+    # output.visualize_heatmap([simulator], metric="trips")
     
-    output.visualize([simulator.metrics], metric="roaming for bikes")
-    output.visualize([simulator.metrics], metric="roaming distance for bikes")
-    output.visualize([simulator.metrics], metric="roaming distance for locks")
+    # output.visualize([simulator.metrics], metric="roaming for bikes")
+    # output.visualize([simulator.metrics], metric="roaming distance for bikes")
+    # output.visualize([simulator.metrics], metric="roaming distance for locks")
 
 # #If comparissons between roaming=True and roaming=False : 
 #     output.visualize([simulator.metrics], metric="different_station_choice")
@@ -120,11 +126,11 @@ def main():
     
     
 # show travel times for a given bike
-    bikes = simulator.state.get_all_bikes()
-    bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
-    print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
-    output.visualize([bikes[11].metrics], metric="travel_time")
-    output.visualize([bikes[11].metrics], metric="travel_time_congested")
+    # bikes = simulator.state.get_all_bikes()
+    # bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
+    # print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
+    # output.visualize([bikes[11].metrics], metric="travel_time")
+    # output.visualize([bikes[11].metrics], metric="travel_time_congested")
 
 
 if __name__ == "__main__":
