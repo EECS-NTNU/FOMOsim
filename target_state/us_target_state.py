@@ -8,9 +8,9 @@ class USTargetState(TargetState):
 
     def update_target_state(self, state, day, hour):
         num_bikes = len(state.get_all_bikes())
-        num_stations = len(state.stations)
+        num_stations = len(state.locations)
 
-        for st in state.stations.values():
+        for st in state.locations:
             cap = st.capacity
             leave = st.historical_leave_intensities[day][hour]
             arrive = st.historical_arrive_intensities[day][hour]

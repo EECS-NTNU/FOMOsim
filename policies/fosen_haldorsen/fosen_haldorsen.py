@@ -42,7 +42,7 @@ class FosenHaldorsenPolicy(Policy):
     def greedy_solve(self, simul, vehicle):
         no_vehicles = len(simul.state.vehicles)
         splits = len(simul.state.stations) // no_vehicles
-        next_st_candidates = list(simul.state.stations.values())[vehicle.id*splits:(vehicle.id+1)*splits] + list(simul.state.depots.values())
+        next_st_candidates = list(simul.state.locations)[vehicle.id*splits:(vehicle.id+1)*splits] + list(simul.state.depots.values())
 
         # Choose next station
         # Calculate criticality score for all stations

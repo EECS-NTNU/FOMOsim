@@ -3,14 +3,14 @@ import json
 import os
 import matplotlib.pyplot as plt
 from matplotlib import cm, colors
-from init_state.cityBike.parse import tripDataDirectory
+import init_state
 import numpy as np
 from helpers import yearWeekNoAndDay
 from progress.bar import Bar
     
 def cityPerWeekStats(p, textFile, city, weeksToMark, color):
     # TODO, no error handling yet. Assume data is loaded
-    tripDataPath = tripDataDirectory + city
+    tripDataPath = init_state.tripDataDirectory + city
     fileList = os.listdir(tripDataPath)
     yearsWeek = [] # for each week, count how many years we have data for that week
     tripsPerWeek = []
@@ -53,7 +53,7 @@ def cityPerWeekStats(p, textFile, city, weeksToMark, color):
 def cityTrafficStats(): # call this from main to produce figure used in paper
     print("Generating traffic statistics for all cities with stored traffic data")
     fig, p = plt.subplots()
-    f = open(f"{tripDataDirectory}/CityTraffic.txt", "w")
+    f = open(f"{init_state.tripDataDirectory}/CityTraffic.txt", "w")
     labels = []
     cityPerWeekStats(p, f, "oslobysykkel", [10, 22, 34, 46], 'b')
     labels.append("Oslo")
@@ -68,7 +68,7 @@ def cityTrafficStats(): # call this from main to produce figure used in paper
     p.set_ylabel("Trips pr. week")
     p.set_xlabel("Week no (1..53)")
     p.legend(labels)
-    plt.savefig(f"{tripDataDirectory}/CityTrafficPerWeek.pdf")
+    plt.savefig(f"{init_state.tripDataDirectory}/CityTrafficPerWeek.pdf")
     plt.show()
     print("Plot is saved at CityTrafficPerWeek.pdf and numbers at CityTraffic.txt")
     

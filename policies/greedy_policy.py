@@ -105,7 +105,7 @@ class GreedyPolicy(Policy):
         else:
             #FILTERING
             tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
-            potential_stations = [station for station in simul.state.stations.values() if station.id not in tabu_list]
+            potential_stations = [station for station in simul.state.locations if station.id not in tabu_list]
             
             net_demands = {station.id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
                             for station in potential_stations}
@@ -160,7 +160,7 @@ class GreedyPolicy(Policy):
                 # commented out by Lasse since it clutters the simulation output
                 # print('no stations with non-zero criticality, route to random station')
                 # print('problem seems to be that target state is empty... ??')
-                potential_stations2 = [station for station in simul.state.stations.values() if station.id not in tabu_list]
+                potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]
                 next_location_id = simul.state.rng.choice(potential_stations2).id
             else: 
                 next_location_id = list(criticalities.keys())[0]

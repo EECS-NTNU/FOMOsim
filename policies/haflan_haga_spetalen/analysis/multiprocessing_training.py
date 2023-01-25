@@ -61,7 +61,7 @@ def training(input_arguments, suffix):
     world_to_analyse.TRAINING_SHIFTS_BEFORE_SAVE=50
     world_to_analyse.REPLAY_BUFFER_SIZE=100
 
-    for cluster in world_to_analyse.state.stations.values():
+    for cluster in world_to_analyse.state.locations:
         cluster.set_bikes(cluster.get_bikes()[: round(len(cluster.bikes) * 0.6)])
     decision_times = [train_value_function(world_to_analyse, save_suffix=f"{suffix}")]
 
