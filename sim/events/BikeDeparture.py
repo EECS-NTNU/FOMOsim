@@ -73,8 +73,7 @@ class BikeDeparture(Event):
             if FULL_TRIP:
                 closest_neighbour_with_bikes = world.state.get_neighbours(departure_station,1,not_empty=True)[0]
                 distance = departure_station.distance_to(closest_neighbour_with_bikes.get_lat(), closest_neighbour_with_bikes.get_lon())
-                random_roaming_limit = random.triangular(0,MAX_ROAMING_DISTANCE)
-                if distance<=random_roaming_limit:
+                if self.acceptance_rejection(distance):
                     available_bikes = closest_neighbour_with_bikes.get_available_bikes()
                     bike=available_bikes.pop(0)
                     p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
@@ -127,4 +126,11 @@ class BikeDeparture(Event):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, departing from station {self.departure_station_id}>"
- 
+    
+    def acceptance_rejection(self,distance):
+        prob_acceptance = -1.6548*distance**2-0.7036*distance+1.0133
+        random_roaming_limit = random.triangular(0,MAX_ROAMING_DISTANCE)
+        if random_roaming_limit <= prob_acceptance:
+            return True
+        else:
+            return False 

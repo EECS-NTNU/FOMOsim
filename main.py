@@ -12,16 +12,17 @@ import policies
 import policies.fosen_haldorsen
 import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
-import policies.inngjerdingen_moeller.inngjerdingen_moeller
+import policies.inngjerdingen_moeller
 import sim
 import output
 import demand
 from helpers import timeInMinutes
 
+
 from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=24*3)
+DURATION = timeInMinutes(hours=24*2)
 #DURATION = timeInMinutes(hours=2)
 INSTANCE = 'OS_W31'
 WEEK = 31
@@ -103,14 +104,14 @@ def main():
 
     # # Plot to screen
 
-    output.visualize([simulator.metrics], metric="trips")
-    output.visualize([simulator.metrics], metric="starvation")
-    output.visualize([simulator.metrics], metric="congestion")
-    output.visualize_heatmap([simulator], metric="trips")
+    # output.visualize([simulator.metrics], metric="trips")
+    # output.visualize([simulator.metrics], metric="starvation")
+    # output.visualize([simulator.metrics], metric="congestion")
+    # output.visualize_heatmap([simulator], metric="trips")
     
-    output.visualize([simulator.metrics], metric="roaming for bikes")
-    output.visualize([simulator.metrics], metric="roaming distance for bikes")
-    output.visualize([simulator.metrics], metric="roaming distance for locks")
+    # output.visualize([simulator.metrics], metric="roaming for bikes")
+    # output.visualize([simulator.metrics], metric="roaming distance for bikes")
+    # output.visualize([simulator.metrics], metric="roaming distance for locks")
 
 # #If comparissons between roaming=True and roaming=False : 
 #     output.visualize([simulator.metrics], metric="different_station_choice")
@@ -120,14 +121,16 @@ def main():
     
     
 # show travel times for a given bike
-    bikes = simulator.state.get_all_bikes()
-    print(len(bikes))
-    bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
-    print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
-    output.visualize([bikes[11].metrics], metric="travel_time")
-    output.visualize([bikes[11].metrics], metric="travel_time_congested")
+    # bikes = simulator.state.get_all_bikes()
+    # print(len(bikes))
+    # bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
+    # print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
+    # output.visualize([bikes[11].metrics], metric="travel_time")
+    # output.visualize([bikes[11].metrics], metric="travel_time_congested")
 
-
+    
+    policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file('sim_test.csv', simulator, DURATION, append=True)
+    
 if __name__ == "__main__":
     main() 
 
