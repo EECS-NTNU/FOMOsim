@@ -22,10 +22,10 @@ from helpers import timeInMinutes
 from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=24*2)
+DURATION = timeInMinutes(hours=5)
 #DURATION = timeInMinutes(hours=2)
-INSTANCE = 'OS_W31'
-WEEK = 31
+INSTANCE = 'TD_W34'
+WEEK = 34
 
 def main():
 
@@ -49,13 +49,13 @@ def main():
     # Each vehicle has an associated policy
 
     # policy = policies.RandomActionPolicy()
-    policy = policies.GreedyPolicy()
-    # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=15)
+    # policy = policies.GreedyPolicy()
+    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=25)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
     
-    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state

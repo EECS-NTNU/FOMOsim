@@ -10,7 +10,7 @@ import os
 import sys
 from pathlib import Path
 import json
-
+ 
 path = Path(__file__).parents[2]        # The path seems to be correct either way, sys.path.insert makes the difference
 os.chdir(path)
 # print(os. getcwd())
@@ -187,7 +187,7 @@ class MILP_data():
 
         
 
-        def dump_static_data(self):
+        def dump_static_data(self): 
                 filename = 'policies/inngjerdingen_moeller/saved_time_data/' + (self.state.mapdata[0]).split('.')[0].split('/')[1] +'_static_data.json'
                 T_D = {str(k): v for k, v in self.T_D.items()}
                 T_DD = {str(k): v for k, v in self.T_DD.items()}

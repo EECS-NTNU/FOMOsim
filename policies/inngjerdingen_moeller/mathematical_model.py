@@ -6,9 +6,10 @@ os.chdir(path)
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
 from gurobipy import *
-
+import time
 
 def run_model(data, roaming=True):
+    starttime = time.time()
     m = Model("MILP")
     m.setParam('TimeLimit', 60*60) #time limit in seconds
     m.setParam('OutputFlag', False)
@@ -73,22 +74,46 @@ def run_model(data, roaming=True):
 
     l = m.addVars({(i, t) for i in stations for t in time_periods},lb=0, vtype=GRB.CONTINUOUS, name="l") 
 
-    #Variable relaxation:
-    # for i in stations_with_source_sink:
-    #     for j in stations_with_source_sink:
-    #         for v in vehicles:
-    #             for t in time_periods:
-    #                 if t!=0 and t!=1:
-    #                     x[(i,j,t,v)].VType = GRB.CONTINUOUS
 
-    # for i in stations:
-    #     for v in vehicles:
-    #             for t in range(1,T_bar+1):
-    #                 if t!=1:
-    #                     q_L[(i,t,v)].VType = GRB.CONTINUOUS
-    #                     q_U[(i,t,v)].VType = GRB.CONTINUOUS
+
+
+    #Variable relaxation:
+    # Idea:
+    """
+    -First we identify the current station in which the vehicle just has arrived  
+    -We can then say that the loading/unloading qunatities on this station must be integer, while all other can be continious
+    -The x-variables which represent a trip from current station to all other stations must be integer. We do not now in which time period this will occur since we don't 
+    know hom many bikes the vehicle will load/unload"
+    Vehicle som har ETA lik current time er den som er fremme 
+    """
+
+    current_station = None
+     #find correct vehicle:
+    for vehicle in vehicles:
+        if vehicles[vehicle].eta == data.simul.time:
+            current_station = vehicles[vehicle].location.id
+            
+    for v in vehicles:
+        for t in range(1,T_bar+1):
+            for i in stations:
+                if i != current_station:
+                    q_L[(i,t,v)].VType = GRB.CONTINUOUS
+                    q_U[(i,t,v)].VType = GRB.CONTINUOUS
+
+
+    for i in stations_with_source_sink:
+        for j in stations_with_source_sink:
+            for v in vehicles:
+                for t in time_periods:
+                    if i != current_station:
+                        x[(i,j,t,v)].VType = GRB.CONTINUOUS
 
     
+
+
+    
+
+
     #Constraints
 
     #Fixate vehicle start station
@@ -150,6 +175,10 @@ def run_model(data, roaming=True):
     
     else:
         m.setObjective(quicksum(quicksum(W_C*c[(i, t)] + W_S*s[(i, t)] for t in range(1, T_bar+1))+ W_D*d[i] for i in stations), GRB.MINIMIZE)
+    
     m.optimize()
+    endtime = time.time()
+    duration = endtime-starttime
+    print("Duration: " + str(duration))
 
     return m
