@@ -88,7 +88,13 @@ def main():
     print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
+    print(f"Roaming for bikes = {simulator.metrics.get_aggregate_value('roaming for bikes')}")
+    print(f"Roaming distance for bikes = {simulator.metrics.get_aggregate_value('roaming distance for bikes')}")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
+    print(f"Roaming distance for locks = {simulator.metrics.get_aggregate_value('roaming distance for locks')}")
+    
+    results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
+    results_visualizer.visualize_violations_and_roaming()
 
     # #If comparissons between roaming=True and roaming=False: 
     # print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
@@ -122,7 +128,6 @@ def main():
     
 # show travel times for a given bike
     # bikes = simulator.state.get_all_bikes()
-    # print(len(bikes))
     # bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
     # print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
     # output.visualize([bikes[11].metrics], metric="travel_time")

@@ -94,7 +94,7 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         v=Visualizer(m,d)
         v.visualize_route()
         # v.visualize_map_and_route()
-        v.visualize_stations()
+        # v.visualize_stations()
 
 if __name__ == "__main__":
 # ------------ TESTING DATA MANUALLY ---------------
@@ -122,5 +122,8 @@ if __name__ == "__main__":
         
         # test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles, roaming)
         test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
+        
+        test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles, roaming)
+        # test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
         
 # ----------------------------------------------------
