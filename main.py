@@ -24,8 +24,8 @@ from output.plots import cityTrafficStats
 START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(hours=24*2)
 #DURATION = timeInMinutes(hours=2)
-INSTANCE = 'OS_W31'
-WEEK = 31
+INSTANCE = 'TD_W34'
+WEEK = 34
 
 def main():
 
@@ -89,12 +89,15 @@ def main():
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
     print(f"Roaming for bikes = {simulator.metrics.get_aggregate_value('roaming for bikes')}")
-    print(f"Roaming distance for bikes = {simulator.metrics.get_aggregate_value('roaming distance for bikes')} km")
+    print(f"Roaming distance for bikes = {round(simulator.metrics.get_aggregate_value('roaming distance for bikes'), 2)} km")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
-    print(f"Roaming distance for locks = {simulator.metrics.get_aggregate_value('roaming distance for locks')} km")
+    print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
     
     results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
-    results_visualizer.visualize_violations_and_roaming()
+    # results_visualizer.visualize_violations_and_roaming()
+    # results_visualizer.visulaize_total_roaming_distances()
+    # results_visualizer.visulaize_average_roaming_distances()
+    # results_visualizer.visualize_share_of_events()
 
     # #If comparissons between roaming=True and roaming=False: 
     # print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
@@ -135,7 +138,8 @@ def main():
 
     
     policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file('sim_test.csv', simulator, DURATION, append=True)
-    
+    results_visualizer.visualize_aggregated_results('sim_test.csv')
+
 if __name__ == "__main__":
     main() 
 
