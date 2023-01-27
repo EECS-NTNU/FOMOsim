@@ -17,8 +17,8 @@ class InngjerdingenMoellerPolicy(Policy):
         gurobi_output = run_model(data, self.roaming)
         next_station, bikes_to_pickup, bikes_to_deliver  = self.return_solution(gurobi_output, vehicle)
         # gurobi_output.printAttr("X")
-        #v=Visualizer(gurobi_output,data)
-        #v.visualize_route()
+        # v=Visualizer(gurobi_output,data)
+        # v.visualize_route()
 
 ################################################################################
         #Compare without roaming
