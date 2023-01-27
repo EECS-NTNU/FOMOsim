@@ -96,7 +96,7 @@ class BikeDeparture(Event):
 
                     # calculate arrival time
 
-                    # create an arrival event for the departed bike
+                    # create an arrival event for the roaming user from the new departure station
                     world.add_event(
                         sim.BikeArrival(
                             self.time,
@@ -107,7 +107,7 @@ class BikeDeparture(Event):
                         )
                     )
 
-                    # remove bike from the departure station
+                    # remove bike from the new departure station
                     closest_neighbour_with_bikes.remove_bike(bike)
 
                     world.state.bike_in_use(bike)
