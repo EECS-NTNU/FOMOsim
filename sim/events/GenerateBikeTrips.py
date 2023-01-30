@@ -4,6 +4,7 @@ from sim import Event
 import settings
 from settings import *
 from helpers import loggDepartures
+import csv
 
 class GenerateBikeTrips(Event):
     """
@@ -41,8 +42,13 @@ class GenerateBikeTrips(Event):
                     departure_time, departure_station.id
                 )
                 world.add_event(departure_event)
+                # path= 'policies/inngjerdingen_moeller/simulation_results/test1.csv'
+                # with open(path,'a', newline='') as f:
+                #     writer=csv.writer(f)
+                #     writer.writerow([departure_station.id,int(departure_time)])
+                
 
-        if not FULL_TRIP:
+        if not FULL_TRIP: 
             for arrival_station in world.state.locations:
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(

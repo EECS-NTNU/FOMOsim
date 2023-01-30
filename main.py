@@ -47,8 +47,8 @@ def main():
     # Set up vehicles
     # Each vehicle has an associated policy
 
-    # policy = policies.RandomActionPolicy()
-    policy = policies.GreedyPolicy()
+    policy = policies.RandomActionPolicy()
+    # policy = policies.GreedyPolicy()
     # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=25)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
