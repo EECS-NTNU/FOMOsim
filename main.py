@@ -48,8 +48,8 @@ def main():
     # Set up vehicles
     # Each vehicle has an associated policy
 
-    # policy = policies.RandomActionPolicy()
-    policy = policies.GreedyPolicy()
+    policy = policies.RandomActionPolicy()
+    # policy = policies.GreedyPolicy()
     # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=15)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
@@ -95,8 +95,8 @@ def main():
     
     results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
     # results_visualizer.visualize_violations_and_roaming()
-    # results_visualizer.visulaize_total_roaming_distances()
-    # results_visualizer.visulaize_average_roaming_distances()
+    # results_visualizer.visualize_total_roaming_distances()
+    # results_visualizer.visualize_average_roaming_distances()
     # results_visualizer.visualize_share_of_events()
 
     # #If comparissons between roaming=True and roaming=False: 
@@ -142,4 +142,3 @@ def main():
 
 if __name__ == "__main__":
     main() 
-
