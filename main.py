@@ -93,10 +93,10 @@ def main():
     print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
     
     results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
-    results_visualizer.visualize_violations_and_roaming()
-    results_visualizer.visulaize_total_roaming_distances()
-    results_visualizer.visulaize_average_roaming_distances()
-    results_visualizer.visualize_share_of_events()
+    # results_visualizer.visualize_violations_and_roaming()
+    # results_visualizer.visualize_total_roaming_distances()
+    # results_visualizer.visualize_average_roaming_distances()
+    # results_visualizer.visualize_share_of_events()
 
     # #If comparissons between roaming=True and roaming=False: 
     # print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
@@ -141,4 +141,3 @@ def main():
 
 if __name__ == "__main__":
     main() 
-
