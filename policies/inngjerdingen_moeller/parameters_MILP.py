@@ -22,7 +22,7 @@ sys.path.insert(0, '') #make sure the modules are found in the new working direc
 from settings import BIKE_SPEED, MINUTES_PER_ACTION, VEHICLE_SPEED, WALKING_SPEED, MINUTES_CONSTANT_PER_ACTION
 
 class MILP_data():
-        def __init__(self, simul, time_horizon=25, tau=5):
+        def __init__(self, simul, time_horizon=25, tau=5, weights = None):
                 #Sets
                 
                 self.simul = simul
@@ -38,10 +38,17 @@ class MILP_data():
                 self.possible_previous_stations_walking = dict()        #{(station_ID,time): [list of station_IDs]}
 
                 #Parameters
-                self.W_D = 0.1
-                self.W_C = 0.45 #only in use when roaming = False
-                self.W_S = 0.45
-                self.W_R = 0.45
+                if weights == None: #default 
+                        self.W_S = 0.45
+                        self.W_R = 0.45
+                        self.W_D = 0.1
+                else: 
+                        self.W_S = weights[0] 
+                        self.W_R = weights[1]
+                        self.W_D = weights[2]
+        
+                        
+                self.W_C = self.W_R #only in use when roaming = False
 
                 self.neighboring_limit= 0.35 #km
 
