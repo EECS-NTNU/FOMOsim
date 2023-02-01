@@ -64,5 +64,6 @@ if __name__ == "__main__":
     policy_dict = dict(random = policies.RandomActionPolicy(), greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=25))
     list_of_timehorizons = [15, 20, 25, 30]
     weight_dict = dict(a = [0.3, 0.3, 0.3], b=[0, 0, 0], c=[0, 0, 0], d=[0, 0, 0])
-    
+    test1(5)
 
+    
