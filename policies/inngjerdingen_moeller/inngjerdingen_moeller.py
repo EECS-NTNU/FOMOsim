@@ -5,14 +5,15 @@ from policies.inngjerdingen_moeller.mathematical_model import run_model
 from policies.inngjerdingen_moeller.visualize_subproblem import Visualizer
 
 class InngjerdingenMoellerPolicy(Policy):
-    def __init__(self, roaming = True, time_horizon=25, tau=5):
+    def __init__(self, roaming = True, time_horizon=25, tau=5, weights=None):
         self.roaming = roaming
         self.time_horizon = time_horizon
         self.tau = tau
+        self.weights = weights
         super().__init__()
 
     def get_best_action(self, simul, vehicle):
-        data = MILP_data(simul, self.time_horizon, self.tau)
+        data = MILP_data(simul, self.time_horizon, self.tau, self.weights)
         data.initalize_parameters()
         gurobi_output = run_model(data, self.roaming)
         next_station, bikes_to_pickup, bikes_to_deliver  = self.return_solution(gurobi_output, vehicle)
