@@ -38,9 +38,9 @@ def main():
     #                                      week=34)
 
     # the following is for reading a precalculated initial state from a json file
-    state = read_initial_state("instances/"+INSTANCE);
+    # state = read_initial_state("instances/"+INSTANCE);
 
-    state.set_seed(1)
+    # state.set_seed(1)
 
     ###############################################################################
     # Set up vehicles
@@ -48,12 +48,12 @@ def main():
 
     # policy = policies.RandomActionPolicy()
     # policy = policies.GreedyPolicy()
-    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=15)
+    # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=15)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
     
-    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
+    # state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state
@@ -61,37 +61,37 @@ def main():
     # tstate = target_state.EvenlyDistributedTargetState()
     # tstate = target_state.OutflowTargetState()
     # tstate = target_state.EqualProbTargetState()
-    tstate = target_state.USTargetState()
+    # tstate = target_state.USTargetState()
     # tstate = target_state.HalfCapacityTargetState()
 
     ###############################################################################
     # Set up demand
 
-    dmand = demand.Demand()
+    # dmand = demand.Demand()
 
     ###############################################################################
     # Set up simulator
 
-    simulator = sim.Simulator(
-        initial_state = state,
-        target_state = tstate,
-        demand = dmand,
-        start_time = START_TIME,
-        duration = DURATION,
-        verbose = True,
-    )
-    simulator.run()
+    # simulator = sim.Simulator(
+    #     initial_state = state,
+    #     target_state = tstate,
+    #     demand = dmand,
+    #     start_time = START_TIME,
+    #     duration = DURATION,
+    #     verbose = True,
+    # )
+    # simulator.run()
 
-    # Output to console
-    print(f"Simulation time = {DURATION} minutes")
-    print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
-    print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
-    print(f"Roaming for bikes = {simulator.metrics.get_aggregate_value('roaming for bikes')}")
-    print(f"Roaming distance for bikes = {round(simulator.metrics.get_aggregate_value('roaming distance for bikes'), 2)} km")
-    print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
-    print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
+    # # Output to console
+    # print(f"Simulation time = {DURATION} minutes")
+    # print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
+    # print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
+    # print(f"Roaming for bikes = {simulator.metrics.get_aggregate_value('roaming for bikes')}")
+    # print(f"Roaming distance for bikes = {round(simulator.metrics.get_aggregate_value('roaming distance for bikes'), 2)} km")
+    # print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
+    # print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
     
-    results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
+    # results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
     # results_visualizer.visualize_violations_and_roaming()
     # results_visualizer.visualize_total_roaming_distances()
     # results_visualizer.visualize_average_roaming_distances()
@@ -107,7 +107,7 @@ def main():
     
     # Output to file
 
-    output.write_csv(simulator, "output.csv", hourly = False)
+    # output.write_csv(simulator, "output.csv", hourly = False)
 
     # # Plot to screen
 
@@ -138,7 +138,14 @@ def main():
     # policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file('sim_test.csv', simulator, DURATION, append=True)
     # results_visualizer.visualize_aggregated_results('sim_test.csv')
 
+    policy_dict = dict(greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=15))
+    list_of_timehorizons = [15, 20]
+    weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.25, 0.25, 0.5]) #[W_S, W_R, W_D]
 
-# policies.inngjerdingen_moeller.test1(5)
+    # policies.inngjerdingen_moeller.test1(5)
+    policies.inngjerdingen_moeller.test_policies(2,policy_dict)
+    # policies.inngjerdingen_moeller.test_timehorizons(2,list_of_timehorizons)
+    # policies.inngjerdingen_moeller.test_weights(2,weight_dict)
+
 if __name__ == "__main__":
     main() 

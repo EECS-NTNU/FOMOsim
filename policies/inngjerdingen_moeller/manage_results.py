@@ -239,21 +239,17 @@ def visualize_aggregated_share_of_events(aggregated_data, filename):
 
 def visualize_aggregated_results_2(filename):
         try:
-            path = 'policies/inngjerdingen_moeller/simulation_results/'+filename
+            path = './policies/inngjerdingen_moeller/simulation_results/'+filename
             with open(path, 'r', newline='') as f:
                 reader = csv.reader(f, delimiter=',')
-                line_count = 0
                 aggregated_data = {'trips':0, 'congestion':0, 'starvation':0, 'roaming for bikes':0, 'roaming distance for locks':0, 'roaming distance for bikes':0} 
                 for row in reader:
-                    if line_count == 0:
-                        line_count += 1
-                    else:
-                        aggregated_data['trips'] += int(row[1])
-                        aggregated_data['congestion'] += int(row[5])
-                        aggregated_data['starvation'] += int(row[2])
-                        aggregated_data['roaming for bikes'] += int(row[3])
-                        aggregated_data['roaming distance for locks'] += float(row[6])
-                        aggregated_data['roaming distance for bikes'] += float(row[4])
+                    aggregated_data['trips'] += int(row[1])
+                    aggregated_data['congestion'] += int(row[5])
+                    aggregated_data['starvation'] += int(row[2])
+                    aggregated_data['roaming for bikes'] += int(row[3])
+                    aggregated_data['roaming distance for locks'] += float(row[6])
+                    aggregated_data['roaming distance for bikes'] += float(row[4])
             visualize_aggregated_violations_and_roaming(aggregated_data, filename)
             visualize_aggregated_total_roaming_distances(aggregated_data, filename)
             visualize_aggregated_average_roaming_distances(aggregated_data, filename)
