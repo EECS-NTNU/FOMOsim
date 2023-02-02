@@ -2,15 +2,14 @@
 """
 FOMO simulator example
 """
-
 from settings import *
-import init_state
-import init_state.json_source
-import init_state.csv_source
+from init_state import read_initial_state
+# import init_state.json_source
+# import init_state.csv_source
 import target_state
 import policies
 import policies.fosen_haldorsen
-import policies.haflan_haga_spetalen
+# import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
 import policies.inngjerdingen_moeller
 import sim
@@ -18,13 +17,13 @@ import output
 import demand
 from helpers import timeInMinutes
 
+# from output.plots import cityTrafficStats
 
-from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=12)
-INSTANCE = 'TD_W34_old'
-WEEK = 34
+DURATION = timeInMinutes(hours=3)
+INSTANCE = 'EH_W31'
+WEEK = 31
 
 def main():
 
@@ -39,7 +38,7 @@ def main():
     #                                      week=34)
 
     # the following is for reading a precalculated initial state from a json file
-    state = init_state.read_initial_state("instances/"+INSTANCE);
+    state = read_initial_state("instances/"+INSTANCE);
 
     state.set_seed(1)
 
@@ -47,9 +46,9 @@ def main():
     # Set up vehicles
     # Each vehicle has an associated policy
 
-    policy = policies.RandomActionPolicy()
+    # policy = policies.RandomActionPolicy()
     # policy = policies.GreedyPolicy()
-    # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=25)
+    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=25)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
@@ -81,7 +80,7 @@ def main():
         duration = DURATION,
         verbose = True,
     )
-    # simulator.run()
+    simulator.run()
 
     # Output to console
     print(f"Simulation time = {DURATION} minutes")
@@ -140,6 +139,6 @@ def main():
     # results_visualizer.visualize_aggregated_results('sim_test.csv')
 
 
-policies.inngjerdingen_moeller.test1(5)
+# policies.inngjerdingen_moeller.test1(5)
 if __name__ == "__main__":
     main() 
