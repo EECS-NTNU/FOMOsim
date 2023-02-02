@@ -2,7 +2,8 @@
 This file contains a greedy policy
 """
 import copy
-
+import numpy as np
+import random
 from policies import Policy
 
 from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_to_violation
@@ -161,7 +162,10 @@ class GreedyPolicy(Policy):
                 # print('no stations with non-zero criticality, route to random station')
                 # print('problem seems to be that target state is empty... ??')
                 potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]
-                next_location_id = simul.state.rng.choice(potential_stations2).id
+                
+                rng_greedy = np.random.default_rng(None)
+                next_location_id = rng_greedy.choice(potential_stations2).id
+                # next_location_id = simul.state.rng.choice(potential_stations2).id
             else: 
                 next_location_id = list(criticalities.keys())[0]
     
@@ -173,7 +177,8 @@ class GreedyPolicy(Policy):
             next_location_id,
         )
     
-        
+
+
        
     
     

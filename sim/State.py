@@ -22,11 +22,17 @@ class State(LoadSave):
         traveltime_vehicle_matrix=None,
         traveltime_vehicle_matrix_stddev=None,
         rng = None,
+        rng2 = None
     ):
         if rng is None:
             self.rng = np.random.default_rng(None)
         else:
             self.rng = rng
+
+        if rng2 is None:
+            self.rng2 = np.random.default_rng(None)
+        else:
+            self.rng2 = rng2
 
         self.vehicles = vehicles
         self.bikes_in_use = bikes_in_use
@@ -221,14 +227,14 @@ class State(LoadSave):
 
     def get_travel_time(self, start_location_id: int, end_location_id: int):
         if self.traveltime_matrix_stddev is not None:
-            return self.rng.lognormal(self.traveltime_matrix[start_location_id][end_location_id],
+            return self.rng2.lognormal(self.traveltime_matrix[start_location_id][end_location_id],
                                       self.traveltime_matrix_stddev[start_location_id][end_location_id])
         else:
             return self.traveltime_matrix[start_location_id][end_location_id]
 
     def get_vehicle_travel_time(self, start_location_id: int, end_location_id: int):
         if self.traveltime_vehicle_matrix_stddev is not None:
-            return self.rng.lognormal(self.traveltime_vehicle_matrix[start_location_id][end_location_id],
+            return self.rng2.lognormal(self.traveltime_vehicle_matrix[start_location_id][end_location_id],
                                 self.traveltime_vehicle_matrix_stddev[start_location_id][end_location_id])
         else:
             return self.traveltime_vehicle_matrix[start_location_id][end_location_id]
@@ -363,7 +369,7 @@ class State(LoadSave):
 
     def sample(self, sample_size: int):
         # Filter out bikes not in sample
-        sampled_bike_ids = self.rng.choice(
+        sampled_bike_ids = self.rng2.choice(
             [bike.id for bike in self.get_bikes()], sample_size, replace=False,
         )
         for station in self.stations.values():

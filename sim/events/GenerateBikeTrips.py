@@ -42,7 +42,7 @@ class GenerateBikeTrips(Event):
                     departure_time, departure_station.id
                 )
                 world.add_event(departure_event)
-                path= 'policies/inngjerdingen_moeller/simulation_results/innMoll.csv'
+                path= 'policies/inngjerdingen_moeller/simulation_results/InnMoll.csv'
                 with open(path,'a', newline='') as f:
                     writer=csv.writer(f)
                     writer.writerow([departure_station.id,int(departure_time)])
