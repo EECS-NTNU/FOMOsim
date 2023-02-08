@@ -22,10 +22,10 @@ import multiprocessing as mp
 
 
 
-def run_simulation(seed, policy, queue=None):
+def run_simulation(seed, policy, duration=24*5, queue=None):
     #change common parameters for the different simulations here:
     START_TIME = timeInMinutes(hours=7)
-    DURATION = timeInMinutes(hours=3)
+    DURATION = timeInMinutes(hours=duration)
     INSTANCE = 'TD_W34_old'
     WEEK = 34
     ###############################################################
@@ -44,80 +44,57 @@ def run_simulation(seed, policy, queue=None):
         verbose = True,
     )
     simulator.run()
-    # policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, DURATION, append=True)
-    data = policies.inngjerdingen_moeller.manage_results.write_sim_results_to_list(simulator, DURATION)
     if queue != None:
-        queue.put(data)
-    return data
+        queue.put(simulator)
+    return simulator
 
-def test_policies(number_of_seeds, policy_dict):
+
+def test_policies(number_of_seeds, policy_dict, duration=24*5):
     for policy in policy_dict:
         filename= "policy_"+str(policy)+".csv"
-        for seed in range (1, number_of_seeds+1):
-            run_simulation(seed, filename, policy_dict[policy])
-        policies.inngjerdingen_moeller.visualize_aggregated_results_2(filename)
+        test_seeds_mp(number_of_seeds, policy, filename, duration)
 
-def test_timehorizons(number_of_seeds, list_of_timehorizons):
+
+def test_timehorizons(number_of_seeds, list_of_timehorizons, duration =24*5):
     for horizon in list_of_timehorizons:
         filename = "time_horizon_"+str(horizon)+".csv"
         policy=policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True, time_horizon=horizon)
-        for seed in range (1, number_of_seeds+1):
-            run_simulation(seed, filename, policy)
-        policies.inngjerdingen_moeller.visualize_aggregated_results_2(filename)
+        test_seeds_mp(number_of_seeds, policy, filename, duration)
 
-def test_weights(number_of_seeds, weight_set):
+
+def test_weights(number_of_seeds, weight_set, duration = 24*5):
     for set in weight_set:
         filename= "weight_set_"+str(set)+".csv"
-        policy = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True, time_horizon=25, weights=weight_set[set])
-        for seed in range (1, number_of_seeds+1):
-            run_simulation(seed, filename, policy)
-        
-        policies.inngjerdingen_moeller.visualize_aggregated_results_2(filename)
+        policy = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True, time_horizon=10, weights=weight_set[set]) #HUSK Å ENDRE TH
+        test_seeds_mp(number_of_seeds, policy, filename, duration)
 
-def test1(number_of_seeds):
-    #------------Pool Apply----------------
-    # filename = "multi.csv"
-    # policy = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=15)
-    # pool = mp.Pool(mp.cpu_count())
-    # seeds = [i for i in range(number_of_seeds)]
-    # data_lists = [pool.apply(run_simulation, args=(seed, policy)) for seed in seeds]
-    # pool.close()
-    # print(data_lists)
 
+def test_seeds_mp(number_of_seeds, policy, filename, duration=24*5):
     #------------PROCESS----------------
-    policy = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=10)
     seeds = [i for i in range(number_of_seeds)]
     q = mp.Queue()
     processes = []
-    return_values = []
+    returned_simulators = []
     for seed in seeds:
-        process = mp.Process(target=run_simulation, args = (seed, policy, q))
+        process = mp.Process(target=run_simulation, args = (seed, policy, duration, q))
         processes.append(process)
         process.start()
     for process in processes:
         ret = q.get()   #will block
-        return_values.append(ret)
+        returned_simulators.append(ret)
     for process in processes:
         process.join()
-    print(return_values)
-
-
-    #------------NON MULTIPROCESSING----------------
-    # policy = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=10)
-    # result_list = []
-    # for i in range(number_of_seeds):
-    #     result = run_simulation(i, policy)
-    #     result_list.append(result)
-    # print(result_list)
-    # policies.inngjerdingen_moeller.visualize_aggregated_results_2(filename)
+    for simulator in returned_simulators:
+        policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
+    policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results_2(filename)
 
 
 
 if __name__ == "__main__":
-    print("Before time starts")
     start_time = time.time()
     # policy_dict = dict(random = policies.RandomActionPolicy(), greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=25))
-    # list_of_timehorizons = [15, 20, 25, 30]
-    # weight_dict = dict(a = [0.3, 0.3, 0.3], b=[0, 0, 0], c=[0, 0, 0], d=[0, 0, 0]) #[W_S, W_R, W_D]
-    test1(5)
+    list_of_timehorizons = [25, 30]
+    # weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
+    # test_weights(3, weight_dict, 3)
+    test_timehorizons(3, list_of_timehorizons, 2)
     print("Duration with multi: ", time.time()-start_time)
