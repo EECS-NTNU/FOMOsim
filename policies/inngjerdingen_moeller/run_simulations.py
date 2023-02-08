@@ -52,7 +52,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
 def test_policies(number_of_seeds, policy_dict, duration=24*5):
     for policy in policy_dict:
         filename= "policy_"+str(policy)+".csv"
-        test_seeds_mp(number_of_seeds, policy, filename, duration)
+        test_seeds_mp(number_of_seeds, policy_dict[policy], filename, duration)
 
 
 def test_timehorizons(number_of_seeds, list_of_timehorizons, duration =24*5):
@@ -92,9 +92,13 @@ def test_seeds_mp(number_of_seeds, policy, filename, duration=24*5):
 
 if __name__ == "__main__":
     start_time = time.time()
-    # policy_dict = dict(random = policies.RandomActionPolicy(), greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=25))
+    
+    policy_dict = dict(random = policies.RandomActionPolicy(), greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=10))
     list_of_timehorizons = [25, 30]
-    # weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
+    weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
+    
     # test_weights(3, weight_dict, 3)
-    test_timehorizons(3, list_of_timehorizons, 2)
+    # test_timehorizons(3, list_of_timehorizons, 2)
+    test_policies(5,policy_dict,4)
     print("Duration with multi: ", time.time()-start_time)
+
