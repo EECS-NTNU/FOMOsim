@@ -153,6 +153,11 @@ def write_sim_results_to_file(filename, simulator, duration, append=False):
         print("Error writing to CSV")
         return None
 
+def write_sim_results_to_list(simulator, duration):
+    data=[duration, simulator.metrics.get_aggregate_value('trips'), simulator.metrics.get_aggregate_value('starvation'),
+          simulator.metrics.get_aggregate_value('roaming for bikes'),round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2),
+            simulator.metrics.get_aggregate_value('congestion'), round(simulator.metrics.get_aggregate_value('roaming distance for locks'),2)]
+    return data
 
 def visualize_aggregated_violations_and_roaming(aggregated_data, filename):
     data = {'Starvations':aggregated_data['starvation'],
