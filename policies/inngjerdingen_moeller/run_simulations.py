@@ -58,7 +58,7 @@ def test_timehorizons(number_of_seeds, list_of_timehorizons):
 
 def test_weights(number_of_seeds, weight_set):
     for set in weight_set:
-        filename= "weight_set_"+str(set)
+        filename= "weight_set_"+str(set)+".csv"
         policy = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True, time_horizon=25, tau=5, weights=weight_set[set])
         for seed in range (1, number_of_seeds+1):
             run_simulation(seed, filename, policy)
@@ -81,3 +81,4 @@ if __name__ == "__main__":
     # test_weights(10,weight_dict)
     # test_timehorizons(10,list_of_timehorizons)
     # test_policies(10,policy_dict)
+        
