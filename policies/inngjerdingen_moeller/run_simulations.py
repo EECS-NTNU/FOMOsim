@@ -100,7 +100,7 @@ if __name__ == "__main__":
     list_of_seeds_2=[5,6,7,8,9]
 
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
-    test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)
+    test_timehorizons(list_of_seeds=list_of_seeds_2, list_of_timehorizons=list_of_timehorizons, duration=24*5)
     # test_policies(list_of_seeds=list_of_seeds=10, policy_dict=policy_dict, duration=24*5)
     print("Duration with multi: ", time.time()-start_time)
 
