@@ -55,17 +55,17 @@ def test_policies(number_of_seeds, policy_dict, duration=24*5):
         test_seeds_mp(number_of_seeds, policy_dict[policy], filename, duration)
 
 
-def test_timehorizons(number_of_seeds, list_of_timehorizons, duration =24*5):
+def test_timehorizons(number_of_seeds, list_of_timehorizons, duration=24*5):
     for horizon in list_of_timehorizons:
         filename = "time_horizon_"+str(horizon)+".csv"
         policy=policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True, time_horizon=horizon)
         test_seeds_mp(number_of_seeds, policy, filename, duration)
 
 
-def test_weights(number_of_seeds, weight_set, duration = 24*5):
+def test_weights(number_of_seeds, weight_set, duration=24*5):
     for set in weight_set:
         filename= "weight_set_"+str(set)+".csv"
-        policy = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True, time_horizon=10, weights=weight_set[set]) #HUSK Å ENDRE TH
+        policy = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True, time_horizon=25, weights=weight_set[set]) #HUSK Å ENDRE TH
         test_seeds_mp(number_of_seeds, policy, filename, duration)
 
 
@@ -93,12 +93,12 @@ def test_seeds_mp(number_of_seeds, policy, filename, duration=24*5):
 if __name__ == "__main__":
     start_time = time.time()
     
-    policy_dict = dict(random = policies.RandomActionPolicy(), greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=10))
+    policy_dict = dict(greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=10))
     list_of_timehorizons = [25, 30]
     weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     
-    # test_weights(3, weight_dict, 3)
-    # test_timehorizons(3, list_of_timehorizons, 2)
-    test_policies(5,policy_dict,4)
+    # test_weights(number_of_seeds=10, weight_set=weight_dict, duration=24*5)
+    test_timehorizons(number_of_seeds=10, list_of_timehorizons=list_of_timehorizons, duration=24*5)
+    # test_policies(number_of_seeds=10, policy_dict=policy_dict, duration=24*5)
     print("Duration with multi: ", time.time()-start_time)
 
