@@ -97,8 +97,8 @@ if __name__ == "__main__":
     list_of_timehorizons = [25, 30]
     weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     
-    # test_weights(number_of_seeds=10, weight_set=weight_dict, duration=24*5)
-    test_timehorizons(number_of_seeds=10, list_of_timehorizons=list_of_timehorizons, duration=24*5)
+    test_weights(number_of_seeds=10, weight_set=weight_dict, duration=24*5)
+    # test_timehorizons(number_of_seeds=10, list_of_timehorizons=list_of_timehorizons, duration=24*5)
     # test_policies(number_of_seeds=10, policy_dict=policy_dict, duration=24*5)
     print("Duration with multi: ", time.time()-start_time)
 
