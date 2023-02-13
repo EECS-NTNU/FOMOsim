@@ -17,6 +17,7 @@ import sim
 import demand
 from helpers import timeInMinutes
 import time
+import json
 
 import multiprocessing as mp
 
@@ -30,7 +31,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     WEEK = 34
     ###############################################################
     
-    state = init_state.read_initial_state("instances/"+INSTANCE);
+    state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
     state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
@@ -91,12 +92,24 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
 
 
 if __name__ == "__main__":
+    INSTANCE = 'TD_W34_old'
+    state = init_state.read_initial_state("instances/"+INSTANCE)
     start_time = time.time()
-    policy_dict = dict(greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=10))
-    list_of_timehorizons = [25, 30]
+    # policy_dict = dict(greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=10))
+    # list_of_timehorizons = [25, 30]
     weight_dict = dict(d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     list_of_seeds = [0,1,2,3,4,5,6,7,8,9]
+
+    # for station in state.stations:
+    #         neighboring_stations=[]
+    #         for candidate in state.stations:
+    #                 if station != candidate:
+    #                         distance = state.stations[station].distance_to(state.stations[candidate].get_lat(),state.stations[candidate].get_lon()) 
+    #                         # print(station,",",candidate,": ",distance)
+    #                         if distance <= 0.6:
+    #                                 neighboring_stations.append(candidate)
     
+
     test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=10, list_of_timehorizons=list_of_timehorizons, duration=24*5)
     # test_policies(list_of_seeds=10, policy_dict=policy_dict, duration=24*5)

@@ -43,6 +43,7 @@ class Station(Location):
         self.capacity = int(capacity)
         self.original_id = original_id
         self.charging_station = charging_station
+        self.neighboring_stations = []
 
         if target_state is not None:
             self.target_state = target_state
@@ -146,6 +147,9 @@ class Station(Location):
 
     def get_bike_from_id(self, bike_id):
         return self.bikes[bike_id]
+    
+    def set_neighboring_stations(self, neighboring_stations_dict):
+        self.neighboring_stations = neighboring_stations_dict[self.id]
 
     def __repr__(self):
         return (
