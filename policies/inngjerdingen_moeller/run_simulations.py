@@ -94,8 +94,8 @@ if __name__ == "__main__":
     start_time = time.time()
     policy_dict = dict(greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=10))
     list_of_timehorizons = [25, 30]
-    weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
-    list_of_seeds = [5,6,7,8,9]
+    weight_dict = dict(d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
+    list_of_seeds = [0,1,2,3,4,5,6,7,8,9]
     
     test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=10, list_of_timehorizons=list_of_timehorizons, duration=24*5)
