@@ -5,6 +5,9 @@ from settings import *
 import copy
 import json
 import gzip
+import os
+from policies.inngjerdingen_moeller.parameters_MILP import MILP_data 
+
 
 class State(LoadSave):
     """
@@ -145,6 +148,10 @@ class State(LoadSave):
                       traveltime_matrix_stddev=statedata["traveltime_stdev"],
                       traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
                       traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"])
+        
+        neighbor_dict = state.read_neighboring_stations_from_file()
+        for station in state.stations:
+            stations[station].set_neighboring_stations(neighbor_dict)
 
         return state
 
@@ -386,3 +393,17 @@ class State(LoadSave):
         :return: vehicle object
         """
         return self.vehicles[vehicle_id]
+    
+    def read_neighboring_stations_from_file(self):
+        neighboring_stations = dict()      #{station_ID: [list of station_IDs]}
+        filename = 'policies/inngjerdingen_moeller/saved_time_data/' + (self.mapdata[0]).split('.')[0].split('/')[1] +'_static_data.json'
+        if not os.path.exists(filename):
+            print("JSON-file", filename, "does not exist")
+
+        with open(filename,'r') as infile:
+            json_dict = json.load(infile)
+        for key, value in json_dict["neighboring_stations"].items():
+            neighboring_stations[int(key)] = value
+
+
+        return neighboring_stations
