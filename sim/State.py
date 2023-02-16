@@ -25,7 +25,8 @@ class State(LoadSave):
         traveltime_vehicle_matrix=None,
         traveltime_vehicle_matrix_stddev=None,
         rng = None,
-        rng2 = None
+        rng2 = None,
+        seed = None
     ):
         if rng is None:
             self.rng = np.random.default_rng(None)
@@ -172,6 +173,7 @@ class State(LoadSave):
 
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
+        self.seed = seed
 
     def set_vehicles(self, policies):
         self.vehicles = []
