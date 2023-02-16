@@ -88,38 +88,38 @@ def run_model(data, roaming=True):
     -Vehicle som har ETA lik current time er den som er fremme 
     """
 
-    # current_station = None
-    #  #find correct vehicle:
-    # if len(vehicles) < 2:
-    #     current_station = vehicles[0].location.id
-    # else:
-    #     for vehicle in vehicles:
-    #         if vehicles[vehicle].eta == data.simul.time:
-    #             current_station = vehicles[vehicle].location.id
+    current_station = None
+     #find correct vehicle:
+    if len(vehicles) < 2:
+        current_station = vehicles[0].location.id
+    else:
+        for vehicle in vehicles:
+            if vehicles[vehicle].eta == data.simul.time:
+                current_station = vehicles[vehicle].location.id
     
 
 
-    # for v in vehicles:
-    #     for t in range(1,T_bar+1):
-    #         for i in stations:
-    #             if i != current_station:
-    #                 q_L[(i,t,v)].VType = GRB.CONTINUOUS
-    #                 q_U[(i,t,v)].VType = GRB.CONTINUOUS
-    #             else:
-    #                 if t>3:
-    #                     q_L[(i,t,v)].VType = GRB.CONTINUOUS
-    #                     q_U[(i,t,v)].VType = GRB.CONTINUOUS
+    for v in vehicles:
+        for t in range(1,T_bar+1):
+            for i in stations:
+                if i != current_station:
+                    q_L[(i,t,v)].VType = GRB.CONTINUOUS
+                    q_U[(i,t,v)].VType = GRB.CONTINUOUS
+                else:
+                    if t>3:
+                        q_L[(i,t,v)].VType = GRB.CONTINUOUS
+                        q_U[(i,t,v)].VType = GRB.CONTINUOUS
 
 
-    # for i in stations_with_source_sink:
-    #     for j in stations_with_source_sink:
-    #         for v in vehicles:
-    #             for t in time_periods:
-    #                 if i != current_station:
-    #                     x[(i,j,t,v)].VType = GRB.CONTINUOUS
-    #                 else:
-    #                     if t>3:
-    #                         x[(i,j,t,v)].VType = GRB.CONTINUOUS
+    for i in stations_with_source_sink:
+        for j in stations_with_source_sink:
+            for v in vehicles:
+                for t in time_periods:
+                    if i != current_station:
+                        x[(i,j,t,v)].VType = GRB.CONTINUOUS
+                    else:
+                        if t>3:
+                            x[(i,j,t,v)].VType = GRB.CONTINUOUS
 
     ########################################################################
 

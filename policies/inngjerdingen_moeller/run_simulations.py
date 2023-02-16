@@ -27,8 +27,8 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     #change common parameters for the different simulations here:
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
-    # INSTANCE = 'TD_W34_old'
-    INSTANCE = 'BG_W35'
+    INSTANCE = 'TD_W34_old'
+    # INSTANCE = 'BG_W35'
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
@@ -93,32 +93,18 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
 
 if __name__ == "__main__":
     start_time = time.time()
-    # policy_dict = dict(greedy = policies.GreedyPolicy(), inngjerdingen_moeller = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=10))
-    # list_of_timehorizons = [25, 30]
-    weight_dict = dict(d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
-    list_of_seeds = [0,1,2,3,4,5,6,7,8,9]
-
-    # for station in state.stations:
-    #         neighboring_stations=[]
-    #         for candidate in state.stations:
-    #                 if station != candidate:
-    #                         distance = state.stations[station].distance_to(state.stations[candidate].get_lat(),state.stations[candidate].get_lon()) 
-    #                         # print(station,",",candidate,": ",distance)
-    #                         if distance <= 0.6:
-    #                                 neighboring_stations.append(candidate)
     
-    # policy_dict = dict(inngjerdingen_moeller = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=25))
-    policy_dict = dict(greedy = policies.GreedyPolicy())
+    policy_dict = dict(inngjerdingen_moeller_relaxed = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=25))
+    # policy_dict = dict(greedy = policies.GreedyPolicy())
     list_of_timehorizons = [25, 30]
     weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     
     list_of_seeds_1=[0,1,2,3,4,5,6,7,8,9]
-    list_of_seeds_2 = [0,1,2]
-    list_of_seeds_3 = [i for i in range(100)]
+    # list_of_seeds_3 = [i for i in range(20)]
 
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)
-    test_policies(list_of_seeds=list_of_seeds_3, policy_dict=policy_dict, duration=24*5)
+    test_policies(list_of_seeds=list_of_seeds_1, policy_dict=policy_dict, duration=24*5)
     
-    print("Duration with multi: ", time.time()-start_time)
+    print("Duration with multi: ", time.time()-start_time) 
 
