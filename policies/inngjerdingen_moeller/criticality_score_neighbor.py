@@ -56,19 +56,21 @@ def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, s
 
     for neighbor in neighbors:
         station_crit = 0
-        neighbor_demand = (TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour()))
+        # neighbor_demand = (TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour())) #SM: is this supposed to be neighbor.get_arrive_intensity etc. 
+        neighbor_demand = (TIME_HORIZON/60)*(neighbor.get_arrive_intensity(simul.day(), simul.hour()) - neighbor.get_leave_intensity(simul.day(), simul.hour()))
         neighbor_t_state = neighbor.get_target_state(simul.day(), simul.hour())
         
         # Similarly imbalanced (+)
-        neighbor_type, exp_num_bikes = calculate_station_type(neighbor, neighbor_demand, neighbor_t_state)
+        neighbor_type, exp_num_bikes = calculate_station_type(neighbor, neighbor_demand, neighbor_t_state) #SM: can we avoid doing these calculations multiple times for each station? 
         if neighbor_type == station_type:
             station_crit += 1
         
         # Absorb demand (-)
-        if station_type == 'p' and neighbor.capacity - exp_num_bikes > 0:
+        if station_type == 'p' and neighbor.capacity - exp_num_bikes > 0: 
             station_crit -= 1
         elif station_type == 'd' and exp_num_bikes > 0:
             station_crit -= 1
+
         
         # Neighbor demand (higher+)
         if station_type == neighbor_type:
@@ -114,14 +116,18 @@ def calculate_demand_criticality(station_type, net_demand):
 def normalize_results(criticalities, time_to_violation_list, deviation_list, neighborhood_crit_list, demand_crit_list):
     max_time = max(time_to_violation_list)
     max_deviation = max(deviation_list)
-    max_neighborhood = max(neighborhood_crit_list)
-    max_demand = max(demand_crit_list)
+    max_neighborhood = max(max(neighborhood_crit_list),0.0001)
+    min_neighborhood = min(neighborhood_crit_list)
+    max_demand = max(max(demand_crit_list),0.1)  #this can potentially be 0, happend for 1 out of 10 seeds
     assert(max_time > 0 and max_deviation > 0 and max_neighborhood > 0 and max_demand > 0, "Some max criticality is not > 0")
     criticalities_normalized = dict()
     for station in criticalities:
         criticalities_normalized[station] = []
         criticalities_normalized[station].append(1-criticalities[station][0]/max_time)
         criticalities_normalized[station].append(criticalities[station][1]/max_deviation)
-        criticalities_normalized[station].append(criticalities[station][2]/max_neighborhood)
+        if criticalities[station][2] >= 0:
+            criticalities_normalized[station].append(criticalities[station][2]/max_neighborhood)
+        else: 
+            criticalities_normalized[station].append(criticalities[station][2]/min_neighborhood)
         criticalities_normalized[station].append(criticalities[station][3]/max_demand)
     return criticalities_normalized
