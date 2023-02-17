@@ -148,8 +148,10 @@ class Station(Location):
     def get_bike_from_id(self, bike_id):
         return self.bikes[bike_id]
     
-    def set_neighboring_stations(self, neighboring_stations_dict):
-        self.neighboring_stations = neighboring_stations_dict[self.id]
+    def set_neighboring_stations(self, neighboring_stations_dict, stations_dict):
+        neighboring_stations_list = neighboring_stations_dict[self.id]
+        for id in neighboring_stations_list:
+            self.neighboring_stations.append(stations_dict[id])
 
     def __repr__(self):
         return (
