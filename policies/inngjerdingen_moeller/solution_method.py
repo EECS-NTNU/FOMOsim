@@ -38,5 +38,5 @@ class SolutionMethod(Policy):
     def greedy_with_neighbor():
         #calls calculate_criticality 
         #should calculate_criticality recieve potential stations or receive
-        # all stations and make the filtering inside
+        # all stations and make the filtering inside?
         return None

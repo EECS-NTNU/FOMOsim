@@ -94,8 +94,8 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
 if __name__ == "__main__":
     start_time = time.time()
     
-    policy_dict = dict(inngjerdingen_moeller_relaxed = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=25))
-    # policy_dict = dict(greedy = policies.GreedyPolicy())
+    # policy_dict = dict(inngjerdingen_moeller_relaxed = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True,time_horizon=25))
+    policy_dict = dict(greedy = policies.GreedyPolicy())
     list_of_timehorizons = [25, 30]
     weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     
@@ -106,5 +106,5 @@ if __name__ == "__main__":
     # test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)
     test_policies(list_of_seeds=list_of_seeds_1, policy_dict=policy_dict, duration=24*5)
     
-    print("Duration with multi: ", time.time()-start_time) 
+    print("Duration with multi: ", time.time()-start_time)
 
