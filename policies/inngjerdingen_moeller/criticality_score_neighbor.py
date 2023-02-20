@@ -114,12 +114,11 @@ def calculate_demand_criticality(station_type, net_demand):
 
 
 def normalize_results(criticalities, time_to_violation_list, deviation_list, neighborhood_crit_list, demand_crit_list):
-    max_time = max(time_to_violation_list)
-    max_deviation = max(deviation_list)
-    max_neighborhood = max(max(neighborhood_crit_list),0.0001)
-    min_neighborhood = min(neighborhood_crit_list)
-    max_demand = max(max(demand_crit_list),0.1)  #this can potentially be 0, happend for 1 out of 10 seeds
-    assert(max_time > 0 and max_deviation > 0 and max_neighborhood > 0 and max_demand > 0, "Some max criticality is not > 0")
+    max_time = max(max(time_to_violation_list),1)
+    max_deviation = max(max(deviation_list),1)
+    max_neighborhood = max(max(neighborhood_crit_list),1)
+    min_neighborhood = min(min(neighborhood_crit_list),-1)
+    max_demand = max(max(demand_crit_list),1)  #this can potentially be 0, happend for 1 out of 10 seeds
     criticalities_normalized = dict()
     for station in criticalities:
         criticalities_normalized[station] = []
@@ -128,6 +127,6 @@ def normalize_results(criticalities, time_to_violation_list, deviation_list, nei
         if criticalities[station][2] >= 0:
             criticalities_normalized[station].append(criticalities[station][2]/max_neighborhood)
         else: 
-            criticalities_normalized[station].append(criticalities[station][2]/min_neighborhood)
+            criticalities_normalized[station].append(criticalities[station][2]/-min_neighborhood)
         criticalities_normalized[station].append(criticalities[station][3]/max_demand)
     return criticalities_normalized

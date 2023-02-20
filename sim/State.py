@@ -40,6 +40,7 @@ class State(LoadSave):
 
         self.vehicles = vehicles
         self.bikes_in_use = bikes_in_use
+        self.seed = seed
 
         self.set_stations(stations)
 

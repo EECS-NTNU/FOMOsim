@@ -73,19 +73,20 @@ class BikeDeparture(Event):
             if FULL_TRIP:
                 closest_neighbour_with_bikes = world.state.get_neighbours(departure_station,1,not_empty=True)[0]
                 distance = departure_station.distance_to(closest_neighbour_with_bikes.get_lat(), closest_neighbour_with_bikes.get_lon())
+                p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
+                sum = 0.0
+                for i in range(len(p)):
+                    sum += p[i]
+                p_normalized = []
+                for i in range(len(p)):
+                    if sum > 0:
+                        p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
+                    else:
+                        p_normalized.append(1/len(p))
                 if self.acceptance_rejection(distance):
                     available_bikes = closest_neighbour_with_bikes.get_available_bikes()
                     bike=available_bikes.pop(0)
-                    p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
-                    sum = 0.0
-                    for i in range(len(p)):
-                        sum += p[i]
-                    p_normalized = []
-                    for i in range(len(p)):
-                        if sum > 0:
-                            p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
-                        else:
-                            p_normalized.append(1/len(p))
+                    
                     arrival_station = world.state.rng.choice(world.state.locations, p = p_normalized)
 
                     travel_time = world.state.get_travel_time(
@@ -120,6 +121,7 @@ class BikeDeparture(Event):
                 else:
                     departure_station.metrics.add_aggregate_metric(world, "starvation", 1) 
                     world.metrics.add_aggregate_metric(world, "starvation", 1)
+                    rng_not_in_use = world.state.rng.choice(world.state.locations, p = p_normalized)
 
         departure_station.metrics.add_aggregate_metric(world, "trips", 1)
         world.metrics.add_aggregate_metric(world, "trips", 1)
