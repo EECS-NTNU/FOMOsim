@@ -1,10 +1,9 @@
-from policies.gleditsch_hagen.utils import calculate_time_to_violation
-from settings import MAX_ROAMING_DISTANCE, BIKE_SPEED
+from settings import MAX_ROAMING_DISTANCE, VEHICLE_SPEED
 
 def calculate_criticality(weights, simul, potential_stations):
     # COMMON DATA
     [w_t, w_dev, w_n, w_dem] = weights
-    TIME_HORIZON = 60
+    TIME_HORIZON = 60        #minutes
     criticalities = dict()      #{station:[time_to_viol, dev_t_state, neigh_crit, dem_crit]}
     criticalities_summed = dict()   #{station:crit_sum}
     time_to_violation_list = []
@@ -19,7 +18,7 @@ def calculate_criticality(weights, simul, potential_stations):
         t_state = potential_station.get_target_state(simul.day(), simul.hour())
         station_type, exp_num_bikes = calculate_station_type(potential_station, net_demand, t_state)
         
-        time_to_violation = calculate_time_to_violation(net_demand, potential_station) #check if this works (hours) and check numbers returned
+        time_to_violation = calculate_time_to_violation_IM(net_demand, potential_station)
         time_to_violation_list.append(time_to_violation)
 
         deviation_from_t_state = abs(t_state - potential_station.number_of_bikes() - net_demand) # alt. include exp. demand during TH
@@ -77,8 +76,8 @@ def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, s
             station_crit += calculate_demand_criticality(neighbor_type, neighbor_demand)    #OBS: not normalized
         
         # Distance scaling (closer+, further-)
-        distance = simul.state.traveltime_matrix[potential_station.id][neighbor.id]*BIKE_SPEED
-        station_crit *= (1-(distance/MAX_ROAMING_DISTANCE))
+        distance = (simul.state.traveltime_vehicle_matrix[potential_station.id][neighbor.id]/60)*VEHICLE_SPEED
+        station_crit *= (1-(distance/MAX_ROAMING_DISTANCE))   #distance is currently not right
 
         neighborhood_crit += station_crit
 
@@ -130,3 +129,15 @@ def normalize_results(criticalities, time_to_violation_list, deviation_list, nei
             criticalities_normalized[station].append(criticalities[station][2]/-min_neighborhood)
         criticalities_normalized[station].append(criticalities[station][3]/max_demand)
     return criticalities_normalized
+
+def calculate_time_to_violation_IM(net_demand,station):
+    time_to_violation = 0
+    if net_demand > 0:
+        time_to_violation = (station.capacity - station.number_of_bikes() ) / net_demand
+    elif net_demand < 0:
+        time_to_violation = - station.number_of_bikes() / net_demand
+    elif net_demand == 0:
+        time_to_violation = 8  #No demand, then no violation in the next couple of hours (8) HARDCODING
+    if time_to_violation > 8:
+        time_to_violation = 8  # Dont differentiate between stations when more than 8 hours to violation
+    return time_to_violation
