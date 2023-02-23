@@ -6,7 +6,7 @@ from .manage_results import *
 from .manage_results import VisualizeResults
 from .run_simulations import* 
 from .criticality_score_neighbor import calculate_criticality
-
+from .mathematical_model import run_model
 
 
 

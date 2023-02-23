@@ -50,7 +50,7 @@ class MILP_data():
                         
                 self.W_C = self.W_R #only in use when roaming = False
 
-                self.neighboring_limit= 0.35 #km
+                self.neighboring_limit= 0.6 #km
 
                 self.TW_max = (self.neighboring_limit/WALKING_SPEED)*60      #max walking time between neighbors in minutes
                 self.T_D = dict()       #{(station_ID,station_ID):time}
