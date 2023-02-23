@@ -48,7 +48,7 @@ def main():
 
     # policy = policies.RandomActionPolicy()
     # policy = policies.GreedyPolicy()
-    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=15)
+    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller_policy.InngjerdingenMoellerPolicy(time_horizon=15)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')

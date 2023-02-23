@@ -1,14 +1,14 @@
-# from parameters_MILP import MILP_data
-# from mathematical_model import run_model
-# from inngjerdingen_moeller import InngjerdingenMoellerPolicy
-import inngjerdingen_moeller
+from parameters_MILP import MILP_data
+from mathematical_model import run_model
+from inngjerdingen_moeller_policy import InngjerdingenMoellerPolicy
+# import inngjerdingen_moeller
 
 import sim
 import demand
 from init_state.wrapper import read_initial_state
 import target_state
 from helpers import timeInMinutes
-# from visualize_subproblem import Visualizer
+from visualize_subproblem import Visualizer
 
 
 def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau, duration, number_of_runs, number_of_vehicles, roaming):
@@ -27,7 +27,7 @@ def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau
                 test_demand.update_demands(test_state, start_day, start_hour)
                 start_time = timeInMinutes(hours=start_hour)
                 t_state.update_target_state(test_state, start_day, start_hour)
-                policy = inngjerdingen_moeller.InngjerdingenMoellerPolicy()
+                policy = InngjerdingenMoellerPolicy()
                 test_state.set_vehicles([policy for _ in range(0,number_of_vehicles)])
                 for vehicle in range(0,number_of_vehicles):
                         test_state.vehicles[vehicle].location = test_state.locations[start_stations[test_number] + 5*vehicle]  #use this for Trondheim and Oslo
@@ -40,7 +40,7 @@ def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau
                         duration = duration,
                         verbose = True,
                 )
-                d = inngjerdingen_moeller.MILP_data(test_simul, time_horizon, tau)
+                d = MILP_data(test_simul, time_horizon, tau)
                 d.initalize_parameters()
                 m=run_model(d, roaming)
                 # sol = policy.return_solution(m,test_state.vehicles[0])
@@ -71,10 +71,10 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         test_demand.update_demands(test_state, start_day, start_hour)
         start_time = timeInMinutes(hours=start_hour)
         t_state.update_target_state(test_state, start_day, start_hour)
-        policy = inngjerdingen_moeller.InngjerdingenMoellerPolicy()
+        policy = InngjerdingenMoellerPolicy()
         test_state.set_vehicles([policy for _ in range(0, number_of_vehicles)])
         for vehicle in range(0,number_of_vehicles):
-                        test_state.vehicles[vehicle].location = test_state.locations[29 + 5*vehicle]
+                        test_state.vehicles[vehicle].location = test_state.locations[1 + 5*vehicle]
         test_simul = sim.Simulator(
                 initial_state = test_state,
                 target_state = t_state,
@@ -83,7 +83,7 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
                 duration = duration,
                 verbose = True,
         )
-        d = inngjerdingen_moeller.MILP_data(test_simul, time_horizon, tau)
+        d = MILP_data(test_simul, time_horizon, tau)
         d.initalize_parameters()
         # d.print_neighbor_info(16)
         # d.deep_dive_test_2()
@@ -92,8 +92,8 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         # m.printAttr("X")
         print("Runtime of experiment was", str(round(m.Runtime,2)))
         # print("MIP gap was ", str(m.MIPGap)) #this doesn't work when using variable relaxation 
-        v=inngjerdingen_moeller.Visualizer(m,d)
-        v.visualize_route()
+        # v=Visualizer(m,d)
+        # v.visualize_route()
         # v.visualize_map_and_route()
         # v.visualize_stations()
 
@@ -101,9 +101,9 @@ if __name__ == "__main__":
 # ------------ TESTING DATA MANUALLY ---------------
         # filename = "instances/EH_W31"
         # filename = "instances/TD_W34"
-        filename = "instances/TD_W34_old"
+        # filename = "instances/TD_W34_old"
         # filename = "instances/OS_W31"
-        # filename = "instances/BG_W35"
+        filename = "instances/BG_W35"
 
         START_DAY = 0 #0 -> monday ,days other than 0 results in target inventory = 0 for all stations
         START_HOUR = 8 #8 -> 08:00 am

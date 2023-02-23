@@ -152,6 +152,7 @@ class Station(Location):
         neighboring_stations_list = neighboring_stations_dict[self.id]
         for id in neighboring_stations_list:
             self.neighboring_stations.append(stations_dict[id])
+        return None
 
     def __repr__(self):
         return (
