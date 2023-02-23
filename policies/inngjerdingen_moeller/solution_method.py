@@ -1,10 +1,9 @@
 '''rename this module and class eg., PILOT, InngjerdingenMoellerPolicy_2, heuristic or something similar '''
 from policies import Policy
 import sim
-from criticality_score_neighbor import calculate_criticality
+from criticality_score_neighbor import calculate_criticality, calculate_station_type
 import settings
 from policies.gleditsch_hagen.utils import calculate_net_demand
-from criticality_score_neighbor import calculate_station_type
 
 class SolutionMethod(Policy):
     def __init__(self):
@@ -37,6 +36,7 @@ class SolutionMethod(Policy):
     def PILOT_function():
         #calls the greedy function recursively + smart filtering, branching and depth
         return None
+    
     
     def greedy_with_neighbor():
         #calls calculate_criticality 
