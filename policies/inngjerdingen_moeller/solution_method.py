@@ -157,7 +157,7 @@ class SolutionMethod(Policy):
                                 excess_locks-=excess_locks
                             
                             if abs(violations) <= excess_locks_no_visit:
-                                roamings_no_visit+=abs(violations)
+                                roamings_no_visit+=abs(violations) 
                                 excess_locks_no_visit-= abs(violations)
                             else:
                                 roamings_no_visit+=excess_locks_no_visit
@@ -178,8 +178,10 @@ class SolutionMethod(Policy):
                             else:
                                 roamings_no_visit+=excess_bikes_no_visit
                                 excess_bikes_no_visit-=excess_bikes_no_visit
+                
+                distance_scaling = ((simul.state.get_vehicle_travel_time(station.id, neighbor.id)/60)*settings.VEHICLE_SPEED)/settings.MAX_ROAMING_DISTANCE
 
-                neighbor_roamings += (roamings-roamings_no_visit)       
+                neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
            
 
             avoided_disutility += (weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
