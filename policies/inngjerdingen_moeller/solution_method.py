@@ -1,10 +1,10 @@
 '''rename this module and class eg., PILOT, InngjerdingenMoellerPolicy_2, heuristic or something similar '''
 from policies import Policy
 import sim
-from criticality_score_neighbor import calculate_criticality
+from criticality_score_neighbor import calculate_criticality, calculate_station_type
 import settings
 from policies.gleditsch_hagen.utils import calculate_net_demand
-from criticality_score_neighbor import calculate_station_type
+from greedy_policy_with_neighbors import calculate_loading_quantities
 
 class SolutionMethod(Policy):
     def __init__(self):
@@ -18,13 +18,18 @@ class SolutionMethod(Policy):
         #########################################
         #               WHAT TO DO              #
         #########################################
-
+        num_bikes_vehicle = len(vehicle.get_bike_inventory())
+        bikes_to_pickup, bikes_to_deliver = calculate_loading_quantities(vehicle, simul, vehicle.location)
+        number_of_bikes_to_pick_up = len(bikes_to_pickup)
+        number_of_bikes_to_deliver = len(bikes_to_deliver)
+        
+        bikes_at_vehicle_after_rebalancing = num_bikes_vehicle + number_of_bikes_to_pick_up - number_of_bikes_to_deliver
 
         ##########################################
         #               WHERE TO GO              #
         ##########################################
 
-        
+        next_station = self.PILOT_function()
         
         return sim.Action(
             [],               # batteries to swap
@@ -34,7 +39,7 @@ class SolutionMethod(Policy):
         )   
 
 
-    def PILOT_function():
+    def PILOT_function(self):
         #calls the greedy function recursively + smart filtering, branching and depth
         return None
     
