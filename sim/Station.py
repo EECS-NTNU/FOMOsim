@@ -24,7 +24,7 @@ class Station(Location):
         target_state=None,
         capacity=DEFAULT_STATION_CAPACITY,
         original_id = None,
-        charging_station = None,
+        charging_station = None, 
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(bikes)), station_id

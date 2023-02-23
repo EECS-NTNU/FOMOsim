@@ -65,7 +65,7 @@ class Simulator(LoadSave):
             )
 
         self.metrics = Metric()
-        self.cluster = cluster
+        self.cluster = cluster 
         self.verbose = verbose
         if label is None:
           self.label = "Sim"

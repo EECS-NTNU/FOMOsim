@@ -44,7 +44,7 @@ class SolutionMethod(Policy):
         # all stations and make the filtering inside?
         return None
 
-    def evaluate_route(route, demand_scenario, time_horizon, simul, weights): #a route can be a list with (station_object, loading_quantity)-tuples as list elements. Begins with current station and loading quantities
+    def evaluate_route(self, route, demand_scenario, time_horizon, simul, weights): #a route can be a list with (station_object, loading_quantity)-tuples as list elements. Begins with current station and loading quantities
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
         end_time = current_time + time_horizon
@@ -56,7 +56,7 @@ class SolutionMethod(Policy):
             improved_deviation = 0
             
             station = action[0]
-            loading_quantity = action[1] #a positive loading quantity means unloading of bicycles to the station 
+            loading_quantity = action[1] #positive loading quantity means unloading of bicycles to the station 
             neighbors = station.neighboring_stations #list of station objects
 
             if previous_station != None:
@@ -72,7 +72,7 @@ class SolutionMethod(Policy):
             if net_demand>0:
                 time_first_violation_no_visit = current_time+((station_capacity - initial_inventory)/net_demand)*60
             elif net_demand<0:
-                time_first_violation_no_visit = current_time+(initial_inventory/net_demand)*60
+                time_first_violation_no_visit = current_time+(initial_inventory/(-net_demand))*60
             else:
                 time_first_violation_no_visit = end_time
            
@@ -92,7 +92,7 @@ class SolutionMethod(Policy):
             if net_demand>0:
                 time_first_violation_after_loading = time+((station_capacity - inventory_after_loading)/net_demand)*60
             elif net_demand<0:
-                time_first_violation_after_loading = time+(inventory_after_loading/net_demand)*60
+                time_first_violation_after_loading = time+(inventory_after_loading/(-net_demand))*60
             else:
                 time_first_violation_after_loading = end_time
 
@@ -107,18 +107,18 @@ class SolutionMethod(Policy):
 
             if net_demand > 0:
                 ending_inventory = min(station_capacity, inventory_after_loading + ((end_time-time)/60)*net_demand)
-            elif net_demand < 0:
+            elif net_demand <= 0:
                 ending_inventory = max(0, inventory_after_loading + ((end_time-time)/60)*net_demand)
-            else: #net_demand = 0
-                ending_inventory= initial_inventory + loading_quantity
-
+        
             deviation_visit = abs(ending_inventory-target_state)
 
             if net_demand > 0:
-                deviation_no_visit = min(station_capacity,initial_inventory+((end_time-current_time)/60)*net_demand)
+                ending_inventory_no_visit = min(station_capacity,initial_inventory+((end_time-current_time)/60)*net_demand)
             elif net_demand <= 0:
-                deviation_no_visit = max(0,initial_inventory+((end_time-current_time)/60)*net_demand)
-            
+                ending_inventory_no_visit = max(0,initial_inventory+((end_time-current_time)/60)*net_demand)
+        
+            deviation_no_visit = abs(ending_inventory_no_visit-target_state)
+
             improved_deviation = deviation_no_visit - deviation_visit
 
             excess_bikes = ending_inventory
@@ -142,7 +142,7 @@ class SolutionMethod(Policy):
                     if net_demand_neighbor>0:
                         time_first_violation = current_time+((neighbor.capacity - neighbor.number_of_bikes())/net_demand_neighbor)*60
                     elif net_demand_neighbor<0:
-                        time_first_violation = current_time+(neighbor.number_of_bikes()/net_demand_neighbor)*60
+                        time_first_violation = current_time+(neighbor.number_of_bikes()/(-net_demand_neighbor))*60
                     else:
                         time_first_violation = end_time
                     
@@ -155,6 +155,15 @@ class SolutionMethod(Policy):
                             else:
                                 roamings+=excess_locks
                                 excess_locks-=excess_locks
+                            
+                            if abs(violations) <= excess_locks_no_visit:
+                                roamings_no_visit+=abs(violations)
+                                excess_locks_no_visit-= abs(violations)
+                            else:
+                                roamings_no_visit+=excess_locks_no_visit
+                                excess_locks_no_visit-=excess_locks_no_visit
+                        
+                                
                         if neighbor_type == 'd':
                             if abs(violations) <= excess_bikes:
                                 roamings+=abs(violations)
@@ -163,14 +172,6 @@ class SolutionMethod(Policy):
                                 roamings+=excess_bikes
                                 excess_bikes-=excess_bikes
 
-                        if neighbor_type == 'p':
-                            if abs(violations) <= excess_locks_no_visit:
-                                roamings_no_visit+=abs(violations)
-                                excess_locks_no_visit-= abs(violations)
-                            else:
-                                roamings_no_visit+=excess_locks_no_visit
-                                excess_locks_no_visit-=excess_locks_no_visit
-                        if neighbor_type == 'd':
                             if abs(violations) <= excess_bikes_no_visit:
                                 roamings_no_visit+=abs(violations)
                                 excess_bikes_no_visit-= abs(violations)

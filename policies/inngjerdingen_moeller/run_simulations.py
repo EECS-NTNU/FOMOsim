@@ -107,40 +107,36 @@ if __name__ == "__main__":
 
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)
-    test_policies(list_of_seeds=list_of_seeds_1, policy_dict=policy_dict, duration=24*5)
+    # test_policies(list_of_seeds=list_of_seeds_1, policy_dict=policy_dict, duration=24*5)
 
     ###########################################
 
-    # START_TIME = timeInMinutes(hours=7)
-    # DURATION = timeInMinutes(hours=24)
-    # INSTANCE = 'TD_W34_old'
-    ###############################################################
+    START_TIME = timeInMinutes(hours=7)
+    DURATION = timeInMinutes(hours=24)
+    INSTANCE = 'TD_W34_old'
     
-    # state = init_state.read_initial_state("instances/"+INSTANCE)
-    # # state.set_seed(1)
-    # state.set_vehicles([policies.GreedyPolicy()]) # this creates one vehicle for each policy in the list
-    # tstate = target_state.USTargetState()
-    # dmand = demand.Demand()
-    # simulator = sim.Simulator(
-    #     initial_state = state,
-    #     target_state = tstate,
-    #     demand = dmand,
-    #     start_time = START_TIME,
-    #     duration = DURATION,
-    #     verbose = True,
-    # )
+    state = init_state.read_initial_state("instances/"+INSTANCE)
+    state.set_seed(1)
+    state.set_vehicles([policies.GreedyPolicy()]) # this creates one vehicle for each policy in the list
+    tstate = target_state.USTargetState()
+    dmand = demand.Demand()
+    simulator = sim.Simulator(
+        initial_state = state,
+        target_state = tstate,
+        demand = dmand,
+        start_time = START_TIME,
+        duration = DURATION,
+        verbose = True,
+    )
 
+    simulator.demand.update_demands(state, 1,1)
+    simulator.target_state.update_target_state(simulator.state,simulator.day(),simulator.hour())
 
+    route=[]
+    for i in range(4):
+        route.append((state.stations[i],3))
 
-
-
-    # simulator.demand.update_demands(state, 1,1)
-    
-    # start_time = time.time()
-    # crit_dict = policies.inngjerdingen_moeller.calculate_criticality([0.25,0.25,0.25,0.25], simulator, state.stations.values())
-    # print("Station_ID, num_bikes, criticality")
-    # for key in crit_dict:
-        # print(str(key.id)+",", str(key.number_of_bikes())+",", crit_dict[key])
-    ###############################################
-    # print("Duration with multi: ", time.time()-start_time)
-
+    policy = policies.inngjerdingen_moeller.SolutionMethod()
+    value=policy.evaluate_route(route,None,30,simulator,[0.45,0.45,0.1])
+    print(value)
+ ###############################################################

@@ -1,4 +1,5 @@
 from .inngjerdingen_moeller import InngjerdingenMoellerPolicy
+from .solution_method import SolutionMethod
 from .greedy_policy_with_neighbors import GreedyPolicyNeighborhoodInteraction
 from .parameters_MILP import MILP_data
 from .visualize_subproblem import Visualizer

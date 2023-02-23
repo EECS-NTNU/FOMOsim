@@ -23,7 +23,7 @@ class State(LoadSave):
         traveltime_matrix=None,
         traveltime_matrix_stddev=None,
         traveltime_vehicle_matrix=None,
-        traveltime_vehicle_matrix_stddev=None,
+        traveltime_vehicle_matrix_stddev=None, 
         rng = None,
         rng2 = None,
         seed = None
