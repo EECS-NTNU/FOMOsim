@@ -50,19 +50,20 @@ class SolutionMethod(Policy):
         # all stations and make the filtering inside?
         return None
 
-    def evaluate_route(self, route, demand_scenario, time_horizon, simul, weights): #a route can be a list with (station_object, loading_quantity)-tuples as list elements. Begins with current station and loading quantities
+    def evaluate_route(self, route, demand_scenario, time_horizon, simul, weights): #a route can be a list with visit-objects as list elements. Begins with current station and loading quantities
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
         end_time = current_time + time_horizon
         time = current_time 
         previous_station=None
-        for action in route:
+        for visit in route:
             avoided_violations = 0
             neighbor_roamings = 0
             improved_deviation = 0
             
-            station = action[0]
-            loading_quantity = action[1] #positive loading quantity means unloading of bicycles to the station 
+            station = visit.stations
+            loading_quantity = visit.loading_quantity
+            unloading_quantity = visit.unloading_quantity
             neighbors = station.neighboring_stations #list of station objects
 
             if previous_station != None:
@@ -93,7 +94,7 @@ class SolutionMethod(Policy):
             else:
                 unavoidable_violations = 0
             
-            inventory_after_loading = initial_inventory + ((time-current_time)/60)*net_demand - unavoidable_violations + loading_quantity
+            inventory_after_loading = initial_inventory + ((time-current_time)/60)*net_demand - unavoidable_violations - loading_quantity + unloading_quantity
 
             if net_demand>0:
                 time_first_violation_after_loading = time+((station_capacity - inventory_after_loading)/net_demand)*60
@@ -193,7 +194,7 @@ class SolutionMethod(Policy):
             avoided_disutility += (weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
             
             #for next iteration:
-            time += abs(loading_quantity*settings.MINUTES_PER_ACTION) #the time after the loading operations are done 
+            time += abs((loading_quantity+unloading_quantity)*settings.MINUTES_PER_ACTION) #the time after the loading operations are done 
             previous_station = station
         
         return avoided_disutility 
