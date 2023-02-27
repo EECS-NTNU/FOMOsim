@@ -55,11 +55,8 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
         potential_stations = find_potential_stations(simul, self.cutoff, vehicle, bikes_at_vehicle_after_rebalancing, tabu_list)
 
-        #calculate criticalities for potential stations
-        criticalities = calculate_criticality(self.crit_weights, simul, potential_stations)                                         
-        
-        #sort to get the most promising ones
-        criticalities = dict(sorted(criticalities.items(), key=lambda item: item[1], reverse=True)) #descending order
+        #calculate criticalities for potential stations, sorted by criticality
+        criticalities = calculate_criticality(self.crit_weights, simul, potential_stations) # dict {station: criticality} sorted by crit.score                           
         
         #pick the best
         if len(criticalities)==0:

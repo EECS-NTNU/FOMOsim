@@ -1,6 +1,6 @@
 from settings import MAX_ROAMING_DISTANCE, VEHICLE_SPEED
 
-def calculate_criticality(weights, simul, potential_stations):
+def calculate_criticality(weights, simul, potential_stations): # take in time as well? simul.time may be outdated
     # COMMON DATA
     [w_t, w_dev, w_n, w_dem] = weights
     TIME_HORIZON = 60        #minutes
@@ -45,7 +45,9 @@ def calculate_criticality(weights, simul, potential_stations):
         + criticalities_normalized[station][2] + criticalities_normalized[station][3]
     
 
-    #sort the dict?
+    #sort the dict
+    criticalities_summed = dict(sorted(criticalities.items(), key=lambda item: item[1], reverse=True)) #descending order
+    
     return criticalities_summed
 
 
