@@ -29,26 +29,33 @@ class SolutionMethod(Policy):
         #               WHERE TO GO              #
         ##########################################
 
-        next_station = self.PILOT_function()
+        next_station = self.PILOT_function(self, simul)
         
         return sim.Action(
             [],               # batteries to swap
             bikes_to_pickup, #list of bike id's
             bikes_to_deliver, #list of bike id's
-            next_station, #id
+            next_station, #id 
         )   
 
 
-    def PILOT_function(self):
+    def PILOT_function(self, simul):
         #calls the greedy function recursively + smart filtering, branching and depth
         return None
     
     
-    def greedy_with_neighbor():
-        #calls calculate_criticality 
+    def greedy_next_visit(self, route, vehicle, simul, number_of_successors):
+        
+        stations_sorted = calculate_criticality(weights, simul, potential_stations) #sorted dict {station_object: criticality_score}
+        stations_sorted_list = list(stations_sorted.keys())
+        next_locations = [stations_sorted_list[i].id for i in range(number_of_successors)]
+        
+
+        #calls calculate_criticality
         #should calculate_criticality recieve potential stations or receive
         # all stations and make the filtering inside?
         return None
+
 
     def evaluate_route(self, route, demand_scenario, time_horizon, simul, weights): #a route can be a list with (station_object, loading_quantity)-tuples as list elements. Begins with current station and loading quantities
         avoided_disutility = 0
@@ -197,3 +204,19 @@ class SolutionMethod(Policy):
             previous_station = station
         
         return avoided_disutility 
+    
+class Visit():
+    def __init__(self, station, loading_quantity, unloading_quantity, arrival_time, vehicle):
+        self.station = station
+        self.loading_quantity = loading_quantity #loading from station to vehicle
+        self.unloading_quantity = unloading_quantity #unloading from vehicle unto station
+        self.arrival_time = arrival_time #in min
+        self.vehicle = vehicle 
+
+    def get_departure_time(self):
+        return self.arrival_time + (self.loading_quantity + self.unloading_quantity)*settings.MINUTES_PER_ACTION
+
+    
+
+    
+
