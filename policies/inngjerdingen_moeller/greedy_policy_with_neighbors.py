@@ -43,7 +43,7 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         #########################################
         
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
-        bikes_to_pickup, bikes_to_deliver = calculate_loading_quantities(vehicle, simul, vehicle.location)
+        bikes_to_pickup, bikes_to_deliver = calculate_loading_quantities_greedy(vehicle, simul, vehicle.location)
         number_of_bikes_to_pick_up = len(bikes_to_pickup)
         number_of_bikes_to_deliver = len(bikes_to_deliver)
         
@@ -80,14 +80,13 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         )
     
 
-def calculate_loading_quantities(vehicle, simul, station):
+def calculate_loading_quantities_greedy(vehicle, simul, station):
     num_bikes_vehicle = len(vehicle.get_bike_inventory())
     
     number_of_bikes_to_pick_up = 0
     number_of_bikes_to_deliver = 0
-    number_of_batteries_to_swap = 0
 
-    target_state = round(station.get_target_state(simul.day(), simul.hour()))  #consider sending in current time
+    target_state = round(station.get_target_state(simul.day(), simul.hour()))
     num_bikes_station = station.number_of_bikes()
     if num_bikes_station < target_state: #deliver bikes
         
@@ -95,11 +94,9 @@ def calculate_loading_quantities(vehicle, simul, station):
         number_of_bikes_to_deliver = min(num_bikes_vehicle,target_state-num_bikes_station)
         bikes_to_deliver = [bike.id for bike in vehicle.get_bike_inventory()[:number_of_bikes_to_deliver]]
         bikes_to_pickup = []
-        number_of_bikes_to_pick_up = 0
         
     elif num_bikes_station > target_state: #pick-up bikes
     
-        number_of_bikes_to_deliver = 0
         bikes_to_deliver = []
         remaining_vehicle_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
         number_of_bikes_to_pick_up = min(num_bikes_station-target_state,remaining_vehicle_capacity)
@@ -108,7 +105,6 @@ def calculate_loading_quantities(vehicle, simul, station):
     else: #num bikes is exactly at target state
         bikes_to_deliver = []
         bikes_to_pickup = []
-        number_of_bikes_to_pick_up = 0
     return bikes_to_pickup, bikes_to_deliver
 
 
