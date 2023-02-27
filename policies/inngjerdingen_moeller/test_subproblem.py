@@ -103,7 +103,6 @@ if __name__ == "__main__":
         # filename = "instances/TD_W34"
         filename = "instances/TD_W34_old"
         # filename = "instances/OS_W31"
-
         # filename = "instances/BG_W35"
 
         START_DAY = 0 #0 -> monday ,days other than 0 results in target inventory = 0 for all stations

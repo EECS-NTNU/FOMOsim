@@ -42,82 +42,18 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         #               WHAT TO DO              #
         #########################################
         
-        
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
+        bikes_to_pickup, bikes_to_deliver = calculate_loading_quantities(vehicle, simul, vehicle.location)
+        number_of_bikes_to_pick_up = len(bikes_to_pickup)
+        number_of_bikes_to_deliver = len(bikes_to_deliver)
         
-        number_of_bikes_to_pick_up = 0
-        number_of_bikes_to_deliver = 0
-        number_of_batteries_to_swap = 0
-
-        if not vehicle.is_at_depot():
-            target_state = round(vehicle.location.get_target_state(simul.day(), simul.hour()))
-            num_bikes_station = len(vehicle.location.bikes)
-            if num_bikes_station < target_state: #deliver bikes
-                
-                #deliver bikes, max to the target state
-                number_of_bikes_to_deliver = min(num_bikes_vehicle,target_state-num_bikes_station)
-                bikes_to_deliver = [bike.id for bike in vehicle.get_bike_inventory()[:number_of_bikes_to_deliver]]
-                bikes_to_pickup = []
-                number_of_bikes_to_pick_up = 0
-                
-                # Swap as many bikes (or batteries!) as possible as this station most likely needs it
-                # TO DO: MAKE SURE THIS MAKES SENSE!!!!
-                swappable_bikes = vehicle.location.get_swappable_bikes()
-                number_of_batteries_to_swap = min(vehicle.battery_inventory, len(swappable_bikes))
-                batteries_to_swap = [bike.id for bike in swappable_bikes][:number_of_batteries_to_swap]
-                
-            elif num_bikes_station > target_state: #pick-up bikes
-            
-                number_of_bikes_to_deliver = 0
-                bikes_to_deliver = []
-                remaining_vehicle_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
-                number_of_bikes_to_pick_up = min(num_bikes_station-target_state,remaining_vehicle_capacity)
-                bikes_to_pickup = [bike.id for bike in vehicle.location.bikes.values()][:number_of_bikes_to_pick_up]
-            
-                # UPDATE/ TODO Do not swap any bikes/batteries in a station with a lot of bikes
-                batteries_to_swap = []
-                number_of_batteries_to_swap = 0
-            
-            else: #num bikes is exactly at target state
-                bikes_to_deliver = []
-                bikes_to_pickup = []
-                number_of_bikes_to_pick_up = 0
-                number_of_batteries_to_swap = 0
-                batteries_to_swap = []
+        bikes_at_vehicle_after_rebalancing = num_bikes_vehicle + number_of_bikes_to_pick_up - number_of_bikes_to_deliver
 
         ##########################################
         #               WHERE TO GO              #
         ##########################################
-
         tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
-        potential_stations = [station for station in simul.state.locations if station.id not in tabu_list]
-        
-        net_demands = {station.id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
-                        for station in potential_stations}
-        target_states = {station.id:station.get_target_state(simul.day(), simul.hour()) 
-                            for station in potential_stations}
-        
-        potential_pickup_stations = [station for station in potential_stations if 
-                                        station.number_of_bikes() + net_demands[station.id] > target_states[station.id]]
-        potential_delivery_stations = [station for station in potential_stations if 
-                                        station.number_of_bikes() + net_demands[station.id] < target_states[station.id]]
-        
-        bikes_at_vehicle_after_rebalancing = num_bikes_vehicle + number_of_bikes_to_pick_up - number_of_bikes_to_deliver
-        cutoff = self.cutoff
-        
-        if cutoff*vehicle.bike_inventory_capacity <= bikes_at_vehicle_after_rebalancing  <= (1-cutoff)*vehicle.bike_inventory_capacity:
-            potential_stations = potential_pickup_stations + potential_delivery_stations
-        else:
-            # During some hours (approx. 23:00-06:00), there is VERY little demand for bikes (system closed???)
-            # , while there still is demand for locks (it shoud always be possible to return a bike). 
-            # But during these hours, usually the net demand is zero.
-            #THEREFORE, during the night, we allow all stations
-            
-            #In general, we need a better definition of what defines as a pickup or delivery station
-            if bikes_at_vehicle_after_rebalancing <= cutoff*vehicle.bike_inventory_capacity:  #few bikes, so want to pickup
-                potential_stations = potential_pickup_stations
-            elif bikes_at_vehicle_after_rebalancing >= (1-cutoff)*vehicle.bike_inventory_capacity: #want do deliver
-                potential_stations = potential_delivery_stations
+        potential_stations = find_potential_stations(simul, self.cutoff, vehicle, bikes_at_vehicle_after_rebalancing, tabu_list)
 
         #calculate criticalities for potential stations
         criticalities = calculate_criticality(self.crit_weights, simul, potential_stations)                                         
@@ -147,7 +83,56 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         )
     
 
+def calculate_loading_quantities(vehicle, simul, station):
+    num_bikes_vehicle = len(vehicle.get_bike_inventory())
+    
+    number_of_bikes_to_pick_up = 0
+    number_of_bikes_to_deliver = 0
+    number_of_batteries_to_swap = 0
 
-       
+    target_state = round(station.get_target_state(simul.day(), simul.hour()))  #consider sending in current time
+    num_bikes_station = station.number_of_bikes()
+    if num_bikes_station < target_state: #deliver bikes
+        
+        #deliver bikes, max to the target state
+        number_of_bikes_to_deliver = min(num_bikes_vehicle,target_state-num_bikes_station)
+        bikes_to_deliver = [bike.id for bike in vehicle.get_bike_inventory()[:number_of_bikes_to_deliver]]
+        bikes_to_pickup = []
+        number_of_bikes_to_pick_up = 0
+        
+    elif num_bikes_station > target_state: #pick-up bikes
     
+        number_of_bikes_to_deliver = 0
+        bikes_to_deliver = []
+        remaining_vehicle_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
+        number_of_bikes_to_pick_up = min(num_bikes_station-target_state,remaining_vehicle_capacity)
+        bikes_to_pickup = [bike.id for bike in station.bikes.values()][:number_of_bikes_to_pick_up]
     
+    else: #num bikes is exactly at target state
+        bikes_to_deliver = []
+        bikes_to_pickup = []
+        number_of_bikes_to_pick_up = 0
+    return bikes_to_pickup, bikes_to_deliver
+
+
+def find_potential_stations(simul, cutoff, vehicle, bikes_at_vehicle, tabu_list):
+    potential_stations = [station for station in simul.state.locations if station.id not in tabu_list]
+    
+    net_demands = {station.id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
+                    for station in potential_stations}
+    target_states = {station.id:station.get_target_state(simul.day(), simul.hour()) 
+                        for station in potential_stations}
+    
+    potential_pickup_stations = [station for station in potential_stations if 
+                                    station.number_of_bikes() + net_demands[station.id] > target_states[station.id]]
+    potential_delivery_stations = [station for station in potential_stations if 
+                                    station.number_of_bikes() + net_demands[station.id] < target_states[station.id]]
+    
+    if cutoff*vehicle.bike_inventory_capacity <= bikes_at_vehicle  <= (1-cutoff)*vehicle.bike_inventory_capacity:
+        potential_stations = potential_pickup_stations + potential_delivery_stations
+    else:
+        if bikes_at_vehicle <= cutoff*vehicle.bike_inventory_capacity:  #few bikes, so want to pickup
+            potential_stations = potential_pickup_stations
+        elif bikes_at_vehicle >= (1-cutoff)*vehicle.bike_inventory_capacity: #want do deliver
+            potential_stations = potential_delivery_stations
+    return potential_stations
