@@ -6,9 +6,12 @@ import settings
 from policies.gleditsch_hagen.utils import calculate_net_demand
 from greedy_policy_with_neighbors import calculate_loading_quantities_greedy
 from greedy_policy_with_neighbors import find_potential_stations
-
-class SolutionMethod(Policy):
-    def __init__(self):
+from copy import deepcopy
+class PILOT(Policy):
+    def __init__(self, max_depth, number_of_successors, time_horizon):
+        self.max_depth = max_depth
+        self.number_of_successors = number_of_successors
+        self.time_horizon = time_horizon
         super().__init__()
 
     def get_best_action(self, simul, vehicle):
@@ -16,12 +19,11 @@ class SolutionMethod(Policy):
         bikes_to_pickup = []
         bikes_to_deliver = []  
         
-        # Create a deep copy of vehicles, that may be altered to update inventory?
+        end_time = simul.time + self.time_horizon
 
         #########################################
         #               WHAT TO DO              #
         #########################################
-        num_bikes_vehicle = len(vehicle.get_bike_inventory())
         bikes_to_pickup, bikes_to_deliver = calculate_loading_quantities_greedy(vehicle, simul, vehicle.location)
         number_of_bikes_to_pick_up = len(bikes_to_pickup)
         number_of_bikes_to_deliver = len(bikes_to_deliver)
@@ -33,7 +35,7 @@ class SolutionMethod(Policy):
         #               WHERE TO GO              #
         ##########################################
 
-        next_station = self.PILOT_function(self, simul, route)
+        next_station = self.PILOT_function(simul, vehicle, route, self.max_depth, self.number_of_successors, end_time)
         
         return sim.Action(
             [],               # batteries to swap
@@ -43,34 +45,58 @@ class SolutionMethod(Policy):
         )   
 
 
-    def PILOT_function(self, simul, route):
-        #calls the greedy function recursively + smart filtering, branching and depth
-        return None
-    
+    def PILOT_function(self, simul, vehicle, route, max_depth, number_of_successors, end_time): #pls fix
+        routes_to_be_expanded = []
+        routes_to_be_expanded.append(route)
+        depth=0
+        min_departure_time = route[-1].get_departure_time()
+        while depth<max_depth and min_departure_time < end_time: 
+            for route in routes_to_be_expanded:
+                if route[-1].get_departure_time() < end_time and len(route)-1 < max_depth:
+                    new_visits = self.greedy_next_visit(route, vehicle, simul, number_of_successors)
+                    for visit in new_visits:
+                        new_route = deepcopy(route)
+                        new_route.append(visit)
+                        routes_to_be_expanded.append(new_route)
+                    routes_to_be_expanded.remove(route) #try to replace with None instead of removing? 
+            list_of_departure_times=[updated_route[-1].get_departure_time() for updated_route in routes_to_be_expanded]
+            min_departure_time = min(list_of_departure_times)
+            depth+=1
+        #alternatively a greedy construction for the rest of the route 
+        
+        route_scores = dict()
+        for route in routes_to_be_expanded:
+            score = self.evaluate_route(route, None, end_time, simul,[0.33, 0.33, 0.33])
+            route_scores[route]=score
+        
+        routes_sorted = dict(sorted(route_scores.items(), key=lambda item: item[1], reverse=True))
+        best_route = list(routes_sorted.keys())[0]
+        return best_route[1].station.id
+
     
     def greedy_next_visit(self, route, vehicle, simul, number_of_successors):   #TODO: include multi-vehicle
         visits = []
-        tabu_list = (visit.station for visit in route)
-        potential_stations = find_potential_stations(simul, 0.25, vehicle, tabu_list)
+        tabu_list = [visit.station for visit in route]
+        num_bikes_vehicle = len(vehicle.get_bike_inventory())
+        potential_stations = find_potential_stations(simul, 0.25, vehicle, num_bikes_vehicle, tabu_list)
         stations_sorted = calculate_criticality([0.25,0.25,0.25,0.25], simul, potential_stations) #sorted dict {station_object: criticality_score}
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
-        num_bikes_vehicle = len(vehicle.get_bike_inventory())
+        
         for visit in route:
             num_bikes_vehicle = num_bikes_vehicle + visit.loading_quantity - visit.unloading_quantity
 
         for next_station in next_stations:
             arrival_time = route[-1].get_departure_time() + simul.state.traveltime_vehicle_matrix[route[-1].station.id][next_station.id]
-            number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(vehicle, num_bikes_vehicle, next_station, arrival_time, simul)
+            number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(vehicle, num_bikes_vehicle, simul, next_station, arrival_time)
             visits.append(Visit(next_station, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, arrival_time, vehicle))
         return visits
 
 
-    def evaluate_route(self, route, demand_scenario, time_horizon, simul, weights): #a route can be a list with (station_object, loading_quantity)-tuples as list elements. Begins with current station and loading quantities
+    def evaluate_route(self, route, demand_scenario, end_time, simul, weights): #Begins with current station and loading quantities
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
-        end_time = current_time + time_horizon
         time = current_time 
         previous_station=None
         for visit in route:
@@ -84,7 +110,7 @@ class SolutionMethod(Policy):
             neighbors = station.neighboring_stations #list of station objects
 
             if previous_station != None:
-                time += simul.state.get_vehicle_travel_time(previous_station.id, station.id) #arrival time at the station
+                time = visit.arrival_time
             else: #we are on the first station 
                 time = time
             
@@ -211,18 +237,17 @@ class SolutionMethod(Policy):
             avoided_disutility += (weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
             
             #for next iteration:
-            time += abs((loading_quantity+unloading_quantity)*settings.MINUTES_PER_ACTION) #the time after the loading operations are done 
+            time = visit.get_departure_time() #the time after the loading operations are done 
             previous_station = station
         
         return avoided_disutility 
     
     
-    def calculate_loading_quantities_pilot(vehicle, vehicle_inventory, simul, station, current_time):
+    def calculate_loading_quantities_pilot(self, vehicle, vehicle_inventory, simul, station, current_time):
         
         number_of_bikes_to_pick_up = 0
         number_of_bikes_to_deliver = 0
-
-        target_state = round(station.get_target_state(simul.day(), (current_time//60)%24))  #assume same day
+        target_state = round(station.get_target_state(simul.day(), int((current_time//60)%24)))  #assume same day
         net_demand = calculate_net_demand(station, simul.time, simul.day(), simul.hour(), 60)
         num_bikes_station = station.number_of_bikes() + ((current_time-simul.time)/60)*net_demand
 

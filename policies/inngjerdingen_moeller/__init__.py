@@ -1,6 +1,6 @@
 from .inngjerdingen_moeller_policy import InngjerdingenMoellerPolicy
 from .greedy_policy_with_neighbors import GreedyPolicyNeighborhoodInteraction
-from .solution_method import SolutionMethod
+from .PILOT_policy import PILOT
 from .parameters_MILP import MILP_data
 from .visualize_subproblem import Visualizer
 from .manage_results import *
