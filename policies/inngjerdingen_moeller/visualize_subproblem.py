@@ -180,3 +180,31 @@ class Visualizer():
             ax.text(lon, lat, str(station.id), size = 6, color="black", bbox={'facecolor': 'lightskyblue', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
             
         plt.show()
+
+
+def visualize_stations_from_simulator(simul):
+    filename = simul.state.mapdata[0]
+    bBox = simul.state.mapdata[1]
+    image = plt.imread(filename)
+    aspect_img = len(image[0]) / len(image)
+    aspect_geo = (bBox[1]-bBox[0]) / (bBox[3]-bBox[2])
+    aspect = aspect_geo / aspect_img
+    fig, ax = plt.subplots()
+    
+    ax.set_title('Station IDs')
+    ax.set_xlim(bBox[0],bBox[1])
+    ax.set_ylim(bBox[2],bBox[3])
+    ax.imshow(image, extent = bBox, aspect=aspect)
+    
+    for station in simul.state.stations.values():
+        lat = station.get_lat()
+        lon = station.get_lon()
+        if len(station.bikes) == 0:
+            ax.text(lon, lat, str(0), size = 10, color="black", bbox={'facecolor': 'lightcoral', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
+        elif len(station.bikes) == station.capacity:
+            ax.text(lon, lat, str(len(station.bikes)), size = 10, color="black", bbox={'facecolor': 'yellow', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
+        else:
+            ax.text(lon, lat, str(len(station.bikes)), size = 10, color="black", bbox={'facecolor': 'silver', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
+
+        
+    plt.show()

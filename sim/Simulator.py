@@ -15,6 +15,7 @@ import demand
 from progress.bar import IncrementalBar
 
 from helpers import loggTime, loggLocations, loggEvent
+from policies.inngjerdingen_moeller.visualize_subproblem import visualize_stations_from_simulator
 
 class Simulator(LoadSave):
     """
@@ -108,6 +109,10 @@ class Simulator(LoadSave):
                 print(".", end="")
                 sys.stdout.flush()
                 self.last_monotonic = monotonic
+
+        # Plotting system state
+        if self.time > 5000 and self.time < 5002:
+            visualize_stations_from_simulator(self)
 
     def full_step(self):
         while True:
