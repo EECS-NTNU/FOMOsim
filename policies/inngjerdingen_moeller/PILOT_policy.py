@@ -7,6 +7,10 @@ from policies.gleditsch_hagen.utils import calculate_net_demand
 from greedy_policy_with_neighbors import calculate_loading_quantities_greedy
 from greedy_policy_with_neighbors import find_potential_stations
 from copy import deepcopy
+import sys
+
+sys.setrecursionlimit(10000)
+
 class PILOT(Policy):
     def __init__(self, max_depth, number_of_successors, time_horizon):
         self.max_depth = max_depth
@@ -35,7 +39,7 @@ class PILOT(Policy):
         #               WHERE TO GO              #
         ##########################################
 
-        next_station = self.PILOT_function(simul, vehicle, route, self.max_depth, self.number_of_successors, end_time)
+        next_station = self.PILOT_function_2(simul, vehicle, route, self.max_depth, self.number_of_successors, end_time)
         
         return sim.Action(
             [],               # batteries to swap
@@ -45,7 +49,7 @@ class PILOT(Policy):
         )   
 
 
-    def PILOT_function(self, simul, vehicle, route, max_depth, number_of_successors, end_time): #pls fix
+    def PILOT_function(self, simul, vehicle, route, max_depth, number_of_successors, end_time): 
         routes_to_be_expanded = []
         routes_to_be_expanded.append(route)
         depth=0
@@ -73,7 +77,37 @@ class PILOT(Policy):
         best_route = list(routes_sorted.keys())[0]
         return best_route[1].station.id
 
-    
+    #################################################################################################
+    def PILOT_function_2(self, simul, vehicle, route, max_depth, number_of_successors, end_time): 
+        routes = [[] for i in range(max_depth+1)]
+        routes[0].append(route) 
+        depth=0
+        min_departure_time = route[-1].get_departure_time()
+        while depth < max_depth and min_departure_time < end_time: 
+            for route in routes[depth]:
+                if route[-1].get_departure_time() < end_time and len(route)-1 < max_depth:
+                    new_visits = self.greedy_next_visit(route, vehicle, simul, number_of_successors)
+                    for visit in new_visits:
+                        new_route = copy_arr_iter(route)
+                        new_route.append(visit)
+                        routes[depth+1].append(new_route)
+            depth+=1
+            list_of_departure_times=[r[-1].get_departure_time() for r in routes[depth]]
+            min_departure_time = min(list_of_departure_times)
+           
+        #alternatively a greedy construction for the rest of the route 
+        
+        route_scores = dict()
+        for route in routes[-1]:
+            score = self.evaluate_route(route, None, end_time, simul,[0.33, 0.33, 0.33])
+            route_scores[tuple(route)]=score
+        
+        routes_sorted = dict(sorted(route_scores.items(), key=lambda item: item[1], reverse=True))
+        best_route = list(routes_sorted.keys())[0]
+        return best_route[1].station.id
+ #################################################################################################
+
+
     def greedy_next_visit(self, route, vehicle, simul, number_of_successors):   #TODO: include multi-vehicle
         visits = []
         tabu_list = [visit.station for visit in route]
@@ -104,7 +138,7 @@ class PILOT(Policy):
             neighbor_roamings = 0
             improved_deviation = 0
             
-            station = visit.stations
+            station = visit.station
             loading_quantity = visit.loading_quantity
             unloading_quantity = visit.unloading_quantity
             neighbors = station.neighboring_stations #list of station objects
@@ -274,7 +308,20 @@ class Visit():
     def get_departure_time(self):
         return self.arrival_time + (self.loading_quantity + self.unloading_quantity)*settings.MINUTES_PER_ACTION
 
-
+def copy_arr_iter(arr):
+    root = []
+    stack = [(arr, root)]
+    while stack:
+        (o, d), *stack = stack
+        assert isinstance(o, list)
+        for i in o:
+            if isinstance(i, list):
+                p = (i, [])
+                d.append(p[1])
+                stack.append(p)
+            else:
+                d.append(i)
+    return root
 
     
 
