@@ -93,11 +93,11 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
 
 
 if __name__ == "__main__":
-    
-
-    
+            
+    evaluation_weights=[0.33, 0.33, 0.33] #[avoided_viol, neighbor_roaming, improved deviation]
+    criticality_weights=[0.25, 0.25, 0.25, 0.25] #[time_to_viol, dev_t_state, neigh_crit, dem_crit]
+    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 10, 60, criticality_weights, evaluation_weights))
     # policy_dict = dict(inngjerdingen_moeller_no_roaming = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=False, time_horizon=25))
-    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(3,3,60))
     # policy_dict = dict(greedy_with_neighbors = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction(crit_weights=[0.25, 0.25, 0.25, 0.25]), greed_policy = policies.GreedyPolicy()) #for greedy_with_neighbors: crit_weights = [time_to_viol, dev_t_state, neigh_crit, dem_crit]
     # list_of_timehorizons = [25, 30]
     # weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
@@ -108,35 +108,4 @@ if __name__ == "__main__":
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)
     test_policies(list_of_seeds=list_of_seeds_1, policy_dict=policy_dict, duration=24*5)
-
-    ###########################################
-
-    # START_TIME = timeInMinutes(hours=7)
-    # DURATION = timeInMinutes(hours=24)
-    # INSTANCE = 'TD_W34_old'
     
-    # state = init_state.read_initial_state("instances/"+INSTANCE)
-    # state.set_seed(1)
-    # state.set_vehicles([policies.GreedyPolicy()]) # this creates one vehicle for each policy in the list
-    # tstate = target_state.USTargetState()
-    # dmand = demand.Demand()
-    # simulator = sim.Simulator(
-    #     initial_state = state,
-    #     target_state = tstate,
-    #     demand = dmand,
-    #     start_time = START_TIME,
-    #     duration = DURATION,
-    #     verbose = True,
-    # )
-
-    # simulator.demand.update_demands(state, 1,1)
-    # simulator.target_state.update_target_state(simulator.state,simulator.day(),simulator.hour())
-
-    # route=[]
-    # for i in range(4):
-    #     route.append((state.stations[i],3))
-
-    # policy = policies.inngjerdingen_moeller.SolutionMethod()
-    # value=policy.evaluate_route(route,None,30,simulator,[0.45,0.45,0.1])
-    # print(value)
- ###############################################################
