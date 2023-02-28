@@ -7,9 +7,7 @@ from policies.gleditsch_hagen.utils import calculate_net_demand
 from greedy_policy_with_neighbors import calculate_loading_quantities_greedy
 from greedy_policy_with_neighbors import find_potential_stations
 from copy import deepcopy
-import sys
 
-sys.setrecursionlimit(10000)
 
 class PILOT(Policy):
     def __init__(self, max_depth, number_of_successors, time_horizon):
@@ -99,7 +97,7 @@ class PILOT(Policy):
         
         route_scores = dict()
         for route in routes[-1]:
-            score = self.evaluate_route(route, None, end_time, simul,[0.33, 0.33, 0.33])
+            score = self.evaluate_route(route, None, end_time, simul,[0.6, 0.2, 0.2]) #[viol, neigh, dev]
             route_scores[tuple(route)]=score
         
         routes_sorted = dict(sorted(route_scores.items(), key=lambda item: item[1], reverse=True))
@@ -113,7 +111,7 @@ class PILOT(Policy):
         tabu_list = [visit.station for visit in route]
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
         potential_stations = find_potential_stations(simul, 0.25, vehicle, num_bikes_vehicle, tabu_list)
-        stations_sorted = calculate_criticality([0.25,0.25,0.25,0.25], simul, potential_stations) #sorted dict {station_object: criticality_score}
+        stations_sorted = calculate_criticality([0.6,0.20,0.05,0.05], simul, potential_stations) #sorted dict {station_object: criticality_score} [w_t,w_dev,w_n,w_dem]
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
