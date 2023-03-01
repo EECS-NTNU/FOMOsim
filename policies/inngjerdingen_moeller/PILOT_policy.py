@@ -79,7 +79,7 @@ class PILOT(Policy):
     def greedy_next_visit(self, route, vehicle, simul, number_of_successors):   #TODO: include multi-vehicle
         visits = []
         tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
-        stations_in_route = [visit.station for visit in route] #only visit a station maximum once during a route horizon 
+        stations_in_route = [visit.station.id for visit in route] #only visit a station maximum once during a route horizon 
         tabu_list.extend(stations_in_route)
         
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
