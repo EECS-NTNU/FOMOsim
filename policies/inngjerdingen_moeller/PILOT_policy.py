@@ -76,10 +76,12 @@ class PILOT(Policy):
         return best_route[1].station.id
 
 
-
     def greedy_next_visit(self, route, vehicle, simul, number_of_successors):   #TODO: include multi-vehicle
         visits = []
-        tabu_list = [visit.station for visit in route]
+        tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
+        stations_in_route = [visit.station for visit in route] #only visit a station maximum once during a route horizon 
+        tabu_list.extend(stations_in_route)
+        
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
         potential_stations = find_potential_stations(simul, 0.25, vehicle, num_bikes_vehicle, tabu_list)
         stations_sorted = calculate_criticality(self.criticality_weights, simul, potential_stations) #sorted dict {station_object: criticality_score}
@@ -96,8 +98,6 @@ class PILOT(Policy):
             visits.append(Visit(next_station, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, arrival_time, vehicle))
         return visits
 
-
-    
 
     def evaluate_route(self, route, demand_scenario, end_time, simul, weights): #Begins with current station and loading quantities
         discounting_factors = generate_discounting_factors(len(route), 0.85) #end_factor = 1 if no discounting 

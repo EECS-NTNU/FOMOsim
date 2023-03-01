@@ -1,7 +1,7 @@
 """
 This file contains a greedy policy
 """
-import numpy as np
+import numpy as np 
 from policies import Policy
 from policies.gleditsch_hagen.utils import calculate_net_demand
 from policies.inngjerdingen_moeller.criticality_score_neighbor import calculate_criticality
@@ -88,15 +88,16 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
 
     target_state = round(station.get_target_state(simul.day(), simul.hour()))
     num_bikes_station = station.number_of_bikes()
+
+    #can calculate a "neighborhood-demand" (negative or positive) and add this to the target state to compensate for neighborhood interactions 
+
     if num_bikes_station < target_state: #deliver bikes
-        
         #deliver bikes, max to the target state
         number_of_bikes_to_deliver = min(num_bikes_vehicle,target_state-num_bikes_station)
         bikes_to_deliver = [bike.id for bike in vehicle.get_bike_inventory()[:number_of_bikes_to_deliver]]
         bikes_to_pickup = []
         
     elif num_bikes_station > target_state: #pick-up bikes
-    
         bikes_to_deliver = []
         remaining_vehicle_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
         number_of_bikes_to_pick_up = min(num_bikes_station-target_state,remaining_vehicle_capacity)
