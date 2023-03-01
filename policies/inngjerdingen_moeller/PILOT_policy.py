@@ -46,42 +46,15 @@ class PILOT(Policy):
             next_station, #id 
         )   
 
-    ###############################################################################################
-    # def PILOT_function(self, simul, vehicle, route, max_depth, number_of_successors, end_time): 
-    #     routes_to_be_expanded = []
-    #     routes_to_be_expanded.append(route)
-    #     depth=0
-    #     min_departure_time = route[-1].get_departure_time()
-    #     while depth<max_depth and min_departure_time < end_time: 
-    #         for route in routes_to_be_expanded:
-    #             if route[-1].get_departure_time() < end_time and len(route)-1 < max_depth:
-    #                 new_visits = self.greedy_next_visit(route, vehicle, simul, number_of_successors)
-    #                 for visit in new_visits:
-    #                     new_route = deepcopy(route)
-    #                     new_route.append(visit)
-    #                     routes_to_be_expanded.append(new_route)
-    #                 routes_to_be_expanded.remove(route) #try to replace with None instead of removing? 
-    #         list_of_departure_times=[updated_route[-1].get_departure_time() for updated_route in routes_to_be_expanded]
-    #         min_departure_time = min(list_of_departure_times)
-    #         depth+=1
-    #     #alternatively a greedy construction for the rest of the route 
-        
-    #     route_scores = dict()
-    #     for route in routes_to_be_expanded:
-    #         score = self.evaluate_route(route, None, end_time, simul,[0.33, 0.33, 0.33])
-    #         route_scores[route]=score
-        
-    #     routes_sorted = dict(sorted(route_scores.items(), key=lambda item: item[1], reverse=True))
-    #     best_route = list(routes_sorted.keys())[0]
-    #     return best_route[1].station.id
-    #################################################################################################
     
     def PILOT_function(self, simul, vehicle, route, max_depth, number_of_successors, end_time): 
         routes = [[] for i in range(max_depth+1)]
         routes[0].append(route) 
         depth=0
         min_departure_time = route[-1].get_departure_time()
-        while depth < max_depth and min_departure_time < end_time: 
+        while depth < max_depth and min_departure_time < end_time:
+            if depth == 1 or depth == 2:    # depth decreasing after first and second depth
+                number_of_successors = max(1, round(number_of_successors/2))
             for route in routes[depth]:
                 if route[-1].get_departure_time() < end_time and len(route)-1 < max_depth:
                     new_visits = self.greedy_next_visit(route, vehicle, simul, number_of_successors)
@@ -93,8 +66,21 @@ class PILOT(Policy):
             list_of_departure_times=[r[-1].get_departure_time() for r in routes[depth]]
             min_departure_time = min(list_of_departure_times)
            
-        #alternatively a greedy construction for the rest of the route 
-        
+        # Greedy construction for the rest of the route
+        while min_departure_time < end_time:
+            routes.append([])
+            for route in routes[depth]:
+                if route[-1].get_departure_time() < end_time:
+                    new_visit = self.greedy_next_visit(route, vehicle, simul, 1)[0]
+                    new_route = copy_arr_iter(route)
+                    new_route.append(new_visit)
+                    routes[depth+1].append(new_route)
+                else:
+                    routes[depth+1].append(route)
+            depth+=1
+            list_of_departure_times=[r[-1].get_departure_time() for r in routes[depth]]
+            min_departure_time = min(list_of_departure_times)
+
         route_scores = dict()
         for route in routes[-1]:
             score = self.evaluate_route(route, None, end_time, simul, self.evaluation_weights)
@@ -108,7 +94,7 @@ class PILOT(Policy):
 
     def greedy_next_visit(self, route, vehicle, simul, number_of_successors):   #TODO: include multi-vehicle
         visits = []
-        tabu_list = [visit.station for visit in route]
+        tabu_list = [visit.station.id for visit in route]
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
         potential_stations = find_potential_stations(simul, 0.25, vehicle, num_bikes_vehicle, tabu_list)
         stations_sorted = calculate_criticality(self.criticality_weights, simul, potential_stations) #sorted dict {station_object: criticality_score}
