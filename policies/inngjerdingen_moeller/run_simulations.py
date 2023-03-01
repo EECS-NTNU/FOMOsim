@@ -94,7 +94,7 @@ if __name__ == "__main__":
             
     evaluation_weights=[0.33, 0.33, 0.33] #[avoided_viol, neighbor_roaming, improved deviation]
     criticality_weights=[0.25, 0.25, 0.25, 0.25] #[time_to_viol, dev_t_state, neigh_crit, dem_crit]
-    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 10, 60, criticality_weights, evaluation_weights))
+    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 60, criticality_weights, evaluation_weights))
     # policy_dict = dict(inngjerdingen_moeller_no_roaming = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=False, time_horizon=25))
     # policy_dict = dict(greedy_with_neighbors = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction(crit_weights=[0.25, 0.25, 0.25, 0.25]), greed_policy = policies.GreedyPolicy()) #for greedy_with_neighbors: crit_weights = [time_to_viol, dev_t_state, neigh_crit, dem_crit]
     # list_of_timehorizons = [25, 30]

@@ -111,8 +111,8 @@ class Simulator(LoadSave):
                 self.last_monotonic = monotonic
 
         # Plotting system state
-        if self.time > 5000 and self.time < 5002:
-            visualize_stations_from_simulator(self)
+        # if self.time > 5000 and self.time < 5002:
+        #     visualize_stations_from_simulator(self)
 
     def full_step(self):
         while True:

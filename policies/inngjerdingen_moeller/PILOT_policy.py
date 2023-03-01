@@ -46,40 +46,11 @@ class PILOT(Policy):
             next_station, #id 
         )   
 
-    ###############################################################################################
-    # def PILOT_function(self, simul, vehicle, route, max_depth, number_of_successors, end_time): 
-    #     routes_to_be_expanded = []
-    #     routes_to_be_expanded.append(route)
-    #     depth=0
-    #     min_departure_time = route[-1].get_departure_time()
-    #     while depth<max_depth and min_departure_time < end_time: 
-    #         for route in routes_to_be_expanded:
-    #             if route[-1].get_departure_time() < end_time and len(route)-1 < max_depth:
-    #                 new_visits = self.greedy_next_visit(route, vehicle, simul, number_of_successors)
-    #                 for visit in new_visits:
-    #                     new_route = deepcopy(route)
-    #                     new_route.append(visit)
-    #                     routes_to_be_expanded.append(new_route)
-    #                 routes_to_be_expanded.remove(route) #try to replace with None instead of removing? 
-    #         list_of_departure_times=[updated_route[-1].get_departure_time() for updated_route in routes_to_be_expanded]
-    #         min_departure_time = min(list_of_departure_times)
-    #         depth+=1
-    #     #alternatively a greedy construction for the rest of the route 
-        
-    #     route_scores = dict()
-    #     for route in routes_to_be_expanded:
-    #         score = self.evaluate_route(route, None, end_time, simul,[0.33, 0.33, 0.33])
-    #         route_scores[route]=score
-        
-    #     routes_sorted = dict(sorted(route_scores.items(), key=lambda item: item[1], reverse=True))
-    #     best_route = list(routes_sorted.keys())[0]
-    #     return best_route[1].station.id
-    #################################################################################################
     
     def PILOT_function(self, simul, vehicle, route, max_depth, number_of_successors, end_time): 
         routes = [[] for i in range(max_depth+1)]
         routes[0].append(route) 
-        depth=0
+        depth=0 
         min_departure_time = route[-1].get_departure_time()
         while depth < max_depth and min_departure_time < end_time: 
             for route in routes[depth]:
@@ -126,11 +97,15 @@ class PILOT(Policy):
         return visits
 
 
+    
+
     def evaluate_route(self, route, demand_scenario, end_time, simul, weights): #Begins with current station and loading quantities
+        discounting_factors = generate_discounting_factors(len(route), 0.85) #end_factor = 1 if no discounting 
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
         time = current_time 
         previous_station=None
+        counter=0
         for visit in route:
             avoided_violations = 0
             neighbor_roamings = 0
@@ -266,11 +241,12 @@ class PILOT(Policy):
                 neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
            
 
-            avoided_disutility += (weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
+            avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
             
             #for next iteration:
             time = visit.get_departure_time() #the time after the loading operations are done 
             previous_station = station
+            counter+=1
         
         return avoided_disutility 
     
@@ -323,5 +299,11 @@ def copy_arr_iter(arr):
 
     
 
-    
-
+def generate_discounting_factors(nVisits, end_factor=0.9): #number of visits, end_factor is discounting factor in final visit in route
+        discounting_factors=[]
+        len = nVisits
+        rate = (1/end_factor)**(1/len)-1
+        for visit in range(0,len):
+                discount_factor = 1/((1+rate)**visit) #1 at first visit 
+                discounting_factors.append(discount_factor)
+        return discounting_factors
