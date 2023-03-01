@@ -32,6 +32,7 @@ def calculate_criticality(weights, simul, potential_stations): # take in time as
 
         criticalities[potential_station] = [time_to_violation, deviation_from_t_state, neighborhood_crit, demand_crit]
 
+
     criticalities_normalized = normalize_results(criticalities, time_to_violation_list, deviation_list, neighborhood_crit_list, demand_crit_list)
 
     # Applying weights
@@ -46,7 +47,7 @@ def calculate_criticality(weights, simul, potential_stations): # take in time as
     
 
     #sort the dict
-    criticalities_summed = dict(sorted(criticalities.items(), key=lambda item: item[1], reverse=True)) #descending order
+    criticalities_summed = dict(sorted(criticalities_summed.items(), key=lambda item: item[1], reverse=True)) #descending order
     
     return criticalities_summed
 
@@ -71,6 +72,8 @@ def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, s
             station_crit -= 1
         elif station_type == 'd' and exp_num_bikes > 0:
             station_crit -= 1
+        elif station_type == 'b':
+            station_crit-= 1
 
         
         # Neighbor demand (higher+)
@@ -79,7 +82,7 @@ def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, s
         
         # Distance scaling (closer+, further-)
         distance = (simul.state.traveltime_vehicle_matrix[potential_station.id][neighbor.id]/60)*VEHICLE_SPEED
-        station_crit *= (1-(distance/MAX_ROAMING_DISTANCE))   #distance is currently not right
+        station_crit *= (1-(distance/MAX_ROAMING_DISTANCE))
 
         neighborhood_crit += station_crit
 

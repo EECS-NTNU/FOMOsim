@@ -16,8 +16,6 @@ import policies.inngjerdingen_moeller
 import sim
 import demand
 from helpers import timeInMinutes
-import time
-import json
 
 import multiprocessing as mp
 
@@ -28,8 +26,8 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
     # INSTANCE = 'TD_W34_old'
-    INSTANCE = 'OS_W31'
-    # INSTANCE = 'BG_W35'
+    # INSTANCE = 'OS_W31'
+    INSTANCE = 'BG_W35'
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
@@ -99,7 +97,7 @@ if __name__ == "__main__":
     # policy_dict = dict(inngjerdingen_moeller_no_roaming = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=False, time_horizon=25))
     policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2,10,60))
     # policy_dict = dict(greedy = policies.GreedyPolicy())
-    # policy_dict = dict(greedy_with_neighbors = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction(crit_weights=[0.25, 0.25, 0.25, 0.25]), greed_policy = policies.GreedyPolicy()) #for greedy_with_neighbors: crit_weights = [time_to_viol, dev_t_state, neigh_crit, dem_crit]
+    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2,10,60), greedy_policy = policies.GreedyPolicy()) #for greedy_with_neighbors: crit_weights = [time_to_viol, dev_t_state, neigh_crit, dem_crit]
     # list_of_timehorizons = [25, 30]
     # weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     
