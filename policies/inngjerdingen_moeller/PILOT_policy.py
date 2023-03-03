@@ -52,7 +52,9 @@ class PILOT(Policy):
         routes[0].append(route) 
         depth=0 
         min_departure_time = route[-1].get_departure_time()
-        while depth < max_depth and min_departure_time < end_time: 
+        while depth < max_depth and min_departure_time < end_time:
+            if depth == 1 or depth == 2:    # depth decreasing after first and second depth
+                number_of_successors = max(1, round(number_of_successors/2))
             for route in routes[depth]:
                 if route[-1].get_departure_time() < end_time and len(route)-1 < max_depth:
                     new_visits = self.greedy_next_visit(route, vehicle, simul, number_of_successors)
@@ -64,8 +66,21 @@ class PILOT(Policy):
             list_of_departure_times=[r[-1].get_departure_time() for r in routes[depth]]
             min_departure_time = min(list_of_departure_times)
            
-        #alternatively a greedy construction for the rest of the route 
-        
+        # Greedy construction for the rest of the route
+        while min_departure_time < end_time:
+            routes.append([])
+            for route in routes[depth]:
+                if route[-1].get_departure_time() < end_time:
+                    new_visit = self.greedy_next_visit(route, vehicle, simul, 1)[0]
+                    new_route = copy_arr_iter(route)
+                    new_route.append(new_visit)
+                    routes[depth+1].append(new_route)
+                else:
+                    routes[depth+1].append(route)
+            depth+=1
+            list_of_departure_times=[r[-1].get_departure_time() for r in routes[depth]]
+            min_departure_time = min(list_of_departure_times)
+
         route_scores = dict()
         for route in routes[-1]:
             score = self.evaluate_route(route, None, end_time, simul, self.evaluation_weights)

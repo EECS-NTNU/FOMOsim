@@ -9,13 +9,11 @@ import sim
 import settings
 from sim.LoadSave import LoadSave
 from sim import Metric
-import target_state
-import demand
 
 from progress.bar import IncrementalBar
 
 from helpers import loggTime, loggLocations, loggEvent
-from policies.inngjerdingen_moeller.visualize_subproblem import visualize_stations_from_simulator
+# from policies.inngjerdingen_moeller.visualize_subproblem import visualize_stations_from_simulator
 
 class Simulator(LoadSave):
     """
