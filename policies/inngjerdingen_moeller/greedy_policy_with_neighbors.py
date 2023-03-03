@@ -9,7 +9,7 @@ import sim
 
 
 class GreedyPolicyNeighborhoodInteraction(Policy):
-    def __init__(self,crit_weights=[0.25,0.25,0.25,0.25], cutoff=0.3, service_hours=None):  #crit_weights: [time_to_viol, dev_t_state, neigh_crit, dem_crit]
+    def __init__(self,crit_weights=[0.25,0.25,0.25,0.25], cutoff_vehicle=0.3, cutoff_station=0.2, service_hours=None):  #crit_weights: [time_to_viol, dev_t_state, neigh_crit, dem_crit]
         super().__init__()
         
         if service_hours is not None:
@@ -26,8 +26,8 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         #- WEIGHTS           
         self.crit_weights = crit_weights
     
-        self.cutoff = cutoff       # to decide when to go the pickup or delivery station next
-
+        self.cutoff_vehicle = cutoff_vehicle       # to decide when to go the pickup or delivery station next
+        self.cutoff_station = cutoff_station
 
     def get_best_action(self, simul, vehicle):
         
@@ -53,7 +53,7 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         #               WHERE TO GO              #
         ##########################################
         tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
-        potential_stations = find_potential_stations(simul, self.cutoff, vehicle, bikes_at_vehicle_after_rebalancing, tabu_list)
+        potential_stations = find_potential_stations(simul, self.cutoff_vehicle, self.cutoff_station, vehicle, bikes_at_vehicle_after_rebalancing, tabu_list)
 
         #calculate criticalities for potential stations, sorted by criticality
         criticalities = calculate_criticality(self.crit_weights, simul, potential_stations) # dict {station: criticality} sorted by crit.score                           
@@ -118,7 +118,7 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
     return bikes_to_pickup, bikes_to_deliver
 
 
-def find_potential_stations(simul, cutoff, vehicle, bikes_at_vehicle, tabu_list):
+def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bikes_at_vehicle, tabu_list):
     potential_stations = [station for station in simul.state.locations if station.id not in tabu_list]
     
     net_demands = {station.id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
@@ -127,15 +127,15 @@ def find_potential_stations(simul, cutoff, vehicle, bikes_at_vehicle, tabu_list)
                         for station in potential_stations}
     
     potential_pickup_stations = [station for station in potential_stations if 
-                                    station.number_of_bikes() + net_demands[station.id] > target_states[station.id]]
+                                    station.number_of_bikes() + net_demands[station.id] > (1+cutoff_station)*target_states[station.id]]
     potential_delivery_stations = [station for station in potential_stations if 
-                                    station.number_of_bikes() + net_demands[station.id] < target_states[station.id]]
+                                    station.number_of_bikes() + net_demands[station.id] < (1-cutoff_station)*target_states[station.id]]
     
-    if cutoff*vehicle.bike_inventory_capacity <= bikes_at_vehicle  <= (1-cutoff)*vehicle.bike_inventory_capacity:
+    if cutoff_vehicle*vehicle.bike_inventory_capacity <= bikes_at_vehicle  <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
         potential_stations = potential_pickup_stations + potential_delivery_stations
     else:
-        if bikes_at_vehicle <= cutoff*vehicle.bike_inventory_capacity:  #few bikes, so want to pickup
+        if bikes_at_vehicle <= cutoff_vehicle*vehicle.bike_inventory_capacity:  #few bikes, so want to pickup
             potential_stations = potential_pickup_stations
-        elif bikes_at_vehicle >= (1-cutoff)*vehicle.bike_inventory_capacity: #want do deliver
+        elif bikes_at_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity: #want do deliver
             potential_stations = potential_delivery_stations
     return potential_stations
