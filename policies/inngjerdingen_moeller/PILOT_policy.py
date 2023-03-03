@@ -61,7 +61,7 @@ class PILOT(Policy):
                     for visit in new_visits:
                         new_route = copy_arr_iter(route)
                         new_route.append(visit)
-                        routes[depth+1].append(new_route)
+                        routes[depth+1].append(new_route) 
             depth+=1
             list_of_departure_times=[r[-1].get_departure_time() for r in routes[depth]]
             min_departure_time = min(list_of_departure_times)
@@ -80,6 +80,7 @@ class PILOT(Policy):
             depth+=1
             list_of_departure_times=[r[-1].get_departure_time() for r in routes[depth]]
             min_departure_time = min(list_of_departure_times)
+
 
         route_scores = dict()
         for route in routes[-1]:
@@ -115,7 +116,7 @@ class PILOT(Policy):
 
 
     def evaluate_route(self, route, demand_scenario, end_time, simul, weights): #Begins with current station and loading quantities
-        discounting_factors = generate_discounting_factors(len(route), 0.85) #end_factor = 1 if no discounting 
+        discounting_factors = generate_discounting_factors(len(route), 0.8) #end_factor = 1 if no discounting 
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
         time = current_time 
@@ -273,17 +274,25 @@ class PILOT(Policy):
         target_state = round(station.get_target_state(simul.day(), int((current_time//60)%24)))  #assume same day
         net_demand = calculate_net_demand(station, simul.time, simul.day(), simul.hour(), 60)
         num_bikes_station = station.number_of_bikes() + ((current_time-simul.time)/60)*net_demand
-
+        
+        starved_neighbors=0
+        congested_neighbors=0
+        for neighbor in station.neighboring_stations:
+            net_demand_neighbor =  calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), 60)
+            num_bikes_neighbor = neighbor.number_of_bikes() + ((current_time-simul.time)/60)*net_demand_neighbor
+            if num_bikes_neighbor < 0.1*neighbor.capacity:
+                starved_neighbors += 1
+            elif num_bikes_neighbor > 0.9*neighbor.capacity:
+                congested_neighbors += 1
+        
         if num_bikes_station < target_state: #deliver bikes
-            
             #deliver bikes, max to the target state
-            number_of_bikes_to_deliver = min(vehicle_inventory,target_state-num_bikes_station)
+            number_of_bikes_to_deliver = min(vehicle_inventory, target_state - num_bikes_station + starved_neighbors)
             
         elif num_bikes_station > target_state: #pick-up bikes
-        
             remaining_vehicle_capacity = vehicle.bike_inventory_capacity - vehicle_inventory
-            number_of_bikes_to_pick_up = min(num_bikes_station-target_state,remaining_vehicle_capacity)
-        
+            number_of_bikes_to_pick_up = min(num_bikes_station - target_state + congested_neighbors, remaining_vehicle_capacity)
+    
         return number_of_bikes_to_pick_up, number_of_bikes_to_deliver
 
 class Visit():
