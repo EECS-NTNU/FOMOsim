@@ -67,22 +67,18 @@ class PILOT(Policy):
             min_departure_time = min(list_of_departure_times)
            
         # Greedy construction for the rest of the route
-        while min_departure_time < end_time:
-            routes.append([])
-            for route in routes[depth]:
-                if route[-1].get_departure_time() < end_time:
-                    new_visit = self.greedy_next_visit(route, vehicle, simul, 1)[0]
-                    new_route = copy_arr_iter(route)
-                    new_route.append(new_visit)
-                    routes[depth+1].append(new_route)
-                else:
-                    routes[depth+1].append(route)
-            depth+=1
-            list_of_departure_times=[r[-1].get_departure_time() for r in routes[depth]]
-            min_departure_time = min(list_of_departure_times)
-
+        completed_routes = []
+        for route in routes[depth]:
+            dep_time = route[-1].get_departure_time()
+            temp_route = copy_arr_iter(route)
+            while dep_time < end_time:
+                new_visit = self.greedy_next_visit(temp_route, vehicle, simul, 1)[0]
+                temp_route.append(new_visit)
+                dep_time = new_visit.get_departure_time()
+            completed_routes.append(temp_route)
+            
         route_scores = dict()
-        for route in routes[-1]:
+        for route in completed_routes:
             score = self.evaluate_route(route, None, end_time, simul, self.evaluation_weights)
             route_scores[tuple(route)]=score
         
@@ -98,7 +94,8 @@ class PILOT(Policy):
         tabu_list.extend(stations_in_route)
         
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
-        potential_stations = find_potential_stations(simul, 0.25, vehicle, num_bikes_vehicle, tabu_list)
+        potential_stations = find_potential_stations(simul, 0.25, 0.25, vehicle, num_bikes_vehicle, tabu_list)
+        number_of_successors = min(number_of_successors, len(potential_stations))
         stations_sorted = calculate_criticality(self.criticality_weights, simul, potential_stations) #sorted dict {station_object: criticality_score}
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
@@ -108,14 +105,14 @@ class PILOT(Policy):
             num_bikes_vehicle = num_bikes_vehicle + visit.loading_quantity - visit.unloading_quantity
 
         for next_station in next_stations:
-            arrival_time = route[-1].get_departure_time() + simul.state.traveltime_vehicle_matrix[route[-1].station.id][next_station.id]
+            arrival_time = route[-1].get_departure_time() + simul.state.traveltime_vehicle_matrix[route[-1].station.id][next_station.id] + settings.MINUTES_CONSTANT_PER_ACTION
             number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(vehicle, num_bikes_vehicle, simul, next_station, arrival_time)
             visits.append(Visit(next_station, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, arrival_time, vehicle))
         return visits
 
 
     def evaluate_route(self, route, demand_scenario, end_time, simul, weights): #Begins with current station and loading quantities
-        discounting_factors = generate_discounting_factors(len(route), 0.85) #end_factor = 1 if no discounting 
+        discounting_factors = generate_discounting_factors(len(route), 0.80) #end_factor = 1 if no discounting 
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
         time = current_time 
