@@ -93,7 +93,7 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
 if __name__ == "__main__":
             
     evaluation_weights=[0.33, 0.33, 0.33] #[avoided_viol, neighbor_roaming, improved deviation]
-    criticality_weights=[0.25, 0.25, 0.25, 0.25] #[time_to_viol, dev_t_state, neigh_crit, dem_crit]
+    criticality_weights=[0.2, 0.2, 0.2, 0.2, 0.2] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
     policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 10, 30, criticality_weights, evaluation_weights), greedy = policies.GreedyPolicy())
     
     # policy_dict = dict(milp_no_roaming = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=False, time_horizon=20)) #for greedy_with_neighbors: crit_weights = [time_to_viol, dev_t_state, neigh_crit, dem_crit]
