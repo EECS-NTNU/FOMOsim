@@ -8,7 +8,7 @@ from greedy_policy_with_neighbors import calculate_loading_quantities_greedy
 from greedy_policy_with_neighbors import find_potential_stations
 
 class PILOT(Policy):
-    def __init__(self, max_depth=3, number_of_successors=3, time_horizon=60, criticality_weights=[0.25, 0.25, 0.25, 0.25], evaluation_weights=[0.33, 0.33, 0.33]):
+    def __init__(self, max_depth=3, number_of_successors=3, time_horizon=60, criticality_weights=[0.2, 0.2, 0.2, 0.2, 0.2], evaluation_weights=[0.33, 0.33, 0.33]):
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
         self.time_horizon = time_horizon
@@ -96,7 +96,7 @@ class PILOT(Policy):
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
         potential_stations = find_potential_stations(simul, 0.25, 0.25, vehicle, num_bikes_vehicle, tabu_list)
         number_of_successors = min(number_of_successors, len(potential_stations))
-        stations_sorted = calculate_criticality(self.criticality_weights, simul, potential_stations) #sorted dict {station_object: criticality_score}
+        stations_sorted = calculate_criticality(self.criticality_weights, simul, potential_stations, route) #sorted dict {station_object: criticality_score}
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
