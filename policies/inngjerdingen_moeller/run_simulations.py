@@ -96,11 +96,11 @@ if __name__ == "__main__":
     criticality_weights=[0.25, 0.25, 0.25, 0.25] #[time_to_viol, dev_t_state, neigh_crit, dem_crit]
     # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 10, 30, criticality_weights, evaluation_weights), greedy = policies.GreedyPolicy())
     
-    policy_dict = dict(milp_roaming = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(time_horizon=20)) #for greedy_with_neighbors: crit_weights = [time_to_viol, dev_t_state, neigh_crit, dem_crit]
+    policy_dict = dict(milp_no_roaming = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=False, time_horizon=20)) #for greedy_with_neighbors: crit_weights = [time_to_viol, dev_t_state, neigh_crit, dem_crit]
     # list_of_timehorizons = [25, 30]
     # weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     
-    list_of_seeds_1=[0,1,2,3,4,5,6,7,8,9]
+    list_of_seeds_1=[0,1,2,3,4,5,6,7,8,9] 
     # list_of_seeds_1=[1]
 
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
