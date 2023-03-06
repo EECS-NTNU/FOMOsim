@@ -131,7 +131,7 @@ class BikeDeparture(Event):
     
     def acceptance_rejection(self,distance):
         prob_acceptance = -1.6548*distance**2-0.7036*distance+1.0133
-        random_roaming_limit = random.triangular(0,MAX_ROAMING_DISTANCE)
+        random_roaming_limit = random.triangular(0,MAX_ROAMING_DISTANCE_SIMULATOR)
         if random_roaming_limit <= prob_acceptance:
             return True
         else:

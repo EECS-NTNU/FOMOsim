@@ -248,7 +248,7 @@ class PILOT(Policy):
                                 roamings_no_visit+=excess_bikes_no_visit
                                 excess_bikes_no_visit-=excess_bikes_no_visit
                 
-                distance_scaling = ((simul.state.get_vehicle_travel_time(station.id, neighbor.id)/60)*settings.VEHICLE_SPEED)/settings.MAX_ROAMING_DISTANCE
+                distance_scaling = ((simul.state.get_vehicle_travel_time(station.id, neighbor.id)/60)*settings.VEHICLE_SPEED)/settings.MAX_ROAMING_DISTANCE_SOLUTIONS
 
                 neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
            

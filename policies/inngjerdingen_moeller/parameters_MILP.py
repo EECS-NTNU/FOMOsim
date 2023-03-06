@@ -19,7 +19,7 @@ sys.path.insert(0, '') #make sure the modules are found in the new working direc
 ##############################################################
 
 
-from settings import BIKE_SPEED, MINUTES_PER_ACTION, VEHICLE_SPEED, WALKING_SPEED, MINUTES_CONSTANT_PER_ACTION
+from settings import BIKE_SPEED, MINUTES_PER_ACTION, VEHICLE_SPEED, WALKING_SPEED, MINUTES_CONSTANT_PER_ACTION, MAX_ROAMING_DISTANCE_SOLUTIONS
 
 class MILP_data():
         def __init__(self, simul, time_horizon=25, tau=5, weights = None):
@@ -50,7 +50,7 @@ class MILP_data():
                         
                 self.W_C = self.W_R #only in use when roaming = False
 
-                self.neighboring_limit= 0.35 #km
+                self.neighboring_limit= MAX_ROAMING_DISTANCE_SOLUTIONS #km
 
                 self.TW_max = (self.neighboring_limit/WALKING_SPEED)*60      #max walking time between neighbors in minutes
                 self.T_D = dict()       #{(station_ID,station_ID):time}

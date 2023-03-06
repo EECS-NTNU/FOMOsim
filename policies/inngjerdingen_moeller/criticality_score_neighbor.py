@@ -1,4 +1,4 @@
-from settings import MAX_ROAMING_DISTANCE, VEHICLE_SPEED
+from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
 
 def calculate_criticality(weights, simul, potential_stations): # take in time as well? simul.time may be outdated
     # COMMON DATA
@@ -82,7 +82,7 @@ def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, s
         
         # Distance scaling (closer+, further-)
         distance = (simul.state.traveltime_vehicle_matrix[potential_station.id][neighbor.id]/60)*VEHICLE_SPEED
-        station_crit *= (1-(distance/MAX_ROAMING_DISTANCE))
+        station_crit *= (1-(distance/MAX_ROAMING_DISTANCE_SOLUTIONS))
 
         neighborhood_crit += station_crit
 
