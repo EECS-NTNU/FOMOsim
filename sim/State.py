@@ -162,7 +162,7 @@ class State(LoadSave):
         for location in self.locations:
             neighbour_traveltime = []
             for neighbour in self.locations:
-                neighbour_traveltime.append((location.distance_to(*neighbour.get_location()) / speed)*60)
+                neighbour_traveltime.append((location.distance_to(*neighbour.get_location()) / speed)*60) #multiplied by 60 to get minutes
             traveltime_matrix.append(neighbour_traveltime)
         
         return traveltime_matrix

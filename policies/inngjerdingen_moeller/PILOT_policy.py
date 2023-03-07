@@ -93,7 +93,7 @@ class PILOT(Policy):
         
         routes_sorted = dict(sorted(route_scores.items(), key=lambda item: item[1], reverse=True))
         best_route = list(routes_sorted.keys())[0]
-        
+
         if len(best_route) < 2:     #no new stations to visit
             tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]
             potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
@@ -320,6 +320,22 @@ class Visit():
 
     def get_departure_time(self):
         return self.arrival_time + (self.loading_quantity + self.unloading_quantity)*settings.MINUTES_PER_ACTION
+
+class Route():
+    def __init__(self, route_list, tabu_list):
+        self.route_list = route_list    #list of Visit items
+        # self.vehicle_routes           #alternatively one route per vehicle
+        self.next_visit = route_list[-1]     #initialize with starting station
+        self.tabu_list = tabu_list           #not sure if we store here
+    
+    def find_next_visit(self):
+        first_visit = None
+        for vehicle in self.vehicle_routes:
+            if self.vehicle_routes[vehicle][-1].arrival_time < first_visit.arrival_time or first_visit == None:
+                first_visit = self.vehicle_routes[vehicle][-1]
+        self.next_visit = first_visit
+        return first_visit
+
 
 def copy_arr_iter(arr):
     root = []
