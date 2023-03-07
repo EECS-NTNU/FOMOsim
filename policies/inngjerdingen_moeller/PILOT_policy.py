@@ -6,6 +6,7 @@ import settings
 from policies.gleditsch_hagen.utils import calculate_net_demand
 from greedy_policy_with_neighbors import calculate_loading_quantities_greedy
 from greedy_policy_with_neighbors import find_potential_stations
+import numpy as np
 
 class PILOT(Policy):
     def __init__(self, max_depth=3, number_of_successors=3, time_horizon=60, criticality_weights=[0.2, 0.2, 0.2, 0.2, 0.2], evaluation_weights=[0.33, 0.33, 0.33]):
@@ -58,6 +59,10 @@ class PILOT(Policy):
             for route in routes[depth]:
                 if route[-1].get_departure_time() < end_time and len(route)-1 < max_depth:
                     new_visits = self.greedy_next_visit(route, vehicle, simul, number_of_successors)
+                    if new_visits == None:
+                        new_route = copy_arr_iter(route)
+                        routes[depth+1].append(new_route)
+                        break
                     for visit in new_visits:
                         new_route = copy_arr_iter(route)
                         new_route.append(visit)
@@ -72,11 +77,15 @@ class PILOT(Policy):
             dep_time = route[-1].get_departure_time()
             temp_route = copy_arr_iter(route)
             while dep_time < end_time:
-                new_visit = self.greedy_next_visit(temp_route, vehicle, simul, 1)[0]
+                new_visit = self.greedy_next_visit(temp_route, vehicle, simul, 1)
+                if new_visit != None:
+                    new_visit = new_visit[0]
+                else:
+                    break
                 temp_route.append(new_visit)
                 dep_time = new_visit.get_departure_time()
             completed_routes.append(temp_route)
-            
+
         route_scores = dict()
         for route in completed_routes:
             score = self.evaluate_route(route, None, end_time, simul, self.evaluation_weights)
@@ -84,6 +93,13 @@ class PILOT(Policy):
         
         routes_sorted = dict(sorted(route_scores.items(), key=lambda item: item[1], reverse=True))
         best_route = list(routes_sorted.keys())[0]
+        
+        if len(best_route) < 2:     #no new stations to visit
+            tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]
+            potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
+            rng_balanced = np.random.default_rng(None)
+            return rng_balanced.choice(potential_stations2).id
+        
         return best_route[1].station.id
 
 
@@ -94,7 +110,10 @@ class PILOT(Policy):
         tabu_list.extend(stations_in_route)
         
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
-        potential_stations = find_potential_stations(simul, 0.25, 0.25, vehicle, num_bikes_vehicle, tabu_list)
+        potential_stations = find_potential_stations(simul, 0.15, 0.15, vehicle, num_bikes_vehicle, tabu_list)
+        if potential_stations == []: #no potential stations
+            print("Lunsjpause på gutta")
+            return None
         number_of_successors = min(number_of_successors, len(potential_stations))
         stations_sorted = calculate_criticality(self.criticality_weights, simul, potential_stations, route) #sorted dict {station_object: criticality_score}
         stations_sorted_list = list(stations_sorted.keys())
