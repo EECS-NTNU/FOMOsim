@@ -31,14 +31,15 @@ class PILOT(Policy):
         number_of_bikes_to_pick_up = len(bikes_to_pickup)
         number_of_bikes_to_deliver = len(bikes_to_deliver)
         
-        route = []
-        route.append(Visit(vehicle.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, vehicle))
-
+        plan_dict = {vehicle.id: [Visit(vehicle.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, vehicle)] for vehicle in simul.state.vehicles}
+        tabu_list = [vehicle.location.id for vehicle in simul.state.vehicles]
+        plan = Plan(plan_dict, tabu_list)
+    
         ##########################################
         #               WHERE TO GO              #
         ##########################################
 
-        next_station = self.PILOT_function(simul, vehicle, route, self.max_depth, self.number_of_successors, end_time)
+        next_station = self.PILOT_function_multi_vehicle(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time)
         
         return sim.Action(
             [],               # batteries to swap
@@ -102,29 +103,95 @@ class PILOT(Policy):
         
         return best_route[1].station.id
 
+    def PILOT_function_multi_vehicle(self, simul, vehicle, plan, max_depth, number_of_successors, end_time):     
+            plans = [[] for i in range(max_depth+2)]
+            plans[0].append(plan)
+            depths = [i for i in range(max_depth+1)] 
+            depth=0 
+            for depth in depths:
+                if depth == 1 or depth == 2:    # depth decreasing after first and second depth
+                    number_of_successors = max(1, round(number_of_successors/2))
+                
+                while plans[depth] != []:
+                    plan = plans[depth].pop(0)
+                    new_visits = self.greedy_next_visit(plan, simul, number_of_successors)
+                    next_vehicle = plan.next_visit.vehicle
+                    if new_visits == None or plan.next_visit.get_departure_time() > end_time:
+                        new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
+                        plans[depth+1].append(new_plan)
+                    else:
+                        for visit in new_visits:
+                            new_plan_dict = plan.copy_plan()
+                            new_plan_dict[next_vehicle.id].append(visit) 
+                            tabu_list = copy_arr_iter(plan.tabu_list)
+                            tabu_list.append(visit.station.id)
+                            new_plan = Plan(new_plan_dict,tabu_list)
 
-    def greedy_next_visit(self, route, vehicle, simul, number_of_successors):   #TODO: include multi-vehicle
+                            if next_vehicle.id == vehicle.id:
+                                plans[depth+1].append(new_plan)
+                            else:
+                                plans[depth].append(new_plan)
+
+                    # if route[-1].get_departure_time() < end_time and len(route)-1 < max_depth
+            
+            # Greedy construction for the rest of the route
+            completed_plans = []
+            for plan in plans[max_depth+1]:
+                dep_time = plan.next_visit.get_departure_time()
+                temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
+                while dep_time < end_time:
+                    new_visit = self.greedy_next_visit(temp_plan, simul, 1)
+                    if new_visit != None:
+                        new_visit = new_visit[0]
+                        temp_plan.tabu_list.append(new_visit.station.id)
+                    else:
+                        break
+
+                    temp_plan.plan[temp_plan.next_visit.vehicle.id].append(new_visit)
+                    dep_time = new_visit.get_departure_time()
+                    temp_plan.find_next_visit()
+                completed_plans.append(temp_plan)
+
+            plan_scores = dict()
+            
+            for plan in completed_plans:
+                score = 0
+                for v in plan.plan:
+                    score += self.evaluate_route(plan.plan[v], None, end_time, simul, self.evaluation_weights)    
+                
+                plan_scores[plan]=score
+            
+            routes_sorted = dict(sorted(plan_scores.items(), key=lambda item: item[1], reverse=True))
+            best_plan = list(routes_sorted.keys())[0]
+
+            if len(best_plan.plan[vehicle.id]) < 2:     #no new stations to visit
+                tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]
+                potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
+                rng_balanced = np.random.default_rng(None)
+                return rng_balanced.choice(potential_stations2).id
+            
+            return best_plan.plan[vehicle.id][1].station.id
+
+    def greedy_next_visit(self, plan, simul, number_of_successors):   #TODO: include multi-vehicle
         visits = []
-        tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
-        stations_in_route = [visit.station.id for visit in route] #only visit a station maximum once during a route horizon 
-        tabu_list.extend(stations_in_route)
-        
+        tabu_list = plan.tabu_list
+        vehicle = plan.next_visit.vehicle
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
         potential_stations = find_potential_stations(simul, 0.15, 0.15, vehicle, num_bikes_vehicle, tabu_list)
         if potential_stations == []: #no potential stations
             print("Lunsjpause på gutta")
             return None
         number_of_successors = min(number_of_successors, len(potential_stations))
-        stations_sorted = calculate_criticality(self.criticality_weights, simul, potential_stations, route) #sorted dict {station_object: criticality_score}
+        stations_sorted = calculate_criticality(self.criticality_weights, simul, potential_stations, plan.plan[vehicle.id]) #sorted dict {station_object: criticality_score}
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
         
-        for visit in route:
+        for visit in plan.plan[vehicle.id]:
             num_bikes_vehicle = num_bikes_vehicle + visit.loading_quantity - visit.unloading_quantity
 
         for next_station in next_stations:
-            arrival_time = route[-1].get_departure_time() + simul.state.traveltime_vehicle_matrix[route[-1].station.id][next_station.id] + settings.MINUTES_CONSTANT_PER_ACTION
+            arrival_time = plan.plan[vehicle.id][-1].get_departure_time() + simul.state.traveltime_vehicle_matrix[plan.plan[vehicle.id][-1].station.id][next_station.id] + settings.MINUTES_CONSTANT_PER_ACTION
             number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(vehicle, num_bikes_vehicle, simul, next_station, arrival_time)
             visits.append(Visit(next_station, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, arrival_time, vehicle))
         return visits
@@ -321,20 +388,26 @@ class Visit():
     def get_departure_time(self):
         return self.arrival_time + (self.loading_quantity + self.unloading_quantity)*settings.MINUTES_PER_ACTION
 
-class Route():
-    def __init__(self, route_list, tabu_list):
-        self.route_list = route_list    #list of Visit items
-        # self.vehicle_routes           #alternatively one route per vehicle
-        self.next_visit = route_list[-1]     #initialize with starting station
-        self.tabu_list = tabu_list           #not sure if we store here
-    
+class Plan():
+    def __init__(self, copied_plan, tabu_list):
+        self.plan = copied_plan #key: vehicle ID, value: list of vehicle route 
+        self.next_visit = None     #initialize with starting station
+        self.find_next_visit() 
+        self.tabu_list = tabu_list          
+
     def find_next_visit(self):
-        first_visit = None
-        for vehicle in self.vehicle_routes:
-            if self.vehicle_routes[vehicle][-1].arrival_time < first_visit.arrival_time or first_visit == None:
-                first_visit = self.vehicle_routes[vehicle][-1]
-        self.next_visit = first_visit
-        return first_visit
+        arrival_time = 1000000 
+        for vehicle_id in self.plan:
+            if self.plan[vehicle_id][-1].arrival_time < arrival_time:
+                arrival_time = self.plan[vehicle_id][-1].arrival_time
+                self.next_visit = self.plan[vehicle_id][-1]
+
+    def copy_plan(self):
+        plan_copy = dict()
+        for vehicle in self.plan:
+            route_copy = copy_arr_iter(self.plan[vehicle])
+            plan_copy[vehicle] = route_copy
+        return plan_copy
 
 
 def copy_arr_iter(arr):
