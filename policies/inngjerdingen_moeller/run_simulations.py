@@ -9,10 +9,10 @@ os.chdir(path)
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 ################################################################
 
-import init_state
+# import init_state
+from init_state import read_initial_state
 import target_state 
 import policies
-import policies.inngjerdingen_moeller
 import sim
 import demand
 from helpers import timeInMinutes
@@ -30,7 +30,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     # INSTANCE = 'BG_W35'
     ###############################################################
     
-    state = init_state.read_initial_state("instances/"+INSTANCE)
+    state = read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
     state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             
     evaluation_weights=[0.4, 0.33, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
     criticality_weights=[0.4, 0.1, 0.2, 0.2, 0.1] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
-    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights, evaluation_weights), greedy = policies.GreedyPolicy())
+    policy_dict = dict(pilot = policies.PILOT(2, 10, 30, criticality_weights, evaluation_weights), greedy = policies.GreedyPolicy())
     
     # policy_dict = dict(milp_no_roaming = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=False, time_horizon=20)) #for greedy_with_neighbors: crit_weights = [time_to_viol, dev_t_state, neigh_crit, dem_crit]
     # list_of_timehorizons = [25, 30]

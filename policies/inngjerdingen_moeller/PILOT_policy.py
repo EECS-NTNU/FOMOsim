@@ -176,7 +176,11 @@ class PILOT(Policy):
         visits = []
         tabu_list = plan.tabu_list
         vehicle = plan.next_visit.vehicle
+        
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
+        for visit in plan.plan[vehicle.id]:
+            num_bikes_vehicle = num_bikes_vehicle + visit.loading_quantity - visit.unloading_quantity
+
         potential_stations = find_potential_stations(simul, 0.15, 0.15, vehicle, num_bikes_vehicle, tabu_list)
         if potential_stations == []: #no potential stations
             print("Lunsjpause på gutta")
@@ -185,10 +189,6 @@ class PILOT(Policy):
         stations_sorted = calculate_criticality(self.criticality_weights, simul, potential_stations, plan.plan[vehicle.id]) #sorted dict {station_object: criticality_score}
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
-
-        
-        for visit in plan.plan[vehicle.id]:
-            num_bikes_vehicle = num_bikes_vehicle + visit.loading_quantity - visit.unloading_quantity
 
         for next_station in next_stations:
             arrival_time = plan.plan[vehicle.id][-1].get_departure_time() + simul.state.traveltime_vehicle_matrix[plan.plan[vehicle.id][-1].station.id][next_station.id] + settings.MINUTES_CONSTANT_PER_ACTION
