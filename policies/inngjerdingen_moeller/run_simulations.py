@@ -9,10 +9,10 @@ os.chdir(path)
 sys.path.insert(0, '') #make sure the modules are found in the new working directory
 ################################################################
 
-import init_state
+# import init_state
+from init_state import read_initial_state
 import target_state 
 import policies
-import policies.inngjerdingen_moeller
 import sim
 import demand
 from helpers import timeInMinutes
@@ -30,7 +30,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     # INSTANCE = 'BG_W35'
     ###############################################################
     
-    state = init_state.read_initial_state("instances/"+INSTANCE)
+    state = read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
     state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()

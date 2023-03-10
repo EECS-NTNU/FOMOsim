@@ -172,7 +172,7 @@ class PILOT(Policy):
         visits = []
         tabu_list = plan.tabu_list
         vehicle = plan.next_visit.vehicle
-
+        
         num_bikes_vehicle = len(vehicle.get_bike_inventory())
         for visit in plan.plan[vehicle.id]:
             num_bikes_vehicle = num_bikes_vehicle + visit.loading_quantity - visit.unloading_quantity
