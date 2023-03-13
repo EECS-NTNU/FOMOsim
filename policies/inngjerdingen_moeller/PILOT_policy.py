@@ -19,7 +19,7 @@ class PILOT(Policy):
         super().__init__()
 
     def get_best_action(self, simul, vehicle):
-        next_station = None
+        next_station = None 
         bikes_to_pickup = []
         bikes_to_deliver = []  
         
@@ -32,8 +32,16 @@ class PILOT(Policy):
         number_of_bikes_to_pick_up = len(bikes_to_pickup)
         number_of_bikes_to_deliver = len(bikes_to_deliver)
         
-        plan_dict = {vehicle.id: [Visit(vehicle.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, vehicle)] for vehicle in simul.state.vehicles}
-        tabu_list = [vehicle.location.id for vehicle in simul.state.vehicles]
+        
+        plan_dict = dict()
+        for v in simul.state.vehicles:
+            if v.eta == 0:
+                plan_dict[v.id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, v)]
+            else:
+                plan_dict[v.id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, v.eta, v)]
+        
+        tabu_list = [v.location.id for v in simul.state.vehicles]
+        
         plan = Plan(plan_dict, tabu_list)
     
         ##########################################
@@ -408,7 +416,7 @@ class PILOT(Policy):
         return avoided_disutility 
     
     def generate_scenarioes(self, simul, number_of_scenarios, time_horizon):
-        rng = np.random.default_rng(1)
+        rng = np.random.default_rng(None)
         scenarios = []
         stations_dict = simul.state.stations 
         if number_of_scenarios < 2: #0 or 1, return expected net_demand values
