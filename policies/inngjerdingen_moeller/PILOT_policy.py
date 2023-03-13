@@ -31,8 +31,13 @@ class PILOT(Policy):
         number_of_bikes_to_pick_up = len(bikes_to_pickup)
         number_of_bikes_to_deliver = len(bikes_to_deliver)
         
-        plan_dict = {vehicle.id: [Visit(vehicle.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, vehicle)] for vehicle in simul.state.vehicles}
-        tabu_list = [vehicle.location.id for vehicle in simul.state.vehicles]
+        plan_dict = dict()
+        for v in simul.state.vehicles:
+            if v.eta == 0:
+                plan_dict[v.id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, v)]
+            else:
+                plan_dict[v.id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, v.eta, v)]
+        tabu_list = [v.location.id for v in simul.state.vehicles]
         plan = Plan(plan_dict, tabu_list)
     
         ##########################################
@@ -103,9 +108,9 @@ class PILOT(Policy):
         
         return best_route[1].station.id
 
-    def PILOT_function_multi_vehicle(self, simul, vehicle, plan, max_depth, number_of_successors, end_time):     
+    def PILOT_function_multi_vehicle(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time):     
             plans = [[] for i in range(max_depth+2)]
-            plans[0].append(plan)
+            plans[0].append(initial_plan)
             depths = [i for i in range(max_depth+1)] 
             depth=0 
             for depth in depths:
