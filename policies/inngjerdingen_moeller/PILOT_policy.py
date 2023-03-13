@@ -113,17 +113,83 @@ class PILOT(Policy):
         return best_route[1].station.id
 
     def PILOT_function_multi_vehicle(self, simul, vehicle, plan, max_depth, number_of_successors, end_time):     
+        plans = [[] for i in range(max_depth+2)]
+        plans[0].append(plan)
+        depths = [i for i in range(max_depth+1)] 
+        depth=0 
+        for depth in depths:
+            if depth == 1 or depth == 2:    # depth decreasing after first and second depth
+                number_of_successors = max(1, round(number_of_successors/2))
+            
+            while plans[depth] != []:
+                plan = plans[depth].pop(0)
+                new_visits = self.greedy_next_visit(plan, simul, number_of_successors)
+                next_vehicle = plan.next_visit.vehicle
+                if new_visits == None or plan.next_visit.get_departure_time() > end_time:
+                    new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
+                    plans[depth+1].append(new_plan)
+                else:
+                    for visit in new_visits:
+                        new_plan_dict = plan.copy_plan()
+                        new_plan_dict[next_vehicle.id].append(visit) 
+                        tabu_list = copy_arr_iter(plan.tabu_list)
+                        tabu_list.append(visit.station.id)
+                        new_plan = Plan(new_plan_dict,tabu_list)
+
+                        if next_vehicle.id == vehicle.id:
+                            plans[depth+1].append(new_plan)
+                        else:
+                            plans[depth].append(new_plan)
+
+                # if route[-1].get_departure_time() < end_time and len(route)-1 < max_depth
+        
+        # Greedy construction for the rest of the route
+        completed_plans = []
+        for plan in plans[max_depth+1]:
+            dep_time = plan.next_visit.get_departure_time()
+            temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
+            while dep_time < end_time:
+                new_visit = self.greedy_next_visit(temp_plan, simul, 1)
+                if new_visit != None:
+                    new_visit = new_visit[0]
+                    temp_plan.tabu_list.append(new_visit.station.id)
+                else:
+                    break
+
+                temp_plan.plan[temp_plan.next_visit.vehicle.id].append(new_visit)
+                dep_time = new_visit.get_departure_time()
+                temp_plan.find_next_visit()
+            completed_plans.append(temp_plan)
+
+        plan_scores = dict() #{plan_object: list of scenario_scores}
+
+        scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, self.time_horizon)
+
+        for plan in completed_plans:
+            plan_scores[plan] = []
+            for scenario_dict in scenarios:
+                score = 0
+                for v in plan.plan:
+                    score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights)    
+                plan_scores[plan].append(score)
+        
+        return self.return_best_move(vehicle, simul, plan_scores)
+           
+    def PILOT_function_multi_vehicle_multi_crit_weigths(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time):     
+        completed_plans = []
+        for weight_set in self.crit_weights_sets:
+            num_successors = number_of_successors
             plans = [[] for i in range(max_depth+2)]
-            plans[0].append(plan)
+            plans[0].append(initial_plan)
             depths = [i for i in range(max_depth+1)] 
             depth=0 
             for depth in depths:
                 if depth == 1 or depth == 2:    # depth decreasing after first and second depth
-                    number_of_successors = max(1, round(number_of_successors/2))
+                    num_successors = max(1, round(num_successors/2))
                 
                 while plans[depth] != []:
                     plan = plans[depth].pop(0)
-                    new_visits = self.greedy_next_visit(plan, simul, number_of_successors)
+                    new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set)
                     next_vehicle = plan.next_visit.vehicle
                     if new_visits == None or plan.next_visit.get_departure_time() > end_time:
                         new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
@@ -140,16 +206,13 @@ class PILOT(Policy):
                                 plans[depth+1].append(new_plan)
                             else:
                                 plans[depth].append(new_plan)
-
-                    # if route[-1].get_departure_time() < end_time and len(route)-1 < max_depth
             
             # Greedy construction for the rest of the route
-            completed_plans = []
             for plan in plans[max_depth+1]:
                 dep_time = plan.next_visit.get_departure_time()
                 temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
                 while dep_time < end_time:
-                    new_visit = self.greedy_next_visit(temp_plan, simul, 1)
+                    new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set)
                     if new_visit != None:
                         new_visit = new_visit[0]
                         temp_plan.tabu_list.append(new_visit.station.id)
@@ -161,83 +224,20 @@ class PILOT(Policy):
                     temp_plan.find_next_visit()
                 completed_plans.append(temp_plan)
 
-            plan_scores = dict() #{plan_object: list of scenario_scores}
 
-            scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, self.time_horizon)
+        plan_scores = dict() #{plan_object: list of scenario_scores}
 
-            for plan in completed_plans:
-                plan_scores[plan] = []
-                for scenario_dict in scenarios:
-                    score = 0
-                    for v in plan.plan:
-                        score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights)    
-                    plan_scores[plan].append(score)
-            
-            return self.return_best_move(vehicle, simul, plan_scores)
-           
-    def PILOT_function_multi_vehicle_multi_crit_weigths(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time):     
-                completed_plans = []
-                for weight_set in self.crit_weights_sets:
-                    num_successors = number_of_successors
-                    plans = [[] for i in range(max_depth+2)]
-                    plans[0].append(initial_plan)
-                    depths = [i for i in range(max_depth+1)] 
-                    depth=0 
-                    for depth in depths:
-                        if depth == 1 or depth == 2:    # depth decreasing after first and second depth
-                            num_successors = max(1, round(num_successors/2))
-                        
-                        while plans[depth] != []:
-                            plan = plans[depth].pop(0)
-                            new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set)
-                            next_vehicle = plan.next_visit.vehicle
-                            if new_visits == None or plan.next_visit.get_departure_time() > end_time:
-                                new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
-                                plans[depth+1].append(new_plan)
-                            else:
-                                for visit in new_visits:
-                                    new_plan_dict = plan.copy_plan()
-                                    new_plan_dict[next_vehicle.id].append(visit) 
-                                    tabu_list = copy_arr_iter(plan.tabu_list)
-                                    tabu_list.append(visit.station.id)
-                                    new_plan = Plan(new_plan_dict,tabu_list)
+        scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, self.time_horizon)
 
-                                    if next_vehicle.id == vehicle.id:
-                                        plans[depth+1].append(new_plan)
-                                    else:
-                                        plans[depth].append(new_plan)
-                    
-                    # Greedy construction for the rest of the route
-                    for plan in plans[max_depth+1]:
-                        dep_time = plan.next_visit.get_departure_time()
-                        temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
-                        while dep_time < end_time:
-                            new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set)
-                            if new_visit != None:
-                                new_visit = new_visit[0]
-                                temp_plan.tabu_list.append(new_visit.station.id)
-                            else:
-                                break
-
-                            temp_plan.plan[temp_plan.next_visit.vehicle.id].append(new_visit)
-                            dep_time = new_visit.get_departure_time()
-                            temp_plan.find_next_visit()
-                        completed_plans.append(temp_plan)
-
-
-                plan_scores = dict() #{plan_object: list of scenario_scores}
-
-                scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, self.time_horizon)
-
-                for plan in completed_plans:
-                    plan_scores[plan] = []
-                    for scenario_dict in scenarios:
-                        score = 0
-                        for v in plan.plan:
-                            score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights)    
-                        plan_scores[plan].append(score)
-                
-                return self.return_best_move(vehicle, simul, plan_scores)
+        for plan in completed_plans:
+            plan_scores[plan] = []
+            for scenario_dict in scenarios:
+                score = 0
+                for v in plan.plan:
+                    score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights)    
+                plan_scores[plan].append(score)
+        
+        return self.return_best_move(vehicle, simul, plan_scores)
 
     def greedy_next_visit(self, plan, simul, number_of_successors, weight_set):   #TODO: include multi-vehicle
         visits = []
@@ -268,7 +268,7 @@ class PILOT(Policy):
         discounting_factors = generate_discounting_factors(len(route), 0.8) #end_factor = 1 if no discounting 
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
-        time = current_time 
+        time = current_time
         previous_station=None
         counter=0
         for visit in route:
@@ -440,7 +440,7 @@ class PILOT(Policy):
     def return_best_move(self, vehicle, simul, plan_scores): #returns station_id 
         score_board = dict() #station id : number of times this first move returns the best solution 
         for scenario_id in range(self.number_of_scenarios):
-            best_score = 0
+            best_score = -1000
             best_plan = None
             for plan in plan_scores:
                 if plan_scores[plan][scenario_id] > best_score:
