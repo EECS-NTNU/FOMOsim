@@ -9,16 +9,17 @@ from greedy_policy_with_neighbors import find_potential_stations
 import numpy as np
 
 class PILOT(Policy):
-    def __init__(self, max_depth=3, number_of_successors=3, time_horizon=60, criticality_weights=[0.2, 0.2, 0.2, 0.2, 0.2], evaluation_weights=[0.33, 0.33, 0.33]):
+    def __init__(self, max_depth=3, number_of_successors=3, time_horizon=60, criticality_weights_sets=[[0.2, 0.2, 0.2, 0.2, 0.2]], evaluation_weights=[0.33, 0.33, 0.33], number_of_scenarios=1):
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
         self.time_horizon = time_horizon
-        self.criticality_weights = criticality_weights
+        self.crit_weights_sets = criticality_weights_sets
         self.evaluation_weights = evaluation_weights
+        self.number_of_scenarios = number_of_scenarios
         super().__init__()
 
     def get_best_action(self, simul, vehicle):
-        next_station = None
+        next_station = None 
         bikes_to_pickup = []
         bikes_to_deliver = []  
         
@@ -31,20 +32,23 @@ class PILOT(Policy):
         number_of_bikes_to_pick_up = len(bikes_to_pickup)
         number_of_bikes_to_deliver = len(bikes_to_deliver)
         
+        
         plan_dict = dict()
         for v in simul.state.vehicles:
             if v.eta == 0:
                 plan_dict[v.id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, v)]
             else:
                 plan_dict[v.id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, v.eta, v)]
+        
         tabu_list = [v.location.id for v in simul.state.vehicles]
+        
         plan = Plan(plan_dict, tabu_list)
     
         ##########################################
         #               WHERE TO GO              #
         ##########################################
 
-        next_station = self.PILOT_function_multi_vehicle(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time)
+        next_station = self.PILOT_function_multi_vehicle_multi_crit_weigths(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time)
         
         return sim.Action(
             [],               # batteries to swap
@@ -157,27 +161,85 @@ class PILOT(Policy):
                     temp_plan.find_next_visit()
                 completed_plans.append(temp_plan)
 
-            plan_scores = dict()
-            
+            plan_scores = dict() #{plan_object: list of scenario_scores}
+
+            scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, self.time_horizon)
+
             for plan in completed_plans:
-                score = 0
-                for v in plan.plan:
-                    score += self.evaluate_route(plan.plan[v], None, end_time, simul, self.evaluation_weights)    
+                plan_scores[plan] = []
+                for scenario_dict in scenarios:
+                    score = 0
+                    for v in plan.plan:
+                        score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights)    
+                    plan_scores[plan].append(score)
+            
+            return self.return_best_move(vehicle, simul, plan_scores)
+           
+    def PILOT_function_multi_vehicle_multi_crit_weigths(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time):     
+                completed_plans = []
+                for weight_set in self.crit_weights_sets:
+                    num_successors = number_of_successors
+                    plans = [[] for i in range(max_depth+2)]
+                    plans[0].append(initial_plan)
+                    depths = [i for i in range(max_depth+1)] 
+                    depth=0 
+                    for depth in depths:
+                        if depth == 1 or depth == 2:    # depth decreasing after first and second depth
+                            num_successors = max(1, round(num_successors/2))
+                        
+                        while plans[depth] != []:
+                            plan = plans[depth].pop(0)
+                            new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set)
+                            next_vehicle = plan.next_visit.vehicle
+                            if new_visits == None or plan.next_visit.get_departure_time() > end_time:
+                                new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
+                                plans[depth+1].append(new_plan)
+                            else:
+                                for visit in new_visits:
+                                    new_plan_dict = plan.copy_plan()
+                                    new_plan_dict[next_vehicle.id].append(visit) 
+                                    tabu_list = copy_arr_iter(plan.tabu_list)
+                                    tabu_list.append(visit.station.id)
+                                    new_plan = Plan(new_plan_dict,tabu_list)
+
+                                    if next_vehicle.id == vehicle.id:
+                                        plans[depth+1].append(new_plan)
+                                    else:
+                                        plans[depth].append(new_plan)
+                    
+                    # Greedy construction for the rest of the route
+                    for plan in plans[max_depth+1]:
+                        dep_time = plan.next_visit.get_departure_time()
+                        temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
+                        while dep_time < end_time:
+                            new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set)
+                            if new_visit != None:
+                                new_visit = new_visit[0]
+                                temp_plan.tabu_list.append(new_visit.station.id)
+                            else:
+                                break
+
+                            temp_plan.plan[temp_plan.next_visit.vehicle.id].append(new_visit)
+                            dep_time = new_visit.get_departure_time()
+                            temp_plan.find_next_visit()
+                        completed_plans.append(temp_plan)
+
+
+                plan_scores = dict() #{plan_object: list of scenario_scores}
+
+                scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, self.time_horizon)
+
+                for plan in completed_plans:
+                    plan_scores[plan] = []
+                    for scenario_dict in scenarios:
+                        score = 0
+                        for v in plan.plan:
+                            score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights)    
+                        plan_scores[plan].append(score)
                 
-                plan_scores[plan]=score
-            
-            routes_sorted = dict(sorted(plan_scores.items(), key=lambda item: item[1], reverse=True))
-            best_plan = list(routes_sorted.keys())[0]
+                return self.return_best_move(vehicle, simul, plan_scores)
 
-            if len(best_plan.plan[vehicle.id]) < 2:     #no new stations to visit
-                tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]
-                potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
-                rng_balanced = np.random.default_rng(None)
-                return rng_balanced.choice(potential_stations2).id
-            
-            return best_plan.plan[vehicle.id][1].station.id
-
-    def greedy_next_visit(self, plan, simul, number_of_successors):   #TODO: include multi-vehicle
+    def greedy_next_visit(self, plan, simul, number_of_successors, weight_set):   #TODO: include multi-vehicle
         visits = []
         tabu_list = plan.tabu_list
         vehicle = plan.next_visit.vehicle
@@ -191,7 +253,7 @@ class PILOT(Policy):
             print("Lunsjpause på gutta")
             return None
         number_of_successors = min(number_of_successors, len(potential_stations))
-        stations_sorted = calculate_criticality(self.criticality_weights, simul, potential_stations, plan.plan[vehicle.id]) #sorted dict {station_object: criticality_score}
+        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.id]) #sorted dict {station_object: criticality_score}
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
@@ -202,7 +264,7 @@ class PILOT(Policy):
         return visits
 
 
-    def evaluate_route(self, route, demand_scenario, end_time, simul, weights): #Begins with current station and loading quantities
+    def evaluate_route(self, route, scenario_dict, end_time, simul, weights): #Begins with current station and loading quantities
         discounting_factors = generate_discounting_factors(len(route), 0.8) #end_factor = 1 if no discounting 
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
@@ -226,7 +288,7 @@ class PILOT(Policy):
             
             initial_inventory = station.number_of_bikes()
             station_capacity = station.capacity
-            net_demand = calculate_net_demand(station,current_time,simul.day(),simul.hour(), 60) #calculates the net demand for the next 60 minutes from the current simulation time. Can be adjusted to return a value based on scenario  
+            net_demand = scenario_dict[station.id]   #returns net demand for the next 60 minutes from simul.time
             target_state = station.get_target_state(simul.day(), simul.hour())
 
             if net_demand>0:
@@ -296,7 +358,7 @@ class PILOT(Policy):
             for neighbor in neighbors:
                 roamings= 0
                 roamings_no_visit = 0
-                net_demand_neighbor = calculate_net_demand(neighbor,current_time,simul.day(),simul.hour(), 60)
+                net_demand_neighbor = scenario_dict[neighbor.id]
                 neighbor_type, exp_num_bikes_neighbor = calculate_station_type(neighbor,net_demand_neighbor,neighbor.get_target_state(simul.day(), simul.hour()))    
                 if neighbor_type == station_type:
                     if net_demand_neighbor>0:
@@ -353,7 +415,55 @@ class PILOT(Policy):
         
         return avoided_disutility 
     
+    def generate_scenarioes(self, simul, number_of_scenarios, time_horizon):
+        rng = np.random.default_rng(None)
+        scenarios = []
+        stations_dict = simul.state.stations 
+        if number_of_scenarios < 2: #0 or 1, return expected net_demand values
+            scenario_dict = dict() #station_id : net demand
+            for station_id in stations_dict:
+                net_demand =  calculate_net_demand(stations_dict[station_id], simul.time ,simul.day(),simul.hour(), 60) #returns net demand for next hour 
+                scenario_dict[station_id] = net_demand
+            scenarios.append(scenario_dict)
+        
+        else:
+            for s in range(number_of_scenarios):
+                scenario_dict = dict()
+                for station_id in stations_dict:
+                    expected_net_demand = calculate_net_demand(stations_dict[station_id], simul.time ,simul.day(),simul.hour(), 60)
+                    stdev = 1
+                    net_demand = rng.normal(expected_net_demand, stdev) #change this so that it uses actual stdev?
+                    scenario_dict[station_id] = net_demand
+                scenarios.append(scenario_dict)
+        return scenarios
+
+    def return_best_move(self, vehicle, simul, plan_scores): #returns station_id 
+        score_board = dict() #station id : number of times this first move returns the best solution 
+        for scenario_id in range(self.number_of_scenarios):
+            best_score = 0
+            best_plan = None
+            for plan in plan_scores:
+                if plan_scores[plan][scenario_id] > best_score:
+                    best_plan = plan
+                    best_score = plan_scores[plan][scenario_id]
+            
+            if best_plan == None:
+                tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]
+                potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
+                rng_balanced = np.random.default_rng(None)
+                print("lunsj!")
+                return rng_balanced.choice(potential_stations2).id 
+
+            best_first_move = best_plan.plan[vehicle.id][1].station.id
+            if best_first_move in score_board:
+                score_board[best_first_move] += 1
+            else:
+                score_board[best_first_move] = 1 
+           
+        score_board_sorted = dict(sorted(score_board.items(), key=lambda item: item[1], reverse=True))
+        return list(score_board_sorted.keys())[0]
     
+
     def calculate_loading_quantities_pilot(self, vehicle, vehicle_inventory, simul, station, current_time):
         
         number_of_bikes_to_pick_up = 0
