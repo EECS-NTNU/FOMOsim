@@ -112,9 +112,9 @@ class PILOT(Policy):
         
         return best_route[1].station.id
 
-    def PILOT_function_multi_vehicle(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time):     
+    def PILOT_function_multi_vehicle(self, simul, vehicle, plan, max_depth, number_of_successors, end_time):     
         plans = [[] for i in range(max_depth+2)]
-        plans[0].append(initial_plan)
+        plans[0].append(plan)
         depths = [i for i in range(max_depth+1)] 
         depth=0 
         for depth in depths:
@@ -268,6 +268,8 @@ class PILOT(Policy):
         discounting_factors = generate_discounting_factors(len(route), 0.8) #end_factor = 1 if no discounting 
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
+        time = current_time
+        previous_station=None
         counter=0
         for visit in route:
             avoided_violations = 0
@@ -278,7 +280,11 @@ class PILOT(Policy):
             loading_quantity = visit.loading_quantity
             unloading_quantity = visit.unloading_quantity
             neighbors = station.neighboring_stations #list of station objects
-            time = visit.arrival_time
+
+            if previous_station != None:
+                time = visit.arrival_time
+            else: #we are on the first station 
+                time = time
             
             initial_inventory = station.number_of_bikes()
             station_capacity = station.capacity
@@ -291,7 +297,7 @@ class PILOT(Policy):
                 time_first_violation_no_visit = current_time+(initial_inventory/(-net_demand))*60
             else:
                 time_first_violation_no_visit = end_time
-
+           
             if end_time > time_first_violation_no_visit:
                 violations_no_visit = ((end_time - time_first_violation_no_visit)/60)*net_demand #negative if starvations, positive if congestions 
             else:
@@ -398,14 +404,12 @@ class PILOT(Policy):
                 distance_scaling = ((simul.state.get_vehicle_travel_time(station.id, neighbor.id)/60)*settings.VEHICLE_SPEED)/settings.MAX_ROAMING_DISTANCE_SOLUTIONS
 
                 neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
-
-            if avoided_violations < 0:
-                print("XXX")
            
 
             avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
             
             #for next iteration:
+            time = visit.get_departure_time() #the time after the loading operations are done 
             previous_station = station
             counter+=1
         

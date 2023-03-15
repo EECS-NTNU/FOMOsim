@@ -101,7 +101,8 @@ if __name__ == "__main__":
 # ------------ TESTING DATA MANUALLY ---------------
         # filename = "instances/EH_W31"
         # filename = "instances/TD_W34"
-        filename = "instances/TD_W34_old"
+        # filename = "instances/TD_W34_old"
+        filename = "instances/NY_W31"
         # filename = "instances/OS_W31"
         # filename = "instances/BG_W35"
 
@@ -109,7 +110,7 @@ if __name__ == "__main__":
         START_HOUR = 8 #8 -> 08:00 am
         START_TIME = timeInMinutes(hours=START_HOUR)
         DURATION = timeInMinutes(hours=1)
-        time_horizon = 25
+        time_horizon = 5
         tau = 5
         number_of_runs = 9
         number_of_vehicles = 1

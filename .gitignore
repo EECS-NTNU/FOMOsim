@@ -144,3 +144,4 @@ dmypy.json
 .pyre/
 GUI/loggFiles/sessionLog.txt
 GUI/loggFiles/sessionLog.txt
+policies/inngjerdingen_moeller/saved_time_data/NY_W31_static_data.json
