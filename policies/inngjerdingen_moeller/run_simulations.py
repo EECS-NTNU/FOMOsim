@@ -33,11 +33,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-<<<<<<< HEAD
     state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
-=======
-    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
->>>>>>> parent of 023246a (Merge branch 'Inngjerdingen' into Møller)
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -109,13 +105,8 @@ if __name__ == "__main__":
     # weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     
     # list_of_seeds_1=[0,1,2,3,4,5,6,7,8,9]
-<<<<<<< HEAD
     # list_of_seeds_1=[5,6,7,8,9] 
     list_of_seeds_1=[1]
-=======
-    list_of_seeds_1=[5,6,7,8,9] 
-    # list_of_seeds_1=[0]
->>>>>>> parent of 023246a (Merge branch 'Inngjerdingen' into Møller)
 
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)
