@@ -23,7 +23,7 @@ class PILOT(Policy):
         bikes_to_pickup = []
         bikes_to_deliver = []  
         
-        end_time = simul.time + self.time_horizon
+        end_time = simul.time + self.time_horizon 
 
         #########################################
         #               WHAT TO DO              #
@@ -182,7 +182,7 @@ class PILOT(Policy):
             plans = [[] for i in range(max_depth+2)]
             plans[0].append(initial_plan)
             depths = [i for i in range(max_depth+1)] 
-            depth=0 
+
             for depth in depths:
                 if depth == 1 or depth == 2:    # depth decreasing after first and second depth
                     num_successors = max(1, round(num_successors/2))
@@ -200,7 +200,7 @@ class PILOT(Policy):
                             new_plan_dict[next_vehicle.id].append(visit) 
                             tabu_list = copy_arr_iter(plan.tabu_list)
                             tabu_list.append(visit.station.id)
-                            new_plan = Plan(new_plan_dict,tabu_list)
+                            new_plan = Plan(new_plan_dict, tabu_list)
 
                             if next_vehicle.id == vehicle.id:
                                 plans[depth+1].append(new_plan)
@@ -244,11 +244,13 @@ class PILOT(Policy):
         tabu_list = plan.tabu_list
         vehicle = plan.next_visit.vehicle
         
-        num_bikes_vehicle = len(vehicle.get_bike_inventory())
+        initial_num_bikes = len(vehicle.get_bike_inventory())
+        num_bikes_now = initial_num_bikes
         for visit in plan.plan[vehicle.id]:
-            num_bikes_vehicle = num_bikes_vehicle + visit.loading_quantity - visit.unloading_quantity
+            num_bikes_now += visit.loading_quantity
+            num_bikes_now -= visit.unloading_quantity 
 
-        potential_stations = find_potential_stations(simul, 0.15, 0.15, vehicle, num_bikes_vehicle, tabu_list)
+        potential_stations = find_potential_stations(simul, 0.15, 0.15, vehicle, num_bikes_now, tabu_list)
         if potential_stations == []: #no potential stations
             print("Lunsjpause på gutta")
             return None
@@ -259,8 +261,9 @@ class PILOT(Policy):
 
         for next_station in next_stations:
             arrival_time = plan.plan[vehicle.id][-1].get_departure_time() + simul.state.traveltime_vehicle_matrix[plan.plan[vehicle.id][-1].station.id][next_station.id] + settings.MINUTES_CONSTANT_PER_ACTION
-            number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(vehicle, num_bikes_vehicle, simul, next_station, arrival_time)
-            visits.append(Visit(next_station, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, arrival_time, vehicle))
+            number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(vehicle, num_bikes_now, simul, next_station, arrival_time)
+            new_visit = Visit(next_station, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, arrival_time, vehicle)
+            visits.append(new_visit)
         return visits
 
 
@@ -268,8 +271,6 @@ class PILOT(Policy):
         discounting_factors = generate_discounting_factors(len(route), 0.8) #end_factor = 1 if no discounting 
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
-        time = current_time
-        previous_station=None
         counter=0
         for visit in route:
             avoided_violations = 0
@@ -281,10 +282,7 @@ class PILOT(Policy):
             unloading_quantity = visit.unloading_quantity
             neighbors = station.neighboring_stations #list of station objects
 
-            if previous_station != None:
-                time = visit.arrival_time
-            else: #we are on the first station 
-                time = time
+            time = visit.arrival_time
             
             initial_inventory = station.number_of_bikes()
             station_capacity = station.capacity
@@ -404,13 +402,12 @@ class PILOT(Policy):
                 distance_scaling = ((simul.state.get_vehicle_travel_time(station.id, neighbor.id)/60)*settings.VEHICLE_SPEED)/settings.MAX_ROAMING_DISTANCE_SOLUTIONS
 
                 neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
-           
+
+            # if avoided_violations < 0: after bug fix, this still happends, but now it is because of logic in evaluate_route, unavoidable violations > violations_no_visit
+            #     print("x")            
 
             avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
-            
-            #for next iteration:
-            time = visit.get_departure_time() #the time after the loading operations are done 
-            previous_station = station
+        
             counter+=1
         
         return avoided_disutility 
@@ -465,10 +462,10 @@ class PILOT(Policy):
     
 
     def calculate_loading_quantities_pilot(self, vehicle, vehicle_inventory, simul, station, current_time):
-        
         number_of_bikes_to_pick_up = 0
         number_of_bikes_to_deliver = 0
-        target_state = round(station.get_target_state(simul.day(), int((current_time//60)%24)))  #assume same day
+        # target_state = round(station.get_target_state(simul.day(), int((current_time//60)%24)))  #assume same day, feil her når vi prøver å hente en target state som er for langt frem i tid! 
+        target_state = round(station.get_target_state(simul.day(), simul.hour()))
         net_demand = calculate_net_demand(station, simul.time, simul.day(), simul.hour(), 60)
         num_bikes_station = station.number_of_bikes() + ((current_time-simul.time)/60)*net_demand
         
@@ -489,7 +486,12 @@ class PILOT(Policy):
         elif num_bikes_station > target_state: #pick-up bikes
             remaining_vehicle_capacity = vehicle.bike_inventory_capacity - vehicle_inventory
             number_of_bikes_to_pick_up = min(num_bikes_station - target_state + congested_neighbors, remaining_vehicle_capacity)
-    
+
+        if (num_bikes_station < target_state) and (number_of_bikes_to_pick_up > 0):
+            print("There's something strange in the neighborhood. Who you gonna call? Bugbusters!")
+        elif (num_bikes_station > target_state) and (number_of_bikes_to_deliver > 0):
+            print("There's something strange in the neighborhood. Who you gonna call? Bugbusters!")
+
         return number_of_bikes_to_pick_up, number_of_bikes_to_deliver
 
 class Visit():
