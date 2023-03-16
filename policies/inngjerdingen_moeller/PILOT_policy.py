@@ -289,6 +289,7 @@ class PILOT(Policy):
             net_demand = scenario_dict[station.id]   #returns net demand for the next 60 minutes from simul.time
             target_state = station.get_target_state(simul.day(), simul.hour())
 
+            #avoided violations: 
             if net_demand>0:
                 time_first_violation_no_visit = current_time+((station_capacity - initial_inventory)/net_demand)*60
             elif net_demand<0:
@@ -300,7 +301,6 @@ class PILOT(Policy):
                 violations_no_visit = ((end_time - time_first_violation_no_visit)/60)*net_demand #negative if starvations, positive if congestions 
             else:
                 violations_no_visit = 0
-            
            
             if time > time_first_violation_no_visit:
                 unavoidable_violations = ((time-time_first_violation_no_visit)/60)*net_demand
@@ -317,14 +317,14 @@ class PILOT(Policy):
                 time_first_violation_after_loading = end_time
 
             
-            if time_first_violation_after_loading < end_time:
+            if time_first_violation_after_loading < end_time: 
                 violations_after_visit = ((end_time - time_first_violation_after_loading)/60)*net_demand
             else:
                 violations_after_visit = 0 
 
             avoided_violations = abs(violations_no_visit) - abs(unavoidable_violations) - abs(violations_after_visit)  
             
-
+            #improved deviation: 
             if net_demand > 0:
                 ending_inventory = min(station_capacity, inventory_after_loading + ((end_time-time)/60)*net_demand)
             elif net_demand <= 0:
@@ -341,6 +341,7 @@ class PILOT(Policy):
 
             improved_deviation = deviation_no_visit - deviation_visit
 
+            #neighbor roamings: 
             excess_bikes = ending_inventory
             excess_locks = station_capacity-ending_inventory
             if net_demand > 0:
@@ -403,8 +404,8 @@ class PILOT(Policy):
 
                 neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
 
-            # if avoided_violations < 0: after bug fix, this still happends, but now it is because of logic in evaluate_route, unavoidable violations > violations_no_visit
-            #     print("x")            
+            if avoided_violations < 0: #after bug fix, this still happends, but now it is because of logic in evaluate_route, unavoidable violations > violations_no_visit
+                print("x")            
 
             avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
         
@@ -463,8 +464,7 @@ class PILOT(Policy):
 
     def calculate_loading_quantities_pilot(self, vehicle, vehicle_inventory, simul, station, current_time):
         number_of_bikes_to_pick_up = 0
-        number_of_bikes_to_deliver = 0
-        # target_state = round(station.get_target_state(simul.day(), int((current_time//60)%24)))  #assume same day, feil her når vi prøver å hente en target state som er for langt frem i tid! 
+        number_of_bikes_to_deliver = 0 
         target_state = round(station.get_target_state(simul.day(), simul.hour()))
         net_demand = calculate_net_demand(station, simul.time, simul.day(), simul.hour(), 60)
         num_bikes_station = station.number_of_bikes() + ((current_time-simul.time)/60)*net_demand
@@ -486,11 +486,6 @@ class PILOT(Policy):
         elif num_bikes_station > target_state: #pick-up bikes
             remaining_vehicle_capacity = vehicle.bike_inventory_capacity - vehicle_inventory
             number_of_bikes_to_pick_up = min(num_bikes_station - target_state + congested_neighbors, remaining_vehicle_capacity)
-
-        if (num_bikes_station < target_state) and (number_of_bikes_to_pick_up > 0):
-            print("There's something strange in the neighborhood. Who you gonna call? Bugbusters!")
-        elif (num_bikes_station > target_state) and (number_of_bikes_to_deliver > 0):
-            print("There's something strange in the neighborhood. Who you gonna call? Bugbusters!")
 
         return number_of_bikes_to_pick_up, number_of_bikes_to_deliver
 
