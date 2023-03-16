@@ -38,7 +38,8 @@ class PILOT(Policy):
             if v.eta == 0:
                 plan_dict[v.id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, v)]
             else:
-                plan_dict[v.id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, v.eta, v)]
+                number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(v, len(v.get_bike_inventory()), simul, v.location, v.eta)
+                plan_dict[v.id] = [Visit(v.location, int(number_of_bikes_to_pick_up), int(number_of_bikes_to_deliver), v.eta, v)]
         
         tabu_list = [v.location.id for v in simul.state.vehicles]
         
@@ -189,8 +190,12 @@ class PILOT(Policy):
                 
                 while plans[depth] != []:
                     plan = plans[depth].pop(0)
-                    new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set)
                     next_vehicle = plan.next_visit.vehicle
+                    if next_vehicle != vehicle:
+                        num_successors_other_vehicle = max(1, round(num_successors/2))
+                        new_visits = self.greedy_next_visit(plan, simul, num_successors_other_vehicle, weight_set)
+                    else:
+                        new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set)
                     if new_visits == None or plan.next_visit.get_departure_time() > end_time:
                         new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
                         plans[depth+1].append(new_plan)
@@ -283,6 +288,8 @@ class PILOT(Policy):
             neighbors = station.neighboring_stations #list of station objects
 
             time = visit.arrival_time
+            if time > end_time:
+                time = end_time
             
             initial_inventory = station.number_of_bikes()
             station_capacity = station.capacity
@@ -368,34 +375,34 @@ class PILOT(Policy):
                         time_first_violation = end_time
                     
                     if time_first_violation < end_time:
-                        violations = (min(end_time-time_first_violation, end_time-time)/60)*net_demand_neighbor
+                        convertable_violations = (min(end_time-time_first_violation, end_time-time)/60)*net_demand_neighbor
                         if neighbor_type == 'p':
-                            if abs(violations) <= excess_locks:
-                                roamings+=abs(violations)
-                                excess_locks-= abs(violations)
+                            if abs(convertable_violations) <= excess_locks:
+                                roamings+=abs(convertable_violations)
+                                excess_locks-= abs(convertable_violations)
                             else:
                                 roamings+=excess_locks
                                 excess_locks-=excess_locks
                             
-                            if abs(violations) <= excess_locks_no_visit:
-                                roamings_no_visit+=abs(violations) 
-                                excess_locks_no_visit-= abs(violations)
+                            if abs(convertable_violations) <= excess_locks_no_visit:
+                                roamings_no_visit+=abs(convertable_violations) 
+                                excess_locks_no_visit-= abs(convertable_violations)
                             else:
                                 roamings_no_visit+=excess_locks_no_visit
                                 excess_locks_no_visit-=excess_locks_no_visit
                         
                                 
                         if neighbor_type == 'd':
-                            if abs(violations) <= excess_bikes:
-                                roamings+=abs(violations)
-                                excess_bikes-= abs(violations)
+                            if abs(convertable_violations) <= excess_bikes:
+                                roamings+=abs(convertable_violations)
+                                excess_bikes-= abs(convertable_violations)
                             else:
                                 roamings+=excess_bikes
                                 excess_bikes-=excess_bikes
 
-                            if abs(violations) <= excess_bikes_no_visit:
-                                roamings_no_visit+=abs(violations)
-                                excess_bikes_no_visit-= abs(violations)
+                            if abs(convertable_violations) <= excess_bikes_no_visit:
+                                roamings_no_visit+=abs(convertable_violations)
+                                excess_bikes_no_visit-= abs(convertable_violations)
                             else:
                                 roamings_no_visit+=excess_bikes_no_visit
                                 excess_bikes_no_visit-=excess_bikes_no_visit
@@ -414,7 +421,7 @@ class PILOT(Policy):
         return avoided_disutility 
     
     def generate_scenarioes(self, simul, number_of_scenarios, time_horizon):
-        rng = np.random.default_rng(None)
+        rng = np.random.default_rng(simul.state.seed)
         scenarios = []
         stations_dict = simul.state.stations 
         if number_of_scenarios < 2: #0 or 1, return expected net_demand values

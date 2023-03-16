@@ -17,6 +17,8 @@ import sim
 import demand
 from helpers import timeInMinutes
 
+import time
+
 import multiprocessing as mp
 
 
@@ -33,7 +35,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -96,9 +98,9 @@ if __name__ == "__main__":
     evaluation_weights = [0.4, 0.3, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
     # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
     criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
-    number_of_scenarios = 1
+    number_of_scenarios = 10
     
-    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(3, 10, 45, criticality_weights_sets, evaluation_weights, number_of_scenarios), greedy = policies.GreedyPolicy())
+    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 10, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios), greedy = policies.GreedyPolicy())
     
     # policy_dict = dict(milp_no_roaming = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=False, time_horizon=20)) #for greedy_with_neighbors: crit_weights = [time_to_viol, dev_t_state, neigh_crit, dem_crit]
     # list_of_timehorizons = [25, 30]
@@ -111,6 +113,9 @@ if __name__ == "__main__":
 
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)
+    start_time = time.time()
     test_policies(list_of_seeds=list_of_seeds_1, policy_dict=policy_dict, duration=24*5)
+    duration = time.time() - start_time
+    print("Running time: ", str(duration))
 
  
