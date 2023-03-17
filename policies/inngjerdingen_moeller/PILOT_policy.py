@@ -232,7 +232,7 @@ class PILOT(Policy):
 
         plan_scores = dict() #{plan_object: list of scenario_scores}
 
-        scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, self.time_horizon)
+        scenarios = self.generate_scenarioes(simul, self.number_of_scenarios)
 
         for plan in completed_plans:
             plan_scores[plan] = []
@@ -280,7 +280,7 @@ class PILOT(Policy):
         for visit in route:
             avoided_violations = 0
             neighbor_roamings = 0
-            improved_deviation = 0
+            improved_deviation = 0 
             
             station = visit.station
             loading_quantity = visit.loading_quantity
@@ -411,8 +411,8 @@ class PILOT(Policy):
 
                 neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
 
-            if avoided_violations < 0: #after bug fix, this still happends, but now it is because of logic in evaluate_route, unavoidable violations > violations_no_visit
-                print("x")            
+            # if avoided_violations < 0: #after bug fix, this still happends, but now it is because of logic in evaluate_route, unavoidable violations > violations_no_visit
+            #     print("x")            
 
             avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
         
@@ -420,7 +420,7 @@ class PILOT(Policy):
         
         return avoided_disutility 
     
-    def generate_scenarioes(self, simul, number_of_scenarios, time_horizon):
+    def generate_scenarioes(self, simul, number_of_scenarios):
         rng = np.random.default_rng(simul.state.seed)
         scenarios = []
         stations_dict = simul.state.stations 
@@ -434,10 +434,30 @@ class PILOT(Policy):
         else:
             for s in range(number_of_scenarios):
                 scenario_dict = dict()
-                for station_id in stations_dict:
-                    expected_net_demand = calculate_net_demand(stations_dict[station_id], simul.time ,simul.day(),simul.hour(), 60)
-                    stdev = 1
-                    net_demand = rng.normal(expected_net_demand, stdev) #change this so that it uses actual stdev?
+                planning_horizon = 60 #calculate net_demand for the next 60 minutes 
+                time_now = simul.time
+                day = simul.day()
+                hour = simul.hour()
+                minute_in_current_hour = time_now-day*24*60-hour*60 
+                minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
+                minutes_next_hour = planning_horizon - minutes_current_hour
+                
+                for station_id in stations_dict: 
+                    expected_arrive_intensity = stations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour())
+                    arrive_intensity_stdev = stations_dict[station_id].get_arrive_intensity_stdev(simul.day(), simul.hour())
+                    expected_leave_intensity = stations_dict[station_id].get_leave_intensity(simul.day(), simul.hour())
+                    leave_intensity_stdev = stations_dict[station_id].get_leave_intensity_stdev(simul.day(), simul.hour())
+                    
+                    expected_arrive_intensity_next = stations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour()+1)
+                    arrive_intensity_stdev_next = stations_dict[station_id].get_arrive_intensity_stdev(simul.day(), simul.hour()+1)
+                    expected_leave_intensity_next = stations_dict[station_id].get_leave_intensity(simul.day(), simul.hour()+1)
+                    leave_intensity_stdev_next = stations_dict[station_id].get_leave_intensity_stdev(simul.day(), simul.hour()+1)
+
+                    net_demand_current = rng.normal(expected_arrive_intensity, arrive_intensity_stdev) - rng.normal(expected_leave_intensity, leave_intensity_stdev)
+                    net_demand_next = rng.normal(expected_arrive_intensity_next, arrive_intensity_stdev_next) - rng.normal(expected_leave_intensity_next, leave_intensity_stdev_next)
+
+                    net_demand = (minutes_current_hour*net_demand_current + minutes_next_hour*net_demand_next)/planning_horizon
+                    
                     scenario_dict[station_id] = net_demand
                 scenarios.append(scenario_dict)
         return scenarios

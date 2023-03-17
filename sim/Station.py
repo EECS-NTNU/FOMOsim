@@ -105,6 +105,12 @@ class Station(Location):
     def get_leave_intensity(self, day, hour):
         return self.leave_intensities[day % 7][hour % 24]
 
+    def get_arrive_intensity_stdev(self, day, hour):
+        return self.historical_arrive_intensities_stdev[day % 7][hour % 24]
+    
+    def get_leave_intensity_stdev(self, day, hour):
+        return self.historical_leave_intensities_stdev[day % 7][hour % 24]
+
     def number_of_bikes(self):
         return len(self.bikes)
 
