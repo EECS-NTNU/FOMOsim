@@ -13,7 +13,7 @@ from sim import Metric
 from progress.bar import IncrementalBar
 
 from helpers import loggTime, loggLocations, loggEvent
-import policies.inngjerdingen_moeller
+# import policies.inngjerdingen_moeller
 
 class Simulator(LoadSave):
     """
@@ -109,8 +109,8 @@ class Simulator(LoadSave):
                 self.last_monotonic = monotonic
 
         # Plotting system state
-        if self.time > 5000 and self.time <= 5000: 
-            policies.inngjerdingen_moeller.visualize_stations_from_simulator(self)
+        # if self.time > 5000 and self.time <= 5000: 
+        #     policies.inngjerdingen_moeller.visualize_stations_from_simulator(self)
 
     def full_step(self):
         while True:

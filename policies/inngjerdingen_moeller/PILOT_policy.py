@@ -197,15 +197,18 @@ class PILOT(Policy):
                     else:
                         new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set)
                     if new_visits == None or plan.next_visit.get_departure_time() > end_time:
-                        new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
+                        new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), plan.weight_set, plan.branch_number)
                         plans[depth+1].append(new_plan)
                     else:
-                        for visit in new_visits:
+                        for branch_number, visit in enumerate(new_visits):
                             new_plan_dict = plan.copy_plan()
                             new_plan_dict[next_vehicle.id].append(visit) 
                             tabu_list = copy_arr_iter(plan.tabu_list)
                             tabu_list.append(visit.station.id)
-                            new_plan = Plan(new_plan_dict, tabu_list)
+                            if depth == 0:
+                                new_plan = Plan(new_plan_dict, tabu_list, weight_set, branch_number)
+                            else:
+                                new_plan = Plan(new_plan_dict, tabu_list, plan.weight_set, plan.branch_number)
 
                             if next_vehicle.id == vehicle.id:
                                 plans[depth+1].append(new_plan)
@@ -215,7 +218,7 @@ class PILOT(Policy):
             # Greedy construction for the rest of the route
             for plan in plans[max_depth+1]:
                 dep_time = plan.next_visit.get_departure_time()
-                temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list))
+                temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), plan.weight_set, plan.branch_number)
                 while dep_time < end_time:
                     new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set)
                     if new_visit != None:
@@ -464,6 +467,8 @@ class PILOT(Policy):
 
     def return_best_move(self, vehicle, simul, plan_scores): #returns station_id 
         score_board = dict() #station id : number of times this first move returns the best solution 
+        score_board_branch = dict()
+        # score_board_weights = dict()  #TODO
         for scenario_id in range(self.number_of_scenarios):
             best_score = -1000
             best_plan = None
@@ -484,8 +489,22 @@ class PILOT(Policy):
                 score_board[best_first_move] += 1
             else:
                 score_board[best_first_move] = 1 
+
+            if best_plan.branch_number in score_board_branch:
+                score_board_branch[best_plan.branch_number] += 1
+            else:
+                score_board_branch[best_plan.branch_number] = 1
+
+            # if best_plan.weight_set in score_board_weights:
+            #     score_board_weights[best_plan.weight_set] += 1
+            # else:
+            #     score_board_weights[best_plan.weight_set] = 1
            
         score_board_sorted = dict(sorted(score_board.items(), key=lambda item: item[1], reverse=True))
+        score_board_branch_sorted = dict(sorted(score_board_branch.items(), key=lambda item: item[1], reverse=True))
+        # score_board_weights_sorted = dict(sorted(score_board_weights.items(), key=lambda item: item[1], reverse=True))
+        print("Best branch:", list(score_board_branch_sorted.keys())[0])
+        # print("Best weight:set:", list(score_board_weights_sorted.keys())[0])
         return list(score_board_sorted.keys())[0]
     
 
@@ -528,11 +547,13 @@ class Visit():
         return self.arrival_time + (self.loading_quantity + self.unloading_quantity)*settings.MINUTES_PER_ACTION
 
 class Plan():
-    def __init__(self, copied_plan, tabu_list):
+    def __init__(self, copied_plan, tabu_list, weight_set=None, branch_number=None):
         self.plan = copied_plan #key: vehicle ID, value: list of vehicle route 
         self.next_visit = None     #initialize with starting station
         self.find_next_visit() 
-        self.tabu_list = tabu_list          
+        self.tabu_list = tabu_list
+        self.weight_set = weight_set
+        self.branch_number = branch_number          
 
     def find_next_visit(self):
         arrival_time = 1000000 
