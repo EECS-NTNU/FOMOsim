@@ -96,8 +96,8 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
 if __name__ == "__main__":
             
     evaluation_weights = [0.4, 0.3, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
-    # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
-    criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
+    criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
+    # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     number_of_scenarios = 100
     
     policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios), greedy = policies.GreedyPolicy())
@@ -107,9 +107,9 @@ if __name__ == "__main__":
     # weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     
     # list_of_seeds_1=[0,1,2,3,4,5,6,7,8,9]
-    list_of_seeds_1=[0,1,2,3,4]
+    # list_of_seeds_1=[0,1,2,3,4]
     # list_of_seeds_1=[5,6,7,8,9] 
-    # list_of_seeds_1=[1]
+    list_of_seeds_1=[1]
 
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)
