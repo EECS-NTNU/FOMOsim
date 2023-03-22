@@ -197,7 +197,7 @@ class PILOT(Policy):
                     else:
                         new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set)
                     if new_visits == None or plan.next_visit.get_departure_time() > end_time:
-                        new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), plan.weight_set, plan.branch_number)
+                        new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
                         plans[depth+1].append(new_plan)
                     else:
                         for branch_number, visit in enumerate(new_visits):
@@ -208,7 +208,7 @@ class PILOT(Policy):
                             if depth == 0:
                                 new_plan = Plan(new_plan_dict, tabu_list, weight_set, branch_number)
                             else:
-                                new_plan = Plan(new_plan_dict, tabu_list, plan.weight_set, plan.branch_number)
+                                new_plan = Plan(new_plan_dict, tabu_list, weight_set, plan.branch_number)
 
                             if next_vehicle.id == vehicle.id:
                                 plans[depth+1].append(new_plan)
@@ -219,7 +219,7 @@ class PILOT(Policy):
 
             # ------Printing routes for all weight_sets--------
             # print("This is a new weight set!")
-            # for plan in plans[max_depth+1]:
+            for plan in plans[max_depth+1]:
             #     station_list1 = []
             #     station_list2 = []
             #     for visit in plan.plan[0]:
@@ -230,7 +230,7 @@ class PILOT(Policy):
                 #------------------------------------------------
 
                 dep_time = plan.next_visit.get_departure_time()
-                temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), plan.weight_set, plan.branch_number)
+                temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
                 while dep_time < end_time:
                     new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set)
                     if new_visit != None:
@@ -275,7 +275,7 @@ class PILOT(Policy):
             print("Lunsjpause på gutta")
             return None
         number_of_successors = min(number_of_successors, len(potential_stations))
-        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.id]) #sorted dict {station_object: criticality_score}
+        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.id][-1].station) #sorted dict {station_object: criticality_score}
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 

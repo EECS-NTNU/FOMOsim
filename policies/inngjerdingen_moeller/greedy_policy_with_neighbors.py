@@ -9,7 +9,7 @@ import sim
 
 
 class GreedyPolicyNeighborhoodInteraction(Policy):
-    def __init__(self,crit_weights=[0.25,0.25,0.25,0.25], cutoff_vehicle=0.3, cutoff_station=0.2, service_hours=None):  #crit_weights: [time_to_viol, dev_t_state, neigh_crit, dem_crit]
+    def __init__(self,crit_weights=[0.2,0.2,0.2,0.2,0.2], cutoff_vehicle=0.3, cutoff_station=0.2, service_hours=None):  #crit_weights: [time_to_viol, dev_t_state, neigh_crit, dem_crit]
         super().__init__()
         
         if service_hours is not None:
@@ -35,8 +35,6 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         bikes_to_pickup = []
         bikes_to_deliver = [] 
         
-        
-            
 
         #########################################
         #               WHAT TO DO              #
@@ -48,7 +46,6 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         number_of_bikes_to_deliver = len(bikes_to_deliver)
         
         bikes_at_vehicle_after_rebalancing = num_bikes_vehicle + number_of_bikes_to_pick_up - number_of_bikes_to_deliver
-
         ##########################################
         #               WHERE TO GO              #
         ##########################################
@@ -56,7 +53,7 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         potential_stations = find_potential_stations(simul, self.cutoff_vehicle, self.cutoff_station, vehicle, bikes_at_vehicle_after_rebalancing, tabu_list)
 
         #calculate criticalities for potential stations, sorted by criticality
-        criticalities = calculate_criticality(self.crit_weights, simul, potential_stations) # dict {station: criticality} sorted by crit.score                           
+        criticalities = calculate_criticality(self.crit_weights, simul, potential_stations, vehicle.location) # dict {station: criticality} sorted by crit.score                           
         
         #pick the best
         if len(criticalities)==0:
