@@ -1,6 +1,6 @@
 from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
 
-def calculate_criticality(weights, simul, potential_stations, route): # take in time as well? simul.time may be outdated
+def calculate_criticality(weights, simul, potential_stations, station): # take in time as well? simul.time may be outdated
     # COMMON DATA
     [w_t, w_dev, w_n, w_dem, w_dri] = weights
     TIME_HORIZON = 60        #minutes
@@ -11,7 +11,7 @@ def calculate_criticality(weights, simul, potential_stations, route): # take in 
     neighborhood_crit_list = [] 
     demand_crit_list = []
     driving_time_list = []
-    current_station = route[-1].station
+    # current_station = route[-1].station
 
     # CALCULATE CRITICALITY FOR EACH POTENTIAL STATION
     for potential_station in potential_stations:
@@ -31,7 +31,7 @@ def calculate_criticality(weights, simul, potential_stations, route): # take in 
         demand_crit = calculate_demand_criticality(station_type, net_demand)
         demand_crit_list.append(demand_crit)
 
-        driving_time_crit = calculate_driving_time_crit(simul, current_station, potential_station)
+        driving_time_crit = calculate_driving_time_crit(simul, station, potential_station)
         driving_time_list.append(driving_time_crit)
 
         criticalities[potential_station] = [time_to_violation, deviation_from_t_state, neighborhood_crit, demand_crit, driving_time_crit]
