@@ -19,9 +19,11 @@ from helpers import timeInMinutes
 import output
 
 import time
-
 import multiprocessing as mp
 
+# import cProfile
+# import pstats
+# import io
 
 
 def run_simulation(seed, policy, duration=24*5, queue=None):
@@ -29,7 +31,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
     # INSTANCE = 'TD_W34_old'
-    INSTANCE = 'OS_W31'
+    INSTANCE = 'OS_W31' 
     # INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
@@ -103,8 +105,8 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
 if __name__ == "__main__":
             
     evaluation_weights = [0.4, 0.3, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
-    criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
-    # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
+    # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
+    criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     number_of_scenarios = 10
     
     # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios), greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
@@ -122,8 +124,25 @@ if __name__ == "__main__":
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)
     start_time = time.time()
+    # test_policies(list_of_seeds=list_of_seeds_1, policy_dict=policy_dict, duration=24*5)
     test_policies(list_of_seeds=list_of_seeds_1, policy_dict=policy_dict, duration=24*5)
     duration = time.time() - start_time
     print("Running time: ", str(duration))
+    
+    
+    
+
+# Profiling:    
+    # pr = cProfile.Profile()
+    # pr.enable()
+    # test_policies(list_of_seeds=list_of_seeds_1, policy_dict=policy_dict, duration=24*5)
+    # pr.disable()
+    # s = io.StringIO()
+    # ps = pstats.Stats(pr, stream=s).sort_stats('tottime')
+    # ps.print_stats()
+    # with open("profiling.txt","w+") as f:
+    #     f.write(s.getvalue())
+     
+
 
  

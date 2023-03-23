@@ -247,7 +247,7 @@ class PILOT(Policy):
 
         plan_scores = dict() #{plan_object: list of scenario_scores}
 
-        scenarios = self.generate_scenarioes(simul, self.number_of_scenarios)
+        scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, poisson = True)
 
         for plan in completed_plans:
             plan_scores[plan] = []
@@ -435,8 +435,8 @@ class PILOT(Policy):
         
         return avoided_disutility 
     
-    def generate_scenarioes(self, simul, number_of_scenarios):
-        rng = np.random.default_rng(simul.state.seed)
+    def generate_scenarioes(self, simul, number_of_scenarios, poisson = True): #normal_dist if poisson = False
+        rng = np.random.default_rng(simul.state.seed) 
         scenarios = []
         stations_dict = simul.state.stations 
         if number_of_scenarios < 2: #0 or 1, return expected net_demand values
@@ -459,20 +459,25 @@ class PILOT(Policy):
                 
                 for station_id in stations_dict: 
                     expected_arrive_intensity = stations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour())
-                    arrive_intensity_stdev = stations_dict[station_id].get_arrive_intensity_stdev(simul.day(), simul.hour())
                     expected_leave_intensity = stations_dict[station_id].get_leave_intensity(simul.day(), simul.hour())
-                    leave_intensity_stdev = stations_dict[station_id].get_leave_intensity_stdev(simul.day(), simul.hour())
-                    
                     expected_arrive_intensity_next = stations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour()+1)
-                    arrive_intensity_stdev_next = stations_dict[station_id].get_arrive_intensity_stdev(simul.day(), simul.hour()+1)
                     expected_leave_intensity_next = stations_dict[station_id].get_leave_intensity(simul.day(), simul.hour()+1)
-                    leave_intensity_stdev_next = stations_dict[station_id].get_leave_intensity_stdev(simul.day(), simul.hour()+1)
-
-                    net_demand_current = rng.normal(expected_arrive_intensity, arrive_intensity_stdev) - rng.normal(expected_leave_intensity, leave_intensity_stdev)
-                    net_demand_next = rng.normal(expected_arrive_intensity_next, arrive_intensity_stdev_next) - rng.normal(expected_leave_intensity_next, leave_intensity_stdev_next)
-
-                    net_demand = (minutes_current_hour*net_demand_current + minutes_next_hour*net_demand_next)/planning_horizon
                     
+                    if poisson:
+                        net_demand_current = rng.poisson(expected_arrive_intensity) - rng.poisson(expected_leave_intensity)
+                        net_demand_next = rng.poisson(expected_arrive_intensity_next) - rng.poisson(expected_leave_intensity_next)
+                        net_demand = (minutes_current_hour*net_demand_current + minutes_next_hour*net_demand_next)/planning_horizon
+                    
+                    else: #normal_dist
+                        arrive_intensity_stdev = stations_dict[station_id].get_arrive_intensity_stdev(simul.day(), simul.hour())
+                        leave_intensity_stdev = stations_dict[station_id].get_leave_intensity_stdev(simul.day(), simul.hour())
+                        arrive_intensity_stdev_next = stations_dict[station_id].get_arrive_intensity_stdev(simul.day(), simul.hour()+1)
+                        leave_intensity_stdev_next = stations_dict[station_id].get_leave_intensity_stdev(simul.day(), simul.hour()+1)
+
+                        net_demand_current = rng.normal(expected_arrive_intensity, arrive_intensity_stdev) - rng.normal(expected_leave_intensity, leave_intensity_stdev)
+                        net_demand_next = rng.normal(expected_arrive_intensity_next, arrive_intensity_stdev_next) - rng.normal(expected_leave_intensity_next, leave_intensity_stdev_next)
+                        net_demand = (minutes_current_hour*net_demand_current + minutes_next_hour*net_demand_next)/planning_horizon
+                        
                     scenario_dict[station_id] = net_demand
                 scenarios.append(scenario_dict)
         return scenarios
@@ -551,7 +556,7 @@ class Plan():
         self.next_visit = None     #initialize with starting station
         self.find_next_visit() 
         self.tabu_list = tabu_list
-        self.weight_set = weight_set
+        self.weight_set = weight_set 
         self.branch_number = branch_number          
 
     def find_next_visit(self):
