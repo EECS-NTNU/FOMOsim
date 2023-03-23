@@ -153,9 +153,10 @@ if __name__ == "__main__":
 
         criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
         evaluation_weights = [0.4, 0.3, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
-        policy = PILOT(2, 5, 60, criticality_weights_sets, evaluation_weights, 10)
+        policy = PILOT(2, 6, 60, criticality_weights_sets, evaluation_weights, 10)
         
         # test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles, roaming)
         # test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
         test_policy(filename, 10, START_DAY, START_HOUR, tstate, policy, DURATION, number_of_vehicles)
 # ----------------------------------------------------
+
