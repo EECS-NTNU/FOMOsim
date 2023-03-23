@@ -16,6 +16,7 @@ import policies
 import sim
 import demand
 from helpers import timeInMinutes
+import output
 
 import time
 
@@ -89,6 +90,12 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
         process.join()
     for simulator in returned_simulators:
         policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
+        # output.visualize([simulator.metrics], metric="branch0")
+        # output.visualize([simulator.metrics], metric="weight_set"+str([0.2, 0.2, 0.1, 0.1, 0.4]))
+        for branch in range(policy.number_of_successors):
+            print(f"Branch {branch}: {simulator.metrics.get_aggregate_value('branch'+str(branch))}")
+        for weight_set in policy.crit_weights_sets:
+            print(f"Weight set {weight_set}: {simulator.metrics.get_aggregate_value('weight_set'+str(weight_set))}")
     policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results_2(filename)
 
 
@@ -101,15 +108,16 @@ if __name__ == "__main__":
     number_of_scenarios = 10
     
     # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios), greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    
-    policy_dict = dict(greedy = policies.GreedyPolicy([0.5,0.2,0.2,0.1]))
+    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios))
+    # policy_dict = dict(greedy = policies.GreedyPolicy([0.5,0.2,0.2,0.1]))
+
     # list_of_timehorizons = [25, 30]
     # weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     
     # list_of_seeds_1=[0,1,2,3,4,5,6,7,8,9]
-    list_of_seeds_1=[0,1,2,3,4]
+    # list_of_seeds_1=[0,1,2,3,4]
     # list_of_seeds_1=[5,6,7,8,9] 
-    # list_of_seeds_1=[1]
+    list_of_seeds_1=[1]
 
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)

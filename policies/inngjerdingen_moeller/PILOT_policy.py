@@ -220,12 +220,12 @@ class PILOT(Policy):
             # ------Printing routes for all weight_sets--------
             # print("This is a new weight set!")
             for plan in plans[max_depth+1]:
-            #     station_list1 = []
-            #     station_list2 = []
-            #     for visit in plan.plan[0]:
-            #         station_list1.append(visit.station.id)
-            #     for visit in plan.plan[1]:
-            #         station_list2.append(visit.station.id)
+                # station_list1 = []
+                # station_list2 = []
+                # for visit in plan.plan[0]:
+                #     station_list1.append(visit.station.id)
+                # for visit in plan.plan[1]:
+                #     station_list2.append(visit.station.id)
                 # print("Weight set:", plan.weight_set, "Route vehicle 0:", station_list1, "Route vehicle 2:", station_list2)
                 #------------------------------------------------
 
@@ -478,9 +478,7 @@ class PILOT(Policy):
         return scenarios
 
     def return_best_move(self, vehicle, simul, plan_scores): #returns station_id 
-        score_board = dict() #station id : number of times this first move returns the best solution 
-        score_board_branch = dict()
-        score_board_weights = dict()  #TODO
+        score_board = dict() #station id : number of times this first move returns the best solution
         for scenario_id in range(self.number_of_scenarios):
             best_score = -1000
             best_plan = None
@@ -502,21 +500,10 @@ class PILOT(Policy):
             else:
                 score_board[best_first_move] = 1 
 
-            if best_plan.branch_number in score_board_branch:
-                score_board_branch[best_plan.branch_number] += 1
-            else:
-                score_board_branch[best_plan.branch_number] = 1
-
-            if tuple(best_plan.weight_set) in score_board_weights:
-                score_board_weights[tuple(best_plan.weight_set)] += 1
-            else:
-                score_board_weights[tuple(best_plan.weight_set)] = 1
+            simul.metrics.add_aggregate_metric(simul, "branch"+str(best_plan.branch_number), 1)
+            simul.metrics.add_aggregate_metric(simul, "weight_set"+str(best_plan.weight_set), 1)
            
         score_board_sorted = dict(sorted(score_board.items(), key=lambda item: item[1], reverse=True))
-        score_board_branch_sorted = dict(sorted(score_board_branch.items(), key=lambda item: item[1], reverse=True))
-        score_board_weights_sorted = dict(sorted(score_board_weights.items(), key=lambda item: item[1], reverse=True))
-        print("Best branch:", list(score_board_branch_sorted.keys())[0])
-        print("Best weight_set:", list(score_board_weights_sorted.keys())[0])
         return list(score_board_sorted.keys())[0]
     
 
