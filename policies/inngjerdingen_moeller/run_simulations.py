@@ -110,16 +110,19 @@ if __name__ == "__main__":
     number_of_scenarios = 10
     
     # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios), greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios))
+    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios))
     # policy_dict = dict(greedy = policies.GreedyPolicy([0.5,0.2,0.2,0.1]))
-
+    
+    #Kloimüllner:
+    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(0, 250, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios))
+    
     # list_of_timehorizons = [25, 30]
     # weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]
     
     # list_of_seeds_1=[0,1,2,3,4,5,6,7,8,9]
-    # list_of_seeds_1=[0,1,2,3,4]
+    list_of_seeds_1=[0,1,2,3,4]
     # list_of_seeds_1=[5,6,7,8,9] 
-    list_of_seeds_1=[1]
+    # list_of_seeds_1=[1]
 
     # test_weights(list_of_seeds=list_of_seeds, weight_set=weight_dict, duration=24*5)
     # test_timehorizons(list_of_seeds=list_of_seeds_1, list_of_timehorizons=list_of_timehorizons, duration=24*5)
