@@ -18,11 +18,23 @@ def calculate_criticality(weights, simul, potential_stations, station): # take i
         net_demand = (TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour()))
         t_state = potential_station.get_target_state(simul.day(), simul.hour())
         station_type, exp_num_bikes = calculate_station_type(potential_station, net_demand, t_state)
+        capacity = potential_station.capacity
         
         time_to_violation = calculate_time_to_violation_IM(net_demand, potential_station)
         time_to_violation_list.append(time_to_violation)
 
-        deviation_from_t_state = abs(t_state - potential_station.number_of_bikes() - net_demand) # alt. include exp. demand during TH
+        if net_demand>0:
+            if potential_station.number_of_bikes() + net_demand <= capacity:
+                deviation_from_t_state = abs(t_state - potential_station.number_of_bikes() - net_demand)
+            else: 
+                deviation_from_t_state = abs(capacity-t_state)
+        
+        else: #net demand <= 0
+            if potential_station.number_of_bikes() + net_demand >= 0:
+                deviation_from_t_state = abs(t_state - potential_station.number_of_bikes() - net_demand)
+            else:
+                deviation_from_t_state = t_state
+        
         deviation_list.append(deviation_from_t_state)
 
         neighborhood_crit = calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, station_type)
