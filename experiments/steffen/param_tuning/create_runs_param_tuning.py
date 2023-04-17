@@ -24,7 +24,7 @@ import numpy as np
 import copy
 import csv
 
-from create_runs_base_settings import *
+from runs_base_settings import *
 
 from helpers import *
 

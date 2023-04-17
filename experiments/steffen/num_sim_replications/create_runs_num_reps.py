@@ -6,12 +6,31 @@
 """
 FOMO simulator, create jobs to run on cluster
 """
+
+####################################
+# set the right working directory #
+###################################
+
+if True:
+    import os 
+    import sys
+    from pathlib import Path
+
+    path = Path(__file__).parents[3]
+    os.chdir(path)
+    #print(os. getcwd())
+
+    sys.path.insert(0, '') #make sure the modules are found in the new working directory
+
+#######################
+
+
 import os
 import shutil
 import json
 
 from helpers import *
-from create_runs_base_settings import * 
+from runs_base_settings import * 
 
 RUN_DIRECTORY="experimental_setups"
 INSTANCE_DIRECTORY="instances"

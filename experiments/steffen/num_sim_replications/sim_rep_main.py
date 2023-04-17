@@ -39,7 +39,7 @@ import numpy as np
 from scipy.stats import t, norm
 
 from helpers import *
-from analyses.steffen.num_sim_replications.helpers import *
+from experiments.steffen.helpers import *
 
 ###############################################################################
 

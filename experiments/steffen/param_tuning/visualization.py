@@ -32,8 +32,8 @@ print(os.getcwd())
 #os.chdir('C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\GitHub\\FOMO-sim\\fomo')
 #filename = 'output_param_tuning_all.csv' #'output_param_tuning_all.csv'
 
-from analyses.steffen.num_sim_replications.helpers import ci_half_length
-from create_runs_base_settings import * #SEEDS, ABBRVS2
+from experiments.steffen.helpers import ci_half_length
+from runs_base_settings import * #SEEDS, ABBRVS2
 
 
 ###############################################################################
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     #output_param_tuning_all.csv
     #output_param_tuning_shorter_service.csv
     filename = 'output_newest.csv'
-    df = pd.read_csv (os.getcwd()+'\\analyses\\steffen\\param_tuning\\'+filename,sep=';',
+    df = pd.read_csv (os.getcwd()+'\\experiments\\steffen\\param_tuning\\'+filename,sep=';',
                         names=['run',	'instance',	'analyses','target_state','policy','num_vehicles',
                         'trips','starvations','congestions','starvations_std'	,'congestions_std', 'time_start','duration'])
 
@@ -212,7 +212,7 @@ if __name__ == "__main__":
         fig.set_size_inches(fig_size[0]*fact, fig_size[1]*fact)
         #plt.subplots_adjust())
         
-        location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\FOMO\Results\\Steffen\\ParameterTuning\\'
+        location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\Ongoing\\FOMO\\Results\\Steffen\\ParameterTuning'
         filename = 'par_tuning_res_6am_8pm_numveh'+str(num_veh)
         extensions = ['.pdf','.png']
         for extension in extensions:

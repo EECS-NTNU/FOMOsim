@@ -12,7 +12,7 @@ sys.path.insert(0, '') #make sure the modules are found in the new working direc
 #-----------------
 
 import pandas as pd
-from create_runs_base_settings import * #SEEDS, ABBRVS2
+from runs_base_settings import * #SEEDS, ABBRVS2
 
 #--------------------
 

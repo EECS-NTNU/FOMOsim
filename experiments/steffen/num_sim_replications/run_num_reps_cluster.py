@@ -30,8 +30,8 @@ import numpy as np
 from scipy.stats import t, norm
 
 from helpers import *
-from analyses.steffen.num_sim_replications.helpers import ci_half_length, approximate_num_reps_absolute
-from create_runs_base_settings import *
+from experiments.steffen.helpers import ci_half_length, approximate_num_reps_absolute
+from runs_base_settings import *
 
 import json
 

@@ -1,3 +1,7 @@
+"""
+BASE SETTINGS for RUNS
+"""
+
 from helpers import *
 
 # Duration of each simulation run

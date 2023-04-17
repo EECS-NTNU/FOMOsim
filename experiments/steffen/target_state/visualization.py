@@ -12,9 +12,11 @@ import copy
 
 #if __name__ == "__main__":
 import os
+import sys
 os.chdir('C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\GitHub\\FOMO-sim\\fomo')
-filename = 'output_target_state_final.csv' #'output_param_tuning_all.csv'
+sys.path.insert(0, '') #make sure the modules are found in the new working directory
 
+filename = 'output_target_state_final.csv' #'output_param_tuning_all.csv'
 ###############################################################################
 ## Some postprocessing used by Steffen
 ###############################################################################
@@ -23,7 +25,7 @@ if __name__ == "__main__":
 
     #output_param_tuning_all.csv
     #output_param_tuning_shorter_service.csv
-    df = pd.read_csv (os.getcwd()+'\\analyses\\steffen\\target_state\\'+filename,sep=';',
+    df = pd.read_csv (os.getcwd()+'\\experiments\\steffen\\target_state\\'+filename,sep=';',
                         names=['run',	'instance',	'analyses','target_state','policy','num_vehicles',
                         'trips','starvations','congestions','starvation_std'	,'congestion_std', 'time_start','duration'])
 
@@ -123,7 +125,7 @@ if __name__ == "__main__":
             fig.set_size_inches(fig_size[0]*fact, fig_size[1]*fact)
             #plt.subplots_adjust())
             
-            location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\FOMO\Results\\Steffen\\target_state\\'
+            location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\Ongoing\\FOMO\Results\\Steffen\\target_state\\'
             filename = 'ts_nv'+str(num_veh)+'_'+weight_name+'.png'   #.pdf
             plt.savefig(location+filename, dpi=150)
             plt.show()

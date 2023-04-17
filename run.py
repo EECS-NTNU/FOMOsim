@@ -26,13 +26,13 @@ from helpers import *
 from multiprocessing.pool import Pool
 from multiprocessing import current_process
 
-from create_runs_base_settings import *
+from runs_base_settings import *
 
 
 ###############################################################################
 
 INSTANCE_DIRECTORY="instances"
-LOCAL_MACHINE_TEST = False
+LOCAL_MACHINE_TEST = True
 
 CPU_FACTOR = 2/10   # I got some memory issues at 3/4. Maybe think about why we get these issues? 
 MAX_CPU = 8
@@ -74,14 +74,14 @@ def simulation_main(seed,state_copy,experimental_setup):
 
 if __name__ == "__main__":
 
-    for filename in sys.argv[1:]:
-        with open(filename, "r") as infile: #infile= open(filename, "r")
-            print("Running file", filename) #filename='experimental_setups/setup_0063.json'
+    if LOCAL_MACHINE_TEST:
+        tasks = ['experimental_setups/setup_0003.json']
+    else:
+        tasks = sys.argv[1:]
 
     for filename in tasks:
-    #infile= open(filename, "r")
-        with open(filename, "r") as infile: 
-            print("Running file", filename) 
+        with open(filename, "r") as infile: #infile= open(filename, "r")
+            print("Running file", filename) #filename='experimental_setups/setup_0063.json'                                                                                                                                                                                                                             
 
             time_start = datetime.now() 
 

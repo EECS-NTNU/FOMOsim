@@ -139,7 +139,7 @@ def main(instance):
         ax.set_ylabel("lost trips (%)")
         ax.set_title(instance)
         
-        location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\FOMO\Results\\Steffen\\LengthOfSimulation\\'
+        location = 'C:\\Users\\steffejb\\OneDrive - NTNU\\Work\\Projects\\Ongoing\\FOMO\Results\\Steffen\\LengthOfSimulation\\'
         filename = 'convergence_do_nothing_'+str(instance)
         extensions = ['.png','.pdf']
         for ext in extensions:
