@@ -130,7 +130,7 @@ if __name__ == "__main__":
 
                     # Alternative 1
                     #Seems like it works!
-                    numprocesses = int(np.floor(CPU_FACTOR*os.cpu_count()))
+                    numprocesses = min(15,int(np.floor(CPU_FACTOR*os.cpu_count()))) #get memory issues with too many threads....
                     with Pool(processes=numprocesses) as pool:  #use cpu_count()
                         print('Number of CPUs used:' + str(numprocesses))
                         sys.stdout.flush()

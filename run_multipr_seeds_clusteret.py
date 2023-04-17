@@ -74,9 +74,10 @@ def simulation_main(seed,state_copy,experimental_setup):
 
 if __name__ == "__main__":
 
-    for filename in sys.argv[1:]:
-        with open(filename, "r") as infile: #infile= open(filename, "r")
-            print("Running file", filename) #filename='experimental_setups/setup_0063.json'
+    if LOCAL_MACHINE_TEST:
+        tasks = ['experimental_setups/setup_0003.json']
+    else:
+        tasks = sys.argv[1:]
 
     for filename in tasks:
     #infile= open(filename, "r")
@@ -109,7 +110,6 @@ if __name__ == "__main__":
 
             #---------------WITHOUT parallelization------------------
 
-            metric = sim.Metric.merge_metrics([sim.metrics for sim in simulations])
 
             for seed in experimental_setup["seeds"]:
                 simul = simulation_main(seed,copy.deepcopy(initial_state),experimental_setup)
