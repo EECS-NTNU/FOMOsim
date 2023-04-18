@@ -95,7 +95,7 @@ class BikeDeparture(Event):
                         closest_neighbour_with_bikes.id)*(BIKE_SPEED/WALKING_SPEED) 
                     #total travel time, roaming for bike from departure station to neighbour + cycling to arrival station
 
-                    # calculate arrival time
+                    # calculate arrival time 
 
                     # create an arrival event for the roaming user from the new departure station
                     world.add_event(
@@ -131,7 +131,7 @@ class BikeDeparture(Event):
     
     def acceptance_rejection(self,distance):
         prob_acceptance = -1.6548*distance**2-0.7036*distance+1.0133
-        random_roaming_limit = random.triangular(0,MAX_ROAMING_DISTANCE_SIMULATOR)
+        random_roaming_limit = random.uniform(0,1)
         if random_roaming_limit <= prob_acceptance:
             return True
         else:
