@@ -1,6 +1,6 @@
 from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
 
-def calculate_criticality(weights, simul, potential_stations, station): # take in time as well? simul.time may be outdated
+def calculate_criticality(weights, simul, potential_stations, station, visited_stations=None): # take in time as well? simul.time may be outdated
     # COMMON DATA
     [w_t, w_dev, w_n, w_dem, w_dri] = weights
     TIME_HORIZON = 60        #minutes
@@ -37,7 +37,7 @@ def calculate_criticality(weights, simul, potential_stations, station): # take i
         
         deviation_list.append(deviation_from_t_state)
 
-        neighborhood_crit = calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, station_type)
+        neighborhood_crit = calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, station_type, visited_stations)
         neighborhood_crit_list.append(neighborhood_crit)
 
         demand_crit = calculate_demand_criticality(station_type, net_demand)
@@ -69,33 +69,36 @@ def calculate_criticality(weights, simul, potential_stations, station): # take i
     return criticalities_summed
 
 
-def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, station_type):
+def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, station_type, visited_stations = None):
     neighborhood_crit = 0
     neighbors = potential_station.neighboring_stations  #list
 
     for neighbor in neighbors:
         station_crit = 0
-        # neighbor_demand = (TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour())) #SM: is this supposed to be neighbor.get_arrive_intensity etc. 
-        neighbor_demand = (TIME_HORIZON/60)*(neighbor.get_arrive_intensity(simul.day(), simul.hour()) - neighbor.get_leave_intensity(simul.day(), simul.hour()))
-        neighbor_t_state = neighbor.get_target_state(simul.day(), simul.hour())
-        
-        # Similarly imbalanced (+)
-        neighbor_type, exp_num_bikes = calculate_station_type(neighbor, neighbor_demand, neighbor_t_state) #SM: can we avoid doing these calculations multiple times for each station? 
-        if neighbor_type == station_type:
-            station_crit += 1
-        
-        # Absorb demand (-)
-        if station_type == 'p' and neighbor.capacity - exp_num_bikes > 0: 
-            station_crit -= 1
-        elif station_type == 'd' and exp_num_bikes > 0:
-            station_crit -= 1
-        elif station_type == 'b':
-            station_crit-= 1
+        if visited_stations != None and neighbor.id in visited_stations:
+            station_crit -= 3
+        else:
+            # neighbor_demand = (TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour())) #SM: is this supposed to be neighbor.get_arrive_intensity etc. 
+            neighbor_demand = (TIME_HORIZON/60)*(neighbor.get_arrive_intensity(simul.day(), simul.hour()) - neighbor.get_leave_intensity(simul.day(), simul.hour()))
+            neighbor_t_state = neighbor.get_target_state(simul.day(), simul.hour())
+            
+            # Similarly imbalanced (+)
+            neighbor_type, exp_num_bikes = calculate_station_type(neighbor, neighbor_demand, neighbor_t_state) #SM: can we avoid doing these calculations multiple times for each station? 
+            if neighbor_type == station_type:
+                station_crit += 1
+            
+            # Absorb demand (-)
+            if station_type == 'p' and neighbor.capacity - exp_num_bikes > 0: 
+                station_crit -= 1
+            elif station_type == 'd' and exp_num_bikes > 0:
+                station_crit -= 1
+            elif station_type == 'b':
+                station_crit-= 1
 
-        
-        # Neighbor demand (higher+)
-        if station_type == neighbor_type:
-            station_crit += calculate_demand_criticality(neighbor_type, neighbor_demand)    #OBS: not normalized
+            
+            # Neighbor demand (higher+)
+            if station_type == neighbor_type:
+                station_crit += calculate_demand_criticality(neighbor_type, neighbor_demand)    #OBS: not normalized
         
         # Distance scaling (closer+, further-)
         distance = (simul.state.traveltime_vehicle_matrix[potential_station.id][neighbor.id]/60)*VEHICLE_SPEED

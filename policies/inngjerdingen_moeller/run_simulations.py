@@ -110,11 +110,11 @@ if __name__ == "__main__":
     number_of_scenarios = 10
     
     # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios), greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios))
+    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(3, 10, 40, criticality_weights_sets, evaluation_weights, number_of_scenarios))
     # policy_dict = dict(greedy = policies.GreedyPolicy([0.5,0.2,0.2,0.1]))
     
     #Kloimüllner:
-    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(0, 250, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios))
+    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(0, 250, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios))
     
     # list_of_timehorizons = [25, 30]
     # weight_dict = dict(a = [0.45, 0.45, 0.1], b=[0.1, 0.1, 0.8], c=[0.35, 0.35, 0.3], d=[0.3, 0.3, 0.4]) #[W_S, W_R, W_D]

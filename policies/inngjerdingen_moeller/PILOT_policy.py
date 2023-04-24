@@ -275,7 +275,7 @@ class PILOT(Policy):
             print("Lunsjpause på gutta")
             return None
         number_of_successors = min(number_of_successors, len(potential_stations))
-        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.id][-1].station) #sorted dict {station_object: criticality_score}
+        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.id][-1].station, tabu_list) #sorted dict {station_object: criticality_score}
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
