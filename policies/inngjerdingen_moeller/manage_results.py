@@ -86,17 +86,17 @@ class VisualizeResults():
 
     def visualize_share_of_events(self, aggregated_data = None, show=False):
         if aggregated_data == None:
-            tot_events = self.simulator.metrics.get_aggregate_value('trips')
+            tot_events = self.simulator.metrics.get_aggregate_value('events')
             congestions = self.simulator.metrics.get_aggregate_value('congestion')
             starvations = self.simulator.metrics.get_aggregate_value('starvation')
             roaming_for_bikes = self.simulator.metrics.get_aggregate_value('roaming for bikes')
         else:
-            tot_events = aggregated_data['trips']
+            tot_events = aggregated_data['events']
             congestions = aggregated_data['congestion']
             starvations = aggregated_data['starvation']
             roaming_for_bikes = aggregated_data['roaming for bikes']
         tot_successfull = tot_events - congestions - starvations - roaming_for_bikes
-        data = {'Successfull trips':tot_successfull/tot_events, 'Congestions':congestions/tot_events,
+        data = {'Successfull events':tot_successfull/tot_events, 'Congestions':congestions/tot_events,
                 'Starvations':starvations/tot_events, 'Roaming for bikes':roaming_for_bikes/tot_events}
         colors = ['seagreen', 'mediumpurple', 'salmon', 'cornflowerblue']
         explode = (0, 0.05, 0.05, 0.05)
@@ -116,12 +116,12 @@ class VisualizeResults():
             with open(path, 'r', newline='') as f:
                 reader = csv.reader(f, delimiter=',')
                 line_count = 0
-                aggregated_data = {'trips':0, 'congestion':0, 'starvation':0, 'roaming for bikes':0, 'roaming distance for locks':0, 'roaming distance for bikes':0} 
+                aggregated_data = {'events':0, 'congestion':0, 'starvation':0, 'roaming for bikes':0, 'roaming distance for locks':0, 'roaming distance for bikes':0} 
                 for row in reader:
                     if line_count == 0:
                         line_count += 1
                     else:
-                        aggregated_data['trips'] += int(row[1])
+                        aggregated_data['events'] += int(row[1])
                         aggregated_data['congestion'] += int(row[5])
                         aggregated_data['starvation'] += int(row[2])
                         aggregated_data['roaming for bikes'] += int(row[3])
@@ -136,8 +136,8 @@ class VisualizeResults():
             return None
 
 def write_sim_results_to_file(filename, simulator, duration, append=False):
-    header = ['Duration','Trips','Starvations','Roaming for bikes', 'Roaming distance for bikes', 'Congestions/Roaming for locks', 'Roaming distance for locks', 'Seed']
-    data=[duration, simulator.metrics.get_aggregate_value('trips'), simulator.metrics.get_aggregate_value('starvation'), simulator.metrics.get_aggregate_value('roaming for bikes'),round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2),
+    header = ['Duration','Events','Starvations','Roaming for bikes', 'Roaming distance for bikes', 'Congestions/Roaming for locks', 'Roaming distance for locks', 'Seed']
+    data=[duration, simulator.metrics.get_aggregate_value('events'), simulator.metrics.get_aggregate_value('starvation'), simulator.metrics.get_aggregate_value('roaming for bikes'),round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2),
            simulator.metrics.get_aggregate_value('congestion'), round(simulator.metrics.get_aggregate_value('roaming distance for locks'),2), simulator.state.seed]
     try:
         path= './policies/inngjerdingen_moeller/simulation_results/'+filename
@@ -155,7 +155,7 @@ def write_sim_results_to_file(filename, simulator, duration, append=False):
         return None
 
 def write_sim_results_to_list(simulator, duration):
-    data=[duration, simulator.metrics.get_aggregate_value('trips'), simulator.metrics.get_aggregate_value('starvation'),
+    data=[duration, simulator.metrics.get_aggregate_value('events'), simulator.metrics.get_aggregate_value('starvation'),
           simulator.metrics.get_aggregate_value('roaming for bikes'),round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2),
             simulator.metrics.get_aggregate_value('congestion'), round(simulator.metrics.get_aggregate_value('roaming distance for locks'),2), simulator.state.seed]
     return data
@@ -224,12 +224,12 @@ def visualize_aggregated_average_roaming_distances(aggregated_data, filename):
     plt.savefig('./policies/inngjerdingen_moeller/simulation_results/aggr_average_roaming_distances_'+outfile)
 
 def visualize_aggregated_share_of_events(aggregated_data, filename):
-    tot_events = aggregated_data['trips']
+    tot_events = aggregated_data['events']
     congestions = aggregated_data['congestion']
     starvations = aggregated_data['starvation']
     roaming_for_bikes = aggregated_data['roaming for bikes']
     tot_successfull = tot_events - congestions - starvations - roaming_for_bikes
-    data = {'Successfull trips':tot_successfull/tot_events, 'Congestions':congestions/tot_events,
+    data = {'Successfull events':tot_successfull/tot_events, 'Congestions':congestions/tot_events,
             'Starvations':starvations/tot_events, 'Roaming for bikes':roaming_for_bikes/tot_events}
     colors = ['seagreen', 'mediumpurple', 'salmon', 'cornflowerblue']
     explode = (0, 0.05, 0.05, 0.05)
@@ -248,9 +248,9 @@ def visualize_aggregated_results_2(filename):
             path = './policies/inngjerdingen_moeller/simulation_results/'+filename
             with open(path, 'r', newline='') as f:
                 reader = csv.reader(f, delimiter=',')
-                aggregated_data = {'trips':0, 'congestion':0, 'starvation':0, 'roaming for bikes':0, 'roaming distance for locks':0, 'roaming distance for bikes':0} 
+                aggregated_data = {'events':0, 'congestion':0, 'starvation':0, 'roaming for bikes':0, 'roaming distance for locks':0, 'roaming distance for bikes':0} 
                 for row in reader:
-                    aggregated_data['trips'] += int(row[1])
+                    aggregated_data['events'] += int(row[1])
                     aggregated_data['congestion'] += int(row[5])
                     aggregated_data['starvation'] += int(row[2])
                     aggregated_data['roaming for bikes'] += int(row[3])

@@ -69,6 +69,8 @@ class BikeDeparture(Event):
 
             world.state.bike_in_use(bike)
 
+            world.metrics.add_aggregate_metric(world, "events", 2) #successfull pickup and an arrival
+
         else:
             if FULL_TRIP:
                 closest_neighbour_with_bikes = world.state.get_neighbours(departure_station,1,not_empty=True)[0]
@@ -113,12 +115,15 @@ class BikeDeparture(Event):
 
                     world.state.bike_in_use(bike)
 
+                    world.metrics.add_aggregate_metric(world, "events", 2) #one roaming and an arrival
+
                     departure_station.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
                     world.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
                     departure_station.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
                     world.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
 
                 else:
+                    world.metrics.add_aggregate_metric(world, "events", 1) #only one starvation --> lost demand and no arrival
                     departure_station.metrics.add_aggregate_metric(world, "starvation", 1) 
                     world.metrics.add_aggregate_metric(world, "starvation", 1)
                     rng_not_in_use = world.state.rng.choice(world.state.locations, p = p_normalized)

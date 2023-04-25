@@ -151,7 +151,7 @@ class PILOT(Policy):
         num_bikes_now = initial_num_bikes
         for visit in plan.plan[vehicle.id]:
             num_bikes_now += visit.loading_quantity
-            num_bikes_now -= visit.unloading_quantity 
+            num_bikes_now -= visit.unloading_quantity
 
         potential_stations = find_potential_stations(simul, 0.15, 0.15, vehicle, num_bikes_now, tabu_list)
         if potential_stations == []: #no potential stations
