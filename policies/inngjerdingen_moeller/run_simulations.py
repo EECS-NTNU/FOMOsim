@@ -30,6 +30,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     #change common parameters for the different simulations here:
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
+    
     # INSTANCE = 'TD_W34_old'
     INSTANCE = 'OS_W31' 
     # INSTANCE = 'BG_W35'
@@ -38,7 +39,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -55,25 +56,30 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     return simulator
 
 
-def test_policies(list_of_seeds, policy_dict, duration=24*5):
+def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
         filename= "policy_"+str(policy)+".csv"
-        test_seeds_mp(list_of_seeds, policy_dict[policy], filename, duration)
+        test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 
-def test_timehorizons(list_of_seeds, list_of_timehorizons, duration=24*5):
+def test_timehorizons(list_of_seeds, list_of_timehorizons):
     for horizon in list_of_timehorizons:
         filename = "time_horizon_"+str(horizon)+".csv"
-        policy=policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True, time_horizon=horizon)
-        test_seeds_mp(list_of_seeds, policy, filename, duration)
+        policy=policies.inngjerdingen_moeller.PILOT(time_horizon=horizon)
+        test_seeds_mp(list_of_seeds, policy, filename)
 
 
-def test_weights(list_of_seeds, weight_set, duration=24*5):
-    for set in weight_set:
-        filename= "weight_set_"+str(set)+".csv"
-        policy = policies.inngjerdingen_moeller.InngjerdingenMoellerPolicy(roaming=True, time_horizon=25, weights=weight_set[set]) #HUSK Å ENDRE TH
-        test_seeds_mp(list_of_seeds, policy, filename, duration)
+def test_criticality_weights(list_of_seeds, criticality_weights_dict):
+    for set in criticality_weights_dict:
+        filename= "crit_weight_set_"+str(set)+".csv"
+        policy=policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=criticality_weights_dict[set])
+        test_seeds_mp(list_of_seeds, policy, filename)
 
+def test_evaluation_weights(list_of_seeds, evaluation_weights_dict):
+     for set in evaluation_weights_dict:
+        filename= "evaluation_set_"+str(set)+".csv"
+        policy=policies.inngjerdingen_moeller.PILOT(evaluation_weights=evaluation_weights_dict[set])
+        test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
     #------------PROCESS----------------
@@ -94,10 +100,10 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
         policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
         # output.visualize([simulator.metrics], metric="branch0")
         # output.visualize([simulator.metrics], metric="weight_set"+str([0.2, 0.2, 0.1, 0.1, 0.4]))
-        for branch in range(policy.number_of_successors):
-            print(f"Branch {branch}: {simulator.metrics.get_aggregate_value('branch'+str(branch))}")
-        for weight_set in policy.crit_weights_sets:
-            print(f"Weight set {weight_set}: {simulator.metrics.get_aggregate_value('weight_set'+str(weight_set))}")
+        # for branch in range(policy.number_of_successors):
+        #     print(f"Branch {branch}: {simulator.metrics.get_aggregate_value('branch'+str(branch))}")
+        # for weight_set in policy.crit_weights_sets:
+        #     print(f"Weight set {weight_set}: {simulator.metrics.get_aggregate_value('weight_set'+str(weight_set))}")
     policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results_2(filename)
 
 
@@ -105,13 +111,13 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
 if __name__ == "__main__":
             
     evaluation_weights = [0.4, 0.3, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
-    # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
-    criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
-    number_of_scenarios = 10
+    criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
+    # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
+    number_of_scenarios = 100
     
     # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios), greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(3, 10, 40, criticality_weights_sets, evaluation_weights, number_of_scenarios))
-    # policy_dict = dict(greedy = policies.GreedyPolicy([0.5,0.2,0.2,0.1]))
+    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(2, 5, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios))
+    policy_dict = dict(greedy = policies.GreedyPolicy())
     
     #Kloimüllner:
     # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(0, 250, 30, criticality_weights_sets, evaluation_weights, number_of_scenarios))
