@@ -112,12 +112,12 @@ if __name__ == "__main__":
     # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(pilot_Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
     
-    list_of_timehorizons = [20, 30, 40, 50, 60]
-    evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.45, 0.1, 0.45])
-    criticality_weights = dict()
+    # list_of_timehorizons = [20, 30, 40, 50, 60]
+    evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.6, 0.3, 0.1], i=[1.0, 0.0, 0.0], j=[0.45, 0.45, 0.1], k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33])
+    # criticality_weights = dict()
 
-    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
-    list_of_seeds=[0,1,2,3,4]
+    list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
+    # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
     # list_of_seeds=[1]
     
