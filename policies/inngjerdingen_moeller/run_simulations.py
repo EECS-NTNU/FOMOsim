@@ -28,14 +28,14 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    INSTANCE = 'OS_W31' 
-    # INSTANCE = 'BG_W35'
+    # INSTANCE = 'OS_W31' 
+    INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -71,7 +71,7 @@ def test_criticality_weights(list_of_seeds, criticality_weights_dict):
 
 def test_evaluation_weights(list_of_seeds, evaluation_weights_dict):
      for set in evaluation_weights_dict:
-        filename= "evaluation_set_"+str(set)+".csv"
+        filename= "evaluation_set_BG_"+str(set)+".csv"
         policy=policies.inngjerdingen_moeller.PILOT(evaluation_weights=evaluation_weights_dict[set])
         test_seeds_mp(list_of_seeds, policy, filename)
 
