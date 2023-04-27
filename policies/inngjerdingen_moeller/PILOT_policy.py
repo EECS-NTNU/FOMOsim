@@ -227,6 +227,7 @@ class PILOT(Policy):
                 violations_after_visit = 0 
 
             avoided_violations = abs(violations_no_visit) - abs(unavoidable_violations) - abs(violations_after_visit)  
+
             
             #improved deviation: 
             if net_demand > 0:
@@ -308,9 +309,7 @@ class PILOT(Policy):
 
                 neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
 
-            # if avoided_violations < 0: #after bug fix, this still happends, but now it is because of logic in evaluate_route, unavoidable violations > violations_no_visit
-            #     print("x")            
-
+                   
             avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
         
             counter+=1

@@ -28,14 +28,14 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    # INSTANCE = 'OS_W31' 
-    INSTANCE = 'BG_W35'
+    INSTANCE = 'OS_W31' 
+    # INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -71,7 +71,7 @@ def test_criticality_weights(list_of_seeds, criticality_weights_dict):
 
 def test_evaluation_weights(list_of_seeds, evaluation_weights_dict):
      for set in evaluation_weights_dict:
-        filename= "evaluation_set_BG_"+str(set)+".csv"
+        filename= "evaluation_set_"+str(set)+".csv"
         policy=policies.inngjerdingen_moeller.PILOT(evaluation_weights=evaluation_weights_dict[set])
         test_seeds_mp(list_of_seeds, policy, filename)
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     
     # policy_dict = dict(greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT())
+    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(number_of_successors=5, time_horizon=30))
     # policy_dict = dict(pilot_Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
     
     # list_of_timehorizons = [20, 30, 40, 50, 60]
@@ -128,6 +128,7 @@ if __name__ == "__main__":
     start_time = time.time()
     test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
+    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     duration = time.time() - start_time
     print("Running time: ", str(duration))
 
