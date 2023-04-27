@@ -28,14 +28,14 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    # INSTANCE = 'OS_W31' 
-    INSTANCE = 'BG_W35'
+    INSTANCE = 'OS_W31' 
+    # INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -71,7 +71,7 @@ def test_criticality_weights(list_of_seeds, criticality_weights_dict):
 
 def test_evaluation_weights(list_of_seeds, evaluation_weights_dict):
      for set in evaluation_weights_dict:
-        filename= "evaluation_set_BG_"+str(set)+".csv"
+        filename= "evaluation_set_OS_"+str(set)+".csv"
         policy=policies.inngjerdingen_moeller.PILOT(evaluation_weights=evaluation_weights_dict[set])
         test_seeds_mp(list_of_seeds, policy, filename)
 
@@ -113,7 +113,8 @@ if __name__ == "__main__":
     # policy_dict = dict(pilot_Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
     
     # list_of_timehorizons = [20, 30, 40, 50, 60]
-    evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.6, 0.3, 0.1], i=[1.0, 0.0, 0.0], j=[0.45, 0.45, 0.1], k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33])
+    # evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.6, 0.3, 0.1], i=[1.0, 0.0, 0.0], j=[0.45, 0.45, 0.1], k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33])
+    evaluation_weights = dict(m = [0.9, 0.05, 0.05], n=[0.95, 0.04, 0.01], o=[0.85, 0.1, 0.05], p=[0.9, 0.09, 0.01])
     # criticality_weights = dict()
 
     list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
