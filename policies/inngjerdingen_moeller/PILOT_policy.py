@@ -8,13 +8,14 @@ from greedy_policy_with_neighbors import find_potential_stations
 import numpy as np
 
 class PILOT(Policy):
-    def __init__(self, max_depth=3, number_of_successors=10, time_horizon=40, criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]], evaluation_weights=[0.4, 0.3, 0.3], number_of_scenarios=100): #change deafult values after parameter tuning!
+    def __init__(self, max_depth=3, number_of_successors=10, time_horizon=40, criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]], evaluation_weights=[0.9, 0.09, 0.01], number_of_scenarios=100, discounting_factor=0.8): #change deafult values after parameter tuning!
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
         self.time_horizon = time_horizon
         self.crit_weights_sets = criticality_weights_sets
         self.evaluation_weights = evaluation_weights
         self.number_of_scenarios = number_of_scenarios
+        self.discounting_factor = discounting_factor
         super().__init__()
 
     def get_best_action(self, simul, vehicle):
@@ -170,7 +171,7 @@ class PILOT(Policy):
         return visits
 
     def evaluate_route(self, route, scenario_dict, end_time, simul, weights): #Begins with current station and loading quantities
-        discounting_factors = generate_discounting_factors(len(route), 0.8) #end_factor = 1 if no discounting 
+        discounting_factors = generate_discounting_factors(len(route), self.discounting_factor) #end_factor = 1 if no discounting 
         avoided_disutility = 0
         current_time=simul.time #returns current time from the simulator in minutes, starting time for the route 
         counter=0

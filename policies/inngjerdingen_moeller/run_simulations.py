@@ -75,6 +75,12 @@ def test_evaluation_weights(list_of_seeds, evaluation_weights_dict):
         policy=policies.inngjerdingen_moeller.PILOT(evaluation_weights=evaluation_weights_dict[set])
         test_seeds_mp(list_of_seeds, policy, filename)
 
+def test_discounting_factors(list_of_seeds, list_of_factors):
+     for factor in list_of_factors:
+        filename= "discounting_TD_"+str(factor)+".csv"
+        policy=policies.inngjerdingen_moeller.PILOT(discounting_factor=factor)
+        test_seeds_mp(list_of_seeds, policy, filename)
+
 def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
     #------------PROCESS----------------
     seeds = list_of_seeds
@@ -113,8 +119,9 @@ if __name__ == "__main__":
     # policy_dict = dict(pilot_Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
     
     # list_of_timehorizons = [20, 30, 40, 50, 60]
-    evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.6, 0.3, 0.1], i=[1.0, 0.0, 0.0], j=[0.45, 0.45, 0.1], k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33])
+    # evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.6, 0.3, 0.1], i=[1.0, 0.0, 0.0], j=[0.45, 0.45, 0.1], k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33])
     # criticality_weights = dict()
+    discounting_factors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
 
     list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
     # list_of_seeds=[0,1,2,3,4]
@@ -125,8 +132,9 @@ if __name__ == "__main__":
     # profiler.enable()
 
     start_time = time.time()
-    test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
+    # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
+    test_discounting_factors(list_of_seeds, discounting_factors)
     duration = time.time() - start_time
     print("Running time: ", str(duration))
 
