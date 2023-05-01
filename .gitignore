@@ -10,6 +10,7 @@ saved_states
 sim_cache
 stateParams.txt
 # *.csv
+policies/inngjerdingen_moeller/saved_time_data/NY_W31_static_data.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
