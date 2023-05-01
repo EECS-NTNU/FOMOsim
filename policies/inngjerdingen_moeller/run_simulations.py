@@ -28,8 +28,8 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    # INSTANCE = 'OS_W31' 
-    INSTANCE = 'BG_W35'
+    INSTANCE = 'OS_W31' 
+    # INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
@@ -117,16 +117,17 @@ if __name__ == "__main__":
     # policy_dict = dict(greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(pilot_Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
+    policy_dict = dict(do_nothing = policies.do_nothing_policy.DoNothing())
     
     # list_of_timehorizons = [20, 30, 40, 50, 60]
     # evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.6, 0.3, 0.1], i=[1.0, 0.0, 0.0], j=[0.45, 0.45, 0.1], k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33])
     # criticality_weights = dict()
-    discounting_factors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    # discounting_factors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
 
-    list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
+    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
-    # list_of_seeds=[1]
+    list_of_seeds=[1]
     
     # profiler = cProfile.Profile()
     # profiler.enable()
@@ -134,7 +135,8 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    test_discounting_factors(list_of_seeds, discounting_factors)
+    # test_discounting_factors(list_of_seeds, discounting_factors)
+    test_policies(list_of_seeds, policy_dict)
     duration = time.time() - start_time
     print("Running time: ", str(duration))
 
