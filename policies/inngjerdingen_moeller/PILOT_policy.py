@@ -492,7 +492,7 @@ def copy_arr_iter(arr):
 
     
 
-def generate_discounting_factors(nVisits, end_factor=0.4): #number of visits, end_factor is discounting factor in final visit in route
+def generate_discounting_factors(nVisits, end_factor=0.8): #number of visits, end_factor is discounting factor in final visit in route
         discounting_factors=[]
         len = nVisits
         rate = (1/end_factor)**(1/len)-1
