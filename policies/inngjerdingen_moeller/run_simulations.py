@@ -27,9 +27,9 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
     
-    INSTANCE = 'TD_W34_old'
+    # INSTANCE = 'TD_W34_old'
     # INSTANCE = 'OS_W31' 
-    # INSTANCE = 'BG_W35'
+    INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
