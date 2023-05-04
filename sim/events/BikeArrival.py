@@ -68,10 +68,15 @@ class BikeArrival(Event):
                 else:
                     world.state.bike_in_use(self.bike)
 
-                arrival_station.metrics.add_aggregate_metric(world, "congestion", 1)
-                world.metrics.add_aggregate_metric(world, "congestion", 1)
                 
                 distance = arrival_station.distance_to(next_station.get_lat(), next_station.get_lon())
+                if distance <= MAX_ROAMING_DISTANCE_SOLUTIONS:
+                    arrival_station.metrics.add_aggregate_metric(world, "short_congestion", 1)
+                    world.metrics.add_aggregate_metric(world, "short_congestion", 1)
+                else:
+                    arrival_station.metrics.add_aggregate_metric(world, "long_congestion", 1)
+                    world.metrics.add_aggregate_metric(world, "long_congestion", 1)
+                
                 arrival_station.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
                 world.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
 
