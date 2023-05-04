@@ -27,9 +27,9 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
     
-    # INSTANCE = 'TD_W34_old'
+    INSTANCE = 'TD_W34_old'
     # INSTANCE = 'OS_W31' 
-    INSTANCE = 'BG_W35'
+    # INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
@@ -77,7 +77,7 @@ def test_evaluation_weights(list_of_seeds, evaluation_weights_dict):
 
 def test_discounting_factors(list_of_seeds, list_of_factors):
      for factor in list_of_factors:
-        filename= "discounting_BG_"+str(factor)+".csv"
+        filename= "discounting_TD_"+str(factor)+".csv"
         policy=policies.inngjerdingen_moeller.PILOT(discounting_factor=factor)
         test_seeds_mp(list_of_seeds, policy, filename)
 
