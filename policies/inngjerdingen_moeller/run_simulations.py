@@ -71,8 +71,14 @@ def test_criticality_weights(list_of_seeds, criticality_weights_dict):
 
 def test_evaluation_weights(list_of_seeds, evaluation_weights_dict):
      for set in evaluation_weights_dict:
-        filename= "evaluation_set_"+str(set)+".csv"
+        filename= "evaluation_set_TD_"+str(set)+".csv"
         policy=policies.inngjerdingen_moeller.PILOT(evaluation_weights=evaluation_weights_dict[set])
+        test_seeds_mp(list_of_seeds, policy, filename)
+
+def test_discounting_factors(list_of_seeds, list_of_factors):
+     for factor in list_of_factors:
+        filename= "discounting_BG_"+str(factor)+".csv"
+        policy=policies.inngjerdingen_moeller.PILOT(discounting_factor=factor)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
@@ -117,10 +123,10 @@ if __name__ == "__main__":
     # evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.6, 0.3, 0.1], i=[1.0, 0.0, 0.0], j=[0.45, 0.45, 0.1], k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33], m=[0.9, 0.05, 0.05], n=[0.95, 0.04, 0.01], o=[0.85, 0.1, 0.05], p=[0.9, 0.09, 0.01])
     criticality_weights = dict(a=[[0.2, 0.2, 0.2, 0.2, 0.2]], b=[[0.3, 0.15, 0.25, 0.2, 0.1]], c=[[0.2, 0.4, 0.2, 0.1, 0.1]], d=[[0.3, 0.3, 0.1, 0.1, 0.2]], e=[[0.2, 0.7, 0.05, 0.05, 0]], f=[[0.05, 0.9, 0.05, 0, 0]], g=[[0.1, 0.6, 0.1, 0.1, 0.1]], h=[[0.3, 0.5, 0, 0, 0.2]], i=[[0.9, 0, 0, 0.1, 0]], j=[[0.7, 0.05, 0.1, 0.1, 0.05]], k=[[0.6, 0.1, 0.05, 0.2, 0.05]], l=[[0.5, 0.05, 0.2, 0.05, 0.2]], m=[[1, 0, 0, 0, 0]], n=[[0, 1, 0, 0, 0]], o=[[0, 0, 1, 0, 0]], p=[[0, 0, 0, 1, 0]], q=[[1, 0, 0, 0, 0]])
 
-    list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
+    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
-    # list_of_seeds=[1]
+    list_of_seeds=[1]
     
     # profiler = cProfile.Profile()
     # profiler.enable()
