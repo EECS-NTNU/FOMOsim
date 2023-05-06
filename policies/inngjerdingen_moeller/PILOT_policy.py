@@ -8,7 +8,7 @@ from greedy_policy_with_neighbors import find_potential_stations
 import numpy as np
 
 class PILOT(Policy):
-    def __init__(self, max_depth=3, number_of_successors=10, time_horizon=40, criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]], evaluation_weights=[0.9, 0.09, 0.01], number_of_scenarios=100, discounting_factor=0.8): #change deafult values after parameter tuning!
+    def __init__(self, max_depth=3, number_of_successors=10, time_horizon=40, criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]], evaluation_weights=[0.85, 0.1, 0.05], number_of_scenarios=100, discounting_factor=0.8): #change deafult values after parameter tuning!
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
         self.time_horizon = time_horizon
