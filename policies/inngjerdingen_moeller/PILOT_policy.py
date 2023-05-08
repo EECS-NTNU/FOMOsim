@@ -6,9 +6,10 @@ from policies.gleditsch_hagen.utils import calculate_net_demand
 from greedy_policy_with_neighbors import calculate_loading_quantities_greedy
 from greedy_policy_with_neighbors import find_potential_stations
 import numpy as np
+import time
 
 class PILOT(Policy):
-    def __init__(self, max_depth=3, number_of_successors=10, time_horizon=40, criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]], evaluation_weights=[0.9, 0.09, 0.01], number_of_scenarios=100, discounting_factor=0.8): #change deafult values after parameter tuning!
+    def __init__(self, max_depth=3, number_of_successors=10, time_horizon=40, criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]], evaluation_weights=[0.85, 0.1, 0.05], number_of_scenarios=100, discounting_factor=0.1): #change deafult values after parameter tuning!
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
         self.time_horizon = time_horizon
@@ -19,6 +20,7 @@ class PILOT(Policy):
         super().__init__()
 
     def get_best_action(self, simul, vehicle):
+        start_logging_time = time.time()
         next_station = None 
         bikes_to_pickup = []
         bikes_to_deliver = []  
@@ -51,6 +53,9 @@ class PILOT(Policy):
 
         next_station = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time)
         
+        simul.metrics.add_aggregate_metric(simul, "accumulated solution time", time.time()-start_logging_time)
+        simul.metrics.add_aggregate_metric(simul, 'number of problems solved', 1)
+
         return sim.Action(
             [],               # batteries to swap
             bikes_to_pickup, #list of bike id's
@@ -492,7 +497,7 @@ def copy_arr_iter(arr):
 
     
 
-def generate_discounting_factors(nVisits, end_factor=0.8): #number of visits, end_factor is discounting factor in final visit in route
+def generate_discounting_factors(nVisits, end_factor=0.1): #number of visits, end_factor is discounting factor in final visit in route
         discounting_factors=[]
         len = nVisits
         rate = (1/end_factor)**(1/len)-1
