@@ -20,13 +20,15 @@ class VehicleArrival(Event):
         :param world: world object
         """
 
-        world_time = world.time;
+        world_time = world.time
 
         super().perform(world)
 
         arrival_time = 0
+        
         # find the best action from the current world state
         action = self.vehicle.policy.get_action(world, self.vehicle)
+        
         if isinstance(action, tuple):
             action, _ = action
 

@@ -37,21 +37,21 @@ def roaming_shares():
     share_of_users_willing_to_roam = [-1.65*x**2 - 0.70*x + 1 for x in distances]
 
     # Define the data for the scatter plot
-    scatter_distances = [0, 100, 200, 300, 400, 500, 550]  # in m
+    scatter_distances = [0, 100, 200, 300, 400, 500, 600]  # in m
     scatter_share_of_users_willing_to_roam = [1, 0.93, 0.85, 0.63, 0.44, 0.26, 0.08]
 
     # Create the plot
-    plt.plot(distances, share_of_users_willing_to_roam, label='p(x) = −1.65x^2 − 0.70x + 1', color='#2F5597')
-    plt.scatter(np.array(scatter_distances) / 1000, scatter_share_of_users_willing_to_roam, label='data', color='#ED7D31')
+    plt.plot(distances, share_of_users_willing_to_roam, label='p(x) = −1.65x^2 − 0.70x + 1', color='#ED7D31', linewidth=2)
+    plt.scatter(np.array(scatter_distances) / 1000, scatter_share_of_users_willing_to_roam, marker='o', alpha=1, label='Survey results', color='#2F5597')
     
     # Add labels and title to the plot
-    plt.xlabel('Distance (km)')
-    plt.ylabel('Share of users willing to roam')
-    plt.title('Willingness to roam vs. distance')
+    plt.xlabel('Distance (km)', fontsize=12)
+    plt.ylabel('Share of users', fontsize=12)
+    plt.title('Willingness to roam',fontsize=15)
 
     # Add numeric values to the scatter plot
     for i in range(len(scatter_distances)):
-        plt.text(scatter_distances[i]/1000, scatter_share_of_users_willing_to_roam[i]+0.02, f'{scatter_share_of_users_willing_to_roam[i]:.2f}')
+        plt.text(scatter_distances[i]/1000, scatter_share_of_users_willing_to_roam[i]+0.015, f'{scatter_share_of_users_willing_to_roam[i]:.2f}', fontsize=11)
 
     # Move legend in front of the scatter plot
     handles, labels = plt.gca().get_legend_handles_labels()
