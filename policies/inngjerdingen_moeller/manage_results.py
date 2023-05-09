@@ -134,6 +134,18 @@ def write_sim_results_to_file(filename, simulator, duration, append=False):
     except: 
         print("Error writing to CSV")
         return None
+    
+
+def write_sol_time_to_file(filename, simulator):
+    data=[simulator.metrics.get_aggregate_value('accumulated solution time'), simulator.metrics.get_aggregate_value('number of problems solved')]
+    try:
+        path= './policies/inngjerdingen_moeller/simulation_results/'+filename
+        with open(path,'a',newline='') as f:
+            writer=csv.writer(f)
+            writer.writerow(data)
+    except: 
+        print("Error writing to CSV")
+        return None
 
 def write_sim_results_to_list(simulator, duration):
     data=[duration, simulator.metrics.get_aggregate_value('events'), simulator.metrics.get_aggregate_value('starvation'), 

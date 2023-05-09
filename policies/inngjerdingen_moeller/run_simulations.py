@@ -101,8 +101,7 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
     q = mp.Queue()
     processes = []
     returned_simulators = []
-    acc_sol_time = 0
-    acc_num_prob = 0
+
     for seed in seeds:
         process = mp.Process(target=run_simulation, args = (seed, policy, duration, q))
         processes.append(process)
@@ -115,8 +114,8 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
     for simulator in returned_simulators:
         policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
         #if we run PILOT policy:
-        acc_sol_time += simulator.metrics.get_aggregate_value('accumulated solution time')
-        acc_num_prob += simulator.metrics.get_aggregate_value('number of problems solved')
+        filename_time = "sol_time_"+filename
+        policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
         # print(f"Accumulated solution time = {simulator.metrics.get_aggregate_value('accumulated solution time')}")
         # print(f"Number of problems solved = {simulator.metrics.get_aggregate_value('number of problems solved')}")
         # print(f"Average solution time =  {simulator.metrics.get_aggregate_value('accumulated solution time')/simulator.metrics.get_aggregate_value('number of problems solved')}")
@@ -126,7 +125,6 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
         #     print(f"Branch {branch}: {simulator.metrics.get_aggregate_value('branch'+str(branch))}")
         # for weight_set in policy.crit_weights_sets:
         #     print(f"Weight set {weight_set}: {simulator.metrics.get_aggregate_value('weight_set'+str(weight_set))}")
-    print(f"Average solution time =  {acc_sol_time/acc_num_prob}")
     policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results(filename)
 
 
@@ -161,7 +159,7 @@ if __name__ == "__main__":
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
     # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_discounting_factors(list_of_seeds, list_of_factors)
-    test_alpha_beta(list_of_seeds, 3, [1,3,5,10,20])
+    test_alpha_beta(list_of_seeds, 1, [1,3])
     # test_number_of_scenarios(list_of_seeds, [1,10,100])
     
     duration = time.time() - start_time
