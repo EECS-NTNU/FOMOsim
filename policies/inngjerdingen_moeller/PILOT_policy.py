@@ -6,7 +6,7 @@ from policies.gleditsch_hagen.utils import calculate_net_demand
 from greedy_policy_with_neighbors import calculate_loading_quantities_greedy
 from greedy_policy_with_neighbors import find_potential_stations
 import numpy as np
-import time
+import time 
 
 class PILOT(Policy):
     def __init__(self, max_depth=3, number_of_successors=10, time_horizon=40, criticality_weights_sets=[[0.3, 0.15, 0.25, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0.05, 0.2, 0.05]], evaluation_weights=[0.85, 0.1, 0.05], number_of_scenarios=100, discounting_factor=0.1): #change deafult values after parameter tuning!

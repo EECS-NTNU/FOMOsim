@@ -28,14 +28,14 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    # INSTANCE = 'OS_W31' 
-    INSTANCE = 'BG_W35'
+    INSTANCE = 'OS_W31' 
+    # INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -85,13 +85,13 @@ def test_discounting_factors(list_of_seeds, list_of_factors):
 
 def test_alpha_beta(list_of_seeds, alpha, beta_list):
      for beta in beta_list:
-        filename= "discounting_BG_a_"+str(alpha)+"_b_"+str(beta)+".csv"
+        filename= "branching_OS_a_"+str(alpha)+"_b_"+str(beta)+".csv"
         policy=policies.inngjerdingen_moeller.PILOT(max_depth=alpha, number_of_successors=beta)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_number_of_scenarios(list_of_seeds, scenario_list):
      for number in scenario_list:
-        filename= "discounting_BG_"+str(number)+".csv"
+        filename= "discounting_OS_"+str(number)+".csv"
         policy=policies.inngjerdingen_moeller.PILOT(number_of_scenarios=number)
         test_seeds_mp(list_of_seeds, policy, filename)
 
@@ -156,8 +156,8 @@ if __name__ == "__main__":
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
     # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_discounting_factors(list_of_seeds, list_of_factors)
-    # test_alpha_beta(list_of_seeds, 3, [1,2,3])
-    test_number_of_scenarios(list_of_seeds, [1,10,100])
+    test_alpha_beta(list_of_seeds, 4, [1,3,5,10])
+    # test_number_of_scenarios(list_of_seeds, [1,10,100])
     
     duration = time.time() - start_time
     print("Running time: ", str(duration))
