@@ -101,6 +101,7 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
     q = mp.Queue()
     processes = []
     returned_simulators = []
+
     for seed in seeds:
         process = mp.Process(target=run_simulation, args = (seed, policy, duration, q))
         processes.append(process)
@@ -112,10 +113,12 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
         process.join()
     for simulator in returned_simulators:
         policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
-        #if we run PILOT policy: 
-        print(f"Accumulated solution time = {simulator.metrics.get_aggregate_value('accumulated solution time')}")
-        print(f"Number of problems solved = {simulator.metrics.get_aggregate_value('number of problems solved')}")
-        print(f"Average solution time =  {simulator.metrics.get_aggregate_value('accumulated solution time')/simulator.metrics.get_aggregate_value('number of problems solved')}")
+        #if we run PILOT policy:
+        filename_time = "sol_time_"+filename
+        policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
+        # print(f"Accumulated solution time = {simulator.metrics.get_aggregate_value('accumulated solution time')}")
+        # print(f"Number of problems solved = {simulator.metrics.get_aggregate_value('number of problems solved')}")
+        # print(f"Average solution time =  {simulator.metrics.get_aggregate_value('accumulated solution time')/simulator.metrics.get_aggregate_value('number of problems solved')}")
         # output.visualize([simulator.metrics], metric="branch0")
         # output.visualize([simulator.metrics], metric="weight_set"+str([0.2, 0.2, 0.1, 0.1, 0.4]))
         # for branch in range(policy.number_of_successors):
