@@ -101,6 +101,8 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
     q = mp.Queue()
     processes = []
     returned_simulators = []
+    acc_sol_time = 0
+    acc_num_prob = 0
     for seed in seeds:
         process = mp.Process(target=run_simulation, args = (seed, policy, duration, q))
         processes.append(process)
@@ -112,16 +114,19 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
         process.join()
     for simulator in returned_simulators:
         policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
-        #if we run PILOT policy: 
-        print(f"Accumulated solution time = {simulator.metrics.get_aggregate_value('accumulated solution time')}")
-        print(f"Number of problems solved = {simulator.metrics.get_aggregate_value('number of problems solved')}")
-        print(f"Average solution time =  {simulator.metrics.get_aggregate_value('accumulated solution time')/simulator.metrics.get_aggregate_value('number of problems solved')}")
+        #if we run PILOT policy:
+        acc_sol_time += simulator.metrics.get_aggregate_value('accumulated solution time')
+        acc_num_prob += simulator.metrics.get_aggregate_value('number of problems solved')
+        # print(f"Accumulated solution time = {simulator.metrics.get_aggregate_value('accumulated solution time')}")
+        # print(f"Number of problems solved = {simulator.metrics.get_aggregate_value('number of problems solved')}")
+        # print(f"Average solution time =  {simulator.metrics.get_aggregate_value('accumulated solution time')/simulator.metrics.get_aggregate_value('number of problems solved')}")
         # output.visualize([simulator.metrics], metric="branch0")
         # output.visualize([simulator.metrics], metric="weight_set"+str([0.2, 0.2, 0.1, 0.1, 0.4]))
         # for branch in range(policy.number_of_successors):
         #     print(f"Branch {branch}: {simulator.metrics.get_aggregate_value('branch'+str(branch))}")
         # for weight_set in policy.crit_weights_sets:
         #     print(f"Weight set {weight_set}: {simulator.metrics.get_aggregate_value('weight_set'+str(weight_set))}")
+    print(f"Average solution time =  {acc_sol_time/acc_num_prob}")
     policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results(filename)
 
 
