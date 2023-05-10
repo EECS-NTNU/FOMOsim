@@ -169,7 +169,6 @@ class GreedyPolicy(Policy):
             else: 
                 next_location_id = list(criticalities.keys())[0]
     
-        print("Bike arrival at: ", str(simul.time))
         return sim.Action(
             batteries_to_swap,
             bikes_to_pickup,

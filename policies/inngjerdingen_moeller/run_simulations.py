@@ -51,8 +51,6 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
         queue.put(simulator)
     return simulator
 
-    
-
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
@@ -116,9 +114,6 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
         #if we run PILOT policy:
         filename_time = "sol_time_"+filename
         policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
-        # print(f"Accumulated solution time = {simulator.metrics.get_aggregate_value('accumulated solution time')}")
-        # print(f"Number of problems solved = {simulator.metrics.get_aggregate_value('number of problems solved')}")
-        # print(f"Average solution time =  {simulator.metrics.get_aggregate_value('accumulated solution time')/simulator.metrics.get_aggregate_value('number of problems solved')}")
         # output.visualize([simulator.metrics], metric="branch0")
         # output.visualize([simulator.metrics], metric="weight_set"+str([0.2, 0.2, 0.1, 0.1, 0.4]))
         # for branch in range(policy.number_of_successors):
@@ -135,8 +130,8 @@ if __name__ == "__main__":
     # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     
-    # policy_dict = dict(greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT())
+    # policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
+    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(max_depth=1, number_of_successors=10))
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
     # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(greedy = policies.GreedyPolicy())
@@ -159,7 +154,7 @@ if __name__ == "__main__":
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
     # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_discounting_factors(list_of_seeds, list_of_factors)
-    test_alpha_beta(list_of_seeds, 5, [10])
+    test_alpha_beta(list_of_seeds, 4, [7,15])
     # test_number_of_scenarios(list_of_seeds, [1,10,100])
     
     duration = time.time() - start_time

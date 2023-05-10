@@ -144,9 +144,11 @@ class PILOT(Policy):
                     score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights)    
                 plan_scores[plan].append(score)
         
+        
         ###########different criteria for selection of first move: ############
         return self.return_best_move(vehicle, simul, plan_scores) #returns the station which has the highest score in most scenarios
         # return self.return_best_move_average(vehicle, simul, plan_scores) #returns the station with the best average score over all scenarios
+
 
     def greedy_next_visit(self, plan, simul, number_of_successors, weight_set):
         visits = []
@@ -388,7 +390,7 @@ class PILOT(Policy):
 
             best_first_move = best_plan.plan[vehicle.id][1].station.id
             if best_first_move in score_board:
-                score_board[best_first_move] += 1
+                score_board[best_first_move] += 1 
             else:
                 score_board[best_first_move] = 1 
 
@@ -396,10 +398,11 @@ class PILOT(Policy):
             simul.metrics.add_aggregate_metric(simul, "weight_set"+str(best_plan.weight_set), 1)
            
         score_board_sorted = dict(sorted(score_board.items(), key=lambda item: item[1], reverse=True))
+
         return list(score_board_sorted.keys())[0]
     
     def return_best_move_average(self, vehicle, simul, plan_scores): #returns station_id
-        score_board = dict() #station id : the average score of this plan
+        score_board = dict() #plan object: the average score of this plan
         for scenario_id in range(self.number_of_scenarios):
             for plan in plan_scores:
                 score = plan_scores[plan][scenario_id]
@@ -410,7 +413,10 @@ class PILOT(Policy):
 
         score_board_sorted = dict(sorted(score_board.items(), key=lambda item: item[1], reverse=True))
         if list(score_board_sorted.keys())[0] != None:
-            first_move = list(score_board_sorted.keys())[0].plan[vehicle.id][1].station.id
+            best_plan = list(score_board_sorted.keys())[0]
+            branch = best_plan.branch_number
+            simul.metrics.add_aggregate_metric(simul, "branch"+str(branch), 1)
+            first_move = best_plan.plan[vehicle.id][1].station.id
             return first_move
         else: 
             tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]

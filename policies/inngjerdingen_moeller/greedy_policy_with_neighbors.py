@@ -9,7 +9,7 @@ import sim
 
 
 class GreedyPolicyNeighborhoodInteraction(Policy):
-    def __init__(self,crit_weights=[0.2,0.2,0.2,0.2,0.2], cutoff_vehicle=0.3, cutoff_station=0.2, service_hours=None):  #crit_weights: [time_to_viol, dev_t_state, neigh_crit, dem_crit]
+    def __init__(self,crit_weights=[0.3,0.15,0.25,0.2,0.1], cutoff_vehicle=0.3, cutoff_station=0.3, service_hours=None):  #crit_weights: [time_to_viol, dev_t_state, neigh_crit, dem_crit]
         super().__init__()
         
         if service_hours is not None:

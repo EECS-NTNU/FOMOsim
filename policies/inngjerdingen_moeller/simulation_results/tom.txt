@@ -1,1 +1,1 @@
-denne må ligge her for å sørge for at mappen "simulation_results" dukker opp i solstorm. 
+tekst
