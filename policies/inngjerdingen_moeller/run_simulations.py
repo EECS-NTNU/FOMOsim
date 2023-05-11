@@ -27,15 +27,15 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
     
-    # INSTANCE = 'TD_W34_old'
-    INSTANCE = 'OS_W31' 
+    INSTANCE = 'TD_W34_old'
+    # INSTANCE = 'OS_W31' 
     # INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -116,8 +116,8 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
         policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
         # output.visualize([simulator.metrics], metric="branch0")
         # output.visualize([simulator.metrics], metric="weight_set"+str([0.2, 0.2, 0.1, 0.1, 0.4]))
-        # for branch in range(policy.number_of_successors):
-        #     print(f"Branch {branch}: {simulator.metrics.get_aggregate_value('branch'+str(branch))}")
+        for branch in range(policy.number_of_successors):
+            print(f"Branch {branch}: {simulator.metrics.get_aggregate_value('branch'+str(branch))}")
         # for weight_set in policy.crit_weights_sets:
         #     print(f"Weight set {weight_set}: {simulator.metrics.get_aggregate_value('weight_set'+str(weight_set))}")
     policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results(filename)
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     
     # policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(max_depth=1, number_of_successors=10))
+    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(max_depth=1, number_of_successors=10))
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
     # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(greedy = policies.GreedyPolicy())
@@ -141,10 +141,10 @@ if __name__ == "__main__":
     # criticality_weights = dict(a=[[0.2, 0.2, 0.2, 0.2, 0.2]], b=[[0.3, 0.15, 0.25, 0.2, 0.1]], c=[[0.2, 0.4, 0.2, 0.1, 0.1]], d=[[0.3, 0.3, 0.1, 0.1, 0.2]], e=[[0.2, 0.7, 0.05, 0.05, 0]], f=[[0.05, 0.9, 0.05, 0, 0]], g=[[0.1, 0.6, 0.1, 0.1, 0.1]], h=[[0.3, 0.5, 0, 0, 0.2]], i=[[0.9, 0, 0, 0.1, 0]], j=[[0.7, 0.05, 0.1, 0.1, 0.05]], k=[[0.6, 0.1, 0.05, 0.2, 0.05]], l=[[0.5, 0.05, 0.2, 0.05, 0.2]], m=[[1, 0, 0, 0, 0]], n=[[0, 1, 0, 0, 0]], o=[[0, 0, 1, 0, 0]], p=[[0, 0, 0, 1, 0]], q=[[1, 0, 0, 0, 0]])
     # list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
-    list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
+    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
-    # list_of_seeds=[1]
+    list_of_seeds=[1]
     
     # profiler = cProfile.Profile()
     # profiler.enable() 
@@ -152,9 +152,9 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_discounting_factors(list_of_seeds, list_of_factors)
-    test_alpha_beta(list_of_seeds, 6, [1,3,5,7,10,15])
+    # test_alpha_beta(list_of_seeds, 6, [1,3,5,7,10,15])
     # test_number_of_scenarios(list_of_seeds, [1,10,100])
     
     duration = time.time() - start_time
@@ -166,11 +166,3 @@ if __name__ == "__main__":
     # p = pstats.Stats('restats')
     # #p.sort_stats('time').print_stats(100) # print the stats after sorting by time
     # p.sort_stats('cumtime').print_stats(100) # print the stats after sorting by time
-
-
-
-    
-    
-    
-
-

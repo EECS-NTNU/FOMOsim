@@ -63,6 +63,38 @@ def roaming_shares():
     # Show the plot
     plt.show()
 
+def solution_times():
+    times_0 = [0.246, 0.380, 0.489, 0.616, 0.808]
+    times_1 =[0.262, 0.566, 0.810, 3.309, 5.696]
+    times_2 =[0.280, 0.646, 0.948, 5.094, 8.806]
+    times_3 = [0.302, 0.777, 1.106, 6.362, 11.458]
+    times_4 =[0.306, 0.828, 1.218, 7.618, 13.500]
+    times_5 = [0.321, 0.912, 1.366, 8.973, 17.569]
+    times_6 =[0.343, 1.182, 2.415, 10.651, 18.265]
 
 
-roaming_shares()
+    betas = [1, 3, 5, 7, 10]  # in m
+
+    # Create the plot
+    plt.plot(betas, times_0, label="alpha=0", color='#ED7D31', linewidth=2, marker='o')
+    plt.plot(betas, times_1, label="alpha=1", color='#2F5597', linewidth=2, marker='o')
+    plt.plot(betas, times_2, label="alpha=2", color='green', linewidth=2, marker='o')
+    plt.plot(betas, times_3, label="alpha=3", color='purple', linewidth=2, marker='o')
+    plt.plot(betas, times_4, label="alpha=4", color='pink', linewidth=2, marker='o')
+    plt.plot(betas, times_5, label="alpha=5", color='red', linewidth=2, marker='o')
+    plt.plot(betas, times_6, label="alpha=6", color='brown', linewidth=2, marker='o')
+
+    # Add labels and title to the plot
+    plt.xlabel('Beta value', fontsize=12)
+    plt.ylabel('Solution time', fontsize=12)
+    plt.title('Solution time for varying PILOT parameters',fontsize=15)
+    
+    plt.legend()
+
+    plt.grid(axis='y')
+
+    # Show the plot
+    plt.show()
+
+# roaming_shares()
+solution_times()
