@@ -159,7 +159,7 @@ if __name__ == "__main__":
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
     # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_discounting_factors(list_of_seeds, list_of_factors)
-    test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10,15,20])
+    test_alpha_beta(list_of_seeds, 3, [1,3,5,7,10,15])
     # test_number_of_scenarios(list_of_seeds, [1,10,100])
     
     duration = time.time() - start_time
