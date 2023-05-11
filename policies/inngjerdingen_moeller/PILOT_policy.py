@@ -100,7 +100,7 @@ class PILOT(Policy):
                             if next_vehicle.id == vehicle.id:
                                 plans[depth].append(new_plan)
                             else:
-                                plans[depth-1].append(new_plan)
+                                plans[depth-1].append(new_plan) 
             
             # Greedy construction for the rest of the route
 
