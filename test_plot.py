@@ -1,6 +1,6 @@
 import random
 import matplotlib.pyplot as plt
-import numpy as np
+import numpy as np 
 
 def violin_plot():
     # Example data
@@ -72,27 +72,32 @@ def solution_times():
     times_5 = [0.321, 0.912, 1.366, 8.973, 17.569]
     times_6 =[0.343, 1.182, 2.415, 10.651, 18.265]
 
-
-    betas = [1, 3, 5, 7, 10]  # in m
+    
+    betas = [1, 3, 5, 7, 10] 
 
     # Create the plot
-    plt.plot(betas, times_0, label="alpha=0", color='#ED7D31', linewidth=2, marker='o')
-    plt.plot(betas, times_1, label="alpha=1", color='#2F5597', linewidth=2, marker='o')
-    plt.plot(betas, times_2, label="alpha=2", color='green', linewidth=2, marker='o')
-    plt.plot(betas, times_3, label="alpha=3", color='purple', linewidth=2, marker='o')
-    plt.plot(betas, times_4, label="alpha=4", color='pink', linewidth=2, marker='o')
-    plt.plot(betas, times_5, label="alpha=5", color='red', linewidth=2, marker='o')
-    plt.plot(betas, times_6, label="alpha=6", color='brown', linewidth=2, marker='o')
+    # plt.yscale("log")
+    max_limit = [10, 10, 10, 10, 10]
+
+    plt.plot(betas, max_limit, label="max solution time", color='gray', linewidth=2, ls='--')
+    plt.plot(betas, times_0, label= r'$\alpha=1$', color='#ED7D31', linewidth=2, marker='o')
+    plt.plot(betas, times_1, label=r'$\alpha=2$', color='#2F5597', linewidth=2, marker='o')
+    plt.plot(betas, times_2, label=r'$\alpha=3$', color='green', linewidth=2, marker='o')
+    plt.plot(betas, times_3, label=r'$\alpha=4$', color='purple', linewidth=2, marker='o')
+    plt.plot(betas, times_4, label=r'$\alpha=5$', color='pink', linewidth=2, marker='o')
+    plt.plot(betas, times_5, label=r'$\alpha=6$', color='red', linewidth=2, marker='o')
+    plt.plot(betas, times_6, label=r'$\alpha=7$', color='brown', linewidth=2, marker='o')
 
     # Add labels and title to the plot
-    plt.xlabel('Beta value', fontsize=12)
-    plt.ylabel('Solution time', fontsize=12)
+    plt.xlabel(r'$\beta$', fontsize=13)
+    plt.ylabel('Solution time (s)', fontsize=13)
     plt.title('Solution time for varying PILOT parameters',fontsize=15)
     
     plt.legend()
 
-    plt.grid(axis='y')
-
+    plt.grid(axis='y', alpha=0.5)
+    plt.yticks(np.arange(0, 19, 2))
+    plt.xticks([1,3,5,7,10])
     # Show the plot
     plt.show()
 
