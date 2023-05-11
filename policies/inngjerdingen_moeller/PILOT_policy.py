@@ -9,7 +9,7 @@ import numpy as np
 import time
 
 class PILOT(Policy):
-    def __init__(self, max_depth=3, number_of_successors=10, time_horizon=40, criticality_weights_sets=[[0.3, 0.15, 0.25, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0.05, 0.2, 0.05]], evaluation_weights=[0.85, 0.1, 0.05], number_of_scenarios=100, discounting_factor=0.1): #change deafult values after parameter tuning!
+    def __init__(self, max_depth=4, number_of_successors=10, time_horizon=40, criticality_weights_sets=[[0.3, 0.15, 0.25, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0.05, 0.2, 0.05]], evaluation_weights=[0.85, 0.1, 0.05], number_of_scenarios=100, discounting_factor=0.1): #change deafult values after parameter tuning!
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
         self.time_horizon = time_horizon
@@ -67,16 +67,16 @@ class PILOT(Policy):
         completed_plans = []
         for weight_set in self.crit_weights_sets:
             num_successors = number_of_successors
-            plans = [[] for i in range(max_depth+2)]
+            plans = [[] for i in range(max_depth+1)]
             plans[0].append(initial_plan)
-            depths = [i for i in range(max_depth+1)] 
+            depths = [i for i in range(1, max_depth+1)] 
 
             for depth in depths:
-                if depth == 1 or depth == 2:    # depth decreasing after first and second depth
+                if depth == 2 or depth == 3:    # depth decreasing after first and second depth
                     num_successors = max(1, round(num_successors/2))
                 
-                while plans[depth] != []:
-                    plan = plans[depth].pop(0)
+                while plans[depth-1] != []:
+                    plan = plans[depth-1].pop(0)
                     next_vehicle = plan.next_visit.vehicle
                     if next_vehicle != vehicle:
                         num_successors_other_vehicle = max(1, round(num_successors/2))
@@ -85,28 +85,28 @@ class PILOT(Policy):
                         new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set)
                     if new_visits == None or plan.next_visit.get_departure_time() > end_time:
                         new_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
-                        plans[depth+1].append(new_plan)
+                        plans[depth].append(new_plan)
                     else:
                         for branch_number, visit in enumerate(new_visits):
                             new_plan_dict = plan.copy_plan()
                             new_plan_dict[next_vehicle.id].append(visit) 
                             tabu_list = copy_arr_iter(plan.tabu_list)
                             tabu_list.append(visit.station.id)
-                            if depth == 0:
+                            if depth == 1:
                                 new_plan = Plan(new_plan_dict, tabu_list, weight_set, branch_number)
                             else:
                                 new_plan = Plan(new_plan_dict, tabu_list, weight_set, plan.branch_number)
 
                             if next_vehicle.id == vehicle.id:
-                                plans[depth+1].append(new_plan)
-                            else:
                                 plans[depth].append(new_plan)
+                            else:
+                                plans[depth-1].append(new_plan)
             
             # Greedy construction for the rest of the route
 
             # ------Printing routes for all weight_sets--------
             # print("This is a new weight set!")
-            for plan in plans[max_depth+1]:
+            for plan in plans[max_depth]:
                 # station_list1 = []
                 # station_list2 = []
                 # for visit in plan.plan[0]:
