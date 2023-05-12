@@ -59,8 +59,8 @@ def test_policies(list_of_seeds, policy_dict):
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
     for horizon in list_of_timehorizons:
-        filename = "time_horizon_a_3_b_5"+str(horizon)+".csv"
-        policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=5, time_horizon=horizon)
+        filename = "time_horizon_a_2_b_5"+str(horizon)+".csv"
+        policy=policies.inngjerdingen_moeller.PILOT(max_depth=2, number_of_successors=5, time_horizon=horizon)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_criticality_weights(list_of_seeds, criticality_weights_dict):
