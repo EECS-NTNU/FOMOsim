@@ -2,6 +2,30 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np 
 
+
+#used for branch number
+def plot_bar_chart():
+
+    data = [20456,10783,6785,5897,5667,4378,3344,2234,1234,1133]
+    total = sum(data)
+
+    fig, ax = plt.subplots()
+    ax.bar([i for i in range(1,len(data)+1)], data, color='#2F5597')
+
+    # Add labels and title
+    ax.set_xlabel('Branch number', fontsize=12)
+    ax.set_ylabel('# scenarios', fontsize=12)
+    ax.set_title('Bar Plot with Percentage Values', fontsize=15)
+    plt.xticks([i for i in range(1,len(data)+1)])
+
+    # Add percentage values as text over the bars
+    for i, val in enumerate(data):
+        percentage = (val / total) * 100
+        ax.text(i+1, val+100, f"{percentage:.1f}%", ha='center')
+    # Show the plot
+    plt.show()
+
+
 def violin_plot():
     # Example data
     category_names = ['Category A', 'Category B', 'Category C']
@@ -72,7 +96,6 @@ def solution_times():
     times_5 = [0.321, 0.912, 1.366, 8.973, 17.569]
     times_6 =[0.343, 1.182, 2.415, 10.651, 18.265]
 
-    
     betas = [1, 3, 5, 7, 10] 
 
     # Create the plot
@@ -102,4 +125,6 @@ def solution_times():
     plt.show()
 
 # roaming_shares()
-solution_times()
+# solution_times()
+# branch_number()
+plot_bar_chart()
