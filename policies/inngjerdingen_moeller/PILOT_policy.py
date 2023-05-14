@@ -451,7 +451,7 @@ class PILOT(Policy):
 
         return number_of_bikes_to_pick_up, number_of_bikes_to_deliver
 
-class Visit():
+class Visit(): 
     def __init__(self, station, loading_quantity, unloading_quantity, arrival_time, vehicle):
         self.station = station
         self.loading_quantity = loading_quantity #loading from station to vehicle
