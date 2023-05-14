@@ -54,7 +54,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename= "policy_"+str(policy)+".csv"
+        filename= "policy_OS_avg"+str(policy)+".csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     
     # policy_dict = dict(greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=5))
+    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(max_depth=2, number_of_successors=5))
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
     # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(greedy = policies.GreedyPolicy())
@@ -152,9 +152,9 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_discounting_factors(list_of_seeds, list_of_factors)
-    test_alpha_beta(list_of_seeds, 7, [1,3,5,7,10])
+    # test_alpha_beta(list_of_seeds, 7, [1,3,5,7,10])
     # test_number_of_scenarios(list_of_seeds, [1,10,100])
     # test_timehorizons(list_of_seeds, list_of_timehorizons)
 
