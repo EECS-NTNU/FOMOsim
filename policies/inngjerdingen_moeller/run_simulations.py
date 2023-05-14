@@ -27,7 +27,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
     
-    # INSTANCE = 'TD_W34_old'
+    INSTANCE = 'TD_W34_old'
     INSTANCE = 'OS_W31' 
     # INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
@@ -35,7 +35,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -54,7 +54,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename= "policy_OS_avg"+str(policy)+".csv"
+        filename= "policy_TD_avg"+str(policy)+".csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
