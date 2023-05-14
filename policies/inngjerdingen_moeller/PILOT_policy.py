@@ -394,7 +394,7 @@ class PILOT(Policy):
             else:
                 score_board[best_first_move] = 1 
 
-            simul.metrics.add_aggregate_metric(simul, "branch"+str(best_plan.branch_number), 1)
+            simul.metrics.add_aggregate_metric(simul, "branch"+str(best_plan.branch_number+1), 1)
             simul.metrics.add_aggregate_metric(simul, "weight_set"+str(best_plan.weight_set), 1)
            
         score_board_sorted = dict(sorted(score_board.items(), key=lambda item: item[1], reverse=True))

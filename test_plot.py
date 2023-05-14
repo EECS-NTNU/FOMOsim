@@ -88,13 +88,13 @@ def roaming_shares():
     plt.show()
 
 def solution_times():
-    times_0 = [0.246, 0.380, 0.489, 0.616, 0.808]
-    times_1 =[0.262, 0.566, 0.810, 3.309, 5.696]
-    times_2 =[0.280, 0.646, 0.948, 5.094, 8.806]
-    times_3 = [0.302, 0.777, 1.106, 6.362, 11.458]
-    times_4 =[0.306, 0.828, 1.218, 7.618, 13.500]
-    times_5 = [0.321, 0.912, 1.366, 8.973, 17.569]
-    times_6 =[0.343, 1.182, 2.415, 10.651, 18.265]
+    times_1 = [0.286910127658834,0.506116209212262,0.68730214648737,0.909322110457106,1.21355056572913]
+    times_2 =[0.296412638190561,0.74995476559135,1.10196163457581,5.54463300475282,9.817172741]
+    times_3 =[0.310755980872849,0.832518047234595,1.22950507014803,9.216695174,16.2211978]
+    times_4 = [0.322126505886221,0.908936786108845,1.64438653582492,13.99606311,23.38967546]
+    times_5 =[0.349797594891064,1.03106718980004,1.54947187919452,17.4451748228995,30.5476270707817]
+    times_6 = [0.354972953505799,1.09330931905914,1.64292984683035,19.9590297774495,35.6893297259586]
+    times_7 =[0.371898019323232,1.17172450812142,1.79121832686287,22.7327883358421,39.766816543801]
 
     betas = [1, 3, 5, 7, 10] 
 
@@ -102,24 +102,25 @@ def solution_times():
     # plt.yscale("log")
     max_limit = [10, 10, 10, 10, 10]
 
-    plt.plot(betas, max_limit, label="max solution time", color='gray', linewidth=2, ls='--')
-    plt.plot(betas, times_0, label= r'$\alpha=1$', color='#ED7D31', linewidth=2, marker='o')
-    plt.plot(betas, times_1, label=r'$\alpha=2$', color='#2F5597', linewidth=2, marker='o')
-    plt.plot(betas, times_2, label=r'$\alpha=3$', color='green', linewidth=2, marker='o')
-    plt.plot(betas, times_3, label=r'$\alpha=4$', color='purple', linewidth=2, marker='o')
-    plt.plot(betas, times_4, label=r'$\alpha=5$', color='pink', linewidth=2, marker='o')
-    plt.plot(betas, times_5, label=r'$\alpha=6$', color='red', linewidth=2, marker='o')
-    plt.plot(betas, times_6, label=r'$\alpha=7$', color='brown', linewidth=2, marker='o')
+    # plt.plot(betas, max_limit, label="max solution time", color='gray', linewidth=2, ls='--')
+    plt.plot(betas, times_1, label= r'$\alpha=1$', color='#ED7D31', linewidth=2, marker='o')
+    plt.plot(betas, times_2, label=r'$\alpha=2$', color='#2F5597', linewidth=2, marker='o')
+    plt.plot(betas, times_3, label=r'$\alpha=3$', color='green', linewidth=2, marker='o')
+    plt.plot(betas, times_4, label=r'$\alpha=4$', color='purple', linewidth=2, marker='o')
+    plt.plot(betas, times_5, label=r'$\alpha=5$', color='pink', linewidth=2, marker='o')
+    plt.plot(betas, times_6, label=r'$\alpha=6$', color='red', linewidth=2, marker='o')
+    plt.plot(betas, times_7, label=r'$\alpha=7$', color='brown', linewidth=2, marker='o')
 
     # Add labels and title to the plot
     plt.xlabel(r'$\beta$', fontsize=13)
     plt.ylabel('Solution time (s)', fontsize=13)
-    plt.title('Solution time for varying PILOT parameters',fontsize=15)
+    title = 'Solution time for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$'
+    plt.title(title,fontsize=15)
     
     plt.legend()
 
     plt.grid(axis='y', alpha=0.5)
-    plt.yticks(np.arange(0, 19, 2))
+    plt.yticks(np.arange(0, 45, 5))
     plt.xticks([1,3,5,7,10])
     # Show the plot
     plt.show()
@@ -127,4 +128,4 @@ def solution_times():
 # roaming_shares()
 # solution_times()
 # branch_number()
-plot_bar_chart()
+# plot_bar_chart()
