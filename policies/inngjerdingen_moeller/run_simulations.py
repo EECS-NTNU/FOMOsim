@@ -120,7 +120,7 @@ def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
         #     print(f"Branch {branch}: {simulator.metrics.get_aggregate_value('branch'+str(branch))}")
         # for weight_set in policy.crit_weights_sets:
         #     print(f"Weight set {weight_set}: {simulator.metrics.get_aggregate_value('weight_set'+str(weight_set))}")
-    policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results(filename)
+    # policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results(filename)
 
 
 
