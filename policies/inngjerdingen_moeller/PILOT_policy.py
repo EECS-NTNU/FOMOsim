@@ -146,8 +146,8 @@ class PILOT(Policy):
         
         
         ###########different criteria for selection of first move: ############
-        # return self.return_best_move(vehicle, simul, plan_scores) #returns the station which has the highest score in most scenarios
-        return self.return_best_move_average(vehicle, simul, plan_scores) #returns the station with the best average score over all scenarios
+        return self.return_best_move(vehicle, simul, plan_scores) #returns the station which has the highest score in most scenarios
+        # return self.return_best_move_average(vehicle, simul, plan_scores) #returns the station with the best average score over all scenarios
 
 
     def greedy_next_visit(self, plan, simul, number_of_successors, weight_set):
@@ -394,7 +394,7 @@ class PILOT(Policy):
             else:
                 score_board[best_first_move] = 1 
 
-            simul.metrics.add_aggregate_metric(simul, "branch"+str(best_plan.branch_number), 1)
+            simul.metrics.add_aggregate_metric(simul, "branch"+str(best_plan.branch_number+1), 1)
             simul.metrics.add_aggregate_metric(simul, "weight_set"+str(best_plan.weight_set), 1)
            
         score_board_sorted = dict(sorted(score_board.items(), key=lambda item: item[1], reverse=True))
@@ -415,7 +415,7 @@ class PILOT(Policy):
         if list(score_board_sorted.keys())[0] != None:
             best_plan = list(score_board_sorted.keys())[0]
             branch = best_plan.branch_number
-            simul.metrics.add_aggregate_metric(simul, "branch"+str(branch), 1)
+            simul.metrics.add_aggregate_metric(simul, "branch"+str(branch+1), 1)
             first_move = best_plan.plan[vehicle.id][1].station.id
             return first_move
         else: 
