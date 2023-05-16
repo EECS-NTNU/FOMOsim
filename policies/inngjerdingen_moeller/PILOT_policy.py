@@ -146,8 +146,8 @@ class PILOT(Policy):
         
         
         ###########different criteria for selection of first move: ############
-        return self.return_best_move(vehicle, simul, plan_scores) #returns the station which has the highest score in most scenarios
-        # return self.return_best_move_average(vehicle, simul, plan_scores) #returns the station with the best average score over all scenarios
+        # return self.return_best_move(vehicle, simul, plan_scores) #returns the station which has the highest score in most scenarios
+        return self.return_best_move_average(vehicle, simul, plan_scores) #returns the station with the best average score over all scenarios
 
 
     def greedy_next_visit(self, plan, simul, number_of_successors, weight_set):
