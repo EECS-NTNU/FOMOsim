@@ -28,14 +28,14 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    # INSTANCE = 'OS_W31' 
-    INSTANCE = 'BG_W35'
+    INSTANCE = 'OS_W31' 
+    # INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -54,7 +54,7 @@ def run_simulation(seed, policy, duration=24*5, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename= "policy_BG_avg_"+str(policy)+".csv"
+        filename= "policy_OS_"+str(policy)+".csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -93,7 +93,7 @@ def test_number_of_scenarios(list_of_seeds, scenario_list):
         policy=policies.inngjerdingen_moeller.PILOT(number_of_scenarios=number, max_depth=2, number_of_successors=5)
         test_seeds_mp(list_of_seeds, policy, filename)
 
-def test_seeds_mp(list_of_seeds, policy, filename, duration=24*5):
+def test_seeds_mp(list_of_seeds, policy, filename, duration=24*25): #HUSK Å ENDRE TILBAKE
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     
     # policy_dict = dict(greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(max_depth=2, number_of_successors=5))
+    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT(max_depth=1, number_of_successors=20, number_of_scenarios=100))
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
     # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(greedy = policies.GreedyPolicy())
@@ -142,10 +142,10 @@ if __name__ == "__main__":
     # list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
-    list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
-    # list_of_seeds=[1]
+    list_of_seeds=[2]
     
     # profiler = cProfile.Profile()
     # profiler.enable()  
