@@ -5,23 +5,23 @@ import numpy as np
 
 #used for branch number
 def plot_bar_chart():
-    # data = [7429,4827,4383,3670,3355,2346,2287,2682,2690,2577,2144,2025,2219,1701,1278,1672,1661,1649,1509,1496]
-    data= [56480,43783,40315,34020,29371,30084,26740,26370,23897,25395,22199,21074,20400,19494,17802,22068,19632,20724,18716,18436]
+    data = [7429,4827,4383,3670,3355,2346,2287,2682,2690,2577,2144,2025,2219,1701,1278,1672,1661,1649,1509,1496]
+    # data= [56480,43783,40315,34020,29371,30084,26740,26370,23897,25395,22199,21074,20400,19494,17802,22068,19632,20724,18716,18436]
     total = sum(data)
 
     fig, ax = plt.subplots()
     ax.bar([i for i in range(1,len(data)+1)], data, color='#2F5597')
 
     # Add labels and title
-    ax.set_xlabel('Branch number', fontsize=13)
+    ax.set_xlabel('Branch', fontsize=13)
     ax.set_ylabel('# scenarios', fontsize=13)
-    ax.set_title('Bar Plot with Percentage Values', fontsize=15)
+    ax.set_title('Branch selection', fontsize=15)
     plt.xticks([i for i in range(1,len(data)+1)])
 
     # Add percentage values as text over the bars
     for i, val in enumerate(data):
         percentage = (val / total) * 100
-        ax.text(i+1, val+100, f"{percentage:.1f}%", ha='center')
+        ax.text(i+1, val+30, f"{percentage:.1f}%", ha='center')
     # Show the plot
     plt.show()
 
