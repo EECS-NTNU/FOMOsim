@@ -5,16 +5,16 @@ import numpy as np
 
 #used for branch number
 def plot_bar_chart():
-
-    data = [20456,10783,6785,5897,5667,4378,3344,2234,1234,1133]
+    # data = [7429,4827,4383,3670,3355,2346,2287,2682,2690,2577,2144,2025,2219,1701,1278,1672,1661,1649,1509,1496]
+    data= [56480,43783,40315,34020,29371,30084,26740,26370,23897,25395,22199,21074,20400,19494,17802,22068,19632,20724,18716,18436]
     total = sum(data)
 
     fig, ax = plt.subplots()
     ax.bar([i for i in range(1,len(data)+1)], data, color='#2F5597')
 
     # Add labels and title
-    ax.set_xlabel('Branch number', fontsize=12)
-    ax.set_ylabel('# scenarios', fontsize=12)
+    ax.set_xlabel('Branch number', fontsize=13)
+    ax.set_ylabel('# scenarios', fontsize=13)
     ax.set_title('Bar Plot with Percentage Values', fontsize=15)
     plt.xticks([i for i in range(1,len(data)+1)])
 
@@ -100,7 +100,7 @@ def solution_times():
 
     # Create the plot
     # plt.yscale("log")
-    max_limit = [10, 10, 10, 10, 10]
+    max_limit = [10, 10, 10, 10, 10] 
 
     # plt.plot(betas, max_limit, label="max solution time", color='gray', linewidth=2, ls='--')
     plt.plot(betas, times_1, label= r'$\alpha=1$', color='#ED7D31', linewidth=2, marker='o')
@@ -114,8 +114,8 @@ def solution_times():
     # Add labels and title to the plot
     plt.xlabel(r'$\beta$', fontsize=13)
     plt.ylabel('Solution time (s)', fontsize=13)
-    title = 'Solution time for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$'
-    plt.title(title,fontsize=15)
+    
+    plt.title('Solution time for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$',fontsize=15)
     
     plt.legend()
 
@@ -167,4 +167,4 @@ def solution_quality():
 # roaming_shares()
 # solution_times()
 # branch_number()
-# plot_bar_chart()
+plot_bar_chart()

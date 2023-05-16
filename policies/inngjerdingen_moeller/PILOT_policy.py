@@ -9,7 +9,7 @@ import numpy as np
 import time 
 
 class PILOT(Policy):
-    def __init__(self, max_depth=4, number_of_successors=10, time_horizon=40, criticality_weights_sets=[[0.3, 0.15, 0.25, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0.05, 0.2, 0.05]], evaluation_weights=[0.85, 0.1, 0.05], number_of_scenarios=100, discounting_factor=0.1): #change deafult values after parameter tuning!
+    def __init__(self, max_depth=2, number_of_successors=5, time_horizon=40, criticality_weights_sets=[[0.3, 0.15, 0.25, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0.05, 0.2, 0.05]], evaluation_weights=[0.85, 0.1, 0.05], number_of_scenarios=100, discounting_factor=0.1): #change deafult values after parameter tuning!
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
         self.time_horizon = time_horizon
@@ -53,6 +53,8 @@ class PILOT(Policy):
 
         next_station = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time)
         
+        #lage en funskjon som kallles her som sjekker antall naboer som er tomme/fulle sett fra next-station. Logge i en aggregate metric. Til slutt kan vi dele på antall problemer. 
+
         simul.metrics.add_aggregate_metric(simul, "accumulated solution time", time.time()-start_logging_time)
         simul.metrics.add_aggregate_metric(simul, 'number of problems solved', 1)
 
@@ -146,8 +148,8 @@ class PILOT(Policy):
         
         
         ###########different criteria for selection of first move: ############
-        # return self.return_best_move(vehicle, simul, plan_scores) #returns the station which has the highest score in most scenarios
-        return self.return_best_move_average(vehicle, simul, plan_scores) #returns the station with the best average score over all scenarios
+        return self.return_best_move(vehicle, simul, plan_scores) #returns the station which has the highest score in most scenarios
+        # return self.return_best_move_average(vehicle, simul, plan_scores) #returns the station with the best average score over all scenarios
 
 
     def greedy_next_visit(self, plan, simul, number_of_successors, weight_set):
