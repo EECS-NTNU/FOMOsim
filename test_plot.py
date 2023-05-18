@@ -25,7 +25,6 @@ def plot_bar_chart():
     # Show the plot
     plt.show()
 
-
 def violin_plot():
     # Example data
     category_names = ['Category A', 'Category B', 'Category C']
@@ -125,7 +124,6 @@ def solution_times():
     # Show the plot
     plt.show()
 
-
 def solution_quality():
     q0 = [2876.8, 2618.8, 2653.7, 2673.1, 2635, 2891.5, 2906.6]
     q1 =[2865.7, 2752.9, 2660.8, 2717.9, 2732.7, 2861.4, 2894.5]
@@ -164,7 +162,40 @@ def solution_quality():
     # Show the plot
     plt.show()
 
+def box_plot():
+    data_normal = [[2797,2520,2589,2736,2935,2548,2405,2470,2355,2429],
+            [2734,2503,2713,2621,2681,2563,2469,2565,2812,2276],
+            [2800,2483,2326,2632,2523,2568,2568,2501,2603,2480],
+            [2703,2497,2386,2533,2654,2352,2196,2583,2441,2270],
+            [2644,2617,2669,2370,2684,2665,2299,2307,2495,2251],
+            [2656,2706,2364,2451,2313,2641,2129,2242,2434,2288]
+            ] 
+    
+    data_poisson = [[2645,2506,2551,2687,2632,2492,2353,2318,2573,2230],
+            [2545,2453,2341,2572,2557,2695,2492,2382,2478,2392],
+            [2740,2369,2248,2681,2364,2599,2215,2308,2296,2330],
+            [2637,2427,2609,2639,2566,2610,2360,2407,2440,2275],
+            [2676,2505,2574,2460,2531,2511,2572,2165,2593,2201],
+            [2388,2333,2534,2661,2599,2628,2143,2513,2644,2168]
+            ] 
+    
+    # Create a figure and axes
+    fig, ax = plt.subplots()
+
+    boxplots = ax.boxplot(data_poisson, vert=True, showmeans=True, meanline=True)
+
+    # Set labels and title
+    ax.set_xticklabels(['1', '10', '100', '500', '1000', '2000'])
+    ax.set_ylabel('Failed events')
+    ax.set_xlabel('# scenarios')
+    ax.set_title('Boxplot')
+
+    # Display the plot
+    plt.show()
+
 # roaming_shares()
 # solution_times()
 # branch_number()
-plot_bar_chart()
+# plot_bar_chart()
+box_plot()
+
