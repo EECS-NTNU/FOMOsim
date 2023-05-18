@@ -28,17 +28,13 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=1, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    INSTANCE = 'OS_W31' 
-    # INSTANCE = 'BG_W35'
+    # INSTANCE = 'OS_W31' 
+    INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
-    num_bikes = 0
-    for key in state.stations:
-        num_bikes += len(state.stations[key].bikes)
-    print("NY bikes:", num_bikes)
     vehicles = [policy for i in range(num_vehicles)]
     state.set_vehicles(vehicles) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
@@ -100,7 +96,7 @@ def test_number_of_scenarios(list_of_seeds, scenario_list):
 
 def test_num_vehicles(list_of_seeds, vehicles_list):
      for v in vehicles_list:
-        filename= "num_vehicles_OS_"+str(v)+"V.csv"
+        filename= "num_vehicles_BG_"+str(v)+"V.csv"
         policy=policies.inngjerdingen_moeller.PILOT()
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
