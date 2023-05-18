@@ -28,9 +28,9 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=1, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    # INSTANCE = 'OS_W31' 
+    INSTANCE = 'OS_W31' 
     # INSTANCE = 'BG_W35'
-    INSTANCE = "NY_W31"
+    # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
@@ -55,7 +55,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=1, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename= "policy_BG_"+str(policy)+".csv"
+        filename= "policy_OS_"+str(policy)+".csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -100,7 +100,7 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
         policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=10)
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*1): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*5): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -138,8 +138,8 @@ if __name__ == "__main__":
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     
     # policy_dict = dict(greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT())
-    # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
+    policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
+    # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
     # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(greedy = policies.GreedyPolicy())
     
@@ -148,11 +148,11 @@ if __name__ == "__main__":
     # criticality_weights = dict(a=[[0.2, 0.2, 0.2, 0.2, 0.2]], b=[[0.3, 0.15, 0.25, 0.2, 0.1]], c=[[0.2, 0.4, 0.2, 0.1, 0.1]], d=[[0.3, 0.3, 0.1, 0.1, 0.2]], e=[[0.2, 0.7, 0.05, 0.05, 0]], f=[[0.05, 0.9, 0.05, 0, 0]], g=[[0.1, 0.6, 0.1, 0.1, 0.1]], h=[[0.3, 0.5, 0, 0, 0.2]], i=[[0.9, 0, 0, 0.1, 0]], j=[[0.7, 0.05, 0.1, 0.1, 0.05]], k=[[0.6, 0.1, 0.05, 0.2, 0.05]], l=[[0.5, 0.05, 0.2, 0.05, 0.2]], m=[[1, 0, 0, 0, 0]], n=[[0, 1, 0, 0, 0]], o=[[0, 0, 1, 0, 0]], p=[[0, 0, 0, 1, 0]], q=[[1, 0, 0, 0, 0]])
     # list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
-    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
+    list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
-    list_of_seeds=[0]
+    # list_of_seeds=[0]
     
     # profiler = cProfile.Profile()
     # profiler.enable()  
@@ -160,12 +160,12 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 7, [1,3,5,7,10])
     # test_number_of_scenarios(list_of_seeds, [1,10,100])
     # test_timehorizons(list_of_seeds, list_of_timehorizons)
-    test_num_vehicles(list_of_seeds,[1,2,3,4,5])
+    # test_num_vehicles(list_of_seeds,[1,2,3,4,5])
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))
