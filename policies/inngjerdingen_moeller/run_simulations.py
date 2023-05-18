@@ -22,15 +22,15 @@ import multiprocessing as mp
 # import pstats
 
 
-def run_simulation(seed, policy, duration=24*5, num_vehicles=1, queue=None):
+def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
     #change common parameters for the different simulations here:
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    # INSTANCE = 'OS_W31' 
+    INSTANCE = 'OS_W31' 
     # INSTANCE = 'BG_W35'
-    INSTANCE = "NY_W31"
+    # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
@@ -84,7 +84,7 @@ def test_discounting_factors(list_of_seeds, list_of_factors):
 
 def test_alpha_beta(list_of_seeds, alpha, beta_list):
      for beta in beta_list:
-        filename= "branching_OS_a_"+str(alpha)+"_b_"+str(beta)+".csv"
+        filename= "branching_OS_new_a_"+str(alpha)+"_b_"+str(beta)+".csv"
         policy=policies.inngjerdingen_moeller.PILOT(max_depth=alpha, number_of_successors=beta, time_horizon=60)
         test_seeds_mp(list_of_seeds, policy, filename)
 
@@ -100,7 +100,7 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
         policy=policies.inngjerdingen_moeller.PILOT()
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*1): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*5): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -161,10 +161,10 @@ if __name__ == "__main__":
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
     # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_discounting_factors(list_of_seeds, list_of_factors)
-    # test_alpha_beta(list_of_seeds, 7, [1,3,5,7,10])
+    test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
     # test_number_of_scenarios(list_of_seeds, [1,10,100])
     # test_timehorizons(list_of_seeds, list_of_timehorizons)
-    test_num_vehicles(list_of_seeds,[1,2,3,4,5])
+    # test_num_vehicles(list_of_seeds,[1,2,3,4,5])
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))
