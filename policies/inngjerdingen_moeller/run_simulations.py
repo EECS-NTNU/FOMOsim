@@ -28,13 +28,17 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=1, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    # INSTANCE = 'OS_W31' 
+    INSTANCE = 'OS_W31' 
     # INSTANCE = 'BG_W35'
-    INSTANCE = "NY_W31"
+    # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
+    num_bikes = 0
+    for key in state.stations:
+        num_bikes += len(state.stations[key].bikes)
+    print("NY bikes:", num_bikes)
     vehicles = [policy for i in range(num_vehicles)]
     state.set_vehicles(vehicles) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
@@ -96,11 +100,11 @@ def test_number_of_scenarios(list_of_seeds, scenario_list):
 
 def test_num_vehicles(list_of_seeds, vehicles_list):
      for v in vehicles_list:
-        filename= "num_vehicles_NY_"+str(v)+"V.csv"
+        filename= "num_vehicles_OS_"+str(v)+"V.csv"
         policy=policies.inngjerdingen_moeller.PILOT()
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*1): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     print("Starter på multi processing...")
     seeds = list_of_seeds
@@ -149,11 +153,11 @@ if __name__ == "__main__":
     # criticality_weights = dict(a=[[0.2, 0.2, 0.2, 0.2, 0.2]], b=[[0.3, 0.15, 0.25, 0.2, 0.1]], c=[[0.2, 0.4, 0.2, 0.1, 0.1]], d=[[0.3, 0.3, 0.1, 0.1, 0.2]], e=[[0.2, 0.7, 0.05, 0.05, 0]], f=[[0.05, 0.9, 0.05, 0, 0]], g=[[0.1, 0.6, 0.1, 0.1, 0.1]], h=[[0.3, 0.5, 0, 0, 0.2]], i=[[0.9, 0, 0, 0.1, 0]], j=[[0.7, 0.05, 0.1, 0.1, 0.05]], k=[[0.6, 0.1, 0.05, 0.2, 0.05]], l=[[0.5, 0.05, 0.2, 0.05, 0.2]], m=[[1, 0, 0, 0, 0]], n=[[0, 1, 0, 0, 0]], o=[[0, 0, 1, 0, 0]], p=[[0, 0, 0, 1, 0]], q=[[1, 0, 0, 0, 0]])
     # list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
-    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
+    list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
-    list_of_seeds=[0]
+    # list_of_seeds=[0]
     
     # profiler = cProfile.Profile()
     # profiler.enable()  
