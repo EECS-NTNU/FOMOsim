@@ -90,12 +90,12 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
 
     starved_neighbors=0
     congested_neighbors=0
-    for neighbor in station.neighboring_stations:
-        num_bikes_neighbor = neighbor.number_of_bikes()
-        if num_bikes_neighbor < 0.1*neighbor.capacity:
-            starved_neighbors += 1
-        elif num_bikes_neighbor > 0.9*neighbor.capacity:
-            congested_neighbors += 1
+    # for neighbor in station.neighboring_stations:
+    #     num_bikes_neighbor = neighbor.number_of_bikes()
+    #     if num_bikes_neighbor < 0.1*neighbor.capacity:
+    #         starved_neighbors += 1
+    #     elif num_bikes_neighbor > 0.9*neighbor.capacity:
+    #         congested_neighbors += 1
 
     if num_bikes_station < target_state: #deliver bikes
         #deliver bikes, max to the target state
