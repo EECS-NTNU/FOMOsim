@@ -97,11 +97,11 @@ def test_number_of_scenarios(list_of_seeds, scenario_list):
 
 def test_num_vehicles(list_of_seeds, vehicles_list):
      for v in vehicles_list:
-        filename= "num_vehicles_NY_"+str(v)+"V.csv"
-        policy=policies.inngjerdingen_moeller.PILOT()
+        filename= "num_vehicles_OS_"+str(v)+"V.csv"
+        policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=10, time_horizon=40)
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*5): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*1): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -122,7 +122,7 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*5
         #if we run PILOT policy:
         filename_time = "sol_time_"+filename
         policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
-        output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = True)
+        # output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = True)
         # output.visualize([simulator.metrics], metric="branch0")
         # output.visualize([simulator.metrics], metric="weight_set"+str([0.2, 0.2, 0.1, 0.1, 0.4]))
         # for branch in range(policy.number_of_successors):
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
     # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
-    policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
+    # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
     
     # list_of_timehorizons = [10]
     # evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.6, 0.3, 0.1], i=[1.0, 0.0, 0.0], j=[0.45, 0.45, 0.1], k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33], m=[0.9, 0.05, 0.05], n=[0.95, 0.04, 0.01], o=[0.85, 0.1, 0.05], p=[0.9, 0.09, 0.01])
@@ -161,12 +161,12 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
     # test_number_of_scenarios(list_of_seeds, [1,10,100])
     # test_timehorizons(list_of_seeds, list_of_timehorizons)
-    # test_num_vehicles(list_of_seeds,[1,2,3,4,5])
+    test_num_vehicles(list_of_seeds,[1,2,3,4,5])
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))
