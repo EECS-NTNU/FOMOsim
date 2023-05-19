@@ -141,7 +141,7 @@ if __name__ == "__main__":
     
     # policy_dict = dict(greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
-    policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
+    policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
     # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
