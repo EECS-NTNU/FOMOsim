@@ -1,7 +1,10 @@
 import random
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np 
-
+import pandas as pd
+import os
+from output.visualizer import totime
 
 #used for branch number
 def plot_bar_chart():
@@ -193,9 +196,52 @@ def box_plot():
     # Display the plot
     plt.show()
 
+def different_policies():
+    # Define the directory where the CSV files are located
+    directory = 'policies/inngjerdingen_moeller/simulation_results/different_policies'
+
+    # Get the list of CSV files in the directory
+    csv_files = [file for file in os.listdir(directory) if file.endswith('.csv')]
+
+    # Create a color map for the policies
+    colors = ['blue', 'green', 'red', 'orange', 'purple']  # Add more colors if needed
+    color_map = {file: color for file, color in zip(csv_files, colors)}
+
+    # Create an empty list to store the dataframes for each policy
+    dfs = []
+
+    # Read the CSV files and store them in the list
+    for file in csv_files:
+        file_path = os.path.join(directory, file)
+        df = pd.read_csv(file_path, sep=';', usecols=['Time', 'Failed events'])
+        dfs.append(df)
+
+    # Create the line chart
+    fig, ax =plt.subplots()
+       
+    # Plot the data for each policy
+    for i, df in enumerate(dfs):
+        policy = csv_files[i]
+        color = color_map[policy]
+        ax.plot(df['Time'], df['Failed events'], color=color, label=policy)
+
+    # Set the labels and title
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Accumulated Number of Failed Events')
+    ax.set_title('Failed Events by Policy')
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%a %H:%M"))
+    ax.xaxis.set_minor_formatter(mdates.DateFormatter("%a %H:%M"))
+
+    # Add a legend
+    ax.legend()
+
+    # Show the plot
+    plt.show()
+
 # roaming_shares()
 # solution_times()
 # branch_number()
 # plot_bar_chart()
-box_plot()
+# box_plot()
+different_policies()
 
