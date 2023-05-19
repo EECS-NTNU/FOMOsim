@@ -29,8 +29,8 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    INSTANCE = 'OS_W31' 
-    # INSTANCE = 'BG_W35'
+    # INSTANCE = 'OS_W31' 
+    INSTANCE = 'BG_W35'
     # INSTANCE = "NY_W31"
     ###############################################################
     
@@ -97,7 +97,7 @@ def test_number_of_scenarios(list_of_seeds, scenario_list):
 
 def test_num_vehicles(list_of_seeds, vehicles_list):
      for v in vehicles_list:
-        filename= "num_vehicles_OS_"+str(v)+"V.csv"
+        filename= "num_vehicles_BG_"+str(v)+"V.csv"
         policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=10, time_horizon=40)
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
