@@ -141,6 +141,7 @@ if __name__ == "__main__":
     
     # policy_dict = dict(greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
+    # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
     # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
@@ -150,7 +151,8 @@ if __name__ == "__main__":
     # criticality_weights = dict(a=[[0.2, 0.2, 0.2, 0.2, 0.2]], b=[[0.3, 0.15, 0.25, 0.2, 0.1]], c=[[0.2, 0.4, 0.2, 0.1, 0.1]], d=[[0.3, 0.3, 0.1, 0.1, 0.2]], e=[[0.2, 0.7, 0.05, 0.05, 0]], f=[[0.05, 0.9, 0.05, 0, 0]], g=[[0.1, 0.6, 0.1, 0.1, 0.1]], h=[[0.3, 0.5, 0, 0, 0.2]], i=[[0.9, 0, 0, 0.1, 0]], j=[[0.7, 0.05, 0.1, 0.1, 0.05]], k=[[0.6, 0.1, 0.05, 0.2, 0.05]], l=[[0.5, 0.05, 0.2, 0.05, 0.2]], m=[[1, 0, 0, 0, 0]], n=[[0, 1, 0, 0, 0]], o=[[0, 0, 1, 0, 0]], p=[[0, 0, 0, 1, 0]], q=[[1, 0, 0, 0, 0]])
     # list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
-    list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
+    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
+    list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
     # list_of_seeds=[0]
