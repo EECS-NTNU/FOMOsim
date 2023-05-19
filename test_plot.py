@@ -1,7 +1,10 @@
 import random
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np 
-
+import pandas as pd
+import os
+from output.visualizer import totime
 
 #used for branch number
 def plot_bar_chart():
@@ -24,7 +27,6 @@ def plot_bar_chart():
         ax.text(i+1, val+30, f"{percentage:.1f}%", ha='center')
     # Show the plot
     plt.show()
-
 
 def violin_plot():
     # Example data
@@ -125,7 +127,6 @@ def solution_times():
     # Show the plot
     plt.show()
 
-
 def solution_quality():
     q0 = [2876.8, 2618.8, 2653.7, 2673.1, 2635, 2891.5, 2906.6]
     q1 =[2865.7, 2752.9, 2660.8, 2717.9, 2732.7, 2861.4, 2894.5]
@@ -163,7 +164,83 @@ def solution_quality():
     # Show the plot
     plt.show()
 
+def box_plot():
+    data_normal = [[2797,2520,2589,2736,2935,2548,2405,2470,2355,2429],
+            [2734,2503,2713,2621,2681,2563,2469,2565,2812,2276],
+            [2800,2483,2326,2632,2523,2568,2568,2501,2603,2480],
+            [2703,2497,2386,2533,2654,2352,2196,2583,2441,2270],
+            [2644,2617,2669,2370,2684,2665,2299,2307,2495,2251],
+            [2656,2706,2364,2451,2313,2641,2129,2242,2434,2288]
+            ] 
+    
+    data_poisson = [[2645,2506,2551,2687,2632,2492,2353,2318,2573,2230],
+            [2545,2453,2341,2572,2557,2695,2492,2382,2478,2392],
+            [2740,2369,2248,2681,2364,2599,2215,2308,2296,2330],
+            [2637,2427,2609,2639,2566,2610,2360,2407,2440,2275],
+            [2676,2505,2574,2460,2531,2511,2572,2165,2593,2201],
+            [2388,2333,2534,2661,2599,2628,2143,2513,2644,2168]
+            ] 
+    
+    # Create a figure and axes
+    fig, ax = plt.subplots()
+
+    boxplots = ax.boxplot(data_poisson, vert=True, showmeans=True, meanline=True)
+
+    # Set labels and title
+    ax.set_xticklabels(['1', '10', '100', '500', '1000', '2000'])
+    ax.set_ylabel('Failed events')
+    ax.set_xlabel('# scenarios')
+    ax.set_title('Boxplot')
+
+    # Display the plot
+    plt.show()
+
+def different_policies():
+    # Define the directory where the CSV files are located
+    directory = 'policies/inngjerdingen_moeller/simulation_results/different_policies'
+
+    # Get the list of CSV files in the directory
+    csv_files = [file for file in os.listdir(directory) if file.endswith('.csv')]
+
+    # Create a color map for the policies
+    colors = ['blue', 'green', 'red', 'orange', 'purple']  # Add more colors if needed
+    color_map = {file: color for file, color in zip(csv_files, colors)}
+
+    # Create an empty list to store the dataframes for each policy
+    dfs = []
+
+    # Read the CSV files and store them in the list
+    for file in csv_files:
+        file_path = os.path.join(directory, file)
+        df = pd.read_csv(file_path, sep=';', usecols=['Time', 'Failed events'])
+        dfs.append(df)
+
+    # Create the line chart
+    fig, ax =plt.subplots()
+       
+    # Plot the data for each policy
+    for i, df in enumerate(dfs):
+        policy = csv_files[i]
+        color = color_map[policy]
+        ax.plot(df['Time'], df['Failed events'], color=color, label=policy)
+
+    # Set the labels and title
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Accumulated Number of Failed Events')
+    ax.set_title('Failed Events by Policy')
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%a %H:%M"))
+    ax.xaxis.set_minor_formatter(mdates.DateFormatter("%a %H:%M"))
+
+    # Add a legend
+    ax.legend()
+
+    # Show the plot
+    plt.show()
+
 # roaming_shares()
 # solution_times()
 # branch_number()
-plot_bar_chart()
+# plot_bar_chart()
+# box_plot()
+different_policies()
+

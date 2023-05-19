@@ -76,6 +76,8 @@ class BikeArrival(Event):
                 else:
                     arrival_station.metrics.add_aggregate_metric(world, "long_congestion", 1)
                     world.metrics.add_aggregate_metric(world, "long_congestion", 1)
+                    arrival_station.metrics.add_aggregate_metric(world, "Failed events", 1)
+                    world.metrics.add_aggregate_metric(world, "Failed events", 1)
                 
                 arrival_station.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
                 world.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
