@@ -103,7 +103,7 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
         policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=10)
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*5): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
