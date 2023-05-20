@@ -1,6 +1,6 @@
 from parameters_MILP import MILP_data
 from mathematical_model import run_model
-# from inngjerdingen_moeller_policy import InngjerdingenMoellerPolicy
+from inngjerdingen_moeller_policy import InngjerdingenMoellerPolicy
 from PILOT_policy import PILOT
 # import inngjerdingen_moeller
 
@@ -132,8 +132,8 @@ if __name__ == "__main__":
         # filename = "instances/TD_W34"
         # filename = "instances/TD_W34_old"
         # filename = "instances/NY_W31"
-        filename = "instances/OS_W31"
-        # filename = "instances/BG_W35"
+        # filename = "instances/OS_W34"
+        # filename = "instances/BG_W25"
 
         START_DAY = 0 #0 -> monday ,days other than 0 results in target inventory = 0 for all stations
         START_HOUR = 8 #8 -> 08:00 am
@@ -142,7 +142,7 @@ if __name__ == "__main__":
         time_horizon = 5
         tau = 5
         number_of_runs = 9
-        number_of_vehicles = 5
+        number_of_vehicles = 1
         roaming = True
  
         # tstate = target_state.EvenlyDistributedTargetState()
@@ -151,12 +151,12 @@ if __name__ == "__main__":
         tstate = target_state.USTargetState()
         # tstate = target_state.HalfCapacityTargetState()
 
-        criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
-        evaluation_weights = [0.4, 0.3, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
-        policy = PILOT(2, 6, 60, criticality_weights_sets, evaluation_weights, 10)
+        # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
+        # evaluation_weights = [0.4, 0.3, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
+        # policy = PILOT(2, 6, 60, criticality_weights_sets, evaluation_weights, 10)
         
         # test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles, roaming)
-        # test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
-        test_policy(filename, 10, START_DAY, START_HOUR, tstate, policy, DURATION, number_of_vehicles)
+        test_single_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles, roaming)
+        # test_policy(filename, 10, START_DAY, START_HOUR, tstate, policy, DURATION, number_of_vehicles)
 # ----------------------------------------------------
 

@@ -30,9 +30,9 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
     
     # INSTANCE = 'TD_W34_old'
     # INSTANCE = 'OS_W31' 
-    # INSTANCE = 'OS_W34'   #more demand 
+    INSTANCE = 'OS_W34'   #more demand 
     # INSTANCE = 'BG_W35'
-    INSTANCE = 'BG_W25'   #more demand
+    # INSTANCE = 'BG_W25'   #more demand
     # INSTANCE = "NY_W31"
     ###############################################################
     
@@ -58,7 +58,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename="short_rebal_BG25_"+str(policy)+".csv"
+        filename="short_rebal_OS34_"+str(policy)+".csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
