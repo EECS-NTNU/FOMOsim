@@ -30,8 +30,10 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
     
     # INSTANCE = 'TD_W34_old'
     # INSTANCE = 'OS_W31' 
+    # INSTANCE = 'OS_W34'   #more demand 
     # INSTANCE = 'BG_W35'
-    INSTANCE = "NY_W31"
+    INSTANCE = 'BG_W25'   #more demand
+    # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
@@ -56,7 +58,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename="short_rebal_NY_"+str(policy)+".csv"
+        filename="short_rebal_BG25_"+str(policy)+".csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -152,11 +154,11 @@ if __name__ == "__main__":
     # list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
-    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
     # list_of_seeds=[0]
-    list_of_lists_seeds = [[0,1],[2,3],[4],[5,6],[7,8],[9,10],[11,12],[13,14],[15,16],[17,18,19]]
+    # list_of_lists_seeds = [[0,1],[2,3],[4],[5,6],[7,8],[9,10],[11,12],[13,14],[15,16],[17,18,19]]
     
     # profiler = cProfile.Profile()
     # profiler.enable()  
@@ -164,8 +166,11 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    for li in list_of_lists_seeds:
-        test_policies(list_of_seeds=li, policy_dict=policy_dict)
+    # for li in list_of_lists_seeds:
+    #     test_policies(list_of_seeds=li, policy_dict=policy_dict)
+    
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
     # test_number_of_scenarios(list_of_seeds, [1,10,100])
