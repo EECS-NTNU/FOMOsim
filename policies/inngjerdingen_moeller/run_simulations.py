@@ -103,7 +103,7 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
         policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=10)
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*10): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*5): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -141,9 +141,9 @@ if __name__ == "__main__":
     # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     
-    policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
+    # policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
-    # policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
+    policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
     # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
