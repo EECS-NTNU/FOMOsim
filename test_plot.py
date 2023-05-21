@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import os
 from output.visualizer import totime
+import csv
 
 #used for branch number
 def plot_bar_chart():
@@ -134,7 +135,7 @@ def solution_quality():
     q3 = [2865.5, 2635.3, 2566.1, 2678.5, 2711.3]
     q4 =[2881.7, 2582.4, 2607.6, 2698.8, 2753]
     q5 = [2884.1, 2592.2, 2603.1, 2697.5, 2829.5]
-    q6 =[2827.1, 2554.4, 2705.7, 2631.8, 2696.3]
+    q6 =[2841.3, 2612.2, 2641, 2680.2, 2706.1]
 
     betas1_20 = [1, 3, 5, 7, 9, 11, 13] 
     betas1_10 = [1, 3, 5, 7, 9] 
@@ -144,24 +145,23 @@ def solution_quality():
     # max_limit = [10, 10, 10, 10, 10]
 
     # plt.plot(betas, max_limit, label="max solution time", color='gray', linewidth=2, ls='--')
-    plt.plot(betas1_20, q0, label= r'$\alpha=1$', color='#ED7D31', linewidth=2, marker='o')
-    plt.plot(betas1_20, q1, label=r'$\alpha=2$', color='#2F5597', linewidth=2, marker='o')
-    plt.plot(betas1_10, q2, label=r'$\alpha=3$', color='green', linewidth=2, marker='o')
-    plt.plot(betas1_10, q3, label=r'$\alpha=4$', color='purple', linewidth=2, marker='o')
-    plt.plot(betas1_10, q4, label=r'$\alpha=5$', color='pink', linewidth=2, marker='o')
-    plt.plot(betas1_10, q5, label=r'$\alpha=6$', color='red', linewidth=2, marker='o')
-    plt.plot(betas1_10, q6, label=r'$\alpha=7$', color='brown', linewidth=2, marker='o')
+    plt.plot(betas1_20, q0, label= r'$\alpha=1$', color='#ED7D31', linewidth=1.5, marker='o')
+    plt.plot(betas1_20, q1, label=r'$\alpha=2$', color='#2F5597', linewidth=1.5, marker='o')
+    plt.plot(betas1_10, q2, label=r'$\alpha=3$', color='green', linewidth=1.5, marker='o')
+    plt.plot(betas1_10, q3, label=r'$\alpha=4$', color='purple', linewidth=1.5, marker='o')
+    plt.plot(betas1_10, q4, label=r'$\alpha=5$', color='pink', linewidth=1.5, marker='o')
+    plt.plot(betas1_10, q5, label=r'$\alpha=6$', color='red', linewidth=1.5, marker='o')
+    plt.plot(betas1_10, q6, label=r'$\alpha=7$', color='brown', linewidth=1.5, marker='o')
 
     # Add labels and title to the plot
     plt.xlabel(r'$\beta$', fontsize=13)
     plt.ylabel('Failed events', fontsize=13)
-    plt.title('Number of failed events for varying PILOT parameters',fontsize=15)
-    
+    plt.title('Number of failed events for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$',fontsize=15)
     plt.legend()
 
     plt.grid(axis='y', alpha=0.5)
     plt.yticks(np.arange(2500, 3000, 50))
-    plt.xticks([1,3,5,7,10])
+    plt.xticks([1,3,5,7])
     # Show the plot
     plt.show()
 
@@ -225,6 +225,10 @@ def different_policies():
         color = color_map[policy]
         ax.plot(df['Time'], df['Failed events'], color=color, label=policy)
 
+    # # Set a fixed number of ticks on the x-axis
+    # num_ticks = 8
+    # plt.locator_params(axis='x', nbins=num_ticks)
+
     # Set the labels and title
     ax.set_xlabel('Time')
     ax.set_ylabel('Accumulated Number of Failed Events')
@@ -237,11 +241,62 @@ def different_policies():
 
     # Show the plot
     plt.show()
+    
+
+def different_policies2():
+    directory = 'policies/inngjerdingen_moeller/simulation_results/different_policies'
+
+    # Get the list of CSV files in the directory
+    csv_files = [file for file in os.listdir(directory) if file.endswith('.csv')]
+
+    time_stamps = ["Mon 08:00.000000", "Tue 08:00.000000", "Wed 08:00.000000", "Thu 08:00.000000", "Fri 08:00.000000"]
+    tick_labels = ["Mon 08:00", "Tue 08:00", "Wed 08:00", "Thu 08:00", "Fri 08:00"]
+    colors = ["blue", "red", "green"]
+
+    fig, ax =plt.subplots()
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Accumulated Number of Failed Events')
+    ax.set_title('Failed Events by Policy')
+
+    # Open the CSV file
+    for i, csv_file in enumerate(csv_files):
+        with open(directory+'/'+csv_file, 'r') as csvfile:
+            # Create a CSV reader object
+            reader = csv.reader(csvfile, delimiter=";")
+            
+            times = []
+            failures = []
+            # Skip the header row if it exists
+            header = next(reader, None)
+
+            # Read the data row by row
+            for row in reader:
+                # Extract data from each column
+                times.append(row[0])
+                failures.append(int(row[1]))
+            
+            times_new = []
+            for time in times:
+                times_new.append(time)
+
+            ax.plot(times_new, failures, color=colors[i], label=csv_file[:-4])
+
+    # ax.xaxis.set(ticks=time_stamps, ticklabels=tick_labels)
+    # ax.set_xticks(time_stamps) 
+    # ax.set_xticklabels(tick_labels)
+    plt.xticks(time_stamps, labels=tick_labels)
+
+    # Add a legend
+    ax.legend()
+
+    # Show the plot
+    plt.show()
+            
 
 # roaming_shares()
 # solution_times()
 # branch_number()
 # plot_bar_chart()
 # box_plot()
-different_policies()
+different_policies2()
 
