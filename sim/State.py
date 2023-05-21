@@ -151,9 +151,9 @@ class State(LoadSave):
                       traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
                       traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"])
         
-        # neighbor_dict = state.read_neighboring_stations_from_file()
-        # for station in stations:
-        #     station.set_neighboring_stations(neighbor_dict, state.stations)
+        neighbor_dict = state.read_neighboring_stations_from_file()
+        for station in stations:
+            station.set_neighboring_stations(neighbor_dict, state.stations)
 
         return state
 
