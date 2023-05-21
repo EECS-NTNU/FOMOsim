@@ -4,7 +4,7 @@ from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_
 def calculate_criticality_normalized(weights,simul,start_station_id, potential_station_id,net_demand_ps,
     max_net_demand=1,max_driving_time=1,max_time_to_violation=1,max_deviation=1, #default is NO normalization
     planning_horizon=60): #not used 
-
+ 
     [omega1,omega2,omega3,omega4] = weights
 
     potential_station = simul.state.stations[potential_station_id]  

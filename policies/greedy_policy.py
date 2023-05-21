@@ -16,8 +16,8 @@ import sim
 #import init_state.entur.methods
 #import init_state.entur.scripts
 
-class GreedyPolicy(Policy):
-    def __init__(self,crit_weights=[0.1,0.2,0.3,0.4], cutoff=0.3, service_hours=None):   #[0,0,0,1] for deviation from target state
+class GreedyPolicy(Policy): 
+    def __init__(self,crit_weights=[0.3, 0.2, 0.1, 0.15], cutoff=0.3, service_hours=None):   #deafult:[0.1, 0.2, 0.3, 0.4], PILOT weights: [0.3, 0.2, 0.1, 0.15]=[time_viol, net_demand, driving_time, deviation] -> same weights as in PILOT, but in different order
         super().__init__()
 
         if service_hours is not None:

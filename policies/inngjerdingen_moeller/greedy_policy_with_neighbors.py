@@ -1,6 +1,6 @@
 """
 This file contains a greedy policy
-"""
+""" 
 import numpy as np 
 from policies import Policy
 from policies.gleditsch_hagen.utils import calculate_net_demand
@@ -9,7 +9,7 @@ import sim
 
 
 class GreedyPolicyNeighborhoodInteraction(Policy):
-    def __init__(self,crit_weights=[0.3,0.15,0.25,0.2,0.1], cutoff_vehicle=0.3, cutoff_station=0.3, service_hours=None):  #crit_weights: [time_to_viol, dev_t_state, neigh_crit, dem_crit]
+    def __init__(self,crit_weights=[0.3,0.15,0,0.2,0.1], cutoff_vehicle=0.3, cutoff_station=0.15, service_hours=None):  #crit_weights: [time_to_viol, dev_t_state, neigh_crit, dem_crit, driving _time]
         super().__init__()
         
         if service_hours is not None:
@@ -90,12 +90,12 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
 
     starved_neighbors=0
     congested_neighbors=0
-    for neighbor in station.neighboring_stations:
-        num_bikes_neighbor = neighbor.number_of_bikes()
-        if num_bikes_neighbor < 0.1*neighbor.capacity:
-            starved_neighbors += 1
-        elif num_bikes_neighbor > 0.9*neighbor.capacity:
-            congested_neighbors += 1
+    # for neighbor in station.neighboring_stations:
+    #     num_bikes_neighbor = neighbor.number_of_bikes()
+    #     if num_bikes_neighbor < 0.1*neighbor.capacity:
+    #         starved_neighbors += 1
+    #     elif num_bikes_neighbor > 0.9*neighbor.capacity:
+    #         congested_neighbors += 1
 
     if num_bikes_station < target_state: #deliver bikes
         #deliver bikes, max to the target state
