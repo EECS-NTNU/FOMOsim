@@ -167,10 +167,10 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    # for li in list_of_lists_seeds:
-    #     test_policies(list_of_seeds=li, policy_dict=policy_dict)
+    for li in list_of_lists_seeds:
+        test_policies(list_of_seeds=li, policy_dict=policy_dict)
     
-    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
 
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
