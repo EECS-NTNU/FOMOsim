@@ -32,8 +32,8 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
     # INSTANCE= 'BG_W25'
     # INSTANCE = 'BG_W35'
     # INSTANCE = 'OS_W31' 
-    # INSTANCE = 'OS_W34'
-    INSTANCE = "NY_W31"
+    INSTANCE = 'OS_W34'
+    # INSTANCE = "NY_W31"
     ###############################################################
     
     state = init_state.read_initial_state("instances/"+INSTANCE)
@@ -58,7 +58,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename=str(policy)+'_NY_W31_short'+'.csv'
+        filename=str(policy)+'_OS_W34_short'+'.csv'
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -103,7 +103,7 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
         policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=10, time_horizon=40)
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*10): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*5): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -141,8 +141,8 @@ if __name__ == "__main__":
     # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     
-    policy_dict = dict(greedy = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT())
+    # policy_dict = dict(greedy = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
+    policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
     # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     # list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
-    # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
+    list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
    
     # list_of_seeds=[0,1,2,3,4]
@@ -166,11 +166,12 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
-    list_of_lists_seeds = [[0,1,2],[3,4,5],[6,7,8],[9,10,11],[12,13,14],[15,16],[17,18,19]]
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+    # list_of_lists_seeds = [[0,1,2],[3,4,5],[6,7,8],[9,10,11],[12,13,14],[15,16],[17,18,19]]
     
-    for li in list_of_lists_seeds:
-        test_policies(list_of_seeds=li, policy_dict=policy_dict)
+    # for li in list_of_lists_seeds:
+    #     test_policies(list_of_seeds=li, policy_dict=policy_dict)
+
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
     # test_number_of_scenarios(list_of_seeds, [1,10,100])
