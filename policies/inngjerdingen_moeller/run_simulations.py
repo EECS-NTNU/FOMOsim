@@ -29,9 +29,9 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    # INSTANCE = 'OS_W31' 
+    INSTANCE = 'OS_W31' 
     # INSTANCE = 'OS_W34'   #more demand 
-    INSTANCE = 'BG_W35'
+    # INSTANCE = 'BG_W35'
     # INSTANCE = 'BG_W25'   #more demand
     # INSTANCE = "NY_W31"
     ###############################################################
@@ -99,11 +99,11 @@ def test_number_of_scenarios(list_of_seeds, scenario_list):
 
 def test_num_vehicles(list_of_seeds, vehicles_list):
      for v in vehicles_list:
-        filename= "num_vehicles_BG_"+str(v)+"V_3_7.csv"
+        filename= "num_vehicles_OS_"+str(v)+"V_3_7.csv"
         policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=7)
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*5): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
