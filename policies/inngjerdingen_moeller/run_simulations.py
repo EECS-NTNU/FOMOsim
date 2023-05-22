@@ -93,7 +93,7 @@ def test_alpha_beta(list_of_seeds, alpha, beta_list):
 
 def test_number_of_scenarios(list_of_seeds, scenario_list):
      for number in scenario_list:
-        filename= "num_scenarios_poi_"+str(number)+".csv"
+        filename= "num_scenarios_nor_"+str(number)+".csv"
         policy=policies.inngjerdingen_moeller.PILOT(number_of_scenarios=number, max_depth=2, number_of_successors=7)
         test_seeds_mp(list_of_seeds, policy, filename)
 

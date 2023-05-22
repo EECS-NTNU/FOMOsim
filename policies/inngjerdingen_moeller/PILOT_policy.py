@@ -136,7 +136,7 @@ class PILOT(Policy):
 
         plan_scores = dict() #{plan_object: list of scenario_scores}
 
-        scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, poisson = True)
+        scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, poisson = False)
 
         for plan in completed_plans:
             plan_scores[plan] = []
