@@ -187,7 +187,7 @@ def box_plot():
     # Create a figure and axes
     fig, ax = plt.subplots()
 
-    boxplots = ax.boxplot(data_poisson, vert=True, showmeans=True, meanline=True)
+    boxplots = ax.boxplot(data_normal, vert=True, showmeans=True, meanline=True)
 
     # Set labels and title
     ax.set_xticklabels(['1', '10', '100', '500', '1000', '2000'])
@@ -297,9 +297,9 @@ def different_policies2():
 
 # roaming_shares()
 # solution_times()
-solution_quality()
+# solution_quality()
 # branch_number()
 # plot_bar_chart()
-# box_plot()
+box_plot()
 # different_policies2()
 

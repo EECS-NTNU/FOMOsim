@@ -148,8 +148,8 @@ class PILOT(Policy):
         
         
         ###########different criteria for selection of first move: ############
-        # return self.return_best_move(vehicle, simul, plan_scores) #returns the station which has the highest score in most scenarios
-        return self.return_best_move_average(vehicle, simul, plan_scores) #returns the station with the best average score over all scenarios
+        return self.return_best_move(vehicle, simul, plan_scores) #returns the station which has the highest score in most scenarios
+        # return self.return_best_move_average(vehicle, simul, plan_scores) #returns the station with the best average score over all scenarios
 
 
     def greedy_next_visit(self, plan, simul, number_of_successors, weight_set):
@@ -330,7 +330,7 @@ class PILOT(Policy):
         rng = np.random.default_rng(simul.state.seed) 
         scenarios = []
         stations_dict = simul.state.stations 
-        if number_of_scenarios < 2: #0 or 1, return expected net_demand values
+        if number_of_scenarios < 1: #0, return expected net_demand values
             scenario_dict = dict() #station_id : net demand
             for station_id in stations_dict:
                 net_demand =  calculate_net_demand(stations_dict[station_id], simul.time ,simul.day(),simul.hour(), 60) #returns net demand for next hour 
@@ -375,7 +375,10 @@ class PILOT(Policy):
 
     def return_best_move(self, vehicle, simul, plan_scores): #returns station_id 
         score_board = dict() #station id : number of times this first move returns the best solution
-        for scenario_id in range(self.number_of_scenarios):
+        num_scenarios=self.number_of_scenarios
+        if num_scenarios==0:
+            num_scenarios+=1 #this scenario is now the expected value 
+        for scenario_id in range(num_scenarios):
             best_score = -1000
             best_plan = None
             for plan in plan_scores:
@@ -405,7 +408,10 @@ class PILOT(Policy):
     
     def return_best_move_average(self, vehicle, simul, plan_scores): #returns station_id
         score_board = dict() #plan object: the average score of this plan
-        for scenario_id in range(self.number_of_scenarios):
+        num_scenarios=self.number_of_scenarios
+        if num_scenarios==0:
+            num_scenarios+=1 #this scenario is now the expected value 
+        for scenario_id in range(num_scenarios):
             for plan in plan_scores:
                 score = plan_scores[plan][scenario_id]
                 if plan in score_board:
