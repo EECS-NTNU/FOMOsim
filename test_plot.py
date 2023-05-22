@@ -129,16 +129,17 @@ def solution_times():
     plt.show()
 
 def solution_quality():
-    q0 = [2876.8, 2618.8, 2653.7, 2673.1, 2635, 2891.5, 2906.6]
-    q1 =[2865.7, 2752.9, 2660.8, 2717.9, 2732.7, 2861.4, 2894.5]
-    q2 =[2834.3, 2600.1, 2529.5, 2542.1, 2600]
-    q3 = [2865.5, 2635.3, 2566.1, 2678.5, 2711.3]
-    q4 =[2881.7, 2582.4, 2607.6, 2698.8, 2753]
-    q5 = [2884.1, 2592.2, 2603.1, 2697.5, 2829.5]
-    q6 =[2841.3, 2612.2, 2641, 2680.2, 2706.1]
+    q0 = [2876.8,2618.8,2653.7,2673.1,2635,2891.5,2906.6]
+    q1 =[2924.8,2709.7,2666.1,2653.2,2794.6,2861.4,2894.5]
+    q2 =[2834.3,2600.1,2529.5,2542.1,2600,2661.5]
+    q3 = [2865.5,2635.3,2566.1,2678.5,2711.3]
+    q4 =[2881.7,2582.4,2607.6,2698.8,2753]
+    q5 = [2884.1,2592.2,2603.1,2697.5,2829.5]
+    q6 =[2841.3,2612.2,2641,2680.2,2706.1]
 
-    betas1_20 = [1, 3, 5, 7, 9, 11, 13] 
-    betas1_10 = [1, 3, 5, 7, 9] 
+    betas1_20 = [1, 3, 5, 7, 9, 11, 13]
+    betas1_15 = [1, 3, 5, 7, 9, 11] 
+    betas1_10 = [1, 3, 5, 7, 9]
 
     # Create the plot
     # plt.yscale("log")
@@ -147,7 +148,7 @@ def solution_quality():
     # plt.plot(betas, max_limit, label="max solution time", color='gray', linewidth=2, ls='--')
     plt.plot(betas1_20, q0, label= r'$\alpha=1$', color='#ED7D31', linewidth=1.5, marker='o')
     plt.plot(betas1_20, q1, label=r'$\alpha=2$', color='#2F5597', linewidth=1.5, marker='o')
-    plt.plot(betas1_10, q2, label=r'$\alpha=3$', color='green', linewidth=1.5, marker='o')
+    plt.plot(betas1_15, q2, label=r'$\alpha=3$', color='green', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q3, label=r'$\alpha=4$', color='purple', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q4, label=r'$\alpha=5$', color='pink', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q5, label=r'$\alpha=6$', color='red', linewidth=1.5, marker='o')
@@ -157,11 +158,12 @@ def solution_quality():
     plt.xlabel(r'$\beta$', fontsize=13)
     plt.ylabel('Failed events', fontsize=13)
     plt.title('Number of failed events for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$',fontsize=15)
-    plt.legend()
+    plt.legend(loc='lower right')
 
     plt.grid(axis='y', alpha=0.5)
     plt.yticks(np.arange(2500, 3000, 50))
-    plt.xticks([1,3,5,7])
+    plt.xticks([1,3,5,7,9,11,13], [1,3,5,7,10,15,20])
+
     # Show the plot
     plt.show()
 
@@ -295,8 +297,9 @@ def different_policies2():
 
 # roaming_shares()
 # solution_times()
+solution_quality()
 # branch_number()
 # plot_bar_chart()
 # box_plot()
-different_policies2()
+# different_policies2()
 
