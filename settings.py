@@ -10,11 +10,7 @@ VEHICLE_SPEED = 15
 MINUTES_PER_ACTION = 0.5
 MINUTES_CONSTANT_PER_ACTION = 1
 SERVICE_TIME_FROM = 6 #06:00
-<<<<<<< HEAD
 SERVICE_TIME_TO = 14  #20=20:00
-=======
-SERVICE_TIME_TO = 20  #20:00
->>>>>>> origin/Inngjerdingen
 
 # Bike settings
 
