@@ -6,6 +6,7 @@ import pandas as pd
 import os
 from output.visualizer import totime
 import csv
+from datetime import datetime
 
 #used for branch number
 def plot_bar_chart():
@@ -250,8 +251,10 @@ def different_policies2():
     csv_files = [file for file in os.listdir(directory) if file.endswith('.csv')]
 
     time_stamps = ["Mon 08:00.000000", "Tue 08:00.000000", "Wed 08:00.000000", "Thu 08:00.000000", "Fri 08:00.000000"]
+    # x_datetime_labels = [datetime.strptime(x, "%a %H:%M.%f") for x in time_stamps]
+
     tick_labels = ["Mon 08:00", "Tue 08:00", "Wed 08:00", "Thu 08:00", "Fri 08:00"]
-    colors = ["blue", "red", "green"]
+    colors = ["blue", "red", "green", "purple", "yellow"]
 
     fig, ax =plt.subplots()
     ax.set_xlabel('Time')
@@ -273,18 +276,20 @@ def different_policies2():
             for row in reader:
                 # Extract data from each column
                 times.append(row[0])
-                failures.append(int(row[1]))
+
+                if row[1] == "":
+                    failures.append(0)
+                else:
+                    failures.append(int(row[1]))
             
-            times_new = []
-            for time in times:
-                times_new.append(time)
+            # x_datetime = [datetime.strptime(x, "%a %H:%M.%f") for x in times]
 
-            ax.plot(times_new, failures, color=colors[i], label=csv_file[:-4])
+            ax.plot(times, failures, color=colors[i], label=csv_file[:-4])
 
-    # ax.xaxis.set(ticks=time_stamps, ticklabels=tick_labels)
-    # ax.set_xticks(time_stamps) 
-    # ax.set_xticklabels(tick_labels)
     plt.xticks(time_stamps, labels=tick_labels)
+
+    # ax.set_xticklabels([x.strftime("%a %H:%M.%f") for x in x_datetime_labels])
+
 
     # Add a legend
     ax.legend()

@@ -124,7 +124,7 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*1
         #if we run PILOT policy:
         filename_time = "sol_time_"+filename
         policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
-        # output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = False)
+        output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = False)
         # output.visualize([simulator.metrics], metric="branch0")
         # output.visualize([simulator.metrics], metric="weight_set"+str([0.2, 0.2, 0.1, 0.1, 0.4]))
         # for branch in range(policy.number_of_successors):
@@ -155,10 +155,10 @@ if __name__ == "__main__":
 
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
     # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
-    list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
-    # list_of_seeds=[0]
+    list_of_seeds=[0]
     # list_of_lists_seeds = [[0,1,2],[3,4,5],[6,7,8],[9,10,11],[12,13,14],[15,16],[17,18,19]]
     
     # profiler = cProfile.Profile()
