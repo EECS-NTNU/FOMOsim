@@ -29,17 +29,10 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-<<<<<<< HEAD
-    # INSTANCE= 'BG_W25'
-    # INSTANCE = 'BG_W35'
-    # INSTANCE = 'OS_W31' 
-    INSTANCE = 'OS_W34'
-=======
     INSTANCE = 'OS_W31' 
     # INSTANCE = 'OS_W34'   #more demand 
     # INSTANCE = 'BG_W35'
     # INSTANCE = 'BG_W25'   #more demand
->>>>>>> origin/Inngjerdingen
     # INSTANCE = "NY_W31"
     ###############################################################
     
@@ -65,11 +58,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-<<<<<<< HEAD
-        filename=str(policy)+'_OS_W34_short'+'.csv'
-=======
         filename=str(policy)+"_OS31_normal.csv"
->>>>>>> origin/Inngjerdingen
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -135,11 +124,7 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*1
         #if we run PILOT policy:
         filename_time = "sol_time_"+filename
         policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
-<<<<<<< HEAD
-        # output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = True)
-=======
         output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = False)
->>>>>>> origin/Inngjerdingen
         # output.visualize([simulator.metrics], metric="branch0")
         # output.visualize([simulator.metrics], metric="weight_set"+str([0.2, 0.2, 0.1, 0.1, 0.4]))
         # for branch in range(policy.number_of_successors):
@@ -156,18 +141,11 @@ if __name__ == "__main__":
     # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     
-<<<<<<< HEAD
-    # policy_dict = dict(greedy = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(pilot = policies.inngjerdingen_moeller.PILOT())
-    # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(0, 250))
-    # policy_dict = dict(nothing = policies.do_nothing_policy.DoNothing())
-=======
     # policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
     # policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
     policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing(), Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 260), pilot_X_roaming = policies.inngjerdingen_moeller.PILOT(), FOMOgreedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
->>>>>>> origin/Inngjerdingen
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
     
     # list_of_timehorizons = [10]
@@ -189,19 +167,10 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-<<<<<<< HEAD
-    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
-    
-    list_of_lists_seeds = [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19], [20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]]
-    for li in list_of_lists_seeds:
-        # test_policies(list_of_seeds=li, policy_dict=policy_dict)
-        test_number_of_scenarios(li, [0,1,10,100,500,1000,2000])
-=======
     # for li in list_of_lists_seeds:
     #     test_policies(list_of_seeds=li, policy_dict=policy_dict)
     
     test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
->>>>>>> origin/Inngjerdingen
 
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
