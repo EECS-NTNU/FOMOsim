@@ -58,7 +58,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename=str(policy)+"_OS31_normal.csv"
+        filename=str(policy)+"_OS31_normal_14_days.csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -103,7 +103,7 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
         policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=7)
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*10): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*14): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -146,6 +146,7 @@ if __name__ == "__main__":
     # policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
     policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing(), Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 260), pilot_X_roaming = policies.inngjerdingen_moeller.PILOT(), FOMOgreedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
+    # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 260))
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
     
     # list_of_timehorizons = [10]
@@ -155,10 +156,10 @@ if __name__ == "__main__":
 
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
     # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
-    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
-    list_of_seeds=[0]
+    # list_of_seeds=[0]
     # list_of_lists_seeds = [[0,1,2],[3,4,5],[6,7,8],[9,10,11],[12,13,14],[15,16],[17,18,19]]
     
     # profiler = cProfile.Profile()
