@@ -251,16 +251,16 @@ def different_policies2():
     # Get the list of CSV files in the directory
     csv_files = [file for file in os.listdir(directory) if file.endswith('.csv')]
 
-    time_stamps = ["Mon 07:00.000000", "Tue 07:00.000000", "Wed 07:00.000000", "Thu 07:00.000000", "Fri 07:00.000000", "Sat 07:00.000000", "Sun 07:00.000000"]
+    time_stamps = ["Mon 07:00.000000", "Tue 07:00.000000", "Wed 07:00.000000", "Thu 07:00.000000", "Fri 07:00.000000", "Sat 07:00.000000", "Sun 07:00.000000", "Mon 07:00.000000", "Tue 07:00.000000", "Wed 07:00.000000", "Thu 07:00.000000"]
     x_datetime_labels = [parse(x) for x in time_stamps]
 
-    # tick_labels = ["Mon 08:00", "Tue 08:00", "Wed 08:00", "Thu 08:00", "Fri 08:00"]
+    # tick_labels = ["Mon 07:00", "Tue 07:00", "Wed 07:00", "Thu 07:00", "Fri 07:00", "Sat 07:00", "Sun 07:00"]
     colors = ["blue", "red", "green", "purple", "yellow"]
 
     fig, ax =plt.subplots()
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Accumulated Number of Failed Events')
-    ax.set_title('Failed Events by Policy')
+    ax.set_xlabel('Time', fontweight='bold')
+    ax.set_ylabel('Accumulated Failed Events', fontweight='bold')
+    ax.set_title('Failed Events by Policy', fontweight='bold')
 
     current_year = 2023
     current_month = 5
@@ -304,11 +304,13 @@ def different_policies2():
 
     # plt.xticks(time_stamps, labels=tick_labels)
 
-    # ax.set_xticklabels([x.strftime("%a %H:%M") for x in x_datetime_labels])
-
+    ax.set_xticklabels([x.strftime("%a") for x in x_datetime_labels])
+    ax.tick_params(axis='x', color='lightgray')
+    ax.tick_params(axis='y', color='lightgray')
 
     # Add a legend
     ax.legend()
+    ax.yaxis.grid(True, color='lightgray', linewidth=0.5)
 
     # Show the plot
     plt.show()

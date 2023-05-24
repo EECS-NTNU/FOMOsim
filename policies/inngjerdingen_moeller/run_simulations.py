@@ -58,7 +58,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename=str(policy)+"_OS31_normal_14_days.csv"
+        filename=str(policy)+"_OS31_normal_30_days.csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -103,7 +103,7 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
         policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=7)
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*14): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*30): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
