@@ -134,6 +134,7 @@ if __name__ == "__main__":
         # filename = "instances/NY_W31"
         # filename = "instances/OS_W34"
         # filename = "instances/BG_W25"
+        filename = "instances/BO_W31"
 
         START_DAY = 0 #0 -> monday ,days other than 0 results in target inventory = 0 for all stations
         START_HOUR = 8 #8 -> 08:00 am
