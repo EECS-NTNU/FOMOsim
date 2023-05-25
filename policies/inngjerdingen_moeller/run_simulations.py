@@ -106,12 +106,12 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
 
 def test_instances(list_of_seeds, list_of_instances):
     num_vehicles = 2
-    # policy = policies.inngjerdingen_moeller.PILOT()
-    policy = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05])
+    policy = policies.inngjerdingen_moeller.PILOT()
+    # policy = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05])
     for instance in list_of_instances:
         if instance == 'BG_W35':
             num_vehicles = 1
-        filename=str(instance)+"_normal_no_roam_10_days.csv"
+        filename=str(instance)+"_normal_roam_10_days.csv"
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles, instance=instance)
 
 def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*10, instance=None): #change duration and number of vehicles HERE!
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     
     # policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
-    policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
+    # policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
     # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing(), Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 260), pilot_X_roaming = policies.inngjerdingen_moeller.PILOT(), FOMOgreedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(Kloimüllner_5 = policies.inngjerdingen_moeller.PILOT(1, 5))
@@ -166,11 +166,12 @@ if __name__ == "__main__":
     # evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.6, 0.3, 0.1], i=[1.0, 0.0, 0.0], j=[0.45, 0.45, 0.1], k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33], m=[0.9, 0.05, 0.05], n=[0.95, 0.04, 0.01], o=[0.85, 0.1, 0.05], p=[0.9, 0.09, 0.01])
     # criticality_weights = dict(a=[[0.2, 0.2, 0.2, 0.2, 0.2]], b=[[0.3, 0.15, 0.25, 0.2, 0.1]], c=[[0.2, 0.4, 0.2, 0.1, 0.1]], d=[[0.3, 0.3, 0.1, 0.1, 0.2]], e=[[0.2, 0.7, 0.05, 0.05, 0]], f=[[0.05, 0.9, 0.05, 0, 0]], g=[[0.1, 0.6, 0.1, 0.1, 0.1]], h=[[0.3, 0.5, 0, 0, 0.2]], i=[[0.9, 0, 0, 0.1, 0]], j=[[0.7, 0.05, 0.1, 0.1, 0.05]], k=[[0.6, 0.1, 0.05, 0.2, 0.05]], l=[[0.5, 0.05, 0.2, 0.05, 0.2]], m=[[1, 0, 0, 0, 0]], n=[[0, 1, 0, 0, 0]], o=[[0, 0, 1, 0, 0]], p=[[0, 0, 0, 1, 0]], q=[[1, 0, 0, 0, 0]])
     # list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
-    # list_of_instances = ['OS_W31', 'OS_W34', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old',]
+    list_of_instances = ['OS_W31', 'OS_W34', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old',]
 
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
     # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
-    list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    list_of_lists_seeds=[[0,1,2,3,4,5,6,7,8,9],[10,11,12,13,14,15,16,17,18,19]]
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
     # list_of_seeds=[0]
@@ -182,10 +183,11 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    # for li in list_of_lists_seeds:
+    for li in list_of_lists_seeds:
     #     test_policies(list_of_seeds=li, policy_dict=policy_dict)
-    
-    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+        test_instances(li, list_of_instances)
+
+    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_instances(list_of_seeds, list_of_instances)
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
