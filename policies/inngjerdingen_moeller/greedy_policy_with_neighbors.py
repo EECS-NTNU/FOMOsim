@@ -88,8 +88,8 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
 
     #can calculate a "neighborhood-demand" (negative or positive) and add this to the target state to compensate for neighborhood interactions 
 
-    starved_neighbors=0
-    congested_neighbors=0
+    starved_neighbors = 0
+    congested_neighbors = 0
     # for neighbor in station.neighboring_stations:
     #     num_bikes_neighbor = neighbor.number_of_bikes()
     #     if num_bikes_neighbor < 0.1*neighbor.capacity:
