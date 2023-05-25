@@ -452,7 +452,7 @@ class PILOT(Policy):
         
         if num_bikes_station < target_state: #deliver bikes
             #deliver bikes, max to the target state
-            number_of_bikes_to_deliver = min(vehicle_inventory, target_state - num_bikes_station + 6*starved_neighbors)
+            number_of_bikes_to_deliver = min(vehicle_inventory, target_state - num_bikes_station + 4*starved_neighbors)
             
         elif num_bikes_station > target_state: #pick-up bikes
             remaining_vehicle_capacity = vehicle.bike_inventory_capacity - vehicle_inventory

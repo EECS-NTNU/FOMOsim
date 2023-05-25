@@ -59,7 +59,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename=str(policy)+"_OS31_6_per_neigh_normal_10_days.csv"
+        filename=str(policy)+"_OS31_4_per_neigh_normal_10_days.csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
