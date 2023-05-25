@@ -29,8 +29,8 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    INSTANCE = 'OS_W31' 
-    # INSTANCE = 'OS_W34'   #more demand 
+    # INSTANCE = 'OS_W31' 
+    INSTANCE = 'OS_W34'   #more demand 
     # INSTANCE = 'BG_W35'
     # INSTANCE = 'BG_W25'   #more demand
     # INSTANCE = "NY_W31"
@@ -93,14 +93,14 @@ def test_alpha_beta(list_of_seeds, alpha, beta_list):
 
 def test_number_of_scenarios(list_of_seeds, scenario_list):
      for number in scenario_list:
-        filename= "num_scenarios_nor_"+str(number)+".csv"
+        filename= "num_scenarios_"+str(number)+".csv"
         policy=policies.inngjerdingen_moeller.PILOT(number_of_scenarios=number, max_depth=2, number_of_successors=7)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_num_vehicles(list_of_seeds, vehicles_list):
      for v in vehicles_list:
-        filename= "num_vehicles_"+str(v)+"V.csv"
-        policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=10, time_horizon=40)
+        filename= "num_vehicles_PILOT_X"+str(v)+"V.csv"
+        policy=policies.inngjerdingen_moeller.PILOT(max_depth=2, number_of_successors=5, time_horizon=40)
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
 def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*10): #change duration and number of vehicles HERE!
@@ -122,9 +122,9 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*1
     for simulator in returned_simulators:
         policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
         #if we run PILOT policy:
-        filename_time = "sol_time_"+filename
-        policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
-        output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = False)
+        # filename_time = "sol_time_"+filename
+        # policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
+        # output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = False)
         # output.visualize([simulator.metrics], metric="branch0")
         # output.visualize([simulator.metrics], metric="weight_set"+str([0.2, 0.2, 0.1, 0.1, 0.4]))
         # for branch in range(policy.number_of_successors):
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
     # policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
-    policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing(), Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 260), pilot_X_roaming = policies.inngjerdingen_moeller.PILOT(), FOMOgreedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
+    # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing(), Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 260), pilot_X_roaming = policies.inngjerdingen_moeller.PILOT(), FOMOgreedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
     
     # list_of_timehorizons = [10]
@@ -155,7 +155,7 @@ if __name__ == "__main__":
 
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
     # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
-    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
    
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
@@ -170,13 +170,13 @@ if __name__ == "__main__":
     # for li in list_of_lists_seeds:
     #     test_policies(list_of_seeds=li, policy_dict=policy_dict)
     
-    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
 
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
     # test_number_of_scenarios(list_of_seeds, [0,1,10,100,500,1000,2000])
     # test_timehorizons(list_of_seeds, list_of_timehorizons)
-    # test_num_vehicles(list_of_seeds,[1,2,3,4,5])
+    test_num_vehicles(list_of_seeds,[1,2,3])
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))
