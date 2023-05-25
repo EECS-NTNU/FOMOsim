@@ -99,10 +99,10 @@ def test_number_of_scenarios(list_of_seeds, scenario_list):
 
 def test_num_vehicles(list_of_seeds, vehicles_list):
      for v in vehicles_list:
-        filename= "num_vehicles_FOMO_greedy_"+str(v)+"V.csv"
+        filename= "num_vehicles_greedy_neigh_"+str(v)+"V.csv"
         # policy=policies.inngjerdingen_moeller.PILOT(max_depth=2, number_of_successors=5, time_horizon=40)
-        policy = policies.GreedyPolicy()
-        # policy= policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction()
+        # policy = policies.GreedyPolicy()
+        policy= policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction()
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
 def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*10): #change duration and number of vehicles HERE!
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
     # test_number_of_scenarios(list_of_seeds, [0,1,10,100,500,1000,2000])
     # test_timehorizons(list_of_seeds, list_of_timehorizons)
-    test_num_vehicles(list_of_seeds,[3])
+    test_num_vehicles(list_of_seeds,[1,2,3])
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))
