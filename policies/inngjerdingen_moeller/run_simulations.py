@@ -58,7 +58,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None):
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename=str(policy)+"_OS31_normal.csv"
+        filename="num_vehicles_"+str(policy)+"_4V.csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -105,7 +105,7 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
         policy= policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction()
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*10): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=4, duration=24*10): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
     # policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
-    # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing(), Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 260), pilot_X_roaming = policies.inngjerdingen_moeller.PILOT(), FOMOgreedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
+    policy_dict = dict(PILOT_X = policies.inngjerdingen_moeller.PILOT(max_depth=2, number_of_successors=5, time_horizon=40), FOMO_greedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
     
     # list_of_timehorizons = [10]
@@ -172,13 +172,13 @@ if __name__ == "__main__":
     # for li in list_of_lists_seeds:
     #     test_policies(list_of_seeds=li, policy_dict=policy_dict)
     
-    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
 
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
     # test_number_of_scenarios(list_of_seeds, [0,1,10,100,500,1000,2000])
     # test_timehorizons(list_of_seeds, list_of_timehorizons)
-    test_num_vehicles(list_of_seeds,[1,2,3])
+    # test_num_vehicles(list_of_seeds,[1,2,3])
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))
