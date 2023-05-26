@@ -31,9 +31,9 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
     # INSTANCE = 'TD_W34_old'
     # INSTANCE = 'OS_W31' 
     # INSTANCE = 'OS_W34'   #more demand 
-    # INSTANCE = 'BG_W35'
+    INSTANCE = 'BG_W35'
     # INSTANCE = 'BG_W25'   #more demand
-    INSTANCE = "NY_W31"
+    # INSTANCE = "NY_W31"
     # INSTANCE = "BO_W31"
     ###############################################################
     
@@ -59,7 +59,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename=str(policy)+"_NY31_3V_normal_10_days.csv"
+        filename=str(policy)+"_BG35_1V_normal_10_days.csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -114,7 +114,7 @@ def test_instances(list_of_seeds, list_of_instances):
         filename=str(instance)+"_normal_roam_10_days.csv"
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles, instance=instance)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=3, duration=24*10, instance=None): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*10, instance=None): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
