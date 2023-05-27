@@ -442,13 +442,13 @@ class PILOT(Policy):
         
         starved_neighbors = 0
         congested_neighbors = 0
-        # for neighbor in station.neighboring_stations:
-        #     net_demand_neighbor =  calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), 60)
-        #     num_bikes_neighbor = neighbor.number_of_bikes() + ((current_time-simul.time)/60)*net_demand_neighbor
-        #     if num_bikes_neighbor < 0.1*neighbor.capacity:
-        #         starved_neighbors += 1
-        #     elif num_bikes_neighbor > 0.9*neighbor.capacity:
-        #         congested_neighbors += 1
+        for neighbor in station.neighboring_stations:
+            net_demand_neighbor =  calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), 60)
+            num_bikes_neighbor = neighbor.number_of_bikes() + ((current_time-simul.time)/60)*net_demand_neighbor
+            if num_bikes_neighbor < 0.1*neighbor.capacity:
+                starved_neighbors += 1
+            elif num_bikes_neighbor > 0.9*neighbor.capacity:
+                congested_neighbors += 1
 
         if num_bikes_station < target_state: #deliver bikes
             #deliver bikes, max to the target state
