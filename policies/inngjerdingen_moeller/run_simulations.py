@@ -111,7 +111,7 @@ def test_instances(list_of_seeds, list_of_instances):
     for instance in list_of_instances:
         if instance == 'BG_W35':
             num_vehicles = 1
-        filename=str(instance)+"_normal_no_roam_10_days.csv"
+        filename=str(instance)+"_normal_roam_10_days.csv"
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles, instance=instance)
 
 def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=3, duration=24*10, instance=None): #change duration and number of vehicles HERE!
