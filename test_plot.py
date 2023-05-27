@@ -305,12 +305,57 @@ def different_policies2():
     # Show the plot
     plt.show()
             
+def effects_of_roaming():
+    # Sample data
+    instances = ['TD_W34_1V', 'BG_W35_1V', 'OS_W31_3V', 'OS_W34_2V']
+    metrics = ['Starvations', 'Roaming,\nbikes', 'Long roaming,\nlocks', 'Short roaming,\nlocks']
+    data_without_interaction = np.array([[8, 12, 10, 15],
+                                        [13, 9, 11, 14],
+                                        [2709, 2162, 5816,4514],
+                                        [11, 13, 9, 12]])
+    
+    data_with_interaction = np.array([[1, 2, 3, 4],
+                                    [14, 11, 9, 13],
+                                    [2713, 2177, 5493, 4404],
+                                    [12, 9, 13, 11]])
+    
+    
+   
+    # Plotting
+    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+
+    bar_width = 0.35
+    index = np.arange(len(metrics))
+
+    for i in range(2):
+        for j in range(2):
+            ax = axs[i, j]
+            instance = instances[i * 2 + j]
+
+            # Plot data with neighborhood interactions
+            ax.bar(index, data_with_interaction[i * 2 + j], bar_width, label='Neighborhood Interactions', color='#ED7D31')
+            # Plot data without neighborhood interactions
+            ax.bar(index + bar_width, data_without_interaction[i * 2 + j], bar_width, label='No Neighborhood Interactions', color='#2F5597')
+
+            ax.set_title(instance)
+            ax.set_ylabel('Quantity')
+            ax.set_xticks(index + bar_width / 2)
+            ax.set_xticklabels(metrics)
+            handles, labels = ax.get_legend_handles_labels()
+            fig.legend(handles, labels, loc='lower center', ncol=2)
+
+    # Adjust spacing between subplots
+    plt.tight_layout(pad=3)
+
+    # Show the plot
+    plt.show()
+
 
 # roaming_shares()
 # solution_times()
 # solution_quality()
 # branch_number()
 # plot_bar_chart()
-box_plot()
+# box_plot()
 # different_policies2()
-
+effects_of_roaming()
