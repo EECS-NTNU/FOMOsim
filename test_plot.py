@@ -9,6 +9,8 @@ import csv
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 
+plt.rcParams["font.family"] = "Times New Roman"
+
 #used for branch number
 def plot_bar_chart():
     data = [7429,4827,4383,3670,3355,2346,2287,2682,2690,2577,2144,2025,2219,1701,1278,1672,1661,1649,1509,1496]
@@ -184,6 +186,8 @@ def box_plot():
             [2388,2333,2534,2661,2599,2628,2143,2513,2644,2168]
             ] 
     
+    #5B9BD5
+
     # Create a figure and axes
     fig, ax = plt.subplots()
 
@@ -191,9 +195,9 @@ def box_plot():
 
     # Set labels and title
     ax.set_xticklabels(['1', '10', '100', '500', '1000', '2000'])
-    ax.set_ylabel('Failed events')
-    ax.set_xlabel('# scenarios')
-    ax.set_title('Boxplot')
+    ax.set_ylabel('Failed events', fontsize=12)
+    ax.set_xlabel('# scenarios', fontsize=12)
+    ax.set_title('Boxplot',fontweight='bold', fontsize=14)
 
     # Display the plot
     plt.show()
@@ -258,9 +262,10 @@ def different_policies2():
     colors = ["blue", "red", "green", "purple", "yellow"]
 
     fig, ax =plt.subplots()
-    ax.set_xlabel('Time', fontweight='bold')
-    ax.set_ylabel('Accumulated Failed Events', fontweight='bold')
-    ax.set_title('Failed Events by Policy', fontweight='bold')
+    ax.set_title('Failed Events by Policy', fontweight='bold', fontsize=14)
+    ax.set_xlabel('Time', fontsize=12)
+    ax.set_ylabel('Accumulated Failed Events', fontsize=12)
+
 
     current_year = 2023
     current_month = 5
