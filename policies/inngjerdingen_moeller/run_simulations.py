@@ -59,7 +59,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename=str(policy)+"_OS31_2V_no_roam_normal_10_days.csv"
+        filename=str(policy)+"_OS31_2V_roam_normal_10_days.csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -131,8 +131,8 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*1
     for process in processes:
         process.join()
     for simulator in returned_simulators:
-        print("Average also starved neighbors (no roam):", simulator.metrics.get_aggregate_value("similarly imbalanced starved")/simulator.metrics.get_aggregate_value('number of problems solved'))
-        print("Average also congested neighbors(no roam):", simulator.metrics.get_aggregate_value("similarly imbalanced congested")/simulator.metrics.get_aggregate_value('number of problems solved'))
+        print("Average also starved neighbors (roam):", simulator.metrics.get_aggregate_value("similarly imbalanced starved")/simulator.metrics.get_aggregate_value('number of problems solved'))
+        print("Average also congested neighbors(roam):", simulator.metrics.get_aggregate_value("similarly imbalanced congested")/simulator.metrics.get_aggregate_value('number of problems solved'))
         policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
         #if we run PILOT policy:
         # filename_time = "sol_time_"+filename
@@ -155,8 +155,8 @@ if __name__ == "__main__":
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
     
     # policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
-    # policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
+    # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
+    policy_dict = dict(pilot_roaming = policies.inngjerdingen_moeller.PILOT())
     # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
     # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing(), Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 260), pilot_X_roaming = policies.inngjerdingen_moeller.PILOT(), FOMOgreedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing(), pilot_X_roaming = policies.inngjerdingen_moeller.PILOT(), FOMOgreedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
