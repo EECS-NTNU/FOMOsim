@@ -356,6 +356,46 @@ def effects_of_roaming():
     # Show the plot
     plt.show()
 
+def comparison_policies():
+    # starvations = np.array([[853,463,447,444,430], [8716,3908,2960,3117,2680], [28665,20623,19810,0,19342]])
+    # roaming_locks = np.array([[1034,418,359,377,367], [21512,7442,6918,6363,5563], [18717,11929,10665,0,10149]])
+
+    starvations = np.array([[463,447,444,430], [3908,2960,3117,2680], [20623,19810,0,19342]])
+    roaming_locks = np.array([[418,359,377,367], [7442,6918,6363,5563], [11929,10665,0,10149]])
+    
+    # policies =["Do_nothing", "GP", "GPNI", "Kloimüllner PILOT", "X-PILOT"]
+    policies =["GP", "GPNI", "Kloimüllner \nPILOT", "X-PILOT"]
+    instances = ['BG_W35_1V','OS_W31_2V','NY_W31_3V']
+    # Create figure and subplots
+    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+
+    # Plot for each instance
+    for i in range(len(instances)):
+        # Positions of the bars
+        bar_positions = np.arange(len(policies))
+        
+        # Width of each bar group
+        bar_width = 0.35
+        
+        # Plot the grouped sets of bars (starvations and roaming_locks)
+       
+        axs[i].bar(bar_positions, starvations[i], width=bar_width, label='Starvations', color='#2F5597')
+        axs[i].bar(bar_positions + bar_width, roaming_locks[i], width=bar_width, label='Long Roaming, Locks',  color='#5B9BD5')
+
+        axs[i].set_xticks(bar_positions + bar_width/2)
+        axs[i].set_xticklabels(policies)
+        axs[i].set_title(instances[i])
+        axs[i].set_axisbelow(True)
+        axs[i].grid(axis='y', alpha=0.5)
+        handles, labels = axs[i].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='lower center', ncol=3)
+    
+    plt.tight_layout()
+
+    # Show the plot
+    plt.show()
+
+    
 
 # roaming_shares()
 # solution_times()
@@ -364,4 +404,5 @@ def effects_of_roaming():
 # plot_bar_chart()
 # box_plot()
 # different_policies2()
-effects_of_roaming()
+# effects_of_roaming()
+comparison_policies()
