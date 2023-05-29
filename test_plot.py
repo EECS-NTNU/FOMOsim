@@ -307,36 +307,42 @@ def different_policies2():
             
 def effects_of_roaming():
     # Sample data
-    instances = ['TD_W34_1V', 'BG_W35_1V', 'OS_W31_3V', 'OS_W34_2V']
+    instances = ['TD_W34_1V', 'BG_W35_1V','OS_W31_1V', 'OS_W31_2V', 'OS_W34_2V', 'NY_W31_2V']
     metrics = ['Starvations', 'Roaming,\nbikes', 'Long roaming,\nlocks', 'Short roaming,\nlocks']
-    data_without_interaction = np.array([[8, 12, 10, 15],
-                                        [13, 9, 11, 14],
+    data_without_interaction = np.array([[198,160,81,162],
+                                        [417,824,365,958],
+                                        [5247,3135,12343,6727],
                                         [2709, 2162, 5816,4514],
-                                        [11, 13, 9, 12]])
+                                        [6050,4926,12069,8156],
+                                        [21607,14049,12030,7094]])
     
-    data_with_interaction = np.array([[1, 2, 3, 4],
-                                    [14, 11, 9, 13],
+    data_with_interaction = np.array([[199,168,89,166],
+                                    [434,849,369,972],
+                                    [5166,3116,11926,6606],
                                     [2713, 2177, 5493, 4404],
-                                    [12, 9, 13, 11]])
+                                    [6037,4922,11747,7966],
+                                    [21526,13949,11911,7081]])
     
     
    
     # Plotting
-    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+    fig, axs = plt.subplots(3, 2, figsize=(10, 8))
 
     bar_width = 0.35
     index = np.arange(len(metrics))
 
-    for i in range(2):
+    for i in range(3):
         for j in range(2):
             ax = axs[i, j]
             instance = instances[i * 2 + j]
+            
+            # Plot data without neighborhood interactions
+            ax.bar(index, data_without_interaction[i * 2 + j], bar_width, label='No interactions', color='#2F5597')
 
             # Plot data with neighborhood interactions
-            ax.bar(index, data_with_interaction[i * 2 + j], bar_width, label='Neighborhood Interactions', color='#ED7D31')
-            # Plot data without neighborhood interactions
-            ax.bar(index + bar_width, data_without_interaction[i * 2 + j], bar_width, label='No Neighborhood Interactions', color='#2F5597')
-
+            ax.bar(index+ bar_width, data_with_interaction[i * 2 + j], bar_width, label='Neighborhood interactions', color='#ED7D31')
+            
+            
             ax.set_title(instance)
             ax.set_ylabel('Quantity')
             ax.set_xticks(index + bar_width / 2)
