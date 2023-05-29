@@ -10,7 +10,7 @@ def calculate_criticality(weights, simul, potential_stations, station, visited_s
     deviation_list = []
     neighborhood_crit_list = [] 
     demand_crit_list = []
-    driving_time_list = []
+    driving_time_list = [] 
     # current_station = route[-1].station
 
     # CALCULATE CRITICALITY FOR EACH POTENTIAL STATION

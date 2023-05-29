@@ -1,6 +1,6 @@
 """
 This file contains a greedy policy
-"""
+""" 
 import numpy as np 
 from policies import Policy
 from policies.gleditsch_hagen.utils import calculate_net_demand

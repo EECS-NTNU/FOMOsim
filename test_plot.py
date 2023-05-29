@@ -133,16 +133,17 @@ def solution_times():
     plt.show()
 
 def solution_quality():
-    q0 = [2876.8, 2618.8, 2653.7, 2673.1, 2635, 2891.5, 2906.6]
-    q1 =[2865.7, 2752.9, 2660.8, 2717.9, 2732.7, 2861.4, 2894.5]
-    q2 =[2834.3, 2600.1, 2529.5, 2542.1, 2600]
-    q3 = [2865.5, 2635.3, 2566.1, 2678.5, 2711.3]
-    q4 =[2881.7, 2582.4, 2607.6, 2698.8, 2753]
-    q5 = [2884.1, 2592.2, 2603.1, 2697.5, 2829.5]
-    q6 =[2841.3, 2612.2, 2641, 2680.2, 2706.1]
+    q0 = [2876.8,2618.8,2653.7,2673.1,2635,2891.5,2906.6]
+    q1 =[2924.8,2709.7,2666.1,2653.2,2794.6,2861.4,2894.5]
+    q2 =[2834.3,2600.1,2529.5,2542.1,2600,2661.5]
+    q3 = [2865.5,2635.3,2566.1,2678.5,2711.3]
+    q4 =[2881.7,2582.4,2607.6,2698.8,2753]
+    q5 = [2884.1,2592.2,2603.1,2697.5,2829.5]
+    q6 =[2841.3,2612.2,2641,2680.2,2706.1]
 
-    betas1_20 = [1, 3, 5, 7, 9, 11, 13] 
-    betas1_10 = [1, 3, 5, 7, 9] 
+    betas1_20 = [1, 3, 5, 7, 9, 11, 13]
+    betas1_15 = [1, 3, 5, 7, 9, 11] 
+    betas1_10 = [1, 3, 5, 7, 9]
 
     # Create the plot
     # plt.yscale("log")
@@ -151,7 +152,7 @@ def solution_quality():
     # plt.plot(betas, max_limit, label="max solution time", color='gray', linewidth=2, ls='--')
     plt.plot(betas1_20, q0, label= r'$\alpha=1$', color='#ED7D31', linewidth=1.5, marker='o')
     plt.plot(betas1_20, q1, label=r'$\alpha=2$', color='#2F5597', linewidth=1.5, marker='o')
-    plt.plot(betas1_10, q2, label=r'$\alpha=3$', color='green', linewidth=1.5, marker='o')
+    plt.plot(betas1_15, q2, label=r'$\alpha=3$', color='green', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q3, label=r'$\alpha=4$', color='purple', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q4, label=r'$\alpha=5$', color='pink', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q5, label=r'$\alpha=6$', color='red', linewidth=1.5, marker='o')
@@ -161,29 +162,32 @@ def solution_quality():
     plt.xlabel(r'$\beta$', fontsize=13)
     plt.ylabel('Failed events', fontsize=13)
     plt.title('Number of failed events for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$',fontsize=15)
-    plt.legend()
+    plt.legend(loc='lower right')
 
     plt.grid(axis='y', alpha=0.5)
     plt.yticks(np.arange(2500, 3000, 50))
-    plt.xticks([1,3,5,7])
+    plt.xticks([1,3,5,7,9,11,13], [1,3,5,7,10,15,20])
+
     # Show the plot
     plt.show()
 
 def box_plot():
-    data_normal = [[2797,2520,2589,2736,2935,2548,2405,2470,2355,2429],
-            [2734,2503,2713,2621,2681,2563,2469,2565,2812,2276],
-            [2800,2483,2326,2632,2523,2568,2568,2501,2603,2480],
-            [2703,2497,2386,2533,2654,2352,2196,2583,2441,2270],
-            [2644,2617,2669,2370,2684,2665,2299,2307,2495,2251],
-            [2656,2706,2364,2451,2313,2641,2129,2242,2434,2288]
+    data_normal = [[10711,11064,10808,9781,11248,9652,9974,11537,11067,10449,10418,11422,11404,11415,10992,11697,10513,10133,10219,11039,9906,10051,11064,12085,10824,10713,11022,10940,11232,9855,11756,10773,10894,11732,11070,10872,10153,11522,11324,10343],
+            [10721,10622,11018,10059,11034,9771,10161,10729,11071,10643,10198,10763,10453,11582,11065,11337,10619,9499,9662,10724,9581,10234,10883,12156,11606,10313,10544,10684,10560,9885,11689,10660,10925,10908,10519,10849,9740,10973,11128,10365],
+            [10652,10588,11050,10042,11235,10538,9929,10930,11037,10689,10096,10913,10440,11788,10831,11273,10757,9378,9562,10841,9623,9739,11083,11997,11309,10542,10609,10803,10593,9740,11507,10504,11088,10869,10370,10913,9632,10962,11186,10610],
+            [10656,10598,10859,10020,11680,9711,9919,11386,10497,10181,10186,11332,10180,11331,10711,11024,10742,9828,9977,11141,9580,10467,10813,11528,11574,10600,10545,10594,10770,9960,11842,10001,11153,11383,10802,11082,9910,10714,11019,10544],
+            [10962,10497,10786,10374,11176,10193,10442,10907,10579,10494,10343,10730,10835,11442,11072,11537,11315,9527,10148,10464,9277,9912,10747,11882,11703,10613,10441,10748,10675,9819,10990,10279,10834,11050,10705,11166,10033,10857,11268,10100],
+            [10305,10558,10953,9986,11341,9675,10024,10859,10756,10020,10704,11342,10379,11374,10596,10678,10874,9978,9888,10638,9567,9957,10587,11860,11495,10506,10581,10715,10939,9507,11317,10426,10587,11315,10714,11004,10234,10755,11291,10762],
+            [10455,10676,10404,9975,10733,9950,9904,10593,10409,10507,9928,10513,10634,11280,10812,11361,10467,9767,10117,10665,9235,10308,11348,11938,11879,11089,10715,10844,11236,9920,11095,10465,10820,11160,10683,10568,9845,10980,11155,9920]
             ] 
     
-    data_poisson = [[2645,2506,2551,2687,2632,2492,2353,2318,2573,2230],
-            [2545,2453,2341,2572,2557,2695,2492,2382,2478,2392],
-            [2740,2369,2248,2681,2364,2599,2215,2308,2296,2330],
-            [2637,2427,2609,2639,2566,2610,2360,2407,2440,2275],
-            [2676,2505,2574,2460,2531,2511,2572,2165,2593,2201],
-            [2388,2333,2534,2661,2599,2628,2143,2513,2644,2168]
+    data_poisson = [[10656,10396,10737,10313,11464,10313,9714,10934,10106,10829,10166,11011,10219,11289,10333,11206,10310,9994,10058,10698,9140,10072,10882,11559,12129,10450,10801,10863,11292,9491,10992,10056,10589,11103,11070,10808,10031,10691,11444,10157],
+            [10445,10386,11360,10231,11340,9581,10373,11255,10653,10514,10350,11084,10800,11937,10933,11336,10669,9753,9843,10955,9657,10045,10909,12089,12071,11225,10809,11141,10799,9558,10981,10781,10941,11306,11172,11149,10395,11358,11015,10470],
+            [10745,10287,10978,9802,11368,9859,10488,11147,10770,10412,10057,10866,11113,11495,10467,10770,10564,9594,10098,11089,9340,10496,11097,11687,11642,10739,10389,10841,11189,9568,11374,10673,10681,10655,10998,10730,10047,11122,11221,10461],
+            [10317,10546,10928,9911,11028,9793,10056,11166,10506,10750,9927,10770,10592,11343,11077,11277,10508,9884,10156,10381,9586,10294,11197,11297,11965,10582,10535,11090,10881,9504,10837,10508,10659,11170,10852,10862,10083,11109,11145,10117],
+            [10479,10420,10853,9867,11173,10059,9824,11152,10568,10326,9909,11117,10598,11023,10039,11371,10527,9877,9905,10897,9336,10083,11206,11372,11766,10192,10657,10561,10771,9780,10906,10686,10551,11115,10504,11317,9955,10739,11120,10533],
+            [10290,10425,10765,9971,11044,10057,10227,10711,10473,10317,10278,10544,10398,11047,10703,11208,10843,9669,9773,11291,9133,10290,10925,11592,11417,10687,10270,10971,10754,9638,11256,10320,10350,11165,10928,10987,10028,11133,11023,10005],
+            [10449,10455,10397,9783,11230,9583,10155,10836,10642,10466,10320,10511,10305,11180,10801,11350,10644,9827,9979,10620,9383,10184,10792,11938,11546,10358,10240,10800,10745,9456,10725,10015,10684,11105,11014,10658,10101,10671,10917,10324]
             ] 
     
     #5B9BD5
@@ -194,12 +198,16 @@ def box_plot():
     boxplots = ax.boxplot(data_poisson, vert=True, showmeans=True, meanline=True)
 
     # Set labels and title
-    ax.set_xticklabels(['1', '10', '100', '500', '1000', '2000'])
-    ax.set_ylabel('Failed events', fontsize=12)
-    ax.set_xlabel('# scenarios', fontsize=12)
-    ax.set_title('Boxplot',fontweight='bold', fontsize=14)
+    plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "Times New Roman"})
+    ax.set_xticklabels(['Expected demand','1', '10', '100', '500', '1000', '2000'])
+    ax.set_ylabel('Failed events',fontsize=13)
+    ax.set_xlabel('# scenarios', fontsize=13)
+    ax.set_title('Failed events for different number of scenarios', fontsize=15)
 
     # Display the plot
+    
     plt.show()
 
 def different_policies():
@@ -320,11 +328,104 @@ def different_policies2():
     # Show the plot
     plt.show()
             
+def effects_of_roaming():
+    # Sample data
+    instances = ['TD_W34_1V', 'BG_W35_1V','OS_W31_1V', 'OS_W31_2V', 'OS_W34_2V', 'NY_W31_2V']
+    metrics = ['Starvations', 'Roaming,\nbikes', 'Long roaming,\nlocks', 'Short roaming,\nlocks']
+    data_without_interaction = np.array([[198,160,81,162],
+                                        [417,824,365,958],
+                                        [5247,3135,12343,6727],
+                                        [2709, 2162, 5816,4514],
+                                        [6050,4926,12069,8156],
+                                        [21607,14049,12030,7094]])
+    
+    data_with_interaction = np.array([[199,168,89,166],
+                                    [434,849,369,972],
+                                    [5166,3116,11926,6606],
+                                    [2713, 2177, 5493, 4404],
+                                    [6037,4922,11747,7966],
+                                    [21526,13949,11911,7081]])
+    
+    
+   
+    # Plotting
+    fig, axs = plt.subplots(3, 2, figsize=(10, 8))
+
+    bar_width = 0.35
+    index = np.arange(len(metrics))
+
+    for i in range(3):
+        for j in range(2):
+            ax = axs[i, j]
+            instance = instances[i * 2 + j]
+            
+            # Plot data without neighborhood interactions
+            ax.bar(index, data_without_interaction[i * 2 + j], bar_width, label='No interactions', color='#2F5597')
+
+            # Plot data with neighborhood interactions
+            ax.bar(index+ bar_width, data_with_interaction[i * 2 + j], bar_width, label='Neighborhood interactions', color='#ED7D31')
+            
+            
+            ax.set_title(instance)
+            ax.set_ylabel('Quantity')
+            ax.set_xticks(index + bar_width / 2)
+            ax.set_xticklabels(metrics)
+            handles, labels = ax.get_legend_handles_labels()
+            fig.legend(handles, labels, loc='lower center', ncol=2)
+
+    # Adjust spacing between subplots
+    plt.tight_layout(pad=3)
+
+    # Show the plot
+    plt.show()
+
+def comparison_policies():
+    # starvations = np.array([[853,463,447,444,430], [8716,3908,2960,3117,2680], [28665,20623,19810,0,19342]])
+    # roaming_locks = np.array([[1034,418,359,377,367], [21512,7442,6918,6363,5563], [18717,11929,10665,0,10149]])
+
+    starvations = np.array([[463,447,444,430], [3908,2960,3117,2680], [20623,19810,0,19342]])
+    roaming_locks = np.array([[418,359,377,367], [7442,6918,6363,5563], [11929,10665,0,10149]])
+    
+    # policies =["Do_nothing", "GP", "GPNI", "Kloimüllner PILOT", "X-PILOT"]
+    policies =["GP", "GPNI", "Kloimüllner \nPILOT", "X-PILOT"]
+    instances = ['BG_W35_1V','OS_W31_2V','NY_W31_3V']
+    # Create figure and subplots
+    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+
+    # Plot for each instance
+    for i in range(len(instances)):
+        # Positions of the bars
+        bar_positions = np.arange(len(policies))
+        
+        # Width of each bar group
+        bar_width = 0.35
+        
+        # Plot the grouped sets of bars (starvations and roaming_locks)
+       
+        axs[i].bar(bar_positions, starvations[i], width=bar_width, label='Starvations', color='#2F5597')
+        axs[i].bar(bar_positions + bar_width, roaming_locks[i], width=bar_width, label='Long Roaming, Locks',  color='#5B9BD5')
+
+        axs[i].set_xticks(bar_positions + bar_width/2)
+        axs[i].set_xticklabels(policies)
+        axs[i].set_title(instances[i])
+        axs[i].set_axisbelow(True)
+        axs[i].grid(axis='y', alpha=0.5)
+        handles, labels = axs[i].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='lower center', ncol=3)
+    
+    plt.tight_layout()
+
+    # Show the plot
+    plt.show()
+
+    
 
 # roaming_shares()
 # solution_times()
+# solution_quality()
 # branch_number()
 # plot_bar_chart()
 # box_plot()
-different_policies2()
-
+# different_policies2()
+# effects_of_roaming()
+comparison_policies()

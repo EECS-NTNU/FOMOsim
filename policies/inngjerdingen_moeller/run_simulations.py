@@ -94,14 +94,16 @@ def test_alpha_beta(list_of_seeds, alpha, beta_list):
 
 def test_number_of_scenarios(list_of_seeds, scenario_list):
      for number in scenario_list:
-        filename= "num_scenarios_poi_"+str(number)+".csv"
-        policy=policies.inngjerdingen_moeller.PILOT(number_of_scenarios=number, max_depth=2, number_of_successors=5)
+        filename= "num_scenarios_"+str(number)+".csv"
+        policy=policies.inngjerdingen_moeller.PILOT(number_of_scenarios=number, max_depth=2, number_of_successors=7)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_num_vehicles(list_of_seeds, vehicles_list):
      for v in vehicles_list:
-        filename= "num_vehicles_NY_"+str(v)+"V_3_7.csv"
-        policy=policies.inngjerdingen_moeller.PILOT(max_depth=3, number_of_successors=7)
+        filename= "num_vehicles_greedy_neigh_"+str(v)+"V.csv"
+        # policy=policies.inngjerdingen_moeller.PILOT(max_depth=2, number_of_successors=5, time_horizon=40)
+        # policy = policies.GreedyPolicy()
+        policy= policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction()
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
 
 def test_instances(list_of_seeds, list_of_instances):
@@ -180,7 +182,7 @@ if __name__ == "__main__":
     # list_of_lists_seeds = [[0,1,2],[3,4,5],[6,7,8],[9,10,11],[12,13,14],[15,16],[17,18,19]]
     
     # profiler = cProfile.Profile()
-    # profiler.enable()  
+    # profiler.enable()
 
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
@@ -193,14 +195,13 @@ if __name__ == "__main__":
     # test_instances(list_of_seeds, list_of_instances)
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
-    # test_number_of_scenarios(list_of_seeds, [1,10,100])
+    # test_number_of_scenarios(list_of_seeds, [0,1,10,100,500,1000,2000])
     # test_timehorizons(list_of_seeds, list_of_timehorizons)
-    # test_num_vehicles(list_of_seeds,[1,2,3,4,5])
+    # test_num_vehicles(list_of_seeds,[1,2,3])
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))
 
-    
     # profiler.disable()
     # profiler.dump_stats('restats')  #add path
     # p = pstats.Stats('restats')
