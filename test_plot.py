@@ -6,7 +6,10 @@ import pandas as pd
 import os
 from output.visualizer import totime
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil.parser import parse
+
+plt.rcParams["font.family"] = "Times New Roman"
 
 #used for branch number
 def plot_bar_chart():
@@ -187,6 +190,8 @@ def box_plot():
             [10449,10455,10397,9783,11230,9583,10155,10836,10642,10466,10320,10511,10305,11180,10801,11350,10644,9827,9979,10620,9383,10184,10792,11938,11546,10358,10240,10800,10745,9456,10725,10015,10684,11105,11014,10658,10101,10671,10917,10324]
             ] 
     
+    #5B9BD5
+
     # Create a figure and axes
     fig, ax = plt.subplots()
 
@@ -258,16 +263,21 @@ def different_policies2():
     # Get the list of CSV files in the directory
     csv_files = [file for file in os.listdir(directory) if file.endswith('.csv')]
 
-    time_stamps = ["Mon 08:00.000000", "Tue 08:00.000000", "Wed 08:00.000000", "Thu 08:00.000000", "Fri 08:00.000000"]
-    # x_datetime_labels = [datetime.strptime(x, "%a %H:%M.%f") for x in time_stamps]
+    time_stamps = ["Mon 07:00.000000", "Tue 07:00.000000", "Wed 07:00.000000", "Thu 07:00.000000", "Fri 07:00.000000", "Sat 07:00.000000", "Sun 07:00.000000", "Mon 07:00.000000", "Tue 07:00.000000", "Wed 07:00.000000", "Thu 07:00.000000"]
+    x_datetime_labels = [parse(x) for x in time_stamps]
 
-    tick_labels = ["Mon 08:00", "Tue 08:00", "Wed 08:00", "Thu 08:00", "Fri 08:00"]
+    # tick_labels = ["Mon 07:00", "Tue 07:00", "Wed 07:00", "Thu 07:00", "Fri 07:00", "Sat 07:00", "Sun 07:00"]
     colors = ["blue", "red", "green", "purple", "yellow"]
 
     fig, ax =plt.subplots()
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Accumulated Number of Failed Events')
-    ax.set_title('Failed Events by Policy')
+    ax.set_title('Failed Events by Policy', fontweight='bold', fontsize=14)
+    ax.set_xlabel('Time', fontsize=12)
+    ax.set_ylabel('Accumulated Failed Events', fontsize=12)
+
+
+    current_year = 2023
+    current_month = 5
+    current_day = 22
 
     # Open the CSV file
     for i, csv_file in enumerate(csv_files):
@@ -290,17 +300,30 @@ def different_policies2():
                 else:
                     failures.append(int(row[1]))
             
-            # x_datetime = [datetime.strptime(x, "%a %H:%M.%f") for x in times]
+            x_datetime = [parse(x, default=datetime(current_year, current_month, current_day)) for x in times]
+            x_datetime_new = []
+            new_week = False
+            current_weekday = x_datetime[0].weekday()
+            for dt in x_datetime:
+                if new_week == True:
+                    dt += timedelta(days=7)
+                elif dt.weekday() < current_weekday:
+                    new_week = True
+                    dt += timedelta(days=7)
+                x_datetime_new.append(dt)
+                current_weekday = dt.weekday()
 
-            ax.plot(times, failures, color=colors[i], label=csv_file[:-4])
+            ax.plot(x_datetime_new, failures, color=colors[i], label=csv_file[:-4])
 
-    plt.xticks(time_stamps, labels=tick_labels)
+    # plt.xticks(time_stamps, labels=tick_labels)
 
-    # ax.set_xticklabels([x.strftime("%a %H:%M.%f") for x in x_datetime_labels])
-
+    ax.set_xticklabels([x.strftime("%a") for x in x_datetime_labels])
+    ax.tick_params(axis='x', color='lightgray')
+    ax.tick_params(axis='y', color='lightgray')
 
     # Add a legend
     ax.legend()
+    ax.yaxis.grid(True, color='lightgray', linewidth=0.5)
 
     # Show the plot
     plt.show()

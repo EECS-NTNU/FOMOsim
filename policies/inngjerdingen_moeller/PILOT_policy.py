@@ -54,7 +54,16 @@ class PILOT(Policy):
         next_station = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time)
         
         #lage en funskjon som kallles her som sjekker antall naboer som er tomme/fulle sett fra next-station. Logge i en aggregate metric. Til slutt kan vi dele på antall problemer. 
+        similarly_imbalanced_starved = 0
+        similarly_imbalanced_congested = 0
+        for neighbor in simul.state.stations[next_station].neighboring_stations:
+            if neighbor.number_of_bikes() > 0.9*neighbor.capacity and number_of_bikes_to_pick_up>0:
+                similarly_imbalanced_congested += 1
+            elif neighbor.number_of_bikes() < 0.1*neighbor.capacity and number_of_bikes_to_deliver>0:
+                similarly_imbalanced_starved += 1
 
+        simul.metrics.add_aggregate_metric(simul, "similarly imbalanced starved", similarly_imbalanced_starved)
+        simul.metrics.add_aggregate_metric(simul, "similarly imbalanced congested", similarly_imbalanced_congested)
         simul.metrics.add_aggregate_metric(simul, "accumulated solution time", time.time()-start_logging_time)
         simul.metrics.add_aggregate_metric(simul, 'number of problems solved', 1)
 
@@ -439,8 +448,8 @@ class PILOT(Policy):
         net_demand = calculate_net_demand(station, simul.time, simul.day(), simul.hour(), 60)
         num_bikes_station = station.number_of_bikes() + ((current_time-simul.time)/60)*net_demand
         
-        starved_neighbors=0
-        congested_neighbors=0
+        starved_neighbors = 0
+        congested_neighbors = 0
         for neighbor in station.neighboring_stations:
             net_demand_neighbor =  calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), 60)
             num_bikes_neighbor = neighbor.number_of_bikes() + ((current_time-simul.time)/60)*net_demand_neighbor
@@ -448,10 +457,10 @@ class PILOT(Policy):
                 starved_neighbors += 1
             elif num_bikes_neighbor > 0.9*neighbor.capacity:
                 congested_neighbors += 1
-        
+
         if num_bikes_station < target_state: #deliver bikes
             #deliver bikes, max to the target state
-            number_of_bikes_to_deliver = min(vehicle_inventory, target_state - num_bikes_station + starved_neighbors)
+            number_of_bikes_to_deliver = min(vehicle_inventory, target_state - num_bikes_station + 2*starved_neighbors)
             
         elif num_bikes_station > target_state: #pick-up bikes
             remaining_vehicle_capacity = vehicle.bike_inventory_capacity - vehicle_inventory
