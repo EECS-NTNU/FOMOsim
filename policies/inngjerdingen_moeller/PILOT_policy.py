@@ -378,7 +378,7 @@ class PILOT(Policy):
                         net_demand_next = rng.normal(expected_arrive_intensity_next, arrive_intensity_stdev_next) - rng.normal(expected_leave_intensity_next, leave_intensity_stdev_next)
                         net_demand = (minutes_current_hour*net_demand_current + minutes_next_hour*net_demand_next)/planning_horizon
                         
-                    scenario_dict[station_id] = net_demand
+                    scenario_dict[station_id] = 2*net_demand    #doubled
                 scenarios.append(scenario_dict)
         return scenarios
 
