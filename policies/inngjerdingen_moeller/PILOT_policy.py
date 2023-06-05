@@ -358,10 +358,10 @@ class PILOT(Policy):
                 minutes_next_hour = planning_horizon - minutes_current_hour
                 
                 for station_id in stations_dict: 
-                    expected_arrive_intensity = stations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour())
-                    expected_leave_intensity = stations_dict[station_id].get_leave_intensity(simul.day(), simul.hour())
-                    expected_arrive_intensity_next = stations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour()+1)
-                    expected_leave_intensity_next = stations_dict[station_id].get_leave_intensity(simul.day(), simul.hour()+1)
+                    expected_arrive_intensity = 2*stations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour())
+                    expected_leave_intensity = 2*stations_dict[station_id].get_leave_intensity(simul.day(), simul.hour())
+                    expected_arrive_intensity_next = 2*stations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour()+1)
+                    expected_leave_intensity_next = 2*stations_dict[station_id].get_leave_intensity(simul.day(), simul.hour()+1)
                     
                     if poisson:
                         net_demand_current = rng.poisson(expected_arrive_intensity) - rng.poisson(expected_leave_intensity)
@@ -378,7 +378,7 @@ class PILOT(Policy):
                         net_demand_next = rng.normal(expected_arrive_intensity_next, arrive_intensity_stdev_next) - rng.normal(expected_leave_intensity_next, leave_intensity_stdev_next)
                         net_demand = (minutes_current_hour*net_demand_current + minutes_next_hour*net_demand_next)/planning_horizon
                         
-                    scenario_dict[station_id] = 2*net_demand    #doubled
+                    scenario_dict[station_id] = net_demand 
                 scenarios.append(scenario_dict)
         return scenarios
 
