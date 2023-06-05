@@ -21,9 +21,9 @@ def plot_bar_chart():
     ax.bar([i for i in range(1,len(data)+1)], data, color='#2F5597')
 
     # Add labels and title
-    ax.set_xlabel('Branch', fontsize=13)
-    ax.set_ylabel('# scenarios', fontsize=13)
-    ax.set_title('Branch selection', fontsize=15)
+    ax.set_xlabel('Branch', fontsize=12)
+    ax.set_ylabel('# Scenarios', fontsize=12)
+    ax.set_title('Branch selection', fontsize=14, fontweight="bold")
     plt.xticks([i for i in range(1,len(data)+1)])
 
     # Add percentage values as text over the bars
@@ -78,7 +78,7 @@ def roaming_shares():
     # Add labels and title to the plot
     plt.xlabel('Distance (km)', fontsize=12)
     plt.ylabel('Share of users', fontsize=12)
-    plt.title('Willingness to roam',fontsize=15)
+    plt.title('Willingness to roam',fontsize=14, fontweight="bold")
 
     # Add numeric values to the scatter plot
     for i in range(len(scatter_distances)):
@@ -110,19 +110,19 @@ def solution_times():
     max_limit = [10, 10, 10, 10, 10] 
 
     # plt.plot(betas, max_limit, label="max solution time", color='gray', linewidth=2, ls='--')
-    plt.plot(betas, times_1, label= r'$\alpha=1$', color='#ED7D31', linewidth=2, marker='o')
-    plt.plot(betas, times_2, label=r'$\alpha=2$', color='#2F5597', linewidth=2, marker='o')
-    plt.plot(betas, times_3, label=r'$\alpha=3$', color='green', linewidth=2, marker='o')
-    plt.plot(betas, times_4, label=r'$\alpha=4$', color='purple', linewidth=2, marker='o')
-    plt.plot(betas, times_5, label=r'$\alpha=5$', color='pink', linewidth=2, marker='o')
-    plt.plot(betas, times_6, label=r'$\alpha=6$', color='red', linewidth=2, marker='o')
-    plt.plot(betas, times_7, label=r'$\alpha=7$', color='brown', linewidth=2, marker='o')
+    plt.plot(betas, times_1, label= r'$\alpha=1$', color='#ED7D31', linewidth=1.5, marker='o')
+    plt.plot(betas, times_2, label=r'$\alpha=2$', color='#2F5597', linewidth=1.5, marker='o')
+    plt.plot(betas, times_3, label=r'$\alpha=3$', color='green', linewidth=1.5, marker='o')
+    plt.plot(betas, times_4, label=r'$\alpha=4$', color='purple', linewidth=1.5, marker='o')
+    plt.plot(betas, times_5, label=r'$\alpha=5$', color='#5B9BD5', linewidth=1.5, marker='o')
+    plt.plot(betas, times_6, label=r'$\alpha=6$', color='red', linewidth=1.5, marker='o')
+    plt.plot(betas, times_7, label=r'$\alpha=7$', color='brown', linewidth=1.5, marker='o')
 
     # Add labels and title to the plot
-    plt.xlabel(r'$\beta$', fontsize=13)
-    plt.ylabel('Solution time (s)', fontsize=13)
+    plt.xlabel(r'$\beta$', fontsize=12)
+    plt.ylabel('Solution time (s)', fontsize=12)
     
-    plt.title('Solution time for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$',fontsize=15)
+    plt.title('Solution time for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$',fontsize=14, fontweight='bold')
     
     plt.legend()
 
@@ -154,14 +154,14 @@ def solution_quality():
     plt.plot(betas1_20, q1, label=r'$\alpha=2$', color='#2F5597', linewidth=1.5, marker='o')
     plt.plot(betas1_15, q2, label=r'$\alpha=3$', color='green', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q3, label=r'$\alpha=4$', color='purple', linewidth=1.5, marker='o')
-    plt.plot(betas1_10, q4, label=r'$\alpha=5$', color='pink', linewidth=1.5, marker='o')
+    plt.plot(betas1_10, q4, label=r'$\alpha=5$', color='#5B9BD5', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q5, label=r'$\alpha=6$', color='red', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q6, label=r'$\alpha=7$', color='brown', linewidth=1.5, marker='o')
 
     # Add labels and title to the plot
-    plt.xlabel(r'$\beta$', fontsize=13)
-    plt.ylabel('Failed events', fontsize=13)
-    plt.title('Number of failed events for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$',fontsize=15)
+    plt.xlabel(r'$\beta$', fontsize=12)
+    plt.ylabel('Failed events', fontsize=12)
+    plt.title('Number of failed events for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$',fontsize=14, fontweight='bold')
     plt.legend(loc='lower right')
 
     plt.grid(axis='y', alpha=0.5)
@@ -190,21 +190,28 @@ def box_plot():
             [10449,10455,10397,9783,11230,9583,10155,10836,10642,10466,10320,10511,10305,11180,10801,11350,10644,9827,9979,10620,9383,10184,10792,11938,11546,10358,10240,10800,10745,9456,10725,10015,10684,11105,11014,10658,10101,10671,10917,10324]
             ] 
     
-    #5B9BD5
 
     # Create a figure and axes
     fig, ax = plt.subplots()
 
     boxplots = ax.boxplot(data_poisson, vert=True, showmeans=True, meanline=True)
+    i = 0
+    for box in boxplots['boxes']:
+        mean_line = boxplots['means'][i]
+        mean_line.set(color='black', linewidth=1)
+        median_line = boxplots['medians'][i]
+        median_line.set(color='black', linewidth=1)
+        # box.set(facecolor="#5B9BD5")
+        i += 1
 
     # Set labels and title
-    plt.rcParams.update({
-    "text.usetex": True,
-    "font.family": "Times New Roman"})
-    ax.set_xticklabels(['Expected demand','1', '10', '100', '500', '1000', '2000'])
-    ax.set_ylabel('Failed events',fontsize=13)
-    ax.set_xlabel('# scenarios', fontsize=13)
-    ax.set_title('Failed events for different number of scenarios', fontsize=15)
+    # plt.rcParams.update({
+    # "text.usetex": True,
+    # "font.family": "Times New Roman"})
+    ax.set_xticklabels(['Expected demand','1', '10', '100', '500', '1,000', '2,000'])
+    ax.set_ylabel('Failed events',fontsize=12)
+    ax.set_xlabel('# Scenarios', fontsize=12)
+    ax.set_title('Failed events for different number of scenarios', fontweight='bold', fontsize=14)
 
     # Display the plot
     
@@ -244,9 +251,9 @@ def different_policies():
     # plt.locator_params(axis='x', nbins=num_ticks)
 
     # Set the labels and title
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Accumulated Number of Failed Events')
-    ax.set_title('Failed Events by Policy')
+    ax.set_xlabel('Time', fontsize=12)
+    ax.set_ylabel('Accumulated Number of Failed Events',fontsize=12)
+    ax.set_title('Failed Events by Policy', fontsize=14)
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%a %H:%M"))
     ax.xaxis.set_minor_formatter(mdates.DateFormatter("%a %H:%M"))
 
@@ -363,7 +370,7 @@ def effects_of_roaming():
             ax.bar(index, data_without_interaction[i * 2 + j], bar_width, label='No interactions', color='#2F5597')
 
             # Plot data with neighborhood interactions
-            ax.bar(index+ bar_width, data_with_interaction[i * 2 + j], bar_width, label='Neighborhood interactions', color='#ED7D31')
+            ax.bar(index+ bar_width, data_with_interaction[i * 2 + j], bar_width, label='Neighborhood interactions', color='#5B9BD5')
             
             
             ax.set_title(instance)
@@ -407,7 +414,7 @@ def comparison_policies():
 
         axs[i].set_xticks(bar_positions + bar_width/2)
         axs[i].set_xticklabels(policies)
-        axs[i].set_title(instances[i])
+        axs[i].set_title(instances[i], fontsize=14)
         axs[i].set_axisbelow(True)
         axs[i].grid(axis='y', alpha=0.5)
         handles, labels = axs[i].get_legend_handles_labels()
@@ -420,7 +427,7 @@ def comparison_policies():
 
     
 
-# roaming_shares()
+roaming_shares()
 # solution_times()
 # solution_quality()
 # branch_number()
@@ -428,4 +435,4 @@ def comparison_policies():
 # box_plot()
 # different_policies2()
 # effects_of_roaming()
-comparison_policies()
+# comparison_policies()
