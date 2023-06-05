@@ -13,7 +13,7 @@ import target_state
 import policies
 import sim
 import demand
-from helpers import timeInMinutess
+from helpers import timeInMinutes
 import output
 
 import time
