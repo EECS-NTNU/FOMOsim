@@ -110,19 +110,19 @@ def solution_times():
     max_limit = [10, 10, 10, 10, 10] 
 
     # plt.plot(betas, max_limit, label="max solution time", color='gray', linewidth=2, ls='--')
-    plt.plot(betas, times_1, label= r'$\alpha=1$', color='#ED7D31', linewidth=2, marker='o')
-    plt.plot(betas, times_2, label=r'$\alpha=2$', color='#2F5597', linewidth=2, marker='o')
-    plt.plot(betas, times_3, label=r'$\alpha=3$', color='green', linewidth=2, marker='o')
-    plt.plot(betas, times_4, label=r'$\alpha=4$', color='purple', linewidth=2, marker='o')
-    plt.plot(betas, times_5, label=r'$\alpha=5$', color='pink', linewidth=2, marker='o')
-    plt.plot(betas, times_6, label=r'$\alpha=6$', color='red', linewidth=2, marker='o')
-    plt.plot(betas, times_7, label=r'$\alpha=7$', color='brown', linewidth=2, marker='o')
+    plt.plot(betas, times_1, label= r'$\alpha=1$', color='#ED7D31', linewidth=1.5, marker='o')
+    plt.plot(betas, times_2, label=r'$\alpha=2$', color='#2F5597', linewidth=1.5, marker='o')
+    plt.plot(betas, times_3, label=r'$\alpha=3$', color='green', linewidth=1.5, marker='o')
+    plt.plot(betas, times_4, label=r'$\alpha=4$', color='purple', linewidth=1.5, marker='o')
+    plt.plot(betas, times_5, label=r'$\alpha=5$', color='deepskyblue', linewidth=1.5, marker='o')
+    plt.plot(betas, times_6, label=r'$\alpha=6$', color='red', linewidth=1.5, marker='o')
+    plt.plot(betas, times_7, label=r'$\alpha=7$', color='brown', linewidth=1.5, marker='o')
 
     # Add labels and title to the plot
-    plt.xlabel(r'$\beta$', fontsize=13)
+    plt.xlabel(r'$\beta_{1}$', fontsize=13)
     plt.ylabel('Solution time (s)', fontsize=13)
     
-    plt.title('Solution time for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$',fontsize=15)
+    plt.title('Solution time for various combinations of '+r'$\alpha$'+' and '+ r'$\beta_{1}$',fontsize=15, fontweight='bold')
     
     plt.legend()
 
@@ -154,14 +154,14 @@ def solution_quality():
     plt.plot(betas1_20, q1, label=r'$\alpha=2$', color='#2F5597', linewidth=1.5, marker='o')
     plt.plot(betas1_15, q2, label=r'$\alpha=3$', color='green', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q3, label=r'$\alpha=4$', color='purple', linewidth=1.5, marker='o')
-    plt.plot(betas1_10, q4, label=r'$\alpha=5$', color='pink', linewidth=1.5, marker='o')
+    plt.plot(betas1_10, q4, label=r'$\alpha=5$', color='deepskyblue', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q5, label=r'$\alpha=6$', color='red', linewidth=1.5, marker='o')
     plt.plot(betas1_10, q6, label=r'$\alpha=7$', color='brown', linewidth=1.5, marker='o')
 
     # Add labels and title to the plot
-    plt.xlabel(r'$\beta$', fontsize=13)
+    plt.xlabel(r'$\beta_{1}$', fontsize=13)
     plt.ylabel('Failed events', fontsize=13)
-    plt.title('Number of failed events for various combinations of '+r'$\alpha$'+' and '+ r'$\beta$',fontsize=15)
+    plt.title('Number of failed events for various combinations of '+r'$\alpha$'+' and '+ r'$\beta_{1}$',fontsize=15, fontweight='bold')
     plt.legend(loc='lower right')
 
     plt.grid(axis='y', alpha=0.5)
@@ -421,11 +421,11 @@ def comparison_policies():
     
 
 # roaming_shares()
-# solution_times()
+solution_times()
 # solution_quality()
 # branch_number()
 # plot_bar_chart()
 # box_plot()
 # different_policies2()
 # effects_of_roaming()
-comparison_policies()
+# comparison_policies()
