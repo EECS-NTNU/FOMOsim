@@ -108,12 +108,12 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
 
 def test_instances(list_of_seeds, list_of_instances):
     num_vehicles = 2
-    policy = policies.inngjerdingen_moeller.PILOT()
-    # policy = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05])
+    # policy = policies.inngjerdingen_moeller.PILOT()
+    policy = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05])
     for instance in list_of_instances:
         if instance == 'BG_W35':
             num_vehicles = 1
-        filename=str(instance)+"_2x_demand_roam_10_days.csv"
+        filename=str(instance)+"_2x_demand_no_roam_10_days.csv"
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles, instance=instance)
 
 def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*10, instance=None): #change duration and number of vehicles HERE!
