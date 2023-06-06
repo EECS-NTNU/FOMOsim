@@ -29,11 +29,11 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
     DURATION = timeInMinutes(hours=duration)
     
     # INSTANCE = 'TD_W34_old'
-    INSTANCE = 'OS_W31' 
+    # INSTANCE = 'OS_W31' 
     # INSTANCE = 'OS_W34'   #more demand 
     # INSTANCE = 'BG_W35'
     # INSTANCE = 'BG_W25'   #more demand
-    # INSTANCE = "NY_W31"
+    INSTANCE = "NY_W31"
     # INSTANCE = "BO_W31"
     ###############################################################
     
@@ -59,7 +59,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
 
 def test_policies(list_of_seeds, policy_dict):
     for policy in policy_dict:
-        filename=str(policy)+"double_demand.csv"
+        filename=str(policy)+".csv"
         test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
@@ -116,7 +116,7 @@ def test_instances(list_of_seeds, list_of_instances):
         filename=str(instance)+"_normal_no_roam_10_days.csv"
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles, instance=instance)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*10, instance=None): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, instance=None): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -133,8 +133,8 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=2, duration=24*1
     for process in processes:
         process.join()
     for simulator in returned_simulators:
-        print("Average also starved neighbors (roam):", simulator.metrics.get_aggregate_value("similarly imbalanced starved")/simulator.metrics.get_aggregate_value('number of problems solved'))
-        print("Average also congested neighbors(roam):", simulator.metrics.get_aggregate_value("similarly imbalanced congested")/simulator.metrics.get_aggregate_value('number of problems solved'))
+        # print("Average also starved neighbors (roam):", simulator.metrics.get_aggregate_value("similarly imbalanced starved")/simulator.metrics.get_aggregate_value('number of problems solved'))
+        # print("Average also congested neighbors(roam):", simulator.metrics.get_aggregate_value("similarly imbalanced congested")/simulator.metrics.get_aggregate_value('number of problems solved'))
         policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
         #if we run PILOT policy:
         # filename_time = "sol_time_"+filename
@@ -169,13 +169,13 @@ if __name__ == "__main__":
     # list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
     # list_of_instances = ['OS_W34', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old']
 
-    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9]
+    list_of_lists_seeds=[[0,1,2],[3,4,5],[6,7],[8,9]]
     # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
    
     # list_of_seeds=[0,1,2,3,4]
     # list_of_seeds=[5,6,7,8,9] 
-    list_of_seeds=[0]
+    # list_of_seeds=[0]
     
     # profiler = cProfile.Profile()
     # profiler.enable()
@@ -183,11 +183,10 @@ if __name__ == "__main__":
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    # for li in list_of_lists_seeds:
-        # test_policies(list_of_seeds=li, policy_dict=policy_dict)
-        # test_instances(li, list_of_instances)
-
-    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+    for li in list_of_lists_seeds:
+        test_policies(list_of_seeds=li, policy_dict=policy_dict)
+    
+    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
     # test_instances(list_of_seeds, list_of_instances)
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
