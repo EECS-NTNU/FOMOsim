@@ -15,7 +15,7 @@ def calculate_criticality(weights, simul, potential_stations, station, visited_s
 
     # CALCULATE CRITICALITY FOR EACH POTENTIAL STATION
     for potential_station in potential_stations:
-        net_demand = (TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour()))
+        net_demand = 2*(TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour()))
         t_state = potential_station.get_target_state(simul.day(), simul.hour())
         station_type, exp_num_bikes = calculate_station_type(potential_station, net_demand, t_state)
         capacity = potential_station.capacity
@@ -79,7 +79,7 @@ def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, s
             station_crit -= 3
         else:
             # neighbor_demand = (TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour())) #SM: is this supposed to be neighbor.get_arrive_intensity etc. 
-            neighbor_demand = (TIME_HORIZON/60)*(neighbor.get_arrive_intensity(simul.day(), simul.hour()) - neighbor.get_leave_intensity(simul.day(), simul.hour()))
+            neighbor_demand = 2*(TIME_HORIZON/60)*(neighbor.get_arrive_intensity(simul.day(), simul.hour()) - neighbor.get_leave_intensity(simul.day(), simul.hour()))
             neighbor_t_state = neighbor.get_target_state(simul.day(), simul.hour())
             
             # Similarly imbalanced (+)
