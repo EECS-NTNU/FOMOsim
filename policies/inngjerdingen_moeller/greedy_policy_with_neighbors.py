@@ -9,20 +9,12 @@ import sim
 
 
 class GreedyPolicyNeighborhoodInteraction(Policy):
-    def __init__(self,crit_weights=[0.3,0.15,0.25,0.2,0.1], cutoff_vehicle=0.3, cutoff_station=0.15, service_hours=None):  #crit_weights: [time_to_viol, dev_t_state, neigh_crit, dem_crit]
+    def __init__(self,crit_weights=[0.3,0.15,0.25,0.2,0.1], cutoff_vehicle=0.3, cutoff_station=0.15, service_hours=None):
         super().__init__()
         
         if service_hours is not None:
             self.set_time_of_service(service_hours[0],service_hours[1])
             
-        #Two options for :
-        # 1. Aim for target state THIS SHOULD BE THE STANDARD
-        # 2. Maximum pick-up or delivery amount (somewhat of a special case of target state)
-        
-        #Then, next station can be based on
-        # 1. Criticality Score
-        # 2. Deviation from target state  (this is a special case of criticality score)
-        
         #- WEIGHTS           
         self.crit_weights = crit_weights
     
@@ -57,14 +49,10 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         
         #pick the best
         if len(criticalities)==0:
-            # commented out by Lasse since it clutters the simulation output
-            # print('no stations with non-zero criticality, route to random station')
-            # print('problem seems to be that target state is empty... ??')
             potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]
             
             rng_greedy = np.random.default_rng(None)
             next_location_id = rng_greedy.choice(potential_stations2).id
-            # next_location_id = simul.state.rng.choice(potential_stations2).id
         else: 
             next_location_id = list(criticalities.keys())[0].id
     
@@ -90,12 +78,12 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
 
     starved_neighbors = 0
     congested_neighbors = 0
-    # for neighbor in station.neighboring_stations:
-    #     num_bikes_neighbor = neighbor.number_of_bikes()
-    #     if num_bikes_neighbor < 0.1*neighbor.capacity:
-    #         starved_neighbors += 1
-    #     elif num_bikes_neighbor > 0.9*neighbor.capacity:
-    #         congested_neighbors += 1
+    for neighbor in station.neighboring_stations:
+        num_bikes_neighbor = neighbor.number_of_bikes()
+        if num_bikes_neighbor < 0.1*neighbor.capacity:
+            starved_neighbors += 1
+        elif num_bikes_neighbor > 0.9*neighbor.capacity:
+            congested_neighbors += 1
 
     if num_bikes_station < target_state: #deliver bikes
         #deliver bikes, max to the target state
@@ -106,7 +94,7 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
     elif num_bikes_station > target_state: #pick-up bikes
         bikes_to_deliver = []
         remaining_vehicle_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
-        number_of_bikes_to_pick_up = min(num_bikes_station - target_state + congested_neighbors, remaining_vehicle_capacity)
+        number_of_bikes_to_pick_up = min(num_bikes_station - target_state + 2*congested_neighbors, remaining_vehicle_capacity)
         bikes_to_pickup = [bike.id for bike in station.bikes.values()][:number_of_bikes_to_pick_up]
     
     else: #num bikes is exactly at target state

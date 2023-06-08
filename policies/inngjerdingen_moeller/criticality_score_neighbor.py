@@ -1,11 +1,11 @@
 from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
 
-def calculate_criticality(weights, simul, potential_stations, station, visited_stations=None): # take in time as well? simul.time may be outdated
+def calculate_criticality(weights, simul, potential_stations, station, visited_stations=None):
     # COMMON DATA
     [w_t, w_dev, w_n, w_dem, w_dri] = weights
     TIME_HORIZON = 60        #minutes
     criticalities = dict()      #{station:[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time]}
-    criticalities_summed = dict()   #{station:crit_sum}
+    criticalities_summed = dict() 
     time_to_violation_list = []
     deviation_list = []
     neighborhood_crit_list = [] 
@@ -15,7 +15,7 @@ def calculate_criticality(weights, simul, potential_stations, station, visited_s
 
     # CALCULATE CRITICALITY FOR EACH POTENTIAL STATION
     for potential_station in potential_stations:
-        net_demand = 2*(TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour()))
+        net_demand = (TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour()))
         t_state = potential_station.get_target_state(simul.day(), simul.hour())
         station_type, exp_num_bikes = calculate_station_type(potential_station, net_demand, t_state)
         capacity = potential_station.capacity
@@ -78,8 +78,7 @@ def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, s
         if visited_stations != None and neighbor.id in visited_stations:
             station_crit -= 3
         else:
-            # neighbor_demand = (TIME_HORIZON/60)*(potential_station.get_arrive_intensity(simul.day(), simul.hour()) - potential_station.get_leave_intensity(simul.day(), simul.hour())) #SM: is this supposed to be neighbor.get_arrive_intensity etc. 
-            neighbor_demand = 2*(TIME_HORIZON/60)*(neighbor.get_arrive_intensity(simul.day(), simul.hour()) - neighbor.get_leave_intensity(simul.day(), simul.hour()))
+            neighbor_demand = (TIME_HORIZON/60)*(neighbor.get_arrive_intensity(simul.day(), simul.hour()) - neighbor.get_leave_intensity(simul.day(), simul.hour()))
             neighbor_t_state = neighbor.get_target_state(simul.day(), simul.hour())
             
             # Similarly imbalanced (+)
@@ -98,7 +97,7 @@ def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, s
             
             # Neighbor demand (higher+)
             if station_type == neighbor_type:
-                station_crit += calculate_demand_criticality(neighbor_type, neighbor_demand)    #OBS: not normalized
+                station_crit += calculate_demand_criticality(neighbor_type, neighbor_demand)
         
         # Distance scaling (closer+, further-)
         distance = (simul.state.traveltime_vehicle_matrix[potential_station.id][neighbor.id]/60)*VEHICLE_SPEED
@@ -165,7 +164,7 @@ def calculate_time_to_violation_IM(net_demand,station):
     elif net_demand < 0:
         time_to_violation = - station.number_of_bikes() / net_demand
     elif net_demand == 0:
-        time_to_violation = 8  #No demand, then no violation in the next couple of hours (8) HARDCODING
+        time_to_violation = 8  #No demand, then no violation in the next couple of hours (8)
     if time_to_violation > 8:
         time_to_violation = 8  # Dont differentiate between stations when more than 8 hours to violation
     return time_to_violation
