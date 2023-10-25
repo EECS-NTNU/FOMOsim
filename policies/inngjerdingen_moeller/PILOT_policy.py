@@ -1,10 +1,10 @@
 from policies import Policy
 import sim
-from criticality_score_neighbor import calculate_criticality, calculate_station_type
+from policies.inngjerdingen_moeller.criticality_score_neighbor import calculate_criticality, calculate_station_type
 import settings
 from policies.gleditsch_hagen.utils import calculate_net_demand
-from greedy_policy_with_neighbors import calculate_loading_quantities_greedy
-from greedy_policy_with_neighbors import find_potential_stations
+from policies.inngjerdingen_moeller.greedy_policy_with_neighbors import calculate_loading_quantities_greedy
+from policies.inngjerdingen_moeller.greedy_policy_with_neighbors import find_potential_stations
 import numpy as np
 import time 
 

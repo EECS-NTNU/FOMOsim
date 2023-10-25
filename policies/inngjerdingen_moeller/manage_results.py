@@ -21,7 +21,8 @@ class VisualizeResults():
         values = list(data.values())
         colors = ['salmon', 'mediumpurple', 'cornflowerblue', 'green']
         fig, ax = plt.subplots()
-        ax.grid(b = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
+       # ax.grid(b = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
+        ax.grid(visible=True, axis='y', color='grey', linestyle='-.', linewidth=0.5, alpha=0.4, zorder=1)
         plt.bar(type_of_violations, values, width=0.4, color = colors, alpha = 1, zorder = 2)
         plt.ylabel("No. of events")
         ax.set_title('Different events', fontsize = 16, fontweight = 'bold')
@@ -41,7 +42,7 @@ class VisualizeResults():
         values = list(data.values())
         colors = ['mediumpurple', 'cornflowerblue']
         fig, ax = plt.subplots()
-        ax.grid(b = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
+        ax.grid(visible = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
         plt.bar(type_of_roaming, values, width=0.4, color = colors, alpha = 1, zorder = 2)
         plt.ylabel("Distance [km]")
         ax.set_title('Total roaming distance', fontsize = 16, fontweight = 'bold')
@@ -78,7 +79,7 @@ class VisualizeResults():
         values = list(data.values())
         colors = ['mediumpurple', 'cornflowerblue']
         fig, ax = plt.subplots()
-        ax.grid(b = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
+        ax.grid(visible = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
         plt.bar(type_of_roaming, values, width=0.4, color = colors, alpha = 1, zorder = 2)
         plt.ylabel("Avg. distance [km]")
         ax.set_title('Average roaming distance', fontsize = 16, fontweight = 'bold')
@@ -163,7 +164,7 @@ def visualize_aggregated_violations_and_roaming(aggregated_data, filename):
     values = list(data.values())
     colors = ['salmon', 'mediumpurple', 'cornflowerblue', 'green']
     fig, ax = plt.subplots()
-    ax.grid(b = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
+    ax.grid(visible = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
     plt.bar(type_of_event, values, width=0.4, color = colors, alpha = 1, zorder = 2)
     plt.ylabel("No. of events")
     ax.set_title('Different events', fontsize = 16, fontweight = 'bold')
@@ -209,7 +210,7 @@ def visualize_aggregated_average_roaming_distances(aggregated_data, filename):
     values = list(data.values())
     colors = ['mediumpurple', 'cornflowerblue']
     fig, ax = plt.subplots()
-    ax.grid(b = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
+    ax.grid(visible = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
     plt.bar(type_of_roaming, values, width=0.4, color = colors, alpha = 1, zorder = 2)
     plt.ylabel("Avg. distance [km]")
     ax.set_title('Average roaming distance', fontsize = 16, fontweight = 'bold')

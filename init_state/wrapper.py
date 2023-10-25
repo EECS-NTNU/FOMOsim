@@ -87,7 +87,7 @@ def read_initial_state(jsonFilename, number_of_stations=None, number_of_bikes=No
         if number_of_bikes is not None:
             set_num_bikes(statedata, number_of_bikes)
         
-        # set path to map
+        # set path to map - bilde (TD_W34.png)
         if("map" in statedata): statedata["map"] = dirname + "/" + statedata["map"]
 
         state = sim.State.get_initial_state(statedata)
