@@ -181,7 +181,7 @@ def get_criticality_weights2(num_weights):
         #flat strategy
         factor = np.round(1/i,3) 
         for subset in subsets:
-            weight = copy.deepcopy(weights_base)
+            weight = copy.deepcopy(weights_base)   # TO DO UPDATE, REMOVE DEEPCOPY
             for index in subset:
                 weight[int(index)] = factor
             all_weights.append(list(weight))

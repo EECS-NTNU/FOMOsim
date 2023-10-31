@@ -92,19 +92,6 @@ def main():
 
     output.write_csv(simulator, "output.csv", hourly = False)
 
-    # # Plot to screen
-
-    output.visualize([simulator.metrics], metric="trips")
-    output.visualize([simulator.metrics], metric="starvation")
-    output.visualize([simulator.metrics], metric="congestion")
-    output.visualize_heatmap([simulator], metric="trips")
-
-    # show travel times for a given bike
-    bikes = simulator.state.get_all_bikes()
-    bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
-    print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
-    output.visualize([bikes[11].metrics], metric="travel_time")
-    output.visualize([bikes[11].metrics], metric="travel_time_congested")
 
 
 if __name__ == "__main__":
@@ -115,7 +102,8 @@ if __name__ == "__main__":
     main()
 
     profiler.disable()
-    profiler.dump_stats('restats')
+    profiler.dump_stats('restats')  #add path
+    
     p = pstats.Stats('restats')
-    p.sort_stats('time').print_stats(100) # print the stats after sorting by time
+    #p.sort_stats('time').print_stats(100) # print the stats after sorting by time
     p.sort_stats('cumtime').print_stats(100) # print the stats after sorting by time

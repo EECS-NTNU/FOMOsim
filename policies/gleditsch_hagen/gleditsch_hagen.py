@@ -1,4 +1,3 @@
-import copy
 from policies import Policy
 import sim
 

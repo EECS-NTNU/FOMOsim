@@ -104,7 +104,7 @@ class GenerateRoutePattern:
 
                     # Extend the route with the B best stations
                     for j in range(self.init_branching):
-                        new_col = copy.deepcopy(col)
+                        new_col = copy.deepcopy(col)   # TO DO UPDATE, REMOVE DEEPCOPY
                         new_col.add_station(cand_scores[j][0], cand_scores[j][1] +
                                             self.average_handling_time)
                         construction_routes.append(new_col)
