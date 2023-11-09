@@ -17,7 +17,7 @@ from helpers import timeInMinutes
 
 import time
 import multiprocessing as mp
-
+import output
 
 
 def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INSTANCE=None):
@@ -25,12 +25,12 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
     
-    # INSTANCE = 'TD_W34_old'
+    INSTANCE = 'TD_W34_old'
     # INSTANCE = 'OS_W31' 
     # INSTANCE = 'OS_W34'   #more demand 
     # INSTANCE = 'BG_W35'
     # INSTANCE = 'BG_W25'   #more demand
-    INSTANCE = "NY_W31"
+    # INSTANCE = "NY_W31"
     # INSTANCE = "BO_W31"
     ###############################################################
     
@@ -132,12 +132,12 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5
     for simulator in returned_simulators:
         policies.inngjerdingen_moeller.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
         #if we run PILOT policy:
-        # filename_time = "sol_time_"+filename
-        # policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
-        # output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = False)
-        # for branch in range(policy.number_of_successors):
-        #     print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
-    # policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results(filename)
+        filename_time = "sol_time_"+filename
+        policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
+        output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = False)
+        for branch in range(policy.number_of_successors):
+            print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
+    policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results(filename)
 
 
 

@@ -9,9 +9,18 @@ import settings
 from policies.fosen_haldorsen.heuristic_manager import *
 
 class FosenHaldorsenPolicy(Policy):
-    def __init__(self, scenarios=2, branching=7, time_horizon=25,
-                 flexibility=3, average_handling_time=6, weights=(0.6, 0.1, 0.3, 0.8, 0.2), crit_weights=(0.2, 0.1, 0.5, 0.2), criticality=True, 
-                 greedy=False):
+    def __init__(
+            self, 
+            scenarios=2, # Number of scenarios to consider in the policy
+            branching=7, # Branching factor for scenario generation
+            time_horizon=25, # Time horizon over which the policy operates
+            flexibility=3, # Flexibility parameter, possibly defining how adaptable the policy is
+            average_handling_time=6, # Average handling time for tasks within the policy
+            weights=(0.6, 0.1, 0.3, 0.8, 0.2), # Tuple of weights for different criteria in the policy
+            crit_weights=(0.2, 0.1, 0.5, 0.2), # Tuple of criticality weights for prioritizing tasks
+            criticality=True, # Boolean indicating whether criticality is considered
+            greedy=False # Boolean indicating if a greedy approach is used
+            ): 
 
         self.scenarios = scenarios
         self.branching = branching
@@ -30,19 +39,28 @@ class FosenHaldorsenPolicy(Policy):
         super().__init__()
 
     def init_sim(self, sim):
+        """
+        Initialize the simulation with given parameter - adjust the branching if necessary.
+        """
         if len(sim.state.stations) < self.branching:
             self.branching = len(sim.state.stations)
 
     def get_best_action(self, simul, vehicle):
+        """
+        Determines the action for the vehicle - uses greedy approach if self.greedy = True, otherwise heuristic approach
+        """
         if self.greedy:
             return self.greedy_solve(simul, vehicle)
         else:
             return self.heuristic_solve(simul, vehicle)
 
     def greedy_solve(self, simul, vehicle):
-        no_vehicles = len(simul.state.vehicles)
-        splits = len(simul.state.stations) // no_vehicles
-        next_st_candidates = list(simul.state.locations)[vehicle.id*splits:(vehicle.id+1)*splits] + list(simul.state.depots.values())
+        """
+        Chooses the best greedy action at current state
+        """
+        no_vehicles = len(simul.state.vehicles) # Number of vehicles in the simulation
+        splits = len(simul.state.stations) // no_vehicles # Number of stations each vehicle should handle
+        next_st_candidates = list(simul.state.locations)[vehicle.id*splits:(vehicle.id+1)*splits] + list(simul.state.depots.values()) # List of potental next stations for the vehicle to consider
 
         # Choose next station
         # Calculate criticality score for all stations
@@ -51,19 +69,21 @@ class FosenHaldorsenPolicy(Policy):
             if st.id == vehicle.location.id:
                 continue
             first = True
-            driving_time = simul.state.get_vehicle_travel_time(vehicle.location.id, st.id)
-            score = get_criticality_score(simul, st, vehicle, 25, driving_time, 0.2, 0.1, 0.5, 0.2, first)
+            driving_time = simul.state.get_vehicle_travel_time(vehicle.location.id, st.id) # Calculate driving time to each candidate from current location
+            score = get_criticality_score(simul, st, vehicle, 25, driving_time, 0.2, 0.1, 0.5, 0.2, first) # Calculate criticality score for the station
             cand_scores.append([st, driving_time, score])
 
-        # Sort candidates by criticality score
+        # Sort candidates by criticality score in descending order
         cand_scores = sorted(cand_scores, key=lambda l: l[2], reverse=True)
 
+        # Next station is the station with highest criticality score
         next_station = cand_scores[0][0]
 
-        bikes_to_swap = []
-        bikes_to_pickup = []
-        bikes_to_deliver = []
+        bikes_to_swap = [] # Bikes to swap batteries on
+        bikes_to_pickup = [] # Bikes to pick up at station
+        bikes_to_deliver = [] # Bikes to unload to current station
 
+        # Not in depot -> calculate bike and battery inventory
         if not vehicle.is_at_depot():
             # convert from new sim
             vehicle_current_batteries = vehicle.battery_inventory
@@ -71,7 +91,7 @@ class FosenHaldorsenPolicy(Policy):
             vehicle_current_station_current_charged_bikes = len(vehicle.location.bikes) - vehicle_current_station_current_flat_bikes
             vehicle_available_bike_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
             vehicle_current_charged_bikes = len(vehicle.bike_inventory)
-            vehicle_current_location_available_parking = vehicle.location.capacity - len(vehicle.location.bikes);
+            vehicle_current_location_available_parking = vehicle.location.capacity - len(vehicle.location.bikes)
 
             if vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state(simul.day(), simul.hour()) > 0:
                 bat_load = max(0, min(vehicle_available_bike_capacity,

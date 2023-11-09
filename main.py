@@ -8,7 +8,7 @@ from init_state import read_initial_state
 # import init_state.csv_source
 import target_state
 import policies
-# import policies.fosen_haldorsen
+import policies.fosen_haldorsen
 # import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
 import policies.inngjerdingen_moeller
@@ -48,12 +48,12 @@ def main():
 
     # policy = policies.RandomActionPolicy()
     # policy = policies.GreedyPolicy()
-    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller_policy.InngjerdingenMoellerPolicy(time_horizon=15)
+    # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller_policy.InngjerdingenMoellerPolicy(time_horizon=15)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
-    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
+    policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
     
-    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
+    state.set_vehicles([policy, policy]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state
@@ -91,11 +91,11 @@ def main():
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
     print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
     
-    results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
-    results_visualizer.visualize_violations_and_roaming()
-    results_visualizer.visualize_total_roaming_distances()
-    results_visualizer.visualize_average_roaming_distances()
-    results_visualizer.visualize_share_of_events()
+    # results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
+    # results_visualizer.visualize_violations_and_roaming()
+    # results_visualizer.visualize_total_roaming_distances()
+    # results_visualizer.visualize_average_roaming_distances()
+    # results_visualizer.visualize_share_of_events()
 
     # #If comparissons between roaming=True and roaming=False: 
     # print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")

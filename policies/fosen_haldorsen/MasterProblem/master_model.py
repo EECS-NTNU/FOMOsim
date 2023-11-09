@@ -1,5 +1,4 @@
-from gurobipy import*
-
+from gurobipy import *
 
 def run_master_model(parameters):
 
