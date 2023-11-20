@@ -24,28 +24,3 @@ class Plan():
             route_copy = copy_arr_iter(self.plan[vehicle])
             plan_copy[vehicle] = route_copy
         return plan_copy
-    
-def copy_arr_iter(arr):
-    root = []
-    stack = [(arr,root)]
-    while stack:
-        (o,d), *stack = stack
-        assert isinstance(o, list)
-        for i in o:
-            if isinstance(i, list):
-                p = (i, [])
-                d.append(p[1])
-                stack.append(p)
-            else:
-                d.append(p)
-    return root
-
-
-def generate_discounting_factors(nVisits, end_factor = 0.1):
-    discounting_factors = []
-    len = nVisits
-    rate = (1/end_factor)**(1/len)-1
-    for visit in range(0,len):
-        discount_factor = 1/((1+rate)**visit)
-        discounting_factors.append(discount_factor)
-    return discounting_factors
