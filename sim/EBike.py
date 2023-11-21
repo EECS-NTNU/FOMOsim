@@ -1,7 +1,8 @@
 import sim
+from sim.Bike import Bike
 from settings import *
 
-class EBike(sim.Bike):
+class EBike(Bike):
     """
     E-bike class containing state and all operations necessary
     """
@@ -12,7 +13,7 @@ class EBike(sim.Bike):
         self.battery_change_per_minute = BATTERY_CHANGE_PER_MINUTE
 
     def travel(self, simul, travel_time, congested = False):
-        super.travel(simul, travel_time, congested)
+        super().travel(simul, travel_time, congested)
         self.battery -= travel_time * self.battery_change_per_minute
 
     def usable(self):

@@ -33,14 +33,14 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
 #################################################################
 
 def calculate_hourly_discharge_rate(simul):
-    total_num_bikes_in_system = sum(station.number_of_bikes() for station in simul.state.stations) + len(simul.state.bikes_in_use()) #flytt hvis lang kjøretid
+    total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
 
     time_now = simul.time
     day = simul.day()
     hour = simul.hour()
 
-    number_of_trips_current_hour = sum(station.get_arrive_intensity(day,hour) for station in simul.state.stations)
-    number_of_trips_next_hour = sum(station.get_arrive_intensity(day, hour+1) for station in simul.state.stations)
+    number_of_trips_current_hour = sum([station.get_arrive_intensity(day,hour) for station in simul.state.stations.values()])
+    number_of_trips_next_hour = sum([station.get_arrive_intensity(day, hour+1) for station in simul.state.stations.values()])
 
     number_of_trips_next_60_min = min(60-(time_now-day*24*60-hour*60),60)*number_of_trips_current_hour/60 + (60 - (time_now-day*24*60-hour*60))*number_of_trips_next_hour/60
 

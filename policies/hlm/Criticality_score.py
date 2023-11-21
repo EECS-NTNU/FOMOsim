@@ -8,11 +8,33 @@ from Variables import *
 
 
 ########################################################################################
-# This is where the criticality score is calculated
-# Time to voilation, deviations, neighborhood criticality, demand and driving time
-# We need to descide how and if we want to calculate in battery levels in this scoore
-# If we want to adjust this score this is where we do it
+# This is where the criticality score is calculated                                    #
+# Time to voilation, deviations, neighborhood criticality, demand and driving time     #
+# We need to descide how and if we want to calculate in battery levels in this scoore  #
+# If we want to adjust this score this is where we do it                               #
 ########################################################################################
+
+
+def calculate_net_demand(station, time_now, day, hour, planning_horizon): 
+    if planning_horizon > 60:
+        print('not yet supported') #Is this a problem for us - betyr at man ikke kan planlegge lengre enn 60 minuttter frem i tid 
+    
+    minute_in_current_hour = time_now-day*24*60-hour*60 
+    
+    minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
+    minutes_next_hour = planning_horizon - minutes_current_hour
+    
+    #NET DEMAND(I think we can use this as it is)
+    net_demand_current = station.get_arrive_intensity(day,hour) - station.get_leave_intensity(day,hour)
+    net_demand_next = station.get_arrive_intensity(day,hour+1) - station.get_leave_intensity(day,hour+1)
+    
+    net_demand_planning_horizon = (minutes_current_hour*net_demand_current + 
+                                   minutes_next_hour*net_demand_next)/planning_horizon
+    
+    return 2*net_demand_planning_horizon #Returns demand pr hour *2??
+
+
+
 
 
 
@@ -134,7 +156,7 @@ def calculate_time_to_violation_IM(net_demand, station,simul):
 
 def calculate_deviation_from_target_state(station, net_demand, target_state):
     
-    num_escooters = (station.number_of_bikes() - station.get_swappable_bikes(20) + net_demand)
+    num_escooters = (station.number_of_bikes() - len(station.get_swappable_bikes(20)) + net_demand)
 
     if net_demand > 0:
         deviation_from_target_state = abs(target_state - num_escooters)
@@ -166,7 +188,7 @@ def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_typ
             neighbor_demand = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), 60)
             neighbor_target_state = neighbor.get_target_state(simul.day(),simul.hour())
 
-            expected_number_escooters = (neighbor.number_of_bikes() - neighbor.get_swappable_bikes(20) + neighbor_demand)
+            expected_number_escooters = (neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) + neighbor_demand)
             neighbor_type = calculate_station_type(neighbor_target_state, expected_number_escooters)
 
             #Extra critical because of neighbor with same status
@@ -244,8 +266,8 @@ def calculate_battery_level_composition_criticality(simul, station):
      current_escooters = station.bikes
      hourly_discharge_rate = calculate_hourly_discharge_rate(simul) * 60
 
-     battery_levels_current = [escooter.battry for escooter in current_escooters if escooter.battery > 20]
-     battery_levels_after = [escooter.battery - hourly_discharge_rate for escooter in current_escooters if (escooter.battery - hourly_discharge_rate) > 20]
+     battery_levels_current = [escooter.battery for escooter in current_escooters.values() if escooter.battery > 20]
+     battery_levels_after = [escooter.battery - hourly_discharge_rate for escooter in current_escooters.values() if (escooter.battery - hourly_discharge_rate) > 20]
 
      #Apply weighted avarage functionality here if we want
 
@@ -257,7 +279,6 @@ def calculate_battery_level_composition_criticality(simul, station):
 
 
 #Simple calculation functions to help in the functions above 
-
 def calculate_station_type(target_state, exp_num):
     margin = 0.15 #set in settings sheeme
 
