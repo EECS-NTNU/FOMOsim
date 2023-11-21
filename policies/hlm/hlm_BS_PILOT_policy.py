@@ -55,7 +55,7 @@ class BS_PILOT(Policy): #Add default values from sepeate setting sheme
 
 
         ######################################################################################################################
-        #  If estimated time of arrival (eta) is zero, meaning that the vehicle is at a station keep greedy quantity values  #                     #
+        #  If estimated time of arrival (eta) is zero, meaning that the vehicle is at a station keep greedy quantity values  # 
         #  If eta is in the future (max 60 minutes ahead) find new quantities with future demand taken into consideration    #
         ######################################################################################################################
 
@@ -82,7 +82,7 @@ class BS_PILOT(Policy): #Add default values from sepeate setting sheme
         similary_imbalances_overflow = 0
 
         for neighbor in simul.state.stations[next_station].neighboring_stations:
-            if neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) > 0.9 * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
+            if neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) > 1.1 * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
                 similary_imbalances_overflow += 1
             elif neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) < 0.1 * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_deliver > 0:
                 similary_imbalances_starved += 1
@@ -92,6 +92,7 @@ class BS_PILOT(Policy): #Add default values from sepeate setting sheme
         simul.metrics.add_aggregate_metric(simul, "similarly imbalanced congested", similary_imbalances_overflow)
         simul.metrics.add_aggregate_metric(simul, "accumulated solution time", time.time()-start_logging_time)
         simul.metrics.add_aggregate_metric(simul, 'number of problems solved', 1)
+        #legge til i metrics - battery swap 
 
         return sim.Action(
             batteries_to_swap,
@@ -133,7 +134,7 @@ class BS_PILOT(Policy): #Add default values from sepeate setting sheme
                     else:
                         for branch_number, visit in enumerate(new_visits):
                             new_plan_dict = plan.copy_plan()
-                            new_plan_dict[next_vehicle.id].append(visits)
+                            new_plan_dict[next_vehicle.id].append(visit)
                             tabu_list = copy_arr_iter(plan.tabu_list)
                             tabu_list.append(visit.station.id)
 
@@ -221,7 +222,7 @@ class BS_PILOT(Policy): #Add default values from sepeate setting sheme
             neighbor_target_state = round(neighbor.get_target_state(simul.day(), simul.hour()))
             if num_escooters_neighbor < 0.1 * neighbor_target_state:
              starved_neighbors += 1
-            elif num_escooters_neighbor > 0.9 * neighbor_target_state:
+            elif num_escooters_neighbor > 1.1 * neighbor_target_state: #oppdatere denne? 
              overflowing_neighbors += 1
 
         if num_escooters_station_at_arrival_accounted_battery_swap < target_state:
@@ -412,6 +413,8 @@ class BS_PILOT(Policy): #Add default values from sepeate setting sheme
                 violations_after_visit = ((end_time - time_first_violation_after_visit)/60) * net_demand
             else:
                 violations_after_visit = 0
+            
+            avoided_violations = abs(violation_no_visit) - abs(unavoidable_violations) - abs(violations_after_visit)
 
             
             #############################################
@@ -425,7 +428,7 @@ class BS_PILOT(Policy): #Add default values from sepeate setting sheme
             ending_inventory_no_visit = max(0, initial_inventory + ((end_time - current_time)/60) * net_demand)
             deviation_no_visit = abs(ending_inventory_no_visit - target_state)
 
-            improved_deviation = deviation_no_visit - deviation_visit
+            improved_deviations = deviation_no_visit - deviation_visit
 
 
             #################################################################
@@ -476,7 +479,7 @@ class BS_PILOT(Policy): #Add default values from sepeate setting sheme
                 distance_scaling = ((simul.state.get_vehcle_travel_time(station.id, neighbor.id)/60)* VEHICLE_SPEED)/MAX_ROAMING_DISTANCE_SOLUTIONS
                 neighbor_roamings += (1-distance_scaling)*roamings-roamings_no_visit
             
-            avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
+            avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviations)
 
             counter += 1
         
@@ -543,7 +546,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
         neighbor_target_state = round(neighbor.get_target_state(simul.day(), simul.hour()))
         if num_escooters_neighbor < 0.1 * neighbor_target_state:
             starved_neighbors += 1
-        elif num_escooters_neighbor > 0.9 * neighbor_target_state:
+        elif num_escooters_neighbor > 1.1 * neighbor_target_state:
             overflowing_neighbors += 1
 
     #######################################################################
@@ -551,12 +554,12 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
     #  And based on that the quantities for pickup, deliveries and swaps  #
     #######################################################################
 
-    if num_escooters_accounted_for_battery_swaps < target_state: #Ta hensyn til nabocluster her?
+    if num_escooters_accounted_for_battery_swaps < target_state: #Ta hensyn til nabocluster her? deliver bikes
         number_of_escooters_to_deliver = min(num_escooters_vehicle, target_state - num_escooters_accounted_for_battery_swaps + 2*starved_neighbors) # discuss 2*starved_neighbors part, ta hensyn til postensielle utladede scootere i bilen
         escooters_to_deliver_accounted_for_battery_swaps, escooters_to_swap_accounted_for_battery_swap = id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters_to_deliver, "deliver")
         escooters_to_pickup_accounted_for_battery_swaps = []
     
-    elif num_escooters_accounted_for_battery_swaps > target_state:
+    elif num_escooters_accounted_for_battery_swaps > target_state: #pickup bikes
         remaining_cap_vehicle = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory())
         number_of_escooters_to_pickup = min(remaining_cap_vehicle, num_escooters_accounted_for_battery_swaps - target_state + 2*overflowing_neighbors) #discuss logic behind this
         escooters_to_deliver_accounted_for_battery_swaps=[]

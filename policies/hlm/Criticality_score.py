@@ -11,6 +11,7 @@ from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
 # Time to voilation, deviations, neighborhood criticality, demand and driving time
 # We need to descide how and if we want to calculate in battery levels in this scoore
 # If we want to adjust this score this is where we do it
+########################################################################################
 
 
 
