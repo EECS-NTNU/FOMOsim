@@ -4,6 +4,7 @@ import sim
 import Visit
 import Plan
 from Criticality_score import calculate_criticality, calculate_station_type
+from Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors
 
 import numpy as np
 import time
@@ -34,13 +35,14 @@ class BS_PILOT(Policy): #Add default values from sepeate setting sheme
     ###############################################
     
     def get_best_action(self, simul, vehicle):
-        start_logging_time = time.time() #Hva brukes dette til?
+        start_logging_time = time.time() 
         next_station = None
         escooters_to_pickup = []
         escooters_to_deliver = []
         batteries_to_swap = []
 
-        end_time = simul.time + self.time_horizon #Vet ikke hva denne brukes til heller.
+        end_time = simul.time + self.time_horizon 
+
 
         #########################################################################################
         #   Number of bikes to pick up / deliver is choosen greedy based on clusters in reach   #
@@ -629,31 +631,6 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
 
 
 
-#####################################################################################################################################
-# Gleditsch & Hagen fuction for calculating net demand - this is what inngerdingen og møller uses                                   #
-# We need might need to consider batterylevel in get arrive_intensity                                                               #
-# Planning horizon is 60 minutes - that means that this function does not support planning further into the future than 60 minutes  #
-#####################################################################################################################################
-
-def calculate_net_demand(station, time_now, day, hour, planning_horizon): 
-    if planning_horizon > 60:
-        print('not yet supported') #Is this a problem for us - betyr at man ikke kan planlegge lengre enn 60 minuttter frem i tid 
-    
-    minute_in_current_hour = time_now-day*24*60-hour*60 
-    
-    minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
-    minutes_next_hour = planning_horizon - minutes_current_hour
-    
-    #NET DEMAND(I think we can use this as it is)
-    net_demand_current = station.get_arrive_intensity(day,hour) - station.get_leave_intensity(day,hour)
-    net_demand_next = station.get_arrive_intensity(day,hour+1) - station.get_leave_intensity(day,hour+1)
-    
-    net_demand_planning_horizon = (minutes_current_hour*net_demand_current + 
-                                   minutes_next_hour*net_demand_next)/planning_horizon
-    
-    return 2*net_demand_planning_horizon #Returns demand pr hour *2??
-
-
 
 ###############################################################################################################################
 # Considers all stations exept those in tabu_list                                                                             # 
@@ -697,32 +674,6 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
     return potential_stations, type
 
 
-#Calculation functions
-
-def copy_arr_iter(arr):
-    root = []
-    stack = [(arr,root)]
-    while stack:
-        (o,d), *stack = stack
-        assert isinstance(o, list)
-        for i in o:
-            if isinstance(i, list):
-                p = (i, [])
-                d.append(p[1])
-                stack.append(p)
-            else:
-                d.append(p)
-    return root
-
-
-def generate_discounting_factors(nVisits, end_factor = 0.1):
-    discounting_factors = []
-    len = nVisits
-    rate = (1/end_factor)**(1/len)-1
-    for visit in range(0,len):
-        discount_factor = 1/((1+rate)**visit)
-        discounting_factors.append(discount_factor)
-    return discounting_factors
 
 
 

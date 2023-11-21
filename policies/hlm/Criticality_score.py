@@ -1,5 +1,6 @@
-from hlm_BS_PILOT_policy import calculate_net_demand, num_escooters_accounted_for_battery_swaps
+from Simple_calculations import calculate_net_demand, calculate_hourly_discharge_rate
 from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
+from Variables import *
 
 #########################################################
 # THIS FILE CONTAINS ALL CRITICALITY SCORE CALCULATIONS #
@@ -18,6 +19,9 @@ from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
 def calculate_criticality(weights, simul, potential_stations, station, station_type, visited_stations = None):
 
     #This is where we have to add one weight for battery level if nessesary
+
+    # TODO - add weight for battery_criticality
+
     [w_t, w_dev, w_n, w_dem, w_dri] = weights
     TIME_HORIZON = 60
     criticalities = dict() # key: station, value: list of values for factors to consider.
@@ -29,6 +33,7 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
     neighborhood_crit_list = [] 
     demand_crit_list = []
     driving_time_list = [] 
+    BL_composition_list = []
 
     #Calculate criticality scoore for each potential station
     for potential_station in potential_stations:
@@ -44,7 +49,7 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
             potential_station_type = calculate_station_type(target_state, expected_num_escooters)
 
         # Time to violation
-        time_to_violation = calculate_time_to_violation_IM(net_demand, potential_station)
+        time_to_violation = calculate_time_to_violation_IM(net_demand, potential_station, simul)
         time_to_violation_list.append(time_to_violation)
 
         # Deviation from target state
@@ -62,6 +67,10 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
         # Driving time criticality
         driving_time_crit = calculate_driving_time_crit(simul, station, potential_station)
         driving_time_list.append(driving_time_crit)
+
+        # Battery level composition criticality
+        battery_level_comp_crit = calculate_battery_level_composition_criticality(simul, station)
+        BL_composition_list.append(battery_level_comp_crit)
 
 
         criticalities[potential_station] = [time_to_violation, deviation_from_target_state, neighborhood_crit, demand_crit, driving_time_crit]
@@ -93,7 +102,7 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
 # Uses the demand caluclated for the next hour for the forseable future - room for improvement? #
 #################################################################################################
 
-def calculate_time_to_violation_IM(net_demand, station):
+def calculate_time_to_violation_IM(net_demand, station,simul):
     time_to_violation = 0
 
     #since we operate without a station_capacity positive net demand wont lead to violation, should we punich in a way
@@ -103,7 +112,8 @@ def calculate_time_to_violation_IM(net_demand, station):
     #Starvations will lead to violations -> when demand occurs and the cluster has noe escooters
     #This is the perfect spot to add some calculation on battery degeneration over itme
     elif net_demand < 0:
-        time_to_violation = (station.number_of_bikes() - station.get_swappable_bikes(20))/ -net_demand
+        sorted_escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False)
+        time_to_violation = min((station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul)*60))
 
         #We treat violations >= 8 as the same
         if time_to_violation > 8:
@@ -222,7 +232,27 @@ def calculate_demand_criticality(station_type, net_demand):
 def calculate_driving_time_crit(simul, current_station, potential_station):
     return simul.state.get_vehicle_travel_time(current_station.id, potential_station.id)
 
-        
+
+
+#########################################################
+# BATTERY LEVEL COMPOSITION CRITICALITY calculated here #
+# NEW criticality factor                                #
+#########################################################
+
+def calculate_battery_level_composition_criticality(simul, station):
+    
+     current_escooters = station.bikes
+     hourly_discharge_rate = calculate_hourly_discharge_rate(simul) * 60
+
+     battery_levels_current = [escooter.battry for escooter in current_escooters if escooter.battery > 20]
+     battery_levels_after = [escooter.battery - hourly_discharge_rate for escooter in current_escooters if (escooter.battery - hourly_discharge_rate) > 20]
+
+     #Apply weighted avarage functionality here if we want
+
+     return (len(battery_levels_after)/ len(battery_levels_current))*(sum(battery_levels_after)/len(battery_levels_after))
+
+
+
 
 
 
@@ -261,4 +291,6 @@ def normalize_results(criticalities, time_to_violation_list, deviation_list, nei
         criticalities_normalized[station].append(criticalities[station][3]/max_demand)
         criticalities_normalized[station].append(1-criticalities[station][4]/max_driving_time)
     return criticalities_normalized
+
+
 
