@@ -1,4 +1,4 @@
-from hlm_BS_PILOT_policy import calculate_net_demand, num_escooters_accounted_for_battery_swaps
+# from hlm_BS_PILOT_policy import calculate_net_demand
 from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
 
 #########################################################
@@ -7,11 +7,36 @@ from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
 
 
 ########################################################################################
-# This is where the criticality score is calculated
-# Time to voilation, deviations, neighborhood criticality, demand and driving time
-# We need to descide how and if we want to calculate in battery levels in this scoore
-# If we want to adjust this score this is where we do it
+# This is where the criticality score is calculated                                    #
+# Time to voilation, deviations, neighborhood criticality, demand and driving time     #
+# We need to descide how and if we want to calculate in battery levels in this scoore  #
+# If we want to adjust this score this is where we do it                               #
 ########################################################################################
+
+
+
+
+
+def calculate_net_demand(station, time_now, day, hour, planning_horizon): 
+    if planning_horizon > 60:
+        print('not yet supported') #Is this a problem for us - betyr at man ikke kan planlegge lengre enn 60 minuttter frem i tid 
+    
+    minute_in_current_hour = time_now-day*24*60-hour*60 
+    
+    minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
+    minutes_next_hour = planning_horizon - minutes_current_hour
+    
+    #NET DEMAND(I think we can use this as it is)
+    net_demand_current = station.get_arrive_intensity(day,hour) - station.get_leave_intensity(day,hour)
+    net_demand_next = station.get_arrive_intensity(day,hour+1) - station.get_leave_intensity(day,hour+1)
+    
+    net_demand_planning_horizon = (minutes_current_hour*net_demand_current + 
+                                   minutes_next_hour*net_demand_next)/planning_horizon
+    
+    return 2*net_demand_planning_horizon #Returns demand pr hour *2??
+
+
+
 
 
 
@@ -103,7 +128,7 @@ def calculate_time_to_violation_IM(net_demand, station):
     #Starvations will lead to violations -> when demand occurs and the cluster has noe escooters
     #This is the perfect spot to add some calculation on battery degeneration over itme
     elif net_demand < 0:
-        time_to_violation = (station.number_of_bikes() - station.get_swappable_bikes(20))/ -net_demand
+        time_to_violation = (station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand
 
         #We treat violations >= 8 as the same
         if time_to_violation > 8:
@@ -124,7 +149,7 @@ def calculate_time_to_violation_IM(net_demand, station):
 
 def calculate_deviation_from_target_state(station, net_demand, target_state):
     
-    num_escooters = (station.number_of_bikes() - station.get_swappable_bikes(20) + net_demand)
+    num_escooters = (station.number_of_bikes() - len(station.get_swappable_bikes(20)) + net_demand)
 
     if net_demand > 0:
         deviation_from_target_state = abs(target_state - num_escooters)
@@ -156,7 +181,7 @@ def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_typ
             neighbor_demand = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), 60)
             neighbor_target_state = neighbor.get_target_state(simul.day(),simul.hour())
 
-            expected_number_escooters = (neighbor.number_of_bikes() - neighbor.get_swappable_bikes(20) + neighbor_demand)
+            expected_number_escooters = (neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) + neighbor_demand)
             neighbor_type = calculate_station_type(neighbor_target_state, expected_number_escooters)
 
             #Extra critical because of neighbor with same status
@@ -222,12 +247,8 @@ def calculate_demand_criticality(station_type, net_demand):
 def calculate_driving_time_crit(simul, current_station, potential_station):
     return simul.state.get_vehicle_travel_time(current_station.id, potential_station.id)
 
-        
-
-
 
 #Simple calculation functions to help in the functions above 
-
 def calculate_station_type(target_state, exp_num):
     margin = 0.15 #set in settings sheeme
 

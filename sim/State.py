@@ -279,6 +279,7 @@ class State(LoadSave):
 
                 # Remove bike from current station
                 vehicle.location.remove_bike(pick_up_bike)
+                
             # Perform all battery swaps
             for battery_swap_bike_id in action.battery_swaps[:vehicle.battery_inventory]:
                 battery_swap_bike = vehicle.location.get_bike_from_id(
@@ -399,7 +400,7 @@ class State(LoadSave):
     
     def read_neighboring_stations_from_file(self):
         neighboring_stations = dict()      #{station_ID: [list of station_IDs]}
-        filename = 'policies/inngjerdingen_moeller/saved_time_data/' + (self.mapdata[0]).split('.')[0].split('/')[1] +'_static_data.json'
+        filename = 'policies/inngjerdingen_moeller/saved_time_data/' + (self.mapdata[0]).split('.')[0].split('/')[-1] +'_static_data.json'
         if not os.path.exists(filename):
             print("JSON-file", filename, "does not exist")
 

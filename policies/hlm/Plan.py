@@ -1,5 +1,3 @@
-
-
 class Plan():
     def __init__(self, copied_plan, tabu_list, weight_set = None, branch_number = None):
         self.plan = copied_plan
@@ -24,3 +22,18 @@ class Plan():
             route_copy = copy_arr_iter(self.plan[vehicle])
             plan_copy[vehicle] = route_copy
         return plan_copy
+    
+def copy_arr_iter(arr):
+    root = []
+    stack = [(arr,root)]
+    while stack:
+        (o,d), *stack = stack
+        assert isinstance(o, list)
+        for i in o:
+            if isinstance(i, list):
+                p = (i, [])
+                d.append(p[1])
+                stack.append(p)
+            else:
+                d.append(i)
+    return root
