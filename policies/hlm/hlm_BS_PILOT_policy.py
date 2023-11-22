@@ -4,7 +4,7 @@ import sim
 from Visit import Visit
 from Plan import Plan
 from Criticality_score import calculate_criticality, calculate_station_type
-from Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors
+from Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 
 import numpy as np
 import time
@@ -360,7 +360,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         for visit in route:
             avoided_violations = 0
             neighbor_roamings = 0
-            improved_deviations = 0
+            improved_deviation = 0
 
             station = visit.station
 
@@ -389,7 +389,8 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             #########################################################################
 
             if net_demand < 0:
-                time_first_violation_no_visit = current_time + ((initial_inventory)/(-net_demand))*60
+                sorted_escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False)
+                time_first_violation_no_visit = current_time + min((station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul)*60))
             else:
                 time_first_violation_no_visit = end_time
             
@@ -411,7 +412,10 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             
             # Time for first violation if we visit
             if net_demand < 0:
-                time_first_violation_after_visit = eta + (inventory_after_loading_and_swaps/(-net_demand))*60
+                if swap_quantity > loading_quantity+2:
+                    time_first_violation_after_visit = eta + min((inventory_after_loading_and_swaps/(-net_demand))*60, 100/calculate_hourly_discharge_rate(simul))
+                else:
+                    time_first_violation_after_visit = eta + min((inventory_after_loading_and_swaps/(-net_demand))*60, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul)*60))
             else:
                 time_first_violation_after_visit = end_time
             
@@ -419,6 +423,11 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
                 violations_after_visit = ((end_time - time_first_violation_after_visit)/60) * net_demand
             else:
                 violations_after_visit = 0
+
+            
+
+
+            avoided_violations = violation_no_visit - violations_after_visit
 
             
             #############################################

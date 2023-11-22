@@ -209,6 +209,18 @@ def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_typ
             #If demand betters or worsen the situation over time
             if station_type == neighbor_type:
                 station_crit += calculate_demand_criticality(neighbor_type, neighbor_demand)
+            
+            #Battery level composition
+            if station_type == 'd':
+                current_escooters = neighbor.bikes
+                battery_levels_neighbor = [escooter.battery for escooter in current_escooters.values() if escooter.battery > 20]
+                avg_battery_level = sum(battery_levels_neighbor) / len(battery_levels_neighbor)
+
+                if neighbor_type == 'd':
+                    if avg_battery_level < 50:
+                        station_crit += 1
+            
+
         
         #Accounts for distance, closer is better i think
         distance = (simul.state.traveltime_vehicle_matrix[station.id][neighbor.id]/60)*VEHICLE_SPEED
