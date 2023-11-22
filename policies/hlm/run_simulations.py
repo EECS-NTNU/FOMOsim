@@ -2,6 +2,7 @@
 import os 
 import sys
 from pathlib import Path
+import output
  
 path = Path(__file__).parents[2]        # The path seems to be correct either way, sys.path.insert makes the difference
 os.chdir(path) 
@@ -47,7 +48,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
     
     ###############################################################
     
-    state = init_state.read_initial_state("instances/ebike/"+INSTANCE)
+    state = init_state.read_initial_state("instances/ebike3/"+INSTANCE)
     state.set_seed(seed)
     vehicles = [policy for i in range(num_vehicles)]
     state.set_vehicles(vehicles) # this creates one vehicle for each policy in the list
@@ -144,13 +145,13 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5
         process.join()
     for simulator in returned_simulators:
         policies.hlm.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
-        #if we run PILOT policy:
-        # filename_time = "sol_time_"+filename
-        # policies.inngjerdingen_moeller.manage_results.write_sol_time_to_file(filename_time, simulator)
-        # output.write_csv(simulator,'./policies/inngjerdingen_moeller/simulation_results/different_policies/'+filename, hourly = False)
-        # for branch in range(policy.number_of_successors):
-        #     print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
-    # policies.inngjerdingen_moeller.manage_results.visualize_aggregated_results(filename)
+        # if we run PILOT policy:
+        filename_time = "sol_time_"+filename
+        policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
+        output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
+        for branch in range(policy.number_of_successors):
+            print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
+    policies.hlm.manage_results.visualize_aggregated_results(filename)
 
 
 
