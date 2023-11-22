@@ -283,6 +283,9 @@ def calculate_battery_level_composition_criticality(simul, station):
 
      #Apply weighted avarage functionality here if we want
 
+     if len(battery_levels_after) == 0 or len(battery_levels_current) == 0:
+         return 0
+
      return (len(battery_levels_after)/ len(battery_levels_current))*(sum(battery_levels_after)/len(battery_levels_after))
 
 

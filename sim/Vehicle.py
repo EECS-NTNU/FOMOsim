@@ -48,7 +48,7 @@ class Vehicle:
         else:
             self.bike_inventory[bike.id] = bike
             if bike.hasBattery():
-                if bike.battery < 70:
+                if bike.battery < 70 and self.battery_inventory > 0:
                     self.change_battery(bike)
             bike.remove_location()
 
