@@ -50,6 +50,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         batteries_to_swap = []
 
         end_time = simul.time + self.time_horizon 
+        total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
 
         depot = simul.state.depot
 
@@ -93,12 +94,11 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         plan = Plan(plan_dict, tabu_list)
 
 
-
         ###############################################
         #  Use PILOT_function to decide next station  #
         ###############################################
 
-        next_station = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time)
+        next_station = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
 
         similary_imbalances_starved = 0
         similary_imbalances_overflow = 0
@@ -128,7 +128,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
     # PILOT_function - optimizes next station based on many possible future outcomes from that choice  #
     ####################################################################################################
 
-    def PILOT_function(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time):
+    def PILOT_function(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time, total_num_bikes_in_system):
         completed_plans = []
         for weight_set in self.criticality_weights_set:
             num_successors = number_of_successors
@@ -145,9 +145,9 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
                     next_vehicle = plan.next_visit.vehicle
                     if next_vehicle != vehicle:
                         num_successors_other_veheicle = max(1, round(num_successors/2))
-                        new_visits = self.greedy_next_visit(plan, simul, num_successors_other_veheicle, weight_set)
+                        new_visits = self.greedy_next_visit(plan, simul, num_successors_other_veheicle, weight_set, total_num_bikes_in_system)
                     else:
-                        new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set)
+                        new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set, total_num_bikes_in_system)
                     
                     if new_visits == None or plan.next_visit.get_depature_time() > end_time:
                         new_plan = Plan(plan.copy_plan(),copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
@@ -177,7 +177,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
                 temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
 
                 while dep_time < end_time:
-                    new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set)
+                    new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set, total_num_bikes_in_system)
                     
                     if new_visit != None:
                         new_visit = new_visit[0]
@@ -202,7 +202,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             for scenario_dict in scenarios:
                 score = 0
                 for v in plan.plan:
-                    score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights)
+                    score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights, total_num_bikes_in_system)
                 plan_scores[plan].append(score)
         
         # Returns the station with the best avarage score over all scenarios
@@ -268,7 +268,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
     ###################################################################
     # Finds next station to visit greedy based on criticallity scores #
     ###################################################################
-    def greedy_next_visit(self, plan, simul, number_of_successors, weight_set):
+    def greedy_next_visit(self, plan, simul, number_of_successors, weight_set, total_num_bikes_in_system):
         visits = []
         tabu_list = plan.tabu_list
         vehicle = plan.next_visit.vehicle
@@ -288,7 +288,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         number_of_successors = min(number_of_successors, len(potential_stations))
 
         # Finds the criticality score of all potential stations
-        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.id][-1].station,station_type ,tabu_list)
+        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.id][-1].station,station_type, total_num_bikes_in_system ,tabu_list)
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
@@ -361,7 +361,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
     # Discounting factors discounts over time (i think)                                 #
     #####################################################################################
 
-    def evaluate_route(self, route, scenario_dict, end_time, simul, weights):
+    def evaluate_route(self, route, scenario_dict, end_time, simul, weights, total_num_bikes_in_system):
         # Begins with current station and loading quantities
 
         discounting_factors = generate_discounting_factors(len(route), self.discounting_factor)
@@ -402,7 +402,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 
             if net_demand < 0:
                 sorted_escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False)
-                time_first_violation_no_visit = current_time + min((station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul)*60))
+                time_first_violation_no_visit = current_time + min((station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)*60))
             else:
                 time_first_violation_no_visit = end_time
             
@@ -425,9 +425,9 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             # Time for first violation if we visit
             if net_demand < 0:
                 if swap_quantity > loading_quantity+2:
-                    time_first_violation_after_visit = eta + min((inventory_after_loading_and_swaps/(-net_demand))*60, 100/calculate_hourly_discharge_rate(simul))
+                    time_first_violation_after_visit = eta + min((inventory_after_loading_and_swaps/(-net_demand))*60, 100/calculate_hourly_discharge_rate(simul, total_num_bikes_in_system))
                 else:
-                    time_first_violation_after_visit = eta + min((inventory_after_loading_and_swaps/(-net_demand))*60, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul)*60))
+                    time_first_violation_after_visit = eta + min((inventory_after_loading_and_swaps/(-net_demand))*60, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)*60))
             else:
                 time_first_violation_after_visit = end_time
             
@@ -571,11 +571,13 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 #############################################################################################
 
 def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
-    num_escooters_vehicle = len(vehicle.get_bike_inventory())
-
+    # num_escooters_vehicle = len(vehicle.get_bike_inventory())
+    day = simul.day()
+    hour = simul.hour()
+    target_test = station.get_target_state(day, hour)
     target_state = round(station.get_target_state(simul.day(), simul.hour())) #Denne må vi finne ut hvordan lages
-    num_escooters_station = station.number_of_bikes()
-    num_escooters_accounted_for_battery_swaps = get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station, vehicle)
+    num_escooters_station = station.number_of_bikes() # number of scooters at the station
+    num_escooters_accounted_for_battery_swaps = get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station, vehicle) # 
 
     ################################################################
     #  Adjusting numbers based on status at neighboring stations   #
@@ -599,13 +601,13 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
     #######################################################################
 
     if num_escooters_accounted_for_battery_swaps < target_state: #Ta hensyn til nabocluster her?
-        number_of_escooters_to_deliver = min(num_escooters_vehicle, target_state - num_escooters_accounted_for_battery_swaps + 2*starved_neighbors) # discuss 2*starved_neighbors part, ta hensyn til postensielle utladede scootere i bilen
+        number_of_escooters_to_deliver = min(len([escooter for escooter in vehicle.get_bike_inventory() if escooter.battery > 20]), target_state - num_escooters_accounted_for_battery_swaps + 2*starved_neighbors) # discuss 2*starved_neighbors part, ta hensyn til postensielle utladede scootere i bilen
         escooters_to_deliver_accounted_for_battery_swaps, escooters_to_swap_accounted_for_battery_swap = id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters_to_deliver, "deliver")
         escooters_to_pickup_accounted_for_battery_swaps = []
     
     elif num_escooters_accounted_for_battery_swaps > target_state:
         remaining_cap_vehicle = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory())
-        number_of_escooters_to_pickup = min(remaining_cap_vehicle, num_escooters_accounted_for_battery_swaps - target_state + 2*overflowing_neighbors) #discuss logic behind this
+        number_of_escooters_to_pickup = min(remaining_cap_vehicle, num_escooters_accounted_for_battery_swaps - target_state + 2*overflowing_neighbors, len(station.bikes)) #discuss logic behind this
         escooters_to_deliver_accounted_for_battery_swaps=[]
         escooters_to_pickup_accounted_for_battery_swaps, escooters_to_swap_accounted_for_battery_swap = id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters_to_pickup, "pickup")
 
@@ -615,7 +617,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
 
         escooters_in_station_low_battery = station.get_swappable_bikes(20)
         num_escooters_to_swap = min(len(escooters_in_station_low_battery),vehicle.battery_inventory)
-        escooters_to_swap_accounted_for_battery_swap = escooters_in_station_low_battery[:num_escooters_to_swap]
+        escooters_to_swap_accounted_for_battery_swap = [escooter.id for escooter in escooters_in_station_low_battery[:num_escooters_to_swap]]
 
 
     
@@ -629,6 +631,11 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
 #######################################################################################################################
 
 def get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station, vehicle): 
+    """"
+    Neglects the scooters what cannot be fixed
+
+    Returns max number of scooters at station with sufficient battery level
+    """
     return num_escooters_station - len(station.get_swappable_bikes(20)) + min(len(station.get_swappable_bikes(20)),vehicle.battery_inventory)
 
 
@@ -638,25 +645,27 @@ def get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station
 # Delivers from high battery until threshold                                               #  
 #                                                                                          #
 # If pickup, pickup and swap as many escooters with low battry as possible                 #
-# Then pickup rest from high battry end or swap remaining swaps                            #
+# Then pickup rest from high battery end or swap remaining swaps                           #
 ############################################################################################
 
 def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters, type):
-    escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False)
-    escooters_in_vehicle =  sorted(vehicle.get_bike_inventory(), key=lambda bike: bike.battery, reverse=False) 
+    escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False) # escooters at station, sorted from lowest to highest battery level. List consists of bike-objects
+    escooters_in_vehicle =  sorted(vehicle.get_bike_inventory(), key=lambda bike: bike.battery, reverse=False) # escooters in vehicle, sortes from lowest to highest bettery level. List consists of bike-objects
 
     if type == "deliver":
-        number_of_escooters_to_swap = min(len(station.get_swappable_bikes(20)),vehicle.battery_inventory)
-        number_of_escooters_to_deliver = int(number_of_escooters)+1 # runde opp eller ned?
+        number_of_escooters_to_swap = min(len(station.get_swappable_bikes(20)),vehicle.battery_inventory) # get all the bikes under 20% if available capacity, otherwise swap batteries on n bikes with the lowest battery level. n = available capacity in vehicle
+        #TODO Burde vi runde opp eller ned?
+        number_of_escooters_to_deliver = int(number_of_escooters)+1 # If 4.2 escooter are being delivered, we deliver 5
 
-        escooters_to_swap = [escooter.id for escooter in escooters_in_station[:number_of_escooters_to_swap]]
-        escooters_to_deliver = [escooter.id for escooter in escooters_in_vehicle[-number_of_escooters_to_deliver:]]
+        escooters_to_swap = [escooter.id for escooter in escooters_in_station[:number_of_escooters_to_swap]] # swap the n escooters with lowest percentage at the station
+        escooters_to_deliver = [escooter.id for escooter in escooters_in_vehicle[-number_of_escooters_to_deliver:]] # unload the n escooters with the highest percentage
 
         return escooters_to_deliver, escooters_to_swap
     
-    elif type == "pickup": 
-        number_of_escooters_to_swap_and_pickup = min(len(station.get_swappable_bikes(70)),vehicle.battery_inventory, round(number_of_escooters)) # decide threshold for swap when pickup
-        number_of_escooters_to_only_pickup = round(number_of_escooters) - number_of_escooters_to_swap_and_pickup
+    elif type == "pickup":
+        #TODO Burde vi runde på en annen måte? Nå runder vi til nærmeste heltall
+        number_of_escooters_to_swap_and_pickup = min(len(station.get_swappable_bikes(70)),vehicle.battery_inventory, round(number_of_escooters)) # decide threshold for swap, either decided by # of full batteries, # of escooters under 70% and the max amount we are allowed to pick up based om target
+        number_of_escooters_to_only_pickup = round(number_of_escooters) - number_of_escooters_to_swap_and_pickup # how many to pick up
         number_of_escooters_to_only_swap = max(0,len(station.get_swappable_bikes(20)) - number_of_escooters_to_swap_and_pickup)
 
         escooters_to_swap = []
