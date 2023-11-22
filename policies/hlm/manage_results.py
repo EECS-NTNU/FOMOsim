@@ -122,7 +122,7 @@ def write_sim_results_to_file(filename, simulator, duration, append=False):
           simulator.metrics.get_aggregate_value('short_congestion'), round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2), 
           round(simulator.metrics.get_aggregate_value('roaming distance for locks'),2), simulator.state.seed]
     try:
-        path= './policies/hlm/simulation_results/'+filename
+        path= './policies/inngjerdingen_moeller/simulation_results/'+filename
         if append==False:
             with open(path,'w', newline='') as f:
                 writer=csv.writer(f)
@@ -135,6 +135,7 @@ def write_sim_results_to_file(filename, simulator, duration, append=False):
     except: 
         print("Error writing to CSV")
         return None
+    
 
 def write_sol_time_to_file(filename, simulator):
     data=[simulator.metrics.get_aggregate_value('accumulated solution time'), simulator.metrics.get_aggregate_value('number of problems solved')]
@@ -237,6 +238,7 @@ def visualize_aggregated_share_of_events(aggregated_data, filename):
     ax.axis('equal')
     outfile=filename[:-4]+".png"
     plt.savefig('./policies/inngjerdingen_moeller/simulation_results/aggr_share_of_events_'+outfile)
+
 
 def visualize_aggregated_results(filename):
         try:

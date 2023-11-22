@@ -40,7 +40,7 @@ class Station(Location):
         self.move_probabilities = move_probabilities
 
         self.average_number_of_bikes = average_number_of_bikes
-        self.capacity = int(capacity) if capacity != 'inf' else float(capacity) # handles if capacity isn't infinite
+        self.capacity = int(capacity)
         self.original_id = original_id
         self.charging_station = charging_station
         self.neighboring_stations = []

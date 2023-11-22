@@ -571,10 +571,8 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 #############################################################################################
 
 def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
-    # num_escooters_vehicle = len(vehicle.get_bike_inventory())
-    day = simul.day()
-    hour = simul.hour()
-    target_test = station.get_target_state(day, hour)
+    num_escooters_vehicle = len(vehicle.get_bike_inventory())
+
     target_state = round(station.get_target_state(simul.day(), simul.hour())) #Denne må vi finne ut hvordan lages
     num_escooters_station = station.number_of_bikes() # number of scooters at the station
     num_escooters_accounted_for_battery_swaps = get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station, vehicle) # 
