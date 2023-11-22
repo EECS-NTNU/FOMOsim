@@ -51,6 +51,18 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 
         end_time = simul.time + self.time_horizon 
 
+        depot = simul.state.depot
+
+        if vehicle.battery_inventory <= 0:
+            next_station = self.find_closest_depot(simul, vehicle, depot)
+
+            return sim.Action(
+            [],
+            [],
+            [],
+            next_station
+        )
+
 
         #########################################################################################
         #   Number of bikes to pick up / deliver is choosen greedy based on clusters in reach   #
@@ -528,7 +540,26 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id
-                            
+        
+    
+
+    ####################################################################
+    # Finds closest depot from location when vehicle is out of battery #
+    ####################################################################
+
+    def find_closest_depot(self, simul, vehicle, depot):
+        closest_depot = None
+        closest_distance = 100000000
+
+
+        for d in depot:
+            distance = (simul.state.traveltime_vehicle_matrix[vehicle.location.id][d.id]/60)*VEHICLE_SPEED
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_depot = d
+
+        
+        return closest_depot
                         
 
 

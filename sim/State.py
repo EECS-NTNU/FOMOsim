@@ -258,6 +258,7 @@ class State(LoadSave):
         """
         refill_time = 0
         if vehicle.is_at_depot():
+
             batteries_to_swap = min(
                 vehicle.flat_batteries(),
                 vehicle.location.get_available_battery_swaps(time),
@@ -267,6 +268,13 @@ class State(LoadSave):
                 time, batteries_to_swap
             )
             vehicle.add_battery_inventory(batteries_to_swap)
+
+            ### NEW FUNCTIONALITY  ###
+
+            for e_scooter in vehicle.get_bike_inventory():
+                e_scooter.swap_battery()
+
+            ###########################
 
         else:
             for pick_up_bike_id in action.pick_ups:
