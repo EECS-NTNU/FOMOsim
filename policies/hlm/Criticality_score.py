@@ -38,7 +38,7 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
 
 
 
-def calculate_criticality(weights, simul, potential_stations, station, station_type, visited_stations = None):
+def calculate_criticality(weights, simul, potential_stations, station, station_type,total_num_bikes_in_system, visited_stations = None):
 
     #This is where we have to add one weight for battery level if nessesary
 
@@ -71,7 +71,7 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
             potential_station_type = calculate_station_type(target_state, expected_num_escooters)
 
         # Time to violation
-        time_to_violation = calculate_time_to_violation_IM(net_demand, potential_station, simul)
+        time_to_violation = calculate_time_to_violation_IM(net_demand, potential_station, simul, total_num_bikes_in_system)
         time_to_violation_list.append(time_to_violation)
 
         # Deviation from target state
@@ -91,7 +91,7 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
         driving_time_list.append(driving_time_crit)
 
         # Battery level composition criticality
-        battery_level_comp_crit = calculate_battery_level_composition_criticality(simul, station)
+        battery_level_comp_crit = calculate_battery_level_composition_criticality(simul, station, total_num_bikes_in_system)
         BL_composition_list.append(battery_level_comp_crit)
 
 
@@ -124,7 +124,7 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
 # Uses the demand caluclated for the next hour for the forseable future - room for improvement? #
 #################################################################################################
 
-def calculate_time_to_violation_IM(net_demand, station,simul):
+def calculate_time_to_violation_IM(net_demand, station,simul, total_num_bikes_in_system):
     time_to_violation = 0
 
     #since we operate without a station_capacity positive net demand wont lead to violation, should we punich in a way
@@ -135,7 +135,7 @@ def calculate_time_to_violation_IM(net_demand, station,simul):
     #This is the perfect spot to add some calculation on battery degeneration over itme
     elif net_demand < 0:
         sorted_escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False)
-        time_to_violation = min((station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul)*60))
+        time_to_violation = min((station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)*60))
 
         #We treat violations >= 8 as the same
         if time_to_violation > 8:
@@ -214,7 +214,7 @@ def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_typ
             if station_type == 'd':
                 current_escooters = neighbor.bikes
                 battery_levels_neighbor = [escooter.battery for escooter in current_escooters.values() if escooter.battery > 20]
-                avg_battery_level = sum(battery_levels_neighbor) / len(battery_levels_neighbor)
+                avg_battery_level = (sum(battery_levels_neighbor) / len(battery_levels_neighbor)) if len(battery_levels_neighbor) > 0 else 0
 
                 if neighbor_type == 'd':
                     if avg_battery_level < 50:
@@ -273,10 +273,10 @@ def calculate_driving_time_crit(simul, current_station, potential_station):
 # NEW criticality factor                                #
 #########################################################
 
-def calculate_battery_level_composition_criticality(simul, station):
+def calculate_battery_level_composition_criticality(simul, station, total_num_bikes_in_system):
     
      current_escooters = station.bikes
-     hourly_discharge_rate = calculate_hourly_discharge_rate(simul) * 60
+     hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60
 
      battery_levels_current = [escooter.battery for escooter in current_escooters.values() if escooter.battery > 20]
      battery_levels_after = [escooter.battery - hourly_discharge_rate for escooter in current_escooters.values() if (escooter.battery - hourly_discharge_rate) > 20]
