@@ -39,8 +39,13 @@ def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system):
     day = simul.day()
     hour = simul.hour()
 
-    number_of_trips_current_hour = sum([station.get_arrive_intensity(day,hour) for station in simul.state.stations.values()])
-    number_of_trips_next_hour = sum([station.get_arrive_intensity(day, hour+1) for station in simul.state.stations.values()])
+    trips_current_hour = []
+    trips_next_hour = []
+    for station in simul.state.stations.values():
+        trips_current_hour.append(station.get_arrive_intensity(day,hour))
+        trips_next_hour.append(station.get_arrive_intensity(day, hour+1))
+    number_of_trips_current_hour = sum(trips_current_hour)
+    number_of_trips_next_hour = sum(trips_next_hour)
 
     number_of_trips_next_60_min = min(60-(time_now-day*24*60-hour*60),60)*number_of_trips_current_hour/60 + (60 - (time_now-day*24*60-hour*60))*number_of_trips_next_hour/60
 

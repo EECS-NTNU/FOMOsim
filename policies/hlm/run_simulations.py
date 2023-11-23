@@ -18,7 +18,10 @@ from helpers import timeInMinutes
 import time
 import multiprocessing as mp
 
-def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INSTANCE=None):
+INIT_DURATION = 24*5
+NUM_VEHICLES = 2
+
+def run_simulation(seed, policy, duration= INIT_DURATION, num_vehicles= NUM_VEHICLES, queue=None, INSTANCE=None):
 
     #change common parameters for the different simulations here:
     START_TIME = timeInMinutes(hours=7)
@@ -126,30 +129,30 @@ def test_instances(list_of_seeds, list_of_instances):
         filename=str(instance)+".csv"
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles, instance=instance)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, instance=None): #change duration and number of vehicles HERE!
-    #------------PROCESS----------------
-    # seeds = list_of_seeds
-    # q = mp.Queue()
-    # processes = []
-    # returned_simulators = []
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= NUM_VEHICLES, duration= INIT_DURATION, instance=None): #change duration and number of vehicles HERE!
+    # #------------PROCESS----------------
+    seeds = list_of_seeds
+    q = mp.Queue()
+    processes = []
+    returned_simulators = []
 
-    # for seed in seeds:
-    #     process = mp.Process(target=run_simulation, args = (seed, policy, duration, num_vehicles, q, instance))
-    #     processes.append(process)
-    #     process.start()
-    # for process in processes:
-    #     ret = q.get()   #will block
-    #     returned_simulators.append(ret)
-    # for process in processes:
-    #     process.join()
-    # for simulator in returned_simulators:
-    #     policies.hlm.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
-    #     # if we run PILOT policy:
-    #     filename_time = "sol_time_"+filename
-    #     policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
-    #     # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
-    #     for branch in range(policy.number_of_successors):
-    #         print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
+    for seed in seeds:
+        process = mp.Process(target=run_simulation, args = (seed, policy, duration, num_vehicles, q, instance))
+        processes.append(process)
+        process.start()
+    for process in processes:
+        ret = q.get()   #will block
+        returned_simulators.append(ret)
+    for process in processes:
+        process.join()
+    for simulator in returned_simulators:
+        policies.hlm.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
+        # if we run PILOT policy:
+        filename_time = "sol_time_"+filename
+        policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
+        # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
+        for branch in range(policy.number_of_successors):
+            print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
     policies.hlm.manage_results.visualize_aggregated_results(filename)
 
 
@@ -173,7 +176,7 @@ if __name__ == "__main__":
         max_depth = 2, 
         number_of_successors = 3, 
         time_horizon = 40, 
-        criticality_weights_sets = [[0.3, 0.15, 0.25, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0.05, 0.2, 0.05]], 
+        criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.2], [0.25, 0.4, 0, 0, 0.2, 0.15], [0.55, 0.08, 0.07, 0.15, 0.05, 0.1]], 
         evaluation_weights = [0.85, 0.1, 0.05], 
         number_of_scenarios = 3, 
         discounting_factor = 0.1
