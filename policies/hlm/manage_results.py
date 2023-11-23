@@ -111,7 +111,7 @@ class VisualizeResults():
         ax.set_title('Share of different events', fontsize = 16, fontweight = 'bold')
         ax.pie(values, labels=labels, explode=explode, autopct='%1.1f%%', colors=colors)
         ax.axis('equal')
-        plt.savefig('./policies/inngjerdingen_moeller/simulation_results/test1.png')
+        plt.savefig('./policies/hlm/simulation_results/test1.png')
         if show:
             plt.show()
 
@@ -139,7 +139,7 @@ def write_sim_results_to_file(filename, simulator, duration, append=False):
 def write_sol_time_to_file(filename, simulator):
     data=[simulator.metrics.get_aggregate_value('accumulated solution time'), simulator.metrics.get_aggregate_value('number of problems solved')]
     try:
-        path= './policies/inngjerdingen_moeller/simulation_results/'+filename
+        path= './policies/hlm/simulation_results/'+filename
         with open(path,'a',newline='') as f:
             writer=csv.writer(f)
             writer.writerow(data)
@@ -170,7 +170,7 @@ def visualize_aggregated_violations_and_roaming(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(values[i]), xy=(type_of_event[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/inngjerdingen_moeller/simulation_results/aggr_violations_and_roaming_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/aggr_violations_and_roaming_'+outfile)
     
 def visualize_aggregated_total_roaming_distances(aggregated_data, filename):
     data = {'Roaming for locks':aggregated_data['roaming distance for locks'],
@@ -187,7 +187,7 @@ def visualize_aggregated_total_roaming_distances(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(round(values[i], 2)), xy=(type_of_roaming[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/inngjerdingen_moeller/simulation_results/aggr_total_roaming_distances_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/aggr_total_roaming_distances_'+outfile)
 
 def visualize_aggregated_average_roaming_distances(aggregated_data, filename):
     long_congestions = aggregated_data['long congestion']
@@ -217,7 +217,7 @@ def visualize_aggregated_average_roaming_distances(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(round(values[i], 2)), xy=(type_of_roaming[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/inngjerdingen_moeller/simulation_results/aggr_average_roaming_distances_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/aggr_average_roaming_distances_'+outfile)
 
 def visualize_aggregated_share_of_events(aggregated_data, filename):
     tot_events = aggregated_data['events']
@@ -236,11 +236,11 @@ def visualize_aggregated_share_of_events(aggregated_data, filename):
     ax.pie(values, labels=labels, explode=explode, autopct='%1.1f%%', colors=colors)
     ax.axis('equal')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/inngjerdingen_moeller/simulation_results/aggr_share_of_events_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/aggr_share_of_events_'+outfile)
 
 def visualize_aggregated_results(filename):
         try:
-            path = './policies/inngjerdingen_moeller/simulation_results/'+filename
+            path = './policies/hlm/simulation_results/'+filename
             with open(path, 'r', newline='') as f:
                 reader = csv.reader(f, delimiter=',')
                 aggregated_data = {'events':0, 'starvation':0, 'roaming for bikes':0,'long congestion':0, 'short congestion':0,  'roaming distance for bikes':0, 'roaming distance for locks':0} 

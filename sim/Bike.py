@@ -13,6 +13,7 @@ class Bike(Location):
         self.metrics = Metric()
 
     def travel(self, simul, travel_time, congested = False):
+        # print("normal travel")
         if congested:
             self.metrics.add_metric(simul, "travel_time_congested", travel_time)
         else:

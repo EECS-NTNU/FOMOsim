@@ -14,7 +14,9 @@ class EBike(Bike):
 
     def travel(self, simul, travel_time, congested = False):
         super().travel(simul, travel_time, congested)
+        print("battery before:", self.battery)
         self.battery -= travel_time * self.battery_change_per_minute
+        print("battery after:", self.battery)
 
     def usable(self):
       return self.battery >= BATTERY_LIMIT

@@ -19,7 +19,7 @@ from helpers import timeInMinutes
 import time
 import multiprocessing as mp
 
-def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INSTANCE=None):
+def run_simulation(seed, policy, duration=24*1, num_vehicles=2, queue=None, INSTANCE=None):
 
     #change common parameters for the different simulations here:
     START_TIME = timeInMinutes(hours=7)
@@ -48,7 +48,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
     
     ###############################################################
     
-    state = init_state.read_initial_state("instances/ebike3/"+INSTANCE)
+    state = init_state.read_initial_state("instances/ebike/"+INSTANCE)
     state.set_seed(seed)
     vehicles = [policy for i in range(num_vehicles)]
     state.set_vehicles(vehicles) # this creates one vehicle for each policy in the list
@@ -148,7 +148,7 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5
         # if we run PILOT policy:
         filename_time = "sol_time_"+filename
         policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
-        output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
+        # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
         for branch in range(policy.number_of_successors):
             print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
     policies.hlm.manage_results.visualize_aggregated_results(filename)
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         time_horizon = 40, 
         criticality_weights_sets = [[0.3, 0.15, 0.25, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0.05, 0.2, 0.05]], 
         evaluation_weights = [0.85, 0.1, 0.05], 
-        number_of_scenarios = 2, 
+        number_of_scenarios = 3, 
         discounting_factor = 0.1
     ))
     
@@ -189,7 +189,7 @@ if __name__ == "__main__":
   
     # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-    list_of_seeds = [1]
+    list_of_seeds = [5]
   
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)

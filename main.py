@@ -12,6 +12,7 @@ import policies
 # import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
 import policies.inngjerdingen_moeller
+import policies.hlm
 import sim
 import output
 import demand
@@ -21,8 +22,8 @@ from helpers import timeInMinutes
 
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=6)
-INSTANCE = 'TD_W34'
+DURATION = timeInMinutes(hours=120)
+INSTANCE = 'OS_W34'
 WEEK = 34
 
 def main():
@@ -38,7 +39,7 @@ def main():
     #                                      week=34)
 
     # the following is for reading a precalculated initial state from a json file
-    state = read_initial_state("instances/"+INSTANCE)
+    state = read_initial_state("instances/ebike/"+INSTANCE)
 
     state.set_seed(1)
 
@@ -48,7 +49,8 @@ def main():
 
     # policy = policies.RandomActionPolicy()
     # policy = policies.GreedyPolicy()
-    policy = policies.inngjerdingen_moeller.inngjerdingen_moeller_policy.InngjerdingenMoellerPolicy(time_horizon=15)
+    # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller_policy.InngjerdingenMoellerPolicy(time_horizon=15)
+    policy = policies.hlm.BS_PILOT()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')

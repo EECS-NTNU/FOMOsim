@@ -1,4 +1,4 @@
-from Variables import AVARAGE_LENGHT_OF_TRIP
+from .Variables import AVARAGE_LENGHT_OF_TRIP
 from settings import BATTERY_CHANGE_PER_MINUTE
 
 #####################################################################################################################################
