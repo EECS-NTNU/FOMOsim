@@ -687,18 +687,25 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
 
     # Filter out stations in tabulist
     potential_stations = [station for station in simul.state.locations if station.id not in tabu_list]
+    net_demands = {}
+    target_states = {}
+    potential_pickup_stations = []
+    potential_delivery_stations = []
 
-    # Makes dictonary with all potential stations and their respective demands
-    net_demands = {station.id : calculate_net_demand(station, simul.time, simul.day(), simul.hour(), 60) for station in potential_stations}
+    for station in potential_stations:
+        # Makes dictonary with all potential stations and their respective demands
+        net_demands[station.id] = calculate_net_demand(station, simul.time, simul.day(), simul.hour(), 60)
+        
+        # Makes dictionary with all potential stations and their respective target states
+        target_states[station.id] = station.get_target_state(simul.day(), simul.hour())
 
-    # Makes dictionary with all potential stations and their respective target states
-    target_states = {station.id : station.get_target_state(simul.day(), simul.hour()) for station in potential_stations}
-
-    # Finds the stations from potential stations which would be a pickup station if choosen - accounted for battery level / swaps
-    potential_pickup_stations = [station for station in potential_stations if get_num_escooters_accounted_for_battery_swaps(station, station.number_of_bikes(), vehicle) + net_demands[station.id] > (1 + cutoff_station)*target_states[station.id]]
-
-    # Finds the stations from potential stations which woukd be a delivery station if choosen - accounted for battery level / swaps
-    potential_delivery_stations = [station for station in potential_stations if get_num_escooters_accounted_for_battery_swaps(station, station.number_of_bikes(), vehicle) + net_demands[station.id] < (1 - cutoff_station)*target_states[station.id]]
+        adjusted_demand = get_num_escooters_accounted_for_battery_swaps(station, station.number_of_bikes(), vehicle) + net_demands[station.id]
+        if adjusted_demand > (1 + cutoff_station)*target_states[station.id]:
+            # Finds the stations from potential stations which would be a pickup station if choosen - accounted for battery level / swaps
+            potential_pickup_stations.append(station)
+        elif adjusted_demand < (1 - cutoff_station)*target_states[station.id]:
+            # Finds the stations from potential stations which woukd be a delivery station if choosen - accounted for battery level / swaps
+            potential_delivery_stations.append(station)
 
     type = 'b'
     

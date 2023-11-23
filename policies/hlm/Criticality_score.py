@@ -42,8 +42,6 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
 
     #This is where we have to add one weight for battery level if nessesary
 
-    # TODO - add weight for battery_criticality
-
     [w_t, w_dev, w_n, w_dem, w_dri, w_bc] = weights
     TIME_HORIZON = 60
     criticalities = dict() # key: station, value: list of values for factors to consider.
@@ -93,7 +91,6 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
         # Battery level composition criticality
         battery_level_comp_crit = calculate_battery_level_composition_criticality(simul, potential_station, total_num_bikes_in_system)
         BL_composition_list.append(battery_level_comp_crit)
-
 
         criticalities[potential_station] = [time_to_violation, deviation_from_target_state, neighborhood_crit, demand_crit, driving_time_crit, battery_level_comp_crit]
     
@@ -276,22 +273,24 @@ def calculate_driving_time_crit(simul, current_station, potential_station):
 
 def calculate_battery_level_composition_criticality(simul, station, total_num_bikes_in_system):
     
-     current_escooters = station.bikes
-     hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60
+    current_escooters = station.bikes
+    hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60
 
-     battery_levels_current = []
-     battery_levels_after = []
-     for escooter in current_escooters.valueS():
-         if escooter.battery > 20:
-            battery_levels_current.append(escooter.battery)
-         if escooter.battery - hourly_discharge_rate > 20:
-             battery_levels_after.append(escooter.battery - hourly_discharge_rate)
+    battery_levels_current = []
+    battery_levels_after = []
+    for escooter in current_escooters.values():
+        if escooter.battery > 20:
+           battery_levels_current.append(escooter.battery)
+        if escooter.battery - hourly_discharge_rate > 20:
+           battery_levels_after.append(escooter.battery - hourly_discharge_rate)
 
-     #Apply weighted avarage functionality here if we want
-     if len(battery_levels_after) == 0 or len(battery_levels_current) == 0:
-         return 0
+    #TODO Apply weighted average functionality here if we want
+    if len(battery_levels_after) == 0 and len(battery_levels_current) == 0:
+        return 100
+    if len(battery_levels_after) == 0:
+        return 0
 
-     return (len(battery_levels_after)/ len(battery_levels_current))*(sum(battery_levels_after)/len(battery_levels_after))
+    return (len(battery_levels_after)/len(battery_levels_current))*(sum(battery_levels_after)/len(battery_levels_after))
 
 
 
@@ -332,8 +331,5 @@ def normalize_results(criticalities, time_to_violation_list, deviation_list, nei
             criticalities_normalized[station].append(criticalities[station][2]/-min_neighborhood)
         criticalities_normalized[station].append(criticalities[station][3]/max_demand)
         criticalities_normalized[station].append(1-criticalities[station][4]/max_driving_time)
-        criticalities_normalized[station].append(1-criticalities[station][5]/max_battery_level)
+        criticalities_normalized[station].append(1-criticalities[station][5]/max_battery_level if max_battery_level > 0 else 0) # TODO
     return criticalities_normalized
-
-
-
