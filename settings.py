@@ -16,7 +16,7 @@ SERVICE_TIME_TO = 20  #20=20:00
 
 BATTERY_LIMIT = 20.0
 BIKE_SPEED = 7 # default, normally calculated from input data
-BATTERY_CHANGE_PER_MINUTE = 0.75
+BATTERY_CHANGE_PER_MINUTE = 0.2
 
 # Depot settings
 

@@ -104,7 +104,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         similary_imbalances_overflow = 0
 
         for neighbor in simul.state.stations[next_station].neighboring_stations:
-            if neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) > 1.1 * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
+            if neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) > 1.9 * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
                 similary_imbalances_overflow += 1
             elif neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) < 0.1 * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_deliver > 0:
                 similary_imbalances_starved += 1
@@ -241,7 +241,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             neighbor_target_state = round(neighbor.get_target_state(simul.day(), simul.hour()))
             if num_escooters_neighbor < 0.1 * neighbor_target_state:
              starved_neighbors += 1
-            elif num_escooters_neighbor > 1.1 * neighbor_target_state:
+            elif num_escooters_neighbor > 1.9 * neighbor_target_state:
              overflowing_neighbors += 1
 
         if num_escooters_station_at_arrival_accounted_battery_swap < target_state:
@@ -587,7 +587,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
         neighbor_target_state = round(neighbor.get_target_state(simul.day(), simul.hour()))
         if num_escooters_neighbor < 0.1 * neighbor_target_state:
             starved_neighbors += 1
-        elif num_escooters_neighbor > 1.1 * neighbor_target_state:
+        elif num_escooters_neighbor > 1.9 * neighbor_target_state:
             overflowing_neighbors += 1
 
     #######################################################################

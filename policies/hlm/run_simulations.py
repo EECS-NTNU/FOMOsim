@@ -18,7 +18,7 @@ from helpers import timeInMinutes
 import time
 import multiprocessing as mp
 
-def run_simulation(seed, policy, duration=24*1, num_vehicles=2, queue=None, INSTANCE=None):
+def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INSTANCE=None):
 
     #change common parameters for the different simulations here:
     START_TIME = timeInMinutes(hours=7)
@@ -128,28 +128,28 @@ def test_instances(list_of_seeds, list_of_instances):
 
 def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, instance=None): #change duration and number of vehicles HERE!
     #------------PROCESS----------------
-    seeds = list_of_seeds
-    q = mp.Queue()
-    processes = []
-    returned_simulators = []
+    # seeds = list_of_seeds
+    # q = mp.Queue()
+    # processes = []
+    # returned_simulators = []
 
-    for seed in seeds:
-        process = mp.Process(target=run_simulation, args = (seed, policy, duration, num_vehicles, q, instance))
-        processes.append(process)
-        process.start()
-    for process in processes:
-        ret = q.get()   #will block
-        returned_simulators.append(ret)
-    for process in processes:
-        process.join()
-    for simulator in returned_simulators:
-        policies.hlm.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
-        # if we run PILOT policy:
-        filename_time = "sol_time_"+filename
-        policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
-        # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
-        for branch in range(policy.number_of_successors):
-            print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
+    # for seed in seeds:
+    #     process = mp.Process(target=run_simulation, args = (seed, policy, duration, num_vehicles, q, instance))
+    #     processes.append(process)
+    #     process.start()
+    # for process in processes:
+    #     ret = q.get()   #will block
+    #     returned_simulators.append(ret)
+    # for process in processes:
+    #     process.join()
+    # for simulator in returned_simulators:
+    #     policies.hlm.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
+    #     # if we run PILOT policy:
+    #     filename_time = "sol_time_"+filename
+    #     policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
+    #     # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
+    #     for branch in range(policy.number_of_successors):
+    #         print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
     policies.hlm.manage_results.visualize_aggregated_results(filename)
 
 

@@ -39,6 +39,13 @@ class BikeArrival(Event):
         if self.bike is not None:
             self.bike.travel(world, self.travel_time, self.congested)
 
+            if self.bike.battery < 0:
+                arrival_station.metrics.add_aggregate_metric(world, "battery violation", 1)
+                world.metrics.add_aggregate_metric(world, "battery violation", 1)
+                arrival_station.metrics.add_aggregate_metric(world, "Failed events", 1)
+                world.metrics.add_aggregate_metric(world, "Failed events", 1)
+                self.bike.battery = 0
+
             # add bike to the arrived station (location is changed in add_bike method)
             if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:

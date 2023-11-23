@@ -116,11 +116,11 @@ class VisualizeResults():
             plt.show()
 
 def write_sim_results_to_file(filename, simulator, duration, append=False):
-    header = ['Duration','Events','Starvations','Roaming for bikes',  'Long congestions', 'Short congestions', 'Roaming distance for bikes','Roaming distance for locks', 'Seed']
+    header = ['Duration','Events','Starvations','No scooters',  'No battery', 'Battery Violation', 'Roaming for bikes', 'Roaming distance for bikes', 'Seed']
     data=[duration, simulator.metrics.get_aggregate_value('events'), simulator.metrics.get_aggregate_value('starvation'), 
-          simulator.metrics.get_aggregate_value('roaming for bikes'), simulator.metrics.get_aggregate_value('long_congestion'), 
-          simulator.metrics.get_aggregate_value('short_congestion'), round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2), 
-          round(simulator.metrics.get_aggregate_value('roaming distance for locks'),2), simulator.state.seed]
+          simulator.metrics.get_aggregate_value('starvations, no bikes'), simulator.metrics.get_aggregate_value('starvations, no battery'), 
+          simulator.metrics.get_aggregate_value('battery violation'), simulator.metrics.get_aggregate_value('roaming for bikes'),
+          round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2), simulator.state.seed]
     try:
         path= './policies/hlm/simulation_results/'+filename
         if append==False:
@@ -150,19 +150,20 @@ def write_sol_time_to_file(filename, simulator):
 
 def write_sim_results_to_list(simulator, duration):
     data=[duration, simulator.metrics.get_aggregate_value('events'), simulator.metrics.get_aggregate_value('starvation'), 
-          simulator.metrics.get_aggregate_value('roaming for bikes'), simulator.metrics.get_aggregate_value('long_congestion'), 
-          simulator.metrics.get_aggregate_value('short_congestion'), round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2), 
-          round(simulator.metrics.get_aggregate_value('roaming distance for locks'),2), simulator.state.seed]
+          simulator.metrics.get_aggregate_value('starvations, no bikes'), simulator.metrics.get_aggregate_value('starvations, no battery'),
+          simulator.metrics.get_aggregate_value('battery violation'), simulator.metrics.get_aggregate_value('roaming for bikes'),
+          round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2), simulator.state.seed]
     return data
 
 def visualize_aggregated_violations_and_roaming(aggregated_data, filename):
     data = {'Starvations':aggregated_data['starvation'],
-            'Long congestions':aggregated_data['long congestion'],
-            'Short congestions':aggregated_data['short congestion'],
-            'Roaming for bikes':aggregated_data['roaming for bikes']}
+            'No scooters':aggregated_data['starvations, no bikes'],
+            'No battery':aggregated_data['starvations, no battery'],
+            'Battery Violation':aggregated_data['battery violation'],
+            'Roaming':aggregated_data['roaming for bikes']}
     type_of_event = list(data.keys())
     values = list(data.values())
-    colors = ['salmon', 'mediumpurple', 'cornflowerblue', 'green']
+    colors = ['salmon', 'mediumpurple', 'cornflowerblue', 'red', 'green']
     fig, ax = plt.subplots()
     ax.grid(visible = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
     plt.bar(type_of_event, values, width=0.4, color = colors, alpha = 1, zorder = 2)
@@ -171,14 +172,15 @@ def visualize_aggregated_violations_and_roaming(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(values[i]), xy=(type_of_event[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlm/simulation_results/aggr_violations_and_roaming_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/test/aggr_violations_and_roaming_'+outfile)
     
 def visualize_aggregated_total_roaming_distances(aggregated_data, filename):
-    data = {'Roaming for locks':aggregated_data['roaming distance for locks'],
+    data = {# 'Roaming for locks':aggregated_data['roaming distance for locks'],
             'Roaming for bikes':aggregated_data['roaming distance for bikes']}
     type_of_roaming = list(data.keys())
     values = list(data.values())
-    colors = ['mediumpurple', 'cornflowerblue']
+    colors = [#'mediumpurple', 
+        'cornflowerblue']
     fig, ax = plt.subplots()
     ax.grid(visible = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
     plt.bar(type_of_roaming, values, width=0.4, color = colors, alpha = 1, zorder = 2)
@@ -188,7 +190,7 @@ def visualize_aggregated_total_roaming_distances(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(round(values[i], 2)), xy=(type_of_roaming[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlm/simulation_results/aggr_total_roaming_distances_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/test/aggr_total_roaming_distances_'+outfile)
 
 def visualize_aggregated_average_roaming_distances(aggregated_data, filename):
     long_congestions = aggregated_data['long congestion']
@@ -218,16 +220,16 @@ def visualize_aggregated_average_roaming_distances(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(round(values[i], 2)), xy=(type_of_roaming[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlm/simulation_results/aggr_average_roaming_distances_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/test/aggr_average_roaming_distances_'+outfile)
 
 def visualize_aggregated_share_of_events(aggregated_data, filename):
     tot_events = aggregated_data['events']
-    long_congestions = aggregated_data['long congestion']
     starvations = aggregated_data['starvation']
-    roaming_for_bikes = aggregated_data['roaming for bikes']
-    tot_successful = tot_events - long_congestions - starvations
-    data = {'Successful events':tot_successful/tot_events, 'Long congestions':long_congestions/tot_events,
-            'Starvations':starvations/tot_events}
+    battery_violation = aggregated_data['battery violation']
+    tot_successful = tot_events - starvations - battery_violation
+    data = {'Successful events':tot_successful/tot_events,
+            'Starvations':starvations/tot_events,
+            'Battery Violation': battery_violation/tot_events}
     colors = ['seagreen', 'mediumpurple', 'salmon']
     explode = (0, 0.05, 0.05)
     labels = list(data.keys())
@@ -237,7 +239,7 @@ def visualize_aggregated_share_of_events(aggregated_data, filename):
     ax.pie(values, labels=labels, explode=explode, autopct='%1.1f%%', colors=colors)
     ax.axis('equal')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlm/simulation_results/aggr_share_of_events_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/test/aggr_share_of_events_'+outfile)
 
 
 def visualize_aggregated_results(filename):
@@ -245,18 +247,18 @@ def visualize_aggregated_results(filename):
             path = './policies/hlm/simulation_results/'+filename
             with open(path, 'r', newline='') as f:
                 reader = csv.reader(f, delimiter=',')
-                aggregated_data = {'events':0, 'starvation':0, 'roaming for bikes':0,'long congestion':0, 'short congestion':0,  'roaming distance for bikes':0, 'roaming distance for locks':0} 
+                aggregated_data = {'events':0, 'starvation':0, 'starvations, no bikes':0,'starvations, no battery':0, 'battery violation': 0, 'roaming for bikes':0, 'roaming distance for bikes':0} 
                 for col in reader:
                     aggregated_data['events'] += int(col[1])
                     aggregated_data['starvation'] += int(col[2])
-                    aggregated_data['roaming for bikes'] += int(col[3])
-                    aggregated_data['long congestion'] += int(col[4])
-                    aggregated_data['short congestion'] += int(col[5])
-                    aggregated_data['roaming distance for bikes'] += float(col[6])
-                    aggregated_data['roaming distance for locks'] += float(col[7])
+                    aggregated_data['starvations, no bikes'] += int(col[3])
+                    aggregated_data['starvations, no battery'] += int(col[4])
+                    aggregated_data['battery violation'] += int(col[5])
+                    aggregated_data['roaming for bikes'] += float(col[6])
+                    aggregated_data['roaming distance for bikes'] += float(col[7])
             visualize_aggregated_violations_and_roaming(aggregated_data, filename)
             visualize_aggregated_total_roaming_distances(aggregated_data, filename)
-            visualize_aggregated_average_roaming_distances(aggregated_data, filename)
+            # visualize_aggregated_average_roaming_distances(aggregated_data, filename)
             visualize_aggregated_share_of_events(aggregated_data, filename)
         
         except:

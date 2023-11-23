@@ -123,6 +123,13 @@ class BikeDeparture(Event):
                     world.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
 
                 else:
+                    if departure_station.number_of_bikes() <= 0:
+                        departure_station.metrics.add_aggregate_metric(world, "starvations, no bikes", 1) 
+                        world.metrics.add_aggregate_metric(world, "starvations, no bikes", 1)
+                    else:
+                        departure_station.metrics.add_aggregate_metric(world, "starvations, no battery", 1) 
+                        world.metrics.add_aggregate_metric(world, "starvations, no battery", 1)
+
                     world.metrics.add_aggregate_metric(world, "events", 1) #only one starvation --> lost demand and no arrival
                     departure_station.metrics.add_aggregate_metric(world, "starvation", 1) 
                     world.metrics.add_aggregate_metric(world, "starvation", 1)
