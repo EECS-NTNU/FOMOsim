@@ -540,6 +540,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id
+
     ####################################################################
     # Finds closest depot from location when vehicle is out of battery #
     ####################################################################
