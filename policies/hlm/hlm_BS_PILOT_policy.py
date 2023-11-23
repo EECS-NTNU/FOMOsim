@@ -1,10 +1,10 @@
 from policies import Policy
 from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION
 import sim
-from Visit import Visit
-from Plan import Plan
-from Criticality_score import calculate_criticality, calculate_station_type
-from Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
+from .Visit import Visit
+from .Plan import Plan
+from .Criticality_score import calculate_criticality, calculate_station_type
+from .Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 
 import numpy as np
 import time
@@ -52,18 +52,18 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         end_time = simul.time + self.time_horizon 
         total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
 
-        depot = simul.state.depot
+        #### TODO NEW FUNCTIONALITY ####
+        # depot = simul.state.depot
 
-        if vehicle.battery_inventory <= 0:
-            next_station = self.find_closest_depot(simul, vehicle, depot)
+        # if vehicle.battery_inventory <= 0:
+        #     next_station = self.find_closest_depot(simul, vehicle, depot)
 
-            return sim.Action(
-            [],
-            [],
-            [],
-            next_station
-        )
-
+        #     return sim.Action(
+        #     [],
+        #     [],
+        #     [],
+        #     next_station
+        # )
 
         #########################################################################################
         #   Number of bikes to pick up / deliver is choosen greedy based on clusters in reach   #
@@ -541,8 +541,6 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id
         
-    
-
     ####################################################################
     # Finds closest depot from location when vehicle is out of battery #
     ####################################################################
@@ -558,7 +556,6 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
                 closest_distance = distance
                 closest_depot = d
 
-        
         return closest_depot
                         
 

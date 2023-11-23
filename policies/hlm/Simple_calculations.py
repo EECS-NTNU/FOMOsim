@@ -1,4 +1,4 @@
-from Variables import AVARAGE_LENGHT_OF_TRIP
+from .Variables import AVERAGE_LENGHT_OF_TRIP
 from settings import BATTERY_CHANGE_PER_MINUTE
 
 #####################################################################################################################################
@@ -44,7 +44,7 @@ def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system):
 
     number_of_trips_next_60_min = min(60-(time_now-day*24*60-hour*60),60)*number_of_trips_current_hour/60 + (60 - (time_now-day*24*60-hour*60))*number_of_trips_next_hour/60
 
-    return ((number_of_trips_next_60_min * AVARAGE_LENGHT_OF_TRIP) * BATTERY_CHANGE_PER_MINUTE) / total_num_bikes_in_system
+    return ((number_of_trips_next_60_min * AVERAGE_LENGHT_OF_TRIP) * BATTERY_CHANGE_PER_MINUTE) / total_num_bikes_in_system
 
 
 def copy_arr_iter(arr):
