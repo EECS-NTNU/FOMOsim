@@ -207,7 +207,7 @@ class State(LoadSave):
     def get_used_bike(self):
         if len(self.bikes_in_use) > 0:
             bike = next(iter(self.bikes_in_use))
-            remove_used_bike(bike)
+            self.remove_used_bike(bike)
             return bike
 
     # parked bikes
@@ -267,6 +267,11 @@ class State(LoadSave):
                 time, batteries_to_swap
             )
             vehicle.add_battery_inventory(batteries_to_swap)
+
+            ### TODO NEW FUNCTIONALITY  ###
+            # for e_scooter in vehicle.get_bike_inventory():
+            #     e_scooter.swap_battery()
+            ###############################
 
         else:
             for pick_up_bike_id in action.pick_ups:

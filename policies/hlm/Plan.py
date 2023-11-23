@@ -1,4 +1,4 @@
-from Simple_calculations import copy_arr_iter
+from .Simple_calculations import copy_arr_iter
 
 class Plan():
     def __init__(self, copied_plan, tabu_list, weight_set = None, branch_number = None):

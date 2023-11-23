@@ -1,10 +1,10 @@
 from policies import Policy
 from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION
 import sim
-from Visit import Visit
-from Plan import Plan
-from Criticality_score import calculate_criticality, calculate_station_type
-from Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
+from .Visit import Visit
+from .Plan import Plan
+from .Criticality_score import calculate_criticality, calculate_station_type
+from .Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 
 import numpy as np
 import time
@@ -52,6 +52,18 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         end_time = simul.time + self.time_horizon 
         total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
 
+        #### TODO NEW FUNCTIONALITY ####
+        # depot = simul.state.depot
+
+        # if vehicle.battery_inventory <= 0:
+        #     next_station = self.find_closest_depot(simul, vehicle, depot)
+
+        #     return sim.Action(
+        #     [],
+        #     [],
+        #     [],
+        #     next_station
+        # )
 
         #########################################################################################
         #   Number of bikes to pick up / deliver is choosen greedy based on clusters in reach   #
@@ -528,7 +540,22 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id
-                            
+    ####################################################################
+    # Finds closest depot from location when vehicle is out of battery #
+    ####################################################################
+
+    def find_closest_depot(self, simul, vehicle, depot):
+        closest_depot = None
+        closest_distance = 100000000
+
+
+        for d in depot:
+            distance = (simul.state.traveltime_vehicle_matrix[vehicle.location.id][d.id]/60)*VEHICLE_SPEED
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_depot = d
+
+        return closest_depot
                         
 
 
@@ -540,10 +567,8 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 #############################################################################################
 
 def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
-    # num_escooters_vehicle = len(vehicle.get_bike_inventory())
-    day = simul.day()
-    hour = simul.hour()
-    target_test = station.get_target_state(day, hour)
+    num_escooters_vehicle = len(vehicle.get_bike_inventory())
+
     target_state = round(station.get_target_state(simul.day(), simul.hour())) #Denne må vi finne ut hvordan lages
     num_escooters_station = station.number_of_bikes() # number of scooters at the station
     num_escooters_accounted_for_battery_swaps = get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station, vehicle) # 
