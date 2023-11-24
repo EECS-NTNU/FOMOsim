@@ -50,7 +50,7 @@ def run_simulation(seed, policy, duration= INIT_DURATION, num_vehicles= NUM_VEHI
     
     ###############################################################
     
-    state = init_state.read_initial_state("instances/ebike/"+INSTANCE)
+    state = init_state.read_initial_state("instances/ebike_with_depot/"+INSTANCE)
     state.set_seed(seed)
     vehicles = [policy for i in range(num_vehicles)]
     state.set_vehicles(vehicles) # this creates one vehicle for each policy in the list
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         max_depth = 2, 
         number_of_successors = 5, 
         time_horizon = 40, 
-        criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.0], [0.25, 0.4, 0, 0, 0.2, 0.0], [0.55, 0.08, 0.07, 0.15, 0.05, 0.0]], 
+        criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.2], [0.25, 0.4, 0, 0, 0.2, 0.15], [0.55, 0.08, 0.07, 0.15, 0.05, 0.1]], 
         evaluation_weights = [0.85, 0.1, 0.05], 
         number_of_scenarios = 100, 
         discounting_factor = 0.1

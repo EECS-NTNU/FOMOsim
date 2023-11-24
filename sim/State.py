@@ -110,7 +110,11 @@ class State(LoadSave):
                 depot_capacity = DEFAULT_DEPOT_CAPACITY
                 if "depot_capacity" in station:
                     depot_capacity = station["depot_capacity"]
-                stationObj = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
+                stationObj = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station, leave_intensities = station["leave_intensities"],
+                                         leave_intensities_stdev = station["leave_intensities_stdev"],
+                                         arrive_intensities = station["arrive_intensities"],
+                                         arrive_intensities_stdev = station["arrive_intensities_stdev"],
+                                         move_probabilities = station["move_probabilities"],)
 
             else:
                 stationObj = sim.Station(station_id,
@@ -258,7 +262,6 @@ class State(LoadSave):
         """
         refill_time = 0
         if vehicle.is_at_depot():
-
             batteries_to_swap = min(
                 vehicle.flat_batteries(),
                 vehicle.location.get_available_battery_swaps(time),
@@ -269,11 +272,10 @@ class State(LoadSave):
             )
             vehicle.add_battery_inventory(batteries_to_swap)
 
-            ### TODO NEW FUNCTIONALITY  ###
-            # for e_scooter in vehicle.get_bike_inventory():
-            #     e_scooter.swap_battery()
-            ###############################
-
+            #### TODO - legg til tid for dette
+            for e_scooter in vehicle.get_bike_inventory():
+                e_scooter.swap_battery()
+                
         else:
             for pick_up_bike_id in action.pick_ups:
                 pick_up_bike = vehicle.location.get_bike_from_id(
@@ -287,7 +289,7 @@ class State(LoadSave):
                 vehicle.location.remove_bike(pick_up_bike)
                 
             # Perform all battery swaps
-            for battery_swap_bike_id in action.battery_swaps[:vehicle.battery_inventory]:
+            for battery_swap_bike_id in action.battery_swaps:
                 battery_swap_bike = vehicle.location.get_bike_from_id(
                     battery_swap_bike_id
                 )

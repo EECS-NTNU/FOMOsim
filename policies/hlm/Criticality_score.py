@@ -28,10 +28,7 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
     neighborhood_crit_list = [] 
     demand_crit_list = []
     driving_time_list = [] 
-    BL_composition_list = [calculate_battery_level_composition_criticality(simul, p_station, total_num_bikes_in_system) for p_station in potential_stations]
-
-    if sum(BL_composition_list) == 0:
-        print('no bikes')
+    BL_composition_list = []
 
     #Calculate criticality scoore for each potential station
     for potential_station in potential_stations:
@@ -263,11 +260,9 @@ def calculate_battery_level_composition_criticality(simul, station, total_num_bi
            battery_levels_after.append(escooter.battery - hourly_discharge_rate)
 
     #TODO Apply weighted average functionality here if we want
-    if len(battery_levels_after) == 0 and len(battery_levels_current) == 0:
-        return 100
-    if len(battery_levels_after) == 0:
+    if len(battery_levels_after) == 0 or len(battery_levels_current) == 0:
         return 0
-
+        
     return (len(battery_levels_after)/len(battery_levels_current))*(sum(battery_levels_after)/len(battery_levels_after))
 
 
@@ -309,5 +304,5 @@ def normalize_results(criticalities, time_to_violation_list, deviation_list, nei
             criticalities_normalized[station].append(criticalities[station][2]/-min_neighborhood)
         criticalities_normalized[station].append(criticalities[station][3]/max_demand)
         criticalities_normalized[station].append(1-criticalities[station][4]/max_driving_time)
-        criticalities_normalized[station].append(1-criticalities[station][5]/max_battery_level if max_battery_level > 0 else 0) # TODO
+        criticalities_normalized[station].append(1-criticalities[station][5]/max_battery_level)
     return criticalities_normalized

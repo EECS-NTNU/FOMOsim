@@ -1,5 +1,5 @@
 from policies import Policy
-from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION
+from settings import *
 import sim
 from .Visit import Visit
 from .Plan import Plan
@@ -52,23 +52,27 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         end_time = simul.time + self.time_horizon 
         total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
 
-        #### TODO NEW FUNCTIONALITY ####
-        # depot = simul.state.depot
+        #########################################################################################
+        #   Goes to depot if this action will lead to empty battery inventory                   #            
+        #########################################################################################
 
-        # if vehicle.battery_inventory <= 0:
-        #     next_station = self.find_closest_depot(simul, vehicle, depot)
+        depots = simul.state.depots
 
-        #     return sim.Action(
-        #     [],
-        #     [],
-        #     [],
-        #     next_station
-        # )
+        if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
+            next_station = self.find_closest_depot(simul, vehicle, depots)
+            escooters_to_pickup = [escooter.id for escooter in vehicle.location.bikes.values() if escooter.battery < 20]
+            max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
+            return sim.Action(
+                [],
+                escooters_to_pickup[:max_pickup],
+                [],
+                next_station
+            )
 
         #########################################################################################
         #   Number of bikes to pick up / deliver is choosen greedy based on clusters in reach   #
         #   Which bike ID´s to pick up / deliver is choosen based on battery level              #   
-        #   How many batteries to swap choosen based on battery inventory and status on station #           
+        #   How many batteries to swap choosen based on battery inventory and status on station #
         #########################################################################################
 
         escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location)
@@ -94,9 +98,9 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         plan = Plan(plan_dict, tabu_list)
 
 
-        ###############################################
-        #  Use PILOT_function to decide next station  #
-        ###############################################
+        #############################################################################
+        #  Use PILOT_function to decide next station                                #
+        #############################################################################
 
         next_station = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
 
@@ -545,18 +549,18 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
     # Finds closest depot from location when vehicle is out of battery #
     ####################################################################
 
-    def find_closest_depot(self, simul, vehicle, depot):
+    def find_closest_depot(self, simul, vehicle, depots):
         closest_depot = None
         closest_distance = 100000000
 
 
-        for d in depot:
+        for d in depots.values():
             distance = (simul.state.traveltime_vehicle_matrix[vehicle.location.id][d.id]/60)*VEHICLE_SPEED
             if distance < closest_distance:
                 closest_distance = distance
                 closest_depot = d
 
-        return closest_depot
+        return closest_depot.id
                         
 
 
