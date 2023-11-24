@@ -18,7 +18,7 @@ from helpers import timeInMinutes
 import time
 import multiprocessing as mp
 
-INIT_DURATION = 24*5
+INIT_DURATION = 24*1
 NUM_VEHICLES = 1
 
 def run_simulation(seed, policy, duration= INIT_DURATION, num_vehicles= NUM_VEHICLES, queue=None, INSTANCE=None):
@@ -190,8 +190,8 @@ if __name__ == "__main__":
 
   
     # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
-    list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-    # list_of_seeds = [5]
+    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    list_of_seeds = [2]
   
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)

@@ -38,7 +38,7 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
 
 
 
-def calculate_criticality(weights, simul, potential_stations, station, station_type,total_num_bikes_in_system, visited_stations = None):
+def calculate_criticality(weights, simul, potential_stations, station, station_type, total_num_bikes_in_system, visited_stations = None):
 
     #This is where we have to add one weight for battery level if nessesary
 
@@ -53,7 +53,10 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
     neighborhood_crit_list = [] 
     demand_crit_list = []
     driving_time_list = [] 
-    BL_composition_list = []
+    BL_composition_list = [calculate_battery_level_composition_criticality(simul, p_station, total_num_bikes_in_system) for p_station in potential_stations]
+
+    if sum(BL_composition_list) == 0:
+        print('no bikes')
 
     #Calculate criticality scoore for each potential station
     for potential_station in potential_stations:
