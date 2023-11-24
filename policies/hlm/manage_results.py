@@ -172,7 +172,7 @@ def visualize_aggregated_violations_and_roaming(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(values[i]), xy=(type_of_event[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlm/simulation_results/test2/aggr_violations_and_roaming_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/test4/aggr_violations_and_roaming_'+outfile)
     
 def visualize_aggregated_total_roaming_distances(aggregated_data, filename):
     data = {# 'Roaming for locks':aggregated_data['roaming distance for locks'],
@@ -190,7 +190,7 @@ def visualize_aggregated_total_roaming_distances(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(round(values[i], 2)), xy=(type_of_roaming[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlm/simulation_results/test2/aggr_total_roaming_distances_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/test4/aggr_total_roaming_distances_'+outfile)
 
 def visualize_aggregated_average_roaming_distances(aggregated_data, filename):
     long_congestions = aggregated_data['long congestion']
@@ -220,7 +220,7 @@ def visualize_aggregated_average_roaming_distances(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(round(values[i], 2)), xy=(type_of_roaming[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlm/simulation_results/test2/aggr_average_roaming_distances_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/test4/aggr_average_roaming_distances_'+outfile)
 
 def visualize_aggregated_share_of_events(aggregated_data, filename):
     tot_events = aggregated_data['events']
@@ -239,7 +239,7 @@ def visualize_aggregated_share_of_events(aggregated_data, filename):
     ax.pie(values, labels=labels, explode=explode, autopct='%1.1f%%', colors=colors)
     ax.axis('equal')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlm/simulation_results/test2/aggr_share_of_events_'+outfile)
+    plt.savefig('./policies/hlm/simulation_results/test4/aggr_share_of_events_'+outfile)
 
 
 def visualize_aggregated_results(filename):

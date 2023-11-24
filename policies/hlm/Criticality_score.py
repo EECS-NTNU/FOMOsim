@@ -14,34 +14,9 @@ from .Variables import *
 # If we want to adjust this score this is where we do it                               #
 ########################################################################################
 
-
-def calculate_net_demand(station, time_now, day, hour, planning_horizon): 
-    if planning_horizon > 60:
-        print('not yet supported') #Is this a problem for us - betyr at man ikke kan planlegge lengre enn 60 minuttter frem i tid 
-    
-    minute_in_current_hour = time_now-day*24*60-hour*60 
-    
-    minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
-    minutes_next_hour = planning_horizon - minutes_current_hour
-    
-    #NET DEMAND(I think we can use this as it is)
-    net_demand_current = station.get_arrive_intensity(day,hour) - station.get_leave_intensity(day,hour)
-    net_demand_next = station.get_arrive_intensity(day,hour+1) - station.get_leave_intensity(day,hour+1)
-    
-    net_demand_planning_horizon = (minutes_current_hour*net_demand_current + 
-                                   minutes_next_hour*net_demand_next)/planning_horizon
-    
-    return 2*net_demand_planning_horizon #Returns demand pr hour *2??
-
-
-
-
-
-
 def calculate_criticality(weights, simul, potential_stations, station, station_type, total_num_bikes_in_system, visited_stations = None):
 
     #This is where we have to add one weight for battery level if nessesary
-
     [w_t, w_dev, w_n, w_dem, w_dri, w_bc] = weights
     TIME_HORIZON = 60
     criticalities = dict() # key: station, value: list of values for factors to consider.

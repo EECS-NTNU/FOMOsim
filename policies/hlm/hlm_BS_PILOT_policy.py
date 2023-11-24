@@ -643,11 +643,11 @@ def get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station
 # Then pickup rest from high battery end or swap remaining swaps                           #
 ############################################################################################
 
-def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters, type):
+def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters, station_type):
     escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False) # escooters at station, sorted from lowest to highest battery level. List consists of bike-objects
     escooters_in_vehicle =  sorted(vehicle.get_bike_inventory(), key=lambda bike: bike.battery, reverse=False) # escooters in vehicle, sortes from lowest to highest bettery level. List consists of bike-objects
 
-    if type == "deliver":
+    if station_type == "deliver":
         number_of_escooters_to_swap = min(len(station.get_swappable_bikes(20)),vehicle.battery_inventory) # get all the bikes under 20% if available capacity, otherwise swap batteries on n bikes with the lowest battery level. n = available capacity in vehicle
         #TODO Burde vi runde opp eller ned?
         number_of_escooters_to_deliver = int(number_of_escooters)+1 # If 4.2 escooter are being delivered, we deliver 5
@@ -657,7 +657,7 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
 
         return escooters_to_deliver, escooters_to_swap
     
-    elif type == "pickup":
+    elif station_type == "pickup":
         #TODO Burde vi runde på en annen måte? Nå runder vi til nærmeste heltall
         number_of_escooters_to_swap_and_pickup = min(len(station.get_swappable_bikes(70)),vehicle.battery_inventory, round(number_of_escooters)) # decide threshold for swap, either decided by # of full batteries, # of escooters under 70% and the max amount we are allowed to pick up based om target
         number_of_escooters_to_only_pickup = round(number_of_escooters) - number_of_escooters_to_swap_and_pickup # how many to pick up
@@ -707,7 +707,7 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
             # Finds the stations from potential stations which woukd be a delivery station if choosen - accounted for battery level / swaps
             potential_delivery_stations.append(station)
 
-    type = 'b'
+    station_type = 'b'
     
     #Decides pickup, delivery or both is relevant for 
     if cutoff_vehicle * vehicle.bike_inventory_capacity <= bikes_at_vehicle <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
@@ -716,10 +716,10 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
     else:
         if bikes_at_vehicle <= cutoff_vehicle*vehicle.bike_inventory_capacity:
             potential_stations = potential_pickup_stations
-            type = 'p'
+            station_type = 'p'
 
         elif bikes_at_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
             potential_stations = potential_delivery_stations
-            type = 'd'
+            station_type = 'd'
     
-    return potential_stations, type
+    return potential_stations, station_type
