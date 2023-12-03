@@ -652,7 +652,7 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
         escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False) # escooters at station, sorted from lowest to highest battery level. List consists of bike-objects
         escooters_in_vehicle =  sorted(vehicle.get_bike_inventory(), key=lambda bike: bike.battery, reverse=False) # escooters in vehicle, sortes from lowest to highest bettery level. List consists of bike-objects
     else:
-        escooters_in_station = station.bikes.values()
+        escooters_in_station = list(station.bikes.values())
         escooters_in_vehicle =  vehicle.get_bike_inventory()
 
 

@@ -146,15 +146,15 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= NUM_VEHICLES, d
         returned_simulators.append(ret)
     for process in processes:
         process.join()
-    # for simulator in returned_simulators:
-    #     policies.hlm.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
-    #     # if we run PILOT policy:
-    #     filename_time = "sol_time_"+filename
-    #     policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
-    #     # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
-    #     # for branch in range(policy.number_of_successors):
-    #     #     print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
-    # policies.hlm.manage_results.visualize_aggregated_results(filename)
+    for simulator in returned_simulators:
+        policies.hlm.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
+        # if we run PILOT policy:
+        filename_time = "sol_time_"+filename
+        policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
+        # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
+        # for branch in range(policy.number_of_successors):
+        #     print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
+    policies.hlm.manage_results.visualize_aggregated_results(filename)
 
 
 
@@ -195,8 +195,8 @@ if __name__ == "__main__":
 
   
     # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
-    list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-    # list_of_seeds = [2]
+    # list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    list_of_seeds = [2]
   
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
