@@ -648,8 +648,13 @@ def get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station
 ############################################################################################
 
 def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters, station_type):
-    escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False) # escooters at station, sorted from lowest to highest battery level. List consists of bike-objects
-    escooters_in_vehicle =  sorted(vehicle.get_bike_inventory(), key=lambda bike: bike.battery, reverse=False) # escooters in vehicle, sortes from lowest to highest bettery level. List consists of bike-objects
+    if SORTED_BIKES:
+        escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False) # escooters at station, sorted from lowest to highest battery level. List consists of bike-objects
+        escooters_in_vehicle =  sorted(vehicle.get_bike_inventory(), key=lambda bike: bike.battery, reverse=False) # escooters in vehicle, sortes from lowest to highest bettery level. List consists of bike-objects
+    else:
+        escooters_in_station = station.bikes.values()
+        escooters_in_vehicle =  vehicle.get_bike_inventory()
+
 
     if station_type == "deliver":
         number_of_escooters_to_swap = min(len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)),vehicle.battery_inventory) # get all the bikes under 20% if available capacity, otherwise swap batteries on n bikes with the lowest battery level. n = available capacity in vehicle
@@ -665,7 +670,7 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
         #TODO Burde vi runde på en annen måte? Nå runder vi til nærmeste heltall
         number_of_escooters_to_swap_and_pickup = min(len(station.get_swappable_bikes(BATTERY_LEVEL_UPPER_BOUND)),vehicle.battery_inventory, round(number_of_escooters)) # decide threshold for swap, either decided by # of full batteries, # of escooters under 70% and the max amount we are allowed to pick up based om target
         number_of_escooters_to_only_pickup = round(number_of_escooters) - number_of_escooters_to_swap_and_pickup # how many to pick up
-        number_of_escooters_to_only_swap = max(0,len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) - number_of_escooters_to_swap_and_pickup)
+        number_of_escooters_to_only_swap = max(0,len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) - number_of_escooters_to_swap_and_pickup) if ONLY_SWAP_ALLOWED else 0
 
         escooters_to_swap = []
         escooters_to_pickup = [escooter.id for escooter in escooters_in_station[:number_of_escooters_to_swap_and_pickup]]

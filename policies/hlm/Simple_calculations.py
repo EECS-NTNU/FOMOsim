@@ -26,7 +26,6 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
     return 2*net_demand_planning_horizon #Returns demand pr hour *2??
 
 
-
 #################################################################
 # NEW FUNCTIONALITY                                             #
 # Avarage battery discharge rate per hour over the whole system #
@@ -57,7 +56,6 @@ def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system):
 
     return total_system_battery_discharge / total_num_bikes_in_system
 
-
 def copy_arr_iter(arr):
     root = []
     stack = [(arr,root)]
@@ -82,22 +80,3 @@ def generate_discounting_factors(nVisits, end_factor = 0.1):
         discount_factor = 1/((1+rate)**visit)
         discounting_factors.append(discount_factor)
     return discounting_factors
-
-
-# def calculate_hourly_discharge_rate2(total_num_bikes_in_system):
-#     # total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
-
-#     time_now = 480.25603462304267901
-#     number_of_trips_current_hour = 1129
-#     number_of_trips_next_hour = 1006
-
-#     minutes_remaining = 60 - (time_now % 60)
-#     number_of_trips_next_60_min = (minutes_remaining * number_of_trips_current_hour + (60 - minutes_remaining) * number_of_trips_next_hour) / 60
-#     # min(60-(time_now-day*24*60-hour*60),60)*number_of_trips_current_hour/60 + (60 - (time_now-day*24*60-hour*60))*number_of_trips_next_hour/60
-
-#     total_system_battery_discharge = number_of_trips_next_60_min * 10 * 0.2
-
-#     return total_system_battery_discharge / total_num_bikes_in_system, number_of_trips_next_60_min
-
-# print(calculate_hourly_discharge_rate2(2885))
-

@@ -18,8 +18,8 @@ from helpers import timeInMinutes
 import time
 import multiprocessing as mp
 
-INIT_DURATION = 24*1
-NUM_VEHICLES = 1
+INIT_DURATION = 24*5
+NUM_VEHICLES = 2
 
 def run_simulation(seed, policy, duration= INIT_DURATION, num_vehicles= NUM_VEHICLES, queue=None, INSTANCE=None):
 
@@ -39,8 +39,8 @@ def run_simulation(seed, policy, duration= INIT_DURATION, num_vehicles= NUM_VEHI
     # INSTANCE = 'NY_W31'
     # INSTANCE = 'OS_W10'
     # INSTANCE = 'OS_W22'
-    # INSTANCE = 'OS_W31'
-    INSTANCE = 'OS_W34'  # more demand
+    INSTANCE = 'OS_W31'
+    # INSTANCE = 'OS_W34'  # more demand
     # INSTANCE = 'OS_W50'
     # INSTANCE = 'TD_W17'
     # INSTANCE = 'TD_W21'
@@ -71,10 +71,10 @@ def run_simulation(seed, policy, duration= INIT_DURATION, num_vehicles= NUM_VEHI
     return simulator
 
 
-def test_policies(list_of_seeds, policy_dict):
+def test_policies(list_of_seeds, policy_dict, num_vehicles, duration):
     for policy in policy_dict:
         filename=str(policy)+".csv"
-        test_seeds_mp(list_of_seeds, policy_dict[policy], filename)
+        test_seeds_mp(list_of_seeds, policy_dict[policy], filename, num_vehicles, duration)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
     for horizon in list_of_timehorizons:
@@ -146,15 +146,15 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= NUM_VEHICLES, d
         returned_simulators.append(ret)
     for process in processes:
         process.join()
-    for simulator in returned_simulators:
-        policies.hlm.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
-        # if we run PILOT policy:
-        filename_time = "sol_time_"+filename
-        policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
-        # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
-        for branch in range(policy.number_of_successors):
-            print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
-    policies.hlm.manage_results.visualize_aggregated_results(filename)
+    # for simulator in returned_simulators:
+    #     policies.hlm.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
+    #     # if we run PILOT policy:
+    #     filename_time = "sol_time_"+filename
+    #     policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
+    #     # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
+    #     # for branch in range(policy.number_of_successors):
+    #     #     print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
+    # policies.hlm.manage_results.visualize_aggregated_results(filename)
 
 
 
@@ -163,6 +163,8 @@ if __name__ == "__main__":
     # evaluation_weights = [0.4, 0.3, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
     # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
+    duration = 24*5
+    num_vehicles = 1
     
     # policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
@@ -175,13 +177,13 @@ if __name__ == "__main__":
     # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing())
     policy_dict = dict(pilot_roaming = policies.hlm.BS_PILOT(
         max_depth = 2, 
-        number_of_successors = 3, 
+        number_of_successors = 5, 
         time_horizon = 40, 
         # criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.0], [0.25, 0.4, 0, 0, 0.2, 0.0], [0.55, 0.08, 0.07, 0.15, 0.05, 0.0]], 
-        # criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.2], [0.25, 0.4, 0, 0, 0.2, 0.15], [0.55, 0.08, 0.07, 0.15, 0.05, 0.1]], 
-        criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.3], [0.25, 0.4, 0, 0, 0.2, 0.3], [0.55, 0.08, 0.07, 0.15, 0.05, 0.3]], 
+        criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.2], [0.25, 0.4, 0, 0, 0.2, 0.15], [0.55, 0.08, 0.07, 0.15, 0.05, 0.1]], 
+        # criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.3], [0.25, 0.4, 0, 0, 0.2, 0.3], [0.55, 0.08, 0.07, 0.15, 0.05, 0.3]], 
         evaluation_weights = [0.85, 0.1, 0.05], 
-        number_of_scenarios = 2, 
+        number_of_scenarios = 100, 
         discounting_factor = 0.1
     ))
     
@@ -193,13 +195,13 @@ if __name__ == "__main__":
 
   
     # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
-    # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-    list_of_seeds = [2]
+    list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    # list_of_seeds = [2]
   
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
-    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration = duration)
     # test_instances(list_of_seeds, list_of_instances)
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])

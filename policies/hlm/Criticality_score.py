@@ -108,7 +108,7 @@ def calculate_time_to_violation_IM(net_demand, station,simul, total_num_bikes_in
     #This is the perfect spot to add some calculation on battery degeneration over itme
     elif net_demand < 0:
         sorted_escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False)
-        time_to_violation = min((station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)*60))
+        time_to_violation = min((station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3 - BATTERY_LEVEL_LOWER_BOUND)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system))) if USE_BATTERY_CRITICALITY else (station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand
 
         #We treat violations >= 8 as the same
         if time_to_violation > 8:
@@ -184,7 +184,7 @@ def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_typ
                 station_crit += calculate_demand_criticality(neighbor_type, neighbor_demand)
             
             #Battery level composition
-            if station_type == 'd':
+            if station_type == 'd' and USE_BATTERY_CRITICALITY:
                 current_escooters = neighbor.bikes
                 battery_levels_neighbor = [escooter.battery for escooter in current_escooters.values() if escooter.battery > 20]
                 avg_battery_level = (sum(battery_levels_neighbor) / len(battery_levels_neighbor)) if len(battery_levels_neighbor) > 0 else 0
