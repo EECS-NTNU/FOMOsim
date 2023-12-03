@@ -1,6 +1,6 @@
 from .Simple_calculations import calculate_net_demand, calculate_hourly_discharge_rate
-from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
-from .Variables import *
+from settings import *
+# from .Variables import *
 
 #########################################################
 # THIS FILE CONTAINS ALL CRITICALITY SCORE CALCULATIONS #
@@ -14,37 +14,10 @@ from .Variables import *
 # If we want to adjust this score this is where we do it                               #
 ########################################################################################
 
-
-def calculate_net_demand(station, time_now, day, hour, planning_horizon): 
-    if planning_horizon > 60:
-        print('not yet supported') #Is this a problem for us - betyr at man ikke kan planlegge lengre enn 60 minuttter frem i tid 
-    
-    minute_in_current_hour = time_now-day*24*60-hour*60 
-    
-    minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
-    minutes_next_hour = planning_horizon - minutes_current_hour
-    
-    #NET DEMAND(I think we can use this as it is)
-    net_demand_current = station.get_arrive_intensity(day,hour) - station.get_leave_intensity(day,hour)
-    net_demand_next = station.get_arrive_intensity(day,hour+1) - station.get_leave_intensity(day,hour+1)
-    
-    net_demand_planning_horizon = (minutes_current_hour*net_demand_current + 
-                                   minutes_next_hour*net_demand_next)/planning_horizon
-    
-    return 2*net_demand_planning_horizon #Returns demand pr hour *2??
-
-
-
-
-
-
-def calculate_criticality(weights, simul, potential_stations, station, station_type,total_num_bikes_in_system, visited_stations = None):
+def calculate_criticality(weights, simul, potential_stations, station, station_type, total_num_bikes_in_system, visited_stations = None):
 
     #This is where we have to add one weight for battery level if nessesary
-
-    # TODO - add weight for battery_criticality
-
-    [w_t, w_dev, w_n, w_dem, w_dri] = weights
+    [w_t, w_dev, w_n, w_dem, w_dri, w_bc] = weights
     TIME_HORIZON = 60
     criticalities = dict() # key: station, value: list of values for factors to consider.
     criticalities_summed = dict()
@@ -91,13 +64,12 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
         driving_time_list.append(driving_time_crit)
 
         # Battery level composition criticality
-        battery_level_comp_crit = calculate_battery_level_composition_criticality(simul, station, total_num_bikes_in_system)
+        battery_level_comp_crit = calculate_battery_level_composition_criticality(simul, potential_station, total_num_bikes_in_system)
         BL_composition_list.append(battery_level_comp_crit)
 
-
-        criticalities[potential_station] = [time_to_violation, deviation_from_target_state, neighborhood_crit, demand_crit, driving_time_crit]
+        criticalities[potential_station] = [time_to_violation, deviation_from_target_state, neighborhood_crit, demand_crit, driving_time_crit, battery_level_comp_crit]
     
-    criticalities_normalized = normalize_results(criticalities, time_to_violation_list, deviation_list, neighborhood_crit_list, demand_crit_list, driving_time_list)
+    criticalities_normalized = normalize_results(criticalities, time_to_violation_list, deviation_list, neighborhood_crit_list, demand_crit_list, driving_time_list, BL_composition_list)
 
     for station in criticalities_normalized:
         criticalities_normalized[station][0] *= w_t
@@ -105,9 +77,10 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
         criticalities_normalized[station][2] *= w_n
         criticalities_normalized[station][3] *= w_dem
         criticalities_normalized[station][4] *= w_dri
+        criticalities_normalized[station][5] *= w_bc
 
         criticalities_summed[station] = criticalities_normalized[station][0] + criticalities_normalized[station][1] 
-        + criticalities_normalized[station][2] + criticalities_normalized[station][3] + criticalities_normalized[station][4]
+        + criticalities_normalized[station][2] + criticalities_normalized[station][3] + criticalities_normalized[station][4] + criticalities_normalized[station][5]
 
     #Sorted in descending order - most critical first
     criticalities_summed = dict(sorted(criticalities_summed.items(), key=lambda item: item[1], reverse=True))
@@ -275,18 +248,22 @@ def calculate_driving_time_crit(simul, current_station, potential_station):
 
 def calculate_battery_level_composition_criticality(simul, station, total_num_bikes_in_system):
     
-     current_escooters = station.bikes
-     hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60
+    current_escooters = station.bikes
+    hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60
 
-     battery_levels_current = [escooter.battery for escooter in current_escooters.values() if escooter.battery > 20]
-     battery_levels_after = [escooter.battery - hourly_discharge_rate for escooter in current_escooters.values() if (escooter.battery - hourly_discharge_rate) > 20]
+    battery_levels_current = []
+    battery_levels_after = []
+    for escooter in current_escooters.values():
+        if escooter.battery > 20:
+           battery_levels_current.append(escooter.battery)
+        if escooter.battery - hourly_discharge_rate > 20:
+           battery_levels_after.append(escooter.battery - hourly_discharge_rate)
 
-     #Apply weighted avarage functionality here if we want
-
-     if len(battery_levels_after) == 0 or len(battery_levels_current) == 0:
-         return 0
-
-     return (len(battery_levels_after)/ len(battery_levels_current))*(sum(battery_levels_after)/len(battery_levels_after))
+    #TODO Apply weighted average functionality here if we want
+    if len(battery_levels_after) == 0 or len(battery_levels_current) == 0:
+        return 0
+        
+    return (len(battery_levels_after)/len(battery_levels_current))*(sum(battery_levels_after)/len(battery_levels_after))
 
 
 
@@ -307,14 +284,15 @@ def calculate_station_type(target_state, exp_num):
     return station_type
 
 
-def normalize_results(criticalities, time_to_violation_list, deviation_list, neighborhood_crit_list, demand_crit_list, driving_time_list):
+def normalize_results(criticalities, time_to_violation_list, deviation_list, neighborhood_crit_list, demand_crit_list, driving_time_list, BL_composition_list):
     max_time = max(max(time_to_violation_list),1)
     max_deviation = max(max(deviation_list),1)
     max_neighborhood = max(max(neighborhood_crit_list),1)
     min_neighborhood = min(min(neighborhood_crit_list),-1)
     max_demand = max(max(demand_crit_list),1)  #this can potentially be 0, happend for 1 out of 10 seeds
     max_driving_time = max(driving_time_list)
-    
+    max_battery_level = max(BL_composition_list)
+
     criticalities_normalized = dict()
     for station in criticalities:
         criticalities_normalized[station] = []
@@ -326,7 +304,5 @@ def normalize_results(criticalities, time_to_violation_list, deviation_list, nei
             criticalities_normalized[station].append(criticalities[station][2]/-min_neighborhood)
         criticalities_normalized[station].append(criticalities[station][3]/max_demand)
         criticalities_normalized[station].append(1-criticalities[station][4]/max_driving_time)
+        criticalities_normalized[station].append(1-criticalities[station][5]/max_battery_level)
     return criticalities_normalized
-
-
-

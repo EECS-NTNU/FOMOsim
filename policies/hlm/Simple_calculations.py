@@ -1,5 +1,5 @@
-from .Variables import AVERAGE_LENGHT_OF_TRIP
-from settings import BATTERY_CHANGE_PER_MINUTE
+# from .Variables import AVERAGE_LENGHT_OF_TRIP
+from settings import *
 
 #####################################################################################################################################
 # Gleditsch & Hagen fuction for calculating net demand - this is what inngerdingen og møller uses                                   #
@@ -39,12 +39,23 @@ def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system):
     day = simul.day()
     hour = simul.hour()
 
-    number_of_trips_current_hour = sum([station.get_arrive_intensity(day,hour) for station in simul.state.stations.values()])
-    number_of_trips_next_hour = sum([station.get_arrive_intensity(day, hour+1) for station in simul.state.stations.values()])
+    next_hour = (hour + 1) % 24
 
-    number_of_trips_next_60_min = min(60-(time_now-day*24*60-hour*60),60)*number_of_trips_current_hour/60 + (60 - (time_now-day*24*60-hour*60))*number_of_trips_next_hour/60
+    trips_current_hour = []
+    trips_next_hour = []
+    for station in simul.state.stations.values():
+        trips_current_hour.append(station.get_leave_intensity(day,hour))
+        trips_next_hour.append(station.get_leave_intensity(day if next_hour > hour else day + 1, next_hour))
+    number_of_trips_current_hour = sum(trips_current_hour)
+    number_of_trips_next_hour = sum(trips_next_hour)
 
-    return ((number_of_trips_next_60_min * AVERAGE_LENGHT_OF_TRIP) * BATTERY_CHANGE_PER_MINUTE) / total_num_bikes_in_system
+    minutes_remaining = 60 - (time_now % 60)
+    number_of_trips_next_60_min = (minutes_remaining * number_of_trips_current_hour + (60 - minutes_remaining) * number_of_trips_next_hour) / 60
+    # min(60-(time_now-day*24*60-hour*60),60)*number_of_trips_current_hour/60 + (60 - (time_now-day*24*60-hour*60))*number_of_trips_next_hour/60
+
+    total_system_battery_discharge = number_of_trips_next_60_min * AVERAGE_LENGHT_OF_TRIP * BATTERY_CHANGE_PER_MINUTE
+
+    return total_system_battery_discharge / total_num_bikes_in_system
 
 
 def copy_arr_iter(arr):
@@ -73,5 +84,20 @@ def generate_discounting_factors(nVisits, end_factor = 0.1):
     return discounting_factors
 
 
+# def calculate_hourly_discharge_rate2(total_num_bikes_in_system):
+#     # total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
 
+#     time_now = 480.25603462304267901
+#     number_of_trips_current_hour = 1129
+#     number_of_trips_next_hour = 1006
+
+#     minutes_remaining = 60 - (time_now % 60)
+#     number_of_trips_next_60_min = (minutes_remaining * number_of_trips_current_hour + (60 - minutes_remaining) * number_of_trips_next_hour) / 60
+#     # min(60-(time_now-day*24*60-hour*60),60)*number_of_trips_current_hour/60 + (60 - (time_now-day*24*60-hour*60))*number_of_trips_next_hour/60
+
+#     total_system_battery_discharge = number_of_trips_next_60_min * 10 * 0.2
+
+#     return total_system_battery_discharge / total_num_bikes_in_system, number_of_trips_next_60_min
+
+# print(calculate_hourly_discharge_rate2(2885))
 

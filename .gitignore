@@ -146,4 +146,7 @@ dmypy.json
 .pyre/
 GUI/loggFiles/sessionLog.txt
 GUI/loggFiles/sessionLog.txt
-policies/inngjerdingen_moeller/saved_time_data/NY_W31_static_data.json
+
+# HLV
+policies/inngjerdingen_moeller/simulation_results
+policies/hlm/simulation_results
