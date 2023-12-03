@@ -1,6 +1,6 @@
 from .Simple_calculations import calculate_net_demand, calculate_hourly_discharge_rate
-from settings import MAX_ROAMING_DISTANCE_SOLUTIONS, VEHICLE_SPEED
-from .Variables import *
+from settings import *
+# from .Variables import *
 
 #########################################################
 # THIS FILE CONTAINS ALL CRITICALITY SCORE CALCULATIONS #

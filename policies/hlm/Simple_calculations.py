@@ -1,5 +1,5 @@
-from .Variables import AVERAGE_LENGHT_OF_TRIP
-from settings import BATTERY_CHANGE_PER_MINUTE
+# from .Variables import AVERAGE_LENGHT_OF_TRIP
+from settings import *
 
 #####################################################################################################################################
 # Gleditsch & Hagen fuction for calculating net demand - this is what inngerdingen og møller uses                                   #

@@ -18,8 +18,8 @@ from helpers import timeInMinutes
 import time
 import multiprocessing as mp
 
-INIT_DURATION = 24*5
-NUM_VEHICLES = 2
+INIT_DURATION = 24*1
+NUM_VEHICLES = 1
 
 def run_simulation(seed, policy, duration= INIT_DURATION, num_vehicles= NUM_VEHICLES, queue=None, INSTANCE=None):
 
@@ -50,6 +50,7 @@ def run_simulation(seed, policy, duration= INIT_DURATION, num_vehicles= NUM_VEHI
     
     ###############################################################
     
+    # state = init_state.read_initial_state("instances/ebike/"+INSTANCE)
     state = init_state.read_initial_state("instances/ebike_with_depot/"+INSTANCE)
     state.set_seed(seed)
     vehicles = [policy for i in range(num_vehicles)]
@@ -174,11 +175,13 @@ if __name__ == "__main__":
     # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing())
     policy_dict = dict(pilot_roaming = policies.hlm.BS_PILOT(
         max_depth = 2, 
-        number_of_successors = 5, 
+        number_of_successors = 3, 
         time_horizon = 40, 
-        criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.2], [0.25, 0.4, 0, 0, 0.2, 0.15], [0.55, 0.08, 0.07, 0.15, 0.05, 0.1]], 
+        # criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.0], [0.25, 0.4, 0, 0, 0.2, 0.0], [0.55, 0.08, 0.07, 0.15, 0.05, 0.0]], 
+        # criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.2], [0.25, 0.4, 0, 0, 0.2, 0.15], [0.55, 0.08, 0.07, 0.15, 0.05, 0.1]], 
+        criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.3], [0.25, 0.4, 0, 0, 0.2, 0.3], [0.55, 0.08, 0.07, 0.15, 0.05, 0.3]], 
         evaluation_weights = [0.85, 0.1, 0.05], 
-        number_of_scenarios = 100, 
+        number_of_scenarios = 2, 
         discounting_factor = 0.1
     ))
     
@@ -189,9 +192,9 @@ if __name__ == "__main__":
     list_of_instances = ['OS_W34', 'OS_W31', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old']
 
   
-    list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
+    # list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
     # list_of_seeds=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-    # list_of_seeds = [2]
+    list_of_seeds = [2]
   
     start_time = time.time()
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)

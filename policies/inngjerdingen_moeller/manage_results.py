@@ -180,7 +180,7 @@ def visualize_aggregated_total_roaming_distances(aggregated_data, filename):
     values = list(data.values())
     colors = ['mediumpurple', 'cornflowerblue']
     fig, ax = plt.subplots()
-    ax.grid(b = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
+    ax.grid(visible = True, axis = 'y', color ='grey', linestyle ='-.', linewidth = 0.5, alpha = 0.4, zorder = 1)
     plt.bar(type_of_roaming, values, width=0.4, color = colors, alpha = 1, zorder = 2)
     plt.ylabel("Distance [km]")
     ax.set_title('Total roaming distance', fontsize = 16, fontweight = 'bold')

@@ -4,7 +4,7 @@ SIM SETTINGS
 
 # Vehicle settings
 
-VEHICLE_BATTERY_INVENTORY = 150 # TODO fix
+VEHICLE_BATTERY_INVENTORY = 150 
 VEHICLE_BIKE_INVENTORY = 20
 VEHICLE_SPEED = 15
 MINUTES_PER_ACTION = 0.5
@@ -39,3 +39,18 @@ TRAFFIC_LOGGING = False
 WALKING_SPEED = 4
 MAX_ROAMING_DISTANCE_SIMULATOR = 0.6 #km, for simulation
 MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
+
+# HLV
+
+RESULT_FOLDER = 'test_only_settings_file' 
+
+BATTERY_LEVEL_LOWER_BOUND = 20 #% not functionality if under
+BATTERY_LEVEL_UPPER_BOUND = 70 #% will change battery 
+
+AVERAGE_LENGHT_OF_TRIP = 10 #minutes -> to calculate average_discount
+
+OVERFLOW_CRITERIA = 1.9 # of target state
+STARVATION_CRITERIA = 0.1 # of target state
+
+BIKES_OVERFLOW_NEIGHBOR = 2
+BIKES_STARVED_NEIGHBOR = 2
