@@ -441,8 +441,6 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
                 violations_after_visit = 0
 
             
-
-
             avoided_violations = violation_no_visit - violations_after_visit
 
             
@@ -513,7 +511,44 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             counter += 1
         
         return avoided_disutility
-    
+
+    ##########################################################################
+    # Finds the action that performs best over the most scenarios            #
+    # TODO fix if we are going to use this                                   #
+    ##########################################################################    
+
+    def return_best_move(self, vehicle, simul, plan_scores): #returns station_id 
+        score_board = dict() #station id : number of times this first move returns the best solution
+        num_scenarios=self.number_of_scenarios
+        if num_scenarios==0:
+            num_scenarios+=1 #this scenario is now the expected value 
+        for scenario_id in range(num_scenarios):
+            best_score = -1000
+            best_plan = None
+            for plan in plan_scores:
+                if plan_scores[plan][scenario_id] > best_score:
+                    best_plan = plan
+                    best_score = plan_scores[plan][scenario_id]
+            
+            if best_plan == None:
+                tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]
+                potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
+                rng_balanced = np.random.default_rng(None)
+                print("lunsj!")
+                return rng_balanced.choice(potential_stations2).id 
+
+            best_first_move = best_plan.plan[vehicle.id][1].station.id
+            if best_first_move in score_board:
+                score_board[best_first_move] += 1 
+            else:
+                score_board[best_first_move] = 1 
+
+            simul.metrics.add_aggregate_metric(simul, "branch"+str(best_plan.branch_number+1), 1)
+            simul.metrics.add_aggregate_metric(simul, "weight_set"+str(best_plan.weight_set), 1)
+           
+        score_board_sorted = dict(sorted(score_board.items(), key=lambda item: item[1], reverse=True))
+
+        return list(score_board_sorted.keys())[0]
 
     ##########################################################################
     # Finds the action which on avarage performs best over several scenarios #

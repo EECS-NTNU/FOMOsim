@@ -170,10 +170,10 @@ def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_typ
 
             #Less critical because of neghbor whit complimentary status
             #Mabye change >0 into > % of target state?
-            if station_type == 'p' and neighbor_target_state - expected_number_escooters > 0:
+            if station_type == 'p' and neighbor_target_state - expected_number_escooters > neighbor_target_state * NEIGHBOR_BALANCE_PICKUP:
                 station_crit -= 1
             
-            elif station_type == 'd' and expected_number_escooters - neighbor_target_state > 0:
+            elif station_type == 'd' and expected_number_escooters - neighbor_target_state > neighbor_target_state * NEIGHBOR_BALANCE_DELIVERY:
                 station_crit -= 1
             
             elif station_type == 'b':
