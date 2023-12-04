@@ -14,18 +14,18 @@ import policies
 import sim
 import demand
 from helpers import timeInMinutes
+from settings import *
 
 import time
 import multiprocessing as mp
 
-INIT_DURATION = 24*5
-NUM_VEHICLES = 2
-
-def run_simulation(seed, policy, duration= INIT_DURATION, num_vehicles= NUM_VEHICLES, queue=None, INSTANCE=None):
+def run_simulation(seed, policy, duration= settings_duration, num_vehicles= settings_num_vehicles, queue=None, INSTANCE=None):
 
     #change common parameters for the different simulations here:
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
+
+    INSTANCE = SETTINGS_INSTANCE
 
     # INSTANCE = 'BG_W8'
     # INSTANCE = 'BG_W25'  # more demand
@@ -39,7 +39,7 @@ def run_simulation(seed, policy, duration= INIT_DURATION, num_vehicles= NUM_VEHI
     # INSTANCE = 'NY_W31'
     # INSTANCE = 'OS_W10'
     # INSTANCE = 'OS_W22'
-    INSTANCE = 'OS_W31'
+    # INSTANCE = 'OS_W31'
     # INSTANCE = 'OS_W34'  # more demand
     # INSTANCE = 'OS_W50'
     # INSTANCE = 'TD_W17'
@@ -130,7 +130,7 @@ def test_instances(list_of_seeds, list_of_instances):
         filename=str(instance)+".csv"
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles, instance=instance)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= NUM_VEHICLES, duration= INIT_DURATION, instance=None): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= settings_num_vehicles, duration= settings_duration, instance=None): #change duration and number of vehicles HERE!
     # #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -163,8 +163,8 @@ if __name__ == "__main__":
     # evaluation_weights = [0.4, 0.3, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
     # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
-    duration = 24*5
-    num_vehicles = 1
+    duration = settings_duration
+    num_vehicles = settings_num_vehicles
     
     # policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
@@ -176,27 +176,22 @@ if __name__ == "__main__":
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing())
     policy_dict = dict(pilot_roaming = policies.hlm.BS_PILOT(
-        max_depth = 3, 
-        number_of_successors = 10, 
-        time_horizon = 40, 
-        criticality_weights_sets = [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]], 
-        # criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.2], [0.25, 0.4, 0, 0, 0.2, 0.15], [0.55, 0.08, 0.07, 0.15, 0.05, 0.1]], 
-        # criticality_weights_sets = [[0.25, 0.125, 0.225, 0.15, 0.05, 0.3], [0.25, 0.4, 0, 0, 0.2, 0.3], [0.55, 0.08, 0.07, 0.15, 0.05, 0.3]], 
-        evaluation_weights = [0.85, 0.1, 0.05], 
-        number_of_scenarios = 100, 
-        discounting_factor = 0.8
+        max_depth = settings_max_depth, 
+        number_of_successors = settings_number_of_successors, 
+        time_horizon = settings_time_horizon, 
+        criticality_weights_sets = settings_criticality_weights_sets, 
+        evaluation_weights = settings_evaluation_weights, 
+        number_of_scenarios = settings_number_of_scenarios, 
+        discounting_factor = settings_discounting_factor
     ))
     
-    # list_of_timehorizons = [10,20,30,40,50,60]
-    evaluation_weights = dict(a = [0.4, 0.3, 0.3], b=[0.8, 0.1, 0.1], c=[0.1, 0.8, 0.1], d=[0.1, 0.1, 0.8], e=[0.6, 0.1, 0.3], f=[0.3, 0.6, 0.1], g=[0.3, 0.1, 0.6], h=[0.6, 0.3, 0.1], i=[1.0, 0.0, 0.0], j=[0.45, 0.45, 0.1], k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33], m=[0.9, 0.05, 0.05], n=[0.95, 0.04, 0.01], o=[0.85, 0.1, 0.05], p=[0.9, 0.09, 0.01])
-    # criticality_weights = dict(a=[[0.2, 0.2, 0.2, 0.2, 0.2]], b=[[0.3, 0.15, 0.25, 0.2, 0.1]], c=[[0.2, 0.4, 0.2, 0.1, 0.1]], d=[[0.3, 0.3, 0.1, 0.1, 0.2]], e=[[0.2, 0.7, 0.05, 0.05, 0]], f=[[0.05, 0.9, 0.05, 0, 0]], g=[[0.1, 0.6, 0.1, 0.1, 0.1]], h=[[0.3, 0.5, 0, 0, 0.2]], i=[[0.9, 0, 0, 0.1, 0]], j=[[0.7, 0.05, 0.1, 0.1, 0.05]], k=[[0.6, 0.1, 0.05, 0.2, 0.05]], l=[[0.5, 0.05, 0.2, 0.05, 0.2]], m=[[1, 0, 0, 0, 0]], n=[[0, 1, 0, 0, 0]], o=[[0, 0, 1, 0, 0]], p=[[0, 0, 0, 1, 0]], q=[[1, 0, 0, 0, 0]])
-    # list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
-    list_of_instances = ['OS_W34', 'OS_W31', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old']
-
+    # list_of_timehorizons = settings_list_of_timehorizons
+    evaluation_weights = settings_evaluation_weights
+    # criticality_weights = settings_criticality_weights
+    # list_of_factors = settings_list_of_factors
+    list_of_instances = settings_list_of_instances
   
-    list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
-    # list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-    # list_of_seeds = [2]
+    list_of_seeds = settings_list_of_seeds
   
     start_time = time.time()
     test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)

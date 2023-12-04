@@ -15,13 +15,13 @@ import time
 
 class BS_PILOT(Policy): #Add default values from seperate setting sheme
     def __init__(self, 
-                 max_depth = 2, 
-                 number_of_successors = 5, 
-                 time_horizon = 40, 
-                 criticality_weights_sets = [[0.3, 0.15, 0.25, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0.05, 0.2, 0.05]], 
-                 evaluation_weights = [0.85, 0.1, 0.05], 
-                 number_of_scenarios = 100, 
-                 discounting_factor = 0.1
+                max_depth = settings_max_depth, 
+                number_of_successors = settings_number_of_successors, 
+                time_horizon = settings_time_horizon, 
+                criticality_weights_sets = settings_criticality_weights_sets, 
+                evaluation_weights = settings_evaluation_weights, 
+                number_of_scenarios = settings_number_of_scenarios, 
+                discounting_factor = settings_discounting_factor
                  ):
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
