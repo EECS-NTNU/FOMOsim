@@ -30,7 +30,6 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
 # NEW FUNCTIONALITY                                             #
 # Avarage battery discharge rate per hour over the whole system #
 #################################################################
-
 def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system):
     # total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
 
