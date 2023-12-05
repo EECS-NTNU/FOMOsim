@@ -183,14 +183,14 @@ if __name__ == "__main__":
         max_depth = settings_max_depth, 
         number_of_successors = settings_number_of_successors, 
         time_horizon = settings_time_horizon, 
-        criticality_weights_sets = settings_criticality_weights_sets, 
+        criticality_weights_set = settings_criticality_weights_sets, 
         evaluation_weights = settings_evaluation_weights, 
         number_of_scenarios = settings_number_of_scenarios, 
         discounting_factor = settings_discounting_factor
     ))
     
     # list_of_timehorizons = settings_list_of_timehorizons
-    evaluation_weights = settings_evaluation_weights
+    evaluation_weights = dict(k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33], m=[0.9, 0.05, 0.05])
     # criticality_weights = settings_criticality_weights
     # list_of_factors = settings_list_of_factors
     list_of_instances = settings_list_of_instances

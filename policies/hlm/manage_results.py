@@ -125,12 +125,10 @@ def write_sim_results_to_file(filename, simulator, duration, append=False):
           round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2), simulator.state.seed]
     try:
         folder_path= './policies/hlm/simulation_results/' + RESULT_FOLDER
-        print('in here')
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
-            print('no path found')
+            append = False
         path= folder_path + '/' + filename
-        print(path)
         if append==False:
             with open(path,'w', newline='') as f:
                 writer=csv.writer(f)
@@ -144,6 +142,27 @@ def write_sim_results_to_file(filename, simulator, duration, append=False):
         print("Error writing to CSV, write_sim_results_to_file")
         return None
     
+
+def write_parameters_to_file(filename, policy, num_vehicles, duration):
+    data = {
+        'max_depth': policy.max_depth, 
+        'number_of_successors': policy.number_of_successors, 
+        'time_horizon': policy.time_horizon, 
+        'criticality_weights_sets': policy.criticality_weights_set, 
+        'evaluation_weights': policy.evaluation_weights, 
+        'number_of_scenarios': policy.number_of_scenarios, 
+        'discounting_factor': policy.discounting_factor,
+        'num_vehicles': num_vehicles,
+        'duration': duration//24
+    }
+    try:
+        path= './policies/hlm/simulation_results/' + RESULT_FOLDER + '/' + filename
+        with open(path,'a',newline='') as f:
+            writer=csv.writer(f)
+            writer.writerow(data)
+    except: 
+        print("Error writing to CSV, write_parameters_to_file")
+        return None
 
 def write_sol_time_to_file(filename, simulator):
     data=[simulator.metrics.get_aggregate_value('accumulated solution time'), simulator.metrics.get_aggregate_value('number of problems solved')]

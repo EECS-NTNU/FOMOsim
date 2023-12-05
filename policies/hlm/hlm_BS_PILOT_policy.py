@@ -18,7 +18,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
                 max_depth = settings_max_depth, 
                 number_of_successors = settings_number_of_successors, 
                 time_horizon = settings_time_horizon, 
-                criticality_weights_sets = settings_criticality_weights_sets, 
+                criticality_weights_set = settings_criticality_weights_sets, 
                 evaluation_weights = settings_evaluation_weights, 
                 number_of_scenarios = settings_number_of_scenarios, 
                 discounting_factor = settings_discounting_factor
@@ -26,7 +26,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
         self.time_horizon = time_horizon
-        self.criticality_weights_set = criticality_weights_sets
+        self.criticality_weights_set = criticality_weights_set
         self.evaluation_weights = evaluation_weights
         self.number_of_scenarios = number_of_scenarios
         self.discounting_factor = discounting_factor
