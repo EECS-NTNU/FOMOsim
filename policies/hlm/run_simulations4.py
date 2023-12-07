@@ -87,7 +87,7 @@ def test_timehorizons(list_of_seeds, list_of_timehorizons):
 def test_criticality_weights(list_of_seeds, criticality_weights_dict):
     for set in criticality_weights_dict:
         filename= "crit_set_"+str(set)+".csv"
-        policy=policies.hlm.BS_PILOT(criticality_weights_sets=criticality_weights_dict[set])
+        policy=policies.hlm.BS_PILOT(criticality_weights_set=criticality_weights_dict[set])
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_evaluation_weights(list_of_seeds, evaluation_weights_dict):
@@ -101,6 +101,13 @@ def test_discounting_factors(list_of_seeds, list_of_factors):
         filename= "discounting_"+str(factor)+".csv"
         policy=policies.hlm.BS_PILOT(discounting_factor=factor)
         test_seeds_mp(list_of_seeds, policy, filename)
+
+def test_overflow_starvation(list_of_seeds, list_of_overflow, list_of_starvation):
+     for factor in list_of_overflow:
+        for factor2 in list_of_starvation:
+            filename= "overflow_starvation_"+str(factor)+str(factor2)+".csv"
+            policy=policies.hlm.BS_PILOT(overflow_criteria=factor, starvation_criteria = factor2)
+            test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_alpha_beta(list_of_seeds, alpha, beta_list):
      for beta in beta_list:
@@ -186,21 +193,26 @@ if __name__ == "__main__":
         criticality_weights_set = settings_criticality_weights_sets, 
         evaluation_weights = settings_evaluation_weights, 
         number_of_scenarios = settings_number_of_scenarios, 
-        discounting_factor = settings_discounting_factor
+        discounting_factor = settings_discounting_factor,
+        overflow_criteria = OVERFLOW_CRITERIA,
+        starvation_criteria = STARVATION_CRITERIA
     ))
     
     # list_of_timehorizons = settings_list_of_timehorizons
-    evaluation_weights = dict(k=[0.45, 0.1, 0.45], l=[0.33, 0.33, 0.33], m=[0.9, 0.05, 0.05])
+    # evaluation_weights = settings_evaluation_weights
     # criticality_weights = settings_criticality_weights
     # list_of_factors = settings_list_of_factors
     list_of_instances = settings_list_of_instances
+    starvation_criterias = [0.05, 0.1, 0.15, 0, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+    overflow_criterias = [2.1, 2.2]
   
     list_of_seeds = settings_list_of_seeds
   
     start_time = time.time()
 
-    test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
+    # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
+    test_overflow_starvation(list_of_seeds=list_of_seeds, list_of_overflow = overflow_criterias, list_of_starvation = starvation_criterias)
     # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration = duration)
     # test_instances(list_of_seeds, list_of_instances)
     # test_discounting_factors(list_of_seeds, list_of_factors)

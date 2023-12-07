@@ -21,7 +21,9 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
                 criticality_weights_set = settings_criticality_weights_sets, 
                 evaluation_weights = settings_evaluation_weights, 
                 number_of_scenarios = settings_number_of_scenarios, 
-                discounting_factor = settings_discounting_factor
+                discounting_factor = settings_discounting_factor,
+                overflow_criteria = OVERFLOW_CRITERIA,
+                starvation_criteria = STARVATION_CRITERIA
                  ):
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
@@ -30,6 +32,8 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         self.evaluation_weights = evaluation_weights
         self.number_of_scenarios = number_of_scenarios
         self.discounting_factor = discounting_factor
+        self.overflow_criteria = overflow_criteria
+        self.starvation_criteria = starvation_criteria
         super().__init__()
 
     ###############################################
@@ -75,7 +79,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         #   How many batteries to swap choosen based on battery inventory and status on station #
         #########################################################################################
 
-        escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location)
+        escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria)
         number_of_escooters_pickup = len(escooters_to_pickup)
         number_of_escooters_deliver = len(escooters_to_deliver)
         number_of_batteries_to_swap = len(batteries_to_swap)
@@ -108,9 +112,9 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         similary_imbalances_overflow = 0
 
         for neighbor in simul.state.stations[next_station].neighboring_stations:
-            if neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) > OVERFLOW_CRITERIA * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
+            if neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) > self.overflow_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
                 similary_imbalances_overflow += 1
-            elif neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) < STARVATION_CRITERIA * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_deliver > 0:
+            elif neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) < self.starvation_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_deliver > 0:
                 similary_imbalances_starved += 1
             
         
@@ -243,9 +247,9 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             net_demand_neighbor = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(),60)
             num_escooters_neighbor = neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) + ((eta - simul.time)/60)*net_demand_neighbor
             neighbor_target_state = round(neighbor.get_target_state(simul.day(), simul.hour()))
-            if num_escooters_neighbor < STARVATION_CRITERIA * neighbor_target_state:
+            if num_escooters_neighbor < self.starvation_criteria * neighbor_target_state:
              starved_neighbors += 1
-            elif num_escooters_neighbor > OVERFLOW_CRITERIA * neighbor_target_state:
+            elif num_escooters_neighbor > self.overflow_criteria * neighbor_target_state:
              overflowing_neighbors += 1
 
         if num_escooters_station_at_arrival_accounted_battery_swap < target_state:
@@ -606,7 +610,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 #   Applied functionality such that scooters with battery level < thershold does not count  #             
 #############################################################################################
 
-def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
+def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, overflow_criteria, starvation_criteria):
     num_escooters_vehicle = len(vehicle.get_bike_inventory())
 
     target_state = round(station.get_target_state(simul.day(), simul.hour())) #Denne må vi finne ut hvordan lages
@@ -624,9 +628,9 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station):
     for neighbor in station.neighboring_stations:
         num_escooters_neighbor = neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND))
         neighbor_target_state = round(neighbor.get_target_state(simul.day(), simul.hour()))
-        if num_escooters_neighbor < STARVATION_CRITERIA * neighbor_target_state:
+        if num_escooters_neighbor < starvation_criteria * neighbor_target_state:
             starved_neighbors += 1
-        elif num_escooters_neighbor > OVERFLOW_CRITERIA * neighbor_target_state:
+        elif num_escooters_neighbor > overflow_criteria * neighbor_target_state:
             overflowing_neighbors += 1
 
     #######################################################################

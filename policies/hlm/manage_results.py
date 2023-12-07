@@ -127,7 +127,6 @@ def write_sim_results_to_file(filename, simulator, duration, append=False):
         folder_path= './policies/hlm/simulation_results/' + RESULT_FOLDER
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
-            append = False
         path= folder_path + '/' + filename
         if append==False:
             with open(path,'w', newline='') as f:
@@ -159,7 +158,7 @@ def write_parameters_to_file(filename, policy, num_vehicles, duration):
         path= './policies/hlm/simulation_results/' + RESULT_FOLDER + '/' + filename
         with open(path,'a',newline='') as f:
             writer=csv.writer(f)
-            writer.writerow(data)
+            writer.writerow(list(data.values()))
     except: 
         print("Error writing to CSV, write_parameters_to_file")
         return None
