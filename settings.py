@@ -47,8 +47,8 @@ BATTERY_LEVEL_UPPER_BOUND = 70 #% will change battery
 
 AVERAGE_LENGHT_OF_TRIP = 10 #minutes -> to calculate average_discount
 
-OVERFLOW_CRITERIA = 1.9 # of target state
-STARVATION_CRITERIA = 0.1 # of target state
+OVERFLOW_CRITERIA = 2.1 # of target state
+STARVATION_CRITERIA = 0.35 # of target state
 
 BIKES_OVERFLOW_NEIGHBOR = 1
 BIKES_STARVED_NEIGHBOR = 2
@@ -69,19 +69,19 @@ SETTINGS_INSTANCE = 'OS_W31'
 # settings_state = "instances/ebike/"
 settings_state = "instances/ebike_with_depot/"
 
-settings_duration = 24*5
+settings_duration = 24*10
 settings_num_vehicles = 2
 
-settings_max_depth = 2
-settings_number_of_successors = 5
-settings_time_horizon = 40
+settings_max_depth = 6 # best
+settings_number_of_successors = 3 # best 5
+settings_time_horizon = 40 # best 40
 
-settings_criticality_weights_sets = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]] # [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]]
+settings_criticality_weights_sets = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]] # best [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]]
 # settings_criticality_weights_sets = [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]]
 
-settings_evaluation_weights = [0.45, 0.1, 0.45] 
-settings_number_of_scenarios = 100
-settings_discounting_factor = 0.6
+settings_evaluation_weights = [0.45, 0.1, 0.45] # best
+settings_number_of_scenarios = 60 # best
+settings_discounting_factor = 0.6 # best
 
 # settings_list_of_timehorizons = [10,20,30,40,50,60]
 # settings_evaluation_weights = dict(
@@ -112,8 +112,9 @@ settings_discounting_factor = 0.6
 # settings_list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 settings_list_of_instances = ['OS_W34', 'OS_W31', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old']
 
-settings_list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
-# settings_list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+# settings_list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
+settings_list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+# settings_list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29]
 # settings_list_of_seeds = [2]
 
 RESULT_FOLDER = str(SETTINGS_INSTANCE) + '_' + str(settings_num_vehicles) + 'V_' + str(len(settings_list_of_seeds)) +'S_' + str(settings_duration//24) + 'D_PILOT_' + ('T' if SORTED_BIKES else 'F') + ('T' if ONLY_SWAP_ALLOWED else 'F') + ('T' if USE_BATTERY_CRITICALITY else 'F')
