@@ -72,9 +72,9 @@ settings_state = "instances/ebike_with_depot/"
 settings_duration = 24*10
 settings_num_vehicles = 2
 
-settings_max_depth = 6 # best
-settings_number_of_successors = 3 # best 5
-settings_time_horizon = 40 # best 40
+settings_max_depth = 6 # best = 6
+settings_number_of_successors = 3 # best = 3
+settings_time_horizon = 40 # best = 40
 
 settings_criticality_weights_sets = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]] # best [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]]
 # settings_criticality_weights_sets = [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]]

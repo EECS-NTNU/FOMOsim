@@ -110,8 +110,8 @@ def test_overflow_starvation(list_of_seeds, list_of_overflow, list_of_starvation
             test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_alpha_beta(list_of_seeds, alpha_list, beta_list):
-     for alpha in alpha_list:
-        for beta in beta_list:
+     for beta in beta_list:
+        for alpha in alpha_list:
             filename= "branching_a_"+str(alpha)+"_b_"+str(beta)+".csv"
             policy=policies.hlm.BS_PILOT(max_depth=alpha, number_of_successors=beta, time_horizon = 60)
             test_seeds_mp(list_of_seeds, policy, filename)
@@ -196,7 +196,8 @@ if __name__ == "__main__":
         number_of_scenarios = settings_number_of_scenarios, 
         discounting_factor = settings_discounting_factor,
         overflow_criteria = OVERFLOW_CRITERIA,
-        starvation_criteria = STARVATION_CRITERIA
+        starvation_criteria = STARVATION_CRITERIA,
+        upper_threshold = BATTERY_LEVEL_UPPER_BOUND
     ))
     
     # list_of_timehorizons = settings_list_of_timehorizons
@@ -217,8 +218,8 @@ if __name__ == "__main__":
     # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration = duration)
     # test_instances(list_of_seeds, list_of_instances)
     # test_discounting_factors(list_of_seeds, list_of_factors)
-    # test_alpha_beta(list_of_seeds, alpha_list=[2, 3], beta_list=[7,10])
-    test_number_of_scenarios(list_of_seeds, [80, 100, 180])
+    test_alpha_beta(list_of_seeds, alpha_list=[1,3,5,7], beta_list=[2,4,6])
+    # test_number_of_scenarios(list_of_seeds, [80, 100, 180])
     # test_timehorizons(list_of_seeds, list_of_timehorizons)
     # test_num_vehicles(list_of_seeds,[1,2,3])
 

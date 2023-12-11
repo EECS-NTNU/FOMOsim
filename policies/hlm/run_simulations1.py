@@ -109,17 +109,22 @@ def test_overflow_starvation(list_of_seeds, list_of_overflow, list_of_starvation
             policy=policies.hlm.BS_PILOT(overflow_criteria=factor, starvation_criteria = factor2)
             test_seeds_mp(list_of_seeds, policy, filename)
 
-def test_alpha_beta(list_of_seeds, alpha_list, beta_list):
-     for alpha in alpha_list:
-        for beta in beta_list:
-            filename= "branching_a_"+str(alpha)+"_b_"+str(beta)+".csv"
-            policy=policies.hlm.BS_PILOT(max_depth=alpha, number_of_successors=beta, time_horizon = 60)
-            test_seeds_mp(list_of_seeds, policy, filename)
+def test_alpha_beta(list_of_seeds, alpha, beta_list):
+     for beta in beta_list:
+        filename= "branching_a_"+str(alpha)+"_b_"+str(beta)+".csv"
+        policy=policies.hlm.BS_PILOT(max_depth=alpha, number_of_successors=beta, time_horizon=60)
+        test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_number_of_scenarios(list_of_seeds, scenario_list):
      for number in scenario_list:
         filename= "num_scenarios_"+str(number)+".csv"
-        policy=policies.hlm.BS_PILOT(number_of_scenarios=number)
+        policy=policies.hlm.BS_PILOT(number_of_scenarios=number, max_depth=2, number_of_successors=7)
+        test_seeds_mp(list_of_seeds, policy, filename)
+
+def test_upper_threshold(list_of_seeds, upper_thresholds):
+    for threshold in upper_thresholds:
+        filename= "upper_threshold_"+str(threshold)+".csv"
+        policy=policies.hlm.BS_PILOT(upper_thresholds=threshold)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_num_vehicles(list_of_seeds, vehicles_list):
@@ -161,6 +166,12 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= settings_num_ve
         # if we run PILOT policy:
         filename_time = "sol_time_"+filename
         policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'Failed events')
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'battery violation')
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'trips')
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'starvations, no bikes')
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'starvations, no battery')
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'starvation')
 
         policies.hlm.manage_results.write_parameters_to_file('parameters_' + filename, policy, num_vehicles, duration)
         # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
@@ -187,7 +198,18 @@ if __name__ == "__main__":
     # policy_dict = dict(Kloimüllner_5 = policies.inngjerdingen_moeller.PILOT(1, 5))
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing())
-    policy_dict = dict(pilot_roaming = policies.hlm.BS_PILOT(
+    # policy_dict = dict(pilot_roaming = policies.hlm.BS_PILOT(
+    #     max_depth = settings_max_depth, 
+    #     number_of_successors = settings_number_of_successors, 
+    #     time_horizon = settings_time_horizon, 
+    #     criticality_weights_set = settings_criticality_weights_sets, 
+    #     evaluation_weights = settings_evaluation_weights, 
+    #     number_of_scenarios = settings_number_of_scenarios, 
+    #     discounting_factor = settings_discounting_factor,
+    #     overflow_criteria = OVERFLOW_CRITERIA,
+    #     starvation_criteria = STARVATION_CRITERIA
+    # ))
+    policy_dict = dict(bs_greedy = policies.hlm.BS_Greedy(
         max_depth = settings_max_depth, 
         number_of_successors = settings_number_of_successors, 
         time_horizon = settings_time_horizon, 
@@ -198,30 +220,41 @@ if __name__ == "__main__":
         overflow_criteria = OVERFLOW_CRITERIA,
         starvation_criteria = STARVATION_CRITERIA
     ))
+    # policy_dict = dict(greedy_pilot = policies.hlm.BS_PILOT(
+    #     max_depth = 1, 
+    #     number_of_successors = 1, 
+    #     time_horizon = 10, 
+    #     criticality_weights_set = settings_criticality_weights_sets, 
+    #     evaluation_weights = settings_evaluation_weights, 
+    #     number_of_scenarios = 10, 
+    #     discounting_factor = settings_discounting_factor,
+    #     overflow_criteria = OVERFLOW_CRITERIA,
+    #     starvation_criteria = STARVATION_CRITERIA
+    # ))
     
     # list_of_timehorizons = settings_list_of_timehorizons
     # evaluation_weights = settings_evaluation_weights
     # criticality_weights = settings_criticality_weights
     # list_of_factors = settings_list_of_factors
     list_of_instances = settings_list_of_instances
-    # starvation_criterias = [0.05, 0.1, 0.15, 0, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
-    # overflow_criterias = [1.5, 1.6]
+    # overflow_criterias = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+    # starvation_criterias = [1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.1, 2.2, 2.3, 2.4, 2.5]
   
     list_of_seeds = settings_list_of_seeds
   
     start_time = time.time()
 
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
+    # test_upper_threshold(list_of_seeds=list_of_seeds, upper_thresholds=[50,60,70,80,90,100])
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
     # test_overflow_starvation(list_of_seeds=list_of_seeds, list_of_overflow = overflow_criterias, list_of_starvation = starvation_criterias)
     test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration = duration)
     # test_instances(list_of_seeds, list_of_instances)
     # test_discounting_factors(list_of_seeds, list_of_factors)
-    # test_alpha_beta(list_of_seeds, alpha_list=[2, 3], beta_list=[7,10])
-    # test_number_of_scenarios(list_of_seeds, [0, 50, 120])
+    # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])
+    # test_number_of_scenarios(list_of_seeds, [0,1,10,100,500,1000,2000])
     # test_timehorizons(list_of_seeds, list_of_timehorizons)
     # test_num_vehicles(list_of_seeds,[1,2,3])
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))
-

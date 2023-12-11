@@ -1,4 +1,5 @@
 from .hlm_BS_PILOT_policy import BS_PILOT
+from .hlm_BS_Greedy_policy import BS_Greedy
 from .run_simulations import * 
 from .manage_results import *
 from .manage_results import VisualizeResults
