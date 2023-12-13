@@ -3,7 +3,7 @@ from settings import *
 import sim
 from .Visit import Visit
 from .Plan import Plan
-from .Criticality_score import calculate_criticality, calculate_station_type
+from .Criticality_score_dual import calculate_criticality, calculate_station_type
 from .Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 
 import numpy as np
@@ -13,7 +13,7 @@ import time
 #         BS_PILOT - policy class        #
 ##########################################
 
-class BS_PILOT(Policy): #Add default values from seperate setting sheme
+class Dual_Policy(Policy): #Add default values from seperate setting sheme
     def __init__(self, 
                 max_depth = settings_max_depth, 
                 number_of_successors = settings_number_of_successors, 
@@ -114,9 +114,9 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         similary_imbalances_overflow = 0
 
         for neighbor in simul.state.stations[next_station].neighboring_stations:
-            if neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) > self.overflow_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
+            if neighbor.number_of_bikes() > self.overflow_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
                 similary_imbalances_overflow += 1
-            elif neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) < self.starvation_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_deliver > 0:
+            elif neighbor.number_of_bikes() < self.starvation_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_deliver > 0:
                 similary_imbalances_starved += 1
             
         
@@ -239,7 +239,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 
         target_state = round(station.get_target_state(simul.day(),simul.hour())) 
         net_demand = calculate_net_demand(station, simul.time, simul.day(), simul.hour(), 60) # Gives net_demand per hour
-        num_escooters_accounted_for_battery_swaps = get_num_escooters_accounted_for_battery_swaps(station, station.number_of_bikes(), vehicle)
+        num_escooters_accounted_for_battery_swaps = station.number_of_bikes()
         num_escooters_station_at_arrival_accounted_battery_swap = num_escooters_accounted_for_battery_swaps + ((eta - simul.time)/60)*net_demand # How many bikes at station at eta, based on demand forecast
 
         starved_neighbors = 0
@@ -749,7 +749,7 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
         # Makes dictionary with all potential stations and their respective target states
         target_states[station.id] = station.get_target_state(simul.day(), simul.hour())
 
-        adjusted_demand = get_num_escooters_accounted_for_battery_swaps(station, station.number_of_bikes(), vehicle) + net_demands[station.id]
+        adjusted_demand = station.number_of_bikes() + net_demands[station.id]
         if adjusted_demand > (1 + cutoff_station)*target_states[station.id]:
             # Finds the stations from potential stations which would be a pickup station if choosen - accounted for battery level / swaps
             potential_pickup_stations.append(station)

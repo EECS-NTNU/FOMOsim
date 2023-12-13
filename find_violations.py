@@ -4,7 +4,7 @@ from settings import *
 
 test_cat = 'upper_threshold'
 
-folder_path = os.getcwd() + '/policies/hlm/threshold'# + RESULT_FOLDER + '/branching'
+folder_path = '/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/policies/hlm/simulation_results/OS_W31_2V_10S_5D_PILOT_TTT/threshold' # os.getcwd() + '/policies/hlm/threshold'# + RESULT_FOLDER + '/branching'
 
 def get_avg_violations(filepath):
     data = pd.read_csv(filepath, header=None, names = ['Duration','Events','Starvations','No scooters',  'No battery', 'Battery Violation', 'Roaming for bikes', 'Roaming distance for bikes', 'Seed'])

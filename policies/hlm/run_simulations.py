@@ -65,7 +65,7 @@ def run_simulation(seed, policy, duration= settings_duration, num_vehicles= sett
         demand = dmand,
         start_time = START_TIME,
         duration = DURATION,
-        verbose = True,
+        verbose = False,
     )
     simulator.run()
     if queue != None:
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     #     overflow_criteria = OVERFLOW_CRITERIA,
     #     starvation_criteria = STARVATION_CRITERIA
     # ))
-    policy_dict = dict(greedy_pilot = policies.hlm.BS_Greedy())
+    policy_dict = dict(only_swap = policies.hlm.Only_Swap())
     
     # list_of_timehorizons = settings_list_of_timehorizons
     # evaluation_weights = settings_evaluation_weights

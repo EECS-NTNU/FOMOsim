@@ -209,7 +209,7 @@ if __name__ == "__main__":
     #     overflow_criteria = OVERFLOW_CRITERIA,
     #     starvation_criteria = STARVATION_CRITERIA
     # ))
-    policy_dict = dict(bs_greedy = policies.hlm.BS_Greedy(
+    policy_dict = dict(greedy = policies.hlm.Greedy_Policy(
         max_depth = settings_max_depth, 
         number_of_successors = settings_number_of_successors, 
         time_horizon = settings_time_horizon, 

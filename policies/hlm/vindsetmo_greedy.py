@@ -109,7 +109,7 @@ class Vindsetmo_greedy(Policy): #Add default values from seperate setting sheme
         #############################################################################
 
         #next_station = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
-        next_station = self.greedy_next_visit(plan, simul, 1, self.criticality_weights_set[0], total_num_bikes_in_system)
+        next_station = self.greedy_next_visit(plan, simul, 1, self.criticality_weights_set[0], total_num_bikes_in_system)[0]
 
         similary_imbalances_starved = 0
         similary_imbalances_overflow = 0

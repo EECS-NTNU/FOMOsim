@@ -43,7 +43,7 @@ MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
 # HLV
 
 BATTERY_LEVEL_LOWER_BOUND = 20 #% not functionality if under
-BATTERY_LEVEL_UPPER_BOUND = 70 #% will change battery 
+BATTERY_LEVEL_UPPER_BOUND = 40 #% will change battery 
 
 AVERAGE_LENGHT_OF_TRIP = 10 #minutes -> to calculate average_discount
 

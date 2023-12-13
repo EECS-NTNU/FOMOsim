@@ -198,17 +198,7 @@ if __name__ == "__main__":
     # policy_dict = dict(Kloimüllner_5 = policies.inngjerdingen_moeller.PILOT(1, 5))
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing())
-    policy_dict = dict(pilot_roaming = policies.hlm.BS_PILOT(
-        max_depth = settings_max_depth, 
-        number_of_successors = settings_number_of_successors, 
-        time_horizon = settings_time_horizon, 
-        criticality_weights_set = settings_criticality_weights_sets, 
-        evaluation_weights = settings_evaluation_weights, 
-        number_of_scenarios = settings_number_of_scenarios, 
-        discounting_factor = settings_discounting_factor,
-        overflow_criteria = OVERFLOW_CRITERIA,
-        starvation_criteria = STARVATION_CRITERIA
-    ))
+    policy_dict = dict(x_pilot_inngjerdingen = policies.hlm.PILOT())
     # policy_dict = dict(greedy_pilot = policies.hlm.BS_PILOT(
     #     max_depth = 1, 
     #     number_of_successors = 1, 
@@ -234,10 +224,10 @@ if __name__ == "__main__":
     start_time = time.time()
 
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
-    test_upper_threshold(list_of_seeds=list_of_seeds, upper_thresholds=[35])
+    # test_upper_threshold(list_of_seeds=list_of_seeds, upper_thresholds=[35])
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
     # test_overflow_starvation(list_of_seeds=list_of_seeds, list_of_overflow = overflow_criterias, list_of_starvation = starvation_criterias)
-    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration = duration)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration = duration)
     # test_instances(list_of_seeds, list_of_instances)
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])

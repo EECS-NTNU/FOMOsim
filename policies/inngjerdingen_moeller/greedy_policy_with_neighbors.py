@@ -77,13 +77,10 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
     #can calculate a "neighborhood-demand" (negative or positive) and add this to the target state to compensate for neighborhood interactions 
 
     starved_neighbors = 0
-    congested_neighbors = 0
     for neighbor in station.neighboring_stations:
         num_bikes_neighbor = neighbor.number_of_bikes()
-        if num_bikes_neighbor < 0.1*neighbor.capacity:
+        if num_bikes_neighbor < 0.1*neighbor.get_target_state():
             starved_neighbors += 1
-        elif num_bikes_neighbor > 0.9*neighbor.capacity:
-            congested_neighbors += 1
 
     if num_bikes_station < target_state: #deliver bikes
         #deliver bikes, max to the target state
@@ -94,7 +91,7 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
     elif num_bikes_station > target_state: #pick-up bikes
         bikes_to_deliver = []
         remaining_vehicle_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
-        number_of_bikes_to_pick_up = min(num_bikes_station - target_state + 2*congested_neighbors, remaining_vehicle_capacity)
+        number_of_bikes_to_pick_up = min(num_bikes_station - target_state, remaining_vehicle_capacity)
         bikes_to_pickup = [bike.id for bike in station.bikes.values()][:number_of_bikes_to_pick_up]
     
     else: #num bikes is exactly at target state

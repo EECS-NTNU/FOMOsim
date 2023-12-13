@@ -13,12 +13,12 @@ import time
 #         BS_PILOT - policy class        #
 ##########################################
 
-class BS_PILOT(Policy): #Add default values from seperate setting sheme
+class Only_Swap(Policy): #Add default values from seperate setting sheme
     def __init__(self, 
                 max_depth = settings_max_depth, 
                 number_of_successors = settings_number_of_successors, 
                 time_horizon = settings_time_horizon, 
-                criticality_weights_set = settings_criticality_weights_sets, 
+                criticality_weights_set = [[0, 0.8, 0, 0, 0, 0.2], [0, 0.8, 0, 0, 0, 0.2], [0, 0.8, 0, 0, 0, 0.2]], 
                 evaluation_weights = settings_evaluation_weights, 
                 number_of_scenarios = settings_number_of_scenarios, 
                 discounting_factor = settings_discounting_factor,
@@ -67,10 +67,9 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
             next_station = self.find_closest_depot(simul, vehicle, depots)
             escooters_to_pickup = [escooter.id for escooter in vehicle.location.bikes.values() if escooter.battery < BATTERY_LEVEL_LOWER_BOUND]
-            max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
             return sim.Action(
                 [],
-                escooters_to_pickup[:max_pickup],
+                [],
                 [],
                 next_station
             )
@@ -127,8 +126,8 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 
         return sim.Action(
             batteries_to_swap,
-            escooters_to_pickup,
-            escooters_to_deliver,
+            [],
+            [],
             next_station
         )
 
@@ -271,7 +270,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             escooters_in_station_low_battery = station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)
             number_of_escooters_swap = min(len(escooters_in_station_low_battery), vehicle.battery_inventory)
         
-        return number_of_escooters_pickup, number_of_escooters_deliver, number_of_escooters_swap
+        return 0, 0, number_of_escooters_swap + max(number_of_escooters_pickup, number_of_escooters_deliver)
     
 
 
@@ -613,53 +612,13 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 #############################################################################################
 
 def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, overflow_criteria, starvation_criteria, upper_threshold):
-    num_escooters_vehicle = len(vehicle.get_bike_inventory())
-
-    target_state = round(station.get_target_state(simul.day(), simul.hour())) #Denne må vi finne ut hvordan lages
-    num_escooters_station = station.number_of_bikes() # number of scooters at the station
-    num_escooters_accounted_for_battery_swaps = get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station, vehicle) # 
-
-    ################################################################
-    #  Adjusting numbers based on status at neighboring stations   #
-    #  Changed from capacity to diviation from ideal state         #
-    ################################################################
-
-    starved_neighbors = 0
-    overflowing_neighbors = 0
-
-    for neighbor in station.neighboring_stations:
-        num_escooters_neighbor = neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND))
-        neighbor_target_state = round(neighbor.get_target_state(simul.day(), simul.hour()))
-        if num_escooters_neighbor < starvation_criteria * neighbor_target_state:
-            starved_neighbors += 1
-        elif num_escooters_neighbor > overflow_criteria * neighbor_target_state:
-            overflowing_neighbors += 1
-
-    #######################################################################
-    #  Find out whether the station is a pick-up or a deliver station     #
-    #  And based on that the quantities for pickup, deliveries and swaps  #
-    #######################################################################
-
-    if num_escooters_accounted_for_battery_swaps < target_state: #Ta hensyn til nabocluster her?
-        number_of_escooters_to_deliver = min(len([escooter for escooter in vehicle.get_bike_inventory() if escooter.battery > BATTERY_LEVEL_LOWER_BOUND]), target_state - num_escooters_accounted_for_battery_swaps + BIKES_STARVED_NEIGHBOR * starved_neighbors) # discuss 2*starved_neighbors part, ta hensyn til postensielle utladede scootere i bilen
-        escooters_to_deliver_accounted_for_battery_swaps, escooters_to_swap_accounted_for_battery_swap = id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters_to_deliver, "deliver", upper_threshold)
-        escooters_to_pickup_accounted_for_battery_swaps = []
     
-    elif num_escooters_accounted_for_battery_swaps > target_state:
-        remaining_cap_vehicle = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory())
-        number_of_escooters_to_pickup = min(remaining_cap_vehicle, num_escooters_accounted_for_battery_swaps - target_state + BIKES_OVERFLOW_NEIGHBOR * overflowing_neighbors, len(station.bikes)) #discuss logic behind this
-        escooters_to_deliver_accounted_for_battery_swaps=[]
-        escooters_to_pickup_accounted_for_battery_swaps, escooters_to_swap_accounted_for_battery_swap = id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters_to_pickup, "pickup", upper_threshold)
+    escooters_in_station_low_battery = station.get_swappable_bikes(40)
+    num_escooters_to_swap = min(len(escooters_in_station_low_battery),vehicle.battery_inventory)
+    escooters_to_swap_accounted_for_battery_swap = [escooter.id for escooter in escooters_in_station_low_battery[:num_escooters_to_swap]]
 
-    else:
-        escooters_to_pickup_accounted_for_battery_swaps = []
-        escooters_to_deliver_accounted_for_battery_swaps = []
-
-        escooters_in_station_low_battery = station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)
-        num_escooters_to_swap = min(len(escooters_in_station_low_battery),vehicle.battery_inventory)
-        escooters_to_swap_accounted_for_battery_swap = [escooter.id for escooter in escooters_in_station_low_battery[:num_escooters_to_swap]]
-
-
+    escooters_to_pickup_accounted_for_battery_swaps = []
+    escooters_to_deliver_accounted_for_battery_swaps = []
     
     return escooters_to_pickup_accounted_for_battery_swaps, escooters_to_deliver_accounted_for_battery_swaps, escooters_to_swap_accounted_for_battery_swap
 
@@ -711,7 +670,7 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
         #TODO Burde vi runde på en annen måte? Nå runder vi til nærmeste heltall
         number_of_escooters_to_swap_and_pickup = min(len(station.get_swappable_bikes(upper_threshold)),vehicle.battery_inventory, round(number_of_escooters)) # decide threshold for swap, either decided by # of full batteries, # of escooters under 70% and the max amount we are allowed to pick up based om target
         number_of_escooters_to_only_pickup = round(number_of_escooters) - number_of_escooters_to_swap_and_pickup # how many to pick up
-        number_of_escooters_to_only_swap = min(vehicle.battery_inventory, max(0,len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) - number_of_escooters_to_swap_and_pickup)) if ONLY_SWAP_ALLOWED else 0
+        number_of_escooters_to_only_swap = max(0,len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) - number_of_escooters_to_swap_and_pickup) if ONLY_SWAP_ALLOWED else 0
 
         escooters_to_swap = []
         escooters_to_pickup = [escooter.id for escooter in escooters_in_station[:number_of_escooters_to_swap_and_pickup]]

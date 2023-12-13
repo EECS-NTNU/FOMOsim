@@ -166,6 +166,12 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= settings_num_ve
         # if we run PILOT policy:
         filename_time = "sol_time_"+filename
         policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'Failed events')
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'battery violation')
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'trips')
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'starvations, no bikes')
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'starvations, no battery')
+        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'starvation')
 
         policies.hlm.manage_results.write_parameters_to_file('parameters_' + filename, policy, num_vehicles, duration)
         # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
@@ -192,7 +198,7 @@ if __name__ == "__main__":
     # policy_dict = dict(Kloimüllner_5 = policies.inngjerdingen_moeller.PILOT(1, 5))
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing())
-    policy_dict = dict(pilot_roaming = policies.hlm.BS_PILOT(
+    policy_dict = dict(dual = policies.hlm.Dual_Policy(
         max_depth = settings_max_depth, 
         number_of_successors = settings_number_of_successors, 
         time_horizon = settings_time_horizon, 
@@ -217,10 +223,10 @@ if __name__ == "__main__":
     start_time = time.time()
 
     # test_evaluation_weights(list_of_seeds=list_of_seeds, evaluation_weights_dict=evaluation_weights)
-    test_upper_threshold(list_of_seeds=list_of_seeds, upper_thresholds=[45])
+    # test_upper_threshold(list_of_seeds=list_of_seeds, upper_thresholds=[45])
     # test_criticality_weights(list_of_seeds=list_of_seeds, criticality_weights_dict=criticality_weights)
     # test_overflow_starvation(list_of_seeds=list_of_seeds, list_of_overflow = overflow_criterias, list_of_starvation = starvation_criterias)
-    # test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration = duration)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration = duration)
     # test_instances(list_of_seeds, list_of_instances)
     # test_discounting_factors(list_of_seeds, list_of_factors)
     # test_alpha_beta(list_of_seeds, 2, [1,3,5,7,10])

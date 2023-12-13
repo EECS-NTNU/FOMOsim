@@ -151,6 +151,7 @@ GUI/loggFiles/sessionLog.txt
 policies/inngjerdingen_moeller/simulation_results
 policies/hlm/simulation_results
 policies/hlm/results_to_use
+policies/hlm/study
 policies/hlm/tests
 policies/hlm/comparison_policies
 policies/hlm/OS_W31_2V_10S_5D_PILOT_TTT
