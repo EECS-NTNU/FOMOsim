@@ -1,5 +1,5 @@
 from .hlm_BS_PILOT_policy import BS_PILOT
-from .hlm_BS_Greedy_policy import BS_Greedy
+# from .hlm_BS_Greedy_policy import BS_Greedy
 from .hlm_BS_PILOT_policy_greedy import Greedy_Policy
 from .vindsetmo_greedy import Vindsetmo_greedy
 from .hlm_only_swap import Only_Swap

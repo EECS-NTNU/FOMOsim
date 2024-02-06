@@ -54,6 +54,12 @@ class Depot(Station):
         )
 
     def swap_battery_inventory(self, time, number_of_battery_to_change) -> int:
+        """
+        Method to perform a swapping of batteries at depot. Raises error if inventory is not capable.
+        Adds the batteries to charging list, and reduces the battery inventory.
+
+        Returns the time it takes to persom battery swaps at the depot.
+        """
         self.battery_inventory += self.get_delta_capacity(time)
         self.time = time
 
@@ -73,9 +79,18 @@ class Depot(Station):
         )
 
     def get_available_battery_swaps(self, time):
+        """
+        Returns the number of batteries that are fully charged.
+        """
         return self.battery_inventory + self.get_delta_capacity(time, update_charging=False)
 
     def get_delta_capacity(self, time, update_charging=True):
+        """
+        Method that updates the charging list. 
+        Removes the timestamp and amount of the batteries that are fully charged (if update = True), and counts the batteries that are now fully charged.
+
+        Returns the amount of batteries that are now fully charged.
+        """
         delta_capacity = 0
         time_filter = (
             lambda filter_time, filter_charging_start_time: filter_time

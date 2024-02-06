@@ -65,7 +65,7 @@ def run_simulation(seed, policy, duration= settings_duration, num_vehicles= sett
         demand = dmand,
         start_time = START_TIME,
         duration = DURATION,
-        verbose = False,
+        verbose = True,
     )
     simulator.run()
     if queue != None:
