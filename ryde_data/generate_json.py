@@ -2,11 +2,12 @@
 import requests
 import json
 import datetime
+import gzip
 
 url = "https://prod-api.ryde.vip/mds/bcd3af0f-d606-443c-b862-ed47f236fdc8/status_changes"
 
 year = 2023
-month = 10
+month = 1
 day = 1
 hour = 0
 
@@ -18,7 +19,7 @@ headers = {
     }
 
 # Loop until the year changes
-while year == 2023:
+while month < 5:
     formatted_time = f'{year}-{month:02d}-{day:02d}T{hour:02d}'
     payload = {'event_time': formatted_time}
 
@@ -47,7 +48,7 @@ while year == 2023:
     year, month, day, hour = new_time.year, new_time.month, new_time.day, new_time.hour
 
 # After finishing the loop, write the structured data to a file
-with open('ryde_data/status_change_2023_octdec.json', 'w') as f:
+with gzip.open('ryde_data/status_changes_janapr.json.gz', 'w') as f:
     json.dump({"data": all_data}, f, indent=4)
 
 print("The structured data has been saved to response.json")
