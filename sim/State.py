@@ -263,7 +263,7 @@ class State(LoadSave):
         refill_time = 0
         if vehicle.is_at_depot():
             batteries_to_swap = min(
-                vehicle.flat_batteries(),
+                vehicle.get_num_flat_batteries(),
                 vehicle.location.get_available_battery_swaps(time),
             )
 

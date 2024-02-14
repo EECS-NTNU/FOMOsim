@@ -88,5 +88,5 @@ class Vehicle:
             else 0
         )
 
-    def flat_batteries(self):
+    def get_num_flat_batteries(self):
         return self.battery_inventory_capacity - self.battery_inventory
