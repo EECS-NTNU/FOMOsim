@@ -66,6 +66,8 @@ USE_BATTERY_CRITICALITY = True
 SETTINGS_INSTANCE = 'OS_W31'
 # SETTINGS_INSTANCE = 'TD_W34_old'
 
+BATTERY_LIMIT_TO_SWAP = 70
+
 # settings_state = "instances/ebike/"
 settings_state = "instances/ebike_with_depot/"
 

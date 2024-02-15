@@ -64,7 +64,7 @@ class Metric:
 
     def getAvg(self, metric):
         if metric in self.metrics:
-            return getSum(metric) / getLen(metric)
+            return self.getSum(metric) / self.getLen(metric)
         return 0
 
     def getMax(self, metric):

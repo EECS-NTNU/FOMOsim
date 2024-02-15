@@ -2,7 +2,7 @@ from shapely.geometry import MultiPoint
 import numpy as np
 from sim.Location import Location
 import sim
-from settings import STATION_CENTER_DELTA, BATTERY_LIMIT, DEFAULT_STATION_CAPACITY
+from settings import *
 import copy
 
 class Station(Location):
@@ -142,7 +142,7 @@ class Station(Location):
             bike for bike in self.bikes.values() if bike.usable()
         ]
 
-    def get_swappable_bikes(self, battery_limit=70):
+    def get_swappable_bikes(self, battery_limit=BATTERY_LIMIT_TO_SWAP):
         """
         Filter out bikes with 100% battery and sort them by battery percentage
         """
