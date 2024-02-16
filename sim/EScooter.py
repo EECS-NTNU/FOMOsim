@@ -11,7 +11,7 @@ class EScooter(Location):
     """
     def __init__(self, lat: float = 0, lon: float = 0, location_id = 0, bike_id = 0, battery_level: float = 100.0):
       super().__init__(lat, lon, location_id)
-      self.battery_level = battery_level
+      self.battery = battery_level
       self.metrics = Metric()
       self.bike_id = bike_id
 
@@ -23,21 +23,21 @@ class EScooter(Location):
 
     def __init__(self, lat = 0, lon = 0, battery_elvel = 100.0, bike_id = 0):
         super().__init__(lat, lon, bike_id)
-        self.battery_level = battery_elvel
+        self.battery = battery_elvel
         self.battery_change_per_minute = BATTERY_CHANGE_PER_MINUTE
 
     def travel(self, simul, travel_time, congested = False):
         super().travel(simul, travel_time, congested)
-        self.battery_level -= travel_time * self.battery_change_per_minute
+        self.battery -= travel_time * self.battery_change_per_minute
 
     def usable(self):
-      return self.battery_level >= BATTERY_LIMIT
+      return self.battery >= BATTERY_LIMIT
 
     def hasBattery(self):
       return True
 
     def swap_battery(self):
-       self.battery_level = 100.0
+       self.battery = 100.0
 
     def __repr__(self):
-      return f"ID-{self.bike_id} B-{round(self.battery_level,1)}"
+      return f"ID-{self.bike_id} B-{round(self.battery,1)}"
