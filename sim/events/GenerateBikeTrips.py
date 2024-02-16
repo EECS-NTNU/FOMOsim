@@ -26,27 +26,27 @@ class GenerateBikeTrips(Event):
 
             # generate trip departure times (can be implemented with np.random.uniform if we want decimal times)
             # both functions generate numbers from a discrete uniform distribution
-
             trips_departure_time = sorted(
                 world.state.rng.integers(
                     self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                 )
             )
             if settings.TRAFFIC_LOGGING and len(trips_departure_time) > 0:
-                loggDepartures(departure_station.id, trips_departure_time) 
+                loggDepartures(departure_station.location_id, trips_departure_time) 
 
             # generate departure event and add to world event_queue
             for departure_time in trips_departure_time:
                 # add departure event to the event_queue
                 departure_event = sim.BikeDeparture(
-                    departure_time, departure_station.id
+                    departure_time, departure_station.location_id
                 )
                 world.add_event(departure_event)
                 # path= 'policies/inngjerdingen_moeller/simulation_results/InnMoll.csv'
                 # with open(path,'a', newline='') as f:
                 #     writer=csv.writer(f)
-                #     writer.writerow([departure_station.id,int(departure_time)])
-                
+                #     writer.writerow([departure_station.location_id,int(departure_time)])
+        
+        # TODO add a loop to generate free-floating trips as well - use the same skeleton as above @Eline?
 
         if not FULL_TRIP: 
             for arrival_station in world.state.locations:
@@ -69,7 +69,7 @@ class GenerateBikeTrips(Event):
                     arrival_event = sim.BikeArrival(
                         arrival_time,
                         None,
-                        arrival_station.id,
+                        arrival_station.location_id,
                         None,
                         0,
                     )

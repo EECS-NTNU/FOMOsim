@@ -9,7 +9,7 @@ import time
 
 def get_index(station_id, stations):
     for i in range(len(stations)):
-        if stations[i].id == station_id:
+        if stations[i].location_id == station_id:
             return i
 
 
@@ -135,7 +135,7 @@ class HeuristicManager:
         model_man = ModelManager(self.simul, vehicle, self.time_horizon)
         route_scores = list()
         for route in gen.finished_gen_routes:
-            route_full_set_index = [get_index(st.id, self.station_set) for st in route.stations]
+            route_full_set_index = [get_index(st.location_id, self.station_set) for st in route.stations]
             pattern_scores = list()
             for pattern in gen.patterns:
                 scenario_scores = list()

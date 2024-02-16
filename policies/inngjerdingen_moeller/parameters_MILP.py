@@ -181,8 +181,8 @@ class MILP_data():
         def initialize_vehicle_ETAs(self):
                 for vehicle in self.vehicles:
                         if self.vehicles[vehicle].eta > 0:
-                                self.T_D[(-1, self.vehicles[vehicle].location.id)] = (self.vehicles[vehicle].eta - self.simul.time)
-                                self.T_DD[(-1, self.vehicles[vehicle].location.id)] = ((self.vehicles[vehicle].eta - self.simul.time)//self.TAU)+1
+                                self.T_D[(-1, self.vehicles[vehicle].location.location_id)] = (self.vehicles[vehicle].eta - self.simul.time)
+                                self.T_DD[(-1, self.vehicles[vehicle].location.location_id)] = ((self.vehicles[vehicle].eta - self.simul.time)//self.TAU)+1
 
         def initialize_discounting_factors(self, end_factor): #end_factor is discounting factor in last time period
                 nPeriods = len(self.time_periods)-1 #time_periods less period 0 

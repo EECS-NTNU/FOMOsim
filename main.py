@@ -132,7 +132,7 @@ def main():
 # show travel times for a given bike
     bikes = simulator.state.get_all_bikes()
     bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
-    print(f"Bike {bikes[11].id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
+    print(f"Bike {bikes[11].bike_id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
     output.visualize([bikes[11].metrics], metric="travel_time")
     output.visualize([bikes[11].metrics], metric="travel_time_congested")
 

@@ -36,35 +36,35 @@ class PatternBasedCGH:
         
         self.initial_routes = []
            
-        self.net_demand = {station.id:0 for station in self.all_stations}
-        self.pickup_station = {station.id:0 for station in self.all_stations}
-        self.deviation_now = {station.id:0 for station in self.all_stations}
-        self.deviation_not_visited = {station.id:0 for station in self.all_stations}
-        self.time_to_violation = {station.id:0 for station in self.all_stations}
-        self.base_violations = {station.id:0 for station in self.all_stations}
-        self.target_state = {station.id:0 for station in self.all_stations}
+        self.net_demand = {station.location_id:0 for station in self.all_stations}
+        self.pickup_station = {station.location_id:0 for station in self.all_stations}
+        self.deviation_now = {station.location_id:0 for station in self.all_stations}
+        self.deviation_not_visited = {station.location_id:0 for station in self.all_stations}
+        self.time_to_violation = {station.location_id:0 for station in self.all_stations}
+        self.base_violations = {station.location_id:0 for station in self.all_stations}
+        self.target_state = {station.location_id:0 for station in self.all_stations}
         
         for station in self.all_stations:
-            self.net_demand[station.id] = round(calculate_net_demand(station,self.simul.time,self.simul.day(),
+            self.net_demand[station.location_id] = round(calculate_net_demand(station,self.simul.time,self.simul.day(),
                                     self.simul.hour(),self.planning_horizon),4)
-            num_bikes_not_visited_no_cap = station.number_of_bikes() + self.net_demand[station.id]*self.planning_horizon
+            num_bikes_not_visited_no_cap = station.number_of_bikes() + self.net_demand[station.location_id]*self.planning_horizon
     
-            if self.net_demand[station.id] >= 0:
-                self.pickup_station[station.id] = 1
+            if self.net_demand[station.location_id] >= 0:
+                self.pickup_station[station.location_id] = 1
                 self.pickup_stations.append(station)
-                self.base_violations[station.id] = max(0,num_bikes_not_visited_no_cap-station.capacity)
+                self.base_violations[station.location_id] = max(0,num_bikes_not_visited_no_cap-station.capacity)
                 num_bikes_not_visited_cap = min(num_bikes_not_visited_no_cap,station.capacity)
             else:
-                self.pickup_station[station.id] = 0
+                self.pickup_station[station.location_id] = 0
                 self.delivery_stations.append(station)
-                self.base_violations[station.id] = max(0,- num_bikes_not_visited_no_cap)
+                self.base_violations[station.location_id] = max(0,- num_bikes_not_visited_no_cap)
                 num_bikes_not_visited_cap = max(num_bikes_not_visited_no_cap,0) 
     
-            self.time_to_violation[station.id] = calculate_time_to_violation(self.net_demand[station.id], station)
+            self.time_to_violation[station.location_id] = calculate_time_to_violation(self.net_demand[station.location_id], station)
             
-            self.target_state[station.id] = station.get_target_state(self.simul.day(), self.simul.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
-            self.deviation_not_visited[station.id] = round(abs(num_bikes_not_visited_cap-self.target_state[station.id]),4)
-            self.deviation_now[station.id] = round(abs(station.number_of_bikes()-self.target_state[station.id]),4)
+            self.target_state[station.location_id] = station.get_target_state(self.simul.day(), self.simul.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
+            self.deviation_not_visited[station.location_id] = round(abs(num_bikes_not_visited_cap-self.target_state[station.location_id]),4)
+            self.deviation_now[station.location_id] = round(abs(station.number_of_bikes()-self.target_state[station.location_id]),4)
 
         self.main()
 
@@ -77,8 +77,8 @@ class PatternBasedCGH:
 #testing
 # for i in range(len(self.initial_routes)):
 #     print('Route: ', i)
-#     print('Vehicle: ', self.initial_routes[i].vehicle.id)
-#     print('Stations: ', [station.id for station in self.initial_routes[i].stations])
+#     print('Vehicle: ', self.initial_routes[i].vehicle.vehicle_id)
+#     print('Stations: ', [station.location_id for station in self.initial_routes[i].stations])
 #     print('Arrival times: ', self.initial_routes[i].arrival_times)
 #     print('loading: ', self.initial_routes[i].loading)
 #     print('unloading: ', self.initial_routes[i].unloading)
@@ -113,16 +113,16 @@ class PatternBasedCGH:
     def route_extension_algo(self,vehicle):  #do the extension for all vehicles, not only the trigger
         
         trigger=False
-        if vehicle.id==self.vehicle.id:
+        if vehicle.vehicle_id==self.vehicle.vehicle_id:
             trigger=True
         #initiate the route
         
         finished_routes = list()
-        start_of_route = Route(vehicle.id,vehicle.eta, vehicle.location.id, vehicle.location.number_of_bikes(),
+        start_of_route = Route(vehicle.vehicle_id,vehicle.eta, vehicle.location.location_id, vehicle.location.number_of_bikes(),
                                vehicle.location.capacity, vehicle.get_bike_inventory(),
                                vehicle.bike_inventory_capacity,vehicle.parking_time,vehicle.handling_time,
                                trigger,self.simul.time,self.simul.day(),self.simul.hour(),self.planning_horizon,
-                               self.pickup_station[vehicle.location.id],self.net_demand[vehicle.location.id])
+                               self.pickup_station[vehicle.location.location_id],self.net_demand[vehicle.location.location_id])
         partial_routes = [start_of_route]
         while len(partial_routes) > 0 :
             pr = partial_routes.pop(0)

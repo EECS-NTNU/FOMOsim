@@ -66,7 +66,7 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
 
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
             next_station = self.find_closest_depot(simul, vehicle, depots)
-            #escooters_to_pickup = [escooter.id for escooter in vehicle.location.bikes.values() if escooter.battery < BATTERY_LEVEL_LOWER_BOUND]
+            #escooters_to_pickup = [escooter.bike_id for escooter in vehicle.location.bikes.values() if escooter.battery < BATTERY_LEVEL_LOWER_BOUND]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
             return sim.Action(
                 [],
@@ -89,8 +89,8 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
         escooters_in_station = list(vehicle.location.bikes.values())
         escooters_in_vehicle =  vehicle.get_bike_inventory()
 
-        escooters_in_station_list_id = [escooter.id for escooter in escooters_in_station] # swap the n escooters with lowest percentage at the station
-        escooters_in_vehicle_list_id = [escooter.id for escooter in escooters_in_vehicle]
+        escooters_in_station_list_id = [escooter.bike_id for escooter in escooters_in_station] # swap the n escooters with lowest percentage at the station
+        escooters_in_vehicle_list_id = [escooter.bike_id for escooter in escooters_in_vehicle]
 
         if number_of_escooters_pickup > 0 :
             escooters_to_pickup = random.sample(escooters_in_station_list_id, k=number_of_escooters_pickup)
@@ -108,12 +108,12 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
         plan_dict = dict()
         for v in simul.state.vehicles:
             if v.eta == 0:
-                plan_dict[v.id] = [Visit(v.location, number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap, simul.time, v)]
+                plan_dict[v.vehicle_id] = [Visit(v.location, number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap, simul.time, v)]
             else:
                 number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap = self.calculate_loading_quantities_and_swaps_pilot(v, simul, v.location, v.eta) #I think eta is estimated time of arrival
-                plan_dict[v.id] = [Visit(v.location, int(number_of_escooters_pickup), int(number_of_escooters_deliver), int(number_of_batteries_to_swap), v.eta, v)]
+                plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_escooters_pickup), int(number_of_escooters_deliver), int(number_of_batteries_to_swap), v.eta, v)]
         
-        tabu_list = [v.location.id for v in simul.state.vehicles]
+        tabu_list = [v.location.location_id for v in simul.state.vehicles]
         plan = Plan(plan_dict, tabu_list)
 
 
@@ -122,7 +122,7 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
         #############################################################################
 
         #next_station = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
-        potential_stations = [station for station in simul.state.locations if station.id not in tabu_list]
+        potential_stations = [station for station in simul.state.locations if station.location_id not in tabu_list]
         next_station = random.choice(potential_stations)
 
         similary_imbalances_starved = 0
@@ -180,9 +180,9 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
                     else:
                         for branch_number, visit in enumerate(new_visits):
                             new_plan_dict = plan.copy_plan()
-                            new_plan_dict[next_vehicle.id].append(visit)
+                            new_plan_dict[next_vehicle.vehicle_id].append(visit)
                             tabu_list = copy_arr_iter(plan.tabu_list)
-                            tabu_list.append(visit.station.id)
+                            tabu_list.append(visit.station.location_id)
 
                             if depth == 1:
                                 new_plan = Plan(new_plan_dict, tabu_list, weight_set, branch_number)
@@ -190,7 +190,7 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
                                 new_plan = Plan(new_plan_dict, tabu_list, weight_set, plan.branch_number)
                             
 
-                            if next_vehicle.id == vehicle.id:
+                            if next_vehicle.vehicle_id == vehicle.vehicle_id:
                                 plans[depth].append(new_plan)
                             else:
                                 plans[depth-1].append(new_plan)
@@ -206,12 +206,12 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
                     
                     if new_visit != None:
                         new_visit = new_visit[0]
-                        temp_plan.tabu_list.append(new_visit.station.id)
+                        temp_plan.tabu_list.append(new_visit.station.location_id)
                     else:
                         break
 
                     
-                    temp_plan.plan[temp_plan.next_visit.vehicle.id].append(new_visit)
+                    temp_plan.plan[temp_plan.next_visit.vehicle.vehicle_id].append(new_visit)
                     dep_time = new_visit.get_depature_time()
                     temp_plan.find_next_visit()
                 
@@ -301,7 +301,7 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
         initial_num_escooters = len(vehicle.get_bike_inventory())
         num_bikes_now = initial_num_escooters
 
-        for visit in plan.plan[vehicle.id]: #la til index -1 (gir dette mening?)
+        for visit in plan.plan[vehicle.vehicle_id]: #la til index -1 (gir dette mening?)
             num_bikes_now += visit.loading_quantity
             num_bikes_now -= visit.unloading_quantity
 
@@ -313,12 +313,12 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
         number_of_successors = min(number_of_successors, len(potential_stations))
 
         # Finds the criticality score of all potential stations
-        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.id][-1].station,station_type, total_num_bikes_in_system ,tabu_list)
+        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station,station_type, total_num_bikes_in_system ,tabu_list)
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
         for next_station in next_stations:
-            arrival_time = plan.plan[vehicle.id][-1].get_depature_time() + simul.state.traveltime_vehicle_matrix[plan.plan[vehicle.id][-1].station.id][next_station.id] + MINUTES_CONSTANT_PER_ACTION
+            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.traveltime_vehicle_matrix[plan.plan[vehicle.vehicle_id][-1].station.location_id][next_station.location_id] + MINUTES_CONSTANT_PER_ACTION
             number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap = self.calculate_loading_quantities_and_swaps_pilot(vehicle, simul, next_station, arrival_time)
             new_visit = Visit(next_station, number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap, arrival_time, vehicle)
             visits.append(new_visit)
@@ -416,7 +416,7 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
                 eta = end_time
             
             initial_inventory = station.number_of_bikes() - len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND))
-            net_demand = scenario_dict[station.id]
+            net_demand = scenario_dict[station.location_id]
             target_state = station.get_target_state(simul.day(), simul.hour())
 
             #########################################################################
@@ -494,7 +494,7 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
             for neighbor in neighbors:
                 roamings = 0
                 roamings_no_visit = 0
-                net_demand_neighbor = scenario_dict[neighbor.id]
+                net_demand_neighbor = scenario_dict[neighbor.location_id]
                 expected_ecooters_neighbor = neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) + net_demand_neighbor
                 neighbor_type = calculate_station_type(neighbor.get_target_state(simul.day(),simul.hour()),expected_ecooters_neighbor)
 
@@ -524,7 +524,7 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
                                 excess_escooters_no_visit -= excess_escooters_no_visit
                         
             
-                distance_scaling = ((simul.state.get_vehicle_travel_time(station.id, neighbor.id)/60)* VEHICLE_SPEED)/MAX_ROAMING_DISTANCE_SOLUTIONS
+                distance_scaling = ((simul.state.get_vehicle_travel_time(station.location_id, neighbor.location_id)/60)* VEHICLE_SPEED)/MAX_ROAMING_DISTANCE_SOLUTIONS
                 neighbor_roamings += (1-distance_scaling)*roamings-roamings_no_visit
             
             avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
@@ -552,13 +552,13 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
                     best_score = plan_scores[plan][scenario_id]
             
             if best_plan == None:
-                tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]
-                potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
+                tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
+                potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
                 return rng_balanced.choice(potential_stations2).id 
 
-            best_first_move = best_plan.plan[vehicle.id][1].station.id
+            best_first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             if best_first_move in score_board:
                 score_board[best_first_move] += 1 
             else:
@@ -593,11 +593,11 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
             best_plan = list(score_board_sorted.keys())[0]
             branch = best_plan.branch_number
             simul.metrics.add_aggregate_metric(simul, "branch"+str(branch+1), 1)
-            first_move = best_plan.plan[vehicle.id][1].station.id
+            first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             return first_move
         else: 
-            tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]
-            potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
+            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
+            potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id
         
@@ -611,7 +611,7 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
 
 
         for d in depots.values():
-            distance = (simul.state.traveltime_vehicle_matrix[vehicle.location.id][d.id]/60)*VEHICLE_SPEED
+            distance = (simul.state.traveltime_vehicle_matrix[vehicle.location.location_id][d.id]/60)*VEHICLE_SPEED
             if distance < closest_distance:
                 closest_distance = distance
                 closest_depot = d
@@ -672,7 +672,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, overf
 
         escooters_in_station_low_battery = station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)
         num_escooters_to_swap = min(len(escooters_in_station_low_battery),vehicle.battery_inventory)
-        escooters_to_swap_accounted_for_battery_swap = [escooter.id for escooter in escooters_in_station_low_battery[:num_escooters_to_swap]]
+        escooters_to_swap_accounted_for_battery_swap = [escooter.bike_id for escooter in escooters_in_station_low_battery[:num_escooters_to_swap]]
 
 
     
@@ -717,8 +717,8 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
         #TODO Burde vi runde opp eller ned?
         number_of_escooters_to_deliver = int(number_of_escooters)+1 # If 4.2 escooter are being delivered, we deliver 5
 
-        escooters_to_swap = [escooter.id for escooter in escooters_in_station[:number_of_escooters_to_swap]] # swap the n escooters with lowest percentage at the station
-        escooters_to_deliver = [escooter.id for escooter in escooters_in_vehicle[-number_of_escooters_to_deliver:]] # unload the n escooters with the highest percentage
+        escooters_to_swap = [escooter.bike_id for escooter in escooters_in_station[:number_of_escooters_to_swap]] # swap the n escooters with lowest percentage at the station
+        escooters_to_deliver = [escooter.bike_id for escooter in escooters_in_vehicle[-number_of_escooters_to_deliver:]] # unload the n escooters with the highest percentage
 
         return escooters_to_deliver, escooters_to_swap
     
@@ -729,12 +729,12 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
         number_of_escooters_to_only_swap = max(0,len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) - number_of_escooters_to_swap_and_pickup) if ONLY_SWAP_ALLOWED else 0
 
         escooters_to_swap = []
-        escooters_to_pickup = [escooter.id for escooter in escooters_in_station[:number_of_escooters_to_swap_and_pickup]]
+        escooters_to_pickup = [escooter.bike_id for escooter in escooters_in_station[:number_of_escooters_to_swap_and_pickup]]
         if number_of_escooters_to_only_pickup > 0:
-            escooters_to_pickup += [escooter.id for escooter in escooters_in_station[-number_of_escooters_to_only_pickup:]]
+            escooters_to_pickup += [escooter.bike_id for escooter in escooters_in_station[-number_of_escooters_to_only_pickup:]]
         
         elif number_of_escooters_to_only_swap > 0:
-            escooters_to_swap += [escooter.id for escooter in escooters_in_station[number_of_escooters_to_swap_and_pickup:number_of_escooters_to_swap_and_pickup+number_of_escooters_to_only_swap]]
+            escooters_to_swap += [escooter.bike_id for escooter in escooters_in_station[number_of_escooters_to_swap_and_pickup:number_of_escooters_to_swap_and_pickup+number_of_escooters_to_only_swap]]
 
         return escooters_to_pickup, escooters_to_swap
     
@@ -751,7 +751,7 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
 def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bikes_at_vehicle, tabu_list):
 
     # Filter out stations in tabulist
-    potential_stations = [station for station in simul.state.locations if station.id not in tabu_list]
+    potential_stations = [station for station in simul.state.locations if station.location_id not in tabu_list]
     net_demands = {}
     target_states = {}
     potential_pickup_stations = []
@@ -759,16 +759,16 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
 
     for station in potential_stations:
         # Makes dictonary with all potential stations and their respective demands
-        net_demands[station.id] = calculate_net_demand(station, simul.time, simul.day(), simul.hour(), 60)
+        net_demands[station.location_id] = calculate_net_demand(station, simul.time, simul.day(), simul.hour(), 60)
         
         # Makes dictionary with all potential stations and their respective target states
-        target_states[station.id] = station.get_target_state(simul.day(), simul.hour())
+        target_states[station.location_id] = station.get_target_state(simul.day(), simul.hour())
 
-        adjusted_demand = get_num_escooters_accounted_for_battery_swaps(station, station.number_of_bikes(), vehicle) + net_demands[station.id]
-        if adjusted_demand > (1 + cutoff_station)*target_states[station.id]:
+        adjusted_demand = get_num_escooters_accounted_for_battery_swaps(station, station.number_of_bikes(), vehicle) + net_demands[station.location_id]
+        if adjusted_demand > (1 + cutoff_station)*target_states[station.location_id]:
             # Finds the stations from potential stations which would be a pickup station if choosen - accounted for battery level / swaps
             potential_pickup_stations.append(station)
-        elif adjusted_demand < (1 - cutoff_station)*target_states[station.id]:
+        elif adjusted_demand < (1 - cutoff_station)*target_states[station.location_id]:
             # Finds the stations from potential stations which woukd be a delivery station if choosen - accounted for battery level / swaps
             potential_delivery_stations.append(station)
 

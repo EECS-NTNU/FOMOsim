@@ -33,7 +33,7 @@ class VehicleArrival(Event):
             action, _ = action
 
         # Record current location of vehicle to compute action time
-        arrival_station_id = self.vehicle.location.id
+        arrival_station_id = self.vehicle.location.location_id
 
         # perform the best action on the state and send vehicle to new location
         refill_time = world.state.do_action(action, self.vehicle, world_time)
@@ -56,4 +56,4 @@ class VehicleArrival(Event):
         self.vehicle.eta = arrival_time
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} at time {self.time} to location {self.vehicle.location.id}>"
+        return f"<{self.__class__.__name__} at time {self.time} to location {self.vehicle.location.location_id}>"

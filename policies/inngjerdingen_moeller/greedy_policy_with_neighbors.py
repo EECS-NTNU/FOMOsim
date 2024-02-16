@@ -41,7 +41,7 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         ##########################################
         #               WHERE TO GO              #
         ##########################################
-        tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
+        tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
         potential_stations = find_potential_stations(simul, self.cutoff_vehicle, self.cutoff_station, vehicle, bikes_at_vehicle_after_rebalancing, tabu_list)
 
         #calculate criticalities for potential stations, sorted by criticality
@@ -49,7 +49,7 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         
         #pick the best
         if len(criticalities)==0:
-            potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]
+            potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]
             
             rng_greedy = np.random.default_rng(None)
             next_location_id = rng_greedy.choice(potential_stations2).id
@@ -85,14 +85,14 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
     if num_bikes_station < target_state: #deliver bikes
         #deliver bikes, max to the target state
         number_of_bikes_to_deliver = min(num_bikes_vehicle, target_state - num_bikes_station + 2*starved_neighbors)
-        bikes_to_deliver = [bike.id for bike in vehicle.get_bike_inventory()[:number_of_bikes_to_deliver]]
+        bikes_to_deliver = [bike.bike_id for bike in vehicle.get_bike_inventory()[:number_of_bikes_to_deliver]]
         bikes_to_pickup = []
         
     elif num_bikes_station > target_state: #pick-up bikes
         bikes_to_deliver = []
         remaining_vehicle_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
         number_of_bikes_to_pick_up = min(num_bikes_station - target_state, remaining_vehicle_capacity)
-        bikes_to_pickup = [bike.id for bike in station.bikes.values()][:number_of_bikes_to_pick_up]
+        bikes_to_pickup = [bike.bike_id for bike in station.bikes.values()][:number_of_bikes_to_pick_up]
     
     else: #num bikes is exactly at target state
         bikes_to_deliver = []
@@ -101,17 +101,17 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
 
 
 def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bikes_at_vehicle, tabu_list):
-    potential_stations = [station for station in simul.state.locations if station.id not in tabu_list]
+    potential_stations = [station for station in simul.state.locations if station.location_id not in tabu_list]
     
-    net_demands = {station.id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
+    net_demands = {station.location_id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
                     for station in potential_stations}
-    target_states = {station.id:station.get_target_state(simul.day(), simul.hour()) 
+    target_states = {station.location_id:station.get_target_state(simul.day(), simul.hour()) 
                         for station in potential_stations}
     
     potential_pickup_stations = [station for station in potential_stations if 
-                                    station.number_of_bikes() + net_demands[station.id] > (1+cutoff_station)*target_states[station.id]]
+                                    station.number_of_bikes() + net_demands[station.location_id] > (1+cutoff_station)*target_states[station.location_id]]
     potential_delivery_stations = [station for station in potential_stations if 
-                                    station.number_of_bikes() + net_demands[station.id] < (1-cutoff_station)*target_states[station.id]]
+                                    station.number_of_bikes() + net_demands[station.location_id] < (1-cutoff_station)*target_states[station.location_id]]
     
     if cutoff_vehicle*vehicle.bike_inventory_capacity <= bikes_at_vehicle  <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
         potential_stations = potential_pickup_stations + potential_delivery_stations

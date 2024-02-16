@@ -58,12 +58,12 @@ class InngjerdingenMoellerPolicy(Policy):
         unloading_quantity = 0
         loading_ids = []
         unloading_ids = []
-        station_id = vehicle.location.id
+        station_id = vehicle.location.location_id
         for var in gurobi_output.getVars():
             variable = var.varName.strip("]").split("[")
             name = variable[0]
             indices = variable[1].split(',')
-            if name == 'x' and int(indices[3]) == vehicle.id and round(var.x,0) == 1 and int(indices[1]) != vehicle.location.id and int(indices[1]) != -1:
+            if name == 'x' and int(indices[3]) == vehicle.vehicle_id and round(var.x,0) == 1 and int(indices[1]) != vehicle.location.location_id and int(indices[1]) != -1:
                 if int(indices[2]) < first_move_period:
                     first_move_period = int(indices[2])
                     station_id = int(indices[1])
@@ -72,9 +72,9 @@ class InngjerdingenMoellerPolicy(Policy):
             variable = var.varName.strip("]").split("[")
             name = variable[0]
             indices = variable[1].split(',')
-            if name == 'q_L' and int(indices[2]) == vehicle.id and round(var.x,0) > 0 and int(indices[0]) == vehicle.location.id and int(indices[1]) <= first_move_period:
+            if name == 'q_L' and int(indices[2]) == vehicle.vehicle_id and round(var.x,0) > 0 and int(indices[0]) == vehicle.location.location_id and int(indices[1]) <= first_move_period:
                 loading_quantity += var.x
-            elif name == 'q_U' and int(indices[2]) == vehicle.id and round(var.x,0) > 0 and int(indices[0]) == vehicle.location.id and int(indices[1]) <= first_move_period:
+            elif name == 'q_U' and int(indices[2]) == vehicle.vehicle_id and round(var.x,0) > 0 and int(indices[0]) == vehicle.location.location_id and int(indices[1]) <= first_move_period:
                 unloading_quantity += var.x
                 
         if not (loading_quantity == 0 and unloading_quantity == 0):

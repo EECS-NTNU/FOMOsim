@@ -38,12 +38,12 @@ class PILOT(Policy):
         plan_dict = dict()
         for v in simul.state.vehicles:
             if v.eta == 0:
-                plan_dict[v.id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, v)]
+                plan_dict[v.vehicle_id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, v)]
             else:
                 number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(v, len(v.get_bike_inventory()), simul, v.location, v.eta)
-                plan_dict[v.id] = [Visit(v.location, int(number_of_bikes_to_pick_up), int(number_of_bikes_to_deliver), v.eta, v)]
+                plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_bikes_to_pick_up), int(number_of_bikes_to_deliver), v.eta, v)]
         
-        tabu_list = [v.location.id for v in simul.state.vehicles]
+        tabu_list = [v.location.location_id for v in simul.state.vehicles]
         
         plan = Plan(plan_dict, tabu_list)
     
@@ -100,15 +100,15 @@ class PILOT(Policy):
                     else:
                         for branch_number, visit in enumerate(new_visits):
                             new_plan_dict = plan.copy_plan()
-                            new_plan_dict[next_vehicle.id].append(visit) 
+                            new_plan_dict[next_vehicle.vehicle_id].append(visit) 
                             tabu_list = copy_arr_iter(plan.tabu_list)
-                            tabu_list.append(visit.station.id)
+                            tabu_list.append(visit.station.location_id)
                             if depth == 1:
                                 new_plan = Plan(new_plan_dict, tabu_list, weight_set, branch_number)
                             else:
                                 new_plan = Plan(new_plan_dict, tabu_list, weight_set, plan.branch_number)
 
-                            if next_vehicle.id == vehicle.id:
+                            if next_vehicle.vehicle_id == vehicle.vehicle_id:
                                 plans[depth].append(new_plan)
                             else:
                                 plans[depth-1].append(new_plan) 
@@ -121,9 +121,9 @@ class PILOT(Policy):
                 # station_list1 = []
                 # station_list2 = []
                 # for visit in plan.plan[0]:
-                #     station_list1.append(visit.station.id)
+                #     station_list1.append(visit.station.location_id)
                 # for visit in plan.plan[1]:
-                #     station_list2.append(visit.station.id)
+                #     station_list2.append(visit.station.location_id)
                 # print("Weight set:", plan.weight_set, "Route vehicle 0:", station_list1, "Route vehicle 2:", station_list2)
                 #------------------------------------------------
 
@@ -133,11 +133,11 @@ class PILOT(Policy):
                     new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set)
                     if new_visit != None:
                         new_visit = new_visit[0]
-                        temp_plan.tabu_list.append(new_visit.station.id)
+                        temp_plan.tabu_list.append(new_visit.station.location_id)
                     else:
                         break
 
-                    temp_plan.plan[temp_plan.next_visit.vehicle.id].append(new_visit)
+                    temp_plan.plan[temp_plan.next_visit.vehicle.vehicle_id].append(new_visit)
                     dep_time = new_visit.get_departure_time()
                     temp_plan.find_next_visit()
                 completed_plans.append(temp_plan)
@@ -168,7 +168,7 @@ class PILOT(Policy):
         
         initial_num_bikes = len(vehicle.get_bike_inventory())
         num_bikes_now = initial_num_bikes
-        for visit in plan.plan[vehicle.id]:
+        for visit in plan.plan[vehicle.vehicle_id]:
             num_bikes_now += visit.loading_quantity
             num_bikes_now -= visit.unloading_quantity
 
@@ -177,12 +177,12 @@ class PILOT(Policy):
             print("Lunsjpause på gutta")
             return None
         number_of_successors = min(number_of_successors, len(potential_stations))
-        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.id][-1].station, tabu_list) #sorted dict {station_object: criticality_score}
+        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station, tabu_list) #sorted dict {station_object: criticality_score}
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
         for next_station in next_stations:
-            arrival_time = plan.plan[vehicle.id][-1].get_departure_time() + simul.state.traveltime_vehicle_matrix[plan.plan[vehicle.id][-1].station.id][next_station.id] + settings.MINUTES_CONSTANT_PER_ACTION
+            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_departure_time() + simul.state.traveltime_vehicle_matrix[plan.plan[vehicle.vehicle_id][-1].station.location_id][next_station.location_id] + settings.MINUTES_CONSTANT_PER_ACTION
             number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(vehicle, num_bikes_now, simul, next_station, arrival_time)
             new_visit = Visit(next_station, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, arrival_time, vehicle)
             visits.append(new_visit)
@@ -209,7 +209,7 @@ class PILOT(Policy):
             
             initial_inventory = station.number_of_bikes()
             station_capacity = station.capacity
-            net_demand = scenario_dict[station.id]   #returns net demand for the next 60 minutes from simul.time
+            net_demand = scenario_dict[station.location_id]   #returns net demand for the next 60 minutes from simul.time
             target_state = station.get_target_state(simul.day(), simul.hour())
 
             #avoided violations: 
@@ -281,7 +281,7 @@ class PILOT(Policy):
             for neighbor in neighbors:
                 roamings= 0
                 roamings_no_visit = 0
-                net_demand_neighbor = scenario_dict[neighbor.id]
+                net_demand_neighbor = scenario_dict[neighbor.location_id]
                 neighbor_type, exp_num_bikes_neighbor = calculate_station_type(neighbor,net_demand_neighbor,neighbor.get_target_state(simul.day(), simul.hour()))    
                 if neighbor_type == station_type:
                     if net_demand_neighbor>0:
@@ -324,7 +324,7 @@ class PILOT(Policy):
                                 roamings_no_visit+=excess_bikes_no_visit
                                 excess_bikes_no_visit-=excess_bikes_no_visit
                 
-                distance_scaling = ((simul.state.get_vehicle_travel_time(station.id, neighbor.id)/60)*settings.VEHICLE_SPEED)/settings.MAX_ROAMING_DISTANCE_SOLUTIONS
+                distance_scaling = ((simul.state.get_vehicle_travel_time(station.location_id, neighbor.location_id)/60)*settings.VEHICLE_SPEED)/settings.MAX_ROAMING_DISTANCE_SOLUTIONS
 
                 neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
 
@@ -396,13 +396,13 @@ class PILOT(Policy):
                     best_score = plan_scores[plan][scenario_id]
             
             if best_plan == None:
-                tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]
-                potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
+                tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
+                potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
                 return rng_balanced.choice(potential_stations2).id 
 
-            best_first_move = best_plan.plan[vehicle.id][1].station.id
+            best_first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             if best_first_move in score_board:
                 score_board[best_first_move] += 1 
             else:
@@ -433,11 +433,11 @@ class PILOT(Policy):
             best_plan = list(score_board_sorted.keys())[0]
             branch = best_plan.branch_number
             simul.metrics.add_aggregate_metric(simul, "branch"+str(branch+1), 1)
-            first_move = best_plan.plan[vehicle.id][1].station.id
+            first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             return first_move
         else: 
-            tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles]
-            potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]    
+            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
+            potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id
             

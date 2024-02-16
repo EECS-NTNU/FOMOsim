@@ -11,7 +11,7 @@ class Action:
         battery_swaps: [int],
         pick_ups: [int],
         delivery_bikes: [int],
-        next_location: int,
+        next_location,
     ):
         """
         Object to represent an action

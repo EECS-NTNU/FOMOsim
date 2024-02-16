@@ -13,7 +13,7 @@ class Station(Location):
     def __init__(
         self,
         station_id,
-        bikes = [],
+        bikes = {},
         leave_intensities=None,
         leave_intensities_stdev=None,
         arrive_intensities=None,
@@ -48,11 +48,7 @@ class Station(Location):
         if target_state is not None:
             self.target_state = target_state
         else:
-            self.target_state = []
-            for day in range(7):
-                self.target_state.append([])
-                for hour in range(24):
-                    self.target_state[day].append(0)
+            self.target_state = [[0 for hour in range(24)] for day in range(7)]
             
         self.metrics = sim.Metric()
 
@@ -61,7 +57,7 @@ class Station(Location):
 
     def sloppycopy(self, *args):
         return Station(
-            self.id,
+            self.location_id,
             list(copy.deepcopy(self.bikes).values()),
 
             historical_leave_intensities=self.historical_leave_intensities,
@@ -83,7 +79,7 @@ class Station(Location):
         )
 
     def set_bikes(self, bikes):
-        self.bikes = {bike.id : bike for bike in bikes}
+        self.bikes = {bike.bike_id : bike for bike in bikes}
 
     def spare_capacity(self):
         return self.capacity - len(self.bikes)
@@ -127,12 +123,12 @@ class Station(Location):
         if len(self.bikes) >= self.capacity:
             return False
         # Adding bike to bike list
-        self.bikes[bike.id] = bike
-        bike.set_location(self.get_lat(), self.get_lon())
+        self.bikes[bike.bike_id] = bike
+        bike.set_location(self.get_lat(), self.get_lon(), self.location_id)
         return True
 
     def remove_bike(self, bike):
-        del self.bikes[bike.id]
+        del self.bikes[bike.bike_id]
 
     def get_bikes(self):
         return self.bikes.values()
@@ -155,15 +151,19 @@ class Station(Location):
         return self.bikes[bike_id]
     
     def set_neighboring_stations(self, neighboring_stations_dict, stations_dict):
-        neighboring_stations_list = neighboring_stations_dict[self.id]
-        for id in neighboring_stations_list:
-            self.neighboring_stations.append(stations_dict[id])
+        # neighboring_stations_list = neighboring_stations_dict[int(self.location_id[1:])]
+        # for loc_id in neighboring_stations_list:
+        #     self.neighboring_stations.append(stations_dict["S"+str(loc_id)])
+        # return None
+        neighboring_stations_list = neighboring_stations_dict[self.location_id]
+        for loc_id in neighboring_stations_list:
+            self.neighboring_stations.append(stations_dict[loc_id])
         return None
 
     def __repr__(self):
         return (
-            f"<Station {self.id}: {len(self.bikes)} bikes>"
+            f"<Station {self.location_id}: {len(self.bikes)} bikes>"
         )
 
     def __str__(self):
-        return f"Station {self.id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):3d} Bikes {len(self.bikes):3d}"
+        return f"Station {self.location_id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):3d} Bikes {len(self.bikes):3d}"

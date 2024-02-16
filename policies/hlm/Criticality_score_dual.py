@@ -154,7 +154,7 @@ def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_typ
     
     for neighbor in neighbors:
         station_crit = 0
-        if visited_stations != None and neighbor.id in visited_stations:
+        if visited_stations != None and neighbor.location_id in visited_stations:
             station_crit -= 3
         else:
             neighbor_demand = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), 60)
@@ -185,7 +185,7 @@ def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_typ
 
         
         #Accounts for distance, closer is better i think
-        distance = (simul.state.traveltime_vehicle_matrix[station.id][neighbor.id]/60)*VEHICLE_SPEED
+        distance = (simul.state.traveltime_vehicle_matrix[station.location_id][neighbor.location_id]/60)*VEHICLE_SPEED
         station_crit *= (1 - (distance/MAX_ROAMING_DISTANCE_SOLUTIONS))
 
         neighborhood_crit += station_crit
@@ -226,7 +226,7 @@ def calculate_demand_criticality(station_type, net_demand):
 
 
 def calculate_driving_time_crit(simul, current_station, potential_station):
-    return simul.state.get_vehicle_travel_time(current_station.id, potential_station.id)
+    return simul.state.get_vehicle_travel_time(current_station.location_id, potential_station.location_id)
 
 
 

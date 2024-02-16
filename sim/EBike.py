@@ -7,10 +7,11 @@ class EBike(Bike):
     E-bike class containing state and all operations necessary
     """
 
-    def __init__(self, lat = 0, lon = 0, battery = 100.0, bike_id = 0):
-        super().__init__(lat, lon, bike_id)
+    def __init__(self, lat = 0, lon = 0, battery = 100.0, location_id = 0, bike_id = 0):
+        super().__init__(lat, lon, location_id)
         self.battery = battery
         self.battery_change_per_minute = BATTERY_CHANGE_PER_MINUTE
+        self.bike_id = bike_id
 
     def travel(self, simul, travel_time, congested = False):
         super().travel(simul, travel_time, congested)

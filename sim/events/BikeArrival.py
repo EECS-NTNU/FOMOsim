@@ -56,8 +56,8 @@ class BikeArrival(Event):
                     next_station = world.state.get_neighbours(arrival_station, 1, not_full=True)[0]
 
                     travel_time = world.state.get_travel_time(
-                        arrival_station.id,
-                        next_station.id,
+                        arrival_station.location_id,
+                        next_station.location_id,
                     )
 
                     # create an arrival event for the departed bike
@@ -66,8 +66,8 @@ class BikeArrival(Event):
                             self.time,
                             travel_time,
                             self.bike,
-                            next_station.id,
-                            arrival_station.id,
+                            next_station.location_id,
+                            arrival_station.location_id,
                             congested = True
                         )
                     )

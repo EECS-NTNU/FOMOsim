@@ -42,16 +42,16 @@ class FosenHaldorsenPolicy(Policy):
     def greedy_solve(self, simul, vehicle):
         no_vehicles = len(simul.state.vehicles)
         splits = len(simul.state.stations) // no_vehicles
-        next_st_candidates = list(simul.state.locations)[vehicle.id*splits:(vehicle.id+1)*splits] + list(simul.state.depots.values())
+        next_st_candidates = list(simul.state.locations)[vehicle.vehicle_id*splits:(vehicle.vehicle_id+1)*splits] + list(simul.state.depots.values())
 
         # Choose next station
         # Calculate criticality score for all stations
         cand_scores = list()
         for st in next_st_candidates:
-            if st.id == vehicle.location.id:
+            if st.location_id == vehicle.location.location_id:
                 continue
             first = True
-            driving_time = simul.state.get_vehicle_travel_time(vehicle.location.id, st.id)
+            driving_time = simul.state.get_vehicle_travel_time(vehicle.location.location_id, st.location_id)
             score = get_criticality_score(simul, st, vehicle, 25, driving_time, 0.2, 0.1, 0.5, 0.2, first)
             cand_scores.append([st, driving_time, score])
 
@@ -77,13 +77,13 @@ class FosenHaldorsenPolicy(Policy):
                 bat_load = max(0, min(vehicle_available_bike_capacity,
                                       vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state(simul.day(), simul.hour())))
                 bikes_by_battery = sorted(vehicle.location.get_bikes(), key=lambda bike: bike.battery, reverse=True)
-                bikes_to_pickup = [bike.id for bike in bikes_by_battery[0:int(bat_load)]]
+                bikes_to_pickup = [bike.bike_id for bike in bikes_by_battery[0:int(bat_load)]]
 
             else:
                 bat_unload = max(0,
                                  min(vehicle_current_charged_bikes, vehicle_current_location_available_parking,
                                      vehicle.location.get_target_state(simul.day(), simul.hour()) - vehicle_current_station_current_charged_bikes))
-                bikes_to_deliver = [bike.id for bike in vehicle.get_bike_inventory()[0:int(bat_unload)]]
+                bikes_to_deliver = [bike.bike_id for bike in vehicle.get_bike_inventory()[0:int(bat_unload)]]
 
             # picked up bikes low on battery get new battery, make sure we dont pick up more than we have batteries for
             swaps_for_pickups = 0
@@ -94,13 +94,13 @@ class FosenHaldorsenPolicy(Policy):
 
             swaps = min(vehicle_current_batteries - swaps_for_pickups, vehicle_current_station_current_flat_bikes)
 
-            bikes_to_swap = [bike.id for bike in vehicle.location.get_swappable_bikes() if bike.id not in bikes_to_pickup ][0:swaps]
+            bikes_to_swap = [bike.bike_id for bike in vehicle.location.get_swappable_bikes() if bike.bike_id not in bikes_to_pickup ][0:swaps]
 
         return sim.Action(
             bikes_to_swap,
             bikes_to_pickup,
             bikes_to_deliver,
-            next_station.id,
+            next_station.location_id,
         )
 
     def heuristic_solve(self, simul, vehicle):
@@ -111,14 +111,14 @@ class FosenHaldorsenPolicy(Policy):
                                          criticality=self.criticality, weights=self.weights, crit_weights=self.crit_weights)
 
         # Index of vehicle that triggered event
-        next_station, pattern = heuristic_man.return_solution(vehicle_index=vehicle.id)
+        next_station, pattern = heuristic_man.return_solution(vehicle_index=vehicle.vehicle_id)
 
         Q_B, Q_CCL, Q_FCL, Q_CCU, Q_FCU = pattern[0], pattern[1], pattern[2], pattern[3], pattern[4]
 
         bikes_by_battery = sorted(vehicle.location.get_bikes(), key=lambda bike: bike.battery, reverse=True)
 
-        bikes_to_pickup = [ bike.id for bike in bikes_by_battery[0:int(Q_CCL+Q_FCL)] ]
-        bikes_to_deliver = [ bike.id for bike in vehicle.get_bike_inventory()[0:int(Q_CCU+Q_FCU)] ]
+        bikes_to_pickup = [ bike.bike_id for bike in bikes_by_battery[0:int(Q_CCL+Q_FCL)] ]
+        bikes_to_deliver = [ bike.bike_id for bike in vehicle.get_bike_inventory()[0:int(Q_CCU+Q_FCU)] ]
 
         # picked up bikes low on battery get new battery, make sure we dont pick up more than we have batteries for
         swaps_for_pickups = 0
@@ -128,11 +128,11 @@ class FosenHaldorsenPolicy(Policy):
         bikes_to_pickup = bikes_to_pickup[0:max(0, vehicle.battery_inventory-swaps_for_pickups)]
 
         swaps = min(max(0, vehicle.battery_inventory - swaps_for_pickups), Q_B)
-        bikes_to_swap = [ bike.id for bike in vehicle.location.get_swappable_bikes() if bike.id not in bikes_to_pickup ][0:int(swaps)]
+        bikes_to_swap = [ bike.bike_id for bike in vehicle.location.get_swappable_bikes() if bike.bike_id not in bikes_to_pickup ][0:int(swaps)]
 
         return sim.Action(
             bikes_to_swap,
             bikes_to_pickup,
             bikes_to_deliver,
-            next_station.id,
+            next_station.location_id,
         )

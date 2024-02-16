@@ -13,3 +13,5 @@ from .events.BikeArrival import BikeArrival
 from .events.VehicleArrival import VehicleArrival
 from .events.GenerateBikeTrips import GenerateBikeTrips
 from .State import State
+from .Area import Area
+from .EScooter import EScooter

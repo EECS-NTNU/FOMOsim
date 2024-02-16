@@ -9,7 +9,7 @@ class Location:
     def __init__(self, lat, lon, location_id):
         self.lat = lat
         self.lon = lon
-        self.id = location_id
+        self.location_id = location_id # either the id of the area/station or the location of the bike
         self.bikes = []
 
     def get_lat(self):
@@ -40,9 +40,10 @@ class Location:
     def get_swappable_bikes(self, battery_limit = BATTERY_LIMIT_TO_SWAP):
         return []
 
-    def set_location(self, lat: float, lon: float):
+    def set_location(self, lat: float, lon: float, location_id):
         self.lat = lat
         self.lon = lon
+        self.location_id = location_id
 
     def distance_to(self, lat: float, lon: float):
         """

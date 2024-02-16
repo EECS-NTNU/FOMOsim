@@ -91,11 +91,11 @@ def run_model(data, roaming=True):
     # current_station = None
     #  #find correct vehicle:
     # if len(vehicles) < 2:
-    #     current_station = vehicles[0].location.id
+    #     current_station = vehicles[0].location.location_id
     # else:
     #     for vehicle in vehicles:
     #         if vehicles[vehicle].eta == data.simul.time:
-    #             current_station = vehicles[vehicle].location.id
+    #             current_station = vehicles[vehicle].location.location_id
     
 
 
@@ -128,7 +128,7 @@ def run_model(data, roaming=True):
 
     #Fixate vehicle start station
     for vehicle in vehicles:
-        m.addConstr(x[(-1, vehicles[vehicle].location.id, 0,vehicle)] == 1)
+        m.addConstr(x[(-1, vehicles[vehicle].location.location_id, 0,vehicle)] == 1)
 
     #Station balance:
     m.addConstrs(l[(i, 0)] == L_0[i] for i in stations)

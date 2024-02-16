@@ -121,7 +121,7 @@ def get_possible_actions(
                                     ),
                                     pick_up,
                                     drop_off,
-                                    location.id,
+                                    location.location_id,
                                 ]
                             )
 
@@ -160,7 +160,7 @@ def get_possible_actions(
                     for depot in sorted(
                         state.depots.values(),
                         key=lambda depot: state.get_travel_time(
-                            vehicle.location.id, depot.id
+                            vehicle.location.location_id, depot.id
                         ),
                     )
                     if depot.get_available_battery_swaps(time)
@@ -212,7 +212,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
         return current_states, available_scooters
 
     def get_best_action(self, simul, vehicle):
-        tabu_list = [ vehicle.location.id for vehicle in simul.state.vehicles ]
+        tabu_list = [ vehicle.location.location_id for vehicle in simul.state.vehicles ]
 
         # Find all possible actions
         actions = get_possible_actions(
@@ -248,7 +248,7 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                 forward_state: sim.State = state.sloppycopy()
                 forward_state.simulation_scenarios = state.simulation_scenarios
                 forward_vehicle: sim.Vehicle = forward_state.get_vehicle_by_id(
-                    vehicle.id
+                    vehicle.vehicle_id
                 )
                 # perform action
                 forward_state.do_action(action, forward_vehicle, simul.time)
@@ -270,8 +270,8 @@ class EpsilonGreedyValueFunctionPolicy(Policy):
                     time=simul.time
                     + action.get_action_time(
                         state.get_travel_time(
-                            vehicle.location.id,
-                            forward_vehicle.location.id,
+                            vehicle.location.location_id,
+                            forward_vehicle.location.location_id,
                         )
                     ),
                     number_of_neighbours=self.number_of_neighbors,

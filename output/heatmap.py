@@ -10,7 +10,7 @@ def visualize_heatmap(simulators, metric):
     metrics_list = []
 
     for location in simulators[0].state.locations:
-        metrics_list.append(sim.Metric.merge_metrics([sim.state.locations[location.id].metrics for sim in simulators]))
+        metrics_list.append(sim.Metric.merge_metrics([sim.state.locations[location.location_id].metrics for sim in simulators]))
 
     maxValue = 0
     for metrics in metrics_list:
@@ -24,7 +24,7 @@ def visualize_heatmap(simulators, metric):
     for location in simulators[0].state.locations:
         xx.append(location.get_lon())
         yy.append(location.get_lat())
-        color = metrics_list[location.id].get_aggregate_value(metric) / maxValue
+        color = metrics_list[location.location_id].get_aggregate_value(metric) / maxValue
         cc.append(color)
 
     if simulators[0].state.mapdata is not None:

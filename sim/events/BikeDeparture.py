@@ -47,8 +47,8 @@ class BikeDeparture(Event):
                 arrival_station = world.state.rng.choice(world.state.locations, p = p_normalized)
 
                 travel_time = world.state.get_travel_time(
-                    departure_station.id,
-                    arrival_station.id,
+                    departure_station.location_id,
+                    arrival_station.location_id,
                 )
 
                 # calculate arrival time
@@ -59,8 +59,8 @@ class BikeDeparture(Event):
                         self.time,
                         travel_time,
                         bike,
-                        arrival_station.id,
-                        departure_station.id,
+                        arrival_station.location_id,
+                        departure_station.location_id,
                     )
                 )
 
@@ -92,9 +92,9 @@ class BikeDeparture(Event):
                     arrival_station = world.state.rng.choice(world.state.locations, p = p_normalized)
 
                     travel_time = world.state.get_travel_time(
-                        closest_neighbour_with_bikes.id,
-                        arrival_station.id,) + world.state.get_travel_time(departure_station.id,
-                        closest_neighbour_with_bikes.id)*(BIKE_SPEED/WALKING_SPEED) 
+                        closest_neighbour_with_bikes.location_id,
+                        arrival_station.location_id,) + world.state.get_travel_time(departure_station.location_id,
+                        closest_neighbour_with_bikes.location_id)*(BIKE_SPEED/WALKING_SPEED) 
                     #total travel time, roaming for bike from departure station to neighbour + cycling to arrival station
 
                     # calculate arrival time 
@@ -105,8 +105,8 @@ class BikeDeparture(Event):
                             self.time,
                             travel_time,
                             bike,
-                            arrival_station.id,
-                            closest_neighbour_with_bikes.id,
+                            arrival_station.location_id,
+                            closest_neighbour_with_bikes.location_id,
                         )
                     )
 

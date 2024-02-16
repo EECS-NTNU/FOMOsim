@@ -46,7 +46,7 @@ class Vehicle:
         if len(self.bike_inventory) + 1 > self.bike_inventory_capacity:
             raise ValueError("Can't pick up an bike when the vehicle is full")
         else:
-            self.bike_inventory[bike.id] = bike
+            self.bike_inventory[bike.bike_id] = bike
             if bike.hasBattery():
                 if bike.battery < 70 and self.battery_inventory > 0:
                     self.change_battery(bike)
@@ -71,7 +71,7 @@ class Vehicle:
 
     def __repr__(self):
         return (
-            f"<Vehicle {self.id} at {self.location.id}, {len(self.bike_inventory)} bikes,"
+            f"<Vehicle {self.id} at {self.location.location_id}, {len(self.bike_inventory)} bikes,"
             f" {self.battery_inventory} batteries>"
         )
 

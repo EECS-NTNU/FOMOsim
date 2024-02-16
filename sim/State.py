@@ -17,6 +17,7 @@ class State(LoadSave):
     def __init__(
         self,
         stations = [],
+        areas = [],
         vehicles = [],
         bikes_in_use = {}, # bikes not parked at any station
         mapdata=None,
@@ -43,6 +44,7 @@ class State(LoadSave):
         self.seed = seed
 
         self.set_stations(stations)
+        # self.set_areas(areas)
 
         self.traveltime_matrix = traveltime_matrix
         self.traveltime_matrix_stddev = traveltime_matrix_stddev
@@ -75,14 +77,75 @@ class State(LoadSave):
 
         for vehicle in new_state.vehicles:
             vehicle.location = new_state.get_location_by_id(
-                vehicle.location.id
+                vehicle.location.location_id
             )
 
         return new_state
 
+    @staticmethod
+    def get_initial_states(sb_statedata = None, ff_statedata = None):
+        # create stations
+        sb_state = State.get_initial_sb_state(sb_statedata)
+        ff_state = State.get_initial_ff_state(ff_statedata)
+
 
     @staticmethod
-    def get_initial_state(statedata):
+    def get_initial_ff_state(statedata):
+        # create areas
+        areas = []
+
+        id_counter = 0
+        for area_id, area in enumerate(statedata["areas"]):
+            capacity = DEFAULT_STATION_CAPACITY
+
+            center_position = None
+            if "center_location" in area:
+                center_position = area["center_location"]
+            
+            border_vertices = None
+            if "border_vertices" in area:
+                border_vertices = area["border_vertices"]
+
+            areaObj = sim.Area("A" + str(area_id),
+                               border_vertices,
+                               center_location = center_position,
+                               leave_intensities = area["leave_intensities"],
+                               arrive_intensities = area["arrive_intensities"],
+                               move_probabilities = area["move_probabilities"]
+                               )
+
+            # create bikes
+            bikes = {}
+            for battery in area["bikes"]:
+                bikes.append(sim.EScooter(bike_id = "ES"+str(id_counter), battery_level = battery))
+                id_counter += 1
+
+            areaObj.set_bikes(bikes)
+
+            areas.append(areaObj)
+
+        # TODO - hvordan skal disse se ut?
+        for depot_id, depot in enumerate(statedata["depots"]):
+            pass
+
+        # TODO - dette må sikkert fikses
+        mapdata = None
+        if "map" in statedata:
+            mapdata = (statedata["map"], statedata["map_boundingbox"])
+
+        state = State(areas = areas,
+                      mapdata = mapdata,
+                      traveltime_matrix=statedata["traveltime"],
+                      traveltime_matrix_stddev=statedata["traveltime_stdev"],
+                      traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
+                      traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"])
+        
+        # TODO - legg til naboer i listen
+
+        return state
+
+    @staticmethod
+    def get_initial_sb_state(statedata):
         # create stations
 
         stations = []
@@ -117,7 +180,7 @@ class State(LoadSave):
                                          move_probabilities = station["move_probabilities"],)
 
             else:
-                stationObj = sim.Station(station_id,
+                stationObj = sim.Station(station_id, #"S" + str(station_id),
                                          capacity=capacity,
                                          original_id=original_id,
                                          center_location=position,
@@ -133,9 +196,9 @@ class State(LoadSave):
             bikes = []
             for _ in range(station["num_bikes"]):
                 if statedata["bike_class"] == "EBike":
-                    bikes.append(sim.EBike(bike_id=id_counter, battery=100)) # initial_battery_levels[id_counter]))
+                    bikes.append(sim.EBike(bike_id= "EB" + str(id_counter), battery=100)) # initial_battery_levels[id_counter]))
                 else:
-                    bikes.append(sim.Bike(bike_id=id_counter))
+                    bikes.append(sim.Bike(bike_id= "B"+str(id_counter)))
                 id_counter += 1
 
             stationObj.set_bikes(bikes)
@@ -143,7 +206,6 @@ class State(LoadSave):
             stations.append(stationObj)
 
         # create state
-
         mapdata = None
         if "map" in statedata:
             mapdata = (statedata["map"], statedata["map_boundingbox"])
@@ -173,8 +235,8 @@ class State(LoadSave):
 
     def set_stations(self, locations):
         self.locations = locations
-        self.stations = { station.id : station for station in locations }
-        self.depots = { station.id : station for station in locations if isinstance(station, sim.Depot) }
+        self.stations = { station.location_id : station for station in locations }
+        self.depots = { station.location_id : station for station in locations if isinstance(station, sim.Depot) }
 
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
@@ -188,11 +250,11 @@ class State(LoadSave):
 
     def set_move_probabilities(self, move_probabilities):
         for st in self.locations:
-            st.move_probabilities = move_probabilities[st.id]
+            st.move_probabilities = move_probabilities[st.location_id]
 
     def set_target_state(self, target_state):
         for st in self.locations:
-            st.target_state = target_state[st.id]
+            st.target_state = target_state[st.location_id]
 
     def get_station_by_lat_lon(self, lat: float, lon: float):
         """
@@ -203,10 +265,10 @@ class State(LoadSave):
         return min(list(self.stations.values()), key=lambda station: station.distance_to(lat, lon))
 
     def bike_in_use(self, bike):
-        self.bikes_in_use[bike.id] = bike
+        self.bikes_in_use[bike.bike_id] = bike
 
     def remove_used_bike(self, bike):
-        del self.bikes_in_use[bike.id]
+        del self.bikes_in_use[bike.bike_id]
 
     def get_used_bike(self):
         if len(self.bikes_in_use) > 0:
@@ -338,8 +400,8 @@ class State(LoadSave):
         neighbours = [
             state_location
             for state_location in self.locations
-            if state_location.id != location.id
-            and state_location.id not in (exclude if exclude else [])
+            if state_location.location_id != location.location_id
+            and state_location.location_id not in (exclude if exclude else [])
         ]
         if is_sorted:
             if not_full:
@@ -347,12 +409,12 @@ class State(LoadSave):
                     [
                         state_location
                         for state_location in self.locations
-                        if state_location.id != location.id
-                        and state_location.id not in (exclude if exclude else [])
+                        if state_location.location_id != location.location_id
+                        and state_location.location_id not in (exclude if exclude else [])
                         and state_location.spare_capacity() >= 1
                     ],
-                    key=lambda state_location: self.traveltime_matrix[location.id][
-                        state_location.id
+                    key=lambda state_location: self.traveltime_matrix[location.location_id][
+                        state_location.location_id
                     ],
                 )
             elif not_empty:
@@ -360,12 +422,12 @@ class State(LoadSave):
                     [
                         state_location
                         for state_location in self.locations
-                        if state_location.id != location.id
-                        and state_location.id not in (exclude if exclude else [])
+                        if state_location.location_id != location.location_id
+                        and state_location.location_id not in (exclude if exclude else [])
                         and len(state_location.get_available_bikes()) >= 1
                     ],
-                    key=lambda state_location: self.traveltime_matrix[location.id][
-                        state_location.id
+                    key=lambda state_location: self.traveltime_matrix[location.location_id][
+                        state_location.location_id
                     ],
                 )
             else:
@@ -373,11 +435,11 @@ class State(LoadSave):
                     [
                         state_location
                         for state_location in self.locations
-                        if state_location.id != location.id
-                        and state_location.id not in (exclude if exclude else [])
+                        if state_location.location_id != location.location_id
+                        and state_location.location_id not in (exclude if exclude else [])
                     ],
-                    key=lambda state_location: self.traveltime_matrix[location.id][
-                        state_location.id
+                    key=lambda state_location: self.traveltime_matrix[location.location_id][
+                        state_location.location_id
                     ],
                 )
 
@@ -394,13 +456,13 @@ class State(LoadSave):
     def sample(self, sample_size: int):
         # Filter out bikes not in sample
         sampled_bike_ids = self.rng2.choice(
-            [bike.id for bike in self.get_bikes()], sample_size, replace=False,
+            [bike.bike_id for bike in self.get_bikes()], sample_size, replace=False,
         )
         for station in self.stations.values():
             station.set_bikes([
                 bike
                 for bike in station.get_bikes()
-                if bike.id in sampled_bike_ids
+                if bike.bike_id in sampled_bike_ids
             ])
 
     def get_vehicle_by_id(self, vehicle_id):
