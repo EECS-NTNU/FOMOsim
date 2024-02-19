@@ -38,7 +38,7 @@ def main():
     #                                      week=34)
 
     # the following is for reading a precalculated initial state from a json file
-    state = read_initial_state("instances/ebike/"+INSTANCE)
+    state = read_initial_state("instances/ebike_with_depot/"+INSTANCE)
 
     state.set_seed(1)
 

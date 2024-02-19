@@ -11,7 +11,7 @@ class Depot(Station):
 
     def __init__(
         self,
-        depot_id: int,
+        depot_id,
         depot_capacity = DEFAULT_DEPOT_CAPACITY,
         bikes = [],
         leave_intensities=None,
@@ -22,7 +22,7 @@ class Depot(Station):
         move_probabilities=None,
         average_number_of_bikes=None,
         target_state=None,
-        capacity=None,
+        capacity= 'inf',
         original_id = None,
         charging_station = None,
     ):

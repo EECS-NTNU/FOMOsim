@@ -149,7 +149,10 @@ class Station(Location):
     def set_neighboring_stations(self, neighboring_stations_dict, stations_dict):
         neighboring_stations_list = neighboring_stations_dict[int(self.location_id[1:])]
         for loc_id in neighboring_stations_list:
-            self.neighboring_stations.append(stations_dict["S"+str(loc_id)])
+            if "D"+str(loc_id) in stations_dict:
+                self.neighboring_stations.append(stations_dict["D"+str(loc_id)])
+            else:
+                self.neighboring_stations.append(stations_dict["S"+str(loc_id)])
         return None
 
     def __repr__(self):

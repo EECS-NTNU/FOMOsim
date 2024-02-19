@@ -538,10 +538,10 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             
             if best_plan == None:
                 tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
-                potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
+                potential_stations2 = [station for station in simul.state.stations if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
-                return rng_balanced.choice(potential_stations2).id 
+                return rng_balanced.choice(potential_stations2).location_id 
 
             best_first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             if best_first_move in score_board:
@@ -582,9 +582,9 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             return first_move
         else: 
             tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
-            potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
+            potential_stations2 = [station for station in simul.state.stations if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
-            return rng_balanced.choice(potential_stations2).id
+            return rng_balanced.choice(potential_stations2).location_id
         
     ####################################################################
     # Finds closest depot from location when vehicle is out of battery #
@@ -596,12 +596,12 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 
 
         for d in depots.values():
-            distance = (simul.state.traveltime_vehicle_matrix[(vehicle.location.location_id, d.id)]/60)*VEHICLE_SPEED
+            distance = (simul.state.traveltime_vehicle_matrix[(vehicle.location.location_id, d.location_id)]/60)*VEHICLE_SPEED
             if distance < closest_distance:
                 closest_distance = distance
                 closest_depot = d
 
-        return closest_depot.id
+        return closest_depot.location_id
                         
 
 

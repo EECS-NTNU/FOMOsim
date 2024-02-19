@@ -90,6 +90,12 @@ class State(LoadSave):
         sb_state = State.get_initial_sb_state(sb_statedata) if sb_statedata else None
         ff_state = State.get_initial_ff_state(ff_statedata) if ff_statedata else None
 
+        # Add sb locations to ff state
+        merged_state = ff_state
+        for location_id, location in sb_state.locations.keys():
+            if location_id not in ff_state.get_location_ids(): #Should not be a problem since all stations are marked with S and areas are marked with A. Might have to change for Depots
+                merged_state.locations[location_id] = location
+        merged_state.set_locations(merged_state.locations.values()) # Update all dictionaries with locations (locations, stations, areas)
 
 
     @staticmethod
@@ -146,7 +152,21 @@ class State(LoadSave):
                       traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
                       traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"])
         
-        # TODO - legg til naboer i listen
+        # Må nok testes
+        vertex_to_area = {}
+        for area_id, area in areas.items():
+            for vertex in area.border_vertices:
+                if vertex not in vertex_to_area:
+                    vertex_to_area[vertex] = [area]
+                else:
+                    vertex_to_area[vertex].append(area)
+
+        for area_id, area in areas.items():
+            neighbors = set()
+            for vertex in area.border_vertices:
+                neighbors.update(vertex_to_area[vertex])
+            neighbors.discard(area)
+            area.neighboring_areas = list(neighbors)
 
         return state
 
@@ -178,8 +198,18 @@ class State(LoadSave):
                 depot_capacity = DEFAULT_DEPOT_CAPACITY
                 if "depot_capacity" in station:
                     depot_capacity = station["depot_capacity"]
-                stationObj = sim.Depot("D"+str(station_id), depot_capacity=depot_capacity, original_id=original_id, center_location=position)
-
+                stationObj = sim.Depot("S" + str(station_id),
+                                         capacity=capacity,
+                                         depot_capacity= depot_capacity,
+                                         original_id=original_id,
+                                         center_location=position,
+                                         charging_station=charging_station,
+                                         leave_intensities = station["leave_intensities"],
+                                         leave_intensities_stdev = station["leave_intensities_stdev"],
+                                         arrive_intensities = station["arrive_intensities"],
+                                         arrive_intensities_stdev = station["arrive_intensities_stdev"],
+                                         move_probabilities = station["move_probabilities"],
+                                         )
             else:
                 stationObj = sim.Station("S" + str(station_id),
                                          capacity=capacity,
@@ -235,7 +265,7 @@ class State(LoadSave):
         
         neighbor_dict = state.read_neighboring_stations_from_file()
         for station in stations:
-            station.set_neighboring_stations(neighbor_dict, state.stations)
+            station.set_neighboring_stations(neighbor_dict, state.locations)
 
         return state
 
@@ -248,7 +278,7 @@ class State(LoadSave):
 
     def set_locations(self, locations):
         self.locations = {location.location_id: location for location in locations}
-        self.stations = { station.location_id : station for station in locations if isinstance(station, sim.Station) } # and not Depot?
+        self.stations = { station.location_id : station for station in locations if isinstance(station, sim.Station)}# and not isinstance(station, sim.Depot)}
         self.depots = { station.location_id : station for station in locations if isinstance(station, sim.Depot) }
         self.areas = { area.location_id : area for area in locations if isinstance(area, sim.Area) }
 
@@ -283,6 +313,7 @@ class State(LoadSave):
     def remove_used_bike(self, bike):
         del self.bikes_in_use[bike.bike_id]
 
+    # TODO hva betyr denne?
     def get_used_bike(self):
         if len(self.bikes_in_use) > 0:
             bike = next(iter(self.bikes_in_use))
@@ -310,8 +341,15 @@ class State(LoadSave):
     # parked bikes with usable battery
     def get_num_available_bikes(self):
         num = 0
-        for station in self.get_locations():
+        for station in self.get_stations():
             num += len(station.get_available_bikes())
+        return num
+
+    # parked escooters with usable battery
+    def get_num_available_escooters(self):
+        num = 0
+        for area in self.get_areas():
+            num += len(area.get_available_bikes())
         return num
 
     def get_travel_time(self, start_location_id: int, end_location_id: int):
@@ -328,6 +366,7 @@ class State(LoadSave):
         else:
             return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
 
+    # TODO
     def do_action(self, action, vehicle, time):
         """
         Performs an action on the state -> changing the state
@@ -393,6 +432,7 @@ class State(LoadSave):
         string += f"In use: {len(self.bikes_in_use.values())}"
         return string
 
+    # TODO
     def get_neighbours(
         self,
         location: sim.Location,
@@ -465,7 +505,26 @@ class State(LoadSave):
     
     def get_locations(self):
         return list(self.locations.values())
-
+    
+    def get_area_by_id(self, area_id):
+        return self.areas[area_id]
+    
+    def get_area_ids(self):
+        return list(self.areas.keys())
+    
+    def get_areas(self):
+        return list(self.areas.values())
+    
+    def get_station_by_id(self, station_id):
+        return self.locations[station_id]
+    
+    def get_station_ids(self):
+        return list(self.stations.keys())
+    
+    def get_stations(self):
+        return list(self.stations.values())
+    
+    # TODO forstå denne
     def sample(self, sample_size: int):
         # Filter out bikes not in sample
         sampled_bike_ids = self.rng2.choice(
@@ -486,6 +545,7 @@ class State(LoadSave):
         """
         return self.vehicles[vehicle_id]
     
+    # TODO Trenger vi denne, evt. hva gjør vi for FF?
     def read_neighboring_stations_from_file(self):
         neighboring_stations = dict()      #{station_ID: [list of station_IDs]}
         filename = 'policies/inngjerdingen_moeller/saved_time_data/' + (self.mapdata[0]).split('.')[0].split('/')[-1] +'_static_data.json'
