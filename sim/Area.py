@@ -18,7 +18,9 @@ class Area(Location):
         station = None,
         neighboring_areas = {},
         leave_intensities = None,
+        leave_intensities_stdev = None,
         arrive_intensities = None,
+        arrive_intensities_stdev = None,
         center_location = None,
         move_probabilities = None,
         target_state = None
@@ -32,7 +34,9 @@ class Area(Location):
         self.station = station
         self.border_vertices = border_vertices
         self.leave_intensities = leave_intensities
+        self.leave_intensities_stdev = leave_intensities_stdev
         self.arrive_intensities = arrive_intensities
+        self.arrive_intensities_stdev = arrive_intensities_stdev
         self.move_probabilities = move_probabilities
 
         self.neighboring_areas = neighboring_areas # the area-hexes that border

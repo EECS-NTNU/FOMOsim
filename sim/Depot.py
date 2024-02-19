@@ -22,7 +22,7 @@ class Depot(Station):
         move_probabilities=None,
         average_number_of_bikes=None,
         target_state=None,
-        capacity=DEFAULT_STATION_CAPACITY,
+        capacity=None,
         original_id = None,
         charging_station = None,
     ):

@@ -16,6 +16,7 @@ class State(LoadSave):
 
     def __init__(
         self,
+        locations = {},
         stations = {},
         areas = {},
         vehicles = {},
@@ -43,8 +44,8 @@ class State(LoadSave):
         self.bikes_in_use = bikes_in_use
         self.seed = seed
 
-        self.set_stations(stations)
-        # self.set_areas(areas)
+        self.set_locations(locations)
+
 
         self.traveltime_matrix = traveltime_matrix
         self.traveltime_matrix_stddev = traveltime_matrix_stddev
@@ -59,6 +60,7 @@ class State(LoadSave):
 
         self.mapdata = mapdata
 
+    # TODO
     def sloppycopy(self, *args):
         locationscopy = {}
         for id, loc in self.locations.items():
@@ -85,8 +87,9 @@ class State(LoadSave):
     @staticmethod
     def get_initial_states(sb_statedata = None, ff_statedata = None):
         # create stations
-        sb_state = State.get_initial_sb_state(sb_statedata)
-        ff_state = State.get_initial_ff_state(ff_statedata)
+        sb_state = State.get_initial_sb_state(sb_statedata) if sb_statedata else None
+        ff_state = State.get_initial_ff_state(ff_statedata) if ff_statedata else None
+
 
 
     @staticmethod
@@ -96,25 +99,27 @@ class State(LoadSave):
 
         id_counter = 0
         for area_id, area in enumerate(statedata["areas"]):
-            capacity = DEFAULT_STATION_CAPACITY
+            capacity = float('inf') # TODO trenger vi denne?
 
             center_position = None
             if "center_location" in area:
-                center_position = area["center_location"]
+                center_position = area["center_location"] # (lat, lon)
             
             border_vertices = None
             if "border_vertices" in area:
-                border_vertices = area["border_vertices"]
+                border_vertices = area["border_vertices"] # [(lat, lan), x7]
 
             areaObj = sim.Area("A" + str(area_id),
                                border_vertices,
                                center_location = center_position,
+                               capacity = capacity,
                                leave_intensities = area["leave_intensities"],
+                               leave_intensities_stdev = area["leave_intensities_stdev"],
                                arrive_intensities = area["arrive_intensities"],
+                               arrive_intensities_stdev = area["arrive_intensities_stdev"],
                                move_probabilities = area["move_probabilities"]
                                )
 
-            # create bikes
             bikes = {}
             for battery in area["bikes"]:
                 bikes.append(sim.EScooter(bike_id = "ES"+str(id_counter), battery_level = battery))
@@ -133,6 +138,7 @@ class State(LoadSave):
         if "map" in statedata:
             mapdata = (statedata["map"], statedata["map_boundingbox"])
 
+        # TODO Skal vi ha travel_matrix?
         state = State(areas = areas,
                       mapdata = mapdata,
                       traveltime_matrix=statedata["traveltime"],
@@ -146,7 +152,6 @@ class State(LoadSave):
 
     @staticmethod
     def get_initial_sb_state(statedata):
-        # create stations
 
         stations = []
 
@@ -173,11 +178,7 @@ class State(LoadSave):
                 depot_capacity = DEFAULT_DEPOT_CAPACITY
                 if "depot_capacity" in station:
                     depot_capacity = station["depot_capacity"]
-                stationObj = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station, leave_intensities = station["leave_intensities"],
-                                         leave_intensities_stdev = station["leave_intensities_stdev"],
-                                         arrive_intensities = station["arrive_intensities"],
-                                         arrive_intensities_stdev = station["arrive_intensities_stdev"],
-                                         move_probabilities = station["move_probabilities"],)
+                stationObj = sim.Depot("D"+str(station_id), depot_capacity=depot_capacity, original_id=original_id, center_location=position)
 
             else:
                 stationObj = sim.Station("S" + str(station_id),
@@ -196,7 +197,7 @@ class State(LoadSave):
             bikes = []
             for _ in range(station["num_bikes"]):
                 if statedata["bike_class"] == "EBike":
-                    bikes.append(sim.EBike(bike_id= "EB" + str(id_counter), battery=100)) # initial_battery_levels[id_counter]))
+                    bikes.append(sim.EBike(bike_id= "EB" + str(id_counter), battery=100)) # TODO legge til funksjonalitet for at start batteri nivå er satt i json
                 else:
                     bikes.append(sim.Bike(bike_id= "B"+str(id_counter)))
                 id_counter += 1
@@ -216,13 +217,16 @@ class State(LoadSave):
         traveltime_vehicle_matrix_stddev = {} if statedata["traveltime_vehicle_stdev"] else None
         for i in range(len(statedata["traveltime"])):
             for y in range(len(statedata["traveltime"])):
-                traveltime_matrix[("S"+str(i), "S"+str(y))] = statedata["traveltime"][i][y]
-                traveltime_matrix_stddev[("S"+str(i), "S"+str(y))] = statedata["traveltime_stdev"][i][y]
-                traveltime_vehicle_matrix[("S"+str(i), "S"+str(y))] = statedata["traveltime_vehicle"][i][y]
+                if statedata["traveltime"]:
+                    traveltime_matrix[("S"+str(i), "S"+str(y))] = statedata["traveltime"][i][y]
+                if statedata["traveltime_stdev"]:
+                    traveltime_matrix_stddev[("S"+str(i), "S"+str(y))] = statedata["traveltime_stdev"][i][y]
+                if statedata["traveltime_vehicle"]:
+                    traveltime_vehicle_matrix[("S"+str(i), "S"+str(y))] = statedata["traveltime_vehicle"][i][y]
                 if statedata["traveltime_vehicle_stdev"]:
                     traveltime_vehicle_matrix_stddev[("S"+str(i), "S"+str(y))] = statedata["traveltime_vehicle_stdev"][i][y]
 
-        state = State(stations,
+        state = State(locations= stations,
                       mapdata = mapdata,
                       traveltime_matrix=traveltime_matrix,
                       traveltime_matrix_stddev=traveltime_matrix_stddev,
@@ -242,10 +246,11 @@ class State(LoadSave):
                 traveltime_matrix[(location.location_id, neighbour.location_id)] = (location.distance_to(*neighbour.get_location()) / speed)*60 #multiplied by 60 to get minutes
         return traveltime_matrix
 
-    def set_stations(self, locations):
+    def set_locations(self, locations):
         self.locations = {location.location_id: location for location in locations}
-        self.stations = { station.location_id : station for station in locations }
+        self.stations = { station.location_id : station for station in locations if isinstance(station, sim.Station) } # and not Depot?
         self.depots = { station.location_id : station for station in locations if isinstance(station, sim.Depot) }
+        self.areas = { area.location_id : area for area in locations if isinstance(area, sim.Area) }
 
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
