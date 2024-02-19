@@ -44,7 +44,7 @@ class BikeDeparture(Event):
                         p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
                     else:
                         p_normalized.append(1/len(p))
-                arrival_station = world.state.rng.choice(world.state.locations, p = p_normalized)
+                arrival_station = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
 
                 travel_time = world.state.get_travel_time(
                     departure_station.location_id,
@@ -89,7 +89,7 @@ class BikeDeparture(Event):
                     available_bikes = closest_neighbour_with_bikes.get_available_bikes()
                     bike=available_bikes.pop(0)
                     
-                    arrival_station = world.state.rng.choice(world.state.locations, p = p_normalized)
+                    arrival_station = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
 
                     travel_time = world.state.get_travel_time(
                         closest_neighbour_with_bikes.location_id,
@@ -135,7 +135,7 @@ class BikeDeparture(Event):
                     world.metrics.add_aggregate_metric(world, "starvation", 1)
                     departure_station.metrics.add_aggregate_metric(world, "Failed events", 1) 
                     world.metrics.add_aggregate_metric(world, "Failed events", 1)
-                    rng_not_in_use = world.state.rng.choice(world.state.locations, p = p_normalized)
+                    rng_not_in_use = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
 
         departure_station.metrics.add_aggregate_metric(world, "trips", 1)
         world.metrics.add_aggregate_metric(world, "trips", 1)

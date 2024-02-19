@@ -585,7 +585,7 @@ class Greedy_Policy(Policy): #Add default values from seperate setting sheme
 
 
         for d in depots.values():
-            distance = (simul.state.traveltime_vehicle_matrix[vehicle.location.location_id][d.id]/60)*VEHICLE_SPEED
+            distance = (simul.state.traveltime_vehicle_matrix[(vehicle.location.location_id, d.id)]/60)*VEHICLE_SPEED
             if distance < closest_distance:
                 closest_distance = distance
                 closest_depot = d

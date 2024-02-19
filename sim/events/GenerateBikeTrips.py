@@ -18,7 +18,7 @@ class GenerateBikeTrips(Event):
 
         super().perform(world)
 
-        for departure_station in world.state.locations:
+        for departure_station in world.state.get_locations():
             # poisson process to select number of trips in a iteration
             number_of_trips = 2*round(
                 world.state.rng.poisson(departure_station.get_leave_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
@@ -49,7 +49,7 @@ class GenerateBikeTrips(Event):
         # TODO add a loop to generate free-floating trips as well - use the same skeleton as above @Eline?
 
         if not FULL_TRIP: 
-            for arrival_station in world.state.locations:
+            for arrival_station in world.state.get_locations():
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(
                     world.state.rng.poisson(arrival_station.get_arrive_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))

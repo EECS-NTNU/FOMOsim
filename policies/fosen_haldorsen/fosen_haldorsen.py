@@ -104,7 +104,7 @@ class FosenHaldorsenPolicy(Policy):
         )
 
     def heuristic_solve(self, simul, vehicle):
-        heuristic_man = HeuristicManager(simul, simul.state.vehicles, simul.state.locations,
+        heuristic_man = HeuristicManager(simul, simul.state.vehicles, simul.state.get_locations,
                                          no_scenarios=self.scenarios, init_branching=self.branching,
                                          time_horizon=self.time_horizon, handling_time=self.handling_time, flexibility=self.flexibility,
                                          average_handling_time=self.average_handling_time, seed_scenarios_subproblems=simul.state.rng.integers(10000), 

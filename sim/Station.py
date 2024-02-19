@@ -32,10 +32,10 @@ class Station(Location):
 
         self.set_bikes(bikes)
 
-        self.historical_leave_intensities = leave_intensities
-        self.historical_leave_intensities_stdev = leave_intensities_stdev
-        self.historical_arrive_intensities = arrive_intensities
-        self.historical_arrive_intensities_stdev = arrive_intensities_stdev
+        self.leave_intensities = leave_intensities
+        self.leave_intensities_stdev = leave_intensities_stdev
+        self.arrive_intensities = arrive_intensities
+        self.arrive_intensities_stdev = arrive_intensities_stdev
 
         self.move_probabilities = move_probabilities
 
@@ -60,13 +60,10 @@ class Station(Location):
             self.location_id,
             list(copy.deepcopy(self.bikes).values()),
 
-            historical_leave_intensities=self.historical_leave_intensities,
-            historical_leave_intensities_stdev=self.historical_leave_intensities_stdev,
-            historical_arrive_intensities=self.historical_arrive_intensities,
-            historical_arrive_intensities_stdev=self.historical_arrive_intensities_stdev,
-
             leave_intensities=self.leave_intensities,
+            leave_intensities_stdev=self.leave_intensities_stdev,
             arrive_intensities=self.arrive_intensities,
+            arrive_intensities_stdev=self.arrive_intensities_stdev,
 
             move_probabilities=self.move_probabilities,
 
@@ -89,9 +86,8 @@ class Station(Location):
 
     def get_move_probabilities(self, state, day, hour):
         if self.move_probabilities is None:
-            mp = []
-            for station in range(len(state.locations)):
-                mp.append(1 / len(state.locations))
+            num_stations = len(state.stations)
+            mp = [1/num_stations for _ in range(num_stations)]
             return mp
         return self.move_probabilities[day % 7][hour % 24]
 
@@ -102,10 +98,10 @@ class Station(Location):
         return self.leave_intensities[day % 7][hour % 24]
 
     def get_arrive_intensity_stdev(self, day, hour):
-        return self.historical_arrive_intensities_stdev[day % 7][hour % 24]
+        return self.arrive_intensities_stdev[day % 7][hour % 24]
     
     def get_leave_intensity_stdev(self, day, hour):
-        return self.historical_leave_intensities_stdev[day % 7][hour % 24]
+        return self.leave_intensities_stdev[day % 7][hour % 24]
 
     def number_of_bikes(self):
         return len(self.bikes)
@@ -151,13 +147,9 @@ class Station(Location):
         return self.bikes[bike_id]
     
     def set_neighboring_stations(self, neighboring_stations_dict, stations_dict):
-        # neighboring_stations_list = neighboring_stations_dict[int(self.location_id[1:])]
-        # for loc_id in neighboring_stations_list:
-        #     self.neighboring_stations.append(stations_dict["S"+str(loc_id)])
-        # return None
-        neighboring_stations_list = neighboring_stations_dict[self.location_id]
+        neighboring_stations_list = neighboring_stations_dict[int(self.location_id[1:])]
         for loc_id in neighboring_stations_list:
-            self.neighboring_stations.append(stations_dict[loc_id])
+            self.neighboring_stations.append(stations_dict["S"+str(loc_id)])
         return None
 
     def __repr__(self):

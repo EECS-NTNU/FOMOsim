@@ -185,7 +185,7 @@ def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_typ
 
         
         #Accounts for distance, closer is better i think
-        distance = (simul.state.traveltime_vehicle_matrix[station.location_id][neighbor.location_id]/60)*VEHICLE_SPEED
+        distance = (simul.state.traveltime_vehicle_matrix[(station.location_id, neighbor.location_id)]/60)*VEHICLE_SPEED
         station_crit *= (1 - (distance/MAX_ROAMING_DISTANCE_SOLUTIONS))
 
         neighborhood_crit += station_crit

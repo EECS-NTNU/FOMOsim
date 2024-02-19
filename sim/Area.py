@@ -67,7 +67,7 @@ class Area(Location):
     def get_move_probabilities(self, state, day, hour):
         if self.move_probabilities is None: # if not set, it is a uniform distribution between all areas
             num_areas = len(state.areas)
-            mp = [1/num_areas for area in range(num_areas)]
+            mp = [1/num_areas for _ in range(num_areas)]
             return mp
         return self.move_probabilities[day % 7][hour % 24]
 

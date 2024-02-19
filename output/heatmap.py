@@ -9,8 +9,8 @@ def visualize_heatmap(simulators, metric):
 
     metrics_list = []
 
-    for location in simulators[0].state.locations:
-        metrics_list.append(sim.Metric.merge_metrics([sim.state.locations[location.location_id].metrics for sim in simulators]))
+    for location_id in simulators[0].state.get_location_ids():
+        metrics_list.append(sim.Metric.merge_metrics([sim.state.locations[location_id].metrics for sim in simulators]))
 
     maxValue = 0
     for metrics in metrics_list:
@@ -21,7 +21,7 @@ def visualize_heatmap(simulators, metric):
         print("*** Too short simulation, no trips done, will return without producng a heatmap") # Happens for EH_W22 1 hour simulation
         return
 
-    for location in simulators[0].state.locations:
+    for location in simulators[0].state.get_locations():
         xx.append(location.get_lon())
         yy.append(location.get_lat())
         color = metrics_list[location.location_id].get_aggregate_value(metric) / maxValue

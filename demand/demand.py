@@ -16,9 +16,9 @@ class Demand():
 
     def update_demands(self, state, day, hour):
         # default implementation just copies historical demand
-        for st in state.locations:
-            st.leave_intensities = st.historical_leave_intensities.copy()
-            st.arrive_intensities = st.historical_arrive_intensities.copy()
+        for st in state.get_locations():
+            st.leave_intensities = st.leave_intensities.copy()
+            st.arrive_intensities = st.arrive_intensities.copy()
 
     def __repr__(self):
         return f"{self.__class__.__name__}"

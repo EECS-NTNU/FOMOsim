@@ -10,7 +10,7 @@ class HalfCapacityTargetState(TargetState):
         num_bikes = len(state.get_all_bikes())
         num_stations = len(state.locations)
 
-        for st in state.locations:
+        for st in state.get_locations():
             if isinstance(st, sim.Depot):
                 st.target_state[day][hour] = 0
             else:

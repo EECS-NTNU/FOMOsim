@@ -1,7 +1,7 @@
 from policies import Policy
 import sim
 from policies.inngjerdingen_moeller.criticality_score_neighbor import calculate_criticality, calculate_station_type
-import settings
+from settings import *
 from policies.gleditsch_hagen.utils import calculate_net_demand
 from policies.inngjerdingen_moeller.greedy_policy_with_neighbors import calculate_loading_quantities_greedy
 from policies.inngjerdingen_moeller.greedy_policy_with_neighbors import find_potential_stations
@@ -182,7 +182,7 @@ class PILOT(Policy):
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
         for next_station in next_stations:
-            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_departure_time() + simul.state.traveltime_vehicle_matrix[plan.plan[vehicle.vehicle_id][-1].station.location_id][next_station.location_id] + settings.MINUTES_CONSTANT_PER_ACTION
+            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.traveltime_vehicle_matrix[(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_station.location_id)] + MINUTES_CONSTANT_PER_ACTION
             number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(vehicle, num_bikes_now, simul, next_station, arrival_time)
             new_visit = Visit(next_station, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, arrival_time, vehicle)
             visits.append(new_visit)
@@ -324,7 +324,7 @@ class PILOT(Policy):
                                 roamings_no_visit+=excess_bikes_no_visit
                                 excess_bikes_no_visit-=excess_bikes_no_visit
                 
-                distance_scaling = ((simul.state.get_vehicle_travel_time(station.location_id, neighbor.location_id)/60)*settings.VEHICLE_SPEED)/settings.MAX_ROAMING_DISTANCE_SOLUTIONS
+                distance_scaling = ((simul.state.get_vehicle_travel_time(station.location_id, neighbor.location_id)/60)*VEHICLE_SPEED)/MAX_ROAMING_DISTANCE_SOLUTIONS
 
                 neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
 
@@ -477,7 +477,7 @@ class Visit():
         self.vehicle = vehicle 
 
     def get_departure_time(self):
-        return self.arrival_time + (self.loading_quantity + self.unloading_quantity)*settings.MINUTES_PER_ACTION
+        return self.arrival_time + (self.loading_quantity + self.unloading_quantity)*MINUTES_PER_ACTION
 
 class Plan():
     def __init__(self, copied_plan, tabu_list, weight_set=None, branch_number=None):

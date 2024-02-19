@@ -14,7 +14,7 @@ class DoNothing(Policy):
         bikes_to_pickup = []
         bikes_to_deliver = []
 
-        next_location_id = simul.state.rng.choice([i for i in range(len(simul.state.locations)) if i != vehicle.location.location_id])
+        next_location_id = simul.state.rng.choice([i for i in range(len(simul.state.get_location_ids())) if i != vehicle.location.location_id])
 
         action = sim.Action(
             bikes_to_swap,

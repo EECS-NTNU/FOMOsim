@@ -95,9 +95,9 @@ def loggTime(time):
 
 def loggLocations(state):
     writeWords(trafficLogg, ["Locations:", str(len(state.locations))])
-    for loc in range(len(state.locations)):
-        words = [str(loc), str(len(state.locations[loc].bikes))]
-        for sco in state.locations[loc].bikes.values():
+    for loc_id in state.get_location_ids():
+        words = [loc_id, str(len(state.locations[loc_id].bikes))]
+        for sco in state.locations[loc_id].bikes.values():
             bikeId = "ID-" + str(sco.bike_id)
             bikeBatteryStat = str(sco.battery)
             words.append(bikeId)

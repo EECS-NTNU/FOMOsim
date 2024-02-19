@@ -16,9 +16,9 @@ class State(LoadSave):
 
     def __init__(
         self,
-        stations = [],
-        areas = [],
-        vehicles = [],
+        stations = {},
+        areas = {},
+        vehicles = {},
         bikes_in_use = {}, # bikes not parked at any station
         mapdata=None,
         traveltime_matrix=None,
@@ -60,9 +60,9 @@ class State(LoadSave):
         self.mapdata = mapdata
 
     def sloppycopy(self, *args):
-        locationscopy = []
-        for s in self.locations:
-            locationscopy.append(s.sloppycopy())
+        locationscopy = {}
+        for id, loc in self.locations.items():
+            locationscopy[id] = loc
 
         new_state = State(
             locationscopy,
@@ -180,7 +180,7 @@ class State(LoadSave):
                                          move_probabilities = station["move_probabilities"],)
 
             else:
-                stationObj = sim.Station(station_id, #"S" + str(station_id),
+                stationObj = sim.Station("S" + str(station_id),
                                          capacity=capacity,
                                          original_id=original_id,
                                          center_location=position,
@@ -210,12 +210,24 @@ class State(LoadSave):
         if "map" in statedata:
             mapdata = (statedata["map"], statedata["map_boundingbox"])
 
+        traveltime_matrix = {} if statedata["traveltime"] else None
+        traveltime_matrix_stddev = {} if statedata["traveltime_stdev"] else None
+        traveltime_vehicle_matrix = {} if statedata["traveltime_vehicle"] else None
+        traveltime_vehicle_matrix_stddev = {} if statedata["traveltime_vehicle_stdev"] else None
+        for i in range(len(statedata["traveltime"])):
+            for y in range(len(statedata["traveltime"])):
+                traveltime_matrix[("S"+str(i), "S"+str(y))] = statedata["traveltime"][i][y]
+                traveltime_matrix_stddev[("S"+str(i), "S"+str(y))] = statedata["traveltime_stdev"][i][y]
+                traveltime_vehicle_matrix[("S"+str(i), "S"+str(y))] = statedata["traveltime_vehicle"][i][y]
+                if statedata["traveltime_vehicle_stdev"]:
+                    traveltime_vehicle_matrix_stddev[("S"+str(i), "S"+str(y))] = statedata["traveltime_vehicle_stdev"][i][y]
+
         state = State(stations,
                       mapdata = mapdata,
-                      traveltime_matrix=statedata["traveltime"],
-                      traveltime_matrix_stddev=statedata["traveltime_stdev"],
-                      traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
-                      traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"])
+                      traveltime_matrix=traveltime_matrix,
+                      traveltime_matrix_stddev=traveltime_matrix_stddev,
+                      traveltime_vehicle_matrix=traveltime_vehicle_matrix,
+                      traveltime_vehicle_matrix_stddev=traveltime_vehicle_matrix_stddev)
         
         neighbor_dict = state.read_neighboring_stations_from_file()
         for station in stations:
@@ -224,17 +236,14 @@ class State(LoadSave):
         return state
 
     def calculate_traveltime(self, speed):
-        traveltime_matrix = []
-        for location in self.locations:
-            neighbour_traveltime = []
-            for neighbour in self.locations:
-                neighbour_traveltime.append((location.distance_to(*neighbour.get_location()) / speed)*60) #multiplied by 60 to get minutes
-            traveltime_matrix.append(neighbour_traveltime)
-        
+        traveltime_matrix = {}
+        for location in self.get_locations():
+            for neighbour in self.get_locations():
+                traveltime_matrix[(location.location_id, neighbour.location_id)] = (location.distance_to(*neighbour.get_location()) / speed)*60 #multiplied by 60 to get minutes
         return traveltime_matrix
 
     def set_stations(self, locations):
-        self.locations = locations
+        self.locations = {location.location_id: location for location in locations}
         self.stations = { station.location_id : station for station in locations }
         self.depots = { station.location_id : station for station in locations if isinstance(station, sim.Depot) }
 
@@ -245,15 +254,14 @@ class State(LoadSave):
     def set_vehicles(self, policies):
         self.vehicles = []
         for vehicle_id, policy in enumerate(policies):
-            self.vehicles.append(sim.Vehicle(vehicle_id, self.locations[0], policy, 
-                                             VEHICLE_BATTERY_INVENTORY, VEHICLE_BIKE_INVENTORY))
+            self.vehicles.append(sim.Vehicle(vehicle_id, self.locations["S0"], policy, VEHICLE_BATTERY_INVENTORY, VEHICLE_BIKE_INVENTORY))
 
     def set_move_probabilities(self, move_probabilities):
-        for st in self.locations:
+        for st in self.get_locations():
             st.move_probabilities = move_probabilities[st.location_id]
 
     def set_target_state(self, target_state):
-        for st in self.locations:
+        for st in self.get_locations():
             st.target_state = target_state[st.location_id]
 
     def get_station_by_lat_lon(self, lat: float, lon: float):
@@ -279,14 +287,14 @@ class State(LoadSave):
     # parked bikes
     def get_bikes(self):
         all_bikes = []
-        for station in self.stations.values():
+        for station in self.get_locations():
             all_bikes.extend(station.get_bikes())
         return all_bikes
 
     # parked and in-use bikes
     def get_all_bikes(self):
         all_bikes = []
-        for station in self.locations:
+        for station in self.get_locations():
             all_bikes.extend(station.get_bikes())
         all_bikes.extend(self.bikes_in_use.values())
         for vehicle in self.vehicles:
@@ -297,23 +305,23 @@ class State(LoadSave):
     # parked bikes with usable battery
     def get_num_available_bikes(self):
         num = 0
-        for station in self.locations:
+        for station in self.get_locations():
             num += len(station.get_available_bikes())
         return num
 
     def get_travel_time(self, start_location_id: int, end_location_id: int):
         if self.traveltime_matrix_stddev is not None:
-            return self.rng2.lognormal(self.traveltime_matrix[start_location_id][end_location_id],
-                                      self.traveltime_matrix_stddev[start_location_id][end_location_id])
+            return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)],
+                                      self.traveltime_matrix_stddev[(start_location_id, end_location_id)])
         else:
-            return self.traveltime_matrix[start_location_id][end_location_id]
+            return self.traveltime_matrix[(start_location_id, end_location_id)]
 
     def get_vehicle_travel_time(self, start_location_id: int, end_location_id: int):
         if self.traveltime_vehicle_matrix_stddev is not None:
-            return self.rng2.lognormal(self.traveltime_vehicle_matrix[start_location_id][end_location_id],
-                                self.traveltime_vehicle_matrix_stddev[start_location_id][end_location_id])
+            return self.rng2.lognormal(self.traveltime_vehicle_matrix[(start_location_id, end_location_id)],
+                                self.traveltime_vehicle_matrix_stddev[(start_location_id, end_location_id)])
         else:
-            return self.traveltime_vehicle_matrix[start_location_id][end_location_id]
+            return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
 
     def do_action(self, action, vehicle, time):
         """
@@ -373,9 +381,9 @@ class State(LoadSave):
 
     def __repr__(self):
         string = f"<State: {len(self.get_bikes())} bikes in {len(self.stations)} stations with {len(self.vehicles)} vehicles>\n"
-        for station in self.locations:
+        for station in self.get_locations():
             string += f"{str(station)}\n"
-        for vehicle in self.vehicles:
+        for vehicle in self.get_locations():
             string += f"{str(vehicle)}\n"
         string += f"In use: {len(self.bikes_in_use.values())}"
         return string
@@ -399,7 +407,7 @@ class State(LoadSave):
         """
         neighbours = [
             state_location
-            for state_location in self.locations
+            for state_location in self.get_locations()
             if state_location.location_id != location.location_id
             and state_location.location_id not in (exclude if exclude else [])
         ]
@@ -408,39 +416,33 @@ class State(LoadSave):
                 neighbours = sorted(
                     [
                         state_location
-                        for state_location in self.locations
+                        for state_location in self.get_locations()
                         if state_location.location_id != location.location_id
                         and state_location.location_id not in (exclude if exclude else [])
                         and state_location.spare_capacity() >= 1
                     ],
-                    key=lambda state_location: self.traveltime_matrix[location.location_id][
-                        state_location.location_id
-                    ],
+                    key=lambda state_location: self.traveltime_matrix[(location.location_id, state_location.location_id)],
                 )
             elif not_empty:
                 neighbours = sorted(
                     [
                         state_location
-                        for state_location in self.locations
+                        for state_location in self.get_locations()
                         if state_location.location_id != location.location_id
                         and state_location.location_id not in (exclude if exclude else [])
                         and len(state_location.get_available_bikes()) >= 1
                     ],
-                    key=lambda state_location: self.traveltime_matrix[location.location_id][
-                        state_location.location_id
-                    ],
+                    key=lambda state_location: self.traveltime_matrix[(location.location_id, state_location.location_id)],
                 )
             else:
                 neighbours = sorted(
                     [
                         state_location
-                        for state_location in self.locations
+                        for state_location in self.get_locations()
                         if state_location.location_id != location.location_id
                         and state_location.location_id not in (exclude if exclude else [])
                     ],
-                    key=lambda state_location: self.traveltime_matrix[location.location_id][
-                        state_location.location_id
-                    ],
+                    key=lambda state_location: self.traveltime_matrix[(location.location_id, state_location.location_id)],
                 )
 
         test = neighbours[:number_of_neighbours] if number_of_neighbours else neighbours
@@ -450,8 +452,14 @@ class State(LoadSave):
                 
         return neighbours[:number_of_neighbours] if number_of_neighbours else neighbours
 
-    def get_location_by_id(self, location_id: int):
+    def get_location_by_id(self, location_id):
         return self.locations[location_id]
+    
+    def get_location_ids(self):
+        return list(self.locations.keys())
+    
+    def get_locations(self):
+        return list(self.locations.values())
 
     def sample(self, sample_size: int):
         # Filter out bikes not in sample

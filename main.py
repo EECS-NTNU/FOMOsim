@@ -1,4 +1,3 @@
-#!/bin/python3
 """
 FOMO simulator example
 """

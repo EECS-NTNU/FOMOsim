@@ -318,7 +318,7 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
         for next_station in next_stations:
-            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.traveltime_vehicle_matrix[plan.plan[vehicle.vehicle_id][-1].station.location_id][next_station.location_id] + MINUTES_CONSTANT_PER_ACTION
+            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.traveltime_vehicle_matrix[(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_station.location_id)] + MINUTES_CONSTANT_PER_ACTION
             number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap = self.calculate_loading_quantities_and_swaps_pilot(vehicle, simul, next_station, arrival_time)
             new_visit = Visit(next_station, number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap, arrival_time, vehicle)
             visits.append(new_visit)
@@ -611,7 +611,7 @@ class Vindsetmo_dummy(Policy): #Add default values from seperate setting sheme
 
 
         for d in depots.values():
-            distance = (simul.state.traveltime_vehicle_matrix[vehicle.location.location_id][d.id]/60)*VEHICLE_SPEED
+            distance = (simul.state.traveltime_vehicle_matrix[(vehicle.location.location_id, d.id)]/60)*VEHICLE_SPEED
             if distance < closest_distance:
                 closest_distance = distance
                 closest_depot = d
