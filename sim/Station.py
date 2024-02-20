@@ -146,13 +146,14 @@ class Station(Location):
     def get_bike_from_id(self, bike_id):
         return self.bikes[bike_id]
     
-    def set_neighboring_stations(self, neighboring_stations_dict, stations_dict):
-        neighboring_stations_list = neighboring_stations_dict[int(self.location_id[1:])]
-        for loc_id in neighboring_stations_list:
-            if "D"+str(loc_id) in stations_dict:
-                self.neighboring_stations.append(stations_dict["D"+str(loc_id)])
-            else:
-                self.neighboring_stations.append(stations_dict["S"+str(loc_id)])
+    def set_neighboring_stations(self, neighboring_stations_dict, location_list):
+        """
+        Defines the list neighboring_stations consisting of Station-objects
+        """
+        self_index = location_list.index(self)
+        neighboring_stations_list = neighboring_stations_dict[self_index]
+        for index in neighboring_stations_list:
+            self.neighboring_stations.append(location_list[index])
         return None
 
     def __repr__(self):

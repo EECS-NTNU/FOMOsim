@@ -17,8 +17,6 @@ class State(LoadSave):
     def __init__(
         self,
         locations = {},
-        stations = {},
-        areas = {},
         vehicles = {},
         bikes_in_use = {}, # bikes not parked at any station
         mapdata=None,
@@ -45,7 +43,6 @@ class State(LoadSave):
         self.seed = seed
 
         self.set_locations(locations)
-
 
         self.traveltime_matrix = traveltime_matrix
         self.traveltime_matrix_stddev = traveltime_matrix_stddev
@@ -174,10 +171,13 @@ class State(LoadSave):
     @staticmethod
     def get_initial_sb_state(statedata):
 
-        stations = []
+        locations = []
+        num_stations = 0
+        num_depots = 0
 
-        id_counter = 0
-        for station_id, station in enumerate(statedata["stations"]):
+        num_ebikes = 0
+        num_bikes = 0
+        for station in statedata["stations"]:
             capacity = DEFAULT_STATION_CAPACITY
             if "capacity" in station:
                 capacity = station["capacity"]
@@ -199,7 +199,7 @@ class State(LoadSave):
                 depot_capacity = DEFAULT_DEPOT_CAPACITY
                 if "depot_capacity" in station:
                     depot_capacity = station["depot_capacity"]
-                stationObj = sim.Depot("S" + str(station_id),
+                stationObj = sim.Depot("D" + str(num_depots),
                                          capacity=capacity,
                                          depot_capacity= depot_capacity,
                                          original_id=original_id,
@@ -212,7 +212,7 @@ class State(LoadSave):
                                          move_probabilities = station["move_probabilities"],
                                          )
             else:
-                stationObj = sim.Station("S" + str(station_id),
+                stationObj = sim.Station("S" + str(num_stations),
                                          capacity=capacity,
                                          original_id=original_id,
                                          center_location=position,
@@ -227,15 +227,20 @@ class State(LoadSave):
             # create bikes
             bikes = []
             for _ in range(station["num_bikes"]):
-                if statedata["bike_class"] == "EBike":
-                    bikes.append(sim.EBike(bike_id= "EB" + str(id_counter), battery=100)) # TODO legge til funksjonalitet for at start batteri nivå er satt i json
+                if statedata["bike_class"] == "EBike": # TODO har et system enten kun bare vanlig sykler eller el-sykler?
+                    bikes.append(sim.EBike(bike_id= "EB" + str(num_ebikes), battery=100)) # TODO legge til funksjonalitet for at start batteri nivå er satt i json
+                    num_ebikes += 1
                 else:
-                    bikes.append(sim.Bike(bike_id= "B"+str(id_counter)))
-                id_counter += 1
+                    bikes.append(sim.Bike(bike_id= "B"+str(num_bikes)))
+                    num_bikes += 1
 
             stationObj.set_bikes(bikes)
 
-            stations.append(stationObj)
+            if isinstance(stationObj, sim.Depot):
+                num_depots += 1
+            else:
+                num_stations += 1
+            locations.append(stationObj)
 
         # create state
         mapdata = None
@@ -249,15 +254,15 @@ class State(LoadSave):
         for i in range(len(statedata["traveltime"])):
             for y in range(len(statedata["traveltime"])):
                 if statedata["traveltime"]:
-                    traveltime_matrix[("S"+str(i), "S"+str(y))] = statedata["traveltime"][i][y]
+                    traveltime_matrix[(locations[i].location_id, locations[y].location_id)] = statedata["traveltime"][i][y]
                 if statedata["traveltime_stdev"]:
-                    traveltime_matrix_stddev[("S"+str(i), "S"+str(y))] = statedata["traveltime_stdev"][i][y]
+                    traveltime_matrix_stddev[(locations[i].location_id, locations[y].location_id)] = statedata["traveltime_stdev"][i][y]
                 if statedata["traveltime_vehicle"]:
-                    traveltime_vehicle_matrix[("S"+str(i), "S"+str(y))] = statedata["traveltime_vehicle"][i][y]
+                    traveltime_vehicle_matrix[(locations[i].location_id, locations[y].location_id)] = statedata["traveltime_vehicle"][i][y]
                 if statedata["traveltime_vehicle_stdev"]:
-                    traveltime_vehicle_matrix_stddev[("S"+str(i), "S"+str(y))] = statedata["traveltime_vehicle_stdev"][i][y]
+                    traveltime_vehicle_matrix_stddev[(locations[i].location_id, locations[y].location_id)] = statedata["traveltime_vehicle_stdev"][i][y]
 
-        state = State(locations= stations,
+        state = State(locations= locations,
                       mapdata = mapdata,
                       traveltime_matrix=traveltime_matrix,
                       traveltime_matrix_stddev=traveltime_matrix_stddev,
@@ -265,9 +270,8 @@ class State(LoadSave):
                       traveltime_vehicle_matrix_stddev=traveltime_vehicle_matrix_stddev)
         
         neighbor_dict = state.read_neighboring_stations_from_file()
-        for station in stations:
-            station.set_neighboring_stations(neighbor_dict, state.locations)
-
+        for station in num_stations:
+            station.set_neighboring_stations(neighbor_dict, locations)
         return state
 
     def calculate_traveltime(self, speed):
