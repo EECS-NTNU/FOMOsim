@@ -275,6 +275,7 @@ class State(LoadSave):
         neighbor_dict = state.read_neighboring_stations_from_file()
         for station in [location for location in locations if isinstance(location, sim.Station) and not isinstance(location, sim.Depot)]:
             station.set_neighboring_stations(neighbor_dict, locations)
+            station.set_move_probabilities(locations)
         return state
 
     def calculate_traveltime(self, speed):

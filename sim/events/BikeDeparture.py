@@ -33,8 +33,8 @@ class BikeDeparture(Event):
 
             if FULL_TRIP:
                 # get an arrival station from the leave prob distribution
-
-                p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
+                mp = departure_station.get_move_probabilities(world.state, world.day(), world.hour())
+                p = list(mp.values())
                 sum = 0.0
                 for i in range(len(p)):
                     sum += p[i]
@@ -44,7 +44,8 @@ class BikeDeparture(Event):
                         p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
                     else:
                         p_normalized.append(1/len(p))
-                arrival_station = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
+                arrival_station_id = world.state.rng.choice(list(mp.keys()), p = p_normalized)
+                arrival_station = world.state.get_location_by_id(arrival_station_id)
 
                 travel_time = world.state.get_travel_time(
                     departure_station.location_id,
@@ -75,7 +76,8 @@ class BikeDeparture(Event):
             if FULL_TRIP:
                 closest_neighbour_with_bikes = world.state.get_neighbouring_stations(departure_station,1,not_empty=True)[0]
                 distance = departure_station.distance_to(closest_neighbour_with_bikes.get_lat(), closest_neighbour_with_bikes.get_lon())
-                p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
+                mp=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
+                p = list(mp.values())
                 sum = 0.0
                 for i in range(len(p)):
                     sum += p[i]
@@ -89,7 +91,8 @@ class BikeDeparture(Event):
                     available_bikes = closest_neighbour_with_bikes.get_available_bikes()
                     bike=available_bikes.pop(0)
                     
-                    arrival_station = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
+                    arrival_station_id = world.state.rng.choice(list(mp.keys()), p = p_normalized)
+                    arrival_station = world.state.get_location_by_id(arrival_station_id)
 
                     travel_time = world.state.get_travel_time(
                         closest_neighbour_with_bikes.location_id,

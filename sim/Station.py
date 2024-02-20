@@ -85,9 +85,12 @@ class Station(Location):
         return self.target_state[day % 7][hour % 24]
 
     def get_move_probabilities(self, state, day, hour):
+        """
+        Returns a dictionary. Key = location_id, Value = probability to go there
+        """
         if self.move_probabilities is None:
             num_stations = len(state.stations)
-            mp = [1/num_stations for _ in range(num_stations)]
+            mp = {station_id: 1/num_stations for station_id in state.get_station_ids()}
             return mp
         return self.move_probabilities[day % 7][hour % 24]
 
@@ -155,6 +158,16 @@ class Station(Location):
         for index in neighboring_stations_list:
             self.neighboring_stations.append(location_list[index])
         return None
+    
+    def set_move_probabilities(self, station_list):
+        move_probabilities = [[{} for _ in range(24)] for _ in range(7)]
+        for day in range(7):
+            for hour in range(24):
+                for ind in range(len(self.move_probabilities[day][hour])):
+                    station_id = station_list[ind].location_id
+                    move_probabilities[day][hour][station_id] = self.move_probabilities[day][hour][ind]
+        
+        self.move_probabilities = move_probabilities
 
     def __repr__(self):
         return (
