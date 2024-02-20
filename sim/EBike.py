@@ -18,7 +18,7 @@ class EBike(Bike):
         self.battery -= travel_time * self.battery_change_per_minute
 
     def usable(self):
-      return self.battery >= BATTERY_LIMIT
+      return self.battery >= BATTERY_LIMIT_TO_USE
 
     def hasBattery(self):
       return True

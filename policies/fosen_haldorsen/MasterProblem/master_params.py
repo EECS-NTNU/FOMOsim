@@ -42,7 +42,7 @@ class MasterParameters:
         self.init_flat_bike_load = [0 for gen in self.route_pattern]
 
         self.init_charged_station_load = [len(station.get_available_bikes()) for station in station_objects]
-        self.init_flat_station_load = [len(station.get_swappable_bikes(settings.BATTERY_LIMIT)) for station in station_objects]
+        self.init_flat_station_load = [len(station.get_swappable_bikes(settings.BATTERY_LIMIT_TO_USE)) for station in station_objects]
 
         # self.print_master_params()
 

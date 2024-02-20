@@ -203,7 +203,7 @@ if __name__ == "__main__":
         discounting_factor = settings_discounting_factor,
         overflow_criteria = OVERFLOW_CRITERIA,
         starvation_criteria = STARVATION_CRITERIA,
-        upper_threshold = BATTERY_LEVEL_UPPER_BOUND
+        upper_threshold = BATTERY_LIMIT_TO_SWAP
     ))
     
     # list_of_timehorizons = settings_list_of_timehorizons

@@ -4,7 +4,7 @@
 
 # Battery level
 BATTERY_LEVEL_LOWER_BOUND = 20 #%
-BATTERY_LEVEL_UPPER_BOUND = 70 #%
+BATTERY_LIMIT_TO_SWAP = 70 #%
 
 
 # Trips

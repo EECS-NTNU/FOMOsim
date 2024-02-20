@@ -15,6 +15,7 @@ class Vehicle:
         policy,
         battery_inventory_capacity,
         bike_inventory_capacity,
+        is_station_based,
     ):
         
         self.vehicle_id = vehicle_id
@@ -24,6 +25,7 @@ class Vehicle:
         self.bike_inventory_capacity = bike_inventory_capacity
         self.location = start_location
         self.policy = policy
+        self.is_station_based = is_station_based
         self.eta = 0
         self.handling_time = MINUTES_PER_ACTION
         self.parking_time = MINUTES_CONSTANT_PER_ACTION
@@ -47,7 +49,7 @@ class Vehicle:
         else:
             self.bike_inventory[bike.bike_id] = bike
             if bike.hasBattery():
-                if bike.battery < 70 and self.battery_inventory > 0:
+                if bike.battery < BATTERY_LIMIT_TO_SWAP and self.battery_inventory > 0:
                     self.change_battery(bike)
             bike.remove_location()
 
@@ -80,7 +82,8 @@ class Vehicle:
     def get_max_number_of_swaps(self):
         return (
             min(
-                min(len(self.location.bikes), self.battery_inventory),
+                len(self.location.bikes), 
+                self.battery_inventory,
                 len(self.location.get_swappable_bikes()),
             )
             if not self.is_at_depot()

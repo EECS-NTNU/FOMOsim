@@ -26,7 +26,7 @@ def get_criticality_score(simul, location, vehicle, time_horizon, driving_time, 
     demand_per_hour = location.get_leave_intensity(simul.day(), simul.hour())
     vehicle_current_charged_bikes = len(vehicle.bike_inventory)
     current_charged_bikes = len(location.get_available_bikes())
-    current_flat_bikes = len(location.get_swappable_bikes(settings.BATTERY_LIMIT))
+    current_flat_bikes = len(location.get_swappable_bikes(settings.BATTERY_LIMIT_TO_USE))
     vehicle_current_station_current_charged_bikes = len(vehicle.location.get_available_bikes())
     get_outgoing_customer_rate = location.get_leave_intensity(simul.day(), simul.hour())
     available_parking = location.capacity - len(location.bikes)

@@ -24,6 +24,7 @@ class Location:
     def remove_location(self):
         self.lon = None
         self.lat = None
+        self.location_id = None
 
     def get_target_state(self, day, hour):
         return 0

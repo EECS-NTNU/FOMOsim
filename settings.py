@@ -14,7 +14,8 @@ SERVICE_TIME_TO = 20  # 20:00
 
 # Bike settings
 
-BATTERY_LIMIT = 20.0 # Battery limit for the bike to be up for rental
+BATTERY_LIMIT_TO_USE = 20.0 # Battery limit for the bike to be up for rental
+BATTERY_LIMIT_TO_SWAP = 70
 BIKE_SPEED = 7 # Average speed of a bike
 BATTERY_CHANGE_PER_MINUTE = 0.2 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
 
@@ -42,7 +43,6 @@ MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
 # HLV
 
 BATTERY_LEVEL_LOWER_BOUND = 20 #% not functionality if under
-BATTERY_LEVEL_UPPER_BOUND = 40 #% will change battery 
 
 AVERAGE_LENGHT_OF_TRIP = 10 #minutes -> to calculate average_discount
 
@@ -64,8 +64,6 @@ USE_BATTERY_CRITICALITY = True
 # SETTINGS_INSTANCE = 'BG_W35'
 SETTINGS_INSTANCE = 'OS_W31'
 # SETTINGS_INSTANCE = 'TD_W34_old'
-
-BATTERY_LIMIT_TO_SWAP = 70
 
 # settings_state = "instances/ebike/"
 settings_state = "instances/ebike_with_depot/"

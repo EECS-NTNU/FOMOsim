@@ -39,7 +39,7 @@ class Area(Location):
         self.arrive_intensities_stdev = arrive_intensities_stdev
         self.move_probabilities = move_probabilities
 
-        self.neighboring_areas = neighboring_areas # the area-hexes that border
+        self.neighboring_areas = neighboring_areas
 
         if target_state is not None:
             self.target_state = target_state

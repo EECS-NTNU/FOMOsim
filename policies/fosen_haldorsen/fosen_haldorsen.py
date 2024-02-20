@@ -67,7 +67,7 @@ class FosenHaldorsenPolicy(Policy):
         if not vehicle.is_at_depot():
             # convert from new sim
             vehicle_current_batteries = vehicle.battery_inventory
-            vehicle_current_station_current_flat_bikes = len(vehicle.location.get_swappable_bikes(settings.BATTERY_LIMIT))
+            vehicle_current_station_current_flat_bikes = len(vehicle.location.get_swappable_bikes(settings.BATTERY_LIMIT_TO_USE))
             vehicle_current_station_current_charged_bikes = len(vehicle.location.bikes) - vehicle_current_station_current_flat_bikes
             vehicle_available_bike_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
             vehicle_current_charged_bikes = len(vehicle.bike_inventory)

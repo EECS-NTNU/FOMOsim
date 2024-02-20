@@ -1,7 +1,7 @@
 from collections import deque
 
 import sim
-from settings import BATTERY_LIMIT
+from settings import BATTERY_LIMIT_TO_USE
 import abc
 
 
@@ -219,14 +219,14 @@ class ValueFunction(abc.ABC):
                         lambda scooter_id: state.locations[current_location]
                         .get_bike_from_id(scooter_id)
                         .battery
-                        > BATTERY_LIMIT
+                        > BATTERY_LIMIT_TO_USE
                     )
                 else:
                     available_filter = (
                         lambda scooter_id: state.locations[current_location]
                         .get_bike_from_id(scooter_id)
                         .battery
-                        < BATTERY_LIMIT
+                        < BATTERY_LIMIT_TO_USE
                     )
                 return [
                     scooter_id for scooter_id in ids if available_filter(scooter_id)
