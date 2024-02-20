@@ -9,9 +9,9 @@ class EScooter(Location):
     """
     E-bike class containing state and all operations necessary
     """
-    def __init__(self, lat: float = 0, lon: float = 0, location_id = 0, bike_id = 0, battery_level: float = 100.0):
+    def __init__(self, lat: float = 0, lon: float = 0, location_id = 0, bike_id = 0, battery: float = 100.0):
       super().__init__(lat, lon, location_id)
-      self.battery = battery_level
+      self.battery = battery
       self.metrics = Metric()
       self.bike_id = bike_id
 
@@ -21,9 +21,9 @@ class EScooter(Location):
       else:
           self.metrics.add_metric(simul, "travel_time", travel_time)
 
-    def __init__(self, lat = 0, lon = 0, battery_elvel = 100.0, bike_id = 0):
+    def __init__(self, lat = 0, lon = 0, battery = 100.0, bike_id = 0):
         super().__init__(lat, lon, bike_id)
-        self.battery = battery_elvel
+        self.battery = battery
         self.battery_change_per_minute = BATTERY_CHANGE_PER_MINUTE
 
     def travel(self, simul, travel_time, congested = False):

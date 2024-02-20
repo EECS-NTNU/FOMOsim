@@ -384,7 +384,7 @@ class PILOT(Policy):
             
             if best_plan == None:
                 tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
-                potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
+                potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
                 return rng_balanced.choice(potential_stations2).id 
@@ -424,7 +424,7 @@ class PILOT(Policy):
             return first_move
         else: 
             tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
-            potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
+            potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id
             

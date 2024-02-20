@@ -73,7 +73,7 @@ class BikeDeparture(Event):
 
         else:
             if FULL_TRIP:
-                closest_neighbour_with_bikes = world.state.get_neighbours(departure_station,1,not_empty=True)[0]
+                closest_neighbour_with_bikes = world.state.get_neighbouring_stations(departure_station,1,not_empty=True)[0]
                 distance = departure_station.distance_to(closest_neighbour_with_bikes.get_lat(), closest_neighbour_with_bikes.get_lon())
                 p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
                 sum = 0.0

@@ -8,9 +8,9 @@ class EvenlyDistributedTargetState(TargetState):
 
     def update_target_state(self, state, day, hour):
         num_bikes = len(state.get_all_bikes())
-        num_stations = len(state.locations)
+        num_stations = len(state.stations)
 
-        for st in state.get_locations():
+        for st in state.get_stations():
             if isinstance(st, sim.Depot):
                 st.target_state[day][hour] = 0
             else:

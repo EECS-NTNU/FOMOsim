@@ -537,7 +537,7 @@ class Only_Swap(Policy): #Add default values from seperate setting sheme
             
             if best_plan == None:
                 tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
-                potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
+                potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
                 return rng_balanced.choice(potential_stations2).id 
@@ -581,7 +581,7 @@ class Only_Swap(Policy): #Add default values from seperate setting sheme
             return first_move
         else: 
             tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
-            potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
+            potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id
         
@@ -695,7 +695,7 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
 def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bikes_at_vehicle, tabu_list):
 
     # Filter out stations in tabulist
-    potential_stations = [station for station in simul.state.locations if station.location_id not in tabu_list]
+    potential_stations = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]
     net_demands = {}
     target_states = {}
     potential_pickup_stations = []

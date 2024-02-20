@@ -56,7 +56,7 @@ class Vindsetmo_greedy(Policy): #Add default values from seperate setting sheme
         batteries_to_swap = []
 
         end_time = simul.time + self.time_horizon 
-        total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
+        total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.get_stations()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
 
         #########################################################################################
         #   Goes to depot if this action will lead to empty battery inventory                   #            
@@ -539,7 +539,7 @@ class Vindsetmo_greedy(Policy): #Add default values from seperate setting sheme
             
             if best_plan == None:
                 tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
-                potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
+                potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
                 return rng_balanced.choice(potential_stations2).id 
@@ -583,7 +583,7 @@ class Vindsetmo_greedy(Policy): #Add default values from seperate setting sheme
             return first_move
         else: 
             tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
-            potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
+            potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id
         
@@ -737,7 +737,7 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
 def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bikes_at_vehicle, tabu_list):
 
     # Filter out stations in tabulist
-    potential_stations = [station for station in simul.state.locations if station.location_id not in tabu_list]
+    potential_stations = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]
     net_demands = {}
     target_states = {}
     potential_pickup_stations = []

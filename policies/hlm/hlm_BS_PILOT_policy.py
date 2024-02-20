@@ -56,7 +56,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         batteries_to_swap = []
 
         end_time = simul.time + self.time_horizon 
-        total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
+        total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.get_stations()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
 
         #########################################################################################
         #   Goes to depot if this action will lead to empty battery inventory                   #            
@@ -64,7 +64,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 
         depots = simul.state.depots
 
-        if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
+        if vehicle.battery_inventory <= 0 and len(depots) > 0:
             next_station = self.find_closest_depot(simul, vehicle, depots)
             escooters_to_pickup = [escooter.bike_id for escooter in vehicle.location.bikes.values() if escooter.battery < BATTERY_LEVEL_LOWER_BOUND]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
@@ -94,6 +94,8 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 
         plan_dict = dict()
         for v in simul.state.vehicles:
+            # if isinstance(v.location, sim.Depot):
+            #     continue
             if v.eta == 0:
                 plan_dict[v.vehicle_id] = [Visit(v.location, number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap, simul.time, v)]
             else:
@@ -101,6 +103,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
                 plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_escooters_pickup), int(number_of_escooters_deliver), int(number_of_batteries_to_swap), v.eta, v)]
         
         tabu_list = [v.location.location_id for v in simul.state.vehicles]
+
         plan = Plan(plan_dict, tabu_list)
 
 
@@ -319,11 +322,11 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
     def generate_scenarioes(self, simul, number_of_scenarios, poisson = True): #normal_dist if poisson = False
         rng = np.random.default_rng(simul.state.seed) 
         scenarios = []
-        stations_dict = simul.state.stations 
+        locations_dict = simul.state.locations
         if number_of_scenarios < 1: #0, return expected net_demand values
             scenario_dict = dict() #station_id : net demand
-            for station_id in stations_dict:
-                net_demand =  calculate_net_demand(stations_dict[station_id], simul.time ,simul.day(),simul.hour(), 60) #returns net demand for next hour 
+            for station_id in locations_dict:
+                net_demand =  calculate_net_demand(locations_dict[station_id], simul.time ,simul.day(),simul.hour(), 60) #returns net demand for next hour 
                 scenario_dict[station_id] = net_demand
             scenarios.append(scenario_dict)
         
@@ -338,11 +341,11 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
                 minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
                 minutes_next_hour = planning_horizon - minutes_current_hour
                 
-                for station_id in stations_dict: 
-                    expected_arrive_intensity = 2*stations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour())
-                    expected_leave_intensity = 2*stations_dict[station_id].get_leave_intensity(simul.day(), simul.hour())
-                    expected_arrive_intensity_next = 2*stations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour()+1)
-                    expected_leave_intensity_next = 2*stations_dict[station_id].get_leave_intensity(simul.day(), simul.hour()+1)
+                for station_id in locations_dict: 
+                    expected_arrive_intensity = 2*locations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour())
+                    expected_leave_intensity = 2*locations_dict[station_id].get_leave_intensity(simul.day(), simul.hour())
+                    expected_arrive_intensity_next = 2*locations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour()+1)
+                    expected_leave_intensity_next = 2*locations_dict[station_id].get_leave_intensity(simul.day(), simul.hour()+1)
                     
                     if poisson:
                         net_demand_current = rng.poisson(expected_arrive_intensity) - rng.poisson(expected_leave_intensity)
@@ -350,10 +353,10 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
                         net_demand = (minutes_current_hour*net_demand_current + minutes_next_hour*net_demand_next)/planning_horizon
                     
                     else: #normal_dist
-                        arrive_intensity_stdev = stations_dict[station_id].get_arrive_intensity_stdev(simul.day(), simul.hour())
-                        leave_intensity_stdev = stations_dict[station_id].get_leave_intensity_stdev(simul.day(), simul.hour())
-                        arrive_intensity_stdev_next = stations_dict[station_id].get_arrive_intensity_stdev(simul.day(), simul.hour()+1)
-                        leave_intensity_stdev_next = stations_dict[station_id].get_leave_intensity_stdev(simul.day(), simul.hour()+1)
+                        arrive_intensity_stdev = locations_dict[station_id].get_arrive_intensity_stdev(simul.day(), simul.hour())
+                        leave_intensity_stdev = locations_dict[station_id].get_leave_intensity_stdev(simul.day(), simul.hour())
+                        arrive_intensity_stdev_next = locations_dict[station_id].get_arrive_intensity_stdev(simul.day(), simul.hour()+1)
+                        leave_intensity_stdev_next = locations_dict[station_id].get_leave_intensity_stdev(simul.day(), simul.hour()+1)
 
                         net_demand_current = rng.normal(expected_arrive_intensity, arrive_intensity_stdev) - rng.normal(expected_leave_intensity, leave_intensity_stdev)
                         net_demand_next = rng.normal(expected_arrive_intensity_next, arrive_intensity_stdev_next) - rng.normal(expected_leave_intensity_next, leave_intensity_stdev_next)
@@ -538,7 +541,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             
             if best_plan == None:
                 tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
-                potential_stations2 = [station for station in simul.state.stations if station.location_id not in tabu_list]    
+                potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
                 return rng_balanced.choice(potential_stations2).location_id 
@@ -582,7 +585,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             return first_move
         else: 
             tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
-            potential_stations2 = [station for station in simul.state.stations if station.location_id not in tabu_list]    
+            potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).location_id
         
@@ -593,7 +596,6 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
     def find_closest_depot(self, simul, vehicle, depots):
         closest_depot = None
         closest_distance = 100000000
-
 
         for d in depots.values():
             distance = (simul.state.traveltime_vehicle_matrix[(vehicle.location.location_id, d.location_id)]/60)*VEHICLE_SPEED
@@ -736,7 +738,7 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
 def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bikes_at_vehicle, tabu_list):
 
     # Filter out stations in tabulist
-    potential_stations = [station for station in simul.state.get_locations() if station.location_id not in tabu_list]
+    potential_stations = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]
     net_demands = {}
     target_states = {}
     potential_pickup_stations = []

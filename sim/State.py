@@ -98,6 +98,7 @@ class State(LoadSave):
         merged_state.set_locations(merged_state.locations.values()) # Update all dictionaries with locations (locations, stations, areas)
 
 
+
     @staticmethod
     def get_initial_ff_state(statedata):
         # create areas
@@ -128,7 +129,7 @@ class State(LoadSave):
 
             bikes = {}
             for battery in area["bikes"]:
-                bikes.append(sim.EScooter(bike_id = "ES"+str(id_counter), battery_level = battery))
+                bikes.append(sim.EScooter(bike_id = "ES"+str(id_counter), battery = battery))
                 id_counter += 1
 
             areaObj.set_bikes(bikes)
@@ -278,7 +279,7 @@ class State(LoadSave):
 
     def set_locations(self, locations):
         self.locations = {location.location_id: location for location in locations}
-        self.stations = { station.location_id : station for station in locations if isinstance(station, sim.Station)}# and not isinstance(station, sim.Depot)}
+        self.stations = { station.location_id : station for station in locations if isinstance(station, sim.Station) and not isinstance(station, sim.Depot)}
         self.depots = { station.location_id : station for station in locations if isinstance(station, sim.Depot) }
         self.areas = { area.location_id : area for area in locations if isinstance(area, sim.Area) }
 
@@ -433,9 +434,9 @@ class State(LoadSave):
         return string
 
     # TODO
-    def get_neighbours(
+    def get_neighbouring_stations(
         self,
-        location: sim.Location,
+        station: sim.Location,
         number_of_neighbours=None,
         is_sorted=True,
         exclude=None,
@@ -445,49 +446,49 @@ class State(LoadSave):
         """
         Get sorted list of stations closest to input station
         :param is_sorted: Boolean if the neighbours list should be sorted in a ascending order based on distance
-        :param location: location to find neighbours for
+        :param station: station to find neighbours for
         :param number_of_neighbours: number of neighbours to return
         :param exclude: neighbor ids to exclude
         :return:
         """
         neighbours = [
-            state_location
-            for state_location in self.get_locations()
-            if state_location.location_id != location.location_id
-            and state_location.location_id not in (exclude if exclude else [])
+            state_station
+            for state_station in self.get_stations()
+            if state_station.location_id != station.location_id
+            and state_station.location_id not in (exclude if exclude else [])
         ]
         if is_sorted:
             if not_full:
                 neighbours = sorted(
                     [
-                        state_location
-                        for state_location in self.get_locations()
-                        if state_location.location_id != location.location_id
-                        and state_location.location_id not in (exclude if exclude else [])
-                        and state_location.spare_capacity() >= 1
+                        state_station
+                        for state_station in self.get_stations()
+                        if state_station.location_id != station.location_id
+                        and state_station.location_id not in (exclude if exclude else [])
+                        and state_station.spare_capacity() >= 1
                     ],
-                    key=lambda state_location: self.traveltime_matrix[(location.location_id, state_location.location_id)],
+                    key=lambda state_station: self.traveltime_matrix[(station.location_id, state_station.location_id)],
                 )
             elif not_empty:
                 neighbours = sorted(
                     [
-                        state_location
-                        for state_location in self.get_locations()
-                        if state_location.location_id != location.location_id
-                        and state_location.location_id not in (exclude if exclude else [])
-                        and len(state_location.get_available_bikes()) >= 1
+                        state_station
+                        for state_station in self.get_stations()
+                        if state_station.location_id != station.location_id
+                        and state_station.location_id not in (exclude if exclude else [])
+                        and len(state_station.get_available_bikes()) >= 1
                     ],
-                    key=lambda state_location: self.traveltime_matrix[(location.location_id, state_location.location_id)],
+                    key=lambda state_station: self.traveltime_matrix[(station.location_id, state_station.location_id)],
                 )
             else:
                 neighbours = sorted(
                     [
-                        state_location
-                        for state_location in self.get_locations()
-                        if state_location.location_id != location.location_id
-                        and state_location.location_id not in (exclude if exclude else [])
+                        state_station
+                        for state_station in self.get_stations()
+                        if state_station.location_id != station.location_id
+                        and state_station.location_id not in (exclude if exclude else [])
                     ],
-                    key=lambda state_location: self.traveltime_matrix[(location.location_id, state_location.location_id)],
+                    key=lambda state_station: self.traveltime_matrix[(station.location_id, state_station.location_id)],
                 )
 
         test = neighbours[:number_of_neighbours] if number_of_neighbours else neighbours
