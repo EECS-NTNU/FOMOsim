@@ -4,15 +4,15 @@ from settings import *
 import numpy as np
 import random
 
-class BikeDeparture(Event):
+class EScooterDeparture(Event):
     """
     Event fired when a customer requests a trip from a given departure station. Creates a Lost Trip or Bike Arrival
     event based on the availability of the station
     """
 
-    def __init__(self, departure_time, departure_station_id):
+    def __init__(self, departure_time, departure_area_id):
         super().__init__(departure_time)
-        self.departure_station_id = departure_station_id
+        self.departure_area_id = departure_area_id
 
     def perform(self, world) -> None:
         """
@@ -22,19 +22,19 @@ class BikeDeparture(Event):
         super().perform(world)
 
         # get departure station
-        departure_station = world.state.get_location_by_id(self.departure_station_id)
+        departure_area = world.state.get_location_by_id(self.departure_area_id)
 
         # get all available bike in the station
-        available_bikes = departure_station.get_available_bikes()
+        available_escooters = departure_area.get_available_bikes()
 
         # if there are no more available bikes -> make a LostTrip event for that departure time
-        if len(available_bikes) > 0:
-            bike = available_bikes.pop(0)
+        if len(available_escooters) > 0:
+            bike = available_escooters.pop(0)
 
             if FULL_TRIP:
                 # get an arrival station from the leave prob distribution
 
-                p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
+                p=departure_area.get_move_probabilities(world.state, world.day(), world.hour())
                 sum = 0.0
                 for i in range(len(p)):
                     sum += p[i]
@@ -44,11 +44,11 @@ class BikeDeparture(Event):
                         p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
                     else:
                         p_normalized.append(1/len(p))
-                arrival_station = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
+                arrival_area = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
 
                 travel_time = world.state.get_travel_time(
-                    departure_station.location_id,
-                    arrival_station.location_id,
+                    departure_area.location_id,
+                    arrival_area.location_id,
                 )
 
                 # calculate arrival time
@@ -59,13 +59,13 @@ class BikeDeparture(Event):
                         self.time,
                         travel_time,
                         bike,
-                        arrival_station.location_id,
-                        departure_station.location_id,
+                        arrival_area.location_id,
+                        departure_area.location_id,
                     )
                 )
 
             # remove bike from the departure station
-            departure_station.remove_bike(bike)
+            departure_area.remove_bike(bike)
 
             world.state.bike_in_use(bike)
 
@@ -73,9 +73,9 @@ class BikeDeparture(Event):
 
         else:
             if FULL_TRIP:
-                closest_neighbour_with_bikes = world.state.get_neighbouring_stations(departure_station,1,not_empty=True)[0]
-                distance = departure_station.distance_to(closest_neighbour_with_bikes.get_lat(), closest_neighbour_with_bikes.get_lon())
-                p=departure_station.get_move_probabilities(world.state, world.day(), world.hour())
+                closest_neighbour_with_bikes = world.state.get_neighbouring_stations(departure_area,1,not_empty=True)[0]
+                distance = departure_area.distance_to(closest_neighbour_with_bikes.get_lat(), closest_neighbour_with_bikes.get_lon())
+                p=departure_area.get_move_probabilities(world.state, world.day(), world.hour())
                 sum = 0.0
                 for i in range(len(p)):
                     sum += p[i]
@@ -86,14 +86,14 @@ class BikeDeparture(Event):
                     else:
                         p_normalized.append(1/len(p))
                 if self.acceptance_rejection(distance):
-                    available_bikes = closest_neighbour_with_bikes.get_available_bikes()
-                    bike=available_bikes.pop(0)
+                    available_escooters = closest_neighbour_with_bikes.get_available_bikes()
+                    bike=available_escooters.pop(0)
                     
-                    arrival_station = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
+                    arrival_area = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
 
                     travel_time = world.state.get_travel_time(
                         closest_neighbour_with_bikes.location_id,
-                        arrival_station.location_id,) + world.state.get_travel_time(departure_station.location_id,
+                        arrival_area.location_id,) + world.state.get_travel_time(departure_area.location_id,
                         closest_neighbour_with_bikes.location_id)*(BIKE_SPEED/WALKING_SPEED) 
                     #total travel time, roaming for bike from departure station to neighbour + cycling to arrival station
 
@@ -105,7 +105,7 @@ class BikeDeparture(Event):
                             self.time,
                             travel_time,
                             bike,
-                            arrival_station.location_id,
+                            arrival_area.location_id,
                             closest_neighbour_with_bikes.location_id,
                         )
                     )
@@ -117,27 +117,27 @@ class BikeDeparture(Event):
 
                     world.metrics.add_aggregate_metric(world, "events", 2) #one roaming and an arrival
 
-                    departure_station.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
+                    departure_area.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
                     world.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
-                    departure_station.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
+                    departure_area.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
                     world.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
 
                 else:
-                    if departure_station.number_of_bikes() <= 0:
-                        departure_station.metrics.add_aggregate_metric(world, "starvations, no bikes", 1) 
+                    if departure_area.number_of_bikes() <= 0:
+                        departure_area.metrics.add_aggregate_metric(world, "starvations, no bikes", 1) 
                         world.metrics.add_aggregate_metric(world, "starvations, no bikes", 1)
                     else:
-                        departure_station.metrics.add_aggregate_metric(world, "starvations, no battery", 1) 
+                        departure_area.metrics.add_aggregate_metric(world, "starvations, no battery", 1) 
                         world.metrics.add_aggregate_metric(world, "starvations, no battery", 1)
 
                     world.metrics.add_aggregate_metric(world, "events", 1) #only one starvation --> lost demand and no arrival
-                    departure_station.metrics.add_aggregate_metric(world, "starvation", 1) 
+                    departure_area.metrics.add_aggregate_metric(world, "starvation", 1) 
                     world.metrics.add_aggregate_metric(world, "starvation", 1)
-                    departure_station.metrics.add_aggregate_metric(world, "Failed events", 1) 
+                    departure_area.metrics.add_aggregate_metric(world, "Failed events", 1) 
                     world.metrics.add_aggregate_metric(world, "Failed events", 1)
                     rng_not_in_use = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
 
-        departure_station.metrics.add_aggregate_metric(world, "trips", 1)
+        departure_area.metrics.add_aggregate_metric(world, "trips", 1)
         world.metrics.add_aggregate_metric(world, "trips", 1)
 
     def __repr__(self):

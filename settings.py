@@ -4,25 +4,24 @@ SIM SETTINGS
 
 # Vehicle settings
 
-VEHICLE_BATTERY_INVENTORY = 150 
-VEHICLE_BIKE_INVENTORY = 20
-VEHICLE_SPEED = 15
-MINUTES_PER_ACTION = 0.5
-MINUTES_CONSTANT_PER_ACTION = 1
-SERVICE_TIME_FROM = 6 #06:00
-SERVICE_TIME_TO = 20  #20=20:00
+VEHICLE_BATTERY_INVENTORY = 150 # How many batteries can a vehicle hold?
+VEHICLE_BIKE_INVENTORY = 20 # How many bikes can be carried in a vehicle?
+VEHICLE_SPEED = 15 # Average speed of a vehicle? (km/h)
+MINUTES_PER_ACTION = 0.5 # Minutes to load/unload?
+MINUTES_CONSTANT_PER_ACTION = 1 # Constat time in addition (f.eks park the car and start again)
+SERVICE_TIME_FROM = 6 # 06:00
+SERVICE_TIME_TO = 20  # 20:00
 
 # Bike settings
 
-BATTERY_LIMIT = 20.0 # Should be the same as BATTERY_LEVEL_LOWER_BOUND
-BIKE_SPEED = 7 # default, normally calculated from input data
-BATTERY_CHANGE_PER_MINUTE = 0.2
+BATTERY_LIMIT = 20.0 # Battery limit for the bike to be up for rental
+BIKE_SPEED = 7 # Average speed of a bike
+BATTERY_CHANGE_PER_MINUTE = 0.2 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
 
 # Depot settings
-
-DEFAULT_DEPOT_CAPACITY = 1000
-CHARGE_TIME_PER_BATTERY = 60
-SWAP_TIME_PER_BATTERY = 0.2
+DEFAULT_DEPOT_CAPACITY = 1000 # How many bikes can be parked at depot?
+CHARGE_TIME_PER_BATTERY = 60 # How long does it take for a battery to charge fully in minutes?
+SWAP_TIME_PER_BATTERY = 0.2 # How many minutes does it take to change out the inventory for each battery?
 CONSTANT_DEPOT_DURATION = 15
 
 # Station settings

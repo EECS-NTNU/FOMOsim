@@ -82,10 +82,15 @@ class State(LoadSave):
         return new_state
 
     @staticmethod
-    def get_initial_states(sb_statedata = None, ff_statedata = None):
+    def get_initial_state(sb_statedata = None, ff_statedata = None):
         # create stations
         sb_state = State.get_initial_sb_state(sb_statedata) if sb_statedata else None
-        ff_state = State.get_initial_ff_state(ff_statedata) if ff_statedata else None
+        ff_state = State.get_initial_ff_state(ff_statedata, num_depots = len(sb_state.depots)) if ff_statedata else None
+
+        if sb_state and not ff_state: # if only ff_state = None
+            return sb_state
+        elif ff_state and not sb_state: # if only sb_state = None
+            return ff_state
 
         # Add sb locations to ff state
         merged_state = ff_state
@@ -97,13 +102,12 @@ class State(LoadSave):
 
 
     @staticmethod
-    def get_initial_ff_state(statedata):
+    def get_initial_ff_state(statedata, num_depots = 0):
         # create areas
         areas = []
 
         id_counter = 0
         for area_id, area in enumerate(statedata["areas"]):
-            capacity = float('inf') # TODO trenger vi denne?
 
             center_position = None
             if "center_location" in area:
@@ -116,7 +120,6 @@ class State(LoadSave):
             areaObj = sim.Area("A" + str(area_id),
                                border_vertices,
                                center_location = center_position,
-                               capacity = capacity,
                                leave_intensities = area["leave_intensities"],
                                leave_intensities_stdev = area["leave_intensities_stdev"],
                                arrive_intensities = area["arrive_intensities"],
@@ -134,7 +137,8 @@ class State(LoadSave):
             areas.append(areaObj)
 
         # TODO - hvordan skal disse se ut?
-        for depot_id, depot in enumerate(statedata["depots"]):
+        for depot in statedata["depots"]:
+            depotObj = sim.Depot(num_depots)
             pass
 
         # TODO - dette må sikkert fikses
@@ -143,7 +147,7 @@ class State(LoadSave):
             mapdata = (statedata["map"], statedata["map_boundingbox"])
 
         # TODO Skal vi ha travel_matrix?
-        state = State(areas = areas,
+        state = State(locations = areas,
                       mapdata = mapdata,
                       traveltime_matrix=statedata["traveltime"],
                       traveltime_matrix_stddev=statedata["traveltime_stdev"],
@@ -152,14 +156,14 @@ class State(LoadSave):
         
         # Må nok testes
         vertex_to_area = {}
-        for area_id, area in areas.items():
+        for area_id, area in state.areas.items():
             for vertex in area.border_vertices:
                 if vertex not in vertex_to_area:
                     vertex_to_area[vertex] = [area]
                 else:
                     vertex_to_area[vertex].append(area)
 
-        for area_id, area in areas.items():
+        for area_id, area in state.areas.items():
             neighbors = set()
             for vertex in area.border_vertices:
                 neighbors.update(vertex_to_area[vertex])
@@ -170,7 +174,6 @@ class State(LoadSave):
 
     @staticmethod
     def get_initial_sb_state(statedata):
-
         locations = []
         num_stations = 0
         num_depots = 0
@@ -270,7 +273,7 @@ class State(LoadSave):
                       traveltime_vehicle_matrix_stddev=traveltime_vehicle_matrix_stddev)
         
         neighbor_dict = state.read_neighboring_stations_from_file()
-        for station in num_stations:
+        for station in [location for location in locations if isinstance(location, sim.Station) and not isinstance(location, sim.Depot)]:
             station.set_neighboring_stations(neighbor_dict, locations)
         return state
 
@@ -357,14 +360,14 @@ class State(LoadSave):
             num += len(area.get_available_bikes())
         return num
 
-    def get_travel_time(self, start_location_id: int, end_location_id: int):
+    def get_travel_time(self, start_location_id, end_location_id):
         if self.traveltime_matrix_stddev is not None:
             return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)],
                                       self.traveltime_matrix_stddev[(start_location_id, end_location_id)])
         else:
             return self.traveltime_matrix[(start_location_id, end_location_id)]
 
-    def get_vehicle_travel_time(self, start_location_id: int, end_location_id: int):
+    def get_vehicle_travel_time(self, start_location_id, end_location_id):
         if self.traveltime_vehicle_matrix_stddev is not None:
             return self.rng2.lognormal(self.traveltime_vehicle_matrix[(start_location_id, end_location_id)],
                                 self.traveltime_vehicle_matrix_stddev[(start_location_id, end_location_id)])

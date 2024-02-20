@@ -123,12 +123,6 @@ class Area(Location):
     def get_bike_from_id(self, bike_id):
         return self.bikes[bike_id]
     
-    def set_neighboring_stations(self, neighboring_stations_dict, stations_dict):
-        neighboring_stations_list = neighboring_stations_dict[self.location_id]
-        for loc_id in neighboring_stations_list:
-            self.neighboring_stations.append(stations_dict[loc_id])
-        return None
-
     def __repr__(self):
         return (
             f"<Station {self.location_id}: {len(self.bikes)} bikes>"

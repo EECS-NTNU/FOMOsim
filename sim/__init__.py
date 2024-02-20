@@ -15,3 +15,5 @@ from .events.GenerateBikeTrips import GenerateBikeTrips
 from .State import State
 from .Area import Area
 from .EScooter import EScooter
+from .events.EScooterDeparture import EScooterDeparture
+from .events.EScooterArrival import EScooterArrival

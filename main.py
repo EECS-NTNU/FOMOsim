@@ -38,7 +38,7 @@ def main():
     #                                      week=34)
 
     # the following is for reading a precalculated initial state from a json file
-    state = read_initial_state("instances/ebike_with_depot/"+INSTANCE)
+    state = read_initial_state(sb_jsonFilename = "instances/ebike_with_depot/"+INSTANCE)
 
     state.set_seed(1)
 
@@ -83,7 +83,7 @@ def main():
     )
     simulator.run()
 
-    # # Output to console
+    # Output to console
     print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
@@ -98,7 +98,7 @@ def main():
     # results_visualizer.visualize_average_roaming_distances()
     # results_visualizer.visualize_share_of_events()
 
-    # #If comparissons between roaming=True and roaming=False: 
+# If comparissons between roaming=True and roaming=False: 
     # print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
     # print(f"Different pickup quantities = {simulator.metrics.get_aggregate_value('different_pickup_quantity')}")
     # print(f"Different deliver quantities = {simulator.metrics.get_aggregate_value('different_deliver_quantity')}")
@@ -110,7 +110,7 @@ def main():
 
     # output.write_csv(simulator, "output.csv", hourly = False)
 
-    # # Plot to screen
+    # Plot to screen
 
     # output.visualize([simulator.metrics], metric="trips")
     # output.visualize([simulator.metrics], metric="starvation")
@@ -121,7 +121,7 @@ def main():
     # output.visualize([simulator.metrics], metric="roaming distance for bikes")
     # output.visualize([simulator.metrics], metric="roaming distance for locks")
 
-# #If comparissons between roaming=True and roaming=False : 
+# If comparissons between roaming=True and roaming=False : 
     # output.visualize([simulator.metrics], metric="different_station_choice")
     # output.visualize([simulator.metrics], metric="different_pickup_quantity")
     # output.visualize([simulator.metrics], metric="different_deliver_quantity")
@@ -129,9 +129,9 @@ def main():
     
     
 # show travel times for a given bike
-    bikes = simulator.state.get_all_bikes()
-    bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
-    print(f"Bike {bikes[11].bike_id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
+    # bikes = simulator.state.get_all_bikes()
+    # bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
+    # print(f"Bike {bikes[11].bike_id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
     # output.visualize([bikes[11].metrics], metric="travel_time")
     # output.visualize([bikes[11].metrics], metric="travel_time_congested")
 

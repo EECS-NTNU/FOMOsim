@@ -52,7 +52,7 @@ class Vehicle:
                     self.change_battery(bike)
             bike.remove_location()
 
-    def drop_off(self, bike_id: int):
+    def drop_off(self, bike_id):
         bike = self.bike_inventory[bike_id]
         del self.bike_inventory[bike_id]
         return bike
