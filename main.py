@@ -92,11 +92,11 @@ def main():
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
     print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
     
-    results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
-    results_visualizer.visualize_violations_and_roaming()
-    results_visualizer.visualize_total_roaming_distances()
-    results_visualizer.visualize_average_roaming_distances()
-    results_visualizer.visualize_share_of_events()
+    # results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
+    # results_visualizer.visualize_violations_and_roaming()
+    # results_visualizer.visualize_total_roaming_distances()
+    # results_visualizer.visualize_average_roaming_distances()
+    # results_visualizer.visualize_share_of_events()
 
     # #If comparissons between roaming=True and roaming=False: 
     # print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
@@ -112,20 +112,20 @@ def main():
 
     # # Plot to screen
 
-    output.visualize([simulator.metrics], metric="trips")
-    output.visualize([simulator.metrics], metric="starvation")
-    output.visualize([simulator.metrics], metric="congestion")
-    output.visualize_heatmap([simulator], metric="trips")
+#     output.visualize([simulator.metrics], metric="trips")
+#     output.visualize([simulator.metrics], metric="starvation")
+#     output.visualize([simulator.metrics], metric="congestion")
+#     output.visualize_heatmap([simulator], metric="trips")
     
-    output.visualize([simulator.metrics], metric="roaming for bikes")
-    output.visualize([simulator.metrics], metric="roaming distance for bikes")
-    output.visualize([simulator.metrics], metric="roaming distance for locks")
+#     output.visualize([simulator.metrics], metric="roaming for bikes")
+#     output.visualize([simulator.metrics], metric="roaming distance for bikes")
+#     output.visualize([simulator.metrics], metric="roaming distance for locks")
 
-# #If comparissons between roaming=True and roaming=False : 
-    output.visualize([simulator.metrics], metric="different_station_choice")
-    output.visualize([simulator.metrics], metric="different_pickup_quantity")
-    output.visualize([simulator.metrics], metric="different_deliver_quantity")
-    output.visualize([simulator.metrics], metric="number_of_subproblems")
+# # #If comparissons between roaming=True and roaming=False : 
+#     output.visualize([simulator.metrics], metric="different_station_choice")
+#     output.visualize([simulator.metrics], metric="different_pickup_quantity")
+#     output.visualize([simulator.metrics], metric="different_deliver_quantity")
+#     output.visualize([simulator.metrics], metric="number_of_subproblems")
     
     
 # show travel times for a given bike

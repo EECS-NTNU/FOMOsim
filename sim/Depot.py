@@ -39,7 +39,7 @@ class Depot(Station):
 
     def sloppycopy(self, *args):
         return Depot(
-            self.id,
+            self.location_id,
             self.depot_capacity,
             list(copy.deepcopy(self.bikes).values()),
             leave_intensities=self.leave_intensities,
@@ -65,7 +65,7 @@ class Depot(Station):
 
         if number_of_battery_to_change > self.battery_inventory:
             raise ValueError(
-                f"Depot has only {self.battery_inventory} batteries available. "
+                f"Depot has only {self.battery_inventory} batteries available."
                 f"Vehicle tried to swap {number_of_battery_to_change}"
             )
 

@@ -85,18 +85,19 @@ class State(LoadSave):
         return new_state
 
     @staticmethod
-    def get_initial_states(sb_statedata = None, ff_statedata = None):
+    def get_initial_state(sb_statedata = None, ff_statedata = None):
         # create stations
         sb_state = State.get_initial_sb_state(sb_statedata) if sb_statedata else None
         ff_state = State.get_initial_ff_state(ff_statedata) if ff_statedata else None
 
-        # Add sb locations to ff state
-        merged_state = ff_state
+        # Add sb locations to ff state, and thus all the bikes
+        merged_state = ff_state.sloppycopy()
         for location_id, location in sb_state.locations.keys():
             if location_id not in ff_state.get_location_ids(): #Should not be a problem since all stations are marked with S and areas are marked with A. Might have to change for Depots
                 merged_state.locations[location_id] = location
         merged_state.set_locations(merged_state.locations.values()) # Update all dictionaries with locations (locations, stations, areas)
 
+        merged_state.vehicles.extend(sb_state.vehicles)
 
     @staticmethod
     def get_initial_ff_state(statedata):
