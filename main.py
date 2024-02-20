@@ -112,6 +112,7 @@ def main():
 
     # Plot to screen
 
+<<<<<<< HEAD
     # output.visualize([simulator.metrics], metric="trips")
     # output.visualize([simulator.metrics], metric="starvation")
     # output.visualize([simulator.metrics], metric="congestion")
@@ -126,6 +127,22 @@ def main():
     # output.visualize([simulator.metrics], metric="different_pickup_quantity")
     # output.visualize([simulator.metrics], metric="different_deliver_quantity")
     # output.visualize([simulator.metrics], metric="number_of_subproblems")
+=======
+#     output.visualize([simulator.metrics], metric="trips")
+#     output.visualize([simulator.metrics], metric="starvation")
+#     output.visualize([simulator.metrics], metric="congestion")
+#     output.visualize_heatmap([simulator], metric="trips")
+    
+#     output.visualize([simulator.metrics], metric="roaming for bikes")
+#     output.visualize([simulator.metrics], metric="roaming distance for bikes")
+#     output.visualize([simulator.metrics], metric="roaming distance for locks")
+
+# # #If comparissons between roaming=True and roaming=False : 
+#     output.visualize([simulator.metrics], metric="different_station_choice")
+#     output.visualize([simulator.metrics], metric="different_pickup_quantity")
+#     output.visualize([simulator.metrics], metric="different_deliver_quantity")
+#     output.visualize([simulator.metrics], metric="number_of_subproblems")
+>>>>>>> 2a093c278de28462bd540ad0fc0cabe955eeb73f
     
     
 # show travel times for a given bike
