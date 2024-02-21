@@ -74,7 +74,7 @@ class State(LoadSave):
             rng = self.rng,
         )
 
-        for vehicle in new_state.vehicles:
+        for vehicle in new_state.get_vehicles():
             vehicle.location = new_state.get_location_by_id(
                 vehicle.location.location_id
             )
@@ -98,8 +98,6 @@ class State(LoadSave):
             if location_id not in ff_state.get_location_ids(): #Should not be a problem since all stations are marked with S and areas are marked with A. Might have to change for Depots
                 merged_state.locations[location_id] = location
         merged_state.set_locations(merged_state.locations.values()) # Update all dictionaries with locations (locations, stations, areas)
-
-        merged_state.vehicles.extend(sb_state.vehicles)
 
 
     @staticmethod
@@ -204,16 +202,11 @@ class State(LoadSave):
                 if "depot_capacity" in station:
                     depot_capacity = station["depot_capacity"]
                 stationObj = sim.Depot("D" + str(num_depots),
+                                         is_station_based = True,
                                          capacity=capacity,
                                          depot_capacity= depot_capacity,
                                          original_id=original_id,
                                          center_location=position,
-                                         charging_station=charging_station,
-                                         leave_intensities = station["leave_intensities"],
-                                         leave_intensities_stdev = station["leave_intensities_stdev"],
-                                         arrive_intensities = station["arrive_intensities"],
-                                         arrive_intensities_stdev = station["arrive_intensities_stdev"],
-                                         move_probabilities = station["move_probabilities"],
                                          )
             else:
                 stationObj = sim.Station("S" + str(num_stations),
@@ -297,24 +290,24 @@ class State(LoadSave):
         self.seed = seed
 
     def set_sb_vehicles(self, policies):
-        self.vehicles = []
-        for vehicle_id, policy in enumerate(policies):
-            self.vehicles.append(sim.Vehicle(vehicle_id, 
+        for policy in policies:
+            num_vehicles = len(self.vehicles)
+            self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
                                              start_location = self.locations["S0"], 
                                              policy = policy, 
                                              battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
                                              bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
-                                             is_station_based = True))
+                                             is_station_based = True)
 
     def set_ff_vehicles(self, policies):
-        self.vehicles = []
-        for vehicle_id, policy in enumerate(policies):
-            self.vehicles.append(sim.Vehicle(vehicle_id, 
+        for policy in policies:
+            num_vehicles = len(self.vehicles)
+            self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
                                              start_location = self.locations["S0"], 
                                              policy = policy, 
                                              battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
                                              bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
-                                             is_station_based = False))
+                                             is_station_based = False)
             
     def set_move_probabilities(self, move_probabilities):
         for st in self.get_locations():
@@ -332,7 +325,7 @@ class State(LoadSave):
         """
         return min(list(self.stations.values()), key=lambda station: station.distance_to(lat, lon))
 
-    def bike_in_use(self, bike):
+    def set_bike_in_use(self, bike):
         self.bikes_in_use[bike.bike_id] = bike
 
     def remove_used_bike(self, bike):
@@ -346,23 +339,35 @@ class State(LoadSave):
             return bike
 
     # parked bikes
-    def get_bikes(self):
+    def get_parked_bikes(self):
         all_bikes = []
-        for station in self.get_locations():
+        for location in self.get_locations():
+            all_bikes.extend(location.get_bikes())
+        return all_bikes
+    
+    def get_parked_sb_bikes(self):
+        all_bikes = []
+        for station in self.get_stations():
             all_bikes.extend(station.get_bikes())
+        return all_bikes
+    
+    def get_parked_ff_bikes(self):
+        all_bikes = []
+        for area in self.get_areas():
+            all_bikes.extend(area.get_bikes())
         return all_bikes
 
     # parked and in-use bikes
     def get_all_bikes(self):
         all_bikes = []
-        for station in self.get_locations():
-            all_bikes.extend(station.get_bikes())
+        for location in self.get_locations():
+            all_bikes.extend(location.get_bikes())
         all_bikes.extend(self.bikes_in_use.values())
-        for vehicle in self.vehicles:
+        for vehicle in self.get_vehicles():
             all_bikes.extend(vehicle.get_bike_inventory())
             
         return all_bikes
-
+    
     # parked bikes with usable battery
     def get_num_available_bikes(self):
         num = 0
@@ -449,7 +454,7 @@ class State(LoadSave):
         return refill_time
 
     def __repr__(self):
-        string = f"<State: {len(self.get_bikes())} bikes in {len(self.stations)} stations with {len(self.vehicles)} vehicles>\n"
+        string = f"<State: {len(self.get_parked_bikes())} bikes in {len(self.stations)} stations with {len(self.vehicles)} vehicles>\n"
         for station in self.get_locations():
             string += f"{str(station)}\n"
         for vehicle in self.get_locations():
@@ -549,11 +554,17 @@ class State(LoadSave):
     def get_stations(self):
         return list(self.stations.values())
     
+    def get_depot_ids(self):
+        return list(self.depots.keys())
+    
+    def get_depots(self):
+        return list(self.depots.values())
+    
     # TODO forstå denne
     def sample(self, sample_size: int):
         # Filter out bikes not in sample
         sampled_bike_ids = self.rng2.choice(
-            [bike.bike_id for bike in self.get_bikes()], sample_size, replace=False,
+            [bike.bike_id for bike in self.get_parked_bikes()], sample_size, replace=False,
         )
         for station in self.stations.values():
             station.set_bikes([
@@ -569,6 +580,25 @@ class State(LoadSave):
         :return: vehicle object
         """
         return self.vehicles[vehicle_id]
+    
+    def get_vehicles(self):
+        return list(self.vehicles.values())
+    
+    def get_sb_vehicles(self):
+        """
+        Returns the vehicle object in the state corresponding to the vehicle id input
+        :param vehicle_id: the id of the vehicle to fetch
+        :return: vehicle object
+        """
+        return [vehicle for vehicle in self.get_vehicles() if vehicle.is_station_based]
+    
+    def get_ff_vehicles(self):
+        """
+        Returns the vehicle object in the state corresponding to the vehicle id input
+        :param vehicle_id: the id of the vehicle to fetch
+        :return: vehicle object
+        """
+        return [vehicle for vehicle in self.get_vehicles() if not vehicle.is_station_based]
     
     # TODO Trenger vi denne, evt. hva gjør vi for FF?
     def read_neighboring_stations_from_file(self):

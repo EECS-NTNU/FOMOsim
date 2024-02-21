@@ -59,7 +59,7 @@ class Simulator(LoadSave):
         self.event_queue.append(sim.GenerateBikeTrips(start_time))
         self.event_queue.append(sim.GenerateEScooterTrips(start_time))
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
-        for vehicle in self.state.vehicles:
+        for vehicle in self.state.get_vehicles():
             self.event_queue.append(
                 sim.VehicleArrival(self.time, vehicle)
             )
@@ -81,7 +81,7 @@ class Simulator(LoadSave):
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
 
-        for vehicle in self.state.vehicles:
+        for vehicle in self.state.get_vehicles():
             vehicle.policy.init_sim(self)
 
     def __repr__(self):

@@ -66,7 +66,7 @@ class BikeDeparture(Event):
             # remove bike from the departure station
             departure_station.remove_bike(bike)
 
-            world.state.bike_in_use(bike)
+            world.state.set_bike_in_use(bike)
 
             world.metrics.add_aggregate_metric(world, "events", 2) #successfull pickup and an arrival
 
@@ -114,7 +114,7 @@ class BikeDeparture(Event):
                     # remove bike from the new departure station
                     closest_neighbour_with_bikes.remove_bike(bike)
 
-                    world.state.bike_in_use(bike)
+                    world.state.set_bike_in_use(bike)
 
                     world.metrics.add_aggregate_metric(world, "events", 2) #one roaming and an arrival
 

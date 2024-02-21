@@ -73,7 +73,7 @@ class EScooterArrival(Event):
                     )
 
                 else:
-                    world.state.bike_in_use(self.escooter)
+                    world.state.set_bike_in_use(self.escooter)
 
                 
                 distance = arrival_area.distance_to(next_location.get_lat(), next_location.get_lon())

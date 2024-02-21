@@ -36,14 +36,14 @@ class PILOT(Policy):
         
         
         plan_dict = dict()
-        for v in simul.state.vehicles:
+        for v in simul.state.get_vehicles():
             if v.eta == 0:
                 plan_dict[v.vehicle_id] = [Visit(v.location, number_of_bikes_to_pick_up, number_of_bikes_to_deliver, simul.time, v)]
             else:
                 number_of_bikes_to_pick_up, number_of_bikes_to_deliver = self.calculate_loading_quantities_pilot(v, len(v.get_bike_inventory()), simul, v.location, v.eta)
                 plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_bikes_to_pick_up), int(number_of_bikes_to_deliver), v.eta, v)]
         
-        tabu_list = [v.location.location_id for v in simul.state.vehicles]
+        tabu_list = [v.location.location_id for v in simul.state.get_vehicles()]
         
         plan = Plan(plan_dict, tabu_list)
     
@@ -396,7 +396,7 @@ class PILOT(Policy):
                     best_score = plan_scores[plan][scenario_id]
             
             if best_plan == None:
-                tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
+                tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
                 potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
@@ -436,7 +436,7 @@ class PILOT(Policy):
             first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             return first_move
         else: 
-            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
+            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
             potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id

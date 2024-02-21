@@ -120,7 +120,7 @@ class MILP_data():
                                                 self.neighboring_stations[station].append(candidate)
 
         def initialize_vehicles(self):
-                for vehicle in self.state.vehicles:
+                for vehicle in self.state.get_vehicles():
                         self.vehicles[vehicle.vehicle_id] = vehicle
 
 

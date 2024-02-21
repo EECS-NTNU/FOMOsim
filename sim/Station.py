@@ -22,7 +22,7 @@ class Station(Location):
         move_probabilities=None,
         average_number_of_bikes=None,
         target_state=None,
-        capacity=DEFAULT_STATION_CAPACITY,
+        capacity = DEFAULT_STATION_CAPACITY,
         original_id = None,
         charging_station = None, 
     ):
@@ -32,10 +32,10 @@ class Station(Location):
 
         self.set_bikes(bikes)
 
-        self.leave_intensities = leave_intensities
-        self.leave_intensities_stdev = leave_intensities_stdev
-        self.arrive_intensities = arrive_intensities
-        self.arrive_intensities_stdev = arrive_intensities_stdev
+        self.leave_intensities = leave_intensities if leave_intensities else [[0 for _ in range(24)] for _ in range(7)] 
+        self.leave_intensities_stdev = leave_intensities_stdev if leave_intensities_stdev else [[0 for _ in range(24)] for _ in range(7)] 
+        self.arrive_intensities = arrive_intensities if arrive_intensities else [[0 for _ in range(24)] for _ in range(7)] 
+        self.arrive_intensities_stdev = arrive_intensities_stdev if arrive_intensities_stdev else [[0 for _ in range(24)] for _ in range(7)] 
 
         self.move_probabilities = move_probabilities
 
@@ -130,7 +130,7 @@ class Station(Location):
         del self.bikes[bike.bike_id]
 
     def get_bikes(self):
-        return self.bikes.values()
+        return list(self.bikes.values())
 
     def get_available_bikes(self):
         return [

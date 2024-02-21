@@ -73,7 +73,7 @@ class BikeArrival(Event):
                     )
 
                 else:
-                    world.state.bike_in_use(self.bike)
+                    world.state.set_bike_in_use(self.bike)
 
                 
                 distance = arrival_station.distance_to(next_station.get_lat(), next_station.get_lon())

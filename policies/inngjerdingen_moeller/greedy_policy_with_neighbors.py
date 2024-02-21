@@ -41,7 +41,7 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         ##########################################
         #               WHERE TO GO              #
         ##########################################
-        tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
+        tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()] #do not go where other vehicles are (going)
         potential_stations = find_potential_stations(simul, self.cutoff_vehicle, self.cutoff_station, vehicle, bikes_at_vehicle_after_rebalancing, tabu_list)
 
         #calculate criticalities for potential stations, sorted by criticality

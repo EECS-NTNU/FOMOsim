@@ -93,14 +93,14 @@ class Dual_Policy(Policy): #Add default values from seperate setting sheme
         ######################################################################################################################
 
         plan_dict = dict()
-        for v in simul.state.vehicles:
+        for v in simul.state.get_vehicles():
             if v.eta == 0:
                 plan_dict[v.vehicle_id] = [Visit(v.location, number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap, simul.time, v)]
             else:
                 number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap = self.calculate_loading_quantities_and_swaps_pilot(v, simul, v.location, v.eta) #I think eta is estimated time of arrival
                 plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_escooters_pickup), int(number_of_escooters_deliver), int(number_of_batteries_to_swap), v.eta, v)]
         
-        tabu_list = [v.location.location_id for v in simul.state.vehicles]
+        tabu_list = [v.location.location_id for v in simul.state.get_vehicles()]
         plan = Plan(plan_dict, tabu_list)
 
 
@@ -537,7 +537,7 @@ class Dual_Policy(Policy): #Add default values from seperate setting sheme
                     best_score = plan_scores[plan][scenario_id]
             
             if best_plan == None:
-                tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
+                tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
                 potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
@@ -581,7 +581,7 @@ class Dual_Policy(Policy): #Add default values from seperate setting sheme
             first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             return first_move
         else: 
-            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
+            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
             potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).id

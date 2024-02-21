@@ -8,9 +8,9 @@ class Action:
 
     def __init__(
         self,
-        battery_swaps: [int],
-        pick_ups: [int],
-        delivery_bikes: [int],
+        battery_swaps,
+        pick_ups,
+        delivery_bikes,
         next_location,
     ):
         """

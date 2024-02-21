@@ -526,7 +526,7 @@ class Greedy_Policy(Policy): #Add default values from seperate setting sheme
     #                 best_score = plan_scores[plan][scenario_id]
             
     #         if best_plan == None:
-    #             tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
+    #             tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
     #             potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
     #             rng_balanced = np.random.default_rng(None)
     #             print("lunsj!")
@@ -570,7 +570,7 @@ class Greedy_Policy(Policy): #Add default values from seperate setting sheme
     #         first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
     #         return first_move
     #     else: 
-    #         tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles]
+    #         tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
     #         potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
     #         rng_balanced = np.random.default_rng(None)
     #         return rng_balanced.choice(potential_stations2).id

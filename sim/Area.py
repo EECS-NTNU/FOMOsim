@@ -104,14 +104,14 @@ class Area(Location):
         del self.bikes[bike.bike_id]
 
     def get_bikes(self):
-        return self.bikes.values()
+        return list(self.bikes.values())
 
     def get_available_bikes(self):
         return [
             bike for bike in self.bikes.values() if bike.usable()
         ]
 
-    def get_swappable_bikes(self, battery_limit=70):
+    def get_swappable_bikes(self, battery_limit=BATTERY_LIMIT_TO_SWAP):
         """
         Filter out bikes with 100% battery and sort them by battery percentage
         """

@@ -12,6 +12,7 @@ class Depot(Station):
     def __init__(
         self,
         depot_id,
+        is_station_based,
         depot_capacity = DEFAULT_DEPOT_CAPACITY,
         bikes = [],
         leave_intensities=None,
@@ -22,7 +23,7 @@ class Depot(Station):
         move_probabilities=None,
         average_number_of_bikes=None,
         target_state=None,
-        capacity= 'inf',
+        capacity= DEFAULT_DEPOT_CAPACITY,
         original_id = None,
         charging_station = None,
     ):
@@ -32,6 +33,7 @@ class Depot(Station):
             capacity, original_id, charging_station
         )
 
+        self.is_station_based = is_station_based
         self.depot_capacity = depot_capacity
         self.battery_inventory = depot_capacity
         self.time = 0
@@ -41,6 +43,7 @@ class Depot(Station):
         return Depot(
             self.location_id,
             self.depot_capacity,
+            self.is_station_based,
             list(copy.deepcopy(self.bikes).values()),
             leave_intensities=self.leave_intensities,
             arrive_intensities=self.arrive_intensities,

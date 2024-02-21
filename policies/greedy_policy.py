@@ -105,7 +105,7 @@ class GreedyPolicy(Policy):
             next_location_id = list(simul.state.depots.values())[0].location_id  # TO DO: go to nearest depot, not just the first
         else:
             #FILTERING
-            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
+            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()] #do not go where other vehicles are (going)
             potential_stations = [station for station in simul.state.get_locations() if station.location_id not in tabu_list]
             
             net_demands = {station.location_id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
