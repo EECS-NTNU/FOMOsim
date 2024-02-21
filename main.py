@@ -22,7 +22,7 @@ from helpers import timeInMinutes
 
 START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(hours=120)
-INSTANCE = 'OS_W34'
+INSTANCE = 'TD_W34'
 WEEK = 34
 
 def main():

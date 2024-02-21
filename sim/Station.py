@@ -25,6 +25,7 @@ class Station(Location):
         capacity = DEFAULT_STATION_CAPACITY,
         original_id = None,
         charging_station = None, 
+        area = None
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(bikes)), station_id
@@ -32,6 +33,7 @@ class Station(Location):
 
         self.set_bikes(bikes)
 
+        self.area = area
         self.leave_intensities = leave_intensities if leave_intensities else [[0 for _ in range(24)] for _ in range(7)] 
         self.leave_intensities_stdev = leave_intensities_stdev if leave_intensities_stdev else [[0 for _ in range(24)] for _ in range(7)] 
         self.arrive_intensities = arrive_intensities if arrive_intensities else [[0 for _ in range(24)] for _ in range(7)] 

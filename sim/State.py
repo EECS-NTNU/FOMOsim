@@ -55,16 +55,22 @@ class State(LoadSave):
         if traveltime_vehicle_matrix is None:
             self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
 
+        if traveltime_matrix_stddev is None:
+            self.traveltime_matrix_stddev = {}
+            for matrix_key in self.traveltime_matrix.keys():
+                self.traveltime_matrix_stddev[matrix_key] = 0
+        
+        if traveltime_vehicle_matrix_stddev is None:
+            self.traveltime_vehicle_matrix_stddev = {}
+            for matrix_key in self.traveltime_vehicle_matrix.keys():
+                self.traveltime_vehicle_matrix_stddev[matrix_key] = 0
+
         self.mapdata = mapdata
 
     # TODO
     def sloppycopy(self, *args):
-        locationscopy = {}
-        for id, loc in self.locations.items():
-            locationscopy[id] = loc
-
         new_state = State(
-            locationscopy,
+            list(self.get_locations()),
             copy.deepcopy(self.vehicles),
             copy.deepcopy(self.bikes_in_use),
             traveltime_matrix = self.traveltime_matrix,
@@ -94,11 +100,22 @@ class State(LoadSave):
 
         # Add sb locations to ff state, and thus all the bikes
         merged_state = ff_state.sloppycopy()
-        for location_id, location in sb_state.locations.keys():
+        for location_id, location in sb_state.locations.items():
             if location_id not in ff_state.get_location_ids(): #Should not be a problem since all stations are marked with S and areas are marked with A. Might have to change for Depots
                 merged_state.locations[location_id] = location
         merged_state.set_locations(merged_state.locations.values()) # Update all dictionaries with locations (locations, stations, areas)
+        
+        for station in merged_state.get_stations():
+            area = merged_state.get_area_by_lat_lon(station.get_lat(), station.get_lon())
+            station.area = area.location_id
+            area.station = station.location_id
 
+        merged_state.traveltime_matrix.update(sb_state.traveltime_matrix)
+        merged_state.traveltime_matrix_stddev.update(sb_state.traveltime_matrix_stddev)
+        merged_state.traveltime_vehicle_matrix.update(sb_state.traveltime_vehicle_matrix)
+        merged_state.traveltime_vehicle_matrix_stddev.update(sb_state.traveltime_vehicle_matrix_stddev)
+
+        return merged_state
 
     @staticmethod
     def get_initial_ff_state(statedata, num_depots = 0):
@@ -109,26 +126,27 @@ class State(LoadSave):
         for area_id, area in enumerate(statedata["areas"]):
 
             center_position = None
-            if "center_location" in area:
-                center_position = area["center_location"] # (lat, lon)
+            if "location" in area:
+                center_position = area["location"] # (lat, lon)
             
             border_vertices = None
-            if "border_vertices" in area:
-                border_vertices = area["border_vertices"] # [(lat, lan), x7]
+            if "edges" in area:
+                edge_list = area["edges"] # [[lat, lan], x7]
+                border_vertices = [(edge[0], edge[1]) for edge in edge_list]
 
             areaObj = sim.Area("A" + str(area_id),
                                border_vertices,
                                center_location = center_position,
-                               leave_intensities = area["leave_intensities"],
-                               leave_intensities_stdev = area["leave_intensities_stdev"],
-                               arrive_intensities = area["arrive_intensities"],
-                               arrive_intensities_stdev = area["arrive_intensities_stdev"],
-                               move_probabilities = area["move_probabilities"]
+                            #    leave_intensities = area["leave_intensities"],
+                            #    leave_intensities_stdev = area["leave_intensities_stdev"],
+                            #    arrive_intensities = area["arrive_intensities"],
+                            #    arrive_intensities_stdev = area["arrive_intensities_stdev"],
+                            #    move_probabilities = area["move_probabilities"]
                                )
 
-            bikes = {}
-            for battery in area["bikes"]:
-                bikes.append(sim.EScooter(bike_id = "ES"+str(id_counter), battery = battery))
+            bikes = []
+            for battery in area["e_scooters"]:
+                bikes.append(sim.EScooter(*(center_position), location_id = areaObj.location_id, bike_id = "ES"+str(id_counter), battery = battery))
                 id_counter += 1
 
             areaObj.set_bikes(bikes)
@@ -136,9 +154,9 @@ class State(LoadSave):
             areas.append(areaObj)
 
         # TODO - hvordan skal disse se ut?
-        for depot in statedata["depots"]:
-            depotObj = sim.Depot(num_depots)
-            pass
+        # for depot in statedata["depots"]:
+        #     depotObj = sim.Depot(num_depots)
+        #     pass
 
         # TODO - dette må sikkert fikses
         mapdata = None
@@ -148,16 +166,17 @@ class State(LoadSave):
         # TODO Skal vi ha travel_matrix?
         state = State(locations = areas,
                       mapdata = mapdata,
-                      traveltime_matrix=statedata["traveltime"],
-                      traveltime_matrix_stddev=statedata["traveltime_stdev"],
-                      traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
-                      traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"])
+                    #   traveltime_matrix=statedata["traveltime"],
+                    #   traveltime_matrix_stddev=statedata["traveltime_stdev"],
+                    #   traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
+                    #   traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"]
+                      )
         
         # Må nok testes
         vertex_to_area = {}
         for area_id, area in state.areas.items():
             for vertex in area.border_vertices:
-                if vertex not in vertex_to_area:
+                if vertex not in vertex_to_area.keys():
                     vertex_to_area[vertex] = [area]
                 else:
                     vertex_to_area[vertex].append(area)
@@ -324,6 +343,9 @@ class State(LoadSave):
         :return:
         """
         return min(list(self.stations.values()), key=lambda station: station.distance_to(lat, lon))
+    
+    def get_area_by_lat_lon(self, lat: float, lon: float):
+        return min(list(self.get_areas()), key=lambda area: area.distance_to(lat, lon))
 
     def set_bike_in_use(self, bike):
         self.bikes_in_use[bike.bike_id] = bike

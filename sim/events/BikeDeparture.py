@@ -136,8 +136,7 @@ class BikeDeparture(Event):
                     world.metrics.add_aggregate_metric(world, "starvation", 1)
                     departure_station.metrics.add_aggregate_metric(world, "Failed events", 1) 
                     world.metrics.add_aggregate_metric(world, "Failed events", 1)
-                    rng_not_in_use = world.state.rng.choice(world.state.get_locations(), p = p_normalized)
-
+                    
         departure_station.metrics.add_aggregate_metric(world, "trips", 1)
         world.metrics.add_aggregate_metric(world, "trips", 1)
 

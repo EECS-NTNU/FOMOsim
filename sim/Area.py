@@ -33,10 +33,11 @@ class Area(Location):
 
         self.station = station
         self.border_vertices = border_vertices
-        self.leave_intensities = leave_intensities
-        self.leave_intensities_stdev = leave_intensities_stdev
-        self.arrive_intensities = arrive_intensities
-        self.arrive_intensities_stdev = arrive_intensities_stdev
+        self.leave_intensities = leave_intensities if leave_intensities else [[0 for _ in range(24)] for _ in range(7)] 
+        self.leave_intensities_stdev = leave_intensities_stdev if leave_intensities_stdev else [[0 for _ in range(24)] for _ in range(7)] 
+        self.arrive_intensities = arrive_intensities if arrive_intensities else [[0 for _ in range(24)] for _ in range(7)] 
+        self.arrive_intensities_stdev = arrive_intensities_stdev if arrive_intensities_stdev else [[0 for _ in range(24)] for _ in range(7)] 
+
         self.move_probabilities = move_probabilities
 
         self.neighboring_areas = neighboring_areas
@@ -125,8 +126,8 @@ class Area(Location):
     
     def __repr__(self):
         return (
-            f"<Station {self.location_id}: {len(self.bikes)} bikes>"
+            f"<Area {self.location_id}: {len(self.bikes)} bikes>"
         )
 
     def __str__(self):
-        return f"Station {self.location_id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):3d} Bikes {len(self.bikes):3d}"
+        return f"Area {self.location_id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):3d} Bikes {len(self.bikes):3d}"
