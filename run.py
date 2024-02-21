@@ -44,7 +44,7 @@ if __name__ == "__main__":
             if experimental_setup["analysis"]["numvehicles"] > 0:
                 policyargs = experimental_setup["analysis"]["policyargs"]
                 policy = getattr(policies, experimental_setup["analysis"]["policy"])(**policyargs)
-                initial_state.set_vehicles([policy]*experimental_setup["analysis"]["numvehicles"])
+                initial_state.set_sb_vehicles([policy]*experimental_setup["analysis"]["numvehicles"])
 
             # run simulations, one for each seed
             simulations = []

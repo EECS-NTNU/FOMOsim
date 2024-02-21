@@ -37,7 +37,7 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
     vehicles = [policy for i in range(num_vehicles)]
-    state.set_vehicles(vehicles) # this creates one vehicle for each policy in the list
+    state.set_sb_vehicles(vehicles) # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(

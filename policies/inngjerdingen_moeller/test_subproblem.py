@@ -30,7 +30,7 @@ def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau
                 start_time = timeInMinutes(hours=start_hour)
                 t_state.update_target_state(test_state, start_day, start_hour)
                 policy = InngjerdingenMoellerPolicy()
-                test_state.set_vehicles([policy for _ in range(0,number_of_vehicles)])
+                test_state.set_sb_vehicles([policy for _ in range(0,number_of_vehicles)])
                 for vehicle in range(0,number_of_vehicles):
                         test_state.vehicles[vehicle].location = test_state.locations[start_stations[test_number] + 5*vehicle]  #use this for Trondheim and Oslo
                         # test_state.vehicles[vehicle].location = test_state.locations[start_stations[test_number+9*vehicle]] #use this for Edinburgh
@@ -74,7 +74,7 @@ def test_single_subproblems(filename, start_day, start_hour, t_state, time_horiz
         start_time = timeInMinutes(hours=start_hour)
         t_state.update_target_state(test_state, start_day, start_hour)
         policy = InngjerdingenMoellerPolicy()
-        test_state.set_vehicles([policy for _ in range(0, number_of_vehicles)])
+        test_state.set_sb_vehicles([policy for _ in range(0, number_of_vehicles)])
         for vehicle in range(0,number_of_vehicles):
                         test_state.vehicles[vehicle].location = test_state.locations[1 + 5*vehicle]
         test_simul = sim.Simulator(
@@ -107,7 +107,7 @@ def test_policy(filename, number_of_runs, start_day, start_hour, t_state, policy
         test_demand.update_demands(test_state, start_day, start_hour)
         start_time = timeInMinutes(hours=start_hour)
         t_state.update_target_state(test_state, start_day, start_hour)
-        test_state.set_vehicles([policy for _ in range(0, number_of_vehicles)])
+        test_state.set_sb_vehicles([policy for _ in range(0, number_of_vehicles)])
         solution_times = []
         for run in range(number_of_runs):
                 for vehicle in range(0,number_of_vehicles):

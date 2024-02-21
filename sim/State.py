@@ -296,11 +296,26 @@ class State(LoadSave):
         self.rng = np.random.default_rng(seed)
         self.seed = seed
 
-    def set_vehicles(self, policies):
+    def set_sb_vehicles(self, policies):
         self.vehicles = []
         for vehicle_id, policy in enumerate(policies):
-            self.vehicles.append(sim.Vehicle(vehicle_id, self.locations["S0"], policy, VEHICLE_BATTERY_INVENTORY, VEHICLE_BIKE_INVENTORY))
+            self.vehicles.append(sim.Vehicle(vehicle_id, 
+                                             start_location = self.locations["S0"], 
+                                             policy = policy, 
+                                             battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
+                                             bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
+                                             is_station_based = True))
 
+    def set_ff_vehicles(self, policies):
+        self.vehicles = []
+        for vehicle_id, policy in enumerate(policies):
+            self.vehicles.append(sim.Vehicle(vehicle_id, 
+                                             start_location = self.locations["S0"], 
+                                             policy = policy, 
+                                             battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
+                                             bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
+                                             is_station_based = False))
+            
     def set_move_probabilities(self, move_probabilities):
         for st in self.get_locations():
             st.move_probabilities = move_probabilities[st.location_id]

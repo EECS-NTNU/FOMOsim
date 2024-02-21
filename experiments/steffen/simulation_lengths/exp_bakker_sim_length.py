@@ -77,7 +77,7 @@ def main(instance):
 
     #policy = policies.GreedyPolicy()
 
-    state.set_vehicles([])  #this is DoNothing policy
+    state.set_sb_vehicles([])  #this is DoNothing policy
 
     ###############################################################################
     # Set up demand

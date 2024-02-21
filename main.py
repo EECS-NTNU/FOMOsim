@@ -54,7 +54,7 @@ def main():
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
     
-    state.set_vehicles([policy]) # this creates one vehicle for each policy in the list
+    state.set_sb_vehicles([policy]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state
