@@ -52,8 +52,6 @@ class BikeDeparture(Event):
                     arrival_station.location_id,
                 )
 
-                # calculate arrival time
-
                 # create an arrival event for the departed bike
                 world.add_event(
                     sim.BikeArrival(

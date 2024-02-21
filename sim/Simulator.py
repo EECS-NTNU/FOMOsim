@@ -57,6 +57,7 @@ class Simulator(LoadSave):
 
         # Add generate trip event to the event_queue
         self.event_queue.append(sim.GenerateBikeTrips(start_time))
+        self.event_queue.append(sim.GenerateEScooterTrips(start_time))
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.vehicles:
             self.event_queue.append(

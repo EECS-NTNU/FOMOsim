@@ -31,6 +31,7 @@ class GenerateEScooterTrips(Event):
                     self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                 )
             )
+
             if settings.TRAFFIC_LOGGING and len(trips_departure_time) > 0:
                 loggDepartures(departure_area.location_id, trips_departure_time) 
 
@@ -41,13 +42,7 @@ class GenerateEScooterTrips(Event):
                     departure_time, departure_area.location_id
                 )
                 world.add_event(departure_event)
-                # path= 'policies/inngjerdingen_moeller/simulation_results/InnMoll.csv'
-                # with open(path,'a', newline='') as f:
-                #     writer=csv.writer(f)
-                #     writer.writerow([departure_station.location_id,int(departure_time)])
         
-        # TODO add a loop to generate free-floating trips as well - use the same skeleton as above @Eline?
-
         if not FULL_TRIP: 
             for arrival_area in world.state.get_areas():
                 # poisson process to select number of trips in a iteration

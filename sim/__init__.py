@@ -17,3 +17,4 @@ from .Area import Area
 from .EScooter import EScooter
 from .events.EScooterDeparture import EScooterDeparture
 from .events.EScooterArrival import EScooterArrival
+from .events.GenerateEScooterTrips import GenerateEScooterTrips

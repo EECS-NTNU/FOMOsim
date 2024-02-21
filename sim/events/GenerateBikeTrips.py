@@ -46,8 +46,6 @@ class GenerateBikeTrips(Event):
                 #     writer=csv.writer(f)
                 #     writer.writerow([departure_station.location_id,int(departure_time)])
         
-        # TODO add a loop to generate free-floating trips as well - use the same skeleton as above @Eline?
-
         if not FULL_TRIP: 
             for arrival_station in world.state.get_stations():
                 # poisson process to select number of trips in a iteration
