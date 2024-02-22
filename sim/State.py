@@ -110,6 +110,8 @@ class State(LoadSave):
             station.area = area.location_id
             area.station = station.location_id
 
+        merged_state.mapdata = sb_state.mapdata
+        
         merged_state.traveltime_matrix.update(sb_state.traveltime_matrix)
         merged_state.traveltime_matrix_stddev.update(sb_state.traveltime_matrix_stddev)
         merged_state.traveltime_vehicle_matrix.update(sb_state.traveltime_vehicle_matrix)
@@ -134,12 +136,32 @@ class State(LoadSave):
                 edge_list = area["edges"] # [[lat, lan], x7]
                 border_vertices = [(edge[0], edge[1]) for edge in edge_list]
 
+            leave_intensities = None
+            if "leave_intensities" in area:
+                leave_intensities = area["leave_intensities"] # [[lat, lan], x7]
+            else:
+                leave_intensities = [[np.random.random()*2 for _ in range(24)] for _ in range(7)]
+
+            arrive_intensities = None
+            if "arrive_intensities" in area:
+                arrive_intensities = area["arrive_intensities"] # [[lat, lan], x7]
+            else:
+                arrive_intensities = [[np.random.random()*2 for _ in range(24)] for _ in range(7)]
+
+            for day in range(7):
+                for hour in range(24):
+                    if leave_intensities[day][hour] > 0 and arrive_intensities[day][hour] > 0:
+                        if leave_intensities[day][hour] > arrive_intensities[day][hour]:
+                            arrive_intensities[day][hour] = 0
+                        else:
+                            leave_intensities[day][hour] = 0
+
             areaObj = sim.Area("A" + str(area_id),
                                border_vertices,
                                center_location = center_position,
-                            #    leave_intensities = area["leave_intensities"],
+                               leave_intensities = leave_intensities,
                             #    leave_intensities_stdev = area["leave_intensities_stdev"],
-                            #    arrive_intensities = area["arrive_intensities"],
+                               arrive_intensities = arrive_intensities,
                             #    arrive_intensities_stdev = area["arrive_intensities_stdev"],
                             #    move_probabilities = area["move_probabilities"]
                                )
@@ -483,8 +505,31 @@ class State(LoadSave):
             string += f"{str(vehicle)}\n"
         string += f"In use: {len(self.bikes_in_use.values())}"
         return string
+    
+    def get_closest_available_area(self, area, radius = FF_ROAMING_AREA_RADIUS):    
+        available_area = None
+        neighbors = area.neighboring_areas
 
-    # TODO
+        while neighbors and not available_area:
+            current_neighbor = neighbors.pop(0)  # Remove the first neighbor from the list to check it
+
+            if len(current_neighbor.get_available_bikes()) > 0:
+                available_area = current_neighbor
+                break
+
+            if radius > 0:
+                # Extend with new neighbors not already in the list, avoiding duplicates
+                for new_neighbor in current_neighbor.neighboring_areas:
+                    if new_neighbor not in neighbors and new_neighbor != area:
+                        neighbors.append(new_neighbor)
+
+            radius -= 1  # Decrease the radius after each neighbor check
+
+            if not neighbors:  # If neighbors list is empty, break the loop
+                break
+
+        return available_area
+
     def get_neighbouring_stations(
         self,
         station: sim.Location,

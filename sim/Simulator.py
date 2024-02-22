@@ -54,6 +54,8 @@ class Simulator(LoadSave):
         self.demand = demand
         self.time = start_time
         self.event_queue: List[sim.Event] = []
+        self.count_escooter_trips = 0
+        self.count_bike_trips = 0
 
         # Add generate trip event to the event_queue
         self.event_queue.append(sim.GenerateBikeTrips(start_time))
@@ -117,10 +119,14 @@ class Simulator(LoadSave):
         while True:
             event = self.event_queue[0]
 
+            if isinstance(event, sim.EScooterDeparture):
+                self.count_escooter_trips += 1
+            if isinstance(event, sim.BikeDeparture):
+                self.count_bike_trips += 1
             if isinstance(event, sim.GenerateBikeTrips):
                 d = int((event.time // (60*24)) % 7)
                 h = int((event.time // 60) % 24)
-                self.demand.update_demands(self.state, d, h)
+                # self.demand.update_demands(self.state, d, h)
                 if self.target_state is not None:
                     self.target_state.update_target_state(self.state, d, h)
                 self.single_step()

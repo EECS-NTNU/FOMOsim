@@ -25,10 +25,7 @@ class EScooter(Location):
           self.metrics.add_metric(simul, "travel_time_congested", travel_time)
       else:
           self.metrics.add_metric(simul, "travel_time", travel_time)
-
-    def travel(self, simul, travel_time, congested = False):
-        super().travel(simul, travel_time, congested)
-        self.battery -= travel_time * self.battery_change_per_minute
+      self.battery -= travel_time * self.battery_change_per_minute
 
     def usable(self):
       return self.battery >= BATTERY_LIMIT_TO_USE

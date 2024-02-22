@@ -16,7 +16,7 @@ class Area(Location):
         border_vertices,
         bikes = {}, #dict, key = bike_id, value = object
         station = None,
-        neighboring_areas = {},
+        neighboring_areas = [],
         leave_intensities = None,
         leave_intensities_stdev = None,
         arrive_intensities = None,
