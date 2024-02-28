@@ -458,16 +458,13 @@ class State(LoadSave):
         return num
 
     def get_travel_time(self, start_location_id, end_location_id):
-        # return self.traveltime_matrix[(start_location_id, end_location_id)]
-        if self.traveltime_matrix_stddev is not None: # and (start_location_id, end_location_id) in self.traveltime_matrix_stddev:
-            if (start_location_id, end_location_id) in self.traveltime_matrix_stddev.keys():
-                return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)], 
-                                           self.traveltime_matrix_stddev[(start_location_id, end_location_id)])
+        if self.traveltime_matrix_stddev is not None and len(self.traveltime_matrix_stddev) == len(self.traveltime_matrix): # and (start_location_id, end_location_id) in self.traveltime_matrix_stddev:
+            return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)], 
+                                       self.traveltime_matrix_stddev[(start_location_id, end_location_id)])
         return self.traveltime_matrix[(start_location_id, end_location_id)]
 
     def get_vehicle_travel_time(self, start_location_id, end_location_id):
-        # return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
-        if self.traveltime_vehicle_matrix_stddev is not None: # and (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev:
+        if self.traveltime_vehicle_matrix_stddev is not None and len(self.traveltime_vehicle_matrix_stddev) == len(self.traveltime_vehicle_matrix): # and (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev:
             if (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev.keys():
                 return self.rng2.lognormal(self.traveltime_vehicle_matrix[(start_location_id, end_location_id)],
                                            self.traveltime_vehicle_matrix_stddev[(start_location_id, end_location_id)])
@@ -659,6 +656,14 @@ class State(LoadSave):
     
     def get_depots(self):
         return list(self.depots.values())
+    
+    def get_closest_depot(self, vehicle):
+        closest_depot = min(
+            (depot for depot in self.get_depots() if depot.is_station_based == vehicle.is_station_based),
+            key=lambda d: vehicle.location.distance_to(*d.get_location()),
+            default=None
+        )
+        return closest_depot.location_id if closest_depot else None
     
     # TODO forstå denne
     def sample(self, sample_size: int):

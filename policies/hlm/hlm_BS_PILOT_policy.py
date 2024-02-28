@@ -65,7 +65,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         #########################################################################################
 
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
-            next_location = self.find_closest_depot(simul, vehicle)
+            next_location = self.simul.state.get_closest_depot(vehicle)
             escooters_to_pickup = [escooter.bike_id for escooter in vehicle.location.bikes.values() if escooter.battery < BATTERY_LEVEL_LOWER_BOUND]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
             return sim.Action(
@@ -588,25 +588,6 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).location_id
-        
-    ####################################################################
-    # Finds closest depot from location when vehicle is out of battery #
-    ####################################################################
-
-    def find_closest_depot(self, simul, vehicle):
-        closest_depot = None
-        closest_distance = float('inf')
-        depots = [depot for depot in simul.state.get_depots() if depot.is_station_based == vehicle.is_station_based]
-
-        for d in depots:
-            distance = (simul.state.traveltime_vehicle_matrix[(vehicle.location.location_id, d.location_id)]/60)*VEHICLE_SPEED
-            if distance < closest_distance:
-                closest_distance = distance
-                closest_depot = d
-
-        return closest_depot.location_id
-                        
-
 
 #############################################################################################
 #   Number of bikes to pick up / deliver is choosen greedy based on clusters in reach       #
