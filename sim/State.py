@@ -56,14 +56,10 @@ class State(LoadSave):
             self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
 
         if traveltime_matrix_stddev is None:
-            self.traveltime_matrix_stddev = {}
-            for matrix_key in self.traveltime_matrix.keys():
-                self.traveltime_matrix_stddev[matrix_key] = 0
+            self.traveltime_matrix_stddev = {key: 0 for key in self.traveltime_matrix}
         
         if traveltime_vehicle_matrix_stddev is None:
-            self.traveltime_vehicle_matrix_stddev = {}
-            for matrix_key in self.traveltime_vehicle_matrix.keys():
-                self.traveltime_vehicle_matrix_stddev[matrix_key] = 0
+            self.traveltime_vehicle_matrix_stddev = {key: 0 for key in self.traveltime_vehicle_matrix}
 
         self.mapdata = mapdata
 
@@ -112,12 +108,27 @@ class State(LoadSave):
 
         merged_state.mapdata = sb_state.mapdata
         
-        merged_state.traveltime_matrix.update(sb_state.traveltime_matrix)
-        merged_state.traveltime_matrix_stddev.update(sb_state.traveltime_matrix_stddev)
-        merged_state.traveltime_vehicle_matrix.update(sb_state.traveltime_vehicle_matrix)
-        merged_state.traveltime_vehicle_matrix_stddev.update(sb_state.traveltime_vehicle_matrix_stddev)
+        merged_state.traveltime_matrix = State.__merge_dicts(sb_state.traveltime_matrix, ff_state.traveltime_matrix)
+        merged_state.traveltime_matrix_stddev = State.__merge_dicts(sb_state.traveltime_matrix_stddev, ff_state.traveltime_matrix_stddev)
+        merged_state.traveltime_vehicle_matrix = State.__merge_dicts(sb_state.traveltime_vehicle_matrix, ff_state.traveltime_vehicle_matrix)
+        merged_state.traveltime_vehicle_matrix_stddev = State.__merge_dicts(sb_state.traveltime_vehicle_matrix_stddev, ff_state.traveltime_vehicle_matrix_stddev)
 
         return merged_state
+
+    @staticmethod
+    def __merge_dicts(dict1, dict2):
+        # Check if both dictionaries are None
+        if dict1 is None and dict2 is None:
+            return None
+        # Check if one of the dictionaries is None, then return the other
+        elif dict1 is None:
+            return dict2
+        elif dict2 is None:
+            return dict1
+        else:
+            # Merge both dictionaries and return the result
+            merged_dict = {**dict1, **dict2}
+            return merged_dict
 
     @staticmethod
     def get_initial_ff_state(statedata, num_depots = 0):
@@ -184,13 +195,21 @@ class State(LoadSave):
         mapdata = None
         if "map" in statedata:
             mapdata = (statedata["map"], statedata["map_boundingbox"])
+            
+        traveltime_matrix = None
+        if "traveltime_matrix" in statedata:
+            traveltime_matrix = {tuple(map(str, key.split("__"))): value for key, value in statedata["traveltime_matrix"].items()}
 
-        # TODO Skal vi ha travel_matrix?
+        traveltime_vehicle_matrix = None
+        if "traveltime_vehicle_matrix" in statedata:
+            traveltime_vehicle_matrix = {tuple(map(str, key.split("__"))): value for key, value in statedata["traveltime_vehicle_matrix"].items()}
+
+
         state = State(locations = areas,
                       mapdata = mapdata,
-                    #   traveltime_matrix=statedata["traveltime"],
+                      traveltime_matrix=traveltime_matrix,
                     #   traveltime_matrix_stddev=statedata["traveltime_stdev"],
-                    #   traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
+                      traveltime_vehicle_matrix=traveltime_vehicle_matrix,
                     #   traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"]
                       )
         
@@ -314,11 +333,23 @@ class State(LoadSave):
         return state
 
     def calculate_traveltime(self, speed):
+        locations = [(loc, loc.get_location()) for loc in self.get_locations()]
         traveltime_matrix = {}
-        for location in self.get_locations():
-            for neighbour in self.get_locations():
-                traveltime_matrix[(location.location_id, neighbour.location_id)] = (location.distance_to(*neighbour.get_location()) / speed)*60 #multiplied by 60 to get minutes
+
+        for i, (location, loc_coords) in enumerate(locations):
+            for neighbour, neighbour_coords in locations[i+1:]:  # Start from the next location to avoid duplicates
+                distance = location.distance_to(*neighbour_coords)
+                travel_time = (distance / speed) * 60  # Calculate travel time once
+                # Set travel time for both directions due to symmetry
+                traveltime_matrix[(location.location_id, neighbour.location_id)] = travel_time
+                traveltime_matrix[(neighbour.location_id, location.location_id)] = travel_time
         return traveltime_matrix
+
+        # traveltime_matrix = {}
+        # for location in self.get_locations():
+        #     for neighbour in self.get_locations():
+        #         traveltime_matrix[(location.location_id, neighbour.location_id)] = (location.distance_to(*neighbour.get_location()) / speed)*60 #multiplied by 60 to get minutes
+        # return traveltime_matrix
 
     def set_locations(self, locations):
         self.locations = {location.location_id: location for location in locations}
@@ -409,7 +440,7 @@ class State(LoadSave):
         all_bikes.extend(self.bikes_in_use.values())
         for vehicle in self.get_vehicles():
             all_bikes.extend(vehicle.get_bike_inventory())
-            
+
         return all_bikes
     
     # parked bikes with usable battery
@@ -427,18 +458,20 @@ class State(LoadSave):
         return num
 
     def get_travel_time(self, start_location_id, end_location_id):
-        if self.traveltime_matrix_stddev is not None:
-            return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)],
-                                      self.traveltime_matrix_stddev[(start_location_id, end_location_id)])
-        else:
-            return self.traveltime_matrix[(start_location_id, end_location_id)]
+        # return self.traveltime_matrix[(start_location_id, end_location_id)]
+        if self.traveltime_matrix_stddev is not None: # and (start_location_id, end_location_id) in self.traveltime_matrix_stddev:
+            if (start_location_id, end_location_id) in self.traveltime_matrix_stddev.keys():
+                return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)], 
+                                           self.traveltime_matrix_stddev[(start_location_id, end_location_id)])
+        return self.traveltime_matrix[(start_location_id, end_location_id)]
 
     def get_vehicle_travel_time(self, start_location_id, end_location_id):
-        if self.traveltime_vehicle_matrix_stddev is not None:
-            return self.rng2.lognormal(self.traveltime_vehicle_matrix[(start_location_id, end_location_id)],
-                                self.traveltime_vehicle_matrix_stddev[(start_location_id, end_location_id)])
-        else:
-            return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
+        # return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
+        if self.traveltime_vehicle_matrix_stddev is not None: # and (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev:
+            if (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev.keys():
+                return self.rng2.lognormal(self.traveltime_vehicle_matrix[(start_location_id, end_location_id)],
+                                           self.traveltime_vehicle_matrix_stddev[(start_location_id, end_location_id)])
+        return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
 
     # TODO
     def do_action(self, action, vehicle, time):
