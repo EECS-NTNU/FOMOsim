@@ -17,25 +17,9 @@ class Plan():
                 arrival_time = self.plan[vehicle_id][-1].arrival_time
                 self.next_visit = self.plan[vehicle_id][-1]
 
-    
     def copy_plan(self):
         plan_copy = dict()
         for vehicle in self.plan:
             route_copy = copy_arr_iter(self.plan[vehicle])
             plan_copy[vehicle] = route_copy
         return plan_copy
-    
-def copy_arr_iter(arr):
-    root = []
-    stack = [(arr,root)]
-    while stack:
-        (o,d), *stack = stack
-        assert isinstance(o, list)
-        for i in o:
-            if isinstance(i, list):
-                p = (i, [])
-                d.append(p[1])
-                stack.append(p)
-            else:
-                d.append(i)
-    return root

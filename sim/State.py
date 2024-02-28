@@ -391,9 +391,7 @@ class State(LoadSave):
 
     def get_station_by_lat_lon(self, lat: float, lon: float):
         """
-        :param lat: lat location of bike
-        :param lon:
-        :return:
+        Returns a list of Station-objects in acsending order by distance to given lat and lon.
         """
         return min(list(self.stations.values()), key=lambda station: station.distance_to(lat, lon))
     
@@ -406,40 +404,59 @@ class State(LoadSave):
     def remove_used_bike(self, bike):
         del self.bikes_in_use[bike.bike_id]
 
-    # TODO hva betyr denne?
+    def get_sb_bikes_in_use(self):
+        return [bike for bike in self.bikes_in_use.values() if bike.is_station_based]
+    
+    def get_ff_bikes_in_use(self):
+        return [bike for bike in self.bikes_in_use.values() if not bike.is_station_based]
+
+    # Not used when FULL_TRIP = True
     def get_used_bike(self):
         if len(self.bikes_in_use) > 0:
             bike = next(iter(self.bikes_in_use))
             self.remove_used_bike(bike)
             return bike
 
-    # parked bikes
     def get_parked_bikes(self):
-        all_bikes = []
+        parked_bikes = []
         for location in self.get_locations():
-            all_bikes.extend(location.get_bikes())
-        return all_bikes
+            parked_bikes.extend(location.get_bikes())
+        return parked_bikes
     
     def get_parked_sb_bikes(self):
-        all_bikes = []
+        parked_sb_bikes = []
         for station in self.get_stations():
-            all_bikes.extend(station.get_bikes())
-        return all_bikes
+            parked_sb_bikes.extend(station.get_bikes())
+        return parked_sb_bikes
     
     def get_parked_ff_bikes(self):
-        all_bikes = []
+        parked_ff_bikes = []
         for area in self.get_areas():
-            all_bikes.extend(area.get_bikes())
-        return all_bikes
+            parked_ff_bikes.extend(area.get_bikes())
+        return parked_ff_bikes
 
     # parked and in-use bikes
     def get_all_bikes(self):
-        all_bikes = []
-        for location in self.get_locations():
-            all_bikes.extend(location.get_bikes())
+        all_bikes = self.get_parked_bikes()
         all_bikes.extend(self.bikes_in_use.values())
         for vehicle in self.get_vehicles():
             all_bikes.extend(vehicle.get_bike_inventory())
+
+        return all_bikes
+    
+    def get_all_sb_bikes(self):
+        all_bikes = self.get_parked_sb_bikes()
+        all_bikes.extend(self.get_sb_bikes_in_use())
+        for vehicle in self.get_vehicles():
+            all_bikes.extend(vehicle.get_sb_bike_inventory())
+
+        return all_bikes
+    
+    def get_all_ff_bikes(self):
+        all_bikes = self.get_parked_ff_bikes()
+        all_bikes.extend(self.get_ff_bikes_in_use())
+        for vehicle in self.get_vehicles():
+            all_bikes.extend(vehicle.get_ff_bike_inventory())
 
         return all_bikes
     
@@ -633,17 +650,11 @@ class State(LoadSave):
     def get_locations(self):
         return list(self.locations.values())
     
-    def get_area_by_id(self, area_id):
-        return self.areas[area_id]
-    
     def get_area_ids(self):
         return list(self.areas.keys())
     
     def get_areas(self):
         return list(self.areas.values())
-    
-    def get_station_by_id(self, station_id):
-        return self.locations[station_id]
     
     def get_station_ids(self):
         return list(self.stations.keys())

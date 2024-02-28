@@ -60,56 +60,56 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles, duration):
 def test_timehorizons(list_of_seeds, list_of_timehorizons):
     for horizon in list_of_timehorizons:
         filename = "time_horizon_"+str(horizon)+".csv"
-        policy=policies.hlm.BS_PILOT(time_horizon=horizon, max_depth=5, number_of_successors=7)
+        policy=policies.hlv_master.BS_PILOT(time_horizon=horizon, max_depth=5, number_of_successors=7)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_criticality_weights(list_of_seeds, criticality_weights_dict):
     for set in criticality_weights_dict:
         filename= "crit_set_"+str(set)+".csv"
-        policy=policies.hlm.BS_PILOT(criticality_weights_set=criticality_weights_dict[set])
+        policy=policies.hlv_master.BS_PILOT(criticality_weights_set=criticality_weights_dict[set])
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_evaluation_weights(list_of_seeds, evaluation_weights_dict):
      for set in evaluation_weights_dict:
         filename= "evaluation_set_"+str(set)+".csv"
-        policy=policies.hlm.BS_PILOT(evaluation_weights=evaluation_weights_dict[set])
+        policy=policies.hlv_master.BS_PILOT(evaluation_weights=evaluation_weights_dict[set])
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_discounting_factors(list_of_seeds, list_of_factors):
      for factor in list_of_factors:
         filename= "discounting_"+str(factor)+".csv"
-        policy=policies.hlm.BS_PILOT(discounting_factor=factor)
+        policy=policies.hlv_master.BS_PILOT(discounting_factor=factor)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_overflow_starvation(list_of_seeds, list_of_overflow, list_of_starvation):
      for factor in list_of_overflow:
         for factor2 in list_of_starvation:
             filename= "overflow_starvation_"+str(factor)+str(factor2)+".csv"
-            policy=policies.hlm.BS_PILOT(overflow_criteria=factor, starvation_criteria = factor2)
+            policy=policies.hlv_master.BS_PILOT(overflow_criteria=factor, starvation_criteria = factor2)
             test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_alpha_beta(list_of_seeds, alpha, beta_list):
      for beta in beta_list:
         filename= "branching_a_"+str(alpha)+"_b_"+str(beta)+".csv"
-        policy=policies.hlm.BS_PILOT(max_depth=alpha, number_of_successors=beta, time_horizon=60)
+        policy=policies.hlv_master.BS_PILOT(max_depth=alpha, number_of_successors=beta, time_horizon=60)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_number_of_scenarios(list_of_seeds, scenario_list):
      for number in scenario_list:
         filename= "num_scenarios_"+str(number)+".csv"
-        policy=policies.hlm.BS_PILOT(number_of_scenarios=number, max_depth=2, number_of_successors=7)
+        policy=policies.hlv_master.BS_PILOT(number_of_scenarios=number, max_depth=2, number_of_successors=7)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_upper_threshold(list_of_seeds, upper_thresholds):
     for threshold in upper_thresholds:
         filename= "upper_threshold_"+str(threshold)+".csv"
-        policy=policies.hlm.BS_PILOT(upper_thresholds=threshold)
+        policy=policies.hlv_master.BS_PILOT(upper_thresholds=threshold)
         test_seeds_mp(list_of_seeds, policy, filename)
 
 def test_num_vehicles(list_of_seeds, vehicles_list):
      for v in vehicles_list:
         filename= "num_vehicles_"+str(v)+"V.csv"
-        policy=policies.hlm.BS_PILOT(max_depth=2, number_of_successors=5, time_horizon=40)
+        policy=policies.hlv_master.BS_PILOT(max_depth=2, number_of_successors=5, time_horizon=40)
         # policy = policies.GreedyPolicy()
         # policy= policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction()
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles=v)
@@ -117,7 +117,7 @@ def test_num_vehicles(list_of_seeds, vehicles_list):
 def test_instances(list_of_seeds, list_of_instances):
     num_vehicles = 2
     # policy = policies.inngjerdingen_moeller.PILOT()
-    policy = policies.hlm.BS_PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05])
+    policy = policies.hlv_master.BS_PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05])
     for instance in list_of_instances:
         if instance == 'BG_W35':
             num_vehicles = 1
@@ -141,22 +141,22 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= settings_num_ve
     for process in processes:
         process.join()
     for simulator in returned_simulators:
-        policies.hlm.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
+        policies.hlv_master.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
         # if we run PILOT policy:
         filename_time = "sol_time_"+filename
-        policies.hlm.manage_results.write_sol_time_to_file(filename_time, simulator)
-        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'Failed events')
-        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'battery violation')
-        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'trips')
-        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'starvations, no bikes')
-        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'starvations, no battery')
-        policies.hlm.manage_results.visualize(filename, simulator.metrics, 'starvation')
+        policies.hlv_master.manage_results.write_sol_time_to_file(filename_time, simulator)
+        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'Failed events')
+        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'battery violation')
+        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'trips')
+        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'starvations, no bikes')
+        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'starvations, no battery')
+        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'starvation')
 
-        policies.hlm.manage_results.write_parameters_to_file('parameters_' + filename, policy, num_vehicles, duration)
-        # output.write_csv(simulator,'./policies/hlm/simulation_results/different_policies/'+filename, hourly = False)
+        policies.hlv_master.manage_results.write_parameters_to_file('parameters_' + filename, policy, num_vehicles, duration)
+        # output.write_csv(simulator,'./policies/hlv_master/simulation_results/different_policies/'+filename, hourly = False)
         # for branch in range(policy.number_of_successors):
         #     print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
-    policies.hlm.manage_results.visualize_aggregated_results(filename)
+    policies.hlv_master.manage_results.visualize_aggregated_results(filename)
 
 
 
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     # policy_dict = dict(Kloimüllner_5 = policies.inngjerdingen_moeller.PILOT(1, 5))
     # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
     # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing())
-    # policy_dict = dict(pilot_roaming = policies.hlm.BS_PILOT(
+    # policy_dict = dict(pilot_roaming = policies.hlv_master.BS_PILOT(
     #     max_depth = settings_max_depth, 
     #     number_of_successors = settings_number_of_successors, 
     #     time_horizon = settings_time_horizon, 
@@ -185,7 +185,7 @@ if __name__ == "__main__":
     #     overflow_criteria = OVERFLOW_CRITERIA,
     #     starvation_criteria = STARVATION_CRITERIA
     # ))
-    policy_dict = dict(only_swap = policies.hlm.Only_Swap())
+    policy_dict = dict(only_swap = policies.hlv_master.Only_Swap())
     
     # list_of_timehorizons = settings_list_of_timehorizons
     # evaluation_weights = settings_evaluation_weights

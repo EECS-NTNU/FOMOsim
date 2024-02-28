@@ -138,6 +138,11 @@ class Station(Location):
         return [
             bike for bike in self.bikes.values() if bike.usable()
         ]
+    
+    def get_unusable_bikes(self):
+        return [
+            bike for bike in self.bikes.values() if not bike.usable()
+        ]
 
     def get_swappable_bikes(self, battery_limit=BATTERY_LIMIT_TO_SWAP):
         """
