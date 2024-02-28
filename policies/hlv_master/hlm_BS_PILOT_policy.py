@@ -261,48 +261,59 @@ class BS_PILOT(Policy):
     
 
 
-    ###################################################################
-    # Finds next station to visit greedy based on criticallity scores #
-    ###################################################################
     def greedy_next_visit(self, plan, simul, number_of_successors, weight_set, total_num_bikes_in_system):
+        """
+        Returns a list of Visits, greedily generated based on criticality scores.
+
+        Parameters:
+        - plan = Plan made so far from the PILOT method
+        - simul = Simulator
+        - number_of_successors = number of locations to consider
+        - weight_set = criticality weights
+        - total_num_bikes_in_system = total number of bikes in the system
+        """
         visits = []
         tabu_list = plan.tabu_list
         vehicle = plan.next_visit.vehicle
+        num_bikes_now = len(vehicle.get_bike_inventory())
 
-        initial_num_escooters = len(vehicle.get_bike_inventory())
-        num_bikes_now = initial_num_escooters
-
-        for visit in plan.plan[vehicle.vehicle_id]: #la til index -1 (gir dette mening?)
+        # Update the vehicle bike inventory based on the planned operational actions
+        for visit in plan.plan[vehicle.vehicle_id]:
             num_bikes_now += visit.loading_quantity
             num_bikes_now -= visit.unloading_quantity
 
         # Finds potential next stations based on pick up or delivery status of the station and tabulist
-        potential_stations, station_type = find_potential_stations(simul,0.15,0.15,vehicle, num_bikes_now, tabu_list) #Hvor kommer 0.15 fra??
-        if potential_stations == []: #Try to find out when and if this happens?
+        potential_stations, station_type = find_potential_stations(simul,0.15,0.15,vehicle, num_bikes_now, tabu_list)
+        if potential_stations == []:
             return None
         
         number_of_successors = min(number_of_successors, len(potential_stations))
 
-        # Finds the criticality score of all potential stations
+        # Finds the criticality score of all potential stations, and sort them in descending order
         stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station,station_type, total_num_bikes_in_system ,tabu_list)
         stations_sorted_list = list(stations_sorted.keys())
-        next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
+
+        # Selects the most critical stations as next visits
+        next_stations = stations_sorted_list[:number_of_successors]
 
         for next_station in next_stations:
             arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.traveltime_vehicle_matrix[(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_station.location_id)] + MINUTES_CONSTANT_PER_ACTION
-            number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap = self.calculate_loading_quantities_and_swaps_pilot(vehicle, simul, next_station, arrival_time)
-            new_visit = Visit(next_station, number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap, arrival_time, vehicle)
+            num_bikes_to_pickup, num_bikes_to_deliver, num_bikes_to_swap = self.calculate_loading_quantities_and_swaps_pilot(vehicle, simul, next_station, arrival_time)
+            new_visit = Visit(next_station, num_bikes_to_pickup, num_bikes_to_deliver, num_bikes_to_swap, arrival_time, vehicle)
             visits.append(new_visit)
         
         return visits
     
+    def generate_scenarioes(self, simul, number_of_scenarios, poisson = True):
+        """
+        Returns a list of generated scenarios.
+        
+        Parameters:
+        - simul = Simulator
+        - number_of_scenarios = numbers of scenarios to generate
+        - poisson = Uses poisson distribution if True, normal distribution if False
+        """
 
-    ####################################################################
-    # I dont really understand this function - have copied it as i was #
-    # If any of you understands - hit me up                            #
-    ####################################################################
-
-    def generate_scenarioes(self, simul, number_of_scenarios, poisson = True): #normal_dist if poisson = False
         rng = np.random.default_rng(simul.state.seed) 
         scenarios = []
         locations_dict = simul.state.locations
