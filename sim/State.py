@@ -668,6 +668,12 @@ class State(LoadSave):
     def get_depots(self):
         return list(self.depots.values())
     
+    def get_sb_locations(self):
+        return {loc_id: loc for loc_id, loc in self.locations.items() if loc.is_station_based}
+    
+    def get_ff_locations(self):
+        return {loc_id: loc for loc_id, loc in self.locations.items() if not loc.is_station_based}
+    
     def get_closest_depot(self, vehicle):
         closest_depot = min(
             (depot for depot in self.get_depots() if depot.is_station_based == vehicle.is_station_based),

@@ -9,19 +9,21 @@ from settings import *
 
 def calculate_net_demand(station, time_now, day, hour, planning_horizon): 
     if planning_horizon > 60:
-        print('not yet supported') #Is this a problem for us - betyr at man ikke kan planlegge lengre enn 60 minuttter frem i tid 
+        print('Do not support such long time horizen yet')
     
-    minute_in_current_hour = time_now-day*24*60-hour*60 
-    
-    minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
+    # Calculate the number of minutes within the current hour has passed
+    minute_in_current_hour = time_now - day*24*60 - hour*60
+
+    # Determine how many minutes there is left in the current and next hour based on the time horizon
+    minutes_current_hour = min(60-minute_in_current_hour , planning_horizon)
     minutes_next_hour = planning_horizon - minutes_current_hour
     
-    #NET DEMAND(I think we can use this as it is)
-    net_demand_current = station.get_arrive_intensity(day,hour) - station.get_leave_intensity(day,hour)
-    net_demand_next = station.get_arrive_intensity(day,hour+1) - station.get_leave_intensity(day,hour+1)
+    # 
+    net_demand_current = station.get_arrive_intensity(day, hour) - station.get_leave_intensity(day, hour)
+    net_demand_next = station.get_arrive_intensity(day, hour+1) - station.get_leave_intensity(day, hour+1)
     
     net_demand_planning_horizon = (minutes_current_hour*net_demand_current + 
-                                   minutes_next_hour*net_demand_next)/planning_horizon
+                                   minutes_next_hour*net_demand_next) / planning_horizon
     
     return 2*net_demand_planning_horizon #Returns demand pr hour *2??
 
@@ -72,6 +74,13 @@ def copy_arr_iter(arr):
 
 
 def generate_discounting_factors(nVisits, end_factor = 0.1):
+    """
+    Returns a list of nVisits scores from 1 to 0, of how much each visit is supposed to count on the total score.
+
+    Parameters:
+    - nVisits = Number of visits the vehicle makes
+    - end_factor = The smallest weight for a visit to count
+    """
     discounting_factors = []
     len = nVisits
     rate = (1/end_factor)**(1/len)-1

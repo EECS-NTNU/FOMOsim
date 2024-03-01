@@ -23,7 +23,8 @@ class Area(Location):
         arrive_intensities_stdev = None,
         center_location = None,
         move_probabilities = None,
-        target_state = None
+        target_state = None,
+        is_station_based = False
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(border_vertices)), area_id
@@ -39,6 +40,7 @@ class Area(Location):
         self.arrive_intensities_stdev = arrive_intensities_stdev if arrive_intensities_stdev else [[0 for _ in range(24)] for _ in range(7)] 
 
         self.move_probabilities = move_probabilities
+        self.is_station_based = is_station_based
 
         self.neighboring_areas = neighboring_areas
 

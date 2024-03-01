@@ -313,12 +313,11 @@ class BS_PILOT(Policy):
         - number_of_scenarios = numbers of scenarios to generate
         - poisson = Uses poisson distribution if True, normal distribution if False
         """
-
         rng = np.random.default_rng(simul.state.seed) 
         scenarios = []
-        locations_dict = simul.state.locations
-        if number_of_scenarios < 1: #0, return expected net_demand values
-            scenario_dict = dict() #station_id : net demand
+        locations_dict = simul.state.get_sb_locations()
+        if number_of_scenarios < 1:
+            scenario_dict = dict() 
             for station_id in locations_dict:
                 net_demand =  calculate_net_demand(locations_dict[station_id], simul.time ,simul.day(),simul.hour(), 60) #returns net demand for next hour 
                 scenario_dict[station_id] = net_demand
@@ -369,8 +368,18 @@ class BS_PILOT(Policy):
     #####################################################################################
 
     def evaluate_route(self, route, scenario_dict, end_time, simul, weights, total_num_bikes_in_system):
-        # Begins with current station and loading quantities
+        """
+        Returns the score based on if the vehicle drives this route in comparisson to not driving it at all
 
+        Parameters:
+        - route = list of visits the vehicle is supposed to do
+        - scenario_dict = a dictionary with a possible net demand for each station
+        - end_time = the stopping point of the horizon to evaluate
+        - simul = Simulator
+        - weights = weights for avoided violations, neighbor roamings, and improved deviation
+        - total_num_bikes_in_system = the total amount of bicycles that are in the SB system
+        """
+        # Begins with current station and loading quantities
         discounting_factors = generate_discounting_factors(len(route), self.discounting_factor)
         avoided_disutility = 0
         current_time = simul.time
@@ -557,10 +566,10 @@ class BS_PILOT(Policy):
     # Finds the action which on avarage performs best over several scenarios #
     ##########################################################################
     def return_best_move_average(self, vehicle, simul, plan_scores):
-        score_board = dict() #plan object: the average score of this plan
-        num_scenarios=self.number_of_scenarios
-        if num_scenarios==0:
-            num_scenarios+=1 #this scenario is now the expected value 
+        score_board = dict()
+        num_scenarios = self.number_of_scenarios
+        if num_scenarios == 0:
+            num_scenarios += 1
         for scenario_id in range(num_scenarios):
             for plan in plan_scores:
                 score = plan_scores[plan][scenario_id]

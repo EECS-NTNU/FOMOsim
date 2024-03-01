@@ -25,7 +25,8 @@ class Station(Location):
         capacity = DEFAULT_STATION_CAPACITY,
         original_id = None,
         charging_station = None, 
-        area = None
+        area = None,
+        is_station_based = True
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(bikes)), station_id
@@ -40,6 +41,7 @@ class Station(Location):
         self.arrive_intensities_stdev = arrive_intensities_stdev if arrive_intensities_stdev else [[0 for _ in range(24)] for _ in range(7)] 
 
         self.move_probabilities = move_probabilities
+        self.is_station_based = is_station_based
 
         self.average_number_of_bikes = average_number_of_bikes
         self.capacity = int(capacity) if capacity != 'inf' else float(capacity) # handles if capacity isn't infinite
