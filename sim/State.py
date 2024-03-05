@@ -12,7 +12,7 @@ class State(LoadSave):
     """
 
     def __init__(self,
-                 statedata = None,
+                 statedata,
                  rng = None,
                  time = 0,
                  ):
