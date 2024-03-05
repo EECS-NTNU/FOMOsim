@@ -50,11 +50,11 @@ class Route:
 
 class GenerateRoutePattern:
 
-    def __init__(self, simul, starting_st, stations, vehicle, init_branching,
+    def __init__(self, state, starting_st, stations, vehicle, init_branching,
                  time_horizon,handling_time, flexibility=3, average_handling_time=6,
                  criticality=True, dynamic=True,
                  crit_weights=(0.2, 0.1, 0.5, 0.2)):
-        self.simul = simul
+        self.state = state
         self.flexibility=flexibility
         self.average_handling_time=average_handling_time
         self.starting_station = starting_st
@@ -70,11 +70,11 @@ class GenerateRoutePattern:
         self.handling_time = handling_time
 
     def get_station_car_travel_time(self, station, end_st_id):
-        return self.simul.state.get_vehicle_travel_time(station.id, end_st_id)
+        return self.state.get_vehicle_travel_time(station.id, end_st_id)
 
     def get_columns(self):
         finished_routes = list()
-        construction_routes = [Route(self.starting_station, self.vehicle, self.simul.day(), self.simul.hour(),self.time_horizon,self.handling_time)]
+        construction_routes = [Route(self.starting_station, self.vehicle, self.state.day(), self.state.hour(),self.time_horizon,self.handling_time)]
         while construction_routes:
             for col in construction_routes:
                 if col.length < self.time_horizon - self.flexibility:
@@ -93,7 +93,7 @@ class GenerateRoutePattern:
                                 if len(col.stations) == 1:
                                     first = True
                                 driving_time = self.get_station_car_travel_time(col.stations[-1], st.id)
-                                score = hm.get_criticality_score(self.simul, st, self.vehicle, self.time_horizon, 
+                                score = hm.get_criticality_score(self.state, st, self.vehicle, self.time_horizon, 
                                                                  driving_time, self.w_viol,
                                                                  self.w_drive, self.w_dev, self.w_net, first)
                                 cand_scores.append([st, driving_time, score])

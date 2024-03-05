@@ -1,17 +1,17 @@
 from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_to_violation
 
 
-def calculate_criticality_normalized(weights,simul,start_station_id, potential_station_id,net_demand_ps,
+def calculate_criticality_normalized(weights,state,start_station_id, potential_station_id,net_demand_ps,
     max_net_demand=1,max_driving_time=1,max_time_to_violation=1,max_deviation=1, #default is NO normalization
     planning_horizon=60): #not used 
 
     [omega1,omega2,omega3,omega4] = weights
 
-    potential_station = simul.state.stations[potential_station_id]  
+    potential_station = state.stations[potential_station_id]  
     
-    driving_time = simul.state.get_vehicle_travel_time(start_station_id,potential_station_id)
+    driving_time = state.get_vehicle_travel_time(start_station_id,potential_station_id)
     driving_time_normalized = driving_time /max_driving_time #function of max, mean, median,...?
-    #OR USE max(simul.state.traveltime_matrix)
+    #OR USE max(state.traveltime_matrix)
     
     #net demand for LOCKS (so positive values is parking of bikes)
     #THIS SHOULD HAVE BEEN ABSOLUTE VALUE OF NET DEMAND. THIS IS NOT CLEAR IN THE PAPER!!!
@@ -26,7 +26,7 @@ def calculate_criticality_normalized(weights,simul,start_station_id, potential_s
     if max_time_to_violation > 0:
         time_to_violation_normalized = time_to_violation/max_time_to_violation
     
-    target_state = potential_station.get_target_state(simul.day(), simul.hour())
+    target_state = potential_station.get_target_state(state.day(), state.hour())
     deviation_from_target_state = abs(target_state-len(potential_station.bikes))
     deviation_from_target_state_normalized = 0
     if max_deviation > 0:

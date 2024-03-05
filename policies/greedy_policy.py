@@ -37,7 +37,7 @@ class GreedyPolicy(Policy):
         self.cutoff = cutoff       # to decide when to go the pickup or delivery station next
 
 
-    def get_best_action(self, simul, vehicle):
+    def get_best_action(self, state, vehicle):
         
         batteries_to_swap = []
         bikes_to_pickup = []
@@ -58,7 +58,7 @@ class GreedyPolicy(Policy):
         number_of_batteries_to_swap = 0
 
         if not vehicle.is_at_depot():
-            target_state = round(vehicle.location.get_target_state(simul.day(), simul.hour()))
+            target_state = round(vehicle.location.get_target_state(state.day(), state.hour()))
             num_bikes_station = len(vehicle.location.bikes)
             if num_bikes_station < target_state: #deliver bikes
                 
@@ -100,18 +100,18 @@ class GreedyPolicy(Policy):
         # If vehicles has under 10% battery inventory, go to depot.
         if ((vehicle.battery_inventory - number_of_batteries_to_swap < vehicle.battery_inventory_capacity * 0.1 )
             # - number_of_bikes_to_pick_up  #why should this impact the battery stock... ?? TODO check
-            and not vehicle.is_at_depot() and (len(simul.state.depots) > 0)):
-            next_location_id = list(simul.state.depots.values())[0].id  # TO DO: go to nearest depot, not just the first
+            and not vehicle.is_at_depot() and (len(state.depots) > 0)):
+            next_location_id = list(state.depots.values())[0].id  # TO DO: go to nearest depot, not just the first
         else:
             #FILTERING
-            tabu_list = [vehicle2.location.id for vehicle2 in simul.state.vehicles] #do not go where other vehicles are (going)
-            potential_stations = [station for station in simul.state.locations if station.id not in tabu_list]
+            tabu_list = [vehicle2.location.id for vehicle2 in state.vehicles] #do not go where other vehicles are (going)
+            potential_stations = [station for station in state.locations if station.id not in tabu_list]
             
-            net_demands = {station.id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
+            net_demands = {station.id:calculate_net_demand(station,state.time,state.day(),state.hour(),planning_horizon=60) 
                             for station in potential_stations}
-            target_states = {station.id:station.get_target_state(simul.day(), simul.hour()) 
+            target_states = {station.id:station.get_target_state(state.day(), state.hour()) 
                                 for station in potential_stations}
-            driving_times = {station.id:simul.state.get_vehicle_travel_time(vehicle.location.id,station.id) 
+            driving_times = {station.id:state.get_vehicle_travel_time(vehicle.location.id,station.id) 
                                 for station in potential_stations}
             times_to_violation = {station.id:calculate_time_to_violation(net_demands[station.id],station) 
                                 for station in potential_stations}
@@ -142,7 +142,7 @@ class GreedyPolicy(Policy):
             #calculate criticalities for potential stations
             criticalities = {station.id:calculate_criticality_normalized(
                 self.crit_weights,
-                simul,
+                state,
                 vehicle.location.id,
                 station.id,
                 net_demands[station.id],
@@ -160,8 +160,8 @@ class GreedyPolicy(Policy):
                 # commented out by Lasse since it clutters the simulation output
                 # print('no stations with non-zero criticality, route to random station')
                 # print('problem seems to be that target state is empty... ??')
-                potential_stations2 = [station for station in simul.state.locations if station.id not in tabu_list]
-                next_location_id = simul.state.rng.choice(potential_stations2).id
+                potential_stations2 = [station for station in state.locations if station.id not in tabu_list]
+                next_location_id = state.rng.choice(potential_stations2).id
             else: 
                 next_location_id = list(criticalities.keys())[0]
     

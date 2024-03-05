@@ -23,38 +23,38 @@ class BikeArrival(Event):
         self.travel_time = travel_time
         self.congested = congested
 
-    def perform(self, world) -> None:
+    def perform(self, simul) -> None:
         """
-        :param world: world object
+        :param simul: simul object
         """
 
-        super().perform(world)
+        super().perform(simul)
 
         # get arrival station
-        arrival_station = world.state.get_location_by_id(self.arrival_station_id)
+        arrival_station = simul.state.get_location_by_id(self.arrival_station_id)
 
         if not FULL_TRIP:
-            self.bike = world.state.get_used_bike()
+            self.bike = simul.state.get_used_bike()
 
         if self.bike is not None:
-            self.bike.travel(world, self.travel_time, self.congested)
+            self.bike.travel(simul, self.travel_time, self.congested)
 
             # add bike to the arrived station (location is changed in add_bike method)
             if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:
-                    world.state.remove_used_bike(self.bike)
+                    simul.state.remove_used_bike(self.bike)
             else:
                 if FULL_TRIP:
                     # go to another station
-                    next_station = world.state.get_neighbours(arrival_station, 1, not_full=True)[0]
+                    next_station = simul.state.get_neighbours(arrival_station, 1, not_full=True)[0]
 
-                    travel_time = world.state.get_travel_time(
+                    travel_time = simul.state.get_travel_time(
                         arrival_station.id,
                         next_station.id,
                     )
 
                     # create an arrival event for the departed bike
-                    world.add_event(
+                    simul.add_event(
                         sim.BikeArrival(
                             self.time,
                             travel_time,
@@ -66,10 +66,10 @@ class BikeArrival(Event):
                     )
 
                 else:
-                    world.state.bike_in_use(self.bike)
+                    simul.state.bike_in_use(self.bike)
 
-                arrival_station.metrics.add_aggregate_metric(world, "congestion", 1)
-                world.metrics.add_aggregate_metric(world, "congestion", 1)
+                arrival_station.metrics.add_aggregate_metric(simul, "congestion", 1)
+                simul.metrics.add_aggregate_metric(simul, "congestion", 1)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_station_id}>"

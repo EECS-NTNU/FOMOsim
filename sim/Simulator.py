@@ -53,7 +53,7 @@ class Simulator(LoadSave):
         self.state = initial_state
         self.target_state = target_state
         self.demand = demand
-        self.time = start_time
+        self.state.time = start_time
         self.event_queue: List[sim.Event] = []
 
         # Add generate trip event to the event_queue
@@ -61,7 +61,7 @@ class Simulator(LoadSave):
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.vehicles:
             self.event_queue.append(
-                sim.VehicleArrival(self.time, vehicle)
+                sim.VehicleArrival(self.state.time, vehicle)
             )
 
         self.metrics = Metric()
@@ -81,11 +81,8 @@ class Simulator(LoadSave):
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
 
-        for vehicle in self.state.vehicles:
-            vehicle.policy.init_sim(self)
-
     def __repr__(self):
-        string = f"<Sim with {self.time} of {self.end_time} elapsed. {len(self.event_queue)} events in event_queue>"
+        string = f"<Sim with {self.state.time} of {self.end_time} elapsed. {len(self.event_queue)} events in event_queue>"
         return string
 
     def single_step(self):
@@ -131,18 +128,12 @@ class Simulator(LoadSave):
         The sim object uses a queue initialized with vehicle arrival events and a GenerateBikeTrips event.
         It then pops events from this queue. The queue is always sorted in by the time of the events.
         """
-        while self.time < self.end_time:
+        while self.state.time < self.end_time:
             self.full_step()
             if self.verbose:
                 self.progress_bar.next()
         if self.verbose:
             self.progress_bar.finish()
-
-    def day(self):
-        return int((self.time // (60*24)) % 7)
-
-    def hour(self):
-        return int((self.time // 60) % 24)
 
     def add_event(self, event: sim.Event) -> None:
         """
@@ -166,7 +157,7 @@ class Simulator(LoadSave):
         new_sim = Simulator(
             0,
             self.state.sloppycopy(),
-            self.time,
+            self.state.time,
             self.verbose,
             self.label,
         )

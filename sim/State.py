@@ -23,6 +23,8 @@ class State(LoadSave):
         traveltime_vehicle_matrix_stddev=None,
         rng = None,
     ):
+        self.time = 0
+
         if rng is None:
             self.rng = np.random.default_rng(None)
         else:
@@ -358,6 +360,12 @@ class State(LoadSave):
                 for bike in station.get_bikes()
                 if bike.id in sampled_bike_ids
             ])
+
+    def day(self):
+        return int((self.time // (60*24)) % 7)
+
+    def hour(self):
+        return int((self.time // 60) % 24)
 
     def get_vehicle_by_id(self, vehicle_id):
         """

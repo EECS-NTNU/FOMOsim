@@ -11,7 +11,7 @@ from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_
 from policies.criticality_scores import calculate_criticality_normalized
 
 class PatternBasedCGH:
-    def __init__(self, simul,parameters,vehicle,other_vehicle_at_same_location,
+    def __init__(self, state,parameters,vehicle,other_vehicle_at_same_location,
                  num_scoring_iterations=0   #NOT YET IMPLEMENTED, so put to zero. Also, not much effect.
                  ):
         self.branching_constant = parameters["branching_constant"]
@@ -20,7 +20,7 @@ class PatternBasedCGH:
         self.threshold_service_vehicle = parameters["threshold_service_vehicle"]
         self.num_scoring_iterations = num_scoring_iterations
         
-        self.simul = simul
+        self.state = state
         self.vehicle = vehicle
         self.planning_horizon = parameters["planning_horizon"]
         self.other_vehicle_at_same_location = other_vehicle_at_same_location
@@ -30,7 +30,7 @@ class PatternBasedCGH:
         
         #first do some data preprocessing. These calculations are necessary for several stages in the cgh
 
-        self.all_stations = simul.state.locations 
+        self.all_stations = state.locations 
         self.pickup_stations = []
         self.delivery_stations = []
         
@@ -45,8 +45,8 @@ class PatternBasedCGH:
         self.target_state = {station.id:0 for station in self.all_stations}
         
         for station in self.all_stations:
-            self.net_demand[station.id] = round(calculate_net_demand(station,self.simul.time,self.simul.day(),
-                                    self.simul.hour(),self.planning_horizon),4)
+            self.net_demand[station.id] = round(calculate_net_demand(station,self.state.time,self.state.day(),
+                                    self.state.hour(),self.planning_horizon),4)
             num_bikes_not_visited_no_cap = station.number_of_bikes() + self.net_demand[station.id]*self.planning_horizon
     
             if self.net_demand[station.id] >= 0:
@@ -62,7 +62,7 @@ class PatternBasedCGH:
     
             self.time_to_violation[station.id] = calculate_time_to_violation(self.net_demand[station.id], station)
             
-            self.target_state[station.id] = station.get_target_state(self.simul.day(), self.simul.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
+            self.target_state[station.id] = station.get_target_state(self.state.day(), self.state.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
             self.deviation_not_visited[station.id] = round(abs(num_bikes_not_visited_cap-self.target_state[station.id]),4)
             self.deviation_now[station.id] = round(abs(station.number_of_bikes()-self.target_state[station.id]),4)
 
@@ -103,7 +103,7 @@ class PatternBasedCGH:
         if self.other_vehicle_at_same_location: #only do planning for a single vehicle
             initial_routes = self.route_extension_algo(self.vehicle)
         else:
-            for vehicle in self.simul.state.vehicles:  #NOTE, WE GET MANY SIMILAR ROUTES!!! DRIVING TIME/DISTANCE IS NEGLIGABLE..??  Not true...
+            for vehicle in self.state.vehicles:  #NOTE, WE GET MANY SIMILAR ROUTES!!! DRIVING TIME/DISTANCE IS NEGLIGABLE..??  Not true...
                 generated_routes = self.route_extension_algo(vehicle)
                 initial_routes += generated_routes
         
@@ -121,25 +121,25 @@ class PatternBasedCGH:
         start_of_route = Route(vehicle.id,vehicle.eta, vehicle.location.id, vehicle.location.number_of_bikes(),
                                vehicle.location.capacity, vehicle.get_bike_inventory(),
                                vehicle.bike_inventory_capacity,vehicle.parking_time,vehicle.handling_time,
-                               trigger,self.simul.time,self.simul.day(),self.simul.hour(),self.planning_horizon,
+                               trigger,self.state.time,self.state.day(),self.state.hour(),self.planning_horizon,
                                self.pickup_station[vehicle.location.id],self.net_demand[vehicle.location.id])
         partial_routes = [start_of_route]
         while len(partial_routes) > 0 :
             pr = partial_routes.pop(0)
-            pr.loading_algorithm(self.simul.state.stations) #both loads and arrival times
+            pr.loading_algorithm(self.state.stations) #both loads and arrival times
             if len(pr.stations)==2:
                 finished_routes.append(pr)   #FOR FEASIBILITY PURPOSES,
             if pr.duration_route < self.planning_horizon:
                 cs = pr.stations[pr.num_visits-1] #current station
                 potential_stations = self.filtering(pr)
-                driving_times = [self.simul.state.get_vehicle_travel_time(cs,ps2.id) for ps2 in potential_stations]
+                driving_times = [self.state.get_vehicle_travel_time(cs,ps2.id) for ps2 in potential_stations]
                 criticalities = []
                 for i in range(len(potential_stations)):
                     ps = potential_stations[i].id #potential station
                     #criticalities.append(self.calculate_criticality(cs,ps.id))    #
                     criticalities.append(calculate_criticality_normalized(
                         weights=[self.omega1,self.omega2,self.omega3,self.omega4],
-                        simul=self.simul,
+                        state=self.state,
                         start_station_id = cs, 
                         potential_station_id = ps,
                         net_demand_ps = self.net_demand[ps],
@@ -152,7 +152,7 @@ class PatternBasedCGH:
                 indices_best_extensions = extract_N_best_elements(criticalities,self.branching_constant)
                 for i in indices_best_extensions:
                     pr2 = copy.deepcopy(pr) # TO DO: DEN HER ER SUPER TREIG. jeg har fjernet simul fra Route class, men burde kanskje fjerne mere.
-                    driving_time_to_new_station = self.simul.state.get_vehicle_travel_time(
+                    driving_time_to_new_station = self.state.get_vehicle_travel_time(
                         pr.stations[pr.num_visits-1],potential_stations[i].id)
                     pr2.add_station(potential_stations[i].id,driving_time_to_new_station,
                                     self.pickup_station[potential_stations[i].id],
@@ -220,7 +220,7 @@ class PatternBasedCGH:
 
     # THE FOLLOWING CAN BE REMOVED:
     def calculate_criticality(self,start_station_id, potential_station_id):      #OLD!!!
-        driving_time = self.simul.state.get_vehicle_travel_time(start_station_id,potential_station_id)        
+        driving_time = self.state.get_vehicle_travel_time(start_station_id,potential_station_id)        
         return round((
             - self.omega1*self.time_to_violation[potential_station_id] 
             + self.omega2*abs(self.net_demand[potential_station_id])    #THIS IS NEW, NOT SURE IF IT WAS IMPLEMENTED RIGHT. the paper is also not clear

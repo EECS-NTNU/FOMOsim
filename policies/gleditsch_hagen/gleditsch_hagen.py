@@ -21,22 +21,22 @@ class GleditschHagenPolicy(Policy):
         # - ADD THE WEIGHTS and other PARAMETERS HERE
         self.parameters = parameters 
 
-    def get_best_action(self, simul, vehicle):
+    def get_best_action(self, state, vehicle):
         if self.variant == 'PatternBased':
-            return self.PB_solve(simul,vehicle)
+            return self.PB_solve(state,vehicle)
         elif self.variant == 'ColumnBased':
             print('not yet implemented')
             
-    def PB_solve(self, simul, vehicle):
+    def PB_solve(self, state, vehicle):
         
         other_vehicle_at_same_location = False #this can happen in the beginning of the simulation
         #Alternatively, the vehicles can be randomly distributed.
-        for vehicle2 in simul.state.vehicles:
+        for vehicle2 in state.vehicles:
             if vehicle is not vehicle2:
                 if vehicle2.location == vehicle.location:
                     other_vehicle_at_same_location = True   #
         
-        PBCGH = PatternBasedCGH(simul, self.parameters, vehicle, other_vehicle_at_same_location)
+        PBCGH = PatternBasedCGH(state, self.parameters, vehicle, other_vehicle_at_same_location)
         self.num_times_called+=1
         
         next_station, num_loading, num_unloading = PBCGH.return_solution(vehicle_index_input=vehicle.id)        

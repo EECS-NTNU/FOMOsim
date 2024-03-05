@@ -8,25 +8,25 @@ import copy
 class VehicleArrival(Event):
     """
     Event where the main decision is done. A vehicle arrives to a station and need to determine what to do.
-    Different policies can be applied depending on the policy object in the world object.
+    Different policies can be applied depending on the policy object in the simul object.
     """
 
     def __init__(self, arrival_time: int, vehicle: sim.Vehicle):
         super().__init__(arrival_time)
         self.vehicle = vehicle
 
-    def perform(self, world) -> None:
+    def perform(self, simul) -> None:
         """
-        :param world: world object
+        :param simul: simul object
         """
 
-        world_time = world.time;
+        simul_time = simul.state.time;
 
-        super().perform(world)
+        super().perform(simul)
 
         arrival_time = 0
-        # find the best action from the current world state
-        action = self.vehicle.policy.get_action(world, self.vehicle)
+        # find the best action from the current simul state
+        action = self.vehicle.policy.get_action(simul.state, self.vehicle)
         if isinstance(action, tuple):
             action, _ = action
 
@@ -34,22 +34,22 @@ class VehicleArrival(Event):
         arrival_station_id = self.vehicle.location.id
 
         # perform the best action on the state and send vehicle to new location
-        refill_time = world.state.do_action(action, self.vehicle, world_time)
+        refill_time = simul.state.do_action(action, self.vehicle, simul_time)
 
         action_time = (
             action.get_action_time(
-                world.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
+                simul.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
             )
             + refill_time
         )
 
-        driving_time = world.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
+        driving_time = simul.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
 
         # Compute the arrival time for the Vehicle arrival event created by the action
         arrival_time += self.time + action_time
 
-        # Add a new Vehicle Arrival event for the next station arrival to the world event_queue
-        world.add_event(VehicleArrival(arrival_time, self.vehicle))
+        # Add a new Vehicle Arrival event for the next station arrival to the simul event_queue
+        simul.add_event(VehicleArrival(arrival_time, self.vehicle))
 
         self.vehicle.eta = arrival_time
 

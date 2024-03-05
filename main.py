@@ -10,7 +10,6 @@ import init_state.csv_source
 import target_state
 import policies
 import policies.fosen_haldorsen
-import policies.haflan_haga_spetalen
 import policies.gleditsch_hagen
 import demand
 import sim
@@ -46,8 +45,8 @@ def main():
 
     # policy = policies.RandomActionPolicy()
     policy = policies.GreedyPolicy()
-    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
-    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
+    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(state=state, greedy=True)
+    # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(state=state, greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
     
     state.set_vehicles([policy]) # this creates one vehicle for each policy in the list

@@ -8,8 +8,8 @@ class ModelManager:
 
     time_horizon = 25  #this is being overwritten, so not necessarily hardcoded
 
-    def __init__(self, simul, vehicle, time_horizon):
-        self.simul = simul
+    def __init__(self, state, vehicle, time_horizon):
+        self.state = state
         self.vehicle = vehicle
         self.scores = list()
         self.time_horizon
@@ -27,13 +27,13 @@ class ModelManager:
             st_L_CS, st_L_FS = ModelManager.get_base_inventory(route.stations[i], route.station_visits[i],
                                                                customer_scenario[route_full_set_index[i]])
             if i == 0:
-                V_0, D_0 = ModelManager.get_base_violations(self.simul, route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i], pattern=pattern)
-            st_viol, st_dev = ModelManager.get_base_violations(self.simul, route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i])
+                V_0, D_0 = ModelManager.get_base_violations(self.state, route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i], pattern=pattern)
+            st_viol, st_dev = ModelManager.get_base_violations(self.state, route.stations[i], st_L_CS, st_L_FS, customer_arrivals[i])
             L_CS.append(st_L_CS)
             L_FS.append(st_L_FS)
             base_viol.append(st_viol)
             base_dev.append(st_dev)
-        params = ParameterSub(self.simul, route, self.vehicle, pattern, customer_arrivals, L_CS, L_FS, base_viol, V_0, D_0, base_dev,
+        params = ParameterSub(self.state, route, self.vehicle, pattern, customer_arrivals, L_CS, L_FS, base_viol, V_0, D_0, base_dev,
                               weights)
         return run_model(params)
 
@@ -89,7 +89,7 @@ class ModelManager:
     Returning base violations from time of visit to time horizon. Assuming optimal sequencing of customer arrivals
     """
     @staticmethod
-    def get_base_violations(simul, station, visit_inventory_charged, visit_inventory_flat, customer_arrivals, pattern=None):
+    def get_base_violations(state, station, visit_inventory_charged, visit_inventory_flat, customer_arrivals, pattern=None):
         incoming_charged_bikes = customer_arrivals[0]
         incoming_flat_bikes = customer_arrivals[1]
         outgoing_charged_bikes = customer_arrivals[2]
@@ -103,12 +103,12 @@ class ModelManager:
                              - min(visit_inventory_charged + incoming_charged_bikes, outgoing_charged_bikes)
                              - station.capacity)
             dev = abs(visit_inventory_charged + pattern[0] - pattern[1] + pattern[3] + incoming_charged_bikes
-                      - outgoing_charged_bikes + starvation - congestion - station.get_target_state(simul.day(), simul.hour()))
+                      - outgoing_charged_bikes + starvation - congestion - station.get_target_state(state.day(), state.hour()))
         else:
             starvation = abs(min(0, visit_inventory_charged + incoming_charged_bikes - outgoing_charged_bikes))
             congestion = max(0, visit_inventory_charged + visit_inventory_flat + incoming_charged_bikes
                              + incoming_flat_bikes - min(visit_inventory_charged + incoming_charged_bikes,
                                                          outgoing_charged_bikes) - station.capacity)
             dev = abs(visit_inventory_charged + incoming_charged_bikes
-                      - outgoing_charged_bikes + starvation - congestion - station.get_target_state(simul.day(), simul.hour()))
+                      - outgoing_charged_bikes + starvation - congestion - station.get_target_state(state.day(), state.hour()))
         return starvation + congestion, dev
