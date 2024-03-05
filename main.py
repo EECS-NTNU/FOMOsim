@@ -88,7 +88,7 @@ def main():
 
     output.write_csv(simulator, "output.csv", hourly = False)
 
-    # # Plot to screen
+    # Plot to screen
 
     output.visualize([simulator.metrics], metric="trips")
     output.visualize([simulator.metrics], metric="starvation")
