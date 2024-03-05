@@ -67,7 +67,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
             next_location = self.find_closest_depot(simul, vehicle)
-            escooters_to_pickup = [escooter.bike_id for escooter in vehicle.location.bikes.values() if escooter.battery < BATTERY_LEVEL_LOWER_BOUND]
+            escooters_to_pickup = [escooter.bike_id for escooter in vehicle.cluster.bikes.values() if escooter.battery < BATTERY_LEVEL_LOWER_BOUND]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
             return sim.Action(
                 [],
@@ -84,7 +84,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
 
         #Veichle location må byttes fra station / area til cluster
 
-        escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
+        escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
         number_of_escooters_pickup = len(escooters_to_pickup)
         number_of_escooters_deliver = len(escooters_to_deliver)
         number_of_batteries_to_swap = len(batteries_to_swap)
@@ -114,11 +114,12 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         #  Use PILOT_function to decide next station                                #
         #############################################################################
 
-        next_location = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
+        next_location, cluster = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
 
         similary_imbalances_starved = 0
         similary_imbalances_overflow = 0
 
+        #Trenger endringer
         for neighbor in simul.state.stations[next_location].neighboring_stations:
             if neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LIMIT_TO_USE)) > self.overflow_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
                 similary_imbalances_overflow += 1
@@ -135,7 +136,8 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             batteries_to_swap,
             escooters_to_pickup,
             escooters_to_deliver,
-            next_location
+            next_location,
+            cluster
         )
 
 
@@ -585,12 +587,14 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             branch = best_plan.branch_number
             simul.metrics.add_aggregate_metric(simul, "branch"+str(branch+1), 1)
             first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
-            return first_move
+            cluster = best_plan.plan[vehicle.vehicle_id][1].station
+            return first_move , cluster
         else: 
             tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
             potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
-            return rng_balanced.choice(potential_stations2).location_id
+            cluster = rng_balanced.choice(potential_stations2)
+            return cluster.location_id, cluster
         
     ####################################################################
     # Finds closest depot from location when vehicle is out of battery #
@@ -679,7 +683,6 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, overf
 def get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station, vehicle): 
     """"
     Neglects the scooters what cannot be fixed
-
     Returns max number of scooters at station with sufficient battery level
     """
     return num_escooters_station - len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) + min(len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)),vehicle.battery_inventory)
@@ -784,7 +787,7 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
 '''
 
 def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bikes_at_vehicle, tabu_list):
-    potential_stations = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]
+    #potential_stations = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]
     potential_pickup_stations = []
     potential_delivery_stations = []
 

@@ -44,6 +44,7 @@ def build_cluster_p(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
                 #if (neighbour in tabu_list):
                 #    continue
                 if neighbour.number_of_bikes() < threshold:
+                    new_neighbours.append(neighbour)
                     continue
                 c.areas.append(neighbour)
                 tabu_list.append(neighbour)
