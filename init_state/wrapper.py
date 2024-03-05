@@ -68,7 +68,7 @@ def get_initial_state(name, source, number_of_stations=None, number_of_bikes=Non
     if number_of_bikes is not None:
         set_num_bikes(statedata, number_of_bikes)
 
-    state = sim.State.get_initial_state(statedata)
+    state = sim.State(statedata)
 
     return state
 
@@ -90,7 +90,7 @@ def read_initial_state(jsonFilename, number_of_stations=None, number_of_bikes=No
         # set path to map
         if("map" in statedata): statedata["map"] = dirname + "/" + statedata["map"]
 
-        state = sim.State.get_initial_state(statedata)
+        state = sim.State(statedata)
 
         return state
 

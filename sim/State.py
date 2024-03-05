@@ -11,75 +11,17 @@ class State(LoadSave):
     Container class for the whole state of all stations. Data concerning the interplay between stations are stored here
     """
 
-    def __init__(
-        self,
-        stations = [],
-        vehicles = [],
-        bikes_in_use = {}, # bikes not parked at any station
-        mapdata=None,
-        traveltime_matrix=None,
-        traveltime_matrix_stddev=None,
-        traveltime_vehicle_matrix=None,
-        traveltime_vehicle_matrix_stddev=None,
-        rng = None,
-    ):
-        self.time = 0
+    def __init__(self,
+                 statedata = None,
+                 rng = None,
+                 time = 0,
+                 ):
 
-        if rng is None:
-            self.rng = np.random.default_rng(None)
-        else:
-            self.rng = rng
-
-        self.vehicles = vehicles
-        self.bikes_in_use = bikes_in_use
-
-        self.set_stations(stations)
-
-        self.traveltime_matrix = traveltime_matrix
-        self.traveltime_matrix_stddev = traveltime_matrix_stddev
-        self.traveltime_vehicle_matrix = traveltime_vehicle_matrix
-        self.traveltime_vehicle_matrix_stddev = traveltime_vehicle_matrix_stddev
-
-        if traveltime_matrix is None:
-            self.traveltime_matrix = self.calculate_traveltime(BIKE_SPEED)
-
-        if traveltime_vehicle_matrix is None:
-            self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
-
-        self.mapdata = mapdata
-
-    def sloppycopy(self, *args):
-        locationscopy = []
-        for s in self.locations:
-            locationscopy.append(s.sloppycopy())
-
-        new_state = State(
-            locationscopy,
-            copy.deepcopy(self.vehicles),
-            copy.deepcopy(self.bikes_in_use),
-            traveltime_matrix = self.traveltime_matrix,
-            traveltime_matrix_stddev = self.traveltime_matrix_stddev,
-            traveltime_vehicle_matrix = self.traveltime_vehicle_matrix,
-            traveltime_vehicle_matrix_stddev = self.traveltime_vehicle_matrix_stddev,
-            rng = self.rng,
-        )
-
-        for vehicle in new_state.vehicles:
-            vehicle.location = new_state.get_location_by_id(
-                vehicle.location.id
-            )
-
-        return new_state
-
-
-    @staticmethod
-    def get_initial_state(statedata):
-        # create stations
+        #------------------------------------------------------------------------------
+        # read from statedata
 
         stations = []
-
         id_counter = 0
-
         for station_id, station in enumerate(statedata["stations"]):
             capacity = DEFAULT_STATION_CAPACITY
             if "capacity" in station:
@@ -101,7 +43,9 @@ class State(LoadSave):
                 depot_capacity = DEFAULT_DEPOT_CAPACITY
                 if "depot_capacity" in station:
                     depot_capacity = station["depot_capacity"]
-                stationObj = sim.Depot(station_id, depot_capacity=depot_capacity, capacity=capacity, original_id=original_id, center_location=position, charging_station=charging_station)
+                stationObj = sim.Depot(station_id, depot_capacity=depot_capacity,
+                                       capacity=capacity, original_id=original_id,
+                                       center_location=position, charging_station=charging_station)
 
             else:
                 stationObj = sim.Station(station_id,
@@ -129,20 +73,64 @@ class State(LoadSave):
 
             stations.append(stationObj)
 
-        # create state
+        self.set_stations(stations)
 
-        mapdata = None
+        self.mapdata = None
         if "map" in statedata:
-            mapdata = (statedata["map"], statedata["map_boundingbox"])
+            self.mapdata = (statedata["map"], statedata["map_boundingbox"])
 
-        state = State(stations,
-                      mapdata = mapdata,
-                      traveltime_matrix=statedata["traveltime"],
-                      traveltime_matrix_stddev=statedata["traveltime_stdev"],
-                      traveltime_vehicle_matrix=statedata["traveltime_vehicle"],
-                      traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"])
+        self.traveltime_matrix=statedata["traveltime"]
+        self.traveltime_matrix_stddev=statedata["traveltime_stdev"]
+        self.traveltime_vehicle_matrix=statedata["traveltime_vehicle"]
+        self.traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"]
 
-        return state
+        #------------------------------------------------------------------------------
+        # set rng
+
+        if rng is None:
+            self.rng = np.random.default_rng(None)
+        else:
+            self.rng = rng
+
+        #------------------------------------------------------------------------------
+        # set time
+
+        self.time = time
+
+        #------------------------------------------------------------------------------
+        # setup the rest
+
+        self.vehicles = []
+        self.bikes_in_use = {}
+
+        if self.traveltime_matrix is None:
+            self.traveltime_matrix = self.calculate_traveltime(BIKE_SPEED)
+
+        if self.traveltime_vehicle_matrix is None:
+            self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
+
+    def sloppycopy(self, *args):
+        locationscopy = []
+        for s in self.locations:
+            locationscopy.append(s.sloppycopy())
+
+        new_state = State(
+            locationscopy,
+            copy.deepcopy(self.vehicles),
+            copy.deepcopy(self.bikes_in_use),
+            traveltime_matrix = self.traveltime_matrix,
+            traveltime_matrix_stddev = self.traveltime_matrix_stddev,
+            traveltime_vehicle_matrix = self.traveltime_vehicle_matrix,
+            traveltime_vehicle_matrix_stddev = self.traveltime_vehicle_matrix_stddev,
+            rng = self.rng,
+        )
+
+        for vehicle in new_state.vehicles:
+            vehicle.location = new_state.get_location_by_id(
+                vehicle.location.id
+            )
+
+        return new_state
 
     def calculate_traveltime(self, speed):
         traveltime_matrix = []
