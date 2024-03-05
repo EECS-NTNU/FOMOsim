@@ -117,3 +117,9 @@ settings_list_of_instances = ['OS_W34', 'OS_W31', "NY_W31", "BO_W31",'BG_W35', '
 settings_list_of_seeds = [2]
 
 RESULT_FOLDER = str(SETTINGS_INSTANCE) + '_' + str(settings_num_vehicles) + 'V_' + str(len(settings_list_of_seeds)) +'S_' + str(settings_duration//24) + 'D_PILOT_' + ('T' if SORTED_BIKES else 'F') + ('T' if ONLY_SWAP_ALLOWED else 'F') + ('T' if USE_BATTERY_CRITICALITY else 'F')
+
+# CLUSTERING
+MAX_WALKING_AREAS = 3
+PICKUP_CLUSTERING_THRESHOLD = 5
+DELIVERY_CLUSTERING_THRESHOLD = -5
+MAX_NUMBER_OF_CLUSTERS = 10
