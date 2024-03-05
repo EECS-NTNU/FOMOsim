@@ -12,6 +12,7 @@ class Action:
         pick_ups,
         delivery_bikes,
         next_location,
+        cluster = None
     ):
         """
         Object to represent an action
@@ -24,6 +25,7 @@ class Action:
         self.pick_ups = pick_ups
         self.delivery_bikes = delivery_bikes
         self.next_location = next_location
+        self.cluster = cluster
 
     def get_action_time(self, travel_time):
         """

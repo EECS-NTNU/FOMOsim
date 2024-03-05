@@ -316,23 +316,26 @@ class BS_PILOT(Policy):
         rng = np.random.default_rng(simul.state.seed) 
         scenarios = []
         locations_dict = simul.state.get_sb_locations()
+        
+        # If number of scenarios = 0, save the net_demand for each station in a dictionary
         if number_of_scenarios < 1:
             scenario_dict = dict() 
             for station_id in locations_dict:
                 net_demand =  calculate_net_demand(locations_dict[station_id], simul.time ,simul.day(),simul.hour(), 60) #returns net demand for next hour 
                 scenario_dict[station_id] = net_demand
             scenarios.append(scenario_dict)
-        
         else:
             for s in range(number_of_scenarios):
                 scenario_dict = dict()
-                planning_horizon = 60 #calculate net_demand for the next 60 minutes 
+                planning_horizon = self.time_horizon
                 time_now = simul.time
                 day = simul.day()
                 hour = simul.hour()
-                minute_in_current_hour = time_now-day*24*60-hour*60 # TODO sjekk om denne funker
+
+                minute_in_current_hour = time_now - day*24*60 - hour*60
                 minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
                 minutes_next_hour = planning_horizon - minutes_current_hour
+                
                 
                 for station_id in locations_dict: 
                     expected_arrive_intensity = 2*locations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour())

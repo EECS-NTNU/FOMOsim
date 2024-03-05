@@ -1,13 +1,16 @@
 # from .Variables import AVERAGE_LENGHT_OF_TRIP
 from settings import *
 
-#####################################################################################################################################
-# Gleditsch & Hagen fuction for calculating net demand - this is what inngerdingen og møller uses                                   #
-# We need might need to consider batterylevel in get arrive_intensity                                                               #
-# Planning horizon is 60 minutes - that means that this function does not support planning further into the future than 60 minutes  #
-#####################################################################################################################################
+def calculate_net_demand(station, time_now, day, hour, planning_horizon):
+    """
+    Returns net demand for the given planning horizon. Calculated by the current demand and the demand for the next hour (if needed).
 
-def calculate_net_demand(station, time_now, day, hour, planning_horizon): 
+    Parameters:
+    - station = Station-object to calculate demand for
+    - time_now = current time of the simulator
+    - day, hour = day and hour to get the demand at station
+    - planning_horizon = time length to check demand for
+    """
     if planning_horizon > 60:
         print('Do not support such long time horizen yet')
     
@@ -18,34 +21,36 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
     minutes_current_hour = min(60-minute_in_current_hour , planning_horizon)
     minutes_next_hour = planning_horizon - minutes_current_hour
     
-    # 
+    # Calculate the net demand for the current and next hour
     net_demand_current = station.get_arrive_intensity(day, hour) - station.get_leave_intensity(day, hour)
     net_demand_next = station.get_arrive_intensity(day, hour+1) - station.get_leave_intensity(day, hour+1)
     
+    # Calculate the average net demand for the planning horizon
     net_demand_planning_horizon = (minutes_current_hour*net_demand_current + 
                                    minutes_next_hour*net_demand_next) / planning_horizon
     
-    return 2*net_demand_planning_horizon #Returns demand pr hour *2??
+    return net_demand_planning_horizon
 
 
-#################################################################
-# NEW FUNCTIONALITY                                             #
-# Avarage battery discharge rate per hour over the whole system #
-#################################################################
 def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system):
-    # total_num_bikes_in_system = sum([station.number_of_bikes() for station in simul.state.stations.values()]) + len(simul.state.bikes_in_use) #flytt hvis lang kjøretid
+    """
+    Returns average battery discharge over the whole system.
 
+    Parameters:
+    - simul = Simulator
+    - total_num_bikes_in_system = Total number of bikes in the system
+    """
     time_now = simul.time
     day = simul.day()
     hour = simul.hour()
-
     next_hour = (hour + 1) % 24
+    next_day = day if next_hour > hour else day +1
 
     trips_current_hour = []
     trips_next_hour = []
-    for station in simul.state.stations.values():
+    for station in simul.state.get_stations():
         trips_current_hour.append(station.get_leave_intensity(day,hour))
-        trips_next_hour.append(station.get_leave_intensity(day if next_hour > hour else day + 1, next_hour))
+        trips_next_hour.append(station.get_leave_intensity(next_day, next_hour))
     number_of_trips_current_hour = sum(trips_current_hour)
     number_of_trips_next_hour = sum(trips_next_hour)
 

@@ -512,32 +512,61 @@ class State(LoadSave):
                 e_scooter.swap_battery()
                 
         else:
-            for pick_up_bike_id in action.pick_ups:
-                pick_up_bike = vehicle.location.get_bike_from_id(
-                    pick_up_bike_id
-                )
-                
-                # Picking up bike and adding to vehicle inventory and swapping battery
-                vehicle.pick_up(pick_up_bike)
+            if vehicle.cluster is None:
+                for pick_up_bike_id in action.pick_ups:
+                    pick_up_bike = vehicle.location.get_bike_from_id(
+                        pick_up_bike_id
+                    )
+                    
+                    # Picking up bike and adding to vehicle inventory and swapping battery
+                    vehicle.pick_up(pick_up_bike)
 
-                # Remove bike from current station
-                vehicle.location.remove_bike(pick_up_bike)
-                
-            # Perform all battery swaps
-            for battery_swap_bike_id in action.battery_swaps:
-                battery_swap_bike = vehicle.location.get_bike_from_id(
-                    battery_swap_bike_id
-                )
-                # Decreasing vehicle battery inventory
-                vehicle.change_battery(battery_swap_bike)
+                    # Remove bike from current station
+                    vehicle.location.remove_bike(pick_up_bike)
+                    
+                # Perform all battery swaps
+                for battery_swap_bike_id in action.battery_swaps:
+                    battery_swap_bike = vehicle.location.get_bike_from_id(
+                        battery_swap_bike_id
+                    )
+                    # Decreasing vehicle battery inventory
+                    vehicle.change_battery(battery_swap_bike)
 
-            # Dropping of bikes
-            for delivery_bike_id in action.delivery_bikes:
-                # Removing bike from vehicle inventory
-                delivery_bike = vehicle.drop_off(delivery_bike_id)
+                # Dropping of bikes
+                for delivery_bike_id in action.delivery_bikes:
+                    # Removing bike from vehicle inventory
+                    delivery_bike = vehicle.drop_off(delivery_bike_id)
 
-                # Adding bike to current station and changing coordinates of bike
-                vehicle.location.add_bike(delivery_bike)
+                    # Adding bike to current station and changing coordinates of bike
+                    vehicle.location.add_bike(delivery_bike)
+            else:
+                for pick_up_bike_id in action.pick_ups:
+                    pick_up_bike = vehicle.cluster.get_bike_from_id(
+                        pick_up_bike_id
+                    )
+                    
+                    # Picking up bike and adding to vehicle inventory and swapping battery
+                    vehicle.pick_up(pick_up_bike)
+
+                    # Remove bike from current station
+                    current_location = self.get_location_by_id(pick_up_bike.location_id)
+                    current_location.remove_bike(pick_up_bike)
+                    
+                # Perform all battery swaps
+                for battery_swap_bike_id in action.battery_swaps:
+                    battery_swap_bike = vehicle.cluster.get_bike_from_id(
+                        battery_swap_bike_id
+                    )
+                    # Decreasing vehicle battery inventory
+                    vehicle.change_battery(battery_swap_bike)
+
+                # Dropping of bikes
+                for delivery_bike_id in action.delivery_bikes:
+                    # Removing bike from vehicle inventory
+                    delivery_bike = vehicle.drop_off(delivery_bike_id)
+
+                    # Adding bike to current station and changing coordinates of bike
+                    vehicle.location.add_bike(delivery_bike)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)
