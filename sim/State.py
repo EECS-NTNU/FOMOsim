@@ -14,12 +14,16 @@ class State(LoadSave):
     def __init__(self,
                  statedata,
                  rng = None,
-                 time = 0,
                  ):
 
         #------------------------------------------------------------------------------
         # read from statedata
 
+        # time
+        if "time" in statedata:
+            time = statedata["time"]
+
+        # stations
         stations = []
         id_counter = 0
         for station_id, station in enumerate(statedata["stations"]):
@@ -60,7 +64,7 @@ class State(LoadSave):
                                          move_probabilities = station["move_probabilities"],
                                          )
 
-            # create bikes
+            # bikes
             bikes = []
             for _ in range(station["num_bikes"]):
                 if statedata["bike_class"] == "EBike":
@@ -75,14 +79,22 @@ class State(LoadSave):
 
         self.set_stations(stations)
 
+        # map
         self.mapdata = None
         if "map" in statedata:
             self.mapdata = (statedata["map"], statedata["map_boundingbox"])
 
+        # traveltimes
         self.traveltime_matrix=statedata["traveltime"]
         self.traveltime_matrix_stddev=statedata["traveltime_stdev"]
         self.traveltime_vehicle_matrix=statedata["traveltime_vehicle"]
         self.traveltime_vehicle_matrix_stddev=statedata["traveltime_vehicle_stdev"]
+
+        if self.traveltime_matrix is None:
+            self.traveltime_matrix = self.calculate_traveltime(BIKE_SPEED)
+
+        if self.traveltime_vehicle_matrix is None:
+            self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
 
         #------------------------------------------------------------------------------
         # set rng
@@ -93,21 +105,10 @@ class State(LoadSave):
             self.rng = rng
 
         #------------------------------------------------------------------------------
-        # set time
-
-        self.time = time
-
-        #------------------------------------------------------------------------------
         # setup the rest
 
         self.vehicles = []
         self.bikes_in_use = {}
-
-        if self.traveltime_matrix is None:
-            self.traveltime_matrix = self.calculate_traveltime(BIKE_SPEED)
-
-        if self.traveltime_vehicle_matrix is None:
-            self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
 
     def sloppycopy(self, *args):
         locationscopy = []
