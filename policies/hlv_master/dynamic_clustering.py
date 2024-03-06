@@ -31,6 +31,7 @@ def clusterPickup(areas, n, threshold, max_lenght, veichle, simul):
 
             
             clusters.append(c)
+            
     
     return clusters
 

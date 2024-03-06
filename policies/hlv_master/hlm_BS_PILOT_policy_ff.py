@@ -120,11 +120,11 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         similary_imbalances_overflow = 0
 
         #Trenger endringer
-        for neighbor in simul.state.stations[next_location].neighboring_stations:
+        """ for neighbor in simul.state.stations[next_location].neighboring_stations:
             if neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LIMIT_TO_USE)) > self.overflow_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
                 similary_imbalances_overflow += 1
             elif neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LIMIT_TO_USE)) < self.starvation_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_deliver > 0:
-                similary_imbalances_starved += 1
+                similary_imbalances_starved += 1 """
             
         
         simul.metrics.add_aggregate_metric(simul, "similarly imbalanced starved", similary_imbalances_starved)
@@ -253,7 +253,9 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         starved_neighbors = 0
         overflowing_neighbors = 0
 
-        for neighbor in station.neighbours:
+
+        #Endre 
+        for neighbor in station.get_neighbours():
             net_demand_neighbor = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(),60)
             num_escooters_neighbor = neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) + ((eta - simul.time)/60)*net_demand_neighbor
             neighbor_target_state = round(neighbor.get_target_state(simul.day(), simul.hour()))

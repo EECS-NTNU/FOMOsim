@@ -151,7 +151,7 @@ def calculate_deviation_from_target_state(station, net_demand, target_state):
 
 def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_type, visited_stations):
     neighborhood_crit = 0
-    neighbors = station.neighbours
+    neighbors = station.get_neighbours()
     
     for neighbor in neighbors:
         station_crit = 0
