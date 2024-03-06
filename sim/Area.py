@@ -16,7 +16,7 @@ class Area(Location):
         border_vertices,
         bikes = {}, #dict, key = bike_id, value = object
         station = None,
-        neighboring_areas = [],
+        neighbours = [],
         leave_intensities = None,
         leave_intensities_stdev = None,
         arrive_intensities = None,
@@ -42,7 +42,7 @@ class Area(Location):
         self.move_probabilities = move_probabilities
         self.is_station_based = is_station_based
 
-        self.neighboring_areas = neighboring_areas
+        self.neighbours = neighbours
 
         if target_state is not None:
             self.target_state = target_state
@@ -67,6 +67,9 @@ class Area(Location):
 
     def set_bikes(self, bikes):
         self.bikes = {bike.bike_id : bike for bike in bikes}
+
+    def get_neighbours(self):
+        return self.neighbours
 
     def get_target_state(self, day, hour):
         return self.target_state[day % 7][hour % 24]

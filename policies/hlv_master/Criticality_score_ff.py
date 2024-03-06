@@ -1,4 +1,4 @@
-from hlm.Simple_calculations import calculate_net_demand, calculate_hourly_discharge_rate
+from .Simple_calculations import calculate_net_demand, calculate_hourly_discharge_rate
 from settings import *
 # from .Variables import *
 

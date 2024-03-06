@@ -227,7 +227,7 @@ class State(LoadSave):
             for vertex in area.border_vertices:
                 neighbors.update(vertex_to_area[vertex])
             neighbors.discard(area)
-            area.neighboring_areas = list(neighbors)
+            area.neighbours = list(neighbors)
 
         return state
 
@@ -365,7 +365,7 @@ class State(LoadSave):
         for policy in policies:
             num_vehicles = len(self.vehicles)
             self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
-                                             start_location = self.locations["S0"], 
+                                             start_location = self.locations["A0"], 
                                              policy = policy, 
                                              battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
                                              bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
@@ -375,7 +375,7 @@ class State(LoadSave):
         for policy in policies:
             num_vehicles = len(self.vehicles)
             self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
-                                             start_location = self.locations["S0"], 
+                                             start_location = self.locations["A0"], 
                                              policy = policy, 
                                              battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
                                              bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
@@ -584,7 +584,7 @@ class State(LoadSave):
     
     def get_closest_available_area(self, area, radius = FF_ROAMING_AREA_RADIUS):    
         available_area = None
-        neighbors = area.neighboring_areas
+        neighbors = area.neighbours
 
         while neighbors and not available_area:
             current_neighbor = neighbors.pop(0)  # Remove the first neighbor from the list to check it
@@ -595,7 +595,7 @@ class State(LoadSave):
 
             if radius > 0:
                 # Extend with new neighbors not already in the list, avoiding duplicates
-                for new_neighbor in current_neighbor.neighboring_areas:
+                for new_neighbor in current_neighbor.neighbours:
                     if new_neighbor not in neighbors and new_neighbor != area:
                         neighbors.append(new_neighbor)
 

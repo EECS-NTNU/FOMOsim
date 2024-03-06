@@ -316,26 +316,23 @@ class BS_PILOT(Policy):
         rng = np.random.default_rng(simul.state.seed) 
         scenarios = []
         locations_dict = simul.state.get_sb_locations()
-        
-        # If number of scenarios = 0, save the net_demand for each station in a dictionary
         if number_of_scenarios < 1:
             scenario_dict = dict() 
             for station_id in locations_dict:
                 net_demand =  calculate_net_demand(locations_dict[station_id], simul.time ,simul.day(),simul.hour(), 60) #returns net demand for next hour 
                 scenario_dict[station_id] = net_demand
             scenarios.append(scenario_dict)
+        
         else:
             for s in range(number_of_scenarios):
                 scenario_dict = dict()
-                planning_horizon = self.time_horizon
+                planning_horizon = 60 #calculate net_demand for the next 60 minutes 
                 time_now = simul.time
                 day = simul.day()
                 hour = simul.hour()
-
-                minute_in_current_hour = time_now - day*24*60 - hour*60
+                minute_in_current_hour = time_now-day*24*60-hour*60 # TODO sjekk om denne funker
                 minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
                 minutes_next_hour = planning_horizon - minutes_current_hour
-                
                 
                 for station_id in locations_dict: 
                     expected_arrive_intensity = 2*locations_dict[station_id].get_arrive_intensity(simul.day(), simul.hour())
@@ -362,14 +359,6 @@ class BS_PILOT(Policy):
                 scenarios.append(scenario_dict)
         return scenarios
     
-
-
-    #####################################################################################
-    # Evaluating how much extra utility we get by choosing a route                      #
-    # Weights for how much to value avoided violations, improved diviation and roamings #
-    # Discounting factors discounts over time (i think)                                 #
-    #####################################################################################
-
     def evaluate_route(self, route, scenario_dict, end_time, simul, weights, total_num_bikes_in_system):
         """
         Returns the score based on if the vehicle drives this route in comparisson to not driving it at all
@@ -382,7 +371,7 @@ class BS_PILOT(Policy):
         - weights = weights for avoided violations, neighbor roamings, and improved deviation
         - total_num_bikes_in_system = the total amount of bicycles that are in the SB system
         """
-        # Begins with current station and loading quantities
+        
         discounting_factors = generate_discounting_factors(len(route), self.discounting_factor)
         avoided_disutility = 0
         current_time = simul.time
@@ -395,11 +384,8 @@ class BS_PILOT(Policy):
 
             station = visit.station
 
-            #pick up quantity
             loading_quantity = visit.loading_quantity
-            #deliver quantity
             unloading_quantity = visit.unloading_quantity
-            #swap quantity
             swap_quantity = visit.swap_quantity
 
             neighbors = station.neighboring_stations

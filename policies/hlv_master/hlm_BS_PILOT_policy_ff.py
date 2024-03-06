@@ -1,10 +1,10 @@
 from policies import Policy
 from settings import *
 import sim
-from hlm.Visit import Visit
-from hlm.Plan import Plan
+from .Visit import Visit
+from .Plan import Plan
 from .Criticality_score_ff import calculate_criticality, calculate_station_type
-from hlm.Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
+from .Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 from .dynamic_clustering import clusterPickup, clusterDelivery
 
 import numpy as np
@@ -14,12 +14,12 @@ import time
 #         BS_PILOT - policy class        #
 ##########################################
 
-class BS_PILOT(Policy): #Add default values from seperate setting sheme
+class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
     def __init__(self, 
                 max_depth = settings_max_depth, 
                 number_of_successors = settings_number_of_successors, 
                 time_horizon = settings_time_horizon, 
-                criticality_weights_set = settings_criticality_weights_sets, 
+                criticality_weights_set = SETTINGS_CRITICAILITY_WEIGHTS_SET, 
                 evaluation_weights = settings_evaluation_weights, 
                 number_of_scenarios = settings_number_of_scenarios, 
                 discounting_factor = settings_discounting_factor,
@@ -82,12 +82,18 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
         #   How many batteries to swap choosen based on battery inventory and status on station #
         #########################################################################################
 
-        #Veichle location må byttes fra station / area til cluster
+        if vehicle.cluster is None:
+            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
+            number_of_escooters_pickup = len(escooters_to_pickup)
+            number_of_escooters_deliver = len(escooters_to_deliver)
+            number_of_batteries_to_swap = len(batteries_to_swap)
 
-        escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
-        number_of_escooters_pickup = len(escooters_to_pickup)
-        number_of_escooters_deliver = len(escooters_to_deliver)
-        number_of_batteries_to_swap = len(batteries_to_swap)
+        #Veichle location må byttes fra station / area til cluster
+        else:
+            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
+            number_of_escooters_pickup = len(escooters_to_pickup)
+            number_of_escooters_deliver = len(escooters_to_deliver)
+            number_of_batteries_to_swap = len(batteries_to_swap)
 
 
         ######################################################################################################################
@@ -403,7 +409,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             #swap quantity
             swap_quantity = visit.swap_quantity
 
-            neighbors = station.neighboring_stations
+            neighbors = station.neighbours
 
             eta = visit.arrival_time
 
@@ -548,7 +554,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             
             if best_plan == None:
                 tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
-                potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
+                potential_stations2 = [station for station in simul.state.get_areas() if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
                 return rng_balanced.choice(potential_stations2).location_id 
@@ -593,7 +599,7 @@ class BS_PILOT(Policy): #Add default values from seperate setting sheme
             return first_move , cluster
         else: 
             tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
-            potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
+            potential_stations2 = [station for station in simul.state.get_areas() if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             cluster = rng_balanced.choice(potential_stations2)
             return cluster.location_id, cluster
@@ -639,7 +645,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, overf
     starved_neighbors = 0
     overflowing_neighbors = 0
 
-    for neighbor in station.neighboring_stations:
+    for neighbor in station.neighbours:
         num_escooters_neighbor = neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND))
         neighbor_target_state = round(neighbor.get_target_state(simul.day(), simul.hour()))
         if num_escooters_neighbor < starvation_criteria * neighbor_target_state:
@@ -800,6 +806,7 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
         potential_delivery_stations = clusterDelivery(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, DELIVERY_CLUSTERING_THRESHOLD, MAX_WALKING_AREAS, vehicle, simul)
 
         potential_stations = potential_pickup_stations + potential_delivery_stations
+        station_type = 'b'
 
     else:
         if bikes_at_vehicle <= cutoff_vehicle*vehicle.bike_inventory_capacity:

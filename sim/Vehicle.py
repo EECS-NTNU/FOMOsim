@@ -15,7 +15,7 @@ class Vehicle:
         policy,
         battery_inventory_capacity,
         bike_inventory_capacity,
-        is_station_based,
+        is_station_based
     ):
         
         self.vehicle_id = vehicle_id
@@ -29,6 +29,7 @@ class Vehicle:
         self.eta = 0
         self.handling_time = MINUTES_PER_ACTION
         self.parking_time = MINUTES_CONSTANT_PER_ACTION
+        self.cluster = None
 
     def change_battery(self, bike):
         if self.battery_inventory <= 0:

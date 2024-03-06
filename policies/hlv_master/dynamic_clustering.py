@@ -14,18 +14,18 @@ import copy
 
 #Now this only works for neighbours - need to add exploration / layers - rekrkusjon?
 
-def clusterPickup(areas, n, threshold, max_lenght, veichle, simul):
+def clusterPickup(areas, n, threshold, max_lenght, vehicle, simul):
     #areas sorted based on density 
-    highest_density_areas = heapq.nlargest(n, areas, key=lambda area: area.getDensity())
+    highest_density_areas = heapq.nlargest(n, areas, key=lambda area: area.number_of_bikes())
     #tabu-list
     tabu_list = []
     clusters = []
 
-    cut_off = veichle.bike_inventory_capacity - veichle.bike_inventory
+    cut_off = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
 
     for area in highest_density_areas:
         if area not in tabu_list:
-            c = Cluster([area],area, area.get_bikes, area.get_neighbours())
+            c = Cluster([area],area, area.bikes, area.get_neighbours())
 
             build_cluster_p(tabu_list, c, max_lenght, cut_off, threshold, 1, simul)    
 
@@ -40,7 +40,7 @@ def build_cluster_p(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
     while counter <= max_depth:
         new_neighbours = []
         for neighbour in c.get_neighbours():
-                if (c.density - c.get_target_state(simul.day(), simul.hour()))>=cut_off:
+                if (len(c.bikes) - c.get_target_state(simul.day(), simul.hour()))>=cut_off:
                     break
                 #if (neighbour in tabu_list):
                 #    continue
@@ -53,7 +53,7 @@ def build_cluster_p(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
                 # c.leave_intensities += neighbour.get_leave_intensity()
                 # c.arrive_intensities += neighbour.get_arrive_intensity()
                 # c.target_state += neighbour.get_target_state()
-                for bike in neighbour.get_bikes():
+                for bike in neighbour.bikes:
                     c.bikes[bike.bike_id] = bike
                 new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours and area not in tabu_list and area not in new_neighbours]
                 #c.neighbours.remove(neighbour)
@@ -72,11 +72,11 @@ def clusterDelivery(areas, n, threshold, max_lenght, veichle, simul):
 
     largest_shortfall_areas = heapq.nlargest(n, areas, key=lambda area: area.number_of_bikes() - area.get_target_state(simul.day(), simul.hour()))
 
-    cut_off = veichle.bike_inventory
+    cut_off = len(veichle.bike_inventory)
 
     for area in largest_shortfall_areas:
         if area not in tabu_list:
-            c = Cluster([area],area, area.get_bikes, area.get_neighbours())
+            c = Cluster([area],area, area.bikes, area.get_neighbours())
 
             build_cluster_d(tabu_list, c, max_lenght, cut_off, threshold, 1, simul)    
 
@@ -90,21 +90,21 @@ def build_cluster_d(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
     while counter <= max_depth:
         new_neighbours = []
         for neighbour in c.get_neighbours():
-                if (c.get_target_state(simul.day(), simul.hour())) - c.density >= cut_off:
+                if (c.get_target_state(simul.day(), simul.hour())) - len(c.bikes) >= cut_off:
                     break
                 if (neighbour.number_of_bikes() - neighbour.get_target_state(simul.day(), simul.hour())) < threshold:
                     continue
                 c.areas.append(neighbour)
                 tabu_list.append(neighbour)
-                for bike in neighbour.get_bikes():
-                    c.bikes[bike.bike_id] = bike
-                new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours and area not in tabu_list and area not in new_neighbours]
+                for bike_id, bike in neighbour.bikes.items():
+                    c.bikes[bike_id] = bike
+                new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours() and area not in tabu_list and area not in new_neighbours]
                 #c.neighbours.remove(neighbour)
 
         
         counter += 1
         c.neighbors = new_neighbours
-        build_cluster_d(tabu_list, c, max_depth, counter, cut_off, threshold)
+        build_cluster_d(tabu_list, c, max_depth, counter, cut_off, threshold, simul)
 
 
 
@@ -138,13 +138,13 @@ class Cluster(Location):
         neighbours = []
     ):
         super().__init__(
-            *(center_area.center_location if center_area.center_location else self.__compute_center(center_area.border_vertices)), center_area.location_id
+            *(center_area.get_location() if center_area.get_location() else self.__compute_center(center_area.border_vertices)), center_area.location_id
         )
 
         self.center_area = center_area
         self.areas = areas
         self.neighbours = neighbours
-        self.set_bikes(bikes)
+        self.bikes = bikes
         
 
     def set_bikes(self, bikes):
@@ -152,6 +152,9 @@ class Cluster(Location):
 
     def get_neighbours(self):
         return self.neighbours
+    
+    def number_of_bikes(self):
+        return len(self.bikes)
     
     def get_swappable_bikes(self, battery_limit=BATTERY_LIMIT_TO_SWAP):
         """

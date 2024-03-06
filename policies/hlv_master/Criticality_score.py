@@ -266,10 +266,6 @@ def calculate_battery_level_composition_criticality(simul, station, total_num_bi
     return (len(battery_levels_after)/len(battery_levels_current))*(sum(battery_levels_after)/len(battery_levels_after))
 
 
-
-
-
-
 #Simple calculation functions to help in the functions above 
 def calculate_station_type(target_state, exp_num):
     margin = 0.15 #set in settings sheeme

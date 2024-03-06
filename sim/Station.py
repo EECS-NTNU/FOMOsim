@@ -166,7 +166,6 @@ class Station(Location):
         neighboring_stations_list = neighboring_stations_dict[self_index]
         for index in neighboring_stations_list:
             self.neighboring_stations.append(location_list[index])
-        return None
     
     def set_move_probabilities(self, station_list):
         move_probabilities = [[{} for _ in range(24)] for _ in range(7)]
