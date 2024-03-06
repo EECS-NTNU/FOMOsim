@@ -1,12 +1,11 @@
-import sim
-from sim.LoadSave import LoadSave
 import numpy as np
-from settings import *
 import copy
-import json
-import gzip
 
-class State(LoadSave):
+import sim
+
+from settings import *
+
+class State():
     """
     Container class for the whole state of all stations. Data concerning the interplay between stations are stored here
     """

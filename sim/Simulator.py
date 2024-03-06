@@ -7,7 +7,6 @@ import sys
 import bisect
 import sim
 import settings
-from sim.LoadSave import LoadSave
 from sim import Metric
 import target_state
 import demand
@@ -16,7 +15,7 @@ from progress.bar import IncrementalBar
 
 from helpers import loggTime, loggLocations, loggEvent
 
-class Simulator(LoadSave):
+class Simulator():
     """
     Class containing all metadata about an instance. This class contains both the state, the policy and parameters.
     This class uses the state as the environment and the policy as the actor. Additionally, it is the main driver of the
