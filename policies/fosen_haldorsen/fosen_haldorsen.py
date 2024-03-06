@@ -71,16 +71,16 @@ class FosenHaldorsenPolicy(Policy):
             vehicle_current_charged_bikes = len(vehicle.bike_inventory)
             vehicle_current_location_available_parking = vehicle.location.capacity - len(vehicle.location.bikes);
 
-            if vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state(state.day(), state.hour()) > 0:
+            if vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state() > 0:
                 bat_load = max(0, min(vehicle_available_bike_capacity,
-                                      vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state(state.day(), state.hour())))
+                                      vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state()))
                 bikes_by_battery = sorted(vehicle.location.get_bikes(), key=lambda bike: bike.battery, reverse=True)
                 bikes_to_pickup = [bike.id for bike in bikes_by_battery[0:int(bat_load)]]
 
             else:
                 bat_unload = max(0,
                                  min(vehicle_current_charged_bikes, vehicle_current_location_available_parking,
-                                     vehicle.location.get_target_state(state.day(), state.hour()) - vehicle_current_station_current_charged_bikes))
+                                     vehicle.location.get_target_state() - vehicle_current_station_current_charged_bikes))
                 bikes_to_deliver = [bike.id for bike in vehicle.get_bike_inventory()[0:int(bat_unload)]]
 
             # picked up bikes low on battery get new battery, make sure we dont pick up more than we have batteries for

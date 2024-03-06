@@ -21,7 +21,7 @@ class Station(Location):
         center_location=None,
         move_probabilities=None,
         average_number_of_bikes=None,
-        target_state=None,
+        target_state=0,
         capacity=DEFAULT_STATION_CAPACITY,
         original_id = None,
         charging_station = None,
@@ -44,15 +44,8 @@ class Station(Location):
         self.original_id = original_id
         self.charging_station = charging_station
 
-        if target_state is not None:
-            self.target_state = target_state
-        else:
-            self.target_state = []
-            for day in range(7):
-                self.target_state.append([])
-                for hour in range(24):
-                    self.target_state[day].append(0)
-            
+        self.target_state = target_state
+
         self.metrics = sim.Metric()
 
         if len(self.bikes) > self.capacity:
@@ -90,8 +83,8 @@ class Station(Location):
     def spare_capacity(self):
         return self.capacity - len(self.bikes)
 
-    def get_target_state(self, day, hour):
-        return self.target_state[day % 7][hour % 24]
+    def get_target_state(self):
+        return self.target_state
 
     def get_move_probabilities(self, state, day, hour):
         if self.move_probabilities is None:
@@ -156,4 +149,4 @@ class Station(Location):
         )
 
     def __str__(self):
-        return f"Station {self.id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):3d} Bikes {len(self.bikes):3d}"
+        return f"Station {self.id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state():3d} Bikes {len(self.bikes):3d}"

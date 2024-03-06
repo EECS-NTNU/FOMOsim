@@ -102,12 +102,12 @@ class ModelManager:
                              - min(visit_inventory_charged + incoming_charged_bikes, outgoing_charged_bikes)
                              - station.capacity)
             dev = abs(visit_inventory_charged + pattern[0] - pattern[1] + pattern[3] + incoming_charged_bikes
-                      - outgoing_charged_bikes + starvation - congestion - station.get_target_state(state.day(), state.hour()))
+                      - outgoing_charged_bikes + starvation - congestion - station.get_target_state())
         else:
             starvation = abs(min(0, visit_inventory_charged + incoming_charged_bikes - outgoing_charged_bikes))
             congestion = max(0, visit_inventory_charged + visit_inventory_flat + incoming_charged_bikes
                              + incoming_flat_bikes - min(visit_inventory_charged + incoming_charged_bikes,
                                                          outgoing_charged_bikes) - station.capacity)
             dev = abs(visit_inventory_charged + incoming_charged_bikes
-                      - outgoing_charged_bikes + starvation - congestion - station.get_target_state(state.day(), state.hour()))
+                      - outgoing_charged_bikes + starvation - congestion - station.get_target_state())
         return starvation + congestion, dev

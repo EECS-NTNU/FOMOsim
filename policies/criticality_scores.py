@@ -26,7 +26,7 @@ def calculate_criticality_normalized(weights,state,start_station_id, potential_s
     if max_time_to_violation > 0:
         time_to_violation_normalized = time_to_violation/max_time_to_violation
     
-    target_state = potential_station.get_target_state(state.day(), state.hour())
+    target_state = potential_station.get_target_state()
     deviation_from_target_state = abs(target_state-len(potential_station.bikes))
     deviation_from_target_state_normalized = 0
     if max_deviation > 0:

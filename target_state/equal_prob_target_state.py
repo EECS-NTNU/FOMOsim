@@ -50,4 +50,4 @@ class EqualProbTargetState(TargetState):
                     break 
                 prev_diff = diff
 
-            st.target_state[day][hour] = min_target
+            st.target_state = min_target

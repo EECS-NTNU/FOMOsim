@@ -12,6 +12,6 @@ class HalfCapacityTargetState(TargetState):
 
         for st in state.locations:
             if isinstance(st, sim.Depot):
-                st.target_state[day][hour] = 0
+                st.target_state = 0
             else:
-                st.target_state[day][hour] = st.capacity/2
+                st.target_state = st.capacity/2

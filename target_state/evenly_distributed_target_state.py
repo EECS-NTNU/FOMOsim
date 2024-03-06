@@ -12,6 +12,6 @@ class EvenlyDistributedTargetState(TargetState):
 
         for st in state.locations:
             if isinstance(st, sim.Depot):
-                st.target_state[day][hour] = 0
+                st.target_state = 0
             else:
-                st.target_state[day][hour] = num_bikes // num_stations
+                st.target_state = num_bikes // num_stations

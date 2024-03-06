@@ -21,4 +21,4 @@ class USTargetState(TargetState):
                 ts = st.capacity/2 #num_bikes // num_stations
             else:
                 ts = (leave_std*(cap-arrive)+arrive_std*leave)/(leave_std+arrive_std)
-            st.target_state[day][hour] = ts
+            st.target_state = ts

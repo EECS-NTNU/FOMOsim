@@ -62,7 +62,7 @@ class PatternBasedCGH:
     
             self.time_to_violation[station.id] = calculate_time_to_violation(self.net_demand[station.id], station)
             
-            self.target_state[station.id] = station.get_target_state(self.state.day(), self.state.hour()) # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
+            self.target_state[station.id] = station.get_target_state() # TO DO, there is a mismatch between the target state at the end of planning horizon, and target state at end of hour!!
             self.deviation_not_visited[station.id] = round(abs(num_bikes_not_visited_cap-self.target_state[station.id]),4)
             self.deviation_now[station.id] = round(abs(station.number_of_bikes()-self.target_state[station.id]),4)
 

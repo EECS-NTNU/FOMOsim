@@ -57,14 +57,14 @@ def get_criticality_score(state, location, vehicle, time_horizon, driving_time, 
             time_to_starvation = t_starv
     time_to_violation = min(time_to_starvation, time_to_congestion)
 
-    if (vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state(state.day(), state.hour())) > 0 and (incoming_flat_bike_rate + incoming_charged_bike_rate - demand_per_hour) > 0 and first_station and current_charged_bikes > location.get_target_state(state.day(), state.hour()):
+    if (vehicle_current_station_current_charged_bikes - vehicle.location.get_target_state()) > 0 and (incoming_flat_bike_rate + incoming_charged_bike_rate - demand_per_hour) > 0 and first_station and current_charged_bikes > location.get_target_state():
         return -10000
     # ------- Deviation at time horizon  -------
     # Starving station
     if demand_per_hour - incoming_charged_bike_rate > 0:
         charged_at_t = current_charged_bikes - (demand_per_hour -
                 incoming_charged_bike_rate) * min(time_horizon, time_to_starvation)
-        if location.get_target_state(state.day(), state.hour()) - charged_at_t > 0 and first_station and (vehicle_current_charged_bikes < 2 and (vehicle_current_batteries < 2 or current_flat_bikes < 2)):
+        if location.get_target_state() - charged_at_t > 0 and first_station and (vehicle_current_charged_bikes < 2 and (vehicle_current_batteries < 2 or current_flat_bikes < 2)):
             return -10000
     # Congesting station
     elif demand_per_hour - incoming_charged_bike_rate < 0:
@@ -74,7 +74,7 @@ def get_criticality_score(state, location, vehicle, time_horizon, driving_time, 
             return -10000
     else:
         charged_at_t = current_charged_bikes
-    dev = abs(location.get_target_state(state.day(), state.hour()) - charged_at_t)
+    dev = abs(location.get_target_state() - charged_at_t)
     net = abs(incoming_charged_bike_rate - demand_per_hour)
     return - w_viol * time_to_violation - w_drive * driving_time + w_dev * dev + w_net * net
 

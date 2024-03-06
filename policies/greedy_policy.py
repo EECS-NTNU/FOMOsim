@@ -52,7 +52,7 @@ class GreedyPolicy(Policy):
         number_of_batteries_to_swap = 0
 
         if not vehicle.is_at_depot():
-            target_state = round(vehicle.location.get_target_state(state.day(), state.hour()))
+            target_state = round(vehicle.location.get_target_state())
             num_bikes_station = len(vehicle.location.bikes)
             if num_bikes_station < target_state: #deliver bikes
                 
@@ -103,7 +103,7 @@ class GreedyPolicy(Policy):
             
             net_demands = {station.id:calculate_net_demand(station,state.time,state.day(),state.hour(),planning_horizon=60) 
                             for station in potential_stations}
-            target_states = {station.id:station.get_target_state(state.day(), state.hour()) 
+            target_states = {station.id:station.get_target_state() 
                                 for station in potential_stations}
             driving_times = {station.id:state.get_vehicle_travel_time(vehicle.location.id,station.id) 
                                 for station in potential_stations}

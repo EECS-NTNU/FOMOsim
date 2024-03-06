@@ -30,6 +30,10 @@ class State():
             if "capacity" in station:
                 capacity = station["capacity"]
 
+            target_state = 0
+            if "target_state" in station:
+                target_state = station["target_state"]
+
             original_id = None
             if "original_id" in station:
                 original_id = station["original_id"]
@@ -53,6 +57,7 @@ class State():
             else:
                 stationObj = sim.Station(station_id,
                                          capacity=capacity,
+                                         target_state=target_state,
                                          original_id=original_id,
                                          center_location=position,
                                          charging_station=charging_station,
@@ -159,10 +164,6 @@ class State():
     def set_move_probabilities(self, move_probabilities):
         for st in self.locations:
             st.move_probabilities = move_probabilities[st.id]
-
-    def set_target_state(self, target_state):
-        for st in self.locations:
-            st.target_state = target_state[st.id]
 
     def get_station_by_lat_lon(self, lat: float, lon: float):
         """

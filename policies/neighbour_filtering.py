@@ -20,9 +20,9 @@ def filtering_neighbours(
             for cluster in state.locations
             if cluster.id != vehicle.location.id
             and cluster.id not in exclude
-            and len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour) > 0
+            and len(cluster.get_available_bikes()) - cluster.get_target_state() > 0
         ],
-        key=lambda cluster: len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour),
+        key=lambda cluster: len(cluster.get_available_bikes()) - cluster.get_target_state(),
         reverse=True,
     )
 
@@ -32,9 +32,9 @@ def filtering_neighbours(
             for cluster in state.locations
             if cluster.id != vehicle.location.id
             and cluster.id not in exclude
-            and len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour) < 0
+            and len(cluster.get_available_bikes()) - cluster.get_target_state() < 0
         ],
-        key=lambda cluster: len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour),
+        key=lambda cluster: len(cluster.get_available_bikes()) - cluster.get_target_state(),
     )
 
     has_more_capacity = (
