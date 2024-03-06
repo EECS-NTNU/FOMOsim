@@ -3,7 +3,7 @@ from settings import *
 import sim
 from hlm.Visit import Visit
 from hlm.Plan import Plan
-from .Criticality_score import calculate_criticality, calculate_station_type
+from .Criticality_score_ff import calculate_criticality, calculate_station_type
 from hlm.Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 from .dynamic_clustering import clusterPickup, clusterDelivery
 
