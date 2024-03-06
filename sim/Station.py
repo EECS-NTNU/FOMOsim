@@ -81,6 +81,9 @@ class Station(Location):
             charging_station=self.charging_station,
         )
 
+    def is_depot(self):
+        return False
+
     def set_bikes(self, bikes):
         self.bikes = {bike.id : bike for bike in bikes}
 

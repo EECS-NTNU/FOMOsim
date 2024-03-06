@@ -1,14 +1,14 @@
 import numpy as np
-import settings
-import sim
 import time
 import copy
 
-from policies.gleditsch_hagen.pattern_based_cgh.Routes import Route
-from policies.gleditsch_hagen.pattern_based_cgh.master_data import MasterData
-from policies.gleditsch_hagen.pattern_based_cgh.master_model import run_master_model
-from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_to_violation, extract_N_best_elements
-from policies.criticality_scores import calculate_criticality_normalized
+import settings
+
+from ..utils import calculate_net_demand, calculate_time_to_violation, extract_N_best_elements
+from ...criticality_scores import calculate_criticality_normalized
+from .Routes import Route
+from .master_data import MasterData
+from .master_model import run_master_model
 
 class PatternBasedCGH:
     def __init__(self, state,parameters,vehicle,other_vehicle_at_same_location,

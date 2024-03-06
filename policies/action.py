@@ -1,6 +1,5 @@
 from settings import *
 
-
 class Action:
     """
     Class representing an action.

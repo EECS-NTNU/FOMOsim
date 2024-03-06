@@ -1,7 +1,8 @@
 import numpy as np
-import sim
-import policies.fosen_haldorsen.heuristic_manager as hm
+
 import settings
+
+from .. import heuristic_manager as hm
 
 class MasterParameters:
 
@@ -14,7 +15,7 @@ class MasterParameters:
         self.stations = [i for i in range(len(station_objects))]
         self.swap_stations = list()
         for i in range(len(station_objects)):
-            if not isinstance(station_objects[i], sim.Depot):
+            if not station_objects[i].is_depot():
                 self.swap_stations.append(i)
         self.vehicles = [i for i in range(len(self.route_pattern))]
         self.routes = [[i for i in range(len(gen.finished_gen_routes))] for gen in self.route_pattern]

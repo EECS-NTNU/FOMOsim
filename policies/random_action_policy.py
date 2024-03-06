@@ -1,13 +1,9 @@
 """
 This file contains a random action policy
 """
-import copy
-import math
 
-from policies import Policy
-import sim
-import abc
-from sim import State, Vehicle
+from .policy import Policy
+from .action import Action
 
 class RandomActionPolicy(Policy):
     def __init__(self):
@@ -51,7 +47,7 @@ class RandomActionPolicy(Policy):
             if num_swap > 0:
                 bikes_to_swap = state.rng.choice(swappable, num_swap, replace=False)
 
-        action = sim.Action(
+        action = Action(
             bikes_to_swap,
             bikes_to_pickup,
             bikes_to_deliver,

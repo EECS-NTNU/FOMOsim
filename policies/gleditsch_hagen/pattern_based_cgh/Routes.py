@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-from policies.gleditsch_hagen.utils import calculate_net_demand
-import settings
+
 import time
+import settings
+
+from ..utils import calculate_net_demand
 
 class Route:  # OR COLUMNS
 

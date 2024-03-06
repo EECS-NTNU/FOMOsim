@@ -1,11 +1,12 @@
-from policies.fosen_haldorsen.Subproblem.model_manager import ModelManager
-from policies.fosen_haldorsen.Subproblem.generate_route_pattern import GenerateRoutePattern
 import numpy as np
-from policies.fosen_haldorsen.MasterProblem.master_params import MasterParameters
-from policies.fosen_haldorsen.MasterProblem.master_model import run_master_model
-import settings
-import sim
 import time
+
+import settings
+
+from .Subproblem.model_manager import ModelManager
+from .Subproblem.generate_route_pattern import GenerateRoutePattern
+from .MasterProblem.master_params import MasterParameters
+from .MasterProblem.master_model import run_master_model
 
 def get_index(station_id, stations):
     for i in range(len(stations)):
@@ -33,9 +34,9 @@ def get_criticality_score(state, location, vehicle, time_horizon, driving_time, 
     vehicle_available_bike_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
 
     # ------- Time to violation -------
-    if vehicle.battery_inventory_capacity == 0 and isinstance(location, sim.Depot):
+    if vehicle.battery_inventory_capacity == 0 and location.is_depot():
         return -100000
-    if isinstance(location, sim.Depot) and vehicle_current_batteries < 2:
+    if location.is_depot() and vehicle_current_batteries < 2:
         return 100000
     time_to_starvation = 10000
     time_to_congestion = 10000

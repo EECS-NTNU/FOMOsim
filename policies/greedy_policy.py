@@ -1,19 +1,13 @@
 """
 This file contains a greedy policy
 """
-import copy
 
-from policies import Policy
+from .policy import Policy
+from .action import Action
 
-from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_to_violation
-from policies.criticality_scores import calculate_criticality_normalized
+from .gleditsch_hagen.utils import calculate_net_demand, calculate_time_to_violation
+from .criticality_scores import calculate_criticality_normalized
 
-import sim
-# import abc
-
-# import init_state
-#import init_state.entur.methods
-#import init_state.entur.scripts
 
 class GreedyPolicy(Policy):
     def __init__(self,crit_weights=[0.1,0.2,0.3,0.4], cutoff=0.3, service_hours=None):   #[0,0,0,1] for deviation from target state
@@ -166,14 +160,9 @@ class GreedyPolicy(Policy):
                 next_location_id = list(criticalities.keys())[0]
     
 
-        return sim.Action(
+        return Action(
             batteries_to_swap,
             bikes_to_pickup,
             bikes_to_deliver,
             next_location_id,
         )
-    
-        
-       
-    
-    

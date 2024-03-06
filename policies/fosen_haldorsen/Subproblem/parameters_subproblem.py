@@ -1,5 +1,3 @@
-import sim
-
 class ParameterSub:
 
     def __init__(self, state, route, vehicle, pattern, customer_arrivals, L_CS, L_FS, base_violations, V_0, D_O, base_deviations,
@@ -14,7 +12,7 @@ class ParameterSub:
                 self.charging_stations.append(i)
             else:
                 self.non_charging_stations.append(i)
-            if isinstance(route.stations[i], sim.Depot):
+            if route.stations[i].is_depot():
                 self.depot_index = i
         self.stations += [len(route.stations)]
 
@@ -38,7 +36,7 @@ class ParameterSub:
         # Vehicle specific
         self.Q_BV = vehicle.battery_inventory_capacity
         self.Q_CV = vehicle.bike_inventory_capacity + self.Q_CCL + self.Q_FCL - max(0, self.Q_CCU + self.Q_FCU)
-        if isinstance(route.stations[0], sim.Depot):
+        if route.stations[0].is_depot():
             self.depot_index = 0
             self.L_BV = vehicle.battery_inventory_capacity
         else:

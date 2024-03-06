@@ -1,11 +1,11 @@
 """
 This file contains the base policy class
 """
-import copy
 
-import sim
 import abc
-from settings import *
+
+from .action import Action
+import settings
 
 class Policy(abc.ABC):
     """
@@ -25,7 +25,7 @@ class Policy(abc.ABC):
         """
         pass
 
-    def set_time_of_service(self,hour_from=SERVICE_TIME_FROM, hour_to=SERVICE_TIME_TO):
+    def set_time_of_service(self, hour_from=settings.SERVICE_TIME_FROM, hour_to=settings.SERVICE_TIME_TO):
         self.hour_from = hour_from
         self.hour_to = hour_to
 
@@ -38,7 +38,7 @@ class Policy(abc.ABC):
             return self.get_best_action(state, vehicle)
         else:
             #TO DO: send to DEPOT instead of letting it dwell idle
-            return sim.Action([], [], [], 0)
+            return Action([], [], [], 0)
 
     def __repr__(self):
         return f"{self.__class__.__name__}"

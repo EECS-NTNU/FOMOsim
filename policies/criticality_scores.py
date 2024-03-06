@@ -1,4 +1,4 @@
-from policies.gleditsch_hagen.utils import calculate_net_demand, calculate_time_to_violation
+from .gleditsch_hagen.utils import calculate_net_demand, calculate_time_to_violation
 
 
 def calculate_criticality_normalized(weights,state,start_station_id, potential_station_id,net_demand_ps,

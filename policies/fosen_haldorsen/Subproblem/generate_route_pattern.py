@@ -1,8 +1,6 @@
 import copy
 import settings
-import policies.fosen_haldorsen.heuristic_manager as hm
-import sim
-
+from .. import heuristic_manager as hm
 
 class Route:
 
@@ -25,7 +23,7 @@ class Route:
 
     def generate_extreme_decisions(self, policy='greedy'):
         swap, bat_load, flat_load, bat_unload, flat_unload = (0, 0, 0, 0, 0)
-        if not isinstance(self.starting_station, sim.Depot):
+        if not self.starting_station.is_depot():
             if policy == 'greedy':
                 # convert from new sim
                 starting_station_current_charged_bikes = len(self.starting_station.get_available_bikes())

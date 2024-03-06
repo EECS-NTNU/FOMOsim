@@ -51,6 +51,9 @@ class Depot(Station):
             charging_station=self.charging_station,
         )
 
+    def is_depot(self):
+        return True
+
     def swap_battery_inventory(self, time, number_of_battery_to_change) -> int:
         self.battery_inventory += self.get_delta_capacity(time)
         self.time = time

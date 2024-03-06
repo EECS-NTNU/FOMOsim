@@ -1,8 +1,7 @@
-from policies.fosen_haldorsen.Subproblem.parameters_subproblem import ParameterSub
-from policies.fosen_haldorsen.Subproblem.subproblem_model import run_model
-import settings
-import sim
+from .parameters_subproblem import ParameterSub
+from .subproblem_model import run_model
 
+import settings
 
 class ModelManager:
 
@@ -93,7 +92,7 @@ class ModelManager:
         incoming_charged_bikes = customer_arrivals[0]
         incoming_flat_bikes = customer_arrivals[1]
         outgoing_charged_bikes = customer_arrivals[2]
-        if isinstance(station, sim.Depot):
+        if station.is_depot():
             return 0, 0
         if pattern:
             starvation = abs(min(0, visit_inventory_charged + pattern[0] - pattern[1] + pattern[3]

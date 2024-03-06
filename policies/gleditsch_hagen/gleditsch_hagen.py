@@ -1,9 +1,7 @@
-import copy
-from policies import Policy
-import sim
+from ..policy import Policy
+from ..action import Action
 
-from policies.gleditsch_hagen.pattern_based_cgh.pattern_based_main import PatternBasedCGH
-
+from ..gleditsch_hagen.pattern_based_cgh.pattern_based_main import PatternBasedCGH
 
 class GleditschHagenPolicy(Policy):
     def __init__(self, variant='PatternBased',
@@ -51,7 +49,7 @@ class GleditschHagenPolicy(Policy):
         #for i in range(int(num_unloading)):
         #    bikes_to_deliver.append(i) #just pick the first ones
 
-        return sim.Action(
+        return Action(
             batteries_to_swap,
             bikes_to_pickup,
             bikes_to_deliver,

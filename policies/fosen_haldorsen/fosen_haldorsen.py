@@ -1,12 +1,11 @@
 """
 This file contains all the policies used in the thesis.
 """
-import copy
 
-from policies import Policy
-import sim
-import settings
-from policies.fosen_haldorsen.heuristic_manager import *
+from ..policy import Policy
+from ..action import Action
+
+from ..fosen_haldorsen.heuristic_manager import *
 
 class FosenHaldorsenPolicy(Policy):
     def __init__(self, state, scenarios=2, branching=7, time_horizon=25,
@@ -95,7 +94,7 @@ class FosenHaldorsenPolicy(Policy):
 
             bikes_to_swap = [bike.id for bike in vehicle.location.get_swappable_bikes() if bike.id not in bikes_to_pickup ][0:swaps]
 
-        return sim.Action(
+        return Action(
             bikes_to_swap,
             bikes_to_pickup,
             bikes_to_deliver,
@@ -129,7 +128,7 @@ class FosenHaldorsenPolicy(Policy):
         swaps = min(max(0, vehicle.battery_inventory - swaps_for_pickups), Q_B)
         bikes_to_swap = [ bike.id for bike in vehicle.location.get_swappable_bikes() if bike.id not in bikes_to_pickup ][0:int(swaps)]
 
-        return sim.Action(
+        return Action(
             bikes_to_swap,
             bikes_to_pickup,
             bikes_to_deliver,
