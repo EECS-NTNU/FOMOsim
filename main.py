@@ -56,8 +56,9 @@ def main():
 
     # tstate = target_state.EvenlyDistributedTargetState()
     # tstate = target_state.OutflowTargetState()
-    tstate = target_state.EqualProbTargetState()
+    # tstate = target_state.EqualProbTargetState()
     # tstate = target_state.USTargetState()
+    tstate = target_state.HalfCapacityTargetState()
 
     ###############################################################################
     # Set up demand
