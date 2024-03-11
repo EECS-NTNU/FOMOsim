@@ -40,6 +40,9 @@ WALKING_SPEED = 4
 MAX_ROAMING_DISTANCE_SIMULATOR = 0.6 #km, for simulation
 MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
 
+# Collaboration between policies
+COLLAB_POLICY = True
+
 # HLV
 
 BATTERY_LEVEL_LOWER_BOUND = 20 #% not functionality if under

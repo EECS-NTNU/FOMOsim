@@ -539,6 +539,15 @@ class State(LoadSave):
 
                     # Adding bike to current station and changing coordinates of bike
                     vehicle.location.add_bike(delivery_bike)
+
+                for helping_bike_id in action.helping_pick_up:
+                    delivery_bike = vehicle.drop_off(helping_bike_id)
+                    if isinstance(vehicle.location, sim.Area):
+                        # TODO må man finne stasjonen i clusteret, eller kommer stasjonen å være i center?
+                        vehicle.location.station.add_bike(delivery_bike)
+                    if isinstance(vehicle.location, sim.Station):
+                        vehicle.location.area.add_bike(delivery_bike)
+                    
             else:
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(
@@ -567,6 +576,14 @@ class State(LoadSave):
 
                     # Adding bike to current station and changing coordinates of bike
                     vehicle.location.add_bike(delivery_bike)
+
+                for helping_bike_id in action.helping_pick_up:
+                    delivery_bike = vehicle.drop_off(helping_bike_id)
+                    if isinstance(vehicle.location, sim.Area):
+                        # TODO må man finne stasjonen i clusteret, eller kommer stasjonen å være i center?
+                        vehicle.location.station.add_bike(delivery_bike)
+                    if isinstance(vehicle.location, sim.Station):
+                        vehicle.location.area.add_bike(delivery_bike)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)

@@ -10,11 +10,10 @@ from .dynamic_clustering import clusterPickup, clusterDelivery
 import numpy as np
 import time
 
-########################################## 
-#         BS_PILOT - policy class        #
-##########################################
-
-class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
+class BS_PILOT_FF(Policy):
+    """
+    Class for X-PILOT-BS policy. Finds the best action for e-scooter systems.
+    """
     def __init__(self, 
                 max_depth = settings_max_depth, 
                 number_of_successors = settings_number_of_successors, 
@@ -38,18 +37,15 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
         self.starvation_criteria = starvation_criteria
         self.swap_threshold = swap_threshold
         super().__init__()
-
-    ###############################################
-    #  Returns an action element that contains:   #
-    #  * Number of batteries to swap              #
-    #  * Number of e-scooters to pick up          #
-    #  * Number of e-scooters to deliver          #
-    #  * Next station to visit                    #
-    #                                             #
-    # This is how our code talks to the simulator #            
-    ###############################################
     
     def get_best_action(self, simul, vehicle):
+        """
+        Returns an Action (with which bikes to swap batteries on, which bikes to pick-up, which bikes to unload, next location to drive to)
+
+        Parameters:
+        - simul = simulator
+        - vehicle = Vehicle-object that is doing the action
+        """
         start_logging_time = time.time() 
         next_location = None
         escooters_to_pickup = []
@@ -57,17 +53,12 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
         batteries_to_swap = []
 
         end_time = simul.time + self.time_horizon 
-        total_num_bikes_in_system = len(simul.state.get_all_bikes()) #flytt hvis lang kjøretid
+        total_num_bikes_in_system = len(simul.state.get_all_ff_bikes())
 
-
-        ###########################
-        # ##############################################################
-        #   Goes to depot if this action will lead to empty battery inventory                   #            
-        #########################################################################################
-
+        # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all escooters at cluster that is unusable
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
-            next_location = self.find_closest_depot(simul, vehicle)
-            escooters_to_pickup = [escooter.bike_id for escooter in vehicle.cluster.bikes.values() if escooter.battery < BATTERY_LEVEL_LOWER_BOUND]
+            next_location = self.simul.state.get_closest_depot(vehicle)
+            escooters_to_pickup = [escooter.bike_id for escooter in vehicle.cluster.bikes.values() if escooter.usable()]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
             return sim.Action(
                 [],
@@ -76,19 +67,12 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
                 next_location
             )
 
-        #########################################################################################
-        #   Number of bikes to pick up / deliver is choosen greedy based on clusters in reach   #
-        #   Which bike ID´s to pick up / deliver is choosen based on battery level              #   
-        #   How many batteries to swap choosen based on battery inventory and status on station #
-        #########################################################################################
-
+        # Loading and swap strategy at current location is always chosen greedily
         if vehicle.cluster is None:
             escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
             number_of_escooters_pickup = len(escooters_to_pickup)
             number_of_escooters_deliver = len(escooters_to_deliver)
             number_of_batteries_to_swap = len(batteries_to_swap)
-
-        #Veichle location må byttes fra station / area til cluster
         else:
             escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
             number_of_escooters_pickup = len(escooters_to_pickup)
@@ -96,32 +80,27 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
             number_of_batteries_to_swap = len(batteries_to_swap)
 
 
-        ######################################################################################################################
-        #  If estimated time of arrival (eta) is zero, meaning that the vehicle is at a station keep greedy quantity values  #                     #
-        #  If eta is in the future (max 60 minutes ahead) find new quantities with future demand taken into consideration    #
-        ######################################################################################################################
-
+        # Make a plan for all vehicles
         plan_dict = dict()
         for v in simul.state.get_vehicles():
-            # if isinstance(v.location, sim.Depot):
-            #     continue
+            # If vehicle is at a location, add current location to the plan with the greedy loading and swap strategy
             if v.eta == 0:
                 plan_dict[v.vehicle_id] = [Visit(v.location, number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap, simul.time, v)]
+            # If the vehicle is driving, use pilot to calculate the loading and swap strategy and add to the plan
             else:
                 number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap = self.calculate_loading_quantities_and_swaps_pilot(v, simul, v.location, v.eta) #I think eta is estimated time of arrival
                 plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_escooters_pickup), int(number_of_escooters_deliver), int(number_of_batteries_to_swap), v.eta, v)]
         
+        # All locations the vehicles are at or are on their way to is added to the tabu list and plan
         tabu_list = [v.location.location_id for v in simul.state.get_vehicles()]
 
         plan = Plan(plan_dict, tabu_list)
 
 
-        #############################################################################
-        #  Use PILOT_function to decide next station                                #
-        #############################################################################
-
+        # Use X-PILOT-BS to find which location to drive to next
         next_location, cluster = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
 
+        # Count the neighbors that are starved or congested
         similary_imbalances_starved = 0
         similary_imbalances_overflow = 0
 
@@ -138,6 +117,27 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
         simul.metrics.add_aggregate_metric(simul, "accumulated solution time", time.time()-start_logging_time)
         simul.metrics.add_aggregate_metric(simul, 'number of problems solved', 1)
 
+        if COLLAB_POLICY:
+            current_stations = [area.station for area in vehicle.cluster if area.station is not None]
+            overflow = sum([station.number_of_bikes() - station.get_target_state(simul.day(), simul.hour()) for station in current_stations])
+
+            next_stations = [area.station for area in cluster if area.station is not None]
+            lacking = sum([station.get_target_state(simul.day(), simul.hour()) - station.number_of_bikes() for station in next_stations])
+
+            if overflow > 0 and lacking > 0:
+                left_bike_capacity = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(escooters_to_pickup)
+                num_bikes_to_pickup = min(left_bike_capacity, overflow, lacking)
+                bikes_to_pickup = [] # TODO bruke num_bikes_to_pickup til å finne id-er
+
+                return sim.Action(
+                    batteries_to_swap,
+                    escooters_to_pickup,
+                    escooters_to_deliver,
+                    next_location,
+                    helping_pickup = bikes_to_pickup
+                )
+
+
         return sim.Action(
             batteries_to_swap,
             escooters_to_pickup,
@@ -146,60 +146,74 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
             cluster
         )
 
-
-
-    #################################################################################################### 
-    # PILOT_function - optimizes next station based on many possible future outcomes from that choice  #
-    ####################################################################################################
-
     def PILOT_function(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time, total_num_bikes_in_system):
+        """
+        Returns an id of the next location the vehicle should drive to next, based on possible future scenarios and the outcome that happens if this location is visited.
+
+        Parameters:
+        - simul = Simulator
+        - vehicle = Vehicle-object the decision is made for
+        - initial_plan = Plan-object with the first visit for each vehicle and the tabu list (Each vehicle has a list with length = 1)
+        - max_depth = Number of times to consider multiple actions and outcomes (after this every further move is chosen greedily)
+        - number_of_successors = Number of possible moves that is considered for each location
+        - end_time = Time horizon to evaluate
+        - total_num_bikes_in_system = Total free-floating number of bikes
+        """
+
+        # Create a tree of possible plans, each are evaluated with different criticality weights
         completed_plans = []
         for weight_set in self.criticality_weights_set:
-            num_successors = number_of_successors
-            plans = [[] for i in range(max_depth +1)] # [[], [], [], ... ] -> len() = max_depth+1
-            plans[0].append(initial_plan) # plan of visits so far
-            depths = [i for i in range (1, max_depth+1)] # [1, 2, 3, ... ] -> len() = max_depth
+            plans = [[] for i in range(max_depth+1)]
+            plans[0].append(initial_plan)
 
-            for depth in depths:
-                if depth == 2 or depth == 3:
-                    num_successors = max(1, round(num_successors/2)) # halve beta after depth 1 and 2
-                
+            for depth in range(1, max_depth+1):
+                # Halve the branching width for each depth 
+                if depth > 1:
+                    number_of_successors = max(1, number_of_successors//2)
+
+                # Explore as long as there are plans at the current depth
                 while plans[depth-1] != []:
                     plan = plans[depth-1].pop(0)
                     next_vehicle = plan.next_visit.vehicle
+
+                    # If the next vehicle is not the vehicle considered, reduce the number of successors
                     if next_vehicle != vehicle:
-                        num_successors_other_veheicle = max(1, round(num_successors/2))
+                        num_successors_other_veheicle = max(1, round(number_of_successors/2))
                         new_visits = self.greedy_next_visit(plan, simul, num_successors_other_veheicle, weight_set, total_num_bikes_in_system)
                     else:
-                        new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set, total_num_bikes_in_system)
+                        new_visits = self.greedy_next_visit(plan, simul, number_of_successors, weight_set, total_num_bikes_in_system)
                     
+                    # If there are no new visits or there is no visit within the time frame, finalize the plan
                     if new_visits == None or plan.next_visit.get_depature_time() > end_time:
                         new_plan = Plan(plan.copy_plan(),copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
                         plans[depth].append(new_plan)
                     else:
+                        # Otherwise, for each new visit, create a new branch of the plan
                         for branch_number, visit in enumerate(new_visits):
                             new_plan_dict = plan.copy_plan()
                             new_plan_dict[next_vehicle.vehicle_id].append(visit)
                             tabu_list = copy_arr_iter(plan.tabu_list)
                             tabu_list.append(visit.station.location_id)
 
+                            # Create a new plan with updated information
                             if depth == 1:
                                 new_plan = Plan(new_plan_dict, tabu_list, weight_set, branch_number)
                             else:
                                 new_plan = Plan(new_plan_dict, tabu_list, weight_set, plan.branch_number)
                             
-
+                            # Add the new plan to the appropriate list for further exploration
                             if next_vehicle.vehicle_id == vehicle.vehicle_id:
                                 plans[depth].append(new_plan)
                             else:
                                 plans[depth-1].append(new_plan)
 
-
+            # Extend the plans until the end time is reached 
             for plan in plans[max_depth]:
 
                 dep_time = plan.next_visit.get_depature_time()
                 temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
-
+                
+                # Add more visits until departure time has reached the end time
                 while dep_time < end_time:
                     new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set, total_num_bikes_in_system)
                     
@@ -216,9 +230,8 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
                 
                 completed_plans.append(temp_plan)
             
+        # Give a score for each plan, based on different demand scenarios
         plan_scores = dict()
-
-        #Generates different demand scenarios?
         scenarios = self.generate_scenarioes(simul, self.number_of_scenarios, poisson = True)
 
         for plan in completed_plans:
@@ -229,7 +242,7 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
                     score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights, total_num_bikes_in_system)
                 plan_scores[plan].append(score)
         
-        # Returns the station with the best avarage score over all scenarios
+        # Returns the location with the best average score over all scenarios
         return self.return_best_move_avarage(vehicle, simul, plan_scores)
 
                 

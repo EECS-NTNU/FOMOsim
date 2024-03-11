@@ -57,7 +57,7 @@ class BS_PILOT(Policy):
         # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all bikes at station that is unusable
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
             next_location = self.simul.state.get_closest_depot(vehicle)
-            bikes_to_pickup = vehicle.location.get_unusable_bikes()
+            bikes_to_pickup = list(vehicle.location.get_unusable_bikes().keys())
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(bikes_to_pickup))
             return sim.Action(
                 [],
@@ -68,8 +68,8 @@ class BS_PILOT(Policy):
 
         # Loading and swap strategy at current location is always chosen greedily
         bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria)
-        number_of_escooters_pickup = len(bikes_to_pickup)
-        number_of_escooters_deliver = len(bikes_to_deliver)
+        number_of_bikes_pickup = len(bikes_to_pickup)
+        number_of_bikes_deliver = len(bikes_to_deliver)
         number_of_batteries_to_swap = len(batteries_to_swap)
 
 
@@ -78,12 +78,12 @@ class BS_PILOT(Policy):
         for v in simul.state.get_vehicles():
             # If vehicle is at a location, add current location to the plan with the greedy loading and swap strategy
             if v.eta == 0:
-                plan_dict[v.vehicle_id] = [Visit(v.location, number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap, simul.time, v)]
+                plan_dict[v.vehicle_id] = [Visit(v.location, number_of_bikes_pickup, number_of_bikes_deliver, number_of_batteries_to_swap, simul.time, v)]
             
             # If the vehicle is driving, use pilot to calculate the loading and swap strategy and add to the plan
             else:
-                number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap = self.calculate_loading_quantities_and_swaps_pilot(v, simul, v.location, v.eta)
-                plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_escooters_pickup), int(number_of_escooters_deliver), int(number_of_batteries_to_swap), v.eta, v)]
+                number_of_bikes_pickup, number_of_bikes_deliver, number_of_batteries_to_swap = self.calculate_loading_quantities_and_swaps_pilot(v, simul, v.location, v.eta)
+                plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_bikes_pickup), int(number_of_bikes_deliver), int(number_of_batteries_to_swap), v.eta, v)]
         
         # All locations the vehicles are at or are on their way to is added to the tabu list and plan
         tabu_list = [v.location.location_id for v in simul.state.get_vehicles()]
@@ -97,14 +97,42 @@ class BS_PILOT(Policy):
         similary_imbalances_starved = 0
         similary_imbalances_overflow = 0
         for neighbor in simul.state.stations[next_location].neighbours:
-            if len(neighbor.get_available_bikes()) > self.overflow_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
+            if len(neighbor.get_available_bikes()) > self.overflow_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_bikes_pickup > 0:
                 similary_imbalances_overflow += 1
-            elif len(neighbor.get_available_bikes()) < self.starvation_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_deliver > 0:
+            elif len(neighbor.get_available_bikes()) < self.starvation_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_bikes_deliver > 0:
                 similary_imbalances_starved += 1
+        
         simul.metrics.add_aggregate_metric(simul, "similarly imbalanced starved", similary_imbalances_starved)
         simul.metrics.add_aggregate_metric(simul, "similarly imbalanced congested", similary_imbalances_overflow)
         simul.metrics.add_aggregate_metric(simul, "accumulated solution time", time.time()-start_logging_time)
         simul.metrics.add_aggregate_metric(simul, 'number of problems solved', 1)
+
+        if COLLAB_POLICY:
+            current_area = vehicle.location.area
+            area_cluster = [] # Liste av Area-objekter som skal vurderes
+            current_area_inventory = 0 # TODO Finne inventory av clusteret
+            current_area_target_state = 0 # TODO Finne target staten til clusteret
+
+            next_area = simul.state.get_location_by_id(next_location).area
+            next_area_cluster = []
+            next_area_inventory = 0 # TODO Finne inventory av clusteret
+            next_area_target_state = 0 # TODO Finne target staten til clusteret
+
+            num_current_area_overflow = current_area_inventory - current_area_target_state
+            num_next_area_lacking = next_area_inventory - next_area_target_state # TODO burde denne vurdere hvorfan det ser ut i fremtiden?
+            
+            if num_current_area_overflow > 0 and num_next_area_lacking > 0: # Hjelper kun til hvis det er for mange sykler der
+                left_bike_capacity = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(bikes_to_pickup)
+                num_escooters_to_pickup = min(left_bike_capacity, num_current_area_overflow, num_next_area_lacking)
+                escooters_to_pickup = [] # TODO bruke num_escooter_to_pick_up til å finne hvilke escootere som skal hentes og skriv det i en liste med id-en
+
+                return sim.Action(
+                    batteries_to_swap,
+                    bikes_to_pickup,
+                    bikes_to_deliver,
+                    next_location,
+                    helping_pickup = escooters_to_pickup
+                )
 
         return sim.Action(
             batteries_to_swap,

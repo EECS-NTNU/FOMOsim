@@ -137,14 +137,20 @@ class Station(Location):
         return list(self.bikes.values())
 
     def get_available_bikes(self):
+        """
+        Returns list of bike-objects that have sufficient battery for rental
+        """
         return [
             bike for bike in self.bikes.values() if bike.usable()
         ]
     
     def get_unusable_bikes(self):
-        return [
-            bike for bike in self.bikes.values() if not bike.usable()
-        ]
+        """
+        Returns dictionary with key = bike_id and value = bike-object
+        """
+        return {
+            bike.bike_id: bike for bike in self.bikes.values() if not bike.usable()
+        }
 
     def get_swappable_bikes(self, battery_limit=BATTERY_LIMIT_TO_SWAP):
         """
