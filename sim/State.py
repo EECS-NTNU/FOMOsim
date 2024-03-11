@@ -365,7 +365,7 @@ class State(LoadSave):
         for policy in policies:
             num_vehicles = len(self.vehicles)
             self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
-                                             start_location = self.locations["A0"], 
+                                             start_location = self.locations["S0"], 
                                              policy = policy, 
                                              battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
                                              bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 

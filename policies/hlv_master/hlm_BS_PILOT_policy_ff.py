@@ -619,7 +619,7 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
                 closest_distance = distance
                 closest_depot = d
 
-        return closest_depot.location_id
+        return closest_depot.location_id if closest_depot is not None else "A0"
                         
 
 

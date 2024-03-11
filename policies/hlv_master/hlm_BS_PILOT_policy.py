@@ -96,7 +96,7 @@ class BS_PILOT(Policy):
         # Count the neighbors that are starved or congested
         similary_imbalances_starved = 0
         similary_imbalances_overflow = 0
-        for neighbor in simul.state.stations[next_location].neighboring_stations:
+        for neighbor in simul.state.stations[next_location].neighbours:
             if len(neighbor.get_available_bikes()) > self.overflow_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_pickup > 0:
                 similary_imbalances_overflow += 1
             elif len(neighbor.get_available_bikes()) < self.starvation_criteria * neighbor.get_target_state(simul.day(),simul.hour()) and number_of_escooters_deliver > 0:
@@ -233,7 +233,7 @@ class BS_PILOT(Policy):
         # Calculate the amount of neighbors that are starving or congested, can impact the number of bikes to operate on
         num_starved_neighbors = 0
         num_overflowing_neighbors = 0
-        for neighbor in station.neighboring_stations:
+        for neighbor in station.neighbours:
             net_demand_neighbor = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(),60)
             num_usable_bikes_neighbor_eta = len(neighbor.get_available_bikes()) + ((eta - simul.time)/60)*net_demand_neighbor
             target_state_neighbor = round(neighbor.get_target_state(simul.day(), simul.hour()))
@@ -388,7 +388,7 @@ class BS_PILOT(Policy):
             unloading_quantity = visit.unloading_quantity
             swap_quantity = visit.swap_quantity
 
-            neighbors = station.neighboring_stations
+            neighbors = station.neighbours
 
             eta = visit.arrival_time
 
@@ -602,7 +602,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, overf
     starved_neighbors = 0
     overflowing_neighbors = 0
 
-    for neighbor in station.neighboring_stations:
+    for neighbor in station.neighbours:
         num_escooters_neighbor = neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND))
         neighbor_target_state = round(neighbor.get_target_state(simul.day(), simul.hour()))
         if num_escooters_neighbor < starvation_criteria * neighbor_target_state:

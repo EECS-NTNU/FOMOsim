@@ -47,7 +47,7 @@ class Station(Location):
         self.capacity = int(capacity) if capacity != 'inf' else float(capacity) # handles if capacity isn't infinite
         self.original_id = original_id
         self.charging_station = charging_station
-        self.neighboring_stations = []
+        self.neighbours = []
 
         if target_state is not None:
             self.target_state = target_state
@@ -165,7 +165,7 @@ class Station(Location):
         self_index = location_list.index(self)
         neighboring_stations_list = neighboring_stations_dict[self_index]
         for index in neighboring_stations_list:
-            self.neighboring_stations.append(location_list[index])
+            self.neighbours.append(location_list[index])
     
     def set_move_probabilities(self, station_list):
         move_probabilities = [[{} for _ in range(24)] for _ in range(7)]
