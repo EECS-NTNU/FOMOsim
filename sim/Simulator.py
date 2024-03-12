@@ -25,7 +25,7 @@ class Simulator(LoadSave):
     def __init__(
             self,
             duration,
-            initial_state: sim.State,
+            initial_state,
             target_state,
             demand,
             start_time = 0,

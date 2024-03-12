@@ -725,7 +725,7 @@ class State(LoadSave):
             key=lambda d: vehicle.location.distance_to(*d.get_location()),
             default=None
         )
-        return closest_depot.location_id if closest_depot else None
+        return closest_depot.location_id if closest_depot else vehicle.location.location_id
     
     # TODO forstå denne
     def sample(self, sample_size: int):

@@ -11,7 +11,7 @@ Criticality score is based on:
 - Driving time = The time it takes for the vehicle to arrive contributes to the criticality
 """
 
-def calculate_criticality(weights, simul, potential_stations, station, station_type, total_num_bikes_in_system, visited_stations = None):
+def calculate_criticality(weights, simul, potential_stations, station, total_num_bikes_in_system, visited_stations = None):
     """
     Returns the criticality score for the 
     """
@@ -105,7 +105,10 @@ def calculate_time_to_violation(net_demand, station, simul, total_num_bikes_in_s
         bikes_most_charged = [bike.battery for bike in sorted_bikes_by_battery[-3:]]
         average_battery_top3 = sum(bikes_most_charged)/len(bikes_most_charged)
         battery_over_limit_top3 = average_battery_top3 - BATTERY_LIMIT_TO_USE
-        violation_battery = battery_over_limit_top3 / calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+        hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+        if hourly_discharge == 0:
+            rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+        violation_battery = battery_over_limit_top3 / hourly_discharge
 
         time_to_violation = min(
             violation_demand, 

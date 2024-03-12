@@ -105,7 +105,7 @@ def calculate_time_to_violation(net_demand, cluster, simul, total_num_bikes_in_s
         bikes_most_charged = [bike.battery for bike in sorted_bikes_by_battery[-3:]]
         average_battery_top3 = sum(bikes_most_charged)/len(bikes_most_charged)
         battery_over_limit_top3 = average_battery_top3 - BATTERY_LIMIT_TO_USE
-        violation_battery = battery_over_limit_top3 / calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+        violation_battery = battery_over_limit_top3 / calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, False)
 
         time_to_violation = min(
             violation_demand, 
@@ -247,7 +247,7 @@ def calculate_battery_level_composition_criticality(simul, station, total_num_bi
     - total_num_bikes_in_system = total number of bikes in the system
     """
     current_escooters = station.bikes
-    hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+    hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, False)
 
     # Make list of the batteries of usable bikes at the station in current time and the next hour 
     battery_levels_current = [escooter.battery for escooter in current_escooters.values() if escooter.usable()]

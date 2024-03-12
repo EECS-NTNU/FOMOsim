@@ -40,6 +40,7 @@ WALKING_SPEED = 4
 MAX_ROAMING_DISTANCE_SIMULATOR = 0.6 #km, for simulation
 MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
 LOCATION_TYPE_MARGIN = 0.15
+VEHICLE_TYPE_MARGIN = 0.15
 
 # Collaboration between policies
 COLLAB_POLICY = False
@@ -63,6 +64,7 @@ SORTED_BIKES = True
 ONLY_SWAP_ALLOWED = True
 USE_BATTERY_CRITICALITY = True
 FF_ROAMING_AREA_RADIUS = 3
+OPERATOR_AREA_RADIUS = 3
 
 # ------- PILOT PARAMETERS ----------
 
@@ -119,7 +121,7 @@ settings_list_of_instances = ['OS_W34', 'OS_W31', "NY_W31", "BO_W31",'BG_W35', '
 # settings_list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
 # settings_list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 # settings_list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29]
-settings_list_of_seeds = [2]
+settings_list_of_seeds = [1]
 
 RESULT_FOLDER = str(SETTINGS_INSTANCE) + '_' + str(settings_num_vehicles) + 'V_' + str(len(settings_list_of_seeds)) +'S_' + str(settings_duration//24) + 'D_PILOT_' + ('T' if SORTED_BIKES else 'F') + ('T' if ONLY_SWAP_ALLOWED else 'F') + ('T' if USE_BATTERY_CRITICALITY else 'F')
 
