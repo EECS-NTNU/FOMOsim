@@ -97,7 +97,7 @@ class EScooterDeparture(Event):
                 # Use acceptance/rejection function to decide if roaming is accepted
                 if self.acceptance_rejection(distance):
                     available_escooters = closest_neighbour_with_bikes.get_available_bikes()
-                    escooter=available_escooters.pop(0)
+                    escooter= available_escooters.pop(0)
                     
                     arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
 
@@ -107,6 +107,7 @@ class EScooterDeparture(Event):
                         closest_neighbour_with_bikes.location_id,
                         arrival_area.location_id,) + world.state.get_travel_time(departure_area.location_id,
                         closest_neighbour_with_bikes.location_id)*(BIKE_SPEED/WALKING_SPEED) 
+
 
                     # create an arrival event for the roaming user from the new departure area
                     world.add_event(

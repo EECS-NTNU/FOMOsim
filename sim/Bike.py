@@ -7,14 +7,13 @@ class Bike(Location):
     Bike class containing state and all operations necessary
     """
 
-    def __init__(self, 
-                 is_station_based, 
+    def __init__(self,
                  lat: float = 0, 
                  lon: float = 0, 
                  location_id = 0, 
                  bike_id = 0):
         super().__init__(lat, lon, location_id)
-        self.is_station_based = is_station_based
+        self.is_station_based = True
         self.metrics = Metric()
         self.bike_id = bike_id
 

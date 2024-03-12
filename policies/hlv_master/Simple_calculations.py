@@ -46,17 +46,13 @@ def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system):
     next_hour = (hour + 1) % 24
     next_day = day if next_hour > hour else day +1
 
-    trips_current_hour = []
-    trips_next_hour = []
-    for station in simul.state.get_stations():
-        trips_current_hour.append(station.get_leave_intensity(day,hour))
-        trips_next_hour.append(station.get_leave_intensity(next_day, next_hour))
+    trips_current_hour = [station.get_leave_intensity(day, hour) for station in simul.state.get_areas()]
+    trips_next_hour = [station.get_leave_intensity(next_day, next_hour) for station in simul.state.get_areas()]
     number_of_trips_current_hour = sum(trips_current_hour)
     number_of_trips_next_hour = sum(trips_next_hour)
 
     minutes_remaining = 60 - (time_now % 60)
     number_of_trips_next_60_min = (minutes_remaining * number_of_trips_current_hour + (60 - minutes_remaining) * number_of_trips_next_hour) / 60
-    # min(60-(time_now-day*24*60-hour*60),60)*number_of_trips_current_hour/60 + (60 - (time_now-day*24*60-hour*60))*number_of_trips_next_hour/60
 
     total_system_battery_discharge = number_of_trips_next_60_min * AVERAGE_LENGHT_OF_TRIP * BATTERY_CHANGE_PER_MINUTE
 

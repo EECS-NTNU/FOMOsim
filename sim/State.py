@@ -333,23 +333,24 @@ class State(LoadSave):
         return state
 
     def calculate_traveltime(self, speed):
+        """
+        Returns a dictionary with location ids in a tuple as key, and value is set to travel time in minutes
+
+        Parameters:
+        - speed = Speed of the vehicle
+        """
         locations = [(loc, loc.get_location()) for loc in self.get_locations()]
         traveltime_matrix = {}
 
         for i, (location, loc_coords) in enumerate(locations):
             for neighbour, neighbour_coords in locations[i+1:]:  # Start from the next location to avoid duplicates
                 distance = location.distance_to(*neighbour_coords)
-                travel_time = (distance / speed) * 60  # Calculate travel time once
+                travel_time = (distance / speed) * 60
+
                 # Set travel time for both directions due to symmetry
                 traveltime_matrix[(location.location_id, neighbour.location_id)] = travel_time
                 traveltime_matrix[(neighbour.location_id, location.location_id)] = travel_time
         return traveltime_matrix
-
-        # traveltime_matrix = {}
-        # for location in self.get_locations():
-        #     for neighbour in self.get_locations():
-        #         traveltime_matrix[(location.location_id, neighbour.location_id)] = (location.distance_to(*neighbour.get_location()) / speed)*60 #multiplied by 60 to get minutes
-        # return traveltime_matrix
 
     def set_locations(self, locations):
         self.locations = {location.location_id: location for location in locations}
@@ -602,6 +603,7 @@ class State(LoadSave):
     def get_closest_available_area(self, area, radius = FF_ROAMING_AREA_RADIUS):    
         available_area = None
         neighbors = area.neighbours
+        tabu_list = []
 
         while neighbors and not available_area:
             current_neighbor = neighbors.pop(0)  # Remove the first neighbor from the list to check it
@@ -609,17 +611,14 @@ class State(LoadSave):
             if len(current_neighbor.get_available_bikes()) > 0:
                 available_area = current_neighbor
                 break
+            else:
+                tabu_list.append(current_neighbor.location_id)
 
             if radius > 0:
                 # Extend with new neighbors not already in the list, avoiding duplicates
-                for new_neighbor in current_neighbor.neighbours:
-                    if new_neighbor not in neighbors and new_neighbor != area:
-                        neighbors.append(new_neighbor)
+                neighbors.extend([neighbor for neighbor in current_neighbor.neighbours if neighbor.location_id not in tabu_list])
 
             radius -= 1  # Decrease the radius after each neighbor check
-
-            if not neighbors:  # If neighbors list is empty, break the loop
-                break
 
         return available_area
 

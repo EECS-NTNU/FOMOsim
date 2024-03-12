@@ -201,7 +201,7 @@ if __name__ == "__main__":
     policy_dict = dict(pilot_roaming = policies.hlm.BS_PILOT(
         max_depth = settings_max_depth, 
         number_of_successors = settings_number_of_successors, 
-        time_horizon = settings_time_horizon, 
+        time_horizon = TIME_HORIZON, 
         criticality_weights_set = SETTINGS_CRITICAILITY_WEIGHTS_SET, 
         evaluation_weights = settings_evaluation_weights, 
         number_of_scenarios = settings_number_of_scenarios, 

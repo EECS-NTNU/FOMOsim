@@ -1,50 +1,39 @@
 from .Simple_calculations import calculate_net_demand, calculate_hourly_discharge_rate
 from settings import *
-# from .Variables import *
 
-#########################################################
-# THIS FILE CONTAINS ALL CRITICALITY SCORE CALCULATIONS #
-#########################################################
-
-
-########################################################################################
-# This is where the criticality score is calculated                                    #
-# Time to voilation, deviations, neighborhood criticality, demand and driving time     #
-# We need to descide how and if we want to calculate in battery levels in this scoore  #
-# If we want to adjust this score this is where we do it                               #
-########################################################################################
+"""
+Calculates the criticality score for a location to be visited by a vehicle.
+Criticality score is based on:
+- Time to violation = How long is it until a starvation/congestion appears
+- Deviation from target state = The difference from the locations inventory and the current target state
+- Neighborhood criticality = How much can neighboring locations affect the current locations criticality
+- Demand = How the current demand contributes to the criticality
+- Driving time = The time it takes for the vehicle to arrive contributes to the criticality
+"""
 
 def calculate_criticality(weights, simul, potential_stations, station, station_type, total_num_bikes_in_system, visited_stations = None):
-
-    #This is where we have to add one weight for battery level if nessesary
+    """
+    Returns the criticality score for the 
+    """
     [w_t, w_dev, w_n, w_dem, w_dri, w_bc] = weights
-    TIME_HORIZON = 60
-    criticalities = dict() # key: station, value: list of values for factors to consider.
-    criticalities_summed = dict()
+    criticalities = dict() # key: station, value: list of criticality scores for each category
+    criticalities_summed = dict() # key: station, value: criticality of station
 
-    #The facors in consideration
-    time_to_violation_list = []
+    # Lists of criticality scores for all potential_stations
+    time_to_violation_list = [] 
     deviation_list = []
     neighborhood_crit_list = [] 
     demand_crit_list = []
     driving_time_list = [] 
     BL_composition_list = []
 
-    #Calculate criticality scoore for each potential station
     for potential_station in potential_stations:
-        net_demand = calculate_net_demand(potential_station, simul.time, simul.day(), simul.hour(), 60)
+        net_demand = calculate_net_demand(potential_station, simul.time, simul.day(), simul.hour(), TIME_HORIZON)
         target_state = potential_station.get_target_state(simul.day(),simul.hour())
-        expected_num_escooters = potential_station.number_of_bikes() - len(potential_station.get_swappable_bikes(20)) + net_demand
-
-        if station_type == 'p':
-            potential_station_type = 'p'
-        elif station_type == 'd':
-            potential_station_type = 'd'
-        else:
-            potential_station_type = calculate_station_type(target_state, expected_num_escooters)
+        potential_station_type = calculate_station_type(target_state, len(potential_station.get_available_bikes()) + net_demand)
 
         # Time to violation
-        time_to_violation = calculate_time_to_violation_IM(net_demand, potential_station, simul, total_num_bikes_in_system)
+        time_to_violation = calculate_time_to_violation(net_demand, potential_station, simul, total_num_bikes_in_system)
         time_to_violation_list.append(time_to_violation)
 
         # Deviation from target state
@@ -52,11 +41,11 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
         deviation_list.append(deviation_from_target_state)
 
         # Neighborhood criticality
-        neighborhood_crit = calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, station_type, visited_stations)
+        neighborhood_crit = calculate_neighborhood_criticality(simul, potential_station, potential_station_type, visited_stations)
         neighborhood_crit_list.append(neighborhood_crit)
 
         # Demand criticality
-        demand_crit = calculate_demand_criticality(station_type, net_demand)
+        demand_crit = calculate_demand_criticality(potential_station_type, net_demand)
         demand_crit_list.append(demand_crit)
 
         # Driving time criticality
@@ -87,192 +76,218 @@ def calculate_criticality(weights, simul, potential_stations, station, station_t
 
     return criticalities_summed
     
+def calculate_time_to_violation(net_demand, station, simul, total_num_bikes_in_system):
+    """
+    Returns a float-score of how critical the station is based on how many hours until a starvation/congestion occurs.
+    A low score is critical, while high is less critical
 
-
-
-#################################################################################################
-# TIME TO VIOLATION calculated here                                                             #
-#                                                                                               #
-# This is where i suggust that we account for battery level                                     #
-# Uses the demand caluclated for the next hour for the forseable future - room for improvement? #
-#################################################################################################
-
-def calculate_time_to_violation_IM(net_demand, station,simul, total_num_bikes_in_system):
+    Parameters:
+    - net_demand = float, the net demand calculated from the location's arrive/leave intensities (positive = bikes are arriving, negative = bikes are departuring)
+    - cluster = Cluster-object under consideration
+    - simul = Simulator
+    - total_num_bikes_in_system = total number of bikes in the system
+    """
     time_to_violation = 0
 
-    #since we operate without a station_capacity positive net demand wont lead to violation, should we punich in a way
+    # Calculate if a congestion might occur, no battery is needed in this calculation as we only care if you are not able to park
     if net_demand > 0:
-        time_to_violation = 8 
+        remaining_station_capacity = station.capacity - station.number_of_bikes()
+        time_to_violation = remaining_station_capacity / net_demand
     
-    #Starvations will lead to violations -> when demand occurs and the cluster has noe escooters
-    #This is the perfect spot to add some calculation on battery degeneration over itme
+    # Calculate time if a starvation might occur
     elif net_demand < 0:
-        sorted_escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False)
-        time_to_violation = min((station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3 - BATTERY_LEVEL_LOWER_BOUND)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system))) if USE_BATTERY_CRITICALITY else (station.number_of_bikes() - len(station.get_swappable_bikes(20)))/ -net_demand
+        sorted_bikes_by_battery = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False)
 
-        #We treat violations >= 8 as the same
-        if time_to_violation > 8:
-            time_to_violation = 8
+        # Time until there is no bikes left at a station that has sufficiant battery level
+        violation_demand = len(station.get_available_bikes()) / -net_demand
+        
+        # Calculate the time until there are only bikes at station with too low battery for rental, based on hourly discharge in system
+        bikes_most_charged = [bike.battery for bike in sorted_bikes_by_battery[-3:]]
+        average_battery_top3 = sum(bikes_most_charged)/len(bikes_most_charged)
+        battery_over_limit_top3 = average_battery_top3 - BATTERY_LIMIT_TO_USE
+        violation_battery = battery_over_limit_top3 / calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+
+        time_to_violation = min(
+            violation_demand, 
+            violation_battery
+        )
     
+    # Set time to violation far in the future
     else:
         time_to_violation = 8
     
-    return time_to_violation
-
-
-
-###############################################
-# DEVIATION FROM TARGET STATE calculated here #
-#                                             #
-# Accounted for battery levels                #
-############################################### 
+    # The highest value allowed is 8 hours
+    return min(time_to_violation, 8)
 
 def calculate_deviation_from_target_state(station, net_demand, target_state):
-    
-    num_escooters = (station.number_of_bikes() - len(station.get_swappable_bikes(20)) + net_demand)
+    """
+    Returns float-score for the deviation criticality.
+    The higher the score, thus more critical.
 
-    if net_demand > 0:
-        deviation_from_target_state = abs(target_state - num_escooters)
+    Parameters:
+    - station = Station-object under consideration
+    - net_demand = expected demand for the station during the time horizon
+    - target_state = number of bikes ideally to be at the station
+    """
 
+    available_bikes_future = len(station.get_available_bikes()) + net_demand
+
+    # If there is expected to still be bikes at station find the difference
+    if available_bikes_future > 0:
+        deviation_from_target_state = abs(target_state - available_bikes_future)
     else:
-        if num_escooters >= 0:
-            deviation_from_target_state = abs(target_state - num_escooters)
-        else:
-            deviation_from_target_state = target_state
+        deviation_from_target_state = target_state
     
     return deviation_from_target_state
 
+def calculate_neighborhood_criticality(simul, station, station_type, visited_stations):
+    """
+    Returns a int-score on how the neighboring stations, impact the criticality.
+    The higher the score, the more critical.
 
-###############################################
-# NEIGHBORHOOD CRITICALITY calculated here    #
-#                                             #
-# Accounted for battery levels                #
-############################################### 
-
-def calculate_neighborhood_criticality(simul, station, TIME_HORIZON, station_type, visited_stations):
+    Parameters:
+    - simul = Simulator
+    - station = Station-object under consideration
+    - station_type = if it is a pick up or delivery station (or balanced)
+    - vistited_stations = list of Station-objects that are in the tabu_list
+    """
     neighborhood_crit = 0
     neighbors = station.neighbours
     
     for neighbor in neighbors:
         station_crit = 0
-        if visited_stations != None and neighbor.location_id in visited_stations:
+        
+        # If this neighoring station has been visited, it is not critical
+        if visited_stations is not None and neighbor.location_id in visited_stations:
             station_crit -= 3
+        
+        # If it has not been visited
         else:
-            neighbor_demand = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), 60)
+            neighbor_net_demand = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), TIME_HORIZON)
             neighbor_target_state = neighbor.get_target_state(simul.day(),simul.hour())
 
-            expected_number_escooters = (neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(20)) + neighbor_demand)
-            neighbor_type = calculate_station_type(neighbor_target_state, expected_number_escooters)
+            expected_number_bikes = len(neighbor.get_available_bikes()) + neighbor_net_demand
+            neighbor_type = calculate_station_type(neighbor_target_state, expected_number_bikes)
 
-            #Extra critical because of neighbor with same status
+            # Same status increases the criticality
             if neighbor_type == station_type:
                 station_crit += 1
 
-            #Less critical because of neghbor whit complimentary status
-            #Mabye change >0 into > % of target state?
-            if station_type == 'p' and neighbor_target_state - expected_number_escooters > neighbor_target_state * NEIGHBOR_BALANCE_PICKUP:
+                # Demand of neighbors adjusts the criticality
+                station_crit += calculate_demand_criticality(neighbor_type, neighbor_net_demand)
+
+            # Decreases the criticality if there are complementary station types
+            if station_type == 'p' and neighbor.capacity - expected_number_bikes > 0:
                 station_crit -= 1
-            
-            elif station_type == 'd' and expected_number_escooters - neighbor_target_state > neighbor_target_state * NEIGHBOR_BALANCE_DELIVERY:
+            elif station_type == 'd' and expected_number_bikes > 0: #TODO stemmer dette?
                 station_crit -= 1
-            
             elif station_type == 'b':
                 station_crit -= 1
             
-            #If demand betters or worsen the situation over time
-            if station_type == neighbor_type:
-                station_crit += calculate_demand_criticality(neighbor_type, neighbor_demand)
-            
             #Battery level composition
-            if station_type == 'd' and USE_BATTERY_CRITICALITY:
-                current_escooters = neighbor.bikes
-                battery_levels_neighbor = [escooter.battery for escooter in current_escooters.values() if escooter.battery > 20]
-                avg_battery_level = (sum(battery_levels_neighbor) / len(battery_levels_neighbor)) if len(battery_levels_neighbor) > 0 else 0
+            if station_type == 'd':
+                battery_levels_neighbor = [escooter.battery for escooter in neighbor.get_available_bikes()]
+                avg_battery_level = sum(battery_levels_neighbor) / len(battery_levels_neighbor) if len(battery_levels_neighbor) > 0 else 0 # TODO stemmer det at denne skal være 0?
 
                 if neighbor_type == 'd':
-                    if avg_battery_level < 50:
+                    if avg_battery_level < 50: #TODO ikke ha den fast?
                         station_crit += 1
-            
-
         
-        #Accounts for distance, closer is better i think
-        distance = (simul.state.traveltime_vehicle_matrix[(station.location_id, neighbor.location_id)]/60)*VEHICLE_SPEED
+        # Calculate the distance between the neighbor and current station, use this to adjust the station's criticality
+        distance = station.distance_to(*neighbor.get_location())
         station_crit *= (1 - (distance/MAX_ROAMING_DISTANCE_SOLUTIONS))
 
         neighborhood_crit += station_crit
     
     return neighborhood_crit
 
-
-
-##########################################################################
-# DEMAND CRITICALITY calculated here                                     #
-#                                                                        #
-# If the natural flow betters the situation the station is less critical #                                             
-########################################################################## 
-
-
 def calculate_demand_criticality(station_type, net_demand):
-    #check if demand improves or worsens balance
+    """
+    Returns the criticality score based on demand and station type.
+    The higher the score, the more critical.
+
+    Parameters:
+    - station_type = character describing if the station under consideration is a pick up, delivery or balanced
+    - net_demand = how the flow at the station is for the set time_horizon
+    """
+
+    # The station has too many bikes and more are arriving -> positive
     if station_type == "p" and net_demand > 0:
         demand_crit = net_demand
+    
+    # The station has too many bikes and bikes are departuring -> positive
     elif station_type == "p" and net_demand < 0:
         demand_crit = -net_demand
+    
+    # The station had too few bikes but bikes are arriving here -> negative
     elif station_type == "d" and net_demand > 0:
         demand_crit = -net_demand
+
+    # The station had too few bikes, and bikes are departuring -> negative
     elif station_type == "d" and net_demand < 0:
         demand_crit = net_demand
+    
+    # Station is at target state
     elif station_type == "b":
-        demand_crit = abs(net_demand)
+        demand_crit = 0 # TODO gir dette mening?
+    
+    # net_demand == 0
     else:
-        demand_crit = abs(net_demand)
+        demand_crit = 0
+    
     return demand_crit
 
-
-
-##########################################################################
-# DRIVING TIME CRITICALITY calculated here                               #
-#                                                                        #          
-##########################################################################
-
-
 def calculate_driving_time_crit(simul, current_station, potential_station):
+    """
+    Returns the driving time between two stations.
+    The lower the score the more critical.
+    """
     return simul.state.get_vehicle_travel_time(current_station.location_id, potential_station.location_id)
 
-
-
-#########################################################
-# BATTERY LEVEL COMPOSITION CRITICALITY calculated here #
-# NEW criticality factor                                #
-#########################################################
-
 def calculate_battery_level_composition_criticality(simul, station, total_num_bikes_in_system):
-    
+    """
+    Returns a float-score based on how the battery levels may be in the future.
+    The lower the score, the more critical.
+
+    Parameters:
+    - simul = Simulator
+    - station = Station-object under consideration
+    - total_num_bikes_in_system = total number of bikes in the system
+    """
     current_escooters = station.bikes
-    hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60
+    hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
 
-    battery_levels_current = []
-    battery_levels_after = []
-    for escooter in current_escooters.values():
-        if escooter.battery > 20:
-           battery_levels_current.append(escooter.battery)
-        if escooter.battery - hourly_discharge_rate > 20:
-           battery_levels_after.append(escooter.battery - hourly_discharge_rate)
+    # Make list of the batteries of usable bikes at the station in current time and the next hour 
+    battery_levels_current = [escooter.battery for escooter in current_escooters.values() if escooter.usable()]
+    battery_levels_after = [escooter.battery - hourly_discharge_rate for escooter in current_escooters.values() if (escooter.battery - hourly_discharge_rate) > BATTERY_LIMIT_TO_USE]
 
-    #TODO Apply weighted average functionality here if we want
+    # Very critical if there are no bikes with sufficient battery left
     if len(battery_levels_after) == 0 or len(battery_levels_current) == 0:
-        return 0
+        if len(battery_levels_after) < len(battery_levels_current):
+            return 0
+        else:
+            return 10 # TODO hvilket tall er ikke kritisk?
         
-    return (len(battery_levels_after)/len(battery_levels_current))*(sum(battery_levels_after)/len(battery_levels_after))
+    reduction_avail_bikes = (len(battery_levels_after)/len(battery_levels_current))
+    average_battery_after = (sum(battery_levels_after)/len(battery_levels_after))
 
+    return reduction_avail_bikes * average_battery_after
 
-#Simple calculation functions to help in the functions above 
 def calculate_station_type(target_state, exp_num):
-    margin = 0.15 #set in settings sheeme
+    """
+    Returns if station is a pick up, delivery or balanced
 
-    if exp_num - target_state > margin*target_state:
+    Parameters:
+    - target_state = ideal number of bikes at a station
+    - LOCATION_TYPE_MARGIN = percentage threshold to categorize as unbalanced
+    """
+
+    deviation_from_target = exp_num - target_state
+
+    # If difference from target is higher than percentage of target state it is categorized as unbalanced
+    if deviation_from_target > LOCATION_TYPE_MARGIN *target_state: # TODO skal denne endres til inngjerding møller versjon?
         station_type = 'p'
-    elif exp_num - target_state < - margin*target_state:
+    elif deviation_from_target < - LOCATION_TYPE_MARGIN *target_state:
         station_type = 'd'
     else:
         station_type = 'b'
@@ -281,24 +296,62 @@ def calculate_station_type(target_state, exp_num):
 
 
 def normalize_results(criticalities, time_to_violation_list, deviation_list, neighborhood_crit_list, demand_crit_list, driving_time_list, BL_composition_list):
-    max_time = max(max(time_to_violation_list),1)
-    max_deviation = max(max(deviation_list),1)
-    max_neighborhood = max(max(neighborhood_crit_list),1)
-    min_neighborhood = min(min(neighborhood_crit_list),-1)
-    max_demand = max(max(demand_crit_list),1)  #this can potentially be 0, happend for 1 out of 10 seeds
+    """
+    Normalizes all the scores so they go from 0 to 1, where 1 is the most critical possible for each category.
+
+    Parameters:
+    - criticalities = dictionary, key = potential station, value = list of criticality scores
+    - time_to_violation_list = list of all scores from potential stations
+    - deviation_list = list of all scores from potential stations
+    - neighborhood_crit_list = list of all scores from potential stations
+    - demand_crit_list = list of all scores from potential stations
+    - driving_time_list = list of all scores from potential stations
+    - BL_composition_list = list of all scores from potential stations
+    """
+    # Find min and max of all categories, used to normalize later
+    max_time = max(time_to_violation_list)
+    min_time = min(time_to_violation_list)
+
+    max_deviation = max(deviation_list)
+    min_deviation = min(deviation_list)
+
+    max_neighborhood = max(neighborhood_crit_list)
+    min_neighborhood = min(neighborhood_crit_list)
+
+    max_demand = max(demand_crit_list)
+    min_demand = min(demand_crit_list)
+
     max_driving_time = max(driving_time_list)
+    min_driving_time = min(driving_time_list)
+
     max_battery_level = max(BL_composition_list)
+    min_battery_level = min(BL_composition_list)
 
     criticalities_normalized = dict()
     for station in criticalities:
-        criticalities_normalized[station] = []
-        criticalities_normalized[station].append(1-criticalities[station][0]/max_time)
-        criticalities_normalized[station].append(criticalities[station][1]/max_deviation)
-        if criticalities[station][2] >= 0:
-            criticalities_normalized[station].append(criticalities[station][2]/max_neighborhood)
-        else: 
-            criticalities_normalized[station].append(criticalities[station][2]/-min_neighborhood)
-        criticalities_normalized[station].append(criticalities[station][3]/max_demand)
-        criticalities_normalized[station].append(1-criticalities[station][4]/max_driving_time)
-        criticalities_normalized[station].append(1-criticalities[station][5]/max_battery_level)
+        # Find the normalized score from scores made
+        normalized_violation_crit = find_relative_score(criticalities[station][0], max_time, min_time)
+        normalized_deviation_crit = find_relative_score(criticalities[station][1], max_deviation, min_deviation)
+        normalized_neighborhood_crit = find_relative_score(criticalities[station][2], max_neighborhood, min_neighborhood)
+        normalized_demand_crit = find_relative_score(criticalities[station][3], max_demand, min_demand)
+        normalize_driving = find_relative_score(criticalities[station][4], max_driving_time, min_driving_time)
+        normalize_battery = find_relative_score(criticalities[station][5], max_battery_level, min_battery_level)
+
+        # Add the scores into the returned dictionary, adjusted for so that the higher the more critical it is
+        criticalities_normalized[station] = [
+            1 - normalized_violation_crit if normalized_violation_crit is not None else 0,
+            normalized_deviation_crit if normalized_deviation_crit is not None else 0,
+            normalized_neighborhood_crit if normalized_neighborhood_crit is not None else 0,
+            normalized_demand_crit if normalized_demand_crit is not None else 0,
+            1 - normalize_driving if normalize_driving is not None else 0,
+            1 - normalize_battery if normalize_battery is not None else 0
+        ]
     return criticalities_normalized
+
+def find_relative_score(score, max, min):
+    """
+    Returns the score in a normalized matter between 0 and 1 (Min-Max matter).
+    If score = min -> return 0
+    If score = max -> return 1
+    """
+    return None if max == min else (score - min)/(max - min)

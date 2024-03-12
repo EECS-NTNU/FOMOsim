@@ -17,7 +17,7 @@ class BS_PILOT_FF(Policy):
     def __init__(self, 
                 max_depth = settings_max_depth, 
                 number_of_successors = settings_number_of_successors, 
-                time_horizon = settings_time_horizon, 
+                time_horizon = TIME_HORIZON, 
                 criticality_weights_set = SETTINGS_CRITICAILITY_WEIGHTS_SET, 
                 evaluation_weights = settings_evaluation_weights, 
                 number_of_scenarios = settings_number_of_scenarios, 
@@ -117,7 +117,7 @@ class BS_PILOT_FF(Policy):
         simul.metrics.add_aggregate_metric(simul, "accumulated solution time", time.time()-start_logging_time)
         simul.metrics.add_aggregate_metric(simul, 'number of problems solved', 1)
 
-        if COLLAB_POLICY:
+        if COLLAB_POLICY and vehicle.cluster is not None:
             current_stations = [area.station for area in vehicle.cluster if area.station is not None]
             overflow = sum([station.number_of_bikes() - station.get_target_state(simul.day(), simul.hour()) for station in current_stations])
 
@@ -615,25 +615,7 @@ class BS_PILOT_FF(Policy):
             potential_stations2 = [station for station in simul.state.get_areas() if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             cluster = rng_balanced.choice(potential_stations2)
-            return cluster.location_id, cluster
-        
-    ####################################################################
-    # Finds closest depot from location when vehicle is out of battery #
-    ####################################################################
-
-    def find_closest_depot(self, simul, vehicle):
-        closest_depot = None
-        closest_distance = float('inf')
-        depots = [depot for depot in simul.state.get_depots() if depot.is_station_based == vehicle.is_station_based]
-
-        for d in depots:
-            distance = (simul.state.traveltime_vehicle_matrix[(vehicle.location.location_id, d.location_id)]/60)*VEHICLE_SPEED
-            if distance < closest_distance:
-                closest_distance = distance
-                closest_depot = d
-
-        return closest_depot.location_id if closest_depot is not None else "A0"
-                        
+            return cluster.location_id, cluster        
 
 
 #############################################################################################

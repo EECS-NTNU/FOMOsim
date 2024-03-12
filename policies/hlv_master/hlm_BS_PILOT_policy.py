@@ -16,7 +16,7 @@ class BS_PILOT(Policy):
     def __init__(self, 
                 max_depth = settings_max_depth, 
                 number_of_successors = settings_number_of_successors, 
-                time_horizon = settings_time_horizon, 
+                time_horizon = TIME_HORIZON, 
                 criticality_weights_set = SETTINGS_CRITICAILITY_WEIGHTS_SET, 
                 evaluation_weights = settings_evaluation_weights, 
                 number_of_scenarios = settings_number_of_scenarios, 
@@ -318,7 +318,7 @@ class BS_PILOT(Policy):
         number_of_successors = min(number_of_successors, len(potential_stations))
 
         # Finds the criticality score of all potential stations, and sort them in descending order
-        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station,station_type, total_num_bikes_in_system ,tabu_list)
+        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station, station_type, total_num_bikes_in_system ,tabu_list)
         stations_sorted_list = list(stations_sorted.keys())
 
         # Selects the most critical stations as next visits

@@ -39,9 +39,10 @@ TRAFFIC_LOGGING = False
 WALKING_SPEED = 4
 MAX_ROAMING_DISTANCE_SIMULATOR = 0.6 #km, for simulation
 MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
+LOCATION_TYPE_MARGIN = 0.15
 
 # Collaboration between policies
-COLLAB_POLICY = True
+COLLAB_POLICY = False
 
 # HLV
 
@@ -77,7 +78,7 @@ settings_num_vehicles = 1
 
 settings_max_depth = 1 # best = 6
 settings_number_of_successors = 1 # best = 3
-settings_time_horizon = 10 # best = 40
+TIME_HORIZON = 10 # best = 40
 
 SETTINGS_CRITICAILITY_WEIGHTS_SET = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]] # best [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]]
 # settings_criticality_weights_sets = [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]]
