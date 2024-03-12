@@ -25,7 +25,7 @@ class Simulator(LoadSave):
     def __init__(
             self,
             duration,
-            initial_state,
+            initial_state: sim.State,
             target_state,
             demand,
             start_time = 0,
@@ -49,13 +49,11 @@ class Simulator(LoadSave):
         label = None,
     ):
         self.end_time = start_time + duration
-        self.state = initial_state
+        self.state: sim.State = initial_state
         self.target_state = target_state
         self.demand = demand
         self.time = start_time
         self.event_queue: List[sim.Event] = []
-        self.count_escooter_trips = 0
-        self.count_bike_trips = 0
 
         # Add generate trip event to the event_queue
         self.event_queue.append(sim.GenerateBikeTrips(start_time))
@@ -119,10 +117,6 @@ class Simulator(LoadSave):
         while True:
             event = self.event_queue[0]
 
-            if isinstance(event, sim.EScooterDeparture):
-                self.count_escooter_trips += 1
-            if isinstance(event, sim.BikeDeparture):
-                self.count_bike_trips += 1
             if isinstance(event, sim.GenerateBikeTrips):
                 d = int((event.time // (60*24)) % 7)
                 h = int((event.time // 60) % 24)

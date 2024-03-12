@@ -16,8 +16,8 @@ class State(LoadSave):
 
     def __init__(
         self,
-        locations = {},
-        vehicles = {},
+        locations: dict[str, sim.Location] = {},
+        vehicles: dict[str, sim.Vehicle] = {},
         bikes_in_use = {}, # bikes not parked at any station
         mapdata=None,
         traveltime_matrix=None,

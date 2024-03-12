@@ -37,7 +37,7 @@ class BS_PILOT(Policy):
         self.swap_threshold = swap_threshold
         super().__init__()
 
-    def get_best_action(self, simul, vehicle):
+    def get_best_action(self, simul: sim.Simulator, vehicle: sim.Vehicle):
         """
         Returns an Action (with which bikes to swap batteries on, which bikes to pick-up, which bikes to unload, next location to drive to)
 
