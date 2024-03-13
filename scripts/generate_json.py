@@ -42,5 +42,5 @@ def generate_json():
     # with gzip.open(write_file, 'wt', encoding="ascii") as zipfile:
     #        json.dump(json_data, zipfile)
 
-    with open(FINISHED_DATA_FILE, 'w', encoding='utf-8') as file:
+    with gzip.open(FINISHED_DATA_FILE, 'wt', encoding='utf-8') as file:
             json.dump(json_data, file, ensure_ascii=False, indent=4)

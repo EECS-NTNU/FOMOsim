@@ -34,8 +34,7 @@ def generate_hex_json():
         ]
     }
 
-    file_path = f'C:/Users/itlam/fomo/instances/Ryde/hex_json_res{resolution}_radius{ring_radius}.json'
     data = new_json_hex_data
     # Åpne filen i skrivemodus og bruk json.dump() for å skrive datastrukturen til filen
-    with open(file_path, 'w', encoding='utf-8') as file:
+    with open(HEX_FILE_PATH, 'w', encoding='utf-8') as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
