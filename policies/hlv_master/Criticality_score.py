@@ -169,8 +169,8 @@ def calculate_neighborhood_criticality(simul, station, station_type, visited_sta
             neighbor_net_demand = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), TIME_HORIZON)
             neighbor_target_state = neighbor.get_target_state(simul.day(),simul.hour())
 
-            expected_number_bikes = len(neighbor.get_available_bikes()) + neighbor_net_demand
-            neighbor_type = calculate_station_type(neighbor_target_state, expected_number_bikes)
+            expected_number_usable_bikes_neighbor = len(neighbor.get_available_bikes()) + neighbor_net_demand
+            neighbor_type = calculate_station_type(neighbor_target_state, expected_number_usable_bikes_neighbor)
 
             # Same status increases the criticality
             if neighbor_type == station_type:
@@ -179,10 +179,12 @@ def calculate_neighborhood_criticality(simul, station, station_type, visited_sta
                 # Demand of neighbors adjusts the criticality
                 station_crit += calculate_demand_criticality(neighbor_type, neighbor_net_demand)
 
+            expected_number_bikes_neighbor = neighbor.number_of_bikes() + neighbor_net_demand
+
             # Decreases the criticality if there are complementary station types
-            if station_type == 'p' and neighbor.capacity - expected_number_bikes > 0:
+            if station_type == 'p' and neighbor.capacity - expected_number_bikes_neighbor > 0: # The neighbor can help with arrivals
                 station_crit -= 1
-            elif station_type == 'd' and expected_number_bikes > 0: #TODO stemmer dette?
+            elif station_type == 'd' and expected_number_usable_bikes_neighbor > 0: # The neighbor can help with departures
                 station_crit -= 1
             elif station_type == 'b':
                 station_crit -= 1
@@ -190,10 +192,10 @@ def calculate_neighborhood_criticality(simul, station, station_type, visited_sta
             #Battery level composition
             if station_type == 'd':
                 battery_levels_neighbor = [escooter.battery for escooter in neighbor.get_available_bikes()]
-                avg_battery_level = sum(battery_levels_neighbor) / len(battery_levels_neighbor) if len(battery_levels_neighbor) > 0 else 0 # TODO stemmer det at denne skal være 0?
+                avg_battery_level = sum(battery_levels_neighbor) / len(battery_levels_neighbor) if len(battery_levels_neighbor) > 0 else 0
 
                 if neighbor_type == 'd':
-                    if avg_battery_level < 50: #TODO ikke ha den fast?
+                    if avg_battery_level < NEIGHBOR_BATTERY_LIMIT:
                         station_crit += 1
         
         # Calculate the distance between the neighbor and current station, use this to adjust the station's criticality
@@ -230,11 +232,7 @@ def calculate_demand_criticality(station_type, net_demand):
     elif station_type == "d" and net_demand < 0:
         demand_crit = net_demand
     
-    # Station is at target state
-    elif station_type == "b":
-        demand_crit = 0 # TODO gir dette mening?
-    
-    # net_demand == 0
+    # Station is balanced or no demand -> not critical
     else:
         demand_crit = 0
     
@@ -266,10 +264,12 @@ def calculate_battery_level_composition_criticality(simul, station, total_num_bi
 
     # Very critical if there are no bikes with sufficient battery left
     if len(battery_levels_after) == 0 or len(battery_levels_current) == 0:
+        # If it is expected to "loose" all bikes with battery -> very critical
         if len(battery_levels_after) < len(battery_levels_current):
             return 0
+        # No change in status from current to expected -> Not critical
         else:
-            return 10 # TODO hvilket tall er ikke kritisk?
+            return 100
         
     reduction_avail_bikes = (len(battery_levels_after)/len(battery_levels_current))
     average_battery_after = (sum(battery_levels_after)/len(battery_levels_after))
@@ -284,11 +284,10 @@ def calculate_station_type(target_state, exp_num):
     - target_state = ideal number of bikes at a station
     - LOCATION_TYPE_MARGIN = percentage threshold to categorize as unbalanced
     """
-
     deviation_from_target = exp_num - target_state
 
     # If difference from target is higher than percentage of target state it is categorized as unbalanced
-    if deviation_from_target > LOCATION_TYPE_MARGIN *target_state: # TODO skal denne endres til inngjerding møller versjon?
+    if deviation_from_target > LOCATION_TYPE_MARGIN * target_state:
         station_type = 'p'
     elif deviation_from_target < - LOCATION_TYPE_MARGIN *target_state:
         station_type = 'd'

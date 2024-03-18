@@ -35,6 +35,7 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
 def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, is_station_based = True):
     """
     Returns average battery discharge over the whole system.
+    #TODO return 0 if there are no E-bikes
 
     Parameters:
     - simul = Simulator

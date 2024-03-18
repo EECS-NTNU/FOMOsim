@@ -65,6 +65,7 @@ ONLY_SWAP_ALLOWED = True
 USE_BATTERY_CRITICALITY = True
 FF_ROAMING_AREA_RADIUS = 3
 OPERATOR_AREA_RADIUS = 3
+NEIGHBOR_BATTERY_LIMIT = 50 # Neighborhood criticality -> looking at average battery for neighbors
 
 # ------- PILOT PARAMETERS ----------
 
