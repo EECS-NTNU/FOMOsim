@@ -84,7 +84,7 @@ def clusterDelivery(areas, n, threshold, max_lenght, veichle, simul):
 
     for area in largest_shortfall_areas:
         if area not in tabu_list:
-            c = Cluster([area],area, area.bikes, area.get_neighbours())
+            c = Cluster([area], area, area.bikes, area.get_neighbours())
 
             build_cluster_d(tabu_list, c, max_lenght, cut_off, threshold, 1, simul)    
 
@@ -192,3 +192,11 @@ class Cluster(Location):
         return [
             bike for bike in self.bikes.values() if bike.usable()
         ]
+    
+    def __repr__(self):
+        return (
+            f"<Cluster: {len(self.bikes)} bikes>, {len(self.areas)} areas"
+        )
+
+    def __str__(self):
+        return f"Cluster {len(self.areas)}: Ideal {self.get_target_state(0, 8):3d} Bikes {len(self.bikes):3d}"

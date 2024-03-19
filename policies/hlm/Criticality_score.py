@@ -259,7 +259,7 @@ def calculate_battery_level_composition_criticality(simul, station, total_num_bi
         if escooter.battery - hourly_discharge_rate > 20:
            battery_levels_after.append(escooter.battery - hourly_discharge_rate)
 
-    #TODO Apply weighted average functionality here if we want
+    #  Apply weighted average functionality here if we want
     if len(battery_levels_after) == 0 or len(battery_levels_current) == 0:
         return 0
         

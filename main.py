@@ -49,13 +49,13 @@ def main():
     # policy = policies.GreedyPolicy()
     # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller_policy.InngjerdingenMoellerPolicy(time_horizon=15)
     policy = policies.hlv_master.BS_PILOT()
-    # policy = policies.hlv_master.BS_PILOT_FF()
+    policy2 = policies.hlv_master.BS_PILOT_FF()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
 
     state.set_sb_vehicles([policy]) # this creates one vehicle for each policy in the list
-    # state.set_ff_vehicles([policy]) # this creates one vehicle for each policy in the list
+    state.set_ff_vehicles([policy2]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state

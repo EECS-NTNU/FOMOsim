@@ -285,10 +285,10 @@ class State(LoadSave):
             bikes = []
             for _ in range(station["num_bikes"]):
                 if statedata["bike_class"] == "EBike": # TODO har et system enten kun bare vanlig sykler eller el-sykler?
-                    bikes.append(sim.EBike(bike_id= "EB" + str(num_ebikes), battery=100)) # TODO legge til funksjonalitet for at start batteri nivå er satt i json
+                    bikes.append(sim.EBike(*(stationObj.get_location()), location_id=stationObj.location_id, bike_id= "EB" + str(num_ebikes), battery=100)) # TODO legge til funksjonalitet for at start batteri nivå er satt i json
                     num_ebikes += 1
                 else:
-                    bikes.append(sim.Bike(bike_id= "B"+str(num_bikes)))
+                    bikes.append(sim.Bike(*(stationObj.get_location()), location_id=stationObj.location_id, bike_id= "B"+str(num_bikes)))
                     num_bikes += 1
 
             stationObj.set_bikes(bikes)
@@ -488,7 +488,6 @@ class State(LoadSave):
                                            self.traveltime_vehicle_matrix_stddev[(start_location_id, end_location_id)])
         return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
 
-    # TODO
     def do_action(self, action, vehicle, time):
         """
         Performs an action on the state -> changing the state
@@ -513,7 +512,35 @@ class State(LoadSave):
                 e_scooter.swap_battery()
                 
         else:
-            if vehicle.cluster is None:
+            # Drop off the bikes/escooters that they helped with
+            if vehicle.is_station_based:
+                helping_bikes = vehicle.get_ff_bike_inventory()
+                for helping_bike in helping_bikes:
+                    vehicle.drop_off(helping_bike.bike_id)
+                    self.get_location_by_id(vehicle.location.area).add_bike(helping_bike)
+            else:
+                if vehicle.cluster is not None:
+                    helping_bikes = vehicle.get_sb_bike_inventory()
+                    # Find stations to drop off at
+                    day = int((time // (60*24)) % 7)
+                    hour = int((time // (60)) % 24)
+                    stations = {self.get_location_by_id(area.station): self.get_location_by_id(area.station).get_target_state(day, hour) - self.get_location_by_id(area.station).number_of_bikes()  for area in vehicle.cluster.areas if area.station is not None}
+                    for station, amount in stations.items():
+                        # Drop off all bikes, if the station need all the available bikes
+                        if amount > len(helping_bikes):
+                            for helping_bike in helping_bikes:
+                                vehicle.drop_off(helping_bike.bike_id)
+                                station.add_bike(helping_bike)
+                            break
+                        # Only drop off to reach target state, and reduce the available bike list
+                        else:
+                            drop_off_bikes = helping_bikes[:amount]
+                            helping_bikes = helping_bikes[amount:]
+                            for drop_off_bike in drop_off_bikes:
+                                vehicle.drop_off(drop_off_bike.bike_id)
+                                station.add_bike(drop_off_bike)
+
+            if vehicle.cluster is None: # The car is not at a cluster - aka. at a station
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.location.get_bike_from_id(
                         pick_up_bike_id
@@ -542,14 +569,20 @@ class State(LoadSave):
                     vehicle.location.add_bike(delivery_bike)
 
                 for helping_bike_id in action.helping_pick_up:
-                    delivery_bike = vehicle.drop_off(helping_bike_id)
-                    if isinstance(vehicle.location, sim.Area):
-                        # TODO må man finne stasjonen i clusteret, eller kommer stasjonen å være i center?
-                        vehicle.location.station.add_bike(delivery_bike)
-                    if isinstance(vehicle.location, sim.Station):
-                        vehicle.location.area.add_bike(delivery_bike)
+                    helping_bike = vehicle.location.get_bike_from_id(
+                        helping_bike_id
+                    )
                     
-            else:
+                    # Picking up bike and adding to vehicle inventory and swapping battery
+                    vehicle.pick_up(helping_bike)
+
+                    # Find the location of the bike
+                    bike_location = self.get_location_by_id(helping_bike.location_id)
+
+                    # Remove bike from it's location
+                    bike_location.remove_bike(helping_bike)
+                    
+            else: # The car is at a cluster
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(
                         pick_up_bike_id
@@ -558,7 +591,7 @@ class State(LoadSave):
                     # Picking up bike and adding to vehicle inventory and swapping battery
                     vehicle.pick_up(pick_up_bike)
 
-                    # Remove bike from current station
+                    # Remove bike from current cluster
                     current_location = self.get_location_by_id(pick_up_bike.location_id)
                     current_location.remove_bike(pick_up_bike)
                     
@@ -576,18 +609,29 @@ class State(LoadSave):
                     delivery_bike = vehicle.drop_off(delivery_bike_id)
 
                     # Adding bike to current station and changing coordinates of bike
+                    # TODO skal alle syklene leveres i sentrum?
                     vehicle.location.add_bike(delivery_bike)
-
+                
+                station_ids = [area.station for area in vehicle.cluster.areas if area.station is not None]
+                stations = [self.get_location_by_id(station_id) for station_id in station_ids]
+                bike_mapping = {bike: station for station in stations for bike in station.bikes.keys()}
                 for helping_bike_id in action.helping_pick_up:
-                    delivery_bike = vehicle.drop_off(helping_bike_id)
-                    if isinstance(vehicle.location, sim.Area):
-                        # TODO må man finne stasjonen i clusteret, eller kommer stasjonen å være i center?
-                        vehicle.location.station.add_bike(delivery_bike)
-                    if isinstance(vehicle.location, sim.Station):
-                        vehicle.location.area.add_bike(delivery_bike)
+                    helping_bike = bike_mapping[helping_bike_id].get_bike_from_id(
+                        helping_bike_id
+                    )
+                    
+                    # Picking up bike and adding to vehicle inventory and swapping battery
+                    vehicle.pick_up(helping_bike)
+
+                    # Find the location of the bike
+                    bike_location = self.get_location_by_id(helping_bike.location_id)
+
+                    # Remove bike from it's location
+                    bike_location.remove_bike(helping_bike)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)
+        vehicle.cluster = action.cluster
 
         return refill_time
 
@@ -712,6 +756,12 @@ class State(LoadSave):
     
     def get_depots(self):
         return list(self.depots.values())
+    
+    def get_sb_depots(self):
+        return list(depot for depot in self.depots.values() if depot.is_station_based)
+    
+    def get_ff_depots(self):
+        return list(depot for depot in self.depots.values() if not depot.is_station_based)
     
     def get_sb_locations(self):
         return {loc_id: loc for loc_id, loc in self.locations.items() if loc.is_station_based}

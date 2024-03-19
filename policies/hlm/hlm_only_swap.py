@@ -333,7 +333,7 @@ class Only_Swap(Policy): #Add default values from seperate setting sheme
                 time_now = simul.time
                 day = simul.day()
                 hour = simul.hour()
-                minute_in_current_hour = time_now-day*24*60-hour*60 # TODO sjekk om denne funker
+                minute_in_current_hour = time_now-day*24*60-hour*60 #   sjekk om denne funker
                 minutes_current_hour = min(60-minute_in_current_hour,planning_horizon)
                 minutes_next_hour = planning_horizon - minutes_current_hour
                 
@@ -519,7 +519,7 @@ class Only_Swap(Policy): #Add default values from seperate setting sheme
 
     ##########################################################################
     # Finds the action that performs best over the most scenarios            #
-    # TODO fix if we are going to use this                                   #
+    #   fix if we are going to use this                                   #
     ##########################################################################    
 
     def return_best_move(self, vehicle, simul, plan_scores): #returns station_id 
@@ -658,7 +658,7 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
 
     if station_type == "deliver":
         number_of_escooters_to_swap = min(len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)),vehicle.battery_inventory) # get all the bikes under 20% if available capacity, otherwise swap batteries on n bikes with the lowest battery level. n = available capacity in vehicle
-        #TODO Burde vi runde opp eller ned?
+        #  Burde vi runde opp eller ned?
         number_of_escooters_to_deliver = int(number_of_escooters)+1 # If 4.2 escooter are being delivered, we deliver 5
 
         escooters_to_swap = [escooter.bike_id for escooter in escooters_in_station[:number_of_escooters_to_swap]] # swap the n escooters with lowest percentage at the station
@@ -667,7 +667,7 @@ def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escoote
         return escooters_to_deliver, escooters_to_swap
     
     elif station_type == "pickup":
-        #TODO Burde vi runde på en annen måte? Nå runder vi til nærmeste heltall
+        #  Burde vi runde på en annen måte? Nå runder vi til nærmeste heltall
         number_of_escooters_to_swap_and_pickup = min(len(station.get_swappable_bikes(upper_threshold)),vehicle.battery_inventory, round(number_of_escooters)) # decide threshold for swap, either decided by # of full batteries, # of escooters under 70% and the max amount we are allowed to pick up based om target
         number_of_escooters_to_only_pickup = round(number_of_escooters) - number_of_escooters_to_swap_and_pickup # how many to pick up
         number_of_escooters_to_only_swap = max(0,len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) - number_of_escooters_to_swap_and_pickup) if ONLY_SWAP_ALLOWED else 0
