@@ -6,8 +6,7 @@ import copy
 import json
 import gzip
 import os
-# from policies.inngjerdingen_moeller.parameters_MILP import MILP_data 
-
+from policies.hlv_master.dynamic_clustering import Cluster
 
 class State(LoadSave):
     """
@@ -403,6 +402,11 @@ class State(LoadSave):
         self.bikes_in_use[bike.bike_id] = bike
 
     def remove_used_bike(self, bike):
+        # TODO hvorfor skjer dette?
+        if bike.bike_id not in self.bikes_in_use.keys():
+            print(self.bikes_in_use.keys())
+            print(bike.bike_id)
+            return
         del self.bikes_in_use[bike.bike_id]
 
     def get_sb_bikes_in_use(self):
@@ -568,32 +572,48 @@ class State(LoadSave):
                     # Adding bike to current station and changing coordinates of bike
                     vehicle.location.add_bike(delivery_bike)
 
-                for helping_bike_id in action.helping_pick_up:
-                    helping_bike = vehicle.location.get_bike_from_id(
-                        helping_bike_id
-                    )
-                    
-                    # Picking up bike and adding to vehicle inventory and swapping battery
-                    vehicle.pick_up(helping_bike)
+                if isinstance(vehicle.location, sim.Station):
+                    current_area = self.get_location_by_id(vehicle.location.area)
+                    current_cluster = Cluster([], current_area, current_area.bikes, current_area.neighbours)
 
-                    # Find the location of the bike
-                    bike_location = self.get_location_by_id(helping_bike.location_id)
+                    # Add neighboring areas as far as the radius allows
+                    for _ in range(OPERATOR_AREA_RADIUS): # TODO legg til max radius for operatør
+                        current_cluster.areas.extend(current_cluster.neighbours)
+                        current_cluster.bikes.update({bike.bike_id: bike
+                                            for area in current_cluster.neighbours
+                                            for bike in area.get_bikes()
+                                            })
+                        current_cluster.neighbours = list(set([neighbor 
+                                            for area in current_cluster.neighbours 
+                                            for neighbor in area.neighbours 
+                                            if neighbor not in current_cluster.areas]))
+                        
+                    for helping_bike_id in action.helping_pick_up:
+                        helping_bike = current_cluster.get_bike_from_id(
+                            helping_bike_id
+                        )
+                        
+                        # Find the location of the bike
+                        bike_location = self.get_location_by_id(helping_bike.location_id)
+                        
+                        # Picking up bike and adding to vehicle inventory and swapping battery
+                        vehicle.pick_up(helping_bike)
 
-                    # Remove bike from it's location
-                    bike_location.remove_bike(helping_bike)
+                        # Remove bike from it's location
+                        bike_location.remove_bike(helping_bike)
                     
             else: # The car is at a cluster
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(
                         pick_up_bike_id
                     )
-                    
-                    # Picking up bike and adding to vehicle inventory and swapping battery
-                    vehicle.pick_up(pick_up_bike)
 
                     # Remove bike from current cluster
                     current_location = self.get_location_by_id(pick_up_bike.location_id)
                     current_location.remove_bike(pick_up_bike)
+                    
+                    # Picking up bike and adding to vehicle inventory and swapping battery
+                    vehicle.pick_up(pick_up_bike)
                     
                 # Perform all battery swaps
                 for battery_swap_bike_id in action.battery_swaps:
@@ -620,11 +640,11 @@ class State(LoadSave):
                         helping_bike_id
                     )
                     
-                    # Picking up bike and adding to vehicle inventory and swapping battery
-                    vehicle.pick_up(helping_bike)
-
                     # Find the location of the bike
                     bike_location = self.get_location_by_id(helping_bike.location_id)
+
+                    # Picking up bike and adding to vehicle inventory and swapping battery
+                    vehicle.pick_up(helping_bike)
 
                     # Remove bike from it's location
                     bike_location.remove_bike(helping_bike)
@@ -722,11 +742,6 @@ class State(LoadSave):
                     ],
                     key=lambda state_station: self.traveltime_matrix[(station.location_id, state_station.location_id)],
                 )
-
-        test = neighbours[:number_of_neighbours] if number_of_neighbours else neighbours
-        if len(test) == 0:
-            print('number of neighmors', neighbours[:number_of_neighbours], number_of_neighbours)
-            print('neighbors', neighbours)
                 
         return neighbours[:number_of_neighbours] if number_of_neighbours else neighbours
 

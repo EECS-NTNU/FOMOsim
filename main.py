@@ -92,6 +92,8 @@ def main():
     print(f"Roaming distance for bikes = {round(simulator.metrics.get_aggregate_value('roaming distance for bikes'), 2)} km")
     print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
     print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
+    print(f"Times helped FF = {simulator.metrics.get_aggregate_value('Times helped FF')} times")
+    print(f"Times helped SB = {simulator.metrics.get_aggregate_value('Times helped SB')} times")
     # results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
     # results_visualizer.visualize_violations_and_roaming()
     # results_visualizer.visualize_total_roaming_distances()

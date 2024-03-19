@@ -6,6 +6,7 @@ from .Plan import Plan
 from .Criticality_score import calculate_criticality, calculate_station_type
 from .Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 from .dynamic_clustering import Cluster
+from .hlm_BS_PILOT_policy_ff import get_escooter_ids_load_swap as get_ids_greedy_ff
 
 import numpy as np
 import time
@@ -149,7 +150,9 @@ class BS_PILOT(Policy):
             if num_current_area_overflow > 0 and num_next_area_lacking > 0: # Hjelper kun til hvis det er for mange sykler der
                 left_bike_capacity = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(bikes_to_pickup)
                 num_escooters_to_pickup = min(left_bike_capacity, num_current_area_overflow, num_next_area_lacking)
-                escooters_to_pickup = [] # TODO bruke num_escooter_to_pick_up til å finne hvilke escootere som skal hentes og skriv det i en liste med id-en
+                escooters_to_pickup, _ = get_ids_greedy_ff(current_cluster, vehicle, num_escooters_to_pickup, "pickup")
+
+                simul.metrics.add_aggregate_metric(simul, 'Times helped FF', 1)
 
                 return sim.Action(
                     batteries_to_swap,

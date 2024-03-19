@@ -31,12 +31,18 @@ def run_simulation(seed, policy, duration= settings_duration, num_vehicles= sett
     
     ###############################################################
     
-    # state = init_state.read_initial_state("instances/ebike/"+INSTANCE)
-    state = init_state.read_initial_state("instances/ebike_with_depot/"+INSTANCE)
+    state = init_state.read_initial_state(settings_state+INSTANCE, "instances/Ryde/TR_random_100_matrixes")
     state.set_seed(seed)
+
+    #TODO hvordan dette opp dette
     vehicles = [policy for i in range(num_vehicles)]
-    state.set_sb_vehicles(vehicles) # this creates one vehicle for each policy in the list
+    state.set_ff_vehicles(vehicles) # this creates one vehicle for each policy in the list
+
+    #TODO sett inn depot hardkodet
+
+    #TODO
     tstate = target_state.USTargetState()
+
     dmand = demand.Demand()
     simulator = sim.Simulator(
         initial_state = state,
@@ -47,6 +53,7 @@ def run_simulation(seed, policy, duration= settings_duration, num_vehicles= sett
         verbose = True,
     )
     simulator.run()
+
     if queue != None:
         queue.put(simulator)
     return simulator
@@ -140,25 +147,23 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= settings_num_ve
         returned_simulators.append(ret)
     for process in processes:
         process.join()
-    for simulator in returned_simulators:
-        policies.hlv_master.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
+    # for simulator in returned_simulators:
+        # policies.hlv_master.manage_results.write_sim_results_to_file(filename, simulator, duration, append=True)
         # if we run PILOT policy:
-        filename_time = "sol_time_"+filename
-        policies.hlv_master.manage_results.write_sol_time_to_file(filename_time, simulator)
-        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'Failed events')
-        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'battery violation')
-        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'trips')
-        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'starvations, no bikes')
-        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'starvations, no battery')
-        policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'starvation')
+        # filename_time = "sol_time_"+filename
+        # policies.hlv_master.manage_results.write_sol_time_to_file(filename_time, simulator)
+        # policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'Failed events')
+        # policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'battery violation')
+        # policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'trips')
+        # policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'starvations, no bikes')
+        # policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'starvations, no battery')
+        # policies.hlv_master.manage_results.visualize(filename, simulator.metrics, 'starvation')
 
-        policies.hlv_master.manage_results.write_parameters_to_file('parameters_' + filename, policy, num_vehicles, duration)
+        # policies.hlv_master.manage_results.write_parameters_to_file('parameters_' + filename, policy, num_vehicles, duration)
         # output.write_csv(simulator,'./policies/hlv_master/simulation_results/different_policies/'+filename, hourly = False)
         # for branch in range(policy.number_of_successors):
         #     print(f"Branch {branch+1}: {simulator.metrics.get_aggregate_value('branch'+str(branch+1))}")
-    policies.hlv_master.manage_results.visualize_aggregated_results(filename)
-
-
+    # policies.hlv_master.manage_results.visualize_aggregated_results(filename)
 
 if __name__ == "__main__":
 
@@ -185,13 +190,13 @@ if __name__ == "__main__":
     #     overflow_criteria = OVERFLOW_CRITERIA,
     #     starvation_criteria = STARVATION_CRITERIA
     # ))
-    policy_dict = dict(only_swap = policies.hlv_master.Only_Swap())
+    policy_dict = dict(pilot_sb = policies.hlv_master.BS_PILOT_FF())
     
     # list_of_timehorizons = settings_list_of_timehorizons
     # evaluation_weights = settings_evaluation_weights
     # criticality_weights = settings_criticality_weights
     # list_of_factors = settings_list_of_factors
-    list_of_instances = settings_list_of_instances
+    # list_of_instances = settings_list_of_instances
   
     list_of_seeds = settings_list_of_seeds
   

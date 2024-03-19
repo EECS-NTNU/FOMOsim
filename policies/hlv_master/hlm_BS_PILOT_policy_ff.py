@@ -70,12 +70,12 @@ class BS_PILOT_FF(Policy):
         # Loading and swap strategy at current location is always chosen greedily
         # If vehicle is not at a cluster, find escooters a the current location, otherwise find escooters in cluster
         if vehicle.cluster is None:
-            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
+            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria)
             number_of_escooters_pickup = len(escooters_to_pickup)
             number_of_escooters_deliver = len(escooters_to_deliver)
             number_of_batteries_to_swap = len(batteries_to_swap)
         else:
-            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
+            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.overflow_criteria, self.starvation_criteria)
             number_of_escooters_pickup = len(escooters_to_pickup)
             number_of_escooters_deliver = len(escooters_to_deliver)
             number_of_batteries_to_swap = len(batteries_to_swap)
@@ -127,15 +127,17 @@ class BS_PILOT_FF(Policy):
 
             if overflow > 0 and lacking > 0:
                 left_bike_capacity = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(escooters_to_pickup)
-                num_escooters_to_pickup = min(left_bike_capacity, overflow, lacking)
+                num_bikes_to_pickup = min(left_bike_capacity, overflow, lacking)
                 bikes_to_pickup = []
                 for station, deviation_from_target in current_stations.items():
                     if deviation_from_target > 0:
-                        num_escooters = min(deviation_from_target, num_escooters_to_pickup)
-                        pickup_ids, swap_ids = get_escooter_ids_load_swap(station, vehicle, num_escooters, "pickup")
+                        num_bike = min(deviation_from_target, num_bikes_to_pickup)
+                        pickup_ids, swap_ids = get_escooter_ids_load_swap(station, vehicle, num_bike, "pickup")
                         bikes_to_pickup.extend(pickup_ids)
-                        num_escooters_to_pickup -= num_escooters
+                        num_bikes_to_pickup -= num_bike
                         # TODO denne må sjekkes haha
+
+                simul.metrics.add_aggregate_metric(simul, "Times helped SB", 1)
 
                 return sim.Action(
                     batteries_to_swap,
@@ -597,7 +599,7 @@ class BS_PILOT_FF(Policy):
             cluster = rng_balanced.choice(potential_clusters)
             return cluster.location_id, cluster        
 
-def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, cluster, overflow_criteria, starvation_criteria, swap_threshold):
+def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, cluster, overflow_criteria, starvation_criteria):
     """
     Returns a list of IDs of the bikes to deliver, pickup or swap batteries on.
     The calculation is done when a vehicle arrives at the station, and the list returned are performed.

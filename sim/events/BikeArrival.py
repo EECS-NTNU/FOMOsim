@@ -53,7 +53,12 @@ class BikeArrival(Event):
             else:
                 if FULL_TRIP:
                     # go to another station
-                    next_station = world.state.get_neighbouring_stations(arrival_station, 1, not_full=True)[0]
+                    next_station = world.state.get_neighbouring_stations(arrival_station, 1, not_full=True)
+                    if not next_station:
+                        print("ingen ledige naboer??")
+                        next_station2 = world.state.get_neighbouring_stations(arrival_station, 1, not_full=True)
+                    else:
+                        next_station = next_station[0]
 
                     travel_time = world.state.get_travel_time(
                         arrival_station.location_id,

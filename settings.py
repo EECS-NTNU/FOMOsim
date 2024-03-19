@@ -43,7 +43,7 @@ LOCATION_TYPE_MARGIN = 0.15
 VEHICLE_TYPE_MARGIN = 0.15
 
 # Collaboration between policies
-COLLAB_POLICY = False
+COLLAB_POLICY = True
 
 # HLV
 
@@ -69,12 +69,9 @@ NEIGHBOR_BATTERY_LIMIT = 50 # Neighborhood criticality -> looking at average bat
 
 # ------- PILOT PARAMETERS ----------
 
-# SETTINGS_INSTANCE = 'BG_W35'
-SETTINGS_INSTANCE = 'OS_W31'
-# SETTINGS_INSTANCE = 'TD_W34_old'
+SETTINGS_INSTANCE = 'TD_W34'
 
-# settings_state = "instances/ebike/"
-settings_state = "instances/ebike_with_depot/"
+settings_state = "instances/"
 
 settings_duration = 24*1
 settings_num_vehicles = 1
@@ -117,12 +114,12 @@ settings_discounting_factor = 0.6 # best
 # )
 
 # settings_list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
-settings_list_of_instances = ['OS_W34', 'OS_W31', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old']
+# settings_list_of_instances = ['OS_W34', 'OS_W31', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old']
 
-# settings_list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
+settings_list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
 # settings_list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 # settings_list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29]
-settings_list_of_seeds = [1]
+# settings_list_of_seeds = [1]
 
 RESULT_FOLDER = str(SETTINGS_INSTANCE) + '_' + str(settings_num_vehicles) + 'V_' + str(len(settings_list_of_seeds)) +'S_' + str(settings_duration//24) + 'D_PILOT_' + ('T' if SORTED_BIKES else 'F') + ('T' if ONLY_SWAP_ALLOWED else 'F') + ('T' if USE_BATTERY_CRITICALITY else 'F')
 
