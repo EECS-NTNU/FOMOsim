@@ -51,6 +51,7 @@ class BikeDeparture(Event):
                     departure_station.location_id,
                     arrival_station.location_id,
                 )
+                travel_time = travel_time if travel_time < 60 else 60 #TODO
 
                 # create an arrival event for the departed bike
                 world.add_event(
@@ -98,7 +99,7 @@ class BikeDeparture(Event):
                         closest_neighbour_with_bikes.location_id)*(BIKE_SPEED/WALKING_SPEED) 
                     #total travel time, roaming for bike from departure station to neighbour + cycling to arrival station
 
-                    # calculate arrival time 
+                    travel_time = travel_time if travel_time < 60 else 60 #TODO
 
                     # create an arrival event for the roaming user from the new departure station
                     world.add_event(

@@ -51,6 +51,8 @@ class EScooterDeparture(Event):
                     departure_area.location_id,
                     arrival_area.location_id,
                 )
+                
+                travel_time = travel_time if travel_time < 60 else 60 #TODO
 
                 # create an arrival event for the departed bike
                 world.add_event(
@@ -108,6 +110,7 @@ class EScooterDeparture(Event):
                         arrival_area.location_id,) + world.state.get_travel_time(departure_area.location_id,
                         closest_neighbour_with_bikes.location_id)*(BIKE_SPEED/WALKING_SPEED) 
 
+                    travel_time = travel_time if travel_time < 60 else 60 #TODO
 
                     # create an arrival event for the roaming user from the new departure area
                     world.add_event(
