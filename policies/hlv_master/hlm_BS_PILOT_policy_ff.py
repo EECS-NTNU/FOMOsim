@@ -19,7 +19,7 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
                 max_depth = settings_max_depth, 
                 number_of_successors = settings_number_of_successors, 
                 time_horizon = settings_time_horizon, 
-                criticality_weights_set = SETTINGS_CRITICAILITY_WEIGHTS_SET, 
+                criticality_weights_set = SETTINGS_CRITICAILITY_WEIGHTS_SET_FF, 
                 evaluation_weights = settings_evaluation_weights, 
                 number_of_scenarios = settings_number_of_scenarios, 
                 discounting_factor = settings_discounting_factor,

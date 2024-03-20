@@ -99,3 +99,9 @@ class Vehicle:
 
     def get_flat_batteries(self):
         return self.battery_inventory_capacity - self.battery_inventory
+    
+    def get_sb_bike_inventory(self):
+        return [bike for bike in self.bike_inventory.values() if bike.is_station_based]
+    
+    def get_ff_bike_inventory(self):
+        return [bike for bike in self.bike_inventory.values() if not bike.is_station_based]

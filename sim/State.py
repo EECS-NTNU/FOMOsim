@@ -285,10 +285,10 @@ class State(LoadSave):
             bikes = []
             for _ in range(station["num_bikes"]):
                 if statedata["bike_class"] == "EBike": # TODO har et system enten kun bare vanlig sykler eller el-sykler?
-                    bikes.append(sim.EBike(bike_id= "EB" + str(num_ebikes), battery=100)) # TODO legge til funksjonalitet for at start batteri nivå er satt i json
+                    bikes.append(sim.EBike(bike_id= "EB" + str(num_ebikes), battery=100, is_station_based=True)) # TODO legge til funksjonalitet for at start batteri nivå er satt i json
                     num_ebikes += 1
                 else:
-                    bikes.append(sim.Bike(bike_id= "B"+str(num_bikes)))
+                    bikes.append(sim.Bike(bike_id= "B"+str(num_bikes), is_station_based=True))
                     num_bikes += 1
 
             stationObj.set_bikes(bikes)

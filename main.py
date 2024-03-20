@@ -13,6 +13,7 @@ import policies.gleditsch_hagen
 import policies.inngjerdingen_moeller
 import policies.hlm
 import policies.hlv_master
+import policies.collab_policy3
 import sim
 import output
 import demand
@@ -38,7 +39,7 @@ def main():
     #                                      week=34)
 
     # the following is for reading a precalculated initial state from a json file
-    state = read_initial_state(sb_jsonFilename = "instances/ebike_with_depot/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
+    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
 
     state.set_seed(1)
 
@@ -49,14 +50,14 @@ def main():
     # policy = policies.RandomActionPolicy()
     # policy = policies.GreedyPolicy()
     # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller_policy.InngjerdingenMoellerPolicy(time_horizon=15)
-    policy = policies.hlv_master.BS_PILOT()
-    # policy = policies.hlv_master.BS_PILOT_FF()
+    # policy = policies.hlv_master.BS_PILOT()
+    policy = policies.hlv_master.BS_PILOT_FF()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
 
-    state.set_sb_vehicles([policy]) # this creates one vehicle for each policy in the list
-    # state.set_ff_vehicles([policy]) # this creates one vehicle for each policy in the list
+    # state.set_sb_vehicles([policy]) # this creates one vehicle for each policy in the list
+    state.set_ff_vehicles([policy]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state

@@ -6,3 +6,4 @@ from policies.inngjerdingen_moeller import PILOT
 from policies.inngjerdingen_moeller import InngjerdingenMoellerPolicy
 from policies.hlv_master import BS_PILOT
 from policies.hlv_master import BS_PILOT_FF
+from policies.collab_policy3 import BS_PILOT_FF
