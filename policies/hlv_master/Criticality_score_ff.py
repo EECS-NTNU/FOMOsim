@@ -303,5 +303,5 @@ def normalize_results(criticalities, time_to_violation_list, deviation_list, nei
             criticalities_normalized[station].append(criticalities[station][2]/-min_neighborhood)
         criticalities_normalized[station].append(criticalities[station][3]/max_demand)
         criticalities_normalized[station].append(1-criticalities[station][4]/max_driving_time)
-        criticalities_normalized[station].append(1-criticalities[station][5]/max_battery_level)
+        criticalities_normalized[station].append(1-(criticalities[station][5]/max_battery_level if max_battery_level != 0 else 0))
     return criticalities_normalized
