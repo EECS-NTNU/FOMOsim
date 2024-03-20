@@ -288,7 +288,7 @@ class State(LoadSave):
                     bikes.append(sim.EBike(bike_id= "EB" + str(num_ebikes), battery=100)) # TODO legge til funksjonalitet for at start batteri nivå er satt i json
                     num_ebikes += 1
                 else:
-                    bikes.append(sim.Bike(bike_id= "B"+str(num_bikes)))
+                    bikes.append(sim.Bike(bike_id= "B"+str(num_bikes), is_station_based=True))
                     num_bikes += 1
 
             stationObj.set_bikes(bikes)
@@ -709,7 +709,11 @@ class State(LoadSave):
             key=lambda d: vehicle.location.distance_to(*d.get_location()),
             default=None
         )
-        return closest_depot.location_id if closest_depot else None
+        #TODO quick fix
+        if not closest_depot:
+            vehicle.battery_inventory = vehicle.battery_inventory_capacity
+            return vehicle.location.location_id
+        return closest_depot.location_id
     
     # TODO forstå denne
     def sample(self, sample_size: int):

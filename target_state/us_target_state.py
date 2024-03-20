@@ -1,5 +1,6 @@
 import sim
 from target_state import TargetState
+import numpy as np
 
 class USTargetState(TargetState):
 
@@ -8,7 +9,7 @@ class USTargetState(TargetState):
 
     def update_target_state(self, state, day, hour):
         num_bikes = len(state.get_all_bikes())
-        num_stations = len(state.stations)
+        num_stations = len(state.get_stations())
 
         for st in state.get_stations():
             cap = st.capacity
@@ -23,3 +24,10 @@ class USTargetState(TargetState):
                 ts = (leave + leave_std - (arrive - arrive_std)) + (num_bikes // num_stations)
                 #ts = (leave_std*(cap-arrive)+arrive_std*leave)/(leave_std+arrive_std)
             st.target_state[day][hour] = ts
+        
+        for area in state.get_areas():
+            leave = area.leave_intensities[day][hour]
+            arrive = area.arrive_intensities[day][hour]
+            leave_std = area.leave_intensities_stdev[day][hour]
+            arrive_std = area.arrive_intensities_stdev[day][hour]
+            area.target_state[day][hour] = (leave + leave_std - (arrive - arrive_std)) + np.random.randint(0, 5)

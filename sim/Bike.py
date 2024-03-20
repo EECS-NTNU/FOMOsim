@@ -17,6 +17,7 @@ class Bike(Location):
         self.is_station_based = is_station_based
         self.metrics = Metric()
         self.bike_id = bike_id
+        self.battery = 100.0
 
     def travel(self, simul, travel_time, congested = False):
         if congested:

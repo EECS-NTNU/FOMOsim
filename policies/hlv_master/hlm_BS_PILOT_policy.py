@@ -75,7 +75,7 @@ class BS_PILOT(Policy):
 
         # Make a plan for all vehicles
         plan_dict = dict()
-        for v in simul.state.get_vehicles():
+        for v in simul.state.get_sb_vehicles():
             # If vehicle is at a location, add current location to the plan with the greedy loading and swap strategy
             if v.eta == 0:
                 plan_dict[v.vehicle_id] = [Visit(v.location, number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap, simul.time, v)]
@@ -86,7 +86,7 @@ class BS_PILOT(Policy):
                 plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_escooters_pickup), int(number_of_escooters_deliver), int(number_of_batteries_to_swap), v.eta, v)]
         
         # All locations the vehicles are at or are on their way to is added to the tabu list and plan
-        tabu_list = [v.location.location_id for v in simul.state.get_vehicles()]
+        tabu_list = [v.location.location_id for v in simul.state.get_sb_vehicles()]
         plan = Plan(plan_dict, tabu_list)
 
         # Use X-PILOT-BS to find which location to drive to next
@@ -532,7 +532,7 @@ class BS_PILOT(Policy):
                     best_score = plan_scores[plan][scenario_id]
             
             if best_plan == None:
-                tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
+                tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_sb_vehicles()]
                 potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
                 rng_balanced = np.random.default_rng(None)
                 print("lunsj!")
@@ -575,7 +575,7 @@ class BS_PILOT(Policy):
             first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             return first_move
         else: 
-            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
+            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_sb_vehicles()]
             potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
             rng_balanced = np.random.default_rng(None)
             return rng_balanced.choice(potential_stations2).location_id
