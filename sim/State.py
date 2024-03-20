@@ -532,7 +532,7 @@ class State(LoadSave):
                 e_scooter.swap_battery()
                 
         else:
-            if vehicle.cluster is None:
+            if vehicle.cluster is None: # TODO hvis du er i en stasjon
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.location.get_bike_from_id(
                         pick_up_bike_id
@@ -559,18 +559,34 @@ class State(LoadSave):
 
                     # Adding bike to current station and changing coordinates of bike
                     vehicle.location.add_bike(delivery_bike)
+
+                for helping_pickup_id in action.helping_pickup:
+                    helping_pickup_bike = action.helping_cluster.get_bike_from_id(
+                        helping_pickup_id
+                    )
+
+                    self.get_location_by_id(helping_pickup_bike.location_id).remove_bike(helping_pickup_bike)
+                    
+                    # Picking up bike and adding to vehicle inventory and swapping battery
+                    vehicle.pick_up(pick_up_bike)
+
+                for helping_delivery_id in action.helping_delivery:
+                    helping_delivery_bike = vehicle.drop_off(helping_delivery_id)
+
+                    self.get_location_by_id(vehicle.location.area).add_bike(helping_delivery_bike)
+
             else:
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(
                         pick_up_bike_id
                     )
                     
-                    # Picking up bike and adding to vehicle inventory and swapping battery
-                    vehicle.pick_up(pick_up_bike)
-
                     # Remove bike from current station
                     current_location = self.get_location_by_id(pick_up_bike.location_id)
                     current_location.remove_bike(pick_up_bike)
+                    
+                    # Picking up bike and adding to vehicle inventory and swapping battery
+                    vehicle.pick_up(pick_up_bike)
                     
                 # Perform all battery swaps
                 for battery_swap_bike_id in action.battery_swaps:
@@ -587,6 +603,29 @@ class State(LoadSave):
 
                     # Adding bike to current station and changing coordinates of bike
                     vehicle.location.add_bike(delivery_bike)
+
+                for helping_pickup_id in action.helping_pickup:
+                    helping_pickup_bike = action.helping_cluster.get_bike_from_id(
+                        helping_pickup_id
+                    )
+
+                    self.get_location_by_id(helping_pickup_bike.location_id).remove_bike(helping_pickup_bike)
+                    
+                    # Picking up bike and adding to vehicle inventory and swapping battery
+                    vehicle.pick_up(pick_up_bike)
+
+                if len(action.helping_delivery) > 0:
+                    day = int((time // (60*24)) % 7)
+                    hour = int((time // (60)) % 24)
+                    for station in action.helping_cluster.areas:
+                        while station.number_of_bikes() < station.get_target_state(day, hour) and len(vehicle.get_sb_bike_inventory()) > 0:
+                            helping_delivery_id = action.helping_delivery.pop()
+
+                            helping_delivery_bike = action.helping_cluster.get_bike_from_id(
+                                helping_delivery_id
+                            )
+                            station.add_bike(helping_delivery_bike)
+                            vehicle.drop_off(helping_delivery_id)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)

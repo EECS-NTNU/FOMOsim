@@ -12,7 +12,10 @@ class Action:
         pick_ups,
         delivery_bikes,
         next_location,
-        cluster = None
+        cluster = None,
+        helping_pickup = [],
+        helping_delivery = [],
+        helping_cluster = None
     ):
         """
         Object to represent an action
@@ -26,6 +29,9 @@ class Action:
         self.delivery_bikes = delivery_bikes
         self.next_location = next_location
         self.cluster = cluster
+        self.helping_pickup = helping_pickup
+        self.helping_delivery = helping_delivery
+        self.helping_cluster = helping_cluster
 
     def get_action_time(self, travel_time):
         """
@@ -35,7 +41,7 @@ class Action:
         :return: Total time to perform action in minutes
         """
         operation_duration = (
-            len(self.battery_swaps) + len(self.pick_ups) + len(self.delivery_bikes)
+            len(self.battery_swaps) + len(self.pick_ups) + len(self.delivery_bikes) + len(self.helping_pickup) + len(self.helping_delivery)
         ) * MINUTES_PER_ACTION
         travel_duration = (
             travel_time

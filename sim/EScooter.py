@@ -19,6 +19,7 @@ class EScooter(Location):
       self.metrics = Metric()
       self.bike_id = bike_id
       self.battery_change_per_minute = BATTERY_CHANGE_PER_MINUTE
+      self.is_station_based = False
 
     def travel(self, simul, travel_time, congested = False):
       if congested:
