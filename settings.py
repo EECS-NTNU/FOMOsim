@@ -43,7 +43,7 @@ LOCATION_TYPE_MARGIN = 0.15
 VEHICLE_TYPE_MARGIN = 0.15
 
 # Collaboration between policies
-COLLAB_POLICY = True
+COLLAB_POLICY = False
 
 # HLV
 

@@ -119,10 +119,10 @@ class BS_PILOT_FF(Policy):
         if COLLAB_POLICY and vehicle.cluster is not None and next_cluster is not None:
             # Calculate how many bikes are not needed at current stations, and needed at next stations
             # TODO Hvis den ene lacker og den andre har for mange så balanseres de, og da trenger vi ikke å gjøre noe??
-            current_stations = {area.station: area.station.number_of_bikes() - area.station.get_target_state(simul.day(), simul.hour()) for area in vehicle.cluster.areas if area.station is not None}
+            current_stations = {simul.state.get_location_by_id(area.station): simul.state.get_location_by_id(area.station).number_of_bikes() - simul.state.get_location_by_id(area.station).get_target_state(simul.day(), simul.hour()) for area in vehicle.cluster.areas if area.station is not None}
             overflow = sum(current_stations.values())
 
-            next_stations = [area.station for area in next_cluster.areas if area.station is not None]
+            next_stations = [simul.state.get_location_by_id(area.station) for area in next_cluster.areas if area.station is not None]
             lacking = sum([station.get_target_state(simul.day(), simul.hour()) - station.number_of_bikes() for station in next_stations])
 
             if overflow > 0 and lacking > 0:

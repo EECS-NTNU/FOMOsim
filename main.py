@@ -39,7 +39,7 @@ def main():
     # the following is for reading a precalculated initial state from a json file
     state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
 
-    state.set_seed(1)
+    state.set_seed(85)
 
     ###############################################################################
     # Set up vehicles
