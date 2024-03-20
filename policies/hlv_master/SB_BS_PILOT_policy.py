@@ -3,7 +3,7 @@ from settings import *
 import sim
 from .Visit import Visit
 from .Plan import Plan
-from .Criticality_score import calculate_criticality, calculate_station_type
+from .SB_Criticality_score import calculate_criticality, calculate_station_type
 from .Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 
 import numpy as np

@@ -361,6 +361,16 @@ class State(LoadSave):
         self.rng = np.random.default_rng(seed)
         self.seed = seed
 
+    def set_vehicles(self, policies):
+        for policy in policies:
+            num_vehicles = len(self.vehicles)
+            self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
+                                             start_location = self.locations["S0"], 
+                                             policy = policy, 
+                                             battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
+                                             bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
+                                             is_station_based = None)
+
     def set_sb_vehicles(self, policies):
         for policy in policies:
             num_vehicles = len(self.vehicles)
@@ -475,12 +485,22 @@ class State(LoadSave):
         return num
 
     def get_travel_time(self, start_location_id, end_location_id):
+        if (isinstance(self.get_location_by_id(start_location_id), sim.Station) and not isinstance(self.get_location_by_id(end_location_id), sim.Station)):
+            start_location_id = self.get_location_by_id(start_location_id).area
+        elif (not isinstance(self.get_location_by_id(start_location_id), sim.Station) and isinstance(self.get_location_by_id(end_location_id), sim.Station)):
+            end_location_id = self.get_location_by_id(end_location_id).area
+
         if self.traveltime_matrix_stddev is not None and len(self.traveltime_matrix_stddev) == len(self.traveltime_matrix): # and (start_location_id, end_location_id) in self.traveltime_matrix_stddev:
             return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)], 
                                        self.traveltime_matrix_stddev[(start_location_id, end_location_id)])
         return self.traveltime_matrix[(start_location_id, end_location_id)]
 
     def get_vehicle_travel_time(self, start_location_id, end_location_id):
+        if (isinstance(self.get_location_by_id(start_location_id), sim.Station) and not isinstance(self.get_location_by_id(end_location_id), sim.Station)):
+            start_location_id = self.get_location_by_id(start_location_id).area
+        elif (not isinstance(self.get_location_by_id(start_location_id), sim.Station) and isinstance(self.get_location_by_id(end_location_id), sim.Station)):
+            end_location_id = self.get_location_by_id(end_location_id).area
+
         if self.traveltime_vehicle_matrix_stddev is not None and len(self.traveltime_vehicle_matrix_stddev) == len(self.traveltime_vehicle_matrix): # and (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev:
             if (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev.keys():
                 return self.rng2.lognormal(self.traveltime_vehicle_matrix[(start_location_id, end_location_id)],
@@ -704,11 +724,18 @@ class State(LoadSave):
         return {loc_id: loc for loc_id, loc in self.locations.items() if not loc.is_station_based}
     
     def get_closest_depot(self, vehicle):
-        closest_depot = min(
-            (depot for depot in self.get_depots() if depot.is_station_based == vehicle.is_station_based),
-            key=lambda d: vehicle.location.distance_to(*d.get_location()),
-            default=None
-        )
+        if vehicle.is_station_based is None:
+            closest_depot = min(
+                (depot for depot in self.get_depots()),
+                key=lambda d: vehicle.location.distance_to(*d.get_location()),
+                default=None
+            )
+        else:
+            closest_depot = min(
+                (depot for depot in self.get_depots() if depot.is_station_based == vehicle.is_station_based),
+                key=lambda d: vehicle.location.distance_to(*d.get_location()),
+                default=None
+            )
         #TODO quick fix
         if not closest_depot:
             vehicle.battery_inventory = vehicle.battery_inventory_capacity

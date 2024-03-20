@@ -3,7 +3,7 @@ from settings import *
 import sim
 from .Visit import Visit
 from .Plan import Plan
-from .Criticality_score_ff import calculate_criticality, calculate_station_type
+from .FF_Criticality_score import calculate_criticality, calculate_station_type
 from .Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 from .dynamic_clustering import clusterPickup, clusterDelivery
 
@@ -66,7 +66,7 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
         #########################################################################################
 
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
-            next_location = self.find_closest_depot(simul, vehicle)
+            next_location = simul.state.get_closest_depot(simul, vehicle)
             escooters_to_pickup = [escooter.bike_id for escooter in vehicle.cluster.bikes.values() if escooter.battery < BATTERY_LEVEL_LOWER_BOUND]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
             return sim.Action(
