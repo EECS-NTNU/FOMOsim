@@ -7,6 +7,7 @@ import requests
 from shapely.geometry import Point, Polygon
 from datetime import datetime, timezone
 import numpy as np
+import geopy.distance
 
 class Hexagon:
     "Lager et område, brukes til å telle arrivals/departures og move probabilities"
@@ -82,7 +83,10 @@ class Hexagon:
         self.average_depature_intensities = average_array.tolist()
  
     def update_move_probabilities(self, day, hour, end_hex):
-        self.move_probabilities[day][hour][end_hex] += 1
+        if end_hex not in self.move_probabilities[day][hour].keys():
+            self.move_probabilities[day][hour][end_hex] = 1
+        else:
+            self.move_probabilities[day][hour][end_hex] += 1
 
     def normalize_move_probabilities(self):
         for day in range(7):
@@ -161,6 +165,21 @@ class HexWeb:
 
         return inside_hexagons
     
+    def calculate_traveltime(self, speed):
+        traveltime_matrix = {}
+
+        for i, hex1 in enumerate(self.hexagons):
+            for hex2 in self.hexagons[i+1:]:  # Start from the next location to avoid duplicates
+                distance = self._distance_to(hex1, hex2)
+                travel_time = (distance / speed) * 60  # Calculate travel time in minutes
+                # Set travel time for both directions due to symmetry
+                traveltime_matrix[str(hex1.hex_id) + "_" + str(hex2.hex_id)] = travel_time
+                traveltime_matrix[str(hex2.hex_id) + "_" + str(hex1.hex_id)] = travel_time
+        return traveltime_matrix
+    
+    def _distance_to(self, hex1, hex2):
+        return geopy.distance.distance(hex1.center, hex2.center).km
+
     def add_trip_to_stats(self, start_coords, end_coords, start_time, end_time):
         # Konverter tidsstempel til datetime
         start_dt = datetime.fromtimestamp(start_time / 1000, tz=timezone.utc)
@@ -199,14 +218,13 @@ class HexWeb:
             hex.normalize_move_probabilities()
     
     def init_move_probabilities(self):
-        hex_dict = {hex.hex_id: 0 for hex in self.hexagons}
+        # hex_dict = {hex.hex_id: 0 for hex in self.hexagons}
         for hex in self.hexagons:
-            hex.move_probabilities = [[hex_dict for i in range(24)] for i in range(7)]
-            hex.move_probabilities_normalized = [[hex_dict for i in range(24)] for i in range(7)]
+            hex.move_probabilities = [[{} for i in range(24)] for i in range(7)]
+            hex.move_probabilities_normalized = [[{} for i in range(24)] for i in range(7)]
     
     def find_arrival_depature_intensities(self, data):
-        # Siden 'data' nå forstås å være et dictionary med en nøkkel 'data' som peker til en liste av turer
-        for trip in data['data']:  # Rettet tilgangen til listen av turer
+        for trip in data['data']:
             start_coords = trip["route"]["features"][0]["geometry"]["coordinates"]
             end_coords = trip["route"]["features"][-1]["geometry"]["coordinates"]
             start_time = trip["start_time"]

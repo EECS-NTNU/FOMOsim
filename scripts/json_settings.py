@@ -9,8 +9,11 @@ ring_radius = 100
 total_scooters = 400
 api_key = "AIzaSyCu-x049Ut84I6xTMojTJrAK1z5QZ49D9E"
 
+VEHICLE_SPEED = 30
+BIKE_SPEED = 8
+
 RYDE_FILE_PATH = f'../instances/Ryde/trips_W{WEEKS}_test.json' # '../instances/Ryde/Ryde_data_trips_may_1_days.json'
-FINISHED_DATA_FILE = f'../instances/Ryde/TD_W19_test_W{WEEKS}.json.gz'
-HEX_FILE_PATH = f'../instances/Ryde/hex_json_res{resolution}_radius{ring_radius}.json'
+FINISHED_DATA_FILE =  f'../instances/Ryde/TD_W19_test_W{WEEKS}.json.gz'
+HEX_FILE_PATH =  f'../instances/Ryde/hex_json_res{resolution}_radius{ring_radius}.json'
 
 min_lon, max_lon, min_lat, max_lat = 10.350317, 10.489613, 63.396206, 63.457983 #Trondheim
