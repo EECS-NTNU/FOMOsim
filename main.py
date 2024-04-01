@@ -17,6 +17,7 @@ import sim
 import output
 import demand
 from helpers import timeInMinutes
+import time
 
 # from output.plots import cityTrafficStats
 
@@ -37,8 +38,13 @@ def main():
     #                                      urlGbfs="https://gbfs.urbansharing.com/trondheimbysykkel.no",
     #                                      week=34)
 
+    # start_time = time.time()
+
     # the following is for reading a precalculated initial state from a json file
-    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
+    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_test_W3")
+
+    # duration = time.time() - start_time
+    # print("Init time: ", str(duration))
 
     state.set_seed(386)
 

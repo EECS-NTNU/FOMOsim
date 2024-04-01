@@ -135,52 +135,62 @@ class State(LoadSave):
         # create areas
         areas = []
 
-        id_counter = 0
-        for area_id, area in enumerate(statedata["areas"]):
+        escooter_id_counter = 0
+        for area in statedata["areas"]:
+
+            area_id = area["id"]
 
             center_position = None
             if "location" in area:
-                center_position = area["location"] # (lat, lon)
+                center_position = area["location"] # [lat, lon]
             
             border_vertices = None
             if "edges" in area:
-                edge_list = area["edges"] # [[lat, lan], x7]
+                edge_list = area["edges"]
                 border_vertices = [(edge[0], edge[1]) for edge in edge_list]
 
             leave_intensities = None
-            if "leave_intensities" in area:
-                leave_intensities = area["leave_intensities"] # [[lat, lan], x7]
+            if "depature_intensities" in area:
+                leave_intensities = area["depature_intensities"]
             else:
                 leave_intensities = [[np.random.random()*2 for _ in range(24)] for _ in range(7)]
 
             arrive_intensities = None
-            if "arrive_intensities" in area:
-                arrive_intensities = area["arrive_intensities"] # [[lat, lan], x7]
+            if "arrival_intensities" in area:
+                arrive_intensities = area["arrival_intensities"] # [[lat, lan], x7]
             else:
                 arrive_intensities = [[np.random.random()*2 for _ in range(24)] for _ in range(7)]
 
-            for day in range(7):
-                for hour in range(24):
-                    if leave_intensities[day][hour] > 0 and arrive_intensities[day][hour] > 0:
-                        if leave_intensities[day][hour] > arrive_intensities[day][hour]:
-                            arrive_intensities[day][hour] = 0
-                        else:
-                            leave_intensities[day][hour] = 0
+            move_probabilities = None
+            if "move_probabilites" in area:
+                move_probabilities = area["move_probabilites"]
+
+            leave_intensities_stdev = None
+            if "depature_intensities_stdev" in area:
+                leave_intensities_stdev = area["depature_intensities_stdev"]
+            else:
+                leave_intensities_stdev = [[0 for _ in range(24)] for _ in range(7)]
+
+            arrival_intensities_stdev = None
+            if "arrival_intensities_stdev" in area:
+                arrival_intensities_stdev = area["arrival_intensities_stdev"]
+            else:
+                arrival_intensities_stdev = [[0 for _ in range(24)] for _ in range(7)]
 
             areaObj = sim.Area("A" + str(area_id),
                                border_vertices,
                                center_location = center_position,
                                leave_intensities = leave_intensities,
-                            #    leave_intensities_stdev = area["leave_intensities_stdev"],
+                               leave_intensities_stdev = leave_intensities_stdev,
                                arrive_intensities = arrive_intensities,
-                            #    arrive_intensities_stdev = area["arrive_intensities_stdev"],
-                            #    move_probabilities = area["move_probabilities"]
+                               arrive_intensities_stdev = arrival_intensities_stdev,
+                               move_probabilities = move_probabilities
                                )
 
             bikes = []
             for battery in area["e_scooters"]:
-                bikes.append(sim.EScooter(*(center_position), location_id = areaObj.location_id, bike_id = "ES"+str(id_counter), battery = battery))
-                id_counter += 1
+                bikes.append(sim.EScooter(*(center_position), location_id = areaObj.location_id, bike_id = "ES"+str(escooter_id_counter), battery = battery))
+                escooter_id_counter += 1
 
             areaObj.set_bikes(bikes)
 

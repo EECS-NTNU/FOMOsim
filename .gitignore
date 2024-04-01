@@ -13,6 +13,10 @@ stateParams.txt
 policies/inngjerdingen_moeller/saved_time_data/NY_W31_static_data.json
 policies/inngjerdingen_moeller/saved_time_data/BO_W31_static_data.json
 
+# .json-files Ryde
+instances/Ryde/hex_json_res11_radius100.json
+instances/Ryde/trips_W3_test.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
