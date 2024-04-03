@@ -3,7 +3,7 @@ from settings import *
 import sim
 from .Visit import Visit
 from .Plan import Plan
-from .FF_Criticality_score import calculate_criticality, calculate_station_type
+from .FF_Criticality_score import calculate_criticality, calculate_cluster_type
 from .Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 from .dynamic_clustering import clusterPickup, clusterDelivery, Cluster
 
@@ -349,7 +349,7 @@ class FF_Collab2(Policy): #Add default values from seperate setting sheme
         number_of_successors = min(number_of_successors, len(potential_stations))
 
         # Finds the criticality score of all potential stations
-        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station,station_type, total_num_bikes_in_system ,tabu_list)
+        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station, total_num_bikes_in_system ,tabu_list)
         stations_sorted_list = list(stations_sorted.keys())
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
@@ -525,14 +525,14 @@ class FF_Collab2(Policy): #Add default values from seperate setting sheme
             excess_escooters_no_visit = ending_inventory_no_visit
 
             expected_number_of_escooters = inventory_after_loading_and_swaps
-            station_type = calculate_station_type(target_state, expected_number_of_escooters)
+            station_type = calculate_cluster_type(target_state, expected_number_of_escooters)
 
             for neighbor in neighbors:
                 roamings = 0
                 roamings_no_visit = 0
                 net_demand_neighbor = scenario_dict[neighbor.location_id]
                 expected_ecooters_neighbor = neighbor.number_of_bikes() - len(neighbor.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)) + net_demand_neighbor
-                neighbor_type = calculate_station_type(neighbor.get_target_state(simul.day(),simul.hour()),expected_ecooters_neighbor)
+                neighbor_type = calculate_cluster_type(neighbor.get_target_state(simul.day(),simul.hour()),expected_ecooters_neighbor)
 
                 if neighbor_type == station_type:
                     if net_demand_neighbor < 0:

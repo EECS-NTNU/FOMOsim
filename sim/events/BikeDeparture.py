@@ -52,6 +52,10 @@ class BikeDeparture(Event):
                     arrival_station.location_id,
                 )
 
+                # if travel_time > 10:
+                #     print(travel_time, "__", world.state.traveltime_matrix[(departure_station.location_id, arrival_station.location_id)], "__", world.state.traveltime_matrix_stddev[(departure_station.location_id, arrival_station.location_id)])
+
+
                 # create an arrival event for the departed bike
                 world.add_event(
                     sim.BikeArrival(

@@ -22,7 +22,7 @@ import time
 # from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(hours=240)
+DURATION = timeInMinutes(days=1)
 INSTANCE = 'TD_W34'
 WEEK = 34
 
@@ -41,7 +41,9 @@ def main():
     # start_time = time.time()
 
     # the following is for reading a precalculated initial state from a json file
-    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_test_W3")
+    # state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_test_W3")
+    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
+
 
     # duration = time.time() - start_time
     # print("Init time: ", str(duration))
@@ -103,7 +105,7 @@ def main():
     print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
     print(f"Roaming for bikes = {simulator.metrics.get_aggregate_value('roaming for bikes')}")
     print(f"Roaming distance for bikes = {round(simulator.metrics.get_aggregate_value('roaming distance for bikes'), 2)} km")
-    print(f"Congestions = {simulator.metrics.get_aggregate_value('congestion')}")
+    print(f"Congestions = {simulator.metrics.get_aggregate_value('long_congestion')}")
     print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
     print(f"Total escooter trips = {simulator.count_escooter_trips}")
     print(f"Total bike trips = {simulator.count_bike_trips}")

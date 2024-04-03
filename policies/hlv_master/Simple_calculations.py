@@ -32,31 +32,33 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
     return net_demand_planning_horizon
 
 
-def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system):
+def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, is_electric = True, is_station_based = False):
     """
     Returns average battery discharge over the whole system.
+    TODO return 0 if there are no E-bikes
 
     Parameters:
     - simul = Simulator
     - total_num_bikes_in_system = Total number of bikes in the system
+    - is_electric = boolean, only checking discharge for electric systems
     """
+
+    if not is_electric:
+        return 1 #TODO
+
     time_now = simul.time
     day = simul.day()
     hour = simul.hour()
     next_hour = (hour + 1) % 24
     next_day = day if next_hour > hour else day +1
 
-    trips_current_hour = []
-    trips_next_hour = []
-    for station in simul.state.get_stations():
-        trips_current_hour.append(station.get_leave_intensity(day,hour))
-        trips_next_hour.append(station.get_leave_intensity(next_day, next_hour))
-    number_of_trips_current_hour = sum(trips_current_hour)
-    number_of_trips_next_hour = sum(trips_next_hour)
+    locations = simul.state.get_stations() if is_station_based else simul.state.get_areas()
+    
+    number_of_trips_current_hour = sum([loc.get_leave_intensity(day, hour) for loc in locations])
+    number_of_trips_next_hour = sum([loc.get_leave_intensity(next_day, next_hour) for loc in locations])
 
     minutes_remaining = 60 - (time_now % 60)
     number_of_trips_next_60_min = (minutes_remaining * number_of_trips_current_hour + (60 - minutes_remaining) * number_of_trips_next_hour) / 60
-    # min(60-(time_now-day*24*60-hour*60),60)*number_of_trips_current_hour/60 + (60 - (time_now-day*24*60-hour*60))*number_of_trips_next_hour/60
 
     total_system_battery_discharge = number_of_trips_next_60_min * AVERAGE_LENGHT_OF_TRIP * BATTERY_CHANGE_PER_MINUTE
 

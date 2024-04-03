@@ -321,7 +321,7 @@ class SB_Collab2(Policy):
         number_of_successors = min(number_of_successors, len(potential_stations))
 
         # Finds the criticality score of all potential stations, and sort them in descending order
-        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station,station_type, total_num_bikes_in_system ,tabu_list)
+        stations_sorted = calculate_criticality(weight_set, simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station, total_num_bikes_in_system ,tabu_list)
         stations_sorted_list = list(stations_sorted.keys())
 
         # Selects the most critical stations as next visits
@@ -438,7 +438,7 @@ class SB_Collab2(Policy):
 
             if net_demand < 0:
                 sorted_escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False)
-                time_first_violation_no_visit = current_time + min((station.number_of_bikes() - len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)*60))
+                time_first_violation_no_visit = current_time + min((station.number_of_bikes() - len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, False, True)*60))
             else:
                 time_first_violation_no_visit = end_time
             
@@ -461,9 +461,9 @@ class SB_Collab2(Policy):
             # Time for first violation if we visit
             if net_demand < 0:
                 if swap_quantity > loading_quantity+2:
-                    time_first_violation_after_visit = eta + min((inventory_after_loading_and_swaps/(-net_demand))*60, 100/calculate_hourly_discharge_rate(simul, total_num_bikes_in_system))
+                    time_first_violation_after_visit = eta + min((inventory_after_loading_and_swaps/(-net_demand))*60, 100/calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, False, True))
                 else:
-                    time_first_violation_after_visit = eta + min((inventory_after_loading_and_swaps/(-net_demand))*60, (sum(ebike.battery for ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)*60))
+                    time_first_violation_after_visit = eta + min((inventory_after_loading_and_swaps/(-net_demand))*60, (sum(ebike.battery for ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, False, True)*60))
             else:
                 time_first_violation_after_visit = end_time
             
