@@ -22,6 +22,8 @@ class Hexagon:
         self.average_depature_intensities =  [[0 for i in range(24)] for i in range(7)]
         self.move_probabilities = [] # [[ [{area_id: probability} x alle_steder] x 24] x 7]
         self.move_probabilities_normalized = []  # [[ [{area_id: probability} x alle_steder] x 24] x 7]
+        self.target_states = [[0 for i in range(24)] for i in range(7)]
+        self.initial_target_states = 0
 
     def add_e_scooters_random(self, num_scooters):
         for _ in range(num_scooters):
@@ -95,7 +97,185 @@ class Hexagon:
                 if total_trips != 0:
                     for key, value in self.move_probabilities[day][hour].items():
                         self.move_probabilities_normalized[day][hour][key] = value / total_trips
-         
+    
+    def get_arrival_depature_intensity(self, day, hour):
+        return self.arrival_intensities[day][hour], self.depature_intensities[day][hour]
+    
+
+        #scenarioer target state:
+                #scenario 1: 
+                # hvis mellom kl 00 og 05, target state er forhåndsbestemt og alltid lik
+                
+                #scenario 2:
+                # hvis bare positiv i feks 3 timer på rad 
+                #- target state lik depature rate for de 3 timene
+
+                #scenario 3:
+                # hvis bare negativ i feks 3 timer på rad 
+                #- absolutt sum av net_demand for de 3 timene
+
+                #scenario 4:
+                # hvis først positiv og så negativ 
+                #- target state lik abs sum av negativ net demand (evt - positiv, dersom abs sum > positiv) helt til skrifter fortegn
+
+                #scenario 5: 
+                # hvis først negativ og så positiv 
+                #-sum net demand for første negative
+
+                #scenario 6:
+                # hvis negativ så positv så negativ 
+                #- første periode + net demand neste periode 
+
+                #scenario 7: 
+                # hvis positiv så negativ så positiv
+    
+                #scenario 8:
+                # siste dagen og siste timen. Target state lik net_demand
+
+class HexagonTargetState():
+    def __init__(self, hex_id, arrival_intensities, depature_intensities):
+        self.hex_id = hex_id
+        self.average_arrival_intensities = arrival_intensities
+        self.average_depature_intensities = depature_intensities
+        self.target_states = [[0 for i in range(24)] for i in range(7)]
+        self.initial_target_states = 0
+
+
+    def calc_target_state(self):
+        #target_states = [[0 for _ in range(24)] for _ in range(7)]  # Forbered en liste for å holde target states
+
+        for day in range(7):  # 0 = Mandag, 6 = Søndag
+            for hour in range(24):
+                 # Scenario 10 - siste timen. Target state lik net_demand for den timen
+                if hour == 23: #siste time
+                            self.target_states[day][hour] = abs(min(round(self.average_arrival_intensities[day][hour] - self.average_depature_intensities[day][hour]), 0)) # Setter target state til net_demand
+                # Scenario 1 - mellom kl 00 og 05. Target state er forhåndsbestemt og alltid lik            
+                elif  0 <= hour <= 5: 
+                    self.target_states[day][hour] = self.initial_target_states  # Forhåndsbestemt verdi
+                    
+                else:
+
+                    all_next_demands = [] # Liste for å holde net_demand for fremtidige perioder
+                    all_next_depature_rates = [] # Liste for å holde depature rate for fremtidige perioder    
+                    next_demands = [] # Liste for å holde net_demand for fremtidige perioder
+                    next_depature_rates = [] # Liste for å holde depature rate for fremtidige perioder
+                    p = 0   # Startpunkt for perioder
+                    periods = 3 # Antall perioder som skal inkluderes
+                    current_day = day
+                    next_hour = hour 
+                    current_net_demand = self.average_arrival_intensities[day][hour] - self.average_depature_intensities[day][hour]
+
+                    #MÅTE 1: finne net demand og depature rates for de neste periodene (stopper ikke når vi går forbi kl 23, kun hvis det er dag utenfor uken)
+                    #while p < periods:
+                    #    next_day, next_hour = (current_day, current_hour + 1) if current_hour < 23 else (current_day + 1, 0)
+                    #    if next_day == 7: break #dersom neste periode er utenfor uken
+                    #    next_net_demand = self.average_arrival_intensities[next_day][next_hour] - self.average_depature_intensities[next_day][next_hour] #legg inn riktig
+                    #    next_depature_rate = self.average_depature_intensities[next_day][next_hour]
+                    #    next_demands.append(next_net_demand)
+                    #    next_depature_rates.append(next_depature_rate)
+                    #    p += 1
+                   
+                   #MÅTE 2: finne alle net demand og alle depature rates for de neste periodene frem til kl 23 uansett (og tre perioder frem, for å bestemme scenario)
+                    while next_hour < 23:
+                        next_hour = next_hour + 1 
+                        next_net_demand = self.average_arrival_intensities[current_day][next_hour] - self.average_depature_intensities[current_day][next_hour] #legg inn riktig
+                        next_depature_rate = self.average_depature_intensities[current_day][next_hour]
+                        all_next_demands.append(next_net_demand)
+                        all_next_depature_rates.append(next_depature_rate)
+                        if p < periods: 
+                            next_demands.append(next_net_demand)
+                            next_depature_rates.append(next_depature_rate)
+                            p += 1
+                       
+                    while len(next_demands) < 3:
+                        next_demands.append(0)
+                        next_depature_rates.append(0)
+
+                    # Scenario 2 (kun positive)
+                    if all(next_demand >= 0 for next_demand in next_demands): #lik sum alle fremtidige depature rates før trend skifter
+                        #TODO dobbeltsjekk
+                        print("ppp", next_demands)
+                        # amount_positive_periods = 0
+                        # for next_demand in all_next_demands: 
+                        #     if next_demand >= 0:
+                        #         amount_positive_periods += 1
+                        #     else: 
+                        #         break
+                        # Sum the departure rates for the positive demand periods
+                        # sum_departure_rates = sum(all_next_depature_rates[i] for i in range(amount_positive_periods))
+    
+                        # Update the target state for the given day and hour with the absolute sum of departure rates
+                        # self.target_states[day][hour] = round(abs(sum_departure_rates))
+                        self.target_states[day][hour] = next_depature_rates[0]
+
+                    # Scenario 3 (kun negative)
+                    elif all(next_demand < 0 for next_demand in next_demands): #absolutt sum av net_demand for de 3 timene
+                        print("nnn", next_demands)
+                        sum_negative_periods = 0
+                        for next_demand in all_next_demands:
+                            if next_demand < 0:
+                                sum_negative_periods += next_demand
+                            else: 
+                                break
+                        self.target_states[day][hour] = abs(round(sum_negative_periods))
+                        
+                    # Scenario 4 (først positiv så negativ, negativ)
+                    elif next_demands[1] < 0 and next_demands[2] < 0 and next_demands[0] >= 0:  #target state lik abs sum negati net demand - positiv net demand i starten helt til skrifter fortegn
+                        print("pnn", next_demands)
+                        sum_negative_periods = 0
+                        for next_demand in all_next_demands[1:]:
+                            if next_demand < 0:
+                                sum_negative_periods += next_demand
+                            else: 
+                                break
+                        self.target_states[day][hour] = abs(sum_negative_periods) - next_demands[0]
+                        if self.target_states[day][hour] < 0:
+                            self.target_states[day][hour] = 0
+
+                    # Scenario 5 (først positiv, så positiv, negativ)
+                    elif next_demands[2] < 0 and next_demands[1] >= 0 and next_demands[0] >= 0:
+                        # print("ppn", next_demands)
+                        sum_negative_periods = 0
+                        for next_demand in all_next_demands[2:]:
+                            if next_demand < 0:
+                                sum_negative_periods += next_demand
+                            else: 
+                                break
+                        self.target_states[day][hour] = abs(sum_negative_periods) - next_demands[0] - next_demands[1]
+                        if self.target_states[day][hour] < 0:
+                            self.target_states[day][hour] = 0
+
+                    # Scenario 6 (først negativ så positiv, positiv)
+                    elif next_demands[1] >=0 and next_demands[2] >= 0 and next_demands[0] < 0: 
+                        print("npp", next_demands)
+                        self.target_states[day][hour] = abs(next_demands[0])
+
+                    # Scenario 7 (først negativ så negativ, positiv)
+                    elif next_demands[2] >=0 and next_demands[1] < 0 and next_demands[0] < 0: 
+                        print("nnp", next_demands)
+                        self.target_states[day][hour] = abs(next_demands[0] + next_demands[1])
+                
+                    # Scenario 8 (negativ -> positiv -> negativ)
+                    elif next_demands[0] < 0 and next_demands[1] >= 0 and next_demands[2] < 0:
+                        print("npn", next_demands)
+                        self.target_states[day][hour] = abs(next_demands[0])
+                        sum_pos_neg = next_demands[1] + next_demands[2]
+                        if sum_pos_neg < 0:
+                            self.target_states[day][hour] += abs(sum_pos_neg)
+
+                
+                        
+                    # Scenario 9 (positiv -> negativ -> positiv) #usikker på denne
+                    elif next_demands[0] >= 0 and next_demands[1] < 0 and next_demands[2] >= 0:
+                        print("pnp", next_demands)
+                        sum_neg_pos = next_demands[0] + next_demands[1]
+                        if sum_neg_pos < 0:
+                            self.target_states[day][hour] = abs(sum_neg_pos)
+
+                    
+
+        return self.target_states
+
 
 class HexWeb:
     def __init__(self, lat, lng, resolution, ring_radius, total_scooters, hexagons = []):
@@ -134,6 +314,19 @@ class HexWeb:
             hexagon = Hexagon(hex_id, vertices, center)
             hexagons.append(hexagon)
         return hexagons
+    
+    @staticmethod
+    def generate_hex_web_target_state_from_json(data):
+        hexagons = []
+        for hex_data in data['areas']:
+            hex_id = hex_data['hex_id']
+            arrival_intensity = hex_data['arrival_intensities']  # Bruker 'edges' som vertices
+            leave_intensity = hex_data['depature_intensities']  # Bruker 'location' som center
+            hexagon = HexagonTargetState(hex_id, arrival_intensity, leave_intensity)
+            hexagons.append(hexagon)
+        return hexagons
+    
+    
 
     def distribute_scooters_random(self):
         scooters_remaining = self.total_scooters
