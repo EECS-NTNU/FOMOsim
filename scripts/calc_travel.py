@@ -5,9 +5,9 @@ import gzip
 def calculate_traveltime(speed, vehicle_speed, hexagons):
     hexagons = read_data('../instances/Ryde/TD_W19_test_W3.json.gz')
 
+    traveltime_matrix = {}
+    traveltime_matrix_vehicle = {}
     for i, hex1 in enumerate(hexagons):
-        traveltime_matrix = {}
-        traveltime_matrix_vehicle = {}
         for hex2 in hexagons[i+1:]:  # Start from the next location to avoid duplicates
             distance = _distance_to(hex1, hex2)
             travel_time = (distance / speed) * 60  # Calculate travel time in minutes
@@ -20,23 +20,16 @@ def calculate_traveltime(speed, vehicle_speed, hexagons):
             traveltime_matrix_vehicle[str(hex1['id']) + "_" + str(hex2['id'])] = travel_time_vehicle
             traveltime_matrix_vehicle[str(hex2['id']) + "_" + str(hex1['id'])] = travel_time_vehicle
 
-        print("Finished the distance from i = ", i)
-        file_path = '../instances/Ryde/travel_matrix.json.gz'
-        try:
-            with gzip.open(file_path, 'r') as f:
-                data = json.load(f)
-            data["travel_matrix"].update(traveltime_matrix)
-            data["travel_vehicle_matrix"].update(traveltime_matrix_vehicle)
-
-            with gzip.open(file_path, 'wt', encoding='utf-8') as file:
-                json.dump(data, file, ensure_ascii=False, indent=4)
-        except FileNotFoundError:
+        if i % 1000 == 0 or i == len(hexagons)-1:
+            file_path = f'../instances/Ryde/travel/matrix_{i}.json.gz'
             json_data = {
                 "travel_matrix": traveltime_matrix,
                 "travel_vehicle_matrix": traveltime_matrix_vehicle
             }
             with gzip.open(file_path, 'wt', encoding='utf-8') as file:
                 json.dump(json_data, file, ensure_ascii=False, indent=4)
+            traveltime_matrix = {}
+            traveltime_matrix_vehicle = {}
 
     return traveltime_matrix, traveltime_matrix_vehicle
 
