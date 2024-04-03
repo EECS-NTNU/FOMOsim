@@ -87,7 +87,8 @@ class State(LoadSave):
     def get_initial_state(sb_statedata = None, ff_statedata = None):
         # create stations
         sb_state = State.get_initial_sb_state(sb_statedata) if sb_statedata else None
-        ff_state = State.get_initial_ff_state(ff_statedata, num_depots = len(sb_state.depots)) if ff_statedata else None
+        sb_depots = len(sb_state.depots) if sb_state else 0
+        ff_state = State.get_initial_ff_state(ff_statedata, num_depots = sb_depots) if ff_statedata else None
 
         if sb_state and not ff_state: # if only ff_state = None
             return sb_state
@@ -136,9 +137,13 @@ class State(LoadSave):
         areas = []
 
         escooter_id_counter = 0
+        area_num = 0 # TODO denne trengs ikke alltid
         for area in statedata["areas"]:
 
-            area_id = area["id"]
+            # area_id = area["id"]
+            area_id = "A" + str(area_num)
+            if "id" in area:
+                area_id = area["id"]
 
             center_position = None
             if "location" in area:
@@ -177,7 +182,7 @@ class State(LoadSave):
             else:
                 arrival_intensities_stdev = [[0 for _ in range(24)] for _ in range(7)]
 
-            areaObj = sim.Area("A" + str(area_id),
+            areaObj = sim.Area(area_id,
                                border_vertices,
                                center_location = center_position,
                                leave_intensities = leave_intensities,
@@ -195,6 +200,8 @@ class State(LoadSave):
             areaObj.set_bikes(bikes)
 
             areas.append(areaObj)
+
+            area_num += 1
 
         # TODO - hvordan skal disse se ut?
         # for depot in statedata["depots"]:
