@@ -6,7 +6,7 @@ from policies.hlv_master.Plan import Plan
 from .collab3_Criticality_Score import calculate_criticality_ff, calculate_criticality_sb, calculate_station_type
 from policies.hlv_master.Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
 from policies.hlv_master.dynamic_clustering import clusterPickup, clusterDelivery
-from .dynamic_clustering import Cluster
+from .dynamic_clustering import Cluster, build_cluster
 
 import numpy as np
 import time
@@ -54,7 +54,7 @@ class Collab4(Policy): #Add default values from seperate setting sheme
     
     def get_best_action(self, simul, vehicle):
         start_logging_time = time.time() 
-        next_location = None
+        next_location_id = None
         escooters_to_pickup = []
         escooters_to_deliver = []
         batteries_to_swap = []
@@ -69,14 +69,14 @@ class Collab4(Policy): #Add default values from seperate setting sheme
         #########################################################################################
 
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
-            next_location = simul.state.get_closest_depot(vehicle)
+            next_location_id = simul.state.get_closest_depot(vehicle)
             escooters_to_pickup = [escooter.bike_id for escooter in vehicle.cluster.bikes.values() if escooter.battery < BATTERY_LEVEL_LOWER_BOUND]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
             return sim.Action(
                 [],
                 escooters_to_pickup[:max_pickup],
                 [],
-                next_location
+                next_location_id
             )
 
         #########################################################################################
@@ -123,7 +123,8 @@ class Collab4(Policy): #Add default values from seperate setting sheme
         #  Use PILOT_function to decide next station                                #
         #############################################################################
 
-        next_location, cluster = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
+        next_location_id, cluster = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
+        next_location = simul.state.get_location_by_id(next_location_id)
 
         similary_imbalances_starved = 0
         similary_imbalances_overflow = 0
@@ -143,49 +144,72 @@ class Collab4(Policy): #Add default values from seperate setting sheme
 
         current_location = vehicle.location if isinstance(vehicle.location, sim.Station) else vehicle.cluster
 
+        # Station -> Station, help the areas around both
         if isinstance(current_location, sim.Station) and isinstance(next_location, sim.Station):
+            print("kjører S -> S")
             helping_pickups = []
        
             # Find the areas of the stations visit
             current_area = simul.state.get_location_by_id(vehicle.location.area)
-            next_area = simul.state.get_location_by_id(simul.state.get_location_by_id(next_location).area)
+            next_area = simul.state.get_location_by_id(simul.state.get_location_by_id(next_location_id).area)
 
+            # Make the clusters for the current area and next area
             current_cluster = Cluster([current_area], current_area, current_area.bikes, current_area.get_neighbours())
             next_cluster = Cluster([next_area], next_area, next_area.bikes, next_area.get_neighbours())
-            make_cluster(MAX_WALKING_AREAS, current_cluster)
-            make_cluster(MAX_WALKING_AREAS, next_cluster)
+            build_cluster([], current_cluster, MAX_WALKING_AREAS, 0, simul)
+            build_cluster([], next_cluster, MAX_WALKING_AREAS, 0, simul)
 
+            # Find the deviations from target state (positive = too many bikes, negative = too few)
             current_deviation = len(current_cluster.get_available_bikes()) - current_cluster.get_target_state(simul.day(), simul.hour())
             next_deviation = len(next_cluster.get_available_bikes()) - next_cluster.get_target_state(simul.day(), simul.hour())
 
+            # Help picking up if the current area has too many bikes and the next has too few
             if current_deviation > 0 and next_deviation < 0:
                 num_escooters = min(current_deviation, 
                                     -next_deviation, 
                                     vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(escooters_to_pickup)
                                     )
                 helping_pickups, _ = id_escooters_accounted_for_battery_swaps(current_cluster, vehicle, num_escooters, "pickup", self.swap_threshold)
+            else:
+                helping_pickups = []
+
+            # Deliver bikes if possible and needed at current cluster
+            if current_deviation < 0:
+                helping_delivery = [bike.bike_id for bike in vehicle.get_ff_bike_inventory()][:current_deviation]
+            else:
+                helping_delivery = []
             
-            helping_delivery = [bike.bike_id for bike in vehicle.get_ff_bike_inventory()]
+            # Area where the helping actions are done
             helping_cluster = current_cluster
         
+        # Station -> Area/Cluster, find out if you can help if you can deliver anything here
+        # TODO no pickups?
         elif isinstance(current_location, sim.Station) and not isinstance(next_location, sim.Station):
+            print("kjører S -> A")
+            # Find a cluster around the station
             current_area = simul.state.get_location_by_id(vehicle.location.area)
             current_cluster = Cluster([current_area], current_area, current_area.bikes, current_area.get_neighbours())
-            make_cluster(MAX_WALKING_AREAS, current_cluster)
+            build_cluster([], current_cluster, MAX_WALKING_AREAS, 0, simul)
 
-            next_deviation = len(next_location.get_available_bikes()) - next_location.get_target_state(simul.day(), simul.hour())
-            current_deviation = len(current_cluster.get_available_bikes()) - current_cluster.get_target_state(simul.day(), simul.hour())
+            # Find deviation from target
+            # TODO can next_location be a cluster or only area?
+            next_location_target = int(cluster.get_target_state(simul.day(), simul.hour()))
+            next_deviation = len(cluster.get_available_bikes()) - next_location_target
+            current_location_target = int(current_cluster.get_target_state(simul.day(), simul.hour()))
+            current_deviation = len(current_cluster.get_available_bikes()) - current_location_target
 
             if current_deviation < 0:
-
+                # If current cluster has too few bikes and next won't need any, help deliver here
                 if next_deviation > 0:
-                    helping_delivery = [bike.bike_id for bike in vehicle.get_ff_bike_inventory()]
+                    helping_delivery = [bike.bike_id for bike in vehicle.get_ff_bike_inventory()][:current_deviation]
+                
+                # Find how many bikes can be delivered here without affecting the bikes being delivered next
                 else:
-                    excess_bikes = len(vehicle.get_ff_bike_inventory()) - next_deviation
+                    excess_bikes = len(vehicle.get_ff_bike_inventory()) + next_deviation
                     if excess_bikes <= 0:
                         helping_delivery = []
                     else:
-                        helping_delivery = [bike.bike_id for bike in vehicle.get_ff_bike_inventory()][:min(excess_bikes, current_deviation)]
+                        helping_delivery = [bike.bike_id for bike in vehicle.get_ff_bike_inventory()][:min(excess_bikes, -current_deviation)]
             else:
                 helping_delivery = []
 
@@ -193,11 +217,14 @@ class Collab4(Policy): #Add default values from seperate setting sheme
             helping_pickups = []
             helping_cluster = current_cluster
             
-
+        # Area/Cluster -> Station, find pickups at current stations
+        # TODO er denne ferdig? både delivery og pickup blir tomme?
         elif not isinstance(current_location, sim.Station) and isinstance(next_location, sim.Station):
-            current_stations = [simul.state.get_location_by_id(area.station) for area in vehicle.cluster.areas if area.station is not None] if vehicle.cluster is not None else []
+            print("kjører A -> S")
+            current_stations = [simul.state.get_location_by_id(area.station) for area in vehicle.cluster.areas if area.station is not None] if vehicle.cluster else []
 
-            next_deviation = len(next_location.get_available_bikes()) - next_location.get_target_state(simul.day(), simul.hour())
+
+            next_deviation = len(next_location.get_available_bikes()) - int(next_location.get_target_state(simul.day(), simul.hour()))
             current_deviations = [station.number_of_bikes() - station.get_target_state(simul.day(), simul.hour()) for station in current_stations]
 
             helping_delivery = []
@@ -207,24 +234,29 @@ class Collab4(Policy): #Add default values from seperate setting sheme
                 if current_deviations[i] < 0:
 
                     if next_deviation > 0:
-                        delivery_count += len(vehicle.get_sb_bike_inventory) 
+                        delivery_count +=  min(-current_deviations[i], len(vehicle.get_sb_bike_inventory()) - delivery_count)
                     
                     else:
                         excess_bikes = len(vehicle.get_sb_bike_inventory()) - next_deviation - delivery_count
                         if excess_bikes > 0:
-                            delivery_count += min(excess_bikes, current_deviations[i])
+                            delivery_count += min(excess_bikes, -current_deviations[i])
+
+            delivery_count = min(delivery_count, len(vehicle.get_sb_bike_inventory()))
+            helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:delivery_count]
+
+            station_bikes = {}
+            for station in current_stations:
+                station_bikes.update(station.bikes)
             
             helping_cluster = Cluster(current_stations, vehicle.location, station_bikes, [])
             
             helping_pickups = []
-            
 
-                    
-
-
-        else:
-            current_stations = [simul.state.get_location_by_id(area.station) for area in vehicle.cluster.areas if area.station is not None] if vehicle.cluster is not None else []
-            next_stations = [simul.state.get_location_by_id(area.station) for area in cluster.areas if area.station is not None]
+        # Area/Cluster -> Area/Cluster, helping pickups and delivery for stations in clusters
+        elif not isinstance(current_location, sim.Station) and not isinstance(next_location, sim.Station):
+            print("kjører A -> A")
+            current_stations = [simul.state.get_location_by_id(area.station) for area in vehicle.cluster.areas if area.station] if vehicle.cluster else []
+            next_stations = [simul.state.get_location_by_id(area.station) for area in cluster.areas if area.station]
 
             current_deviations = [station.number_of_bikes() - station.get_target_state(simul.day(), simul.hour()) for station in current_stations]
             next_deviations = [station.number_of_bikes() - station.get_target_state(simul.day(), simul.hour()) for station in next_stations]
@@ -253,14 +285,15 @@ class Collab4(Policy): #Add default values from seperate setting sheme
                 station_bikes.update(station.bikes)
 
             helping_cluster = Cluster(current_stations, vehicle.location, station_bikes, [])
-
+        else:
+            print("kjører ingenting")
 
 
         return sim.Action(
             batteries_to_swap,
             escooters_to_pickup,
             escooters_to_deliver,
-            next_location,
+            next_location_id,
             cluster,
             helping_pickup =  helping_pickups,
             helping_delivery = helping_delivery,
@@ -1008,14 +1041,3 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
             station_type = 'd'
     
     return potential_stations, station_type
-
-
-def make_cluster(radius, cluster):
-    for _ in range(radius):
-        new_neighbors = []
-        for neighbor in cluster.get_neighbours():
-            cluster.areas.append(neighbor)
-            cluster.set_bikes(neighbor.get_bikes())
-            new_neighbors += [area for area in neighbor.get_neighbours() if area not in cluster.get_neighbours() and area not in new_neighbors and area not in cluster.areas]
-        cluster.neighbours = new_neighbors
-    return cluster

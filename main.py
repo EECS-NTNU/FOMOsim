@@ -22,7 +22,7 @@ import time
 # from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(days=1)
+DURATION = timeInMinutes(days=3)
 INSTANCE = 'TD_W34'
 WEEK = 34
 
@@ -48,7 +48,7 @@ def main():
     # duration = time.time() - start_time
     # print("Init time: ", str(duration))
 
-    state.set_seed(386)
+    state.set_seed(3)
 
     ###############################################################################
     # Set up vehicles
@@ -59,18 +59,20 @@ def main():
     # policy = policies.inngjerdingen_moeller.inngjerdingen_moeller_policy.InngjerdingenMoellerPolicy(time_horizon=15)
     # policy = policies.hlv_master.BS_PILOT()
     # policy_ff = policies.hlv_master.BS_PILOT_FF()
-    policy2_ff = policies.hlv_master.FF_Collab2()
+    # policy2_ff = policies.hlv_master.FF_Collab2()
     policy2_sb = policies.hlv_master.SB_Collab2()
     # policy3 = policies.hlv_master.Collab3()
+    # policy4 = policies.hlv_master.Collab4()
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=True)
     # policy = policies.fosen_haldorsen.FosenHaldorsenPolicy(greedy=False, scenarios=2, branching=7, time_horizon=25)
     # policy = policies.gleditsch_hagen.GleditschHagenPolicy(variant='PatternBased')
 
     # state.set_sb_vehicles([policy]) # this creates one vehicle for each policy in the list
     state.set_sb_vehicles([policy2_sb]) # this creates one vehicle for each policy in the list
-    state.set_ff_vehicles([policy2_ff]) # this creates one vehicle for each policy in the list
+    # state.set_ff_vehicles([policy2_ff]) # this creates one vehicle for each policy in the list
     # state.set_ff_vehicles([policy_ff]) # this creates one vehicle for each policy in the list
     # state.set_vehicles([policy3]) # this creates one vehicle for each policy in the list
+    # state.set_vehicles([policy4]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state

@@ -5,7 +5,7 @@ from .Visit import Visit
 from .Plan import Plan
 from .SB_Criticality_score import calculate_criticality, calculate_station_type
 from .Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
-from .dynamic_clustering import Cluster
+from .dynamic_clustering import Cluster, build_cluster
 from .collab2_FF_X_PILOT_BS import id_escooters_accounted_for_battery_swaps
 
 import numpy as np
@@ -116,8 +116,8 @@ class SB_Collab2(Policy):
 
         current_cluster = Cluster([current_area], current_area, current_area.bikes, current_area.get_neighbours())
         next_cluster = Cluster([next_area], next_area, next_area.bikes, next_area.get_neighbours())
-        make_cluster(MAX_WALKING_AREAS, current_cluster)
-        make_cluster(MAX_WALKING_AREAS, next_cluster)
+        build_cluster([], current_cluster, MAX_WALKING_AREAS, 0, simul) #(MAX_WALKING_AREAS, current_cluster)
+        build_cluster([], next_cluster, MAX_WALKING_AREAS, 0, simul)
 
         current_deviation = len(current_cluster.get_available_bikes()) - current_cluster.get_target_state(simul.day(), simul.hour())
         next_deviation = len(next_cluster.get_available_bikes()) - next_cluster.get_target_state(simul.day(), simul.hour())
@@ -793,13 +793,3 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
             station_type = 'd'
     
     return potential_stations, station_type
-
-def make_cluster(radius, cluster):
-    for _ in range(radius):
-        new_neighbors = []
-        for neighbor in cluster.get_neighbours():
-            cluster.areas.append(neighbor)
-            cluster.set_bikes(neighbor.get_bikes())
-            new_neighbors += [area for area in neighbor.get_neighbours() if area not in cluster.get_neighbours() and area not in new_neighbors and area not in cluster.areas]
-        cluster.neighbours = new_neighbors
-    return cluster

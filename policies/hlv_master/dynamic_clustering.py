@@ -29,7 +29,6 @@ def clusterPickup(areas, n, threshold, max_lenght, vehicle, simul):
 
             build_cluster_p(tabu_list, c, max_lenght, cut_off, threshold, 1, simul)    
 
-            
             clusters.append(c)
             
     
@@ -55,7 +54,7 @@ def build_cluster_p(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
                 # c.target_state += neighbour.get_target_state()
                 for bike in neighbour.bikes:
                     c.bikes[bike.bike_id] = bike
-                new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours and area not in tabu_list and area not in new_neighbours]
+                new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours() and area not in tabu_list and area not in new_neighbours]
                 #c.neighbours.remove(neighbour)
 
         
@@ -106,28 +105,19 @@ def build_cluster_d(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
         c.neighbors = new_neighbours
         build_cluster_d(tabu_list, c, max_depth, counter, cut_off, threshold, simul)
 
-
-
-
+def build_cluster(tabu_list, c, max_depth, counter, simul):
+    while counter <= max_depth:
+        new_neighbours = []
+        for neighbour in c.get_neighbours():
+                c.areas.append(neighbour)
+                tabu_list.append(neighbour)
+                for bike_id, bike in neighbour.bikes.items():
+                    c.bikes[bike_id] = bike
+                new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours() and area not in tabu_list and area not in new_neighbours]
         
-
-
-
-            
-
-
-
-
-
-
-
-#Cluster object:
-#Areas - List of areas within cluster
-#Center_area -  one area 
-#Leave_intensity
-#Arrive_intensity
-#Density
-#Target state
+        counter += 1
+        c.neighbors = new_neighbours
+        build_cluster(tabu_list, c, max_depth, counter,simul)
 
 class Cluster(Location):
     def __init__(
