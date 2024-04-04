@@ -106,8 +106,8 @@ def calculate_time_to_violation(net_demand, cluster, simul, total_num_escooters_
 
         # Calculate the time until there are only bikes at station with too low battery for rental, based on hourly discharge in system
         bikes_most_charged = [bike.battery for bike in sorted_bikes_by_battery[-3:]]
-        average_battery_top3 = sum(bikes_most_charged)/len(bikes_most_charged)
-        battery_over_limit_top3 = average_battery_top3 - BATTERY_LIMIT_TO_USE
+        average_battery_top3 = sum(bikes_most_charged)/len(bikes_most_charged) if len(bikes_most_charged) != 0 else 0
+        battery_over_limit_top3 = max(average_battery_top3 - BATTERY_LIMIT_TO_USE,0)
         hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
         if hourly_discharge == 0:
             rate = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)

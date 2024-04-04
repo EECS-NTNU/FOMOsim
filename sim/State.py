@@ -507,7 +507,10 @@ class State(LoadSave):
         elif (not isinstance(self.get_location_by_id(start_location_id), sim.Station) and isinstance(self.get_location_by_id(end_location_id), sim.Station)):
             end_location_id = self.get_location_by_id(end_location_id).area
 
-        if self.traveltime_matrix_stddev is not None and len(self.traveltime_matrix_stddev) == len(self.traveltime_matrix): # and (start_location_id, end_location_id) in self.traveltime_matrix_stddev:
+        if start_location_id[0] == "A" and end_location_id[0] == "A":
+            return self.traveltime_matrix[(start_location_id, end_location_id)]
+
+        elif self.traveltime_matrix_stddev is not None and len(self.traveltime_matrix_stddev) == len(self.traveltime_matrix): # and (start_location_id, end_location_id) in self.traveltime_matrix_stddev:
             return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)], 
                                        self.traveltime_matrix_stddev[(start_location_id, end_location_id)])
         return self.traveltime_matrix[(start_location_id, end_location_id)]
@@ -517,8 +520,11 @@ class State(LoadSave):
             start_location_id = self.get_location_by_id(start_location_id).area
         elif (not isinstance(self.get_location_by_id(start_location_id), sim.Station) and isinstance(self.get_location_by_id(end_location_id), sim.Station)):
             end_location_id = self.get_location_by_id(end_location_id).area
+        
+        if start_location_id[0] == "A" and end_location_id[0] == "A":
+            return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
 
-        if self.traveltime_vehicle_matrix_stddev is not None and len(self.traveltime_vehicle_matrix_stddev) == len(self.traveltime_vehicle_matrix): # and (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev:
+        elif self.traveltime_vehicle_matrix_stddev is not None and len(self.traveltime_vehicle_matrix_stddev) == len(self.traveltime_vehicle_matrix): # and (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev:
             if (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev.keys():
                 return self.rng2.lognormal(self.traveltime_vehicle_matrix[(start_location_id, end_location_id)],
                                            self.traveltime_vehicle_matrix_stddev[(start_location_id, end_location_id)])
@@ -594,9 +600,7 @@ class State(LoadSave):
 
             else:
                 for pick_up_bike_id in action.pick_ups:
-                    pick_up_bike = vehicle.cluster.get_bike_from_id(
-                        pick_up_bike_id
-                    )
+                    pick_up_bike = vehicle.cluster.get_bike_from_id(pick_up_bike_id)
                     
                     # Remove bike from current station
                     current_location = self.get_location_by_id(pick_up_bike.location_id)

@@ -67,13 +67,21 @@ class EScooterDeparture(Event):
                         departure_area.location_id,
                     )
                 )
-
+            
+            if escooter.location_id != departure_area.location_id:
+                print("sykkelen har ikke registeret riktig sted", escooter.location_id, departure_area.location_id)
+                
             # remove bike from the departure area
             departure_area.remove_bike(escooter)
 
             world.state.set_bike_in_use(escooter)
 
+
             world.metrics.add_aggregate_metric(world, "events", 2) #successfull pickup and an arrival
+
+
+            if escooter not in world.state.bikes_in_use.values():
+                print("noe galt her")
 
         else:
             if FULL_TRIP:
@@ -115,6 +123,15 @@ class EScooterDeparture(Event):
                     
                     travel_time = travel_time if travel_time < 45 else 45
 
+
+                    # remove bike from the new departure area
+                    closest_neighbour_with_bikes.remove_bike(escooter)
+
+                    world.state.set_bike_in_use(escooter)
+
+                    if escooter not in world.state.bikes_in_use.values():
+                        print("noe galt her")
+
                     # create an arrival event for the roaming user from the new departure area
                     world.add_event(
                         sim.EScooterArrival(
@@ -125,11 +142,6 @@ class EScooterDeparture(Event):
                             closest_neighbour_with_bikes.location_id,
                         )
                     )
-
-                    # remove bike from the new departure area
-                    closest_neighbour_with_bikes.remove_bike(escooter)
-
-                    world.state.set_bike_in_use(escooter)
 
                     world.metrics.add_aggregate_metric(world, "events", 2) #one roaming and an arrival
 

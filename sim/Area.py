@@ -108,6 +108,7 @@ class Area(Location):
 
     def remove_bike(self, bike):
         del self.bikes[bike.bike_id]
+        bike.set_location(None, None, None)
 
     def get_bikes(self):
         return list(self.bikes.values())

@@ -46,9 +46,16 @@ class EScooterArrival(Event):
                 world.metrics.add_aggregate_metric(world, "Failed events", 1)
                 self.escooter.battery = 0
 
-            arrival_area.add_bike(self.escooter)
             if FULL_TRIP:
-                world.state.remove_used_bike(self.escooter)
+                try:
+                    world.state.remove_used_bike(self.escooter)
+                except:
+                    departure_area = world.state.get_location_by_id(self.departure_area_id)
+                    bike_loc = world.state.get_location_by_id(self.escooter.location_id)
+                    print("nå skjer det noe galt", self.escooter.location_id, self.arrival_area_id, self.departure_area_id)
+                    print(world.state.get_location_by_id(self.escooter.location_id).bikes)
+
+            arrival_area.add_bike(self.escooter)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_area_id}>"

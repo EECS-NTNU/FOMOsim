@@ -159,7 +159,7 @@ class FF_Collab2(Policy): #Add default values from seperate setting sheme
                 helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, num_pickup, "pickup")[0] if (num_pickup > 0) else []
                 num_bikes -= num_pickup
         
-        helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(sum(current_deviations), len(vehicle.get_sb_bike_inventory()))]
+        helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(int(sum(current_deviations)), len(vehicle.get_sb_bike_inventory()))]
         
         station_bikes = {}
         for station in current_stations:
