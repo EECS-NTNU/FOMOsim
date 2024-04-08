@@ -41,25 +41,25 @@ def main():
     # start_time = time.time()
 
     # the following is for reading a precalculated initial state from a json file
-    # state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_final_W3")
-    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
+    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_final_W3")
+    # state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
 
     # duration = time.time() - start_time
     # print("Init time: ", str(duration))
     # print("Areas: ", str(len(state.get_areas())))
 
-    state.set_seed(243)
+    state.set_seed(2113)
 
     ###############################################################################
 
-    # policy = policies.hlv_master.BS_PILOT()
-    # state.set_sb_vehicles([policy])
+    policy = policies.hlv_master.BS_PILOT()
+    state.set_sb_vehicles([policy])
 
-    policy_ff = policies.hlv_master.BS_PILOT_FF()
-    state.set_ff_vehicles([policy_ff])
+    # policy_ff = policies.hlv_master.BS_PILOT_FF()
+    # state.set_ff_vehicles([policy_ff])
 
-    policy2_ff = policies.hlv_master.FF_Collab2()
-    state.set_ff_vehicles([policy2_ff]) # this creates one vehicle for each policy in the list
+    # policy2_ff = policies.hlv_master.FF_Collab2()
+    # state.set_ff_vehicles([policy2_ff]) # this creates one vehicle for each policy in the list
     
     # policy2_sb = policies.hlv_master.SB_Collab2()
     # state.set_sb_vehicles([policy2_sb]) # this creates one vehicle for each policy in the list

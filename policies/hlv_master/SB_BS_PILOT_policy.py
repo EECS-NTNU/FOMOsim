@@ -297,7 +297,7 @@ class BS_PILOT(Policy):
         next_stations = stations_sorted_list[:number_of_successors]
 
         for next_station in next_stations:
-            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.traveltime_vehicle_matrix[(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_station.location_id)] + MINUTES_CONSTANT_PER_ACTION
+            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.get_vehicle_travel_time(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_station.location_id) + MINUTES_CONSTANT_PER_ACTION
             num_bikes_to_pickup, num_bikes_to_deliver, num_bikes_to_swap = self.calculate_loading_quantities_and_swaps_pilot(vehicle, simul, next_station, arrival_time)
             new_visit = Visit(next_station, num_bikes_to_pickup, num_bikes_to_deliver, num_bikes_to_swap, arrival_time, vehicle)
             visits.append(new_visit)
@@ -524,7 +524,7 @@ class BS_PILOT(Policy):
         if num_scenarios==0:
             num_scenarios+=1 #this scenario is now the expected value 
         for scenario_id in range(num_scenarios):
-            best_score = -1000
+            best_score = -float('inf')
             best_plan = None
             for plan in plan_scores:
                 if plan_scores[plan][scenario_id] > best_score:
@@ -571,7 +571,9 @@ class BS_PILOT(Policy):
         if list(score_board_sorted.keys())[0] != None:
             best_plan = list(score_board_sorted.keys())[0]
             branch = best_plan.branch_number
-            simul.metrics.add_aggregate_metric(simul, "branch"+str(branch+1), 1)
+            # simul.metrics.add_aggregate_metric(simul, "branch"+str(branch+1), 1)
+            if branch is None:
+                print(best_plan, "simul_time:", simul.time)
             first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             return first_move
         else: 
@@ -634,8 +636,6 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, overf
         num_escooters_to_swap = min(len(escooters_in_station_low_battery),vehicle.battery_inventory)
         escooters_to_swap_accounted_for_battery_swap = [escooter.bike_id for escooter in escooters_in_station_low_battery[:num_escooters_to_swap]]
 
-
-    
     return escooters_to_pickup_accounted_for_battery_swaps, escooters_to_deliver_accounted_for_battery_swaps, escooters_to_swap_accounted_for_battery_swap
 
 

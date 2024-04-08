@@ -49,17 +49,17 @@ class State(LoadSave):
         self.traveltime_vehicle_matrix = traveltime_vehicle_matrix
         self.traveltime_vehicle_matrix_stddev = traveltime_vehicle_matrix_stddev
 
-        if traveltime_matrix is None:
-            self.traveltime_matrix = self.calculate_traveltime(BIKE_SPEED)
+        # if traveltime_matrix is None:
+        #     self.traveltime_matrix = self.calculate_traveltime(BIKE_SPEED)
 
-        if traveltime_vehicle_matrix is None:
-            self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
+        # if traveltime_vehicle_matrix is None:
+        #     self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
 
-        if traveltime_matrix_stddev is None:
-            self.traveltime_matrix_stddev = {key: 0 for key in self.traveltime_matrix}
+        # if traveltime_matrix_stddev is None:
+        #     self.traveltime_matrix_stddev = {key: 0 for key in self.traveltime_matrix}
         
-        if traveltime_vehicle_matrix_stddev is None:
-            self.traveltime_vehicle_matrix_stddev = {key: 0 for key in self.traveltime_vehicle_matrix}
+        # if traveltime_vehicle_matrix_stddev is None:
+        #     self.traveltime_vehicle_matrix_stddev = {key: 0 for key in self.traveltime_vehicle_matrix}
 
         self.mapdata = mapdata
 
@@ -137,13 +137,13 @@ class State(LoadSave):
         areas = []
 
         escooter_id_counter = 0
-        area_num = 0 # TODO denne trengs ikke alltid
+        # area_num = 0 # TODO denne trengs ikke alltid
         for area in statedata["areas"]:
 
-            # area_id = area["id"]
-            area_id = "A" + str(area_num)
-            if "id" in area:
-                area_id = area["id"]
+            area_id = area["id"]
+            # area_id = "A" + str(area_num)
+            # if "id" in area:
+            #     area_id = area["id"]
 
             center_position = None
             if "location" in area:
@@ -201,7 +201,7 @@ class State(LoadSave):
 
             areas.append(areaObj)
 
-            area_num += 1
+            # area_num += 1
 
         # TODO - hvordan skal disse se ut?
         # for depot in statedata["depots"]:

@@ -733,25 +733,7 @@ class Collab4(Policy): #Add default values from seperate setting sheme
             destination = rng_balanced.choice(potential_stations2)
             if isinstance(destination, sim.Station):
                 return destination.location_id, None
-            return destination.location_id, destination
-        
-    ####################################################################
-    # Finds closest depot from location when vehicle is out of battery #
-    ####################################################################
-
-    def find_closest_depot(self, simul, vehicle):
-        closest_depot = None
-        closest_distance = float('inf')
-        depots = [depot for depot in simul.state.get_depots() if depot.is_station_based == vehicle.is_station_based]
-
-        for d in depots:
-            distance = (simul.state.traveltime_vehicle_matrix[(vehicle.location.location_id, d.location_id)]/60)*VEHICLE_SPEED
-            if distance < closest_distance:
-                closest_distance = distance
-                closest_depot = d
-
-        return closest_depot.location_id if closest_depot is not None else "A0"
-                        
+            return destination.location_id, destination 
 
 
 #############################################################################################

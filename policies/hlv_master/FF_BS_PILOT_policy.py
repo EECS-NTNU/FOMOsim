@@ -75,15 +75,6 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
         #   Which bike ID´s to pick up / deliver is choosen based on battery level              #   
         #   How many batteries to swap choosen based on battery inventory and status on station #
         #########################################################################################
-        
-        bike_ids = []
-        doubles = []
-        for loc in simul.state.get_locations():
-            for bike in loc.bikes.values():
-                if bike.bike_id not in bike_ids:
-                    bike_ids.append(bike.bike_id)
-                else:
-                    doubles.append(bike.bike_id)
 
         if vehicle.cluster is None:
             escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
@@ -117,18 +108,6 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
         tabu_list = [v.location.location_id for v in simul.state.get_ff_vehicles()]
 
         plan = Plan(plan_dict, tabu_list)
-
-        bike_ids1 = []
-        doubles1 = []
-        for loc in simul.state.get_locations():
-            for bike in loc.bikes.values():
-                if bike.bike_id not in bike_ids1:
-                    bike_ids1.append(bike.bike_id)
-                else:
-                    doubles1.append(bike.bike_id)
-
-        if len(doubles1) > len(doubles):
-            print('In get_best_action', doubles1)
 
         #############################################################################
         #  Use PILOT_function to decide next station                                #
@@ -167,6 +146,15 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
     ####################################################################################################
 
     def PILOT_function(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time, total_num_bikes_in_system):
+        bike_ids = []
+        doubles = []
+        for loc in simul.state.get_locations():
+            for bike in loc.bikes.values():
+                if bike.bike_id not in bike_ids:
+                    bike_ids.append(bike.bike_id)
+                else:
+                    doubles.append(bike.bike_id)
+
         completed_plans = []
         for weight_set in self.criticality_weights_set:
             num_successors = number_of_successors
@@ -229,6 +217,18 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
                     temp_plan.find_next_visit()
                 
                 completed_plans.append(temp_plan)
+        
+        bike_ids1 = []
+        doubles1 = []
+        for loc in simul.state.get_locations():
+            for bike in loc.bikes.values():
+                if bike.bike_id not in bike_ids1:
+                    bike_ids1.append(bike.bike_id)
+                else:
+                    doubles1.append(bike.bike_id)
+
+        if len(doubles1) > len(doubles):
+            print('In PILOT', doubles1)
             
         plan_scores = dict()
 
@@ -335,13 +335,13 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
         for next_station in next_stations:
-            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.traveltime_vehicle_matrix[(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_station.location_id)] + MINUTES_CONSTANT_PER_ACTION
+            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.get_travel_time(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_station.location_id) + MINUTES_CONSTANT_PER_ACTION
             number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap = self.calculate_loading_quantities_and_swaps_pilot(vehicle, simul, next_station, arrival_time)
             new_visit = Visit(next_station, number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap, arrival_time, vehicle)
             visits.append(new_visit)
         
         return visits
-    
+
 
     ####################################################################
     # I dont really understand this function - have copied it as i was #
@@ -619,23 +619,6 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
             rng_balanced = np.random.default_rng(None)
             cluster = rng_balanced.choice(potential_stations2)
             return cluster.location_id, cluster
-        
-    ####################################################################
-    # Finds closest depot from location when vehicle is out of battery #
-    ####################################################################
-
-    def find_closest_depot(self, simul, vehicle):
-        closest_depot = None
-        closest_distance = float('inf')
-        depots = [depot for depot in simul.state.get_depots() if depot.is_station_based == vehicle.is_station_based]
-
-        for d in depots:
-            distance = (simul.state.traveltime_vehicle_matrix[(vehicle.location.location_id, d.location_id)]/60)*VEHICLE_SPEED
-            if distance < closest_distance:
-                closest_distance = distance
-                closest_depot = d
-
-        return closest_depot.location_id if closest_depot is not None else "A0"
                         
 
 

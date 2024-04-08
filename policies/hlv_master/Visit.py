@@ -12,5 +12,7 @@ class Visit():
         self.vehicle = vehicle
     
     def get_depature_time(self):
-        return self.arrival_time + (self.loading_quantity + self.unloading_quantity)*settings.MINUTES_PER_ACTION
-
+        return self.arrival_time + (self.loading_quantity + self.unloading_quantity + self.swap_quantity) * settings.MINUTES_PER_ACTION
+    
+    def __repr__(self) -> str:
+        return f'Station: {self.station.location_id}, arrrival_time: {self.arrival_time}'

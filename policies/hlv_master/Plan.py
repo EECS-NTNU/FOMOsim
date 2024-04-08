@@ -11,7 +11,7 @@ class Plan():
 
 
     def find_next_visit(self):
-        arrival_time = 1000000
+        arrival_time = float('inf')
         for vehicle_id in self.plan:
             if self.plan[vehicle_id][-1].arrival_time < arrival_time:
                 arrival_time = self.plan[vehicle_id][-1].arrival_time
@@ -23,3 +23,6 @@ class Plan():
             route_copy = copy_arr_iter(self.plan[vehicle])
             plan_copy[vehicle] = route_copy
         return plan_copy
+    
+    def __repr__(self) -> str:
+        return f'Plan: {self.plan}, next_visit = {self.next_visit}'

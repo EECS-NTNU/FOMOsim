@@ -354,7 +354,7 @@ class FF_Collab2(Policy): #Add default values from seperate setting sheme
         next_stations = [stations_sorted_list[i] for i in range(number_of_successors)]
 
         for next_station in next_stations:
-            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.traveltime_vehicle_matrix[(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_station.location_id)] + MINUTES_CONSTANT_PER_ACTION
+            arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.get_vehicle_travel_time(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_station.location_id) + MINUTES_CONSTANT_PER_ACTION
             number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap = self.calculate_loading_quantities_and_swaps_pilot(vehicle, simul, next_station, arrival_time)
             new_visit = Visit(next_station, number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap, arrival_time, vehicle)
             visits.append(new_visit)
@@ -638,25 +638,6 @@ class FF_Collab2(Policy): #Add default values from seperate setting sheme
             rng_balanced = np.random.default_rng(None)
             cluster = rng_balanced.choice(potential_stations2)
             return cluster.location_id, cluster
-        
-    ####################################################################
-    # Finds closest depot from location when vehicle is out of battery #
-    ####################################################################
-
-    def find_closest_depot(self, simul, vehicle):
-        closest_depot = None
-        closest_distance = float('inf')
-        depots = [depot for depot in simul.state.get_depots() if depot.is_station_based == vehicle.is_station_based]
-
-        for d in depots:
-            distance = (simul.state.traveltime_vehicle_matrix[(vehicle.location.location_id, d.location_id)]/60)*VEHICLE_SPEED
-            if distance < closest_distance:
-                closest_distance = distance
-                closest_depot = d
-
-        return closest_depot.location_id if closest_depot is not None else "A0"
-                        
-
 
 #############################################################################################
 #   Number of bikes to pick up / deliver is choosen greedy based on clusters in reach       #

@@ -31,23 +31,15 @@ class EScooterDeparture(Event):
         if len(available_escooters) > 0:
             escooter = available_escooters.pop(0)
 
-            # TODO remove
-            escooter.log.append(self.departure_area_id)
-            # escooter.log2.append(escooter.location_id)
-            if escooter.location_id != self.departure_area_id:
-                    print("WTF")
-
             if FULL_TRIP:
 
                 # get an arrival area from the leave prob distribution
                 p=departure_area.get_move_probabilities(world.state, world.day(), world.hour())
-                sum = 0.0
-                for i in range(len(p)):
-                    sum += p[i]
+                sum_p = sum(p.values())
                 p_normalized = []
-                for i in range(len(p)):
-                    if sum > 0:
-                        p_normalized.append(p[i] * (1.0/sum))
+                for i in p.keys():
+                    if sum_p > 0:
+                        p_normalized.append(p[i] * (1.0/sum_p))
                     else:
                         p_normalized.append(1/len(p))
                 arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
@@ -73,12 +65,6 @@ class EScooterDeparture(Event):
                         departure_area.location_id,
                     )
                 )
-            
-            if escooter.location_id != departure_area.location_id:
-                escooter_loc = world.state.get_location_by_id(escooter.location_id)
-                print("sykkelen har ikke registeret riktig sted", escooter.location_id, departure_area.location_id)
-                print("escooter_loc:", world.state.get_location_by_id(escooter.location_id).bikes)
-                print("departure_loc:", world.state.get_location_by_id(departure_area.location_id).bikes)
                 
             # remove bike from the departure area
             departure_area.remove_bike(escooter)
@@ -98,14 +84,12 @@ class EScooterDeparture(Event):
                     distance = departure_area.distance_to(closest_neighbour_with_bikes.get_lat(), closest_neighbour_with_bikes.get_lon())
                     
                     # Get probability distribution for finding arrival area
-                    p=departure_area.get_move_probabilities(world.state, world.day(), world.hour())
-                    sum = 0.0
-                    for i in range(len(p)):
-                        sum += p[i]
+                    p = departure_area.get_move_probabilities(world.state, world.day(), world.hour())
+                    sum_p = sum(p.values())
                     p_normalized = []
-                    for i in range(len(p)):
-                        if sum > 0:
-                            p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
+                    for i in p.keys():
+                        if sum_p > 0:
+                            p_normalized.append(p[i] * (1.0/sum_p)) # TODO, not sure if this is needed
                         else:
                             p_normalized.append(1/len(p))
                 else:
@@ -115,11 +99,6 @@ class EScooterDeparture(Event):
                 if self.acceptance_rejection(distance):
                     available_escooters = closest_neighbour_with_bikes.get_available_bikes()
                     escooter=available_escooters.pop(0)
-                    if escooter.location_id != closest_neighbour_with_bikes.location_id:
-                        escooter_loc = world.state.get_location_by_id(escooter.location_id)
-                        print("WTF roaming")
-                    escooter.log.append(closest_neighbour_with_bikes.location_id)
-                    # escooter.log2.append(escooter.location_id)
                     
                     arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
 

@@ -11,7 +11,7 @@ class Plan():
 
 
     def find_next_visit(self):
-        arrival_time = 1000000
+        arrival_time = float('inf')
         for vehicle_id in self.plan:
             if self.plan[vehicle_id][-1].arrival_time < arrival_time:
                 arrival_time = self.plan[vehicle_id][-1].arrival_time

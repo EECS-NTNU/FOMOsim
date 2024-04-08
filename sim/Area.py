@@ -81,7 +81,10 @@ class Area(Location):
             num_areas = len(state.areas)
             mp = [1/num_areas for _ in range(num_areas)]
             return mp
-        return self.move_probabilities[day % 7][hour % 24]
+        mp = self.move_probabilities[day % 7][hour % 24]
+        for area in state.get_areas():
+            mp.setdefault(area.location_id, 0.0)
+        return mp
 
     def get_arrive_intensity(self, day, hour):
         return self.arrive_intensities[day % 7][hour % 24] if self.arrive_intensities else 0

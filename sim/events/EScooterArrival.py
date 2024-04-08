@@ -33,13 +33,6 @@ class EScooterArrival(Event):
         # get arrival area 
         arrival_area = world.state.get_location_by_id(self.arrival_area_id)
 
-        # TODO remove
-        if self.escooter.location_id != self.departure_area_id:
-            print("nå skjer det noe galt", self.escooter.bike_id, self.escooter.location_id, self.arrival_area_id, self.departure_area_id)
-            print("log", self.escooter.log)
-            print("log2", self.escooter.log2)
-            print(world.state.get_location_by_id(self.escooter.location_id).bikes)
-
         if not FULL_TRIP:
             self.escooter = world.state.get_used_bike()
 
