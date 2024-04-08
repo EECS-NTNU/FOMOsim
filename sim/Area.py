@@ -79,7 +79,7 @@ class Area(Location):
     def get_move_probabilities(self, state, day, hour):
         if self.move_probabilities is None: # if not set, it is a uniform distribution between all areas
             num_areas = len(state.areas)
-            mp = [1/num_areas for _ in range(num_areas)]
+            mp = {area.location_id: 1/num_areas for area in state.get_areas()}
             return mp
         mp = self.move_probabilities[day % 7][hour % 24]
         for area in state.get_areas():
@@ -141,4 +141,4 @@ class Area(Location):
         )
 
     def __str__(self):
-        return f"Area {self.location_id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):3d} Bikes {len(self.bikes):3d}"
+        return f"Area {self.location_id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):4.2f} Bikes {len(self.bikes):3d}"

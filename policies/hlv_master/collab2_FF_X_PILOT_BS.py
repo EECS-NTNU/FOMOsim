@@ -815,8 +815,6 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
     potential_pickup_stations = []
     potential_delivery_stations = []
 
-
-
     if cutoff_vehicle * vehicle.bike_inventory_capacity <= bikes_at_vehicle <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
         potential_pickup_stations = clusterPickup(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, PICKUP_CLUSTERING_THRESHOLD, MAX_WALKING_AREAS, vehicle, simul)
         potential_delivery_stations = clusterDelivery(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, DELIVERY_CLUSTERING_THRESHOLD, MAX_WALKING_AREAS, vehicle, simul)
@@ -832,7 +830,6 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
         elif bikes_at_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
             potential_stations = clusterDelivery(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, DELIVERY_CLUSTERING_THRESHOLD, MAX_WALKING_AREAS, vehicle, simul)
             station_type = 'd'
-
 
     return potential_stations, station_type
 

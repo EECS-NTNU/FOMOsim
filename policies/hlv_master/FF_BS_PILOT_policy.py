@@ -146,14 +146,6 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
     ####################################################################################################
 
     def PILOT_function(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time, total_num_bikes_in_system):
-        bike_ids = []
-        doubles = []
-        for loc in simul.state.get_locations():
-            for bike in loc.bikes.values():
-                if bike.bike_id not in bike_ids:
-                    bike_ids.append(bike.bike_id)
-                else:
-                    doubles.append(bike.bike_id)
 
         completed_plans = []
         for weight_set in self.criticality_weights_set:
@@ -204,31 +196,19 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
 
                 while dep_time < end_time:
                     new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set, total_num_bikes_in_system)
-                    
+    
                     if new_visit != None:
                         new_visit = new_visit[0]
                         temp_plan.tabu_list.append(new_visit.station.location_id)
+                        temp_plan.plan[temp_plan.next_visit.vehicle.vehicle_id].append(new_visit)
+                        dep_time = new_visit.get_depature_time()
+                        temp_plan.find_next_visit()
                     else:
                         break
-
-                    
-                    temp_plan.plan[temp_plan.next_visit.vehicle.vehicle_id].append(new_visit)
-                    dep_time = new_visit.get_depature_time()
-                    temp_plan.find_next_visit()
+                
                 
                 completed_plans.append(temp_plan)
         
-        bike_ids1 = []
-        doubles1 = []
-        for loc in simul.state.get_locations():
-            for bike in loc.bikes.values():
-                if bike.bike_id not in bike_ids1:
-                    bike_ids1.append(bike.bike_id)
-                else:
-                    doubles1.append(bike.bike_id)
-
-        if len(doubles1) > len(doubles):
-            print('In PILOT', doubles1)
             
         plan_scores = dict()
 
@@ -798,8 +778,6 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
     potential_pickup_stations = []
     potential_delivery_stations = []
 
-
-
     if cutoff_vehicle * vehicle.bike_inventory_capacity <= bikes_at_vehicle <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
         potential_pickup_stations = clusterPickup(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, PICKUP_CLUSTERING_THRESHOLD, MAX_WALKING_AREAS, vehicle, simul)
         potential_delivery_stations = clusterDelivery(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, DELIVERY_CLUSTERING_THRESHOLD, MAX_WALKING_AREAS, vehicle, simul)
@@ -815,6 +793,5 @@ def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bike
         elif bikes_at_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
             potential_stations = clusterDelivery(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, DELIVERY_CLUSTERING_THRESHOLD, MAX_WALKING_AREAS, vehicle, simul)
             station_type = 'd'
-
 
     return potential_stations, station_type

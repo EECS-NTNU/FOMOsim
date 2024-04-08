@@ -114,8 +114,8 @@ class SB_Collab2(Policy):
         current_area = simul.state.get_location_by_id(vehicle.location.area)
         next_area = simul.state.get_location_by_id(simul.state.get_location_by_id(next_location).area)
 
-        current_cluster = Cluster([current_area], current_area, current_area.bikes, current_area.get_neighbours())
-        next_cluster = Cluster([next_area], next_area, next_area.bikes, next_area.get_neighbours())
+        current_cluster = Cluster([current_area], current_area, current_area.get_bikes(), current_area.get_neighbours())
+        next_cluster = Cluster([next_area], next_area, next_area.get_bikes(), next_area.get_neighbours())
         make_cluster(MAX_WALKING_AREAS, current_cluster)
         make_cluster(MAX_WALKING_AREAS, next_cluster)
 

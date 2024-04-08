@@ -25,11 +25,8 @@ def clusterPickup(areas, n, threshold, max_lenght, vehicle, simul):
 
     for area in highest_density_areas:
         if area not in tabu_list:
-            c = Cluster([area],area, area.bikes, area.get_neighbours())
-
+            c = Cluster([area],area, area.get_bikes(), area.get_neighbours())
             build_cluster_p(tabu_list, c, max_lenght, cut_off, threshold, 1, simul)    
-
-            
             clusters.append(c)
             
     
@@ -55,10 +52,9 @@ def build_cluster_p(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
                 # c.target_state += neighbour.get_target_state()
                 for bike in neighbour.bikes:
                     c.bikes[bike.bike_id] = bike
-                new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours and area not in tabu_list and area not in new_neighbours]
+                new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours() and area not in tabu_list and area not in new_neighbours]
                 #c.neighbours.remove(neighbour)
 
-        
         counter += 1
 
         c.neighbors = new_neighbours
@@ -76,17 +72,15 @@ def clusterDelivery(areas, n, threshold, max_lenght, veichle, simul):
 
     for area in largest_shortfall_areas:
         if area not in tabu_list:
-            c = Cluster([area],area, area.bikes, area.get_neighbours())
-
-            build_cluster_d(tabu_list, c, max_lenght, cut_off, threshold, 1, simul)    
-
-            
+            c = Cluster([area], area, area.get_bikes(), area.get_neighbours())
+            build_cluster_d(tabu_list, c, max_lenght, cut_off, threshold, 1, simul)
             clusters.append(c)
     
     return clusters
 
 
 def build_cluster_d(tabu_list, c, max_depth, cut_off, threshold, counter, simul):
+    run = True
     while counter <= max_depth:
         new_neighbours = []
         for neighbour in c.get_neighbours():
@@ -100,41 +94,17 @@ def build_cluster_d(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
                     c.bikes[bike_id] = bike
                 new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours() and area not in tabu_list and area not in new_neighbours]
                 #c.neighbours.remove(neighbour)
-
-        
         counter += 1
         c.neighbors = new_neighbours
         build_cluster_d(tabu_list, c, max_depth, counter, cut_off, threshold, simul)
 
-
-
-
-        
-
-
-
-            
-
-
-
-
-
-
-
-#Cluster object:
-#Areas - List of areas within cluster
-#Center_area -  one area 
-#Leave_intensity
-#Arrive_intensity
-#Density
-#Target state
 
 class Cluster(Location):
     def __init__(
         self,
         areas,
         center_area,
-        bikes = {}, #dict, key = bike_id, value = object
+        bikes = [], #dict, key = bike_id, value = object
         neighbours = []
     ):
         super().__init__(
@@ -144,9 +114,8 @@ class Cluster(Location):
         self.center_area = center_area
         self.areas = areas
         self.neighbours = neighbours
-        self.bikes = bikes
+        self.set_bikes(bikes)
         
-
     def set_bikes(self, bikes):
         self.bikes = {bike.bike_id : bike for bike in bikes}
 
@@ -158,6 +127,9 @@ class Cluster(Location):
     
     def number_of_bikes(self):
         return len(self.bikes)
+    
+    def remove_bike(self, bike):
+        del self.bikes[bike.bike_id]
     
     def get_swappable_bikes(self, battery_limit=BATTERY_LIMIT_TO_SWAP):
         """
@@ -212,5 +184,16 @@ class Cluster(Location):
     
     def __repr__(self):
         return (
-            str([area.location_id for area in self.areas])
+            "cluster " + str([area.location_id for area in self.areas])
         )
+    
+
+"""
+neighbour Area A1001: Arrive 1.95 Leave 0.34 Ideal   0 Bikes   1
+before {<Area A935: 2 bikes>: ['ES82'], <Area A310: 0 bikes>: [], <Area A1171: 0 bikes>: [], <Area A768: 0 bikes>: [], <Area A1001: 1 bikes>: ['ES89']}
+after {<Area A935: 2 bikes>: ['ES82', 'ES89'], <Area A310: 0 bikes>: [], <Area A1171: 0 bikes>: [], <Area A768: 0 bikes>: [], <Area A1001: 1 bikes>: ['ES89']}
+
+neighbour Area A379: Arrive 0.72 Leave 1.60 Ideal   0 Bikes   2
+before {<Area A910: 2 bikes>: [], <Area A159: 0 bikes>: [], <Area A74: 0 bikes>: [], <Area A901: 0 bikes>: [], <Area A379: 2 bikes>: ['ES37', 'ES38']}
+after {<Area A910: 2 bikes>: ['ES37', 'ES38'], <Area A159: 0 bikes>: [], <Area A74: 0 bikes>: [], <Area A901: 0 bikes>: [], <Area A379: 2 bikes>: ['ES37', 'ES38']}
+"""

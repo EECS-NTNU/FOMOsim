@@ -50,9 +50,6 @@ class EScooterDeparture(Event):
                     arrival_area.location_id,
                 )
 
-                # if travel_time > 10:
-                #     print(travel_time, "__", world.state.traveltime_matrix[(departure_area.location_id, arrival_area.location_id)], "__", world.state.traveltime_matrix_stddev[(departure_area.location_id, arrival_area.location_id)])
-
                 travel_time = travel_time if travel_time < 30 else 30
 
                 # create an arrival event for the departed bike

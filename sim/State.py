@@ -137,13 +137,13 @@ class State(LoadSave):
         areas = []
 
         escooter_id_counter = 0
-        # area_num = 0 # TODO denne trengs ikke alltid
+        area_num = 0 # TODO denne trengs ikke alltid
         for area in statedata["areas"]:
 
-            area_id = area["id"]
-            # area_id = "A" + str(area_num)
-            # if "id" in area:
-            #     area_id = area["id"]
+            # area_id = area["id"]
+            area_id = "A" + str(area_num)
+            if "id" in area:
+                area_id = area["id"]
 
             center_position = None
             if "location" in area:
@@ -201,12 +201,13 @@ class State(LoadSave):
 
             areas.append(areaObj)
 
-            # area_num += 1
+            area_num += 1
 
         # TODO - hvordan skal disse se ut?
-        # for depot in statedata["depots"]:
-        #     depotObj = sim.Depot(num_depots)
-        #     pass
+        if 'depots' in statedata:
+            for depot in statedata['depots']:
+                depotObj = sim.Depot(depot['id'], False, center_location= depot['location'])
+                areas.append(depotObj)
 
         # TODO - dette må sikkert fikses
         mapdata = None
@@ -542,14 +543,6 @@ class State(LoadSave):
         :param vehicle: Vehicle to perform this action
         :param action: Action - action to be performed on the state
         """
-        bike_ids = []
-        doubles = []
-        for loc in self.get_locations():
-            for bike in loc.bikes.values():
-                if bike.bike_id not in bike_ids:
-                    bike_ids.append(bike.bike_id)
-                else:
-                    doubles.append(bike.bike_id)
 
         refill_time = 0
         if vehicle.is_at_depot():
@@ -613,6 +606,9 @@ class State(LoadSave):
 
             else:
                 area_ids = [area.location_id for area in vehicle.cluster.areas]
+                print("cluster bikes:",vehicle.cluster.bikes)
+                print("pickup bikes:",action.pick_ups)
+                print("areas + bikes:", {area.location_id: area.bikes.keys() for area in vehicle.cluster.areas})
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(pick_up_bike_id)
 
@@ -621,7 +617,12 @@ class State(LoadSave):
                     
                     # Remove bike from current station
                     current_location = self.get_location_by_id(pick_up_bike.location_id)
+                    print("cluster areas:",vehicle.cluster.areas)
+                    print("bike location:",pick_up_bike.location_id)
+                    print("bike id:",pick_up_bike_id)
+                    print("location bikes:", current_location.bikes)
                     current_location.remove_bike(pick_up_bike)
+                    vehicle.cluster.remove_bike(pick_up_bike)
                     
                     # Picking up bike and adding to vehicle inventory and swapping battery
                     vehicle.pick_up(pick_up_bike)
@@ -651,6 +652,7 @@ class State(LoadSave):
                         print('plukkes ikke opp riktig hjelp')
 
                     self.get_location_by_id(helping_pickup_bike.location_id).remove_bike(helping_pickup_bike)
+                    action.helping_cluster.remove_bike(pick_up_bike)
                     
                     # Picking up bike and adding to vehicle inventory and swapping battery
                     vehicle.pick_up(pick_up_bike)
@@ -668,20 +670,6 @@ class State(LoadSave):
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)
-
-        bike_ids1 = []
-        doubles1 = []
-        for loc in self.get_locations():
-            for bike in loc.bikes.values():
-                if bike.bike_id not in bike_ids1:
-                    bike_ids1.append(bike.bike_id)
-                else:
-                    doubles1.append(bike.bike_id)
-
-        if len(doubles1) > len(doubles):
-            print('In do action, more double now than before')
-            print('double', doubles)
-            print('double1', doubles1)
 
         return refill_time
 

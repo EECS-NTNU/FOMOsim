@@ -150,8 +150,8 @@ class Collab4(Policy): #Add default values from seperate setting sheme
             current_area = simul.state.get_location_by_id(vehicle.location.area)
             next_area = simul.state.get_location_by_id(simul.state.get_location_by_id(next_location).area)
 
-            current_cluster = Cluster([current_area], current_area, current_area.bikes, current_area.get_neighbours())
-            next_cluster = Cluster([next_area], next_area, next_area.bikes, next_area.get_neighbours())
+            current_cluster = Cluster([current_area], current_area, current_area.get_bikes(), current_area.get_neighbours())
+            next_cluster = Cluster([next_area], next_area, next_area.get_bikes(), next_area.get_neighbours())
             make_cluster(MAX_WALKING_AREAS, current_cluster)
             make_cluster(MAX_WALKING_AREAS, next_cluster)
 
@@ -170,7 +170,7 @@ class Collab4(Policy): #Add default values from seperate setting sheme
         
         elif isinstance(current_location, sim.Station) and not isinstance(next_location, sim.Station):
             current_area = simul.state.get_location_by_id(vehicle.location.area)
-            current_cluster = Cluster([current_area], current_area, current_area.bikes, current_area.get_neighbours())
+            current_cluster = Cluster([current_area], current_area, current_area.get_bikes(), current_area.get_neighbours())
             make_cluster(MAX_WALKING_AREAS, current_cluster)
 
             next_deviation = len(next_location.get_available_bikes()) - next_location.get_target_state(simul.day(), simul.hour())
@@ -213,6 +213,10 @@ class Collab4(Policy): #Add default values from seperate setting sheme
                         excess_bikes = len(vehicle.get_sb_bike_inventory()) - next_deviation - delivery_count
                         if excess_bikes > 0:
                             delivery_count += min(excess_bikes, current_deviations[i])
+            
+            station_bikes = {}
+            for station in current_stations:
+                station_bikes.update(station.bikes)
             
             helping_cluster = Cluster(current_stations, vehicle.location, station_bikes, [])
             

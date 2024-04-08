@@ -36,7 +36,6 @@ class Simulator(LoadSave):
         super().__init__()
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
         self.init(duration=duration, initial_state=initial_state, target_state=target_state, demand=demand, start_time=start_time, cluster=cluster, verbose=verbose, label=label)
-        self.event_trigger = None
 
     def init(
         self,
@@ -99,21 +98,6 @@ class Simulator(LoadSave):
             loggLocations(self.state)
 
         event.perform(self)
-
-        if self.event_trigger is None:
-            bike_ids1 = []
-            doubles1 = []
-            for loc in self.state.get_locations():
-                for bike in loc.bikes.values():
-                    if bike.bike_id not in bike_ids1:
-                        bike_ids1.append(bike.bike_id)
-                    else:
-                        doubles1.append(bike.bike_id)
-
-            if len(doubles1) > 0:
-                print('After event this doubles', doubles1)
-                print(event.__class__)
-                self.event_trigger = event.__class__.__name__
 
         if settings.TRAFFIC_LOGGING:
             loggEvent(event)
