@@ -8,7 +8,8 @@ class USTargetState(TargetState):
         super().__init__()
 
     def update_target_state(self, state, day, hour):
-        num_bikes = len(state.get_all_bikes())
+        num_sb_bikes = len(state.get_all_sb_bikes())
+        num_ff_bikes = len(state.get_all_ff_bikes())
         num_stations = len(state.get_stations())
 
         for st in state.get_stations():
@@ -19,9 +20,9 @@ class USTargetState(TargetState):
             arrive_std = st.arrive_intensities_stdev[day][hour]
 
             if (leave_std==0) or (arrive_std==0):
-                ts = num_bikes // num_stations
+                ts = num_sb_bikes // num_stations
             else:
-                ts = (leave + leave_std - (arrive - arrive_std)) + (num_bikes // num_stations)
+                ts = (leave + leave_std - (arrive - arrive_std)) + (num_sb_bikes // num_stations)
                 #ts = (leave_std*(cap-arrive)+arrive_std*leave)/(leave_std+arrive_std)
             st.target_state[day][hour] = ts
         

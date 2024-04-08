@@ -81,6 +81,8 @@ class Station(Location):
 
     def set_bikes(self, bikes):
         self.bikes = {bike.bike_id : bike for bike in bikes}
+        for bike in bikes:
+            bike.set_location(self.lat, self.lon, self.location_id)
 
     def spare_capacity(self):
         return self.capacity - len(self.bikes)
@@ -132,6 +134,7 @@ class Station(Location):
 
     def remove_bike(self, bike):
         del self.bikes[bike.bike_id]
+        # bike.set_location(None, None, None)
 
     def get_bikes(self):
         return list(self.bikes.values())

@@ -32,10 +32,10 @@ def run_simulation(seed, policy, duration= settings_duration, num_vehicles= sett
     ###############################################################
     
     # state = init_state.read_initial_state("instances/ebike/"+INSTANCE)
-    state = init_state.read_initial_state("instances/ebike_with_depot/"+INSTANCE)
+    state = init_state.read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
     state.set_seed(seed)
     vehicles = [policy for i in range(num_vehicles)]
-    state.set_sb_vehicles(vehicles) # this creates one vehicle for each policy in the list
+    state.set_sb_vehicles(vehicles)
     tstate = target_state.USTargetState()
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -165,33 +165,16 @@ if __name__ == "__main__":
     duration = settings_duration
     num_vehicles = settings_num_vehicles
     
-    # policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
-    # policy_dict = dict(pilot_roaming_inngjerdingen = policies.inngjerdingen_moeller.PILOT())
-    # policy_dict = dict(Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 250))
-    # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing(), Kloimüllner = policies.inngjerdingen_moeller.PILOT(1, 260), pilot_X_roaming = policies.inngjerdingen_moeller.PILOT(), FOMOgreedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing(), pilot_X_roaming = policies.inngjerdingen_moeller.PILOT(), FOMOgreedy = policies.GreedyPolicy(), greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
-    # policy_dict = dict(Kloimüllner_5 = policies.inngjerdingen_moeller.PILOT(1, 5))
-    # policy_dict = dict(greedy = policies.GreedyPolicy(), nothing=policies.do_nothing_policy.DoNothing())
-    # policy_dict = dict(DoNothing = policies.do_nothing_policy.DoNothing())
-    # policy_dict = dict(pilot_roaming = policies.hlv_master.BS_PILOT(
-    #     max_depth = settings_max_depth, 
-    #     number_of_successors = settings_number_of_successors, 
-    #     time_horizon = settings_time_horizon, 
-    #     criticality_weights_set = settings_criticality_weights_sets, 
-    #     evaluation_weights = settings_evaluation_weights, 
-    #     number_of_scenarios = settings_number_of_scenarios, 
-    #     discounting_factor = settings_discounting_factor,
-    #     overflow_criteria = OVERFLOW_CRITERIA,
-    #     starvation_criteria = STARVATION_CRITERIA
-    # ))
-    policy_dict = dict(only_swap = policies.hlv_master.Only_Swap())
+    policy_dict = {
+        'SB_base': policies.hlv_master.BS_PILOT(),
+        # 'FF_base': policies.hlv_master.BS_PILOT_FF(),
+        # 'SB_Collab2': policies.hlv_master.SB_Collab2(),
+        # 'FF_Collab2': policies.hlv_master.FF_Collab2(),
+        # 'Collab3': policies.hlv_master.Collab3(),
+        # 'Collab4': policies.hlv_master.Collab4(),
+                   }
     
-    # list_of_timehorizons = settings_list_of_timehorizons
-    # evaluation_weights = settings_evaluation_weights
-    # criticality_weights = settings_criticality_weights
-    # list_of_factors = settings_list_of_factors
-    list_of_instances = settings_list_of_instances
+    # list_of_instances = ['TD_34']
   
     list_of_seeds = settings_list_of_seeds
   

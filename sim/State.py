@@ -508,7 +508,9 @@ class State(LoadSave):
             end_location_id = self.get_location_by_id(end_location_id).area
 
         if start_location_id[0] == "A" and end_location_id[0] == "A":
-            return self.traveltime_matrix[(start_location_id, end_location_id)]
+            start_loc = self.get_location_by_id(start_location_id)
+            end_loc = self.get_location_by_id(end_location_id)
+            return (start_loc.distance_to(*(end_loc.get_location())) / BIKE_SPEED) * 60
 
         elif self.traveltime_matrix_stddev is not None and len(self.traveltime_matrix_stddev) == len(self.traveltime_matrix): # and (start_location_id, end_location_id) in self.traveltime_matrix_stddev:
             return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)], 
@@ -522,7 +524,9 @@ class State(LoadSave):
             end_location_id = self.get_location_by_id(end_location_id).area
         
         if start_location_id[0] == "A" and end_location_id[0] == "A":
-            return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
+            start_loc = self.get_location_by_id(start_location_id)
+            end_loc = self.get_location_by_id(end_location_id)
+            return (start_loc.distance_to(*(end_loc.get_location())) / VEHICLE_SPEED) * 60
 
         elif self.traveltime_vehicle_matrix_stddev is not None and len(self.traveltime_vehicle_matrix_stddev) == len(self.traveltime_vehicle_matrix): # and (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev:
             if (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev.keys():
@@ -530,7 +534,7 @@ class State(LoadSave):
                                            self.traveltime_vehicle_matrix_stddev[(start_location_id, end_location_id)])
         return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
 
-    # TODO
+    # TODO remove debugger
     def do_action(self, action, vehicle, time):
         """
         Performs an action on the state -> changing the state
@@ -538,6 +542,15 @@ class State(LoadSave):
         :param vehicle: Vehicle to perform this action
         :param action: Action - action to be performed on the state
         """
+        bike_ids = []
+        doubles = []
+        for loc in self.get_locations():
+            for bike in loc.bikes.values():
+                if bike.bike_id not in bike_ids:
+                    bike_ids.append(bike.bike_id)
+                else:
+                    doubles.append(bike.bike_id)
+
         refill_time = 0
         if vehicle.is_at_depot():
             batteries_to_swap = min(
@@ -599,8 +612,12 @@ class State(LoadSave):
                     self.get_location_by_id(vehicle.location.area).add_bike(helping_delivery_bike)
 
             else:
+                area_ids = [area.location_id for area in vehicle.cluster.areas]
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(pick_up_bike_id)
+
+                    if pick_up_bike.location_id not in area_ids:
+                        print('plukkes ikke opp riktig')
                     
                     # Remove bike from current station
                     current_location = self.get_location_by_id(pick_up_bike.location_id)
@@ -630,6 +647,9 @@ class State(LoadSave):
                         helping_pickup_id
                     )
 
+                    if pick_up_bike.location_id not in [area.location_id for area in action.helping_cluster.areas]:
+                        print('plukkes ikke opp riktig hjelp')
+
                     self.get_location_by_id(helping_pickup_bike.location_id).remove_bike(helping_pickup_bike)
                     
                     # Picking up bike and adding to vehicle inventory and swapping battery
@@ -642,14 +662,26 @@ class State(LoadSave):
                         while station.number_of_bikes() < station.get_target_state(day, hour) and len(vehicle.get_sb_bike_inventory()) > 0:
                             helping_delivery_id = action.helping_delivery.pop()
 
-                            helping_delivery_bike = action.helping_cluster.get_bike_from_id(
-                                helping_delivery_id
-                            )
+                            helping_delivery_bike = action.helping_cluster.get_bike_from_id(helping_delivery_id)
                             station.add_bike(helping_delivery_bike)
                             vehicle.drop_off(helping_delivery_id)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)
+
+        bike_ids1 = []
+        doubles1 = []
+        for loc in self.get_locations():
+            for bike in loc.bikes.values():
+                if bike.bike_id not in bike_ids1:
+                    bike_ids1.append(bike.bike_id)
+                else:
+                    doubles1.append(bike.bike_id)
+
+        if len(doubles1) > len(doubles):
+            print('In do action, more double now than before')
+            print('double', doubles)
+            print('double1', doubles1)
 
         return refill_time
 

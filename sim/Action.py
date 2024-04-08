@@ -51,6 +51,7 @@ class Action:
 
     def __repr__(self):
         return (
-            f"<Action - ({len(self.battery_swaps)} bat. swaps, {len(self.pick_ups)} pickups,"
-            f" {len(self.delivery_bikes)} deliveries), next: {self.next_location} >"
+            f"<Action - ({self.battery_swaps} bat. swaps, {self.pick_ups} pickups,"
+            f" {self.delivery_bikes} deliveries), next: {self.next_location} >"
+            f" {self.helping_pickup} h_pickups), {self.helping_delivery} h_delivry, {self.helping_cluster} cluster>"
         )

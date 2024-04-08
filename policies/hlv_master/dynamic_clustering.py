@@ -150,6 +150,9 @@ class Cluster(Location):
     def set_bikes(self, bikes):
         self.bikes = {bike.bike_id : bike for bike in bikes}
 
+    def all_bikes(self):
+        return [bike.bike_id for area in self.areas for bike in area.bikes.values()]
+
     def get_neighbours(self):
         return self.neighbours
     
@@ -206,3 +209,8 @@ class Cluster(Location):
             bike for bike in self.bikes.values() if bike.hasBattery() and bike.battery < battery_limit
         ]
         return sorted(bikes, key=lambda bike: bike.battery, reverse=False)
+    
+    def __repr__(self):
+        return (
+            str([area.location_id for area in self.areas])
+        )

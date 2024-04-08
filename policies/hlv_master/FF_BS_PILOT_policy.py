@@ -57,13 +57,7 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
         batteries_to_swap = []
 
         end_time = simul.time + self.time_horizon 
-        total_num_bikes_in_system = len(simul.state.get_all_bikes()) #flytt hvis lang kjøretid
-
-
-        ###########################
-        # ##############################################################
-        #   Goes to depot if this action will lead to empty battery inventory                   #            
-        #########################################################################################
+        total_num_bikes_in_system = len(simul.state.get_all_ff_bikes()) #flytt hvis lang kjøretid
 
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
             next_location = simul.state.get_closest_depot(simul, vehicle)
@@ -81,6 +75,15 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
         #   Which bike ID´s to pick up / deliver is choosen based on battery level              #   
         #   How many batteries to swap choosen based on battery inventory and status on station #
         #########################################################################################
+        
+        bike_ids = []
+        doubles = []
+        for loc in simul.state.get_locations():
+            for bike in loc.bikes.values():
+                if bike.bike_id not in bike_ids:
+                    bike_ids.append(bike.bike_id)
+                else:
+                    doubles.append(bike.bike_id)
 
         if vehicle.cluster is None:
             escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
@@ -115,6 +118,17 @@ class BS_PILOT_FF(Policy): #Add default values from seperate setting sheme
 
         plan = Plan(plan_dict, tabu_list)
 
+        bike_ids1 = []
+        doubles1 = []
+        for loc in simul.state.get_locations():
+            for bike in loc.bikes.values():
+                if bike.bike_id not in bike_ids1:
+                    bike_ids1.append(bike.bike_id)
+                else:
+                    doubles1.append(bike.bike_id)
+
+        if len(doubles1) > len(doubles):
+            print('In get_best_action', doubles1)
 
         #############################################################################
         #  Use PILOT_function to decide next station                                #

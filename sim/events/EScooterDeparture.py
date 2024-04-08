@@ -31,6 +31,12 @@ class EScooterDeparture(Event):
         if len(available_escooters) > 0:
             escooter = available_escooters.pop(0)
 
+            # TODO remove
+            escooter.log.append(self.departure_area_id)
+            # escooter.log2.append(escooter.location_id)
+            if escooter.location_id != self.departure_area_id:
+                    print("WTF")
+
             if FULL_TRIP:
 
                 # get an arrival area from the leave prob distribution
@@ -69,19 +75,17 @@ class EScooterDeparture(Event):
                 )
             
             if escooter.location_id != departure_area.location_id:
+                escooter_loc = world.state.get_location_by_id(escooter.location_id)
                 print("sykkelen har ikke registeret riktig sted", escooter.location_id, departure_area.location_id)
+                print("escooter_loc:", world.state.get_location_by_id(escooter.location_id).bikes)
+                print("departure_loc:", world.state.get_location_by_id(departure_area.location_id).bikes)
                 
             # remove bike from the departure area
             departure_area.remove_bike(escooter)
 
             world.state.set_bike_in_use(escooter)
 
-
             world.metrics.add_aggregate_metric(world, "events", 2) #successfull pickup and an arrival
-
-
-            if escooter not in world.state.bikes_in_use.values():
-                print("noe galt her")
 
         else:
             if FULL_TRIP:
@@ -111,6 +115,11 @@ class EScooterDeparture(Event):
                 if self.acceptance_rejection(distance):
                     available_escooters = closest_neighbour_with_bikes.get_available_bikes()
                     escooter=available_escooters.pop(0)
+                    if escooter.location_id != closest_neighbour_with_bikes.location_id:
+                        escooter_loc = world.state.get_location_by_id(escooter.location_id)
+                        print("WTF roaming")
+                    escooter.log.append(closest_neighbour_with_bikes.location_id)
+                    # escooter.log2.append(escooter.location_id)
                     
                     arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
 
@@ -123,14 +132,10 @@ class EScooterDeparture(Event):
                     
                     travel_time = travel_time if travel_time < 45 else 45
 
-
                     # remove bike from the new departure area
                     closest_neighbour_with_bikes.remove_bike(escooter)
 
                     world.state.set_bike_in_use(escooter)
-
-                    if escooter not in world.state.bikes_in_use.values():
-                        print("noe galt her")
 
                     # create an arrival event for the roaming user from the new departure area
                     world.add_event(

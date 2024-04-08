@@ -3,7 +3,7 @@ from settings import *
 from sim.Location import Location
 from sim.Metric import Metric
 
-
+# TODO remove logs
 class EScooter(Location):
     """
     E-Scooter class
@@ -20,6 +20,8 @@ class EScooter(Location):
       self.bike_id = bike_id
       self.battery_change_per_minute = BATTERY_CHANGE_PER_MINUTE
       self.is_station_based = False
+      self.log = []
+      self.log2 = []
 
     def travel(self, simul, travel_time, congested = False):
       if congested:
@@ -27,6 +29,7 @@ class EScooter(Location):
       else:
           self.metrics.add_metric(simul, "travel_time", travel_time)
       self.battery -= travel_time * self.battery_change_per_minute
+      self.log2.append(self.location_id)
 
     def usable(self):
       return self.battery >= BATTERY_LIMIT_TO_USE
