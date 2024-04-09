@@ -15,13 +15,13 @@ import time
 
 class Only_Swap(Policy): #Add default values from seperate setting sheme
     def __init__(self, 
-                max_depth = settings_max_depth, 
-                number_of_successors = settings_number_of_successors, 
-                time_horizon = settings_time_horizon, 
+                max_depth = MAX_DEPTH, 
+                number_of_successors = NUM_SUCCESSORS, 
+                time_horizon = TIME_HORIZON, 
                 criticality_weights_set = [[0, 0.8, 0, 0, 0, 0.2], [0, 0.8, 0, 0, 0, 0.2], [0, 0.8, 0, 0, 0, 0.2]], 
-                evaluation_weights = settings_evaluation_weights, 
-                number_of_scenarios = settings_number_of_scenarios, 
-                discounting_factor = settings_discounting_factor,
+                evaluation_weights = EVALUATION_WEIGHTS, 
+                number_of_scenarios = NUM_SCENARIOS, 
+                discounting_factor = DISCOUNTING_FACTOR,
                 overflow_criteria = OVERFLOW_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
                 upper_threshold = BATTERY_LIMIT_TO_SWAP

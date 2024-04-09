@@ -36,7 +36,7 @@ def calculate_criticality(weights, simul, potential_stations, station, total_num
     BL_composition_list = []
 
     for potential_station in potential_stations:
-        net_demand = calculate_net_demand(potential_station, simul.time, simul.day(), simul.hour(), settings_time_horizon)
+        net_demand = calculate_net_demand(potential_station, simul.time, simul.day(), simul.hour(), TIME_HORIZON)
         target_state = potential_station.get_target_state(simul.day(),simul.hour())
         potential_station_type = calculate_station_type(target_state, len(potential_station.get_available_bikes()) + net_demand)
 
@@ -174,7 +174,7 @@ def calculate_neighborhood_criticality(simul, station, station_type, visited_sta
 
         # If it has not been visited
         else:
-            neighbor_net_demand = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), settings_time_horizon)
+            neighbor_net_demand = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), TIME_HORIZON)
             neighbor_target_state = neighbor.get_target_state(simul.day(),simul.hour())
 
             expected_number_usable_bikes = len(neighbor.get_available_bikes()) + neighbor_net_demand

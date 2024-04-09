@@ -37,8 +37,6 @@ class VehicleArrival(Event):
 
         # perform the best action on the state and send vehicle to new location
         refill_time = world.state.do_action(action, self.vehicle, world_time)
-
-        self.vehicle.cluster = action.cluster
         
         action_time = (
             action.get_action_time(

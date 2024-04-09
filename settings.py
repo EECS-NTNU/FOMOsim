@@ -3,17 +3,15 @@ SIM SETTINGS
 """
 
 # Vehicle settings
-
 VEHICLE_BATTERY_INVENTORY = 150 # How many batteries can a vehicle hold?
 VEHICLE_BIKE_INVENTORY = 20 # How many bikes can be carried in a vehicle?
 VEHICLE_SPEED = 15 # Average speed of a vehicle? (km/h)
-MINUTES_PER_ACTION = 0.5 # Minutes to load/unload?
+MINUTES_PER_ACTION = 0.5 # Minutes to load/unload/battery swaps
 MINUTES_CONSTANT_PER_ACTION = 1 # Constat time in addition (f.eks park the car and start again)
 SERVICE_TIME_FROM = 6 # 06:00
 SERVICE_TIME_TO = 20  # 20:00
 
 # Bike settings
-
 BATTERY_LIMIT_TO_USE = 20.0 # Battery limit for the bike to be up for rental
 BATTERY_LIMIT_TO_SWAP = 70
 BIKE_SPEED = 7 # Average speed of a bike
@@ -26,11 +24,9 @@ SWAP_TIME_PER_BATTERY = 0.2 # How many minutes does it take to change out the in
 CONSTANT_DEPOT_DURATION = 15
 
 # Station settings
-
 DEFAULT_STATION_CAPACITY = 20
 
 # Other settings
-
 FULL_TRIP = True
 ITERATION_LENGTH_MINUTES = 60
 STATION_CENTER_DELTA = 0
@@ -41,7 +37,6 @@ MAX_ROAMING_DISTANCE_SIMULATOR = 0.6 #km, for simulation
 MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
 
 # HLV
-
 BATTERY_LEVEL_LOWER_BOUND = 20 #% not functionality if under
 
 AVERAGE_LENGHT_OF_TRIP = 10 #minutes -> to calculate average_discount
@@ -63,25 +58,25 @@ FF_ROAMING_AREA_RADIUS = 3
 # ------- PILOT PARAMETERS ----------
 
 # SETTINGS_INSTANCE = 'BG_W35'
-SETTINGS_INSTANCE = 'OS_W31'
+INSTANCE_FILE = 'OS_W31'
 # SETTINGS_INSTANCE = 'TD_W34_old'
 
 # settings_state = "instances/ebike/"
-settings_state = "instances/ebike_with_depot/"
+STATE_FOLDER = "instances/ebike_with_depot/"
 
-settings_duration = 24*1
-settings_num_vehicles = 1
+DURATION = 24*1
+NUM_VEHICLES = 1
 
-settings_max_depth = 1 # best = 6
-settings_number_of_successors = 1 # best = 3
-settings_time_horizon = 30 # best = 40
+MAX_DEPTH = 1 # best = 6
+NUM_SUCCESSORS = 1 # best = 3
+TIME_HORIZON = 30 # best = 40
 
-SETTINGS_CRITICAILITY_WEIGHTS_SET = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]] # best [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]]
+CRITICAILITY_WEIGHTS_SET = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]] # best [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]]
 # settings_criticality_weights_sets = [[0.2, 0.15, 0.2, 0.15, 0.15, 0.15], [0.2, 0.4, 0.1, 0.05, 0.15, 0.1], [0.4, 0.1, 0.05, 0.2, 0.05, 0.2]]
 
-settings_evaluation_weights = [0.45, 0.1, 0.45] # best
-settings_number_of_scenarios = 10 # best
-settings_discounting_factor = 0.6 # best
+EVALUATION_WEIGHTS = [0.45, 0.1, 0.45] # best
+NUM_SCENARIOS = 10 # best
+DISCOUNTING_FACTOR = 0.6 # best
 
 # settings_list_of_timehorizons = [10,20,30,40,50,60]
 # settings_evaluation_weights = dict(
@@ -109,15 +104,12 @@ settings_discounting_factor = 0.6 # best
 #     # Long term
 # )
 
-# settings_list_of_factors = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
-settings_list_of_instances = ['OS_W34', 'OS_W31', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old']
+# Testing parameters
+DISCOUNTING_FACTOR_LIST = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+INSTANCES_LIST = ['OS_W34', 'OS_W31', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old']
+SEEDS_LIST=[10,11,12,13,14,15,16,17,18,19]
 
-settings_list_of_seeds=[10,11,12,13,14,15,16,17,18,19]
-# settings_list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-# settings_list_of_seeds = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29]
-# settings_list_of_seeds = [2]
-
-RESULT_FOLDER = str(SETTINGS_INSTANCE) + '_' + str(settings_num_vehicles) + 'V_' + str(len(settings_list_of_seeds)) +'S_' + str(settings_duration//24) + 'D_PILOT_' + ('T' if SORTED_BIKES else 'F') + ('T' if ONLY_SWAP_ALLOWED else 'F') + ('T' if USE_BATTERY_CRITICALITY else 'F')
+RESULT_FOLDER = str(INSTANCE_FILE) + '_' + str(NUM_VEHICLES) + 'V_' + str(len(SEEDS_LIST)) +'S_' + str(DURATION//24) + 'D_PILOT_' + ('T' if SORTED_BIKES else 'F') + ('T' if ONLY_SWAP_ALLOWED else 'F') + ('T' if USE_BATTERY_CRITICALITY else 'F')
 
 # CLUSTERING
 MAX_WALKING_AREAS = 3

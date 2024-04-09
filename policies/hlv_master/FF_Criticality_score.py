@@ -36,7 +36,7 @@ def calculate_criticality(weights, simul, potential_clusters, station, total_num
     BL_composition_list = []
 
     for potential_cluster in potential_clusters:
-        net_demand = calculate_net_demand(potential_cluster, simul.time, simul.day(), simul.hour(), settings_time_horizon)
+        net_demand = calculate_net_demand(potential_cluster, simul.time, simul.day(), simul.hour(), TIME_HORIZON)
         target_state = potential_cluster.get_target_state(simul.day(),simul.hour())
         potential_cluster_type = calculate_cluster_type(target_state, len(potential_cluster.get_available_bikes()) + net_demand)
 

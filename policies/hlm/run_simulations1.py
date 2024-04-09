@@ -21,13 +21,13 @@ from settings import *
 import time
 import multiprocessing as mp
 
-def run_simulation(seed, policy, duration= settings_duration, num_vehicles= settings_num_vehicles, queue=None, INSTANCE=None):
+def run_simulation(seed, policy, duration= DURATION, num_vehicles= NUM_VEHICLES, queue=None, INSTANCE=None):
 
     #change common parameters for the different simulations here:
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
 
-    INSTANCE = SETTINGS_INSTANCE
+    INSTANCE = INSTANCE_FILE
 
     # INSTANCE = 'BG_W8'
     # INSTANCE = 'BG_W25'  # more demand
@@ -145,7 +145,7 @@ def test_instances(list_of_seeds, list_of_instances):
         filename=str(instance)+".csv"
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles, instance=instance)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= settings_num_vehicles, duration= settings_duration, instance=None): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= NUM_VEHICLES, duration= DURATION, instance=None): #change duration and number of vehicles HERE!
     # #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -186,8 +186,8 @@ if __name__ == "__main__":
     # evaluation_weights = [0.4, 0.3, 0.3] #[avoided_viol, neighbor_roaming, improved deviation]
     # criticality_weights_sets=[[0.4, 0.1, 0.2, 0.2, 0.1], [0.2, 0.4, 0.2, 0.1, 0.1], [0.2, 0.2, 0.1, 0.1, 0.4]] #[time_to_viol, dev_t_state, neigh_crit, dem_crit, driving_time] 
     # criticality_weights_sets = [[0.4, 0.1, 0.2, 0.2, 0.1]]
-    duration = settings_duration
-    num_vehicles = settings_num_vehicles
+    duration = DURATION
+    num_vehicles = NUM_VEHICLES
     
     # policy_dict = dict(greedy_neigh = policies.inngjerdingen_moeller.GreedyPolicyNeighborhoodInteraction())
     # policy_dict = dict(pilot_no_roaming = policies.inngjerdingen_moeller.PILOT(criticality_weights_sets=[[0.3, 0.15, 0, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0, 0.2, 0.05]], evaluation_weights=[0.85, 0, 0.05]))
@@ -210,13 +210,13 @@ if __name__ == "__main__":
     #     starvation_criteria = STARVATION_CRITERIA
     # ))
     policy_dict = dict(greedy = policies.hlm.Greedy_Policy(
-        max_depth = settings_max_depth, 
-        number_of_successors = settings_number_of_successors, 
-        time_horizon = settings_time_horizon, 
-        criticality_weights_set = SETTINGS_CRITICAILITY_WEIGHTS_SET, 
-        evaluation_weights = settings_evaluation_weights, 
-        number_of_scenarios = settings_number_of_scenarios, 
-        discounting_factor = settings_discounting_factor,
+        max_depth = MAX_DEPTH, 
+        number_of_successors = NUM_SUCCESSORS, 
+        time_horizon = TIME_HORIZON, 
+        criticality_weights_set = CRITICAILITY_WEIGHTS_SET, 
+        evaluation_weights = EVALUATION_WEIGHTS, 
+        number_of_scenarios = NUM_SCENARIOS, 
+        discounting_factor = DISCOUNTING_FACTOR,
         overflow_criteria = OVERFLOW_CRITERIA,
         starvation_criteria = STARVATION_CRITERIA
     ))
@@ -236,11 +236,11 @@ if __name__ == "__main__":
     # evaluation_weights = settings_evaluation_weights
     # criticality_weights = settings_criticality_weights
     # list_of_factors = settings_list_of_factors
-    list_of_instances = settings_list_of_instances
+    list_of_instances = INSTANCES_LIST
     # overflow_criterias = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
     # starvation_criterias = [1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.1, 2.2, 2.3, 2.4, 2.5]
   
-    list_of_seeds = settings_list_of_seeds
+    list_of_seeds = SEEDS_LIST
   
     start_time = time.time()
 

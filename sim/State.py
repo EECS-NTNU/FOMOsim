@@ -661,6 +661,7 @@ class State(LoadSave):
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)
+        vehicle.cluster = action.cluster
 
         return refill_time
 

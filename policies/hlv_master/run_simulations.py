@@ -21,13 +21,13 @@ from settings import *
 import time
 import multiprocessing as mp
 
-def run_simulation(seed, policy, duration= settings_duration, num_vehicles= settings_num_vehicles, queue=None, INSTANCE=None):
+def run_simulation(seed, policy, duration= DURATION, num_vehicles= NUM_VEHICLES, queue=None, INSTANCE=None):
 
     #change common parameters for the different simulations here:
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
 
-    INSTANCE = SETTINGS_INSTANCE
+    INSTANCE = INSTANCE_FILE
     
     ###############################################################
     
@@ -124,7 +124,7 @@ def test_instances(list_of_seeds, list_of_instances):
         filename=str(instance)+".csv"
         test_seeds_mp(list_of_seeds, policy, filename, num_vehicles, instance=instance)
 
-def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= settings_num_vehicles, duration= settings_duration, instance=None): #change duration and number of vehicles HERE!
+def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= NUM_VEHICLES, duration= DURATION, instance=None): #change duration and number of vehicles HERE!
     # #------------PROCESS----------------
     seeds = list_of_seeds
     q = mp.Queue()
@@ -162,8 +162,8 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= settings_num_ve
 
 if __name__ == "__main__":
 
-    duration = settings_duration
-    num_vehicles = settings_num_vehicles
+    duration = DURATION
+    num_vehicles = NUM_VEHICLES
     
     policy_dict = {
         'SB_base': policies.hlv_master.BS_PILOT(),
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     
     # list_of_instances = ['TD_34']
   
-    list_of_seeds = settings_list_of_seeds
+    list_of_seeds = SEEDS_LIST
   
     start_time = time.time()
 

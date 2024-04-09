@@ -16,13 +16,13 @@ class SB_Collab2(Policy):
     Class for X-PILOT-BS policy. Finds the best action for e-bike systems.
     """
     def __init__(self, 
-                max_depth = settings_max_depth, 
-                number_of_successors = settings_number_of_successors, 
-                time_horizon = settings_time_horizon, 
-                criticality_weights_set = SETTINGS_CRITICAILITY_WEIGHTS_SET, 
-                evaluation_weights = settings_evaluation_weights, 
-                number_of_scenarios = settings_number_of_scenarios, 
-                discounting_factor = settings_discounting_factor,
+                max_depth = MAX_DEPTH, 
+                number_of_successors = NUM_SUCCESSORS, 
+                time_horizon = TIME_HORIZON, 
+                criticality_weights_set = CRITICAILITY_WEIGHTS_SET, 
+                evaluation_weights = EVALUATION_WEIGHTS, 
+                number_of_scenarios = NUM_SCENARIOS, 
+                discounting_factor = DISCOUNTING_FACTOR,
                 overflow_criteria = OVERFLOW_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP
@@ -211,6 +211,10 @@ class SB_Collab2(Policy):
 
                 dep_time = plan.next_visit.get_depature_time()
                 temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
+                
+                if dep_time < end_time:
+                    print("end time endres for å håndtere neste besøk")
+                    end_time = dep_time + 1
 
                 # Add more visits until departure time has reached the end time
                 while dep_time < end_time:
