@@ -99,7 +99,7 @@ def calculate_time_to_violation(net_demand, cluster, simul, total_num_escooters_
 
     # Calculate time if a starvation might occur
     if net_demand < 0:
-        sorted_bikes_by_battery = sorted(cluster.bikes.values(), key=lambda bike: bike.battery, reverse=False)
+        sorted_bikes_by_battery = sorted(cluster.get_bikes(), key=lambda bike: bike.battery, reverse=False)
         
         # Time until there is no bikes left at a cluster that has sufficiant battery level
         violation_demand = len(cluster.get_available_bikes()) / -net_demand
@@ -242,12 +242,12 @@ def calculate_battery_level_composition_criticality(simul, station, total_num_bi
     - total_num_bikes_in_system = total number of bikes in the system
     """
     
-    current_escooters = station.bikes
+    current_escooters = station.get_bikes()
     hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60
 
     # Make list of the batteries of usable bikes at the station in current time and the next hour 
-    battery_levels_current = [escooter.battery for escooter in current_escooters.values() if escooter.usable()]
-    battery_levels_after = [escooter.battery - hourly_discharge_rate for escooter in current_escooters.values() if (escooter.battery - hourly_discharge_rate) > BATTERY_LIMIT_TO_USE]
+    battery_levels_current = [escooter.battery for escooter in current_escooters if escooter.usable()]
+    battery_levels_after = [escooter.battery - hourly_discharge_rate for escooter in current_escooters if (escooter.battery - hourly_discharge_rate) > BATTERY_LIMIT_TO_USE]
 
     # Very critical if there are no bikes with sufficient battery left
     if len(battery_levels_after) == 0 or len(battery_levels_current) == 0:

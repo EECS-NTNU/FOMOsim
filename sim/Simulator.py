@@ -21,7 +21,6 @@ class Simulator(LoadSave):
     This class uses the state as the environment and the policy as the actor. Additionally, it is the main driver of the
     event based simulation system using the event classes.
     """
-    # TODO event_trigger and prints
     def __init__(
             self,
             duration,

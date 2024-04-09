@@ -597,7 +597,7 @@ class State(LoadSave):
                     self.get_location_by_id(helping_pickup_bike.location_id).remove_bike(helping_pickup_bike)
                     
                     # Picking up bike and adding to vehicle inventory and swapping battery
-                    vehicle.pick_up(pick_up_bike)
+                    vehicle.pick_up(helping_pickup_bike)
 
                 for helping_delivery_id in action.helping_delivery:
                     helping_delivery_bike = vehicle.drop_off(helping_delivery_id)
@@ -606,23 +606,15 @@ class State(LoadSave):
 
             else:
                 area_ids = [area.location_id for area in vehicle.cluster.areas]
-                print("cluster bikes:",vehicle.cluster.bikes)
-                print("pickup bikes:",action.pick_ups)
-                print("areas + bikes:", {area.location_id: area.bikes.keys() for area in vehicle.cluster.areas})
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(pick_up_bike_id)
 
                     if pick_up_bike.location_id not in area_ids:
-                        print('plukkes ikke opp riktig')
+                        print('plukkes ikke opp riktig') #TODO fjern
                     
                     # Remove bike from current station
                     current_location = self.get_location_by_id(pick_up_bike.location_id)
-                    print("cluster areas:",vehicle.cluster.areas)
-                    print("bike location:",pick_up_bike.location_id)
-                    print("bike id:",pick_up_bike_id)
-                    print("location bikes:", current_location.bikes)
                     current_location.remove_bike(pick_up_bike)
-                    vehicle.cluster.remove_bike(pick_up_bike)
                     
                     # Picking up bike and adding to vehicle inventory and swapping battery
                     vehicle.pick_up(pick_up_bike)
@@ -648,14 +640,13 @@ class State(LoadSave):
                         helping_pickup_id
                     )
 
-                    if pick_up_bike.location_id not in [area.location_id for area in action.helping_cluster.areas]:
-                        print('plukkes ikke opp riktig hjelp')
+                    if helping_pickup_bike.location_id not in [area.location_id for area in action.helping_cluster.areas]:
+                        print('plukkes ikke opp riktig hjelp') # TODO fjern
 
                     self.get_location_by_id(helping_pickup_bike.location_id).remove_bike(helping_pickup_bike)
-                    action.helping_cluster.remove_bike(pick_up_bike)
                     
                     # Picking up bike and adding to vehicle inventory and swapping battery
-                    vehicle.pick_up(pick_up_bike)
+                    vehicle.pick_up(helping_pickup_bike)
 
                 if len(action.helping_delivery) > 0:
                     day = int((time // (60*24)) % 7)

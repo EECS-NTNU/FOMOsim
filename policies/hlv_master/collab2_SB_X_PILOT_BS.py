@@ -799,7 +799,6 @@ def make_cluster(radius, cluster):
         new_neighbors = []
         for neighbor in cluster.get_neighbours():
             cluster.areas.append(neighbor)
-            cluster.set_bikes(neighbor.get_bikes())
             new_neighbors += [area for area in neighbor.get_neighbours() if area not in cluster.get_neighbours() and area not in new_neighbors and area not in cluster.areas]
         cluster.neighbours = new_neighbors
     return cluster

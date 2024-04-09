@@ -37,7 +37,7 @@ def build_cluster_p(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
     while counter <= max_depth:
         new_neighbours = []
         for neighbour in c.get_neighbours():
-                if (len(c.bikes) - c.get_target_state(simul.day(), simul.hour()))>=cut_off:
+                if (len(c.get_bikes()) - c.get_target_state(simul.day(), simul.hour()))>=cut_off:
                     break
                 #if (neighbour in tabu_list):
                 #    continue
@@ -50,8 +50,6 @@ def build_cluster_p(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
                 # c.leave_intensities += neighbour.get_leave_intensity()
                 # c.arrive_intensities += neighbour.get_arrive_intensity()
                 # c.target_state += neighbour.get_target_state()
-                for bike in neighbour.bikes:
-                    c.bikes[bike.bike_id] = bike
                 new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours() and area not in tabu_list and area not in new_neighbours]
                 #c.neighbours.remove(neighbour)
 
@@ -84,14 +82,12 @@ def build_cluster_d(tabu_list, c, max_depth, cut_off, threshold, counter, simul)
     while counter <= max_depth:
         new_neighbours = []
         for neighbour in c.get_neighbours():
-                if (c.get_target_state(simul.day(), simul.hour())) - len(c.bikes) >= cut_off:
+                if (c.get_target_state(simul.day(), simul.hour())) - len(c.get_bikes()) >= cut_off:
                     break
                 if (neighbour.number_of_bikes() - neighbour.get_target_state(simul.day(), simul.hour())) < threshold:
                     continue
                 c.areas.append(neighbour)
                 tabu_list.append(neighbour)
-                for bike_id, bike in neighbour.bikes.items():
-                    c.bikes[bike_id] = bike
                 new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours() and area not in tabu_list and area not in new_neighbours]
                 #c.neighbours.remove(neighbour)
         counter += 1
@@ -114,34 +110,31 @@ class Cluster(Location):
         self.center_area = center_area
         self.areas = areas
         self.neighbours = neighbours
-        self.set_bikes(bikes)
-        
-    def set_bikes(self, bikes):
-        self.bikes = {bike.bike_id : bike for bike in bikes}
 
     def all_bikes(self):
         return [bike.bike_id for area in self.areas for bike in area.bikes.values()]
+    
+    def get_bikes(self):
+        return [bike for area in self.areas for bike in area.get_bikes()]
 
     def get_neighbours(self):
         return self.neighbours
     
     def number_of_bikes(self):
-        return len(self.bikes)
-    
-    def remove_bike(self, bike):
-        del self.bikes[bike.bike_id]
+        return len(self.get_bikes())
     
     def get_swappable_bikes(self, battery_limit=BATTERY_LIMIT_TO_SWAP):
         """
         Filter out bikes with 100% battery and sort them by battery percentage
         """
         bikes = [
-            bike for bike in self.bikes.values() if bike.hasBattery() and bike.battery < battery_limit
+            bike for bike in self.get_bikes() if bike.hasBattery() and bike.battery < battery_limit
         ]
         return sorted(bikes, key=lambda bike: bike.battery, reverse=False)
 
     def get_bike_from_id(self, bike_id):
-        return self.bikes[bike_id]
+        bikes = {bike.bike_id: bike for area in self.areas for bike in area.get_bikes()}
+        return bikes[bike_id]
     
     def __compute_center(self, border_vertices):
         sum_lon = sum(v[0] for v in border_vertices)
@@ -173,27 +166,16 @@ class Cluster(Location):
 
     def get_available_bikes(self):
         return [
-            bike for bike in self.bikes.values() if bike.usable()
+            bike for bike in self.get_bikes() if bike.usable()
         ]
 
     def get_swappable_bikes(self, battery_limit = BATTERY_LIMIT_TO_SWAP):
         bikes = [
-            bike for bike in self.bikes.values() if bike.hasBattery() and bike.battery < battery_limit
+            bike for bike in self.get_bikes() if bike.hasBattery() and bike.battery < battery_limit
         ]
         return sorted(bikes, key=lambda bike: bike.battery, reverse=False)
     
     def __repr__(self):
         return (
-            "cluster " + str([area.location_id for area in self.areas])
+            f'Cluster: Areas = {[area.location_id for area in self.areas]}, Bikes = {self.get_bikes()}'
         )
-    
-
-"""
-neighbour Area A1001: Arrive 1.95 Leave 0.34 Ideal   0 Bikes   1
-before {<Area A935: 2 bikes>: ['ES82'], <Area A310: 0 bikes>: [], <Area A1171: 0 bikes>: [], <Area A768: 0 bikes>: [], <Area A1001: 1 bikes>: ['ES89']}
-after {<Area A935: 2 bikes>: ['ES82', 'ES89'], <Area A310: 0 bikes>: [], <Area A1171: 0 bikes>: [], <Area A768: 0 bikes>: [], <Area A1001: 1 bikes>: ['ES89']}
-
-neighbour Area A379: Arrive 0.72 Leave 1.60 Ideal   0 Bikes   2
-before {<Area A910: 2 bikes>: [], <Area A159: 0 bikes>: [], <Area A74: 0 bikes>: [], <Area A901: 0 bikes>: [], <Area A379: 2 bikes>: ['ES37', 'ES38']}
-after {<Area A910: 2 bikes>: ['ES37', 'ES38'], <Area A159: 0 bikes>: [], <Area A74: 0 bikes>: [], <Area A901: 0 bikes>: [], <Area A379: 2 bikes>: ['ES37', 'ES38']}
-"""
