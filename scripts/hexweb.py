@@ -138,7 +138,7 @@ class HexagonTargetState():
         self.average_arrival_intensities = arrival_intensities
         self.average_depature_intensities = depature_intensities
         self.target_states = [[0 for i in range(24)] for i in range(7)]
-        self.initial_target_states = 0
+        self.initial_target_states = []
 
 
     def calc_target_state(self):
@@ -151,7 +151,7 @@ class HexagonTargetState():
                             self.target_states[day][hour] = abs(min(round(self.average_arrival_intensities[day][hour] - self.average_depature_intensities[day][hour]), 0)) # Setter target state til net_demand
                 # Scenario 1 - mellom kl 00 og 05. Target state er forhåndsbestemt og alltid lik            
                 elif  0 <= hour <= 5: 
-                    self.target_states[day][hour] = self.initial_target_states  # Forhåndsbestemt verdi
+                    self.target_states[day][hour] = self.initial_target_states[day]  # Forhåndsbestemt verdi
                     
                 else:
 
@@ -206,7 +206,7 @@ class HexagonTargetState():
     
                         # Update the target state for the given day and hour with the absolute sum of departure rates
                         # self.target_states[day][hour] = round(abs(sum_departure_rates))
-                        self.target_states[day][hour] = next_depature_rates[0]
+                        self.target_states[day][hour] = round(next_depature_rates[0])
 
                     # Scenario 3 (kun negative)
                     elif all(next_demand < 0 for next_demand in next_demands): #absolutt sum av net_demand for de 3 timene
@@ -228,7 +228,7 @@ class HexagonTargetState():
                                 sum_negative_periods += next_demand
                             else: 
                                 break
-                        self.target_states[day][hour] = abs(sum_negative_periods) - next_demands[0]
+                        self.target_states[day][hour] = round(abs(sum_negative_periods) - next_demands[0])
                         if self.target_states[day][hour] < 0:
                             self.target_states[day][hour] = 0
 
@@ -241,27 +241,27 @@ class HexagonTargetState():
                                 sum_negative_periods += next_demand
                             else: 
                                 break
-                        self.target_states[day][hour] = abs(sum_negative_periods) - next_demands[0] - next_demands[1]
+                        self.target_states[day][hour] = round(abs(sum_negative_periods) - next_demands[0] - next_demands[1])
                         if self.target_states[day][hour] < 0:
                             self.target_states[day][hour] = 0
 
                     # Scenario 6 (først negativ så positiv, positiv)
                     elif next_demands[1] >=0 and next_demands[2] >= 0 and next_demands[0] < 0: 
                         print("npp", next_demands)
-                        self.target_states[day][hour] = abs(next_demands[0])
+                        self.target_states[day][hour] = round(abs(next_demands[0]))
 
                     # Scenario 7 (først negativ så negativ, positiv)
                     elif next_demands[2] >=0 and next_demands[1] < 0 and next_demands[0] < 0: 
                         print("nnp", next_demands)
-                        self.target_states[day][hour] = abs(next_demands[0] + next_demands[1])
+                        self.target_states[day][hour] = round(abs(next_demands[0] + next_demands[1]))
                 
                     # Scenario 8 (negativ -> positiv -> negativ)
                     elif next_demands[0] < 0 and next_demands[1] >= 0 and next_demands[2] < 0:
                         print("npn", next_demands)
-                        self.target_states[day][hour] = abs(next_demands[0])
+                        self.target_states[day][hour] = round(abs(next_demands[0]))
                         sum_pos_neg = next_demands[1] + next_demands[2]
                         if sum_pos_neg < 0:
-                            self.target_states[day][hour] += abs(sum_pos_neg)
+                            self.target_states[day][hour] += round(abs(sum_pos_neg))
 
                 
                         
@@ -270,11 +270,15 @@ class HexagonTargetState():
                         print("pnp", next_demands)
                         sum_neg_pos = next_demands[0] + next_demands[1]
                         if sum_neg_pos < 0:
-                            self.target_states[day][hour] = abs(sum_neg_pos)
+                            self.target_states[day][hour] = round(abs(sum_neg_pos))
 
                     
 
         return self.target_states
+    
+
+
+
 
 
 class HexWeb:
@@ -308,7 +312,7 @@ class HexWeb:
     def generate_hex_web_from_json(data):
         hexagons = []
         for hex_data in data['areas']:
-            hex_id = hex_data['hex_id']
+            hex_id = hex_data['id']
             vertices = hex_data['edges']  # Bruker 'edges' som vertices
             center = hex_data['location']  # Bruker 'location' som center
             hexagon = Hexagon(hex_id, vertices, center)
@@ -316,10 +320,21 @@ class HexWeb:
         return hexagons
     
     @staticmethod
+    def set_initial_target_state(hexagons, initial_target_state_data):
+        for init_hex in initial_target_state_data['areas']:
+            for hexagon in hexagons:
+                if hexagon.hex_id == init_hex['id']:
+                    hexagon.initial_target_states = init_hex['final_target_states']
+                    break
+                #else:
+                #    print("Hexagon not found")
+       
+    
+    @staticmethod
     def generate_hex_web_target_state_from_json(data):
         hexagons = []
         for hex_data in data['areas']:
-            hex_id = hex_data['hex_id']
+            hex_id = hex_data['id']
             arrival_intensity = hex_data['arrival_intensities']  # Bruker 'edges' som vertices
             leave_intensity = hex_data['depature_intensities']  # Bruker 'location' som center
             hexagon = HexagonTargetState(hex_id, arrival_intensity, leave_intensity)
