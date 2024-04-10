@@ -6,6 +6,8 @@ import copy
 import json
 import gzip
 import os
+import random
+import geopy
 # from policies.inngjerdingen_moeller.parameters_MILP import MILP_data 
 
 
@@ -140,14 +142,18 @@ class State(LoadSave):
         area_num = 0 # TODO denne trengs ikke alltid
         for area in statedata["areas"]:
 
-            # area_id = area["id"]
             area_id = "A" + str(area_num)
             if "id" in area:
                 area_id = area["id"]
 
             center_position = None
             if "location" in area:
-                center_position = area["location"] # [lat, lon]
+                center_position = area["location"]
+                
+                lat, lon = center_position[0], center_position[1]
+                min_lat, max_lat, min_lon, max_lon = 63.415774, 63.440144, 10.370453, 10.431571
+                if not (min_lon <= lon <= max_lon and min_lat <= lat <= max_lat):
+                    continue
             
             border_vertices = None
             if "edges" in area:
@@ -246,6 +252,11 @@ class State(LoadSave):
                 neighbors.update(vertex_to_area[vertex])
             neighbors.discard(area)
             area.neighbours = list(neighbors)
+
+        for _ in range(400):
+            area = random.choice(state.get_areas())
+            area.add_bike(sim.EScooter(area.lat, area.lon, area.location_id, f'ES{escooter_id_counter}', random.randint(30,100)))
+            escooter_id_counter += 1
 
         return state
 
@@ -503,15 +514,10 @@ class State(LoadSave):
         return num
 
     def get_travel_time(self, start_location_id, end_location_id):
-        if (isinstance(self.get_location_by_id(start_location_id), sim.Station) and not isinstance(self.get_location_by_id(end_location_id), sim.Station)):
-            start_location_id = self.get_location_by_id(start_location_id).area
-        elif (not isinstance(self.get_location_by_id(start_location_id), sim.Station) and isinstance(self.get_location_by_id(end_location_id), sim.Station)):
-            end_location_id = self.get_location_by_id(end_location_id).area
-
-        if start_location_id[0] == "A" and end_location_id[0] == "A":
-            start_loc = self.get_location_by_id(start_location_id)
-            end_loc = self.get_location_by_id(end_location_id)
-            return (start_loc.distance_to(*(end_loc.get_location())) / BIKE_SPEED) * 60
+        start_loc = self.get_location_by_id(start_location_id)
+        end_loc = self.get_location_by_id(end_location_id)
+        if isinstance(start_loc, sim.Area) or isinstance(end_loc, sim.Area) or isinstance(start_loc, sim.Depot) or isinstance(end_loc, sim.Depot):
+            return (geopy.distance.distance((start_loc.lat, start_loc.lon), (end_loc.lat, end_loc.lon)).km / BIKE_SPEED) * 60
 
         elif self.traveltime_matrix_stddev is not None and len(self.traveltime_matrix_stddev) == len(self.traveltime_matrix): # and (start_location_id, end_location_id) in self.traveltime_matrix_stddev:
             return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)], 
@@ -519,15 +525,10 @@ class State(LoadSave):
         return self.traveltime_matrix[(start_location_id, end_location_id)]
 
     def get_vehicle_travel_time(self, start_location_id, end_location_id):
-        if (isinstance(self.get_location_by_id(start_location_id), sim.Station) and not isinstance(self.get_location_by_id(end_location_id), sim.Station)):
-            start_location_id = self.get_location_by_id(start_location_id).area
-        elif (not isinstance(self.get_location_by_id(start_location_id), sim.Station) and isinstance(self.get_location_by_id(end_location_id), sim.Station)):
-            end_location_id = self.get_location_by_id(end_location_id).area
-        
-        if start_location_id[0] == "A" and end_location_id[0] == "A":
-            start_loc = self.get_location_by_id(start_location_id)
-            end_loc = self.get_location_by_id(end_location_id)
-            return (start_loc.distance_to(*(end_loc.get_location())) / VEHICLE_SPEED) * 60
+        start_loc = self.get_location_by_id(start_location_id)
+        end_loc = self.get_location_by_id(end_location_id)
+        if isinstance(start_loc, sim.Area) or isinstance(end_loc, sim.Area) or isinstance(start_loc, sim.Depot) or isinstance(end_loc, sim.Depot):
+            return (geopy.distance.distance((start_loc.lat, start_loc.lon), (end_loc.lat, end_loc.lon)).km / VEHICLE_SPEED) * 60
 
         elif self.traveltime_vehicle_matrix_stddev is not None and len(self.traveltime_vehicle_matrix_stddev) == len(self.traveltime_vehicle_matrix): # and (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev:
             if (start_location_id, end_location_id) in self.traveltime_vehicle_matrix_stddev.keys():
@@ -589,6 +590,8 @@ class State(LoadSave):
                     # Adding bike to current station and changing coordinates of bike
                     vehicle.location.add_bike(delivery_bike)
 
+                if len(action.helping_pickup) > 0:
+                    print("helping cluster bikes:", action.helping_cluster.get_bike_ids())
                 for helping_pickup_id in action.helping_pickup:
                     helping_pickup_bike = action.helping_cluster.get_bike_from_id(
                         helping_pickup_id
@@ -606,6 +609,9 @@ class State(LoadSave):
 
             else:
                 area_ids = [area.location_id for area in vehicle.cluster.areas]
+                if len(action.pick_ups) > 0:
+                    print("pickup escooters:", action.pick_ups)
+                    print(vehicle.cluster)
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(pick_up_bike_id)
 
@@ -812,6 +818,7 @@ class State(LoadSave):
         if not closest_depot:
             vehicle.battery_inventory = vehicle.battery_inventory_capacity
             return vehicle.location.location_id
+        
         return closest_depot.location_id
     
     # TODO forstå denne

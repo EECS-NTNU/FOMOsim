@@ -4,5 +4,6 @@ from .half_capacity_target_state import HalfCapacityTargetState
 from .us_target_state import USTargetState
 from .outflow_target_state import OutflowTargetState
 from .equal_prob_target_state import EqualProbTargetState
+from .hlv_target_state import HLVTargetState
 
 

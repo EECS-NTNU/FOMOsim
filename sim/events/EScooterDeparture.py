@@ -97,6 +97,8 @@ class EScooterDeparture(Event):
                     available_escooters = closest_neighbour_with_bikes.get_available_bikes()
                     escooter=available_escooters.pop(0)
                     
+                    if len(p_normalized) > len(world.state.get_areas()):
+                        print('p has these keys that is not in areas', [key for key in p.keys() if key not in world.state.areas.keys()])
                     arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
 
                     # calculate arrival time 

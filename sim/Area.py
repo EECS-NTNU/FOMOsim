@@ -84,7 +84,9 @@ class Area(Location):
         mp = self.move_probabilities[day % 7][hour % 24]
         for area in state.get_areas():
             mp.setdefault(area.location_id, 0.0)
-        return mp
+        # TODO fjern når du ikke tester
+        mp2 = {area_id: value for area_id, value in mp.items() if area_id in state.areas.keys()}
+        return mp2 # return mp
 
     def get_arrive_intensity(self, day, hour):
         return self.arrive_intensities[day % 7][hour % 24] if self.arrive_intensities else 0
@@ -121,6 +123,11 @@ class Area(Location):
     def get_available_bikes(self):
         return [
             bike for bike in self.bikes.values() if bike.usable()
+        ]
+
+    def get_unusable_bikes(self):
+        return [
+            bike for bike in self.bikes.values() if not bike.usable()
         ]
 
     def get_swappable_bikes(self, battery_limit=BATTERY_LIMIT_TO_SWAP):

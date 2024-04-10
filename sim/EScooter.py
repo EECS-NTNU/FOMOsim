@@ -41,4 +41,4 @@ class EScooter(Location):
        self.battery = 100.0
 
     def __repr__(self):
-      return f"ID-{self.bike_id} B-{round(self.battery,1)}"
+      return f"ID-{self.bike_id} B-{round(self.battery,1)} L-{self.location_id}"

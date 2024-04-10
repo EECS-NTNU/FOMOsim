@@ -9,24 +9,25 @@ import target_state
 import policies
 # import policies.fosen_haldorsen
 # import policies.haflan_haga_spetalen
-import policies.gleditsch_hagen
-import policies.inngjerdingen_moeller
-import policies.hlm
+# import policies.gleditsch_hagen
+# import policies.inngjerdingen_moeller
+# import policies.hlm
 import policies.hlv_master
 import sim
 import output
 import demand
 from helpers import timeInMinutes
 import time
+import random
 
 # from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(days=5)
+DURATION = timeInMinutes(days=2)
 INSTANCE = 'TD_W34'
 WEEK = 34
 
-def main():
+def main(seed):
 
     ###############################################################################
     # Get initial state
@@ -41,43 +42,48 @@ def main():
     # start_time = time.time()
 
     # the following is for reading a precalculated initial state from a json file
-    # state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_final_W3")
-    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
+    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_final_W3")
+    # state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
 
     # duration = time.time() - start_time
     # print("Init time: ", str(duration))
     # print("Areas: ", str(len(state.get_areas())))
 
-    state.set_seed(2936)
+    state.set_seed(seed)
 
     ###############################################################################
-
+    # print("Policy: BS_PILOT, Seed:", seed)
     # policy = policies.hlv_master.BS_PILOT()
     # state.set_sb_vehicles([policy])
 
-    policy_ff = policies.hlv_master.BS_PILOT_FF()
-    state.set_ff_vehicles([policy_ff])
+    # print("Policy: BS_PILOT_FF, Seed:", seed)
+    # policy_ff = policies.hlv_master.BS_PILOT_FF()
+    # state.set_ff_vehicles([policy_ff])
 
-    # policy2_ff = policies.hlv_master.FF_Collab2()
-    # state.set_ff_vehicles([policy2_ff]) # this creates one vehicle for each policy in the list
+    print("Policy: FF_Collab2, Seed:", seed)
+    policy2_ff = policies.hlv_master.FF_Collab2()
+    state.set_ff_vehicles([policy2_ff]) # this creates one vehicle for each policy in the list
     
-    # policy2_sb = policies.hlv_master.SB_Collab2()
-    # state.set_sb_vehicles([policy2_sb]) # this creates one vehicle for each policy in the list
+    print("Policy: SB_Collab2, Seed:", seed)
+    policy2_sb = policies.hlv_master.SB_Collab2()
+    state.set_sb_vehicles([policy2_sb]) # this creates one vehicle for each policy in the list
     
+    # print("Policy: Collab3, Seed:", seed)
     # policy3 = policies.hlv_master.Collab3()
     # state.set_vehicles([policy3]) # this creates one vehicle for each policy in the list
 
+    # print("Policy: Collab4, Seed:", seed)
     # policy4 = policies.hlv_master.Collab4()
     # state.set_vehicles([policy4]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state
+    print("areas:", len(state.get_areas()))
 
-    # tstate = target_state.EvenlyDistributedTargetState()
-    # tstate = target_state.OutflowTargetState()
-    # tstate = target_state.EqualProbTargetState()
-    tstate = target_state.USTargetState()
-    # tstate = target_state.HalfCapacityTargetState()
+    # tstate = target_state.USTargetState()
+    tstate = target_state.HLVTargetState(
+        'instances/Ryde/ryde_target_state_1066.json.gz'    
+        )
 
     ###############################################################################
     # Set up demand
@@ -93,7 +99,7 @@ def main():
         demand = dmand,
         start_time = START_TIME,
         duration = DURATION,
-        verbose = True,
+        verbose = False,
     )
     simulator.run()
 
@@ -153,4 +159,7 @@ def main():
     # output.visualize([bikes[11].metrics], metric="travel_time_congested")
 
 if __name__ == "__main__":
-    main()
+    # seed_list = [random.randint(1, 3000) for _ in range(10)]
+    seed_list = [2099]
+    for seed in seed_list:
+        main(seed)

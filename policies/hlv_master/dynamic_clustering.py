@@ -5,94 +5,133 @@ import numpy as np
 import sim
 from settings import *
 import copy
+import time
 
-#areas = list of all areas
-#n = maximum number of clusters
-#threshold = threshold for adding neighboughring areas to cluster
-#veichle = current veichle 
-#need to add max_lenght
+def clusterPickup(areas, n, max_lenght, vehicle, simul):
+    """
+    Returns a list of n cluster-objects that are pickup clusters.
 
-#Now this only works for neighbours - need to add exploration / layers - rekrkusjon?
-
-def clusterPickup(areas, n, threshold, max_lenght, vehicle, simul):
-    #areas sorted based on density 
-    highest_density_areas = heapq.nlargest(n, areas, key=lambda area: area.number_of_bikes())
-    #tabu-list
+    Parameters:
+    - areas = all area-objects to consider as centers
+    - n = number of clusters to be considered
+    - max_lenght = radius of areas
+    - vehicle = vehicle-object that is doing the rebalancing
+    """
+    start_time = time.time() # TODO fjern
+    # Makes a list of the n areas with the highest overflow of escooters
+    highest_density_areas = heapq.nlargest(n, areas, key=lambda area: (len(area.get_available_bikes()) - area.get_target_state(simul.day(), simul.hour())))
+    sorted_time = time.time() # TODO fjern
+    
     tabu_list = []
     clusters = []
-
+    all_possible_clusters = []
     cut_off = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
-
+    
+    # Make clusters for all, with the area as a center, if the area are not already added in another cluster
     for area in highest_density_areas:
         if area not in tabu_list:
-            c = Cluster([area],area, area.get_bikes(), area.get_neighbours())
-            build_cluster_p(tabu_list, c, max_lenght, cut_off, threshold, 1, simul)    
-            clusters.append(c)
+            c = Cluster(
+                areas=[area], 
+                center_area=area, 
+                bikes=area.get_bikes(), 
+                neighbours=area.get_neighbours())
             
-    
+            # Expands the cluster, looking at areas with needing to have escooters picked up
+            c, tabu_list = build_cluster_p(tabu_list, c, max_lenght, cut_off, simul)
+
+            # Only add the cluster into potenial clusters if it doesn't balance it self out by it's neighbors, but have too many bikes
+            difference = c.get_difference_from_target(simul.day(), simul.hour())
+            if difference > 0:
+                clusters.append(c)
+            else:
+                all_possible_clusters.append(c)
+
+    # print(f'Duration of sorting: {sorted_time - start_time}, Duration of making p clusters: {time.time() - sorted_time}')
+
+    # if all(len(cluster.areas) == 1 for cluster in clusters):
+        # print("Antall potential clusters, selvom ingen ekspanderer:", clusters)
+        # print("Clustere som ikke ble inkludert:", all_possible_clusters)
+
     return clusters
 
-
-def build_cluster_p(tabu_list, c, max_depth, cut_off, threshold, counter, simul):
-    while counter <= max_depth:
-        new_neighbours = []
-        for neighbour in c.get_neighbours():
-                if (len(c.get_bikes()) - c.get_target_state(simul.day(), simul.hour()))>=cut_off:
+def build_cluster_p(tabu_list, c, max_depth, cut_off, simul):
+    # Condition to limit the radius of the cluster
+    for i in range(max_depth):
+        neighbours = c.get_neighbours()
+        for neighbour in neighbours:
+                # stop expanding the cluster if you cannot pick up more bikes
+                if (c.get_difference_from_target(simul.day(), simul.hour())) > cut_off:
                     break
-                #if (neighbour in tabu_list):
-                #    continue
-                if neighbour.number_of_bikes() < threshold:
-                    new_neighbours.append(neighbour)
+
+                # if neighbor doesn't have an overload of escooters, do not add to cluster
+                if len(neighbour.get_available_bikes()) - neighbour.get_target_state(simul.day(), simul.hour()) <= 0:
+                    c.add_not_included_neighbor(neighbour)
                     continue
-                c.areas.append(neighbour)
+
+                c.add_area(neighbour)
                 tabu_list.append(neighbour)
-                # [[sum(x) for x in zip(*t)] for t in zip(c.leave_intensities, neighbour.leave_intensity)] 
-                # c.leave_intensities += neighbour.get_leave_intensity()
-                # c.arrive_intensities += neighbour.get_arrive_intensity()
-                # c.target_state += neighbour.get_target_state()
-                new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours() and area not in tabu_list and area not in new_neighbours]
-                #c.neighbours.remove(neighbour)
 
-        counter += 1
+    return c, tabu_list
 
-        c.neighbors = new_neighbours
+def clusterDelivery(areas, n, max_lenght, veichle, simul):
+    """
+    Returns a list of n cluster-objects that are pickup clusters.
 
-        build_cluster_p(tabu_list, c, max_depth, counter, cut_off, threshold, simul)
+    Parameters:
+    - areas = all area-objects to consider as centers
+    - n = number of clusters to be considered
+    - max_lenght = radius of areas
+    - vehicle = vehicle-object that is doing the rebalancing
+    """
 
-
-def clusterDelivery(areas, n, threshold, max_lenght, veichle, simul):
+    # Initialize
     tabu_list = []
     clusters = []
-
-    largest_shortfall_areas = heapq.nlargest(n, areas, key=lambda area: area.number_of_bikes() - area.get_target_state(simul.day(), simul.hour()))
-
+    all_possible_clusters = []
     cut_off = len(veichle.bike_inventory)
 
+    start_time = time.time()
+    # Make list of n areas that are lacking the most
+    largest_shortfall_areas = heapq.nlargest(n, areas, key=lambda area: len(area.get_available_bikes()) - area.get_target_state(simul.day(), simul.hour()))
+    sorted_time = time.time()
+
+    # Make clusters for all, with the area as a center, if the area are not already added in another cluster
     for area in largest_shortfall_areas:
         if area not in tabu_list:
             c = Cluster([area], area, area.get_bikes(), area.get_neighbours())
-            build_cluster_d(tabu_list, c, max_lenght, cut_off, threshold, 1, simul)
-            clusters.append(c)
+            build_cluster_d(tabu_list, c, max_lenght, cut_off, simul)
+            
+            difference = c.get_difference_from_target(simul.day(), simul.hour())
+            if difference < 0:
+                clusters.append(c)
+            else:
+                all_possible_clusters.append(c)
     
+    # print(f'Duration of sorting: {sorted_time - start_time}, Duration of making d clusters: {time.time() - sorted_time}')
+    
+    # if all(len(cluster.areas) == 1 for cluster in clusters):
+        # print("ingen d clustere som expander", clusters)
+        # print("all possible d c:", all_possible_clusters)
+
     return clusters
 
-
-def build_cluster_d(tabu_list, c, max_depth, cut_off, threshold, counter, simul):
-    run = True
-    while counter <= max_depth:
-        new_neighbours = []
-        for neighbour in c.get_neighbours():
-                if (c.get_target_state(simul.day(), simul.hour())) - len(c.get_bikes()) >= cut_off:
+# TODO burde ikke alt bare legges til, også sjekke om det finnes områder som har for lite i total, ikke bare enkelte areas?
+def build_cluster_d(tabu_list, c, max_depth, cut_off, simul):
+    for i in range(max_depth):
+        neighbours = c.get_neighbours()
+        for neighbour in neighbours:
+                # Stop adding areas to cluster if all bikes available will be delivered
+                if (c.get_target_state(simul.day(), simul.hour())) - len(c.get_bikes()) > cut_off:
                     break
-                if (neighbour.number_of_bikes() - neighbour.get_target_state(simul.day(), simul.hour())) < threshold:
+                
+                # Only add as neighbor, not in cluster, if area does not need more bikes
+                if (len(neighbour.get_available_bikes()) - neighbour.get_target_state(simul.day(), simul.hour())) > 0:
+                    c.add_not_included_neighbor(neighbour)
                     continue
-                c.areas.append(neighbour)
+
+                c.add_area(neighbour)
                 tabu_list.append(neighbour)
-                new_neighbours += [area for area in neighbour.get_neighbours() if area not in c.get_neighbours() and area not in tabu_list and area not in new_neighbours]
-                #c.neighbours.remove(neighbour)
-        counter += 1
-        c.neighbors = new_neighbours
-        build_cluster_d(tabu_list, c, max_depth, counter, cut_off, threshold, simul)
+    return c, tabu_list
 
 
 class Cluster(Location):
@@ -101,7 +140,8 @@ class Cluster(Location):
         areas,
         center_area,
         bikes = [], #dict, key = bike_id, value = object
-        neighbours = []
+        neighbours = [],
+        not_included = []
     ):
         super().__init__(
             *(center_area.get_location() if center_area.get_location() else self.__compute_center(center_area.border_vertices)), center_area.location_id
@@ -110,15 +150,25 @@ class Cluster(Location):
         self.center_area = center_area
         self.areas = areas
         self.neighbours = neighbours
+        self.not_included = not_included
 
-    def all_bikes(self):
+    def add_area(self, area):
+        if area not in self.areas:
+            self.areas.append(area)
+
+    def add_not_included_neighbor(self, area):
+        if area not in self.not_included:
+            self.not_included.append(area)
+
+    def get_bike_ids(self):
         return [bike.bike_id for area in self.areas for bike in area.bikes.values()]
     
     def get_bikes(self):
         return [bike for area in self.areas for bike in area.get_bikes()]
 
     def get_neighbours(self):
-        return self.neighbours
+        neighbours = {neighbor.location_id: neighbor for area in self.areas for neighbor in area.get_neighbours() if neighbor not in self.areas}
+        return list(neighbours.values())
     
     def number_of_bikes(self):
         return len(self.get_bikes())
@@ -136,32 +186,30 @@ class Cluster(Location):
         bikes = {bike.bike_id: bike for area in self.areas for bike in area.get_bikes()}
         return bikes[bike_id]
     
-    def __compute_center(self, border_vertices):
-        sum_lon = sum(v[0] for v in border_vertices)
-        sum_lat = sum(v[1] for v in border_vertices)
+    def get_difference_from_target(self, day, hour):
+        """
+        Returns the difference from target state for all areas in the cluster 
+        and the areas not included in the cluster, as they are in allowed walking distance and can absorb demand.
 
-        n = len(border_vertices)
-        centroid_lat = sum_lat/n
-        centroid_lon = sum_lon/n
-
-        return centroid_lat, centroid_lon
+        If returning positive number -> too many bikes and needs to have some picked up
+        If returning negative number -> too few bikes, needs to have some delivered
+        """
+        all_areas = self.areas + self.not_included
+        target_state = sum(area.get_target_state(day, hour) for area in all_areas)
+        cluster_inventory = sum(len(area.get_available_bikes()) for area in all_areas)
+        # print(f'Target state: {target_state}, Available bikes: {cluster_inventory}')
+        return cluster_inventory - target_state
     
     def get_target_state(self, day, hour):
-        target_state = 0
-        for a in self.areas:
-            target_state += a.get_target_state(day,hour)
+        target_state = sum(a.get_target_state(day,hour) for a in (self.areas))
         return target_state
 
     def get_arrive_intensity(self, day, hour):
-        arrive_intensity = 0
-        for a in self.areas:
-            arrive_intensity += a.get_arrive_intensity(day, hour)
+        arrive_intensity = sum(a.get_arrive_intensity(day, hour) for a in self.areas + self.not_included)
         return arrive_intensity
 
     def get_leave_intensity(self, day, hour):
-        leave_intensity = 0
-        for a in self.areas:
-            leave_intensity += a.get_leave_intensity(day,hour)
+        leave_intensity = sum(a.get_leave_intensity(day,hour) for a in self.areas + self.not_included)
         return leave_intensity
 
     def get_available_bikes(self):
@@ -177,5 +225,5 @@ class Cluster(Location):
     
     def __repr__(self):
         return (
-            f'Cluster: Areas = {[area.location_id for area in self.areas]}, Bikes = {self.get_bikes()}'
+            f'Cluster: (Center = {self.center_area.location_id}, Areas = {len(self.areas)}, Bikes = {len(self.get_bikes())} (avail = {len(self.get_available_bikes())})'
         )

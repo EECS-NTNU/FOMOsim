@@ -27,7 +27,7 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
     
     # Calculate the average net demand for the planning horizon
     net_demand_planning_horizon = (minutes_current_hour*net_demand_current + 
-                                   minutes_next_hour*net_demand_next) / planning_horizon
+                                   minutes_next_hour*net_demand_next) / (planning_horizon if planning_horizon != 0 else 1)
     
     return net_demand_planning_horizon
 

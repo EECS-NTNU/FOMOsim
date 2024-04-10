@@ -1,11 +1,20 @@
-import sim
 from target_state import TargetState
 import numpy as np
+import json
+import gzip
 
-class USTargetState(TargetState):
+class HLVTargetState(TargetState):
 
-    def __init__(self):
+    def __init__(self,
+                 target_state_ff_json):
         super().__init__()
+        self.target_state_ff = self.load_target_ff(target_state_ff_json)
+
+    def load_target_ff(self, target_state_file):
+        with gzip.open(f'{target_state_file}', 'r') as file:
+            data = json.load(file)
+        target_state_dict = {area['id']: area['target_states'] for area in data['areas']}
+        return target_state_dict
 
     def update_target_state(self, state, day, hour):
         num_sb_bikes = len(state.get_all_sb_bikes())
@@ -26,8 +35,4 @@ class USTargetState(TargetState):
             st.target_state[day][hour] = ts
         
         for area in state.get_areas():
-            leave = area.leave_intensities[day][hour]
-            arrive = area.arrive_intensities[day][hour]
-            leave_std = area.leave_intensities_stdev[day][hour]
-            arrive_std = area.arrive_intensities_stdev[day][hour]
-            area.target_state[day][hour] = max(0, round((leave + leave_std - (arrive - arrive_std))) + np.random.randint(0, 2))
+            area.target_state[day][hour] = self.target_state_ff[area.location_id][day][hour]
