@@ -59,15 +59,15 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
                 )
                 helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, num_pickup, "pickup")[0] if (num_pickup > 0) else []
                 num_bikes -= num_pickup
-            print(helping_pickups)
-            print(current_stations, [bike for bike in current_stations.get_bikes()])
-            print("original pickup action", action.pick_ups)
+            # print(helping_pickups)
+            # print(current_stations, [bike for bike in current_stations.get_bikes()])
+            # print("original pickup action", action.pick_ups)
         
         helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(int(sum(current_deviations)), len(vehicle.get_sb_bike_inventory()))]
-        if helping_delivery:
-            print(helping_delivery)
-            print(vehicle.bike_inventory)
-            print("origianl delivery action", action.delivery_bikes)
+        # if helping_delivery:
+        #     print(helping_delivery)
+        #     print(vehicle.bike_inventory)
+        #     print("origianl delivery action", action.delivery_bikes)
         
         station_bikes = {}
 

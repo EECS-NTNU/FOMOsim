@@ -64,17 +64,17 @@ class SB_Collab2(BS_PILOT):
                                 -next_deviation, 
                                 vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(action.pick_ups)
                                 )
-            print("Collab2, helping escooters =", num_escooters)
+            # print("Collab2, helping escooters =", num_escooters)
             pickup_escooter_ids, _ = get_escooter_ids_load_swap(current_cluster, vehicle, num_escooters, "pickup", 0) # since you can't swap
-            print(pickup_escooter_ids)
-            print(current_cluster, current_cluster.get_bikes())
-            print("original pickup action", action.pick_ups)
+            # print(pickup_escooter_ids)
+            # print(current_cluster, current_cluster.get_bikes())
+            # print("original pickup action", action.pick_ups)
 
         delivery_escooter_ids = [bike.bike_id for bike in vehicle.get_ff_bike_inventory()]
-        if delivery_escooter_ids:
-            print(delivery_escooter_ids)
-            print(vehicle.bike_inventory)
-            print("origianl delivery action", action.delivery_bikes)
+        # if delivery_escooter_ids:
+        #     print(delivery_escooter_ids)
+        #     print(vehicle.bike_inventory)
+        #     print("origianl delivery action", action.delivery_bikes)
 
 
         simul.metrics.add_aggregate_metric(simul, "Num helping pickups", len(pickup_escooter_ids))

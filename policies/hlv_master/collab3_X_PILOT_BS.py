@@ -1,4 +1,5 @@
-from policies import Policy
+from policies.hlv_master.FF_BS_PILOT_policy import BS_PILOT_FF, find_potential_clusters
+from policies.hlv_master.SB_BS_PILOT_policy import find_potential_stations
 from settings import *
 import sim
 from policies.hlv_master.Visit import Visit
@@ -10,46 +11,35 @@ from policies.hlv_master.dynamic_clustering import clusterPickup, clusterDeliver
 import numpy as np
 import time
 
-########################################## 
-#         BS_PILOT - policy class        #
-##########################################
-
-class Collab3(Policy): #Add default values from seperate setting sheme
+class Collab3(BS_PILOT_FF):
     def __init__(self, 
                 max_depth = MAX_DEPTH, 
                 number_of_successors = NUM_SUCCESSORS, 
                 time_horizon = TIME_HORIZON, 
-                criticality_weights_set_ff = CRITICAILITY_WEIGHTS_SET, #one weightset per colab #TODO ha egne sets
-                criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET,
+                criticality_weights_set = CRITICAILITY_WEIGHTS_SET,
                 evaluation_weights = EVALUATION_WEIGHTS, 
                 number_of_scenarios = NUM_SCENARIOS, 
                 discounting_factor = DISCOUNTING_FACTOR,
                 overflow_criteria = OVERFLOW_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
-                swap_threshold = BATTERY_LIMIT_TO_SWAP
-                 ):
-        self.max_depth = max_depth
-        self.number_of_successors = number_of_successors
-        self.time_horizon = time_horizon
+                swap_threshold = BATTERY_LIMIT_TO_SWAP,
+                criticality_weights_set_ff = CRITICAILITY_WEIGHTS_SET,
+                criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET
+                ):
+        super().__init__(
+            max_depth = max_depth,
+            number_of_successors = number_of_successors, 
+            time_horizon = time_horizon, 
+            criticality_weights_set = criticality_weights_set, 
+            evaluation_weights = evaluation_weights, 
+            number_of_scenarios = number_of_scenarios, 
+            discounting_factor = discounting_factor,
+            overflow_criteria = overflow_criteria,
+            starvation_criteria = starvation_criteria,
+            swap_threshold = swap_threshold
+        )
         self.criticality_weights_set_ff = criticality_weights_set_ff
         self.criticality_weights_set_sb = criticality_weights_set_sb
-        self.evaluation_weights = evaluation_weights
-        self.number_of_scenarios = number_of_scenarios
-        self.discounting_factor = discounting_factor
-        self.overflow_criteria = overflow_criteria
-        self.starvation_criteria = starvation_criteria
-        self.swap_threshold = swap_threshold
-        super().__init__()
-
-    ###############################################
-    #  Returns an action element that contains:   #
-    #  * Number of batteries to swap              #
-    #  * Number of e-scooters to pick up          #
-    #  * Number of e-scooters to deliver          #
-    #  * Next station to visit                    #
-    #                                             #
-    # This is how our code talks to the simulator #            
-    ###############################################
     
     def get_best_action(self, simul, vehicle):
         start_logging_time = time.time() 
@@ -59,13 +49,7 @@ class Collab3(Policy): #Add default values from seperate setting sheme
         batteries_to_swap = []
 
         end_time = simul.time + self.time_horizon 
-        total_num_bikes_in_system = len(simul.state.get_all_bikes()) #flytt hvis lang kjøretid
-
-
-        ###########################
-        # ##############################################################
-        #   Goes to depot if this action will lead to empty battery inventory                   #            
-        #########################################################################################
+        total_num_bikes_in_system = len(simul.state.get_all_bikes())
 
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
             next_location = simul.state.get_closest_depot(vehicle)
@@ -77,12 +61,6 @@ class Collab3(Policy): #Add default values from seperate setting sheme
                 [],
                 next_location
             )
-
-        #########################################################################################
-        #   Number of bikes to pick up / deliver is choosen greedy based on clusters in reach   #
-        #   Which bike ID´s to pick up / deliver is choosen based on battery level              #   
-        #   How many batteries to swap choosen based on battery inventory and status on station #
-        #########################################################################################
 
         if vehicle.cluster is None:
             escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
@@ -314,14 +292,14 @@ class Collab3(Policy): #Add default values from seperate setting sheme
         # Finds potential next stations based on pick up or delivery status of the station and tabulist
         potential_stations, station_type = find_potential_stations(simul,0.15,0.15,vehicle, num_bikes_now, tabu_list) #Hvor kommer 0.15 fra??
         potential_clusters, cluster_type = find_potential_clusters(simul, 0.15, 0.15, vehicle, num_bikes_now, tabu_list)
-        if potential_stations == []: #Try to find out when and if this happens?
+        if potential_stations == [] and potential_clusters == []: #Try to find out when and if this happens?
             return None
         
         number_of_successors = min(number_of_successors, len(potential_stations))
 
         # Finds the criticality score of all potential stations
-        stations_sorted = calculate_criticality_sb(weight_set[1], simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station,station_type, total_num_bikes_in_system, tabu_list)
-        clusters_sorted = calculate_criticality_ff(weight_set[0], simul, potential_clusters, plan.plan[vehicle.vehicle_id][-1].station,cluster_type, total_num_bikes_in_system, tabu_list)
+        stations_sorted = calculate_criticality_sb(weight_set[1], simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station, total_num_bikes_in_system, tabu_list) if potential_stations != [] else {}
+        clusters_sorted = calculate_criticality_ff(weight_set[0], simul, potential_clusters, plan.plan[vehicle.vehicle_id][-1].station, total_num_bikes_in_system, tabu_list) if potential_clusters != [] else {}
         sorted_criticalities_merged = dict(sorted({**stations_sorted, **clusters_sorted}.items(), key=lambda item: item[1], reverse=True))
         destinations_sorted_list = list(sorted_criticalities_merged.keys())
         next_destination = [destinations_sorted_list[i] for i in range(number_of_successors)]
@@ -435,7 +413,7 @@ class Collab3(Policy): #Add default values from seperate setting sheme
             #########################################################################
 
             if net_demand < 0:
-                sorted_escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False)
+                sorted_escooters_in_station = sorted(station.get_bikes(), key=lambda bike: bike.battery, reverse=False)
                 time_first_violation_no_visit = current_time + min((station.number_of_bikes() - len(station.get_swappable_bikes(BATTERY_LEVEL_LOWER_BOUND)))/ -net_demand, (sum(Ebike.battery for Ebike in sorted_escooters_in_station[-3:])/3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)*60))
             else:
                 time_first_violation_no_visit = end_time
@@ -663,7 +641,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, overf
     
     elif num_escooters_accounted_for_battery_swaps > target_state:
         remaining_cap_vehicle = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory())
-        number_of_escooters_to_pickup = min(remaining_cap_vehicle, num_escooters_accounted_for_battery_swaps - target_state + BIKES_OVERFLOW_NEIGHBOR * overflowing_neighbors, len(station.bikes)) #discuss logic behind this
+        number_of_escooters_to_pickup = min(remaining_cap_vehicle, num_escooters_accounted_for_battery_swaps - target_state + BIKES_OVERFLOW_NEIGHBOR * overflowing_neighbors, len(station.get_bikes())) #discuss logic behind this
         escooters_to_deliver_accounted_for_battery_swaps=[]
         escooters_to_pickup_accounted_for_battery_swaps, escooters_to_swap_accounted_for_battery_swap = id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters_to_pickup, "pickup", swap_threshold)
 
@@ -705,10 +683,10 @@ def get_num_escooters_accounted_for_battery_swaps(station, num_escooters_station
 
 def id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters, station_type, swap_threshold):
     if SORTED_BIKES:
-        escooters_in_station = sorted(station.bikes.values(), key=lambda bike: bike.battery, reverse=False) # escooters at station, sorted from lowest to highest battery level. List consists of bike-objects
+        escooters_in_station = sorted(station.get_bikes(), key=lambda bike: bike.battery, reverse=False) # escooters at station, sorted from lowest to highest battery level. List consists of bike-objects
         #escooters_in_vehicle =  sorted(vehicle.get_bike_inventory(), key=lambda bike: bike.battery, reverse=False) # escooters in vehicle, sortes from lowest to highest bettery level. List consists of bike-objects
     else:
-        escooters_in_station = list(station.bikes.values())
+        escooters_in_station = list(station.get_bikes())
         #escooters_in_vehicle =  vehicle.get_bike_inventory()
 
 

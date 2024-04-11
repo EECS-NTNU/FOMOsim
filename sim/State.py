@@ -150,10 +150,10 @@ class State(LoadSave):
             if "location" in area:
                 center_position = area["location"]
                 
-                # lat, lon = center_position[0], center_position[1]
-                # min_lat, max_lat, min_lon, max_lon = 63.415774, 63.440144, 10.370453, 10.431571
-                # if not (min_lon <= lon <= max_lon and min_lat <= lat <= max_lat):
-                #     continue
+                lat, lon = center_position[0], center_position[1]
+                min_lat, max_lat, min_lon, max_lon = 63.415774, 63.440144, 10.370453, 10.431571
+                if not (min_lon <= lon <= max_lon and min_lat <= lat <= max_lat):
+                    continue
             
             border_vertices = None
             if "edges" in area:
@@ -590,8 +590,6 @@ class State(LoadSave):
                     # Adding bike to current station and changing coordinates of bike
                     vehicle.location.add_bike(delivery_bike)
 
-                if len(action.helping_pickup) > 0:
-                    print("helping cluster bikes:", action.helping_cluster.get_bike_ids())
                 for helping_pickup_id in action.helping_pickup:
                     helping_pickup_bike = action.helping_cluster.get_bike_from_id(
                         helping_pickup_id
@@ -608,16 +606,9 @@ class State(LoadSave):
                     self.get_location_by_id(vehicle.location.area).add_bike(helping_delivery_bike)
 
             else:
-                area_ids = [area.location_id for area in vehicle.cluster.areas]
-                if len(action.pick_ups) > 0:
-                    print("pickup escooters:", action.pick_ups)
-                    print(vehicle.cluster)
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(pick_up_bike_id)
 
-                    if pick_up_bike.location_id not in area_ids:
-                        print('plukkes ikke opp riktig') #TODO fjern
-                    
                     # Remove bike from current station
                     current_location = self.get_location_by_id(pick_up_bike.location_id)
                     current_location.remove_bike(pick_up_bike)
@@ -645,9 +636,6 @@ class State(LoadSave):
                     helping_pickup_bike = action.helping_cluster.get_bike_from_id(
                         helping_pickup_id
                     )
-
-                    if helping_pickup_bike.location_id not in [area.location_id for area in action.helping_cluster.areas]:
-                        print('plukkes ikke opp riktig hjelp') # TODO fjern
 
                     self.get_location_by_id(helping_pickup_bike.location_id).remove_bike(helping_pickup_bike)
                     
@@ -814,7 +802,7 @@ class State(LoadSave):
                 key=lambda d: vehicle.location.distance_to(*d.get_location()),
                 default=None
             )
-        #TODO quick fix
+        #TODO flytter seg ikke hvis det ikke finnes depot, men dette burde vel ikke skje?
         if not closest_depot:
             vehicle.battery_inventory = vehicle.battery_inventory_capacity
             return vehicle.location.location_id

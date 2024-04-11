@@ -66,15 +66,15 @@ class BS_PILOT(Policy):
                 next_location
             )
 
-        start_time = time.time()
+        # start_time = time.time()
         # Loading and swap strategy at current location is always chosen greedily
         bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria)
         number_of_bikes_pickup = len(bikes_to_pickup)
         number_of_bikes_deliver = len(bikes_to_deliver)
         number_of_batteries_to_swap = len(batteries_to_swap)
-        print("time to find action SB:", time.time() - start_time)
+        # print("time to find action SB:", time.time() - start_time)
 
-        start_time = time.time()
+        # start_time = time.time()
         # Make a plan for all vehicles
         plan_dict = dict()
         for v in simul.state.get_sb_vehicles():
@@ -93,7 +93,7 @@ class BS_PILOT(Policy):
 
         # Use X-PILOT-BS to find which location to drive to next
         next_location = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
-        print("time to find next loc SB:", time.time() - start_time)
+        # print("time to find next loc SB:", time.time() - start_time)
 
         # Count the neighbors that are starved or congested
         similary_imbalances_starved = 0
@@ -184,8 +184,9 @@ class BS_PILOT(Policy):
                 temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
 
                 if dep_time > end_time:
-                    print(f'dep_time({dep_time}) > end_time({end_time}), when time_horizon={self.time_horizon}')
+                    # print(f'dep_time({dep_time}) > end_time({end_time}), when time_horizon={self.time_horizon}')
                     dep_time = end_time - 1
+                    # TODO
 
                 # Add more visits until departure time has reached the end time
                 while dep_time < end_time:
@@ -290,9 +291,9 @@ class BS_PILOT(Policy):
         # Finds potential next stations based on pick up or delivery status of the station and tabulist
         potential_stations = find_potential_stations(simul,0.15,0.15,vehicle, num_bikes_now, tabu_list) # TODO margin
         if potential_stations == []:
-            print("No potential stations")
-            if len(plan.plan[vehicle.vehicle_id]) == 1:
-                print(plan.plan[vehicle.vehicle_id])
+            # print("No potential stations")
+            # if len(plan.plan[vehicle.vehicle_id]) == 1:
+            #     print(plan.plan[vehicle.vehicle_id])
             return None
         
         number_of_successors = min(number_of_successors, len(potential_stations))
@@ -586,8 +587,8 @@ class BS_PILOT(Policy):
             best_plan = list(score_board_sorted.keys())[0]
             branch = best_plan.branch_number
             # simul.metrics.add_aggregate_metric(simul, "branch"+str(branch+1), 1)
-            if branch is None:
-                print(best_plan, "simul_time:", simul.time)
+            # if branch is None:
+            #     print(best_plan, "simul_time:", simul.time)
             first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             return first_move
         

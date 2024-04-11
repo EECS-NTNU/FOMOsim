@@ -68,7 +68,7 @@ class BS_PILOT_FF(Policy):
                 next_location
             )
 
-        start_time = time.time()
+        # start_time = time.time()
         # Loading and swap strategy at current location or cluster is always chosen greedily
         if vehicle.cluster is None:
             escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
@@ -80,11 +80,11 @@ class BS_PILOT_FF(Policy):
             number_of_escooters_pickup = len(escooters_to_pickup)
             number_of_escooters_deliver = len(escooters_to_deliver)
             number_of_batteries_to_swap = len(batteries_to_swap)
-        print("time to find action FF:", time.time() - start_time)
+        # print("time to find action FF:", time.time() - start_time)
 
         # TODO v.location eller v.cluster??
         # Make a plan for all vehicles
-        start_time = time.time()
+        # start_time = time.time()
         plan_dict = dict()
         for v in simul.state.get_ff_vehicles():
             # If vehicle is at a location, add current location to the plan with the greedy loading and swap strategy
@@ -102,7 +102,7 @@ class BS_PILOT_FF(Policy):
 
         # Use X-PILOT-BS to find which location to drive to next
         next_location, cluster = self.PILOT_function(simul, vehicle, plan, self.max_depth, self.number_of_successors, end_time, total_num_bikes_in_system)
-        print("time to find next loc FF:", time.time() - start_time)
+        # print("time to find next loc FF:", time.time() - start_time)
 
         # Count the neighbors that are starved or congested
         similary_imbalances_starved = 0
@@ -194,7 +194,7 @@ class BS_PILOT_FF(Policy):
                 temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
 
                 if dep_time > end_time:
-                    print(f'dep_time({dep_time}) > end_time({end_time}), when time_horizon={self.time_horizon}')
+                    # print(f'dep_time({dep_time}) > end_time({end_time}), when time_horizon={self.time_horizon}')
                     dep_time = end_time - 1
 
                 # Add more visits until departure time has reached the end time
@@ -540,7 +540,7 @@ class BS_PILOT_FF(Policy):
             best_plan = list(score_board_sorted.keys())[0]
             branch = best_plan.branch_number
             if branch is None: # TODO dette skjer når den ikke klarer å lage plan med neste stopp
-                print('branch is None')
+                # print('branch is None')
                 first_move = simul.state.get_closest_depot(vehicle)
                 cluster = None
                 return first_move, cluster

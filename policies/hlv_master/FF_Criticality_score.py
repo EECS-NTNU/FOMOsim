@@ -66,6 +66,9 @@ def calculate_criticality(weights, simul, potential_clusters, station, total_num
 
         criticalities[potential_cluster] = [time_to_violation, deviation_from_target_state, neighborhood_crit, demand_crit, driving_time_crit, battery_level_comp_crit]
     
+    if time_to_violation_list == [] or deviation_list == [] or neighborhood_crit_list == [] or demand_crit_list == [] or driving_time_list == [] or BL_composition_list == []:
+        print(potential_clusters)
+
     criticalities_normalized = normalize_results(criticalities, time_to_violation_list, deviation_list, neighborhood_crit_list, demand_crit_list, driving_time_list, BL_composition_list)
 
     for station in criticalities_normalized:

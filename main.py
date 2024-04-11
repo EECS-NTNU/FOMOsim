@@ -60,17 +60,17 @@ def main(seed):
     # policy_ff = policies.hlv_master.BS_PILOT_FF()
     # state.set_ff_vehicles([policy_ff])
 
-    print("Policy: FF_Collab2, Seed:", seed)
-    policy2_ff = policies.hlv_master.FF_Collab2()
-    state.set_ff_vehicles([policy2_ff]) # this creates one vehicle for each policy in the list
+    # print("Policy: FF_Collab2, Seed:", seed)
+    # policy2_ff = policies.hlv_master.FF_Collab2()
+    # state.set_ff_vehicles([policy2_ff]) # this creates one vehicle for each policy in the list
     
-    print("Policy: SB_Collab2, Seed:", seed)
-    policy2_sb = policies.hlv_master.SB_Collab2()
-    state.set_sb_vehicles([policy2_sb]) # this creates one vehicle for each policy in the list
+    # print("Policy: SB_Collab2, Seed:", seed)
+    # policy2_sb = policies.hlv_master.SB_Collab2()
+    # state.set_sb_vehicles([policy2_sb]) # this creates one vehicle for each policy in the list
     
-    # print("Policy: Collab3, Seed:", seed)
-    # policy3 = policies.hlv_master.Collab3()
-    # state.set_vehicles([policy3]) # this creates one vehicle for each policy in the list
+    print("Policy: Collab3, Seed:", seed)
+    policy3 = policies.hlv_master.Collab3()
+    state.set_vehicles([policy3]) # this creates one vehicle for each policy in the list
 
     # print("Policy: Collab4, Seed:", seed)
     # policy4 = policies.hlv_master.Collab4()
@@ -99,7 +99,7 @@ def main(seed):
         demand = dmand,
         start_time = START_TIME,
         duration = DURATION,
-        verbose = False,
+        verbose = True,
     )
     simulator.run()
 
@@ -160,6 +160,6 @@ def main(seed):
 
 if __name__ == "__main__":
     seed_list = [random.randint(1, 3000) for _ in range(10)]
-    # seed_list = [2099]
+    # seed_list = [2096]
     for seed in seed_list:
         main(seed)
