@@ -225,7 +225,7 @@ class BS_PILOT_FF(Policy):
                 plan_scores[plan].append(score)
         
         # Returns the center and cluster with the best average score over all scenarios
-        return self.return_best_move_avarage(vehicle, simul, plan_scores)
+        return self.return_best_move_average(vehicle, simul, plan_scores)
 
     def calculate_loading_quantities_and_swaps_pilot(self, vehicle, simul, cluster, eta):
         """
@@ -514,7 +514,7 @@ class BS_PILOT_FF(Policy):
         
         return avoided_disutility
     
-    def return_best_move_avarage(self, vehicle, simul, plan_scores):
+    def return_best_move_average(self, vehicle, simul, plan_scores):
         """
         Returns the ID of the Area with performing best on average over all the scenarios.
 

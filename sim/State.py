@@ -150,10 +150,10 @@ class State(LoadSave):
             if "location" in area:
                 center_position = area["location"]
                 
-                lat, lon = center_position[0], center_position[1]
-                min_lat, max_lat, min_lon, max_lon = 63.415774, 63.440144, 10.370453, 10.431571
-                if not (min_lon <= lon <= max_lon and min_lat <= lat <= max_lat):
-                    continue
+                # lat, lon = center_position[0], center_position[1]
+                # min_lat, max_lat, min_lon, max_lon = 63.415774, 63.440144, 10.370453, 10.431571
+                # if not (min_lon <= lon <= max_lon and min_lat <= lat <= max_lat):
+                #     continue
             
             border_vertices = None
             if "edges" in area:
@@ -253,10 +253,10 @@ class State(LoadSave):
             neighbors.discard(area)
             area.neighbours = list(neighbors)
 
-        for _ in range(400):
-            area = random.choice(state.get_areas())
-            area.add_bike(sim.EScooter(area.lat, area.lon, area.location_id, f'ES{escooter_id_counter}', random.randint(30,100)))
-            escooter_id_counter += 1
+        # for _ in range(400):
+        #     area = random.choice(state.get_areas())
+        #     area.add_bike(sim.EScooter(area.lat, area.lon, area.location_id, f'ES{escooter_id_counter}', random.randint(30,100)))
+        #     escooter_id_counter += 1
 
         return state
 

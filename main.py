@@ -82,7 +82,7 @@ def main(seed):
 
     # tstate = target_state.USTargetState()
     tstate = target_state.HLVTargetState(
-        'instances/Ryde/ryde_target_state_1066.json.gz'    
+        'instances/Ryde/ryde_target_state.json.gz'    
         )
 
     ###############################################################################
@@ -159,7 +159,7 @@ def main(seed):
     # output.visualize([bikes[11].metrics], metric="travel_time_congested")
 
 if __name__ == "__main__":
-    # seed_list = [random.randint(1, 3000) for _ in range(10)]
-    seed_list = [2099]
+    seed_list = [random.randint(1, 3000) for _ in range(10)]
+    # seed_list = [2099]
     for seed in seed_list:
         main(seed)
