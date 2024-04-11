@@ -12,6 +12,7 @@ def generate_json():
 
     with open(HEX_FILE_PATH, 'r', encoding='utf-8') as f:
         hex_data = json.load(f)
+
     hexagons = HexWeb.generate_hex_web_from_json(hex_data)
 
     hexweb = HexWeb(0, 0, 0, 0, total_scooters, hexagons)

@@ -72,7 +72,7 @@ class Hexagon:
             self.update_move_probabilities(day, hour, end_hex)
 
     def update_arrival_intensities(self, day, hour):
-        self.depature_intensities[day][hour] += 1
+        self.arrival_intensities[day][hour] += 1
     
     def calculate_average_arrivals(self):
         np_array = np.array(self.arrival_intensities)
@@ -146,15 +146,10 @@ class HexagonTargetState():
 
         for day in range(7):  # 0 = Mandag, 6 = Søndag
             for hour in range(24):
-                 # Scenario 10 - siste timen. Target state lik net_demand for den timen
-                if hour == 23: #siste time
-                            self.target_states[day][hour] = abs(min(round(self.average_arrival_intensities[day][hour] - self.average_depature_intensities[day][hour]), 0)) # Setter target state til net_demand
-                # Scenario 1 - mellom kl 00 og 05. Target state er forhåndsbestemt og alltid lik            
-                elif  0 <= hour <= 5: 
+                if  0 <= hour <= 5 or hour == 23:
                     self.target_states[day][hour] = self.initial_target_states[day]  # Forhåndsbestemt verdi
                     
                 else:
-
                     all_next_demands = [] # Liste for å holde net_demand for fremtidige perioder
                     all_next_depature_rates = [] # Liste for å holde depature rate for fremtidige perioder    
                     next_demands = [] # Liste for å holde net_demand for fremtidige perioder
@@ -177,7 +172,7 @@ class HexagonTargetState():
                    
                    #MÅTE 2: finne alle net demand og alle depature rates for de neste periodene frem til kl 23 uansett (og tre perioder frem, for å bestemme scenario)
                     while next_hour < 23:
-                        next_hour = next_hour + 1 
+                        next_hour += 1 
                         next_net_demand = self.average_arrival_intensities[current_day][next_hour] - self.average_depature_intensities[current_day][next_hour] #legg inn riktig
                         next_depature_rate = self.average_depature_intensities[current_day][next_hour]
                         all_next_demands.append(next_net_demand)
@@ -187,9 +182,17 @@ class HexagonTargetState():
                             next_depature_rates.append(next_depature_rate)
                             p += 1
                        
-                    while len(next_demands) < 3:
+                    if len(next_demands) < periods:
+                        next_demands.append(-self.initial_target_states[day])
+                        next_depature_rates.append(0)
+                    while len(next_demands) < periods:
                         next_demands.append(0)
                         next_depature_rates.append(0)
+
+                    if len(all_next_demands) > periods:
+                        all_next_demands = all_next_demands[:(periods)]
+                    if len(all_next_depature_rates) > periods:
+                        all_next_depature_rates = all_next_depature_rates[:(periods)]
 
                     # Scenario 2 (kun positive)
                     if all(next_demand >= 0 for next_demand in next_demands): #lik sum alle fremtidige depature rates før trend skifter
@@ -312,7 +315,7 @@ class HexWeb:
     def generate_hex_web_from_json(data):
         hexagons = []
         for hex_data in data['areas']:
-            hex_id = hex_data['id']
+            hex_id = hex_data['hex_id'] # TODO endre hvis du bruker final
             vertices = hex_data['edges']  # Bruker 'edges' som vertices
             center = hex_data['location']  # Bruker 'location' som center
             hexagon = Hexagon(hex_id, vertices, center)

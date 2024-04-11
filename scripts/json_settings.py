@@ -4,8 +4,8 @@ day = 8
 hour = 8
 WEEKS = 3
 
-resolution = 5
-ring_radius = 3
+resolution = 11
+ring_radius = 100
 total_scooters = 10
 api_key = "AIzaSyCu-x049Ut84I6xTMojTJrAK1z5QZ49D9E"
 

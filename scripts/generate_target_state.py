@@ -7,45 +7,21 @@ import gzip
 
 
 def generate_json_target_state():
-
-     
-
-    #hex_data ={
-        #'areas': [
-            #  {
-            #     "hex_id": "1",
-            #     "arrival_intensities": [[0,0,0,0,0, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] for _ in range(7)],
-            #     "depature_intensities": [[0 for i in range(24)] for _ in range(7)],
-            #  },
-            # {
-            #    "hex_id": "2",
-            #    "arrival_intensities": [[0 for _ in range(24)] for _ in range(7)],
-            #    "depature_intensities": [[0,0,0,0,0, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] for _ in range(7)],
-            # },
-            #  {
-            #     "hex_id": "3",
-            #     "arrival_intensities": [[0,0,0,0,0, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] for _ in range(7)],
-            #     "depature_intensities": [[0,0,0,0,0,0,0,0,0,0,0,0,2,1,1,1,1,1,1,1,1,1,1,1] for _ in range(7)],
-            #  },
-            #  {
-            #     "hex_id": "4",
-            #     "arrival_intensities": [[0,0,0,0,0, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] for _ in range(7)],
-            #     "depature_intensities": [[0,0,0,0,0,0,0,0,0,0,0,0,2,2,1,2,1,1,1,1,1,1,1,1] for _ in range(7)],
-            #  },
-            #  {
-            #     "hex_id": "5",
-            #     "arrival_intensities": [[0,0,0,0,0, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] for _ in range(7)],
-            #     "depature_intensities": [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,12] for _ in range(7)],
-            #  },
-        #]
-   # }
     
-    FINISHED_DATA_FILE = "/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/TD_W19_test_W3.json.gz"
-    INIT_TARGET_STATE = "/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/initial_target_state_1066.json"
+    FINISHED_DATA_FILE = '/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/instances/Ryde/TD_W19_test_W3.json.gz'
+    INIT_TARGET_STATE = '/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/instances/Ryde/initial_target_state_1066.json'
 
     with gzip.open(FINISHED_DATA_FILE, 'rt', encoding='utf-8') as f:
         hex_data = json.load(f)
-    
+
+    # sumlist = {i: 0 for i in range(24)}
+    # for area in hex_data['areas']:
+    #     for day in range(7):
+    #         for hour in range(24):
+    #             sumlist[hour] += area['arrival_intensities'][day][hour]
+    # print(f'sumlist = {sumlist}')
+    # return
+        
     with open(INIT_TARGET_STATE, 'r', encoding='utf-8') as f:
          initial_target_state_data = json.load(f)
 
@@ -74,12 +50,30 @@ def generate_json_target_state():
     # with gzip.open(write_file, 'wt', encoding="ascii") as zipfile:
     #        json.dump(json_data, zipfile)
 
-    FINISHED_TARGET_STATE_DATA_FILE = "/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/finished_target_state_1066.json.gz"
+    FINISHED_TARGET_STATE_DATA_FILE = "/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/instances/Ryde/final3_target_state_1066.json.gz"
     # Lagre data som en gzip-komprimert JSON-fil
     with gzip.open(FINISHED_TARGET_STATE_DATA_FILE, 'wt', encoding='ascii') as zipfile:
         json.dump(json_target_state_data, zipfile)
     
-    with open("/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/finished_target_state_1066_json.json", 'w', encoding='utf-8') as f:
+    with open('/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/instances/Ryde/final3_target_state_1066.json', 'w', encoding='utf-8') as f:
         json.dump(json_target_state_data, f, indent=4)
 
 generate_json_target_state()
+        
+# with open('/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/instances/Ryde/final3_target_state_1066.json', 'r') as file:
+#     data = json.load(file)
+
+# counter = 0 
+# final_target_states = [[0 for j in range(24)] for i in range(7)]
+# hex_data_dict = {}
+# targert_states = [[0 for i in range(24)] for j in range(7)]
+     
+# for hex_data in data['areas']:  
+    
+#     hex_final_target_states = hex_data['target_states']
+#     for i in range(7):
+#         for j in range(24):
+#             final_target_states[i][j] += hex_final_target_states[i][j]
+
+# with open('/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/instances/Ryde/check_target3_states.json', 'w', encoding='utf-8') as f:
+#         json.dump(final_target_states, f, indent=4)
