@@ -85,12 +85,3 @@ class SB_Collab2(BS_PILOT):
         action.helping_cluster = current_cluster
 
         return action
-
-def make_cluster(radius, cluster):
-    for _ in range(radius):
-        new_neighbors = []
-        for neighbor in cluster.get_neighbours():
-            cluster.areas.append(neighbor)
-            new_neighbors += [area for area in neighbor.get_neighbours() if area not in cluster.get_neighbours() and area not in new_neighbors and area not in cluster.areas]
-        cluster.neighbours = new_neighbors
-    return cluster

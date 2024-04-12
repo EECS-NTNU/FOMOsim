@@ -68,13 +68,13 @@ def main(seed):
     # policy2_sb = policies.hlv_master.SB_Collab2()
     # state.set_sb_vehicles([policy2_sb]) # this creates one vehicle for each policy in the list
     
-    print("Policy: Collab3, Seed:", seed)
-    policy3 = policies.hlv_master.Collab3()
-    state.set_vehicles([policy3]) # this creates one vehicle for each policy in the list
+    # print("Policy: Collab3, Seed:", seed)
+    # policy3 = policies.hlv_master.Collab3()
+    # state.set_vehicles([policy3]) # this creates one vehicle for each policy in the list
 
-    # print("Policy: Collab4, Seed:", seed)
-    # policy4 = policies.hlv_master.Collab4()
-    # state.set_vehicles([policy4]) # this creates one vehicle for each policy in the list
+    print("Policy: Collab4, Seed:", seed)
+    policy4 = policies.hlv_master.Collab4()
+    state.set_vehicles([policy4]) # this creates one vehicle for each policy in the list
 
     ###############################################################################
     # Set up target state
