@@ -32,19 +32,25 @@ class BikeDeparture(Event):
             bike = available_bikes.pop(0)
 
             if FULL_TRIP:
-                # get an arrival station from the leave prob distribution
-                mp = departure_station.get_move_probabilities(world.state, world.day(), world.hour())
-                p = list(mp.values())
-                sum = 0.0
-                for i in range(len(p)):
-                    sum += p[i]
-                p_normalized = []
-                for i in range(len(p)):
-                    if sum > 0:
-                        p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
-                    else:
-                        p_normalized.append(1/len(p))
-                arrival_station_id = world.state.rng.choice(list(mp.keys()), p = p_normalized)
+                if world.state.rng.random() < RANDOM_DESTINATION_PROB:
+                    # Exclude the current area from the random selection
+                    other_stations = [station.location_id for station in world.state.get_stations() if station.location_id != self.departure_station_id]
+                    arrival_station_id = world.state.rng.choice(other_stations)
+                else:
+                    # get an arrival station from the leave prob distribution
+                    mp = departure_station.get_move_probabilities(world.state, world.day(), world.hour())
+                    p = list(mp.values())
+                    sum = 0.0
+                    for i in range(len(p)):
+                        sum += p[i]
+                    p_normalized = []
+                    for i in range(len(p)):
+                        if sum > 0:
+                            p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
+                        else:
+                            p_normalized.append(1/len(p))
+                    arrival_station_id = world.state.rng.choice(list(mp.keys()), p = p_normalized)
+
                 arrival_station = world.state.get_location_by_id(arrival_station_id)
 
                 travel_time = world.state.get_travel_time(
@@ -86,11 +92,17 @@ class BikeDeparture(Event):
                         p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
                     else:
                         p_normalized.append(1/len(p))
-                if self.acceptance_rejection(distance):
+                if self.acceptance_rejection(distance, world):
                     available_bikes = closest_neighbour_with_bikes.get_available_bikes()
                     bike=available_bikes.pop(0)
                     
-                    arrival_station_id = world.state.rng.choice(list(mp.keys()), p = p_normalized)
+                    if world.state.rng.random() < RANDOM_DESTINATION_PROB:
+                        # Exclude the current area from the random selection
+                        other_stations = [station.location_id for station in world.state.get_stations() if station.location_id != self.departure_station_id]
+                        arrival_station_id = world.state.rng.choice(other_stations)
+                    else:
+                        arrival_station_id = world.state.rng.choice(list(mp.keys()), p = p_normalized)
+                    
                     arrival_station = world.state.get_location_by_id(arrival_station_id)
 
                     travel_time = world.state.get_travel_time(
@@ -144,9 +156,9 @@ class BikeDeparture(Event):
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, departing from station {self.departure_station_id}>"
     
-    def acceptance_rejection(self,distance):
+    def acceptance_rejection(self,distance, world):
         prob_acceptance = -1.6548*distance**2-0.7036*distance+1.0133
-        random_roaming_limit = random.uniform(0,1)
+        random_roaming_limit = world.state.rng.uniform(0,1)
         if random_roaming_limit <= prob_acceptance:
             return True
         else:

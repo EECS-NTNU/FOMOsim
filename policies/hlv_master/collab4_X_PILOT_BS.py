@@ -45,7 +45,7 @@ class Collab4(Collab3):
         current_location = vehicle.location if isinstance(vehicle.location, sim.Station) else vehicle.cluster
         next_location = simul.state.get_location_by_id(action.next_location)
         
-        if isinstance(current_location, sim.Depot):
+        if isinstance(current_location, sim.Depot) or isinstance(next_location, sim.Depot):
             return action
 
         # Station -> Station

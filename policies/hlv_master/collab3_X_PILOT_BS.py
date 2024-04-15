@@ -5,8 +5,9 @@ import sim
 from policies.hlv_master.Visit import Visit
 from policies.hlv_master.Plan import Plan
 from .collab3_Criticality_Score import calculate_criticality_ff, calculate_criticality_sb
-from policies.hlv_master.Simple_calculations import copy_arr_iter
-from policies.hlv_master.Simple_calculations import calculate_net_demand
+from .FF_Criticality_score import calculate_cluster_type
+from .SB_Criticality_score import calculate_station_type
+from policies.hlv_master.Simple_calculations import copy_arr_iter, calculate_net_demand, generate_discounting_factors, calculate_hourly_discharge_rate
 from policies.hlv_master.dynamic_clustering import clusterDelivery, clusterPickup
 import numpy as np
 import time
@@ -57,7 +58,8 @@ class Collab3(BS_PILOT_FF):
         batteries_to_swap = []
 
         end_time = simul.time + self.time_horizon 
-        total_num_bikes_in_system = len(simul.state.get_all_bikes())
+        total_num_sb_bikes_in_system = len(simul.state.get_all_sb_bikes())
+        total_num_ff_bikes_in_system = len(simul.state.get_all_ff_bikes())
 
         # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all escooters at location that is unusable
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
@@ -121,7 +123,8 @@ class Collab3(BS_PILOT_FF):
                                                      self.max_depth, 
                                                      self.number_of_successors, 
                                                      end_time, 
-                                                     total_num_bikes_in_system)
+                                                     total_num_sb_bikes_in_system,
+                                                     total_num_ff_bikes_in_system)
         
         simul.metrics.add_aggregate_metric(simul, "Accumulated solution time", time.time()-start_logging_time)
         simul.metrics.add_aggregate_metric(simul, 'Number of get_best_action', 1)
@@ -134,7 +137,7 @@ class Collab3(BS_PILOT_FF):
             cluster
         )
 
-    def PILOT_function(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time, total_num_bikes_in_system):
+    def PILOT_function(self, simul, vehicle, initial_plan, max_depth, number_of_successors, end_time, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system):
         completed_plans = []
         for i in range(len(self.criticality_weights_set_ff)):
             num_successors = number_of_successors
@@ -152,9 +155,9 @@ class Collab3(BS_PILOT_FF):
                     next_vehicle = plan.next_visit.vehicle
                     if next_vehicle != vehicle:
                         num_successors_other_veheicle = max(1, round(num_successors/2))
-                        new_visits = self.greedy_next_visit(plan, simul, num_successors_other_veheicle, weight_set, total_num_bikes_in_system)
+                        new_visits = self.greedy_next_visit(plan, simul, num_successors_other_veheicle, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system)
                     else:
-                        new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set, total_num_bikes_in_system)
+                        new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system)
                     
                     if new_visits == None or plan.next_visit.get_depature_time() > end_time:
                         new_plan = Plan(plan.copy_plan(),copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
@@ -184,7 +187,7 @@ class Collab3(BS_PILOT_FF):
                 temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
 
                 while dep_time < end_time:
-                    new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set, total_num_bikes_in_system)
+                    new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system)
                     
                     if new_visit != None:
                         new_visit = new_visit[0]
@@ -209,11 +212,11 @@ class Collab3(BS_PILOT_FF):
             for scenario_dict in scenarios:
                 score = 0
                 for v in plan.plan:
-                    score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights, total_num_bikes_in_system)
+                    score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system)
                 plan_scores[plan].append(score)
         
         # Returns the station with the best avarage score over all scenarios
-        return self.return_best_move_avarage(vehicle, simul, plan_scores)
+        return self.return_best_move_average(vehicle, simul, plan_scores)
 
     def calculate_loading_quantities_and_swaps_pilot(self, vehicle, simul, location, eta):
         """
@@ -323,8 +326,7 @@ class Collab3(BS_PILOT_FF):
             
             return number_of_escooters_pickup, number_of_escooters_deliver, number_of_escooters_swap
         
-
-    def greedy_next_visit(self, plan, simul, number_of_successors, weight_set, total_num_bikes_in_system):
+    def greedy_next_visit(self, plan, simul, number_of_successors, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system):
         visits = []
         tabu_list = plan.tabu_list
         vehicle = plan.next_visit.vehicle
@@ -350,8 +352,8 @@ class Collab3(BS_PILOT_FF):
         number_of_successors = min(number_of_successors, len(potential_stations))
 
         # Finds the criticality score of all potential locations, and sort them in descending order
-        stations_sorted = calculate_criticality_sb(weight_set[1], simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station, total_num_bikes_in_system, tabu_list) if potential_stations != [] else {}
-        clusters_sorted = calculate_criticality_ff(weight_set[0], simul, potential_clusters, plan.plan[vehicle.vehicle_id][-1].station, total_num_bikes_in_system, tabu_list) if potential_clusters != [] else {}
+        stations_sorted = calculate_criticality_sb(weight_set[1], simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station, total_num_sb_bikes_in_system, tabu_list) if potential_stations != [] else {}
+        clusters_sorted = calculate_criticality_ff(weight_set[0], simul, potential_clusters, plan.plan[vehicle.vehicle_id][-1].station, total_num_ff_bikes_in_system, tabu_list) if potential_clusters != [] else {}
         sorted_criticalities_merged = dict(sorted({**stations_sorted, **clusters_sorted}.items(), key=lambda item: item[1], reverse=True))
         destinations_sorted_list = list(sorted_criticalities_merged.keys())
         
@@ -366,37 +368,322 @@ class Collab3(BS_PILOT_FF):
         
         return visits
     
-    def return_best_move_avarage(self, vehicle, simul, plan_scores):
-        score_board = dict() #plan object: the average score of this plan
-        num_scenarios=self.number_of_scenarios
-        if num_scenarios==0:
-            num_scenarios+=1 #this scenario is now the expected value 
-        for scenario_id in range(num_scenarios):
-            for plan in plan_scores:
-                score = plan_scores[plan][scenario_id]
-                if plan in score_board:
-                    score_board[plan] += score
-                else:
-                    score_board[plan] = score
+    def evaluate_route(self, route, scenario_dict, end_time, simul, weights, total_num_bikes_in_system, total_num_escooters_in_system):
+        """
+        Returns the score based on if the vehicle drives this route in comparisson to not driving it at all
 
-        score_board_sorted = dict(sorted(score_board.items(), key=lambda item: item[1], reverse=True))
-        if list(score_board_sorted.keys())[0] != None:
-            best_plan = list(score_board_sorted.keys())[0]
-            branch = best_plan.branch_number
-            simul.metrics.add_aggregate_metric(simul, "branch"+str(branch+1), 1)
-            first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
-            destination = best_plan.plan[vehicle.vehicle_id][1].station
-            if isinstance(destination, sim.Station):
-                return first_move, None
-            return first_move , destination
-        else: 
-            tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()]
-            potential_stations2 = [station for station in simul.state.get_areas() if station.location_id not in tabu_list]    
-            rng_balanced = np.random.default_rng(None)
-            destination = rng_balanced.choice(potential_stations2)
-            if isinstance(destination, sim.Station):
-                return destination.location_id, None
-            return destination.location_id, destination
+        Parameters:
+        - route = list of visits the vehicle is supposed to do
+        - scenario_dict = a dictionary with a possible net demand for each area
+        - end_time = the stopping point of the horizon to evaluate
+        - simul = Simulator
+        - weights = weights for avoided violations, neighbor roamings, and improved deviation
+        - total_num_bikes_in_system = the total amount of bicycles that are in the SB system
+        """
+
+        discounting_factors = generate_discounting_factors(len(route), self.discounting_factor)
+        avoided_disutility = 0
+        current_time = simul.time
+        counter = 0 # which stage during the visit the vehicle is at -> used to discount the score
+
+        for visit in route:
+            avoided_violations = 0
+            neighbor_roamings = 0
+            improved_deviation = 0
+
+            loading_quantity = visit.loading_quantity
+            unloading_quantity = visit.unloading_quantity
+            swap_quantity = visit.swap_quantity
+
+            location = visit.station
+            if isinstance(location, sim.Station):
+                neighbors = location.get_neighbours()
+
+                eta = visit.arrival_time
+
+                if eta > end_time:
+                    eta = end_time
+                
+                initial_inventory = len(location.get_available_bikes()) # TODO congestion behandles annerledes
+                net_demand = scenario_dict[location.location_id]
+                target_state = location.get_target_state(simul.day(), simul.hour())
+
+                # Calculate when the first starvation or congestion will occur if not visited
+                if net_demand < 0:
+                    sorted_bikes_in_station = sorted(location.get_bikes(), key=lambda bike: bike.battery, reverse=False)
+
+                    # Calculate hours until violation because no bikes have sufficient battery
+                    battery_top3 = [Ebike.battery for Ebike in sorted_bikes_in_station[-3:]]
+                    average_battery_top3 = sum(battery_top3)/len(battery_top3) if battery_top3 != [] else 0
+                    hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+                    hours_until_violation_battery = average_battery_top3/hourly_discharge
+
+                    # Find the earlist moment for a violation
+                    hours_until_first_violation = min(
+                                                    (len(location.get_available_bikes())/ -net_demand), # How long until the net demand results in a starvation
+                                                    hours_until_violation_battery
+                                                    )
+                    
+                    # Find the time in minutes for the violation
+                    time_of_first_violation_no_visit = current_time + (hours_until_first_violation * 60)
+                    
+                elif net_demand > 0:
+                    # How long until the net demand results in a congestion
+                    hours_until_first_violation = (location.capacity - location.number_of_bikes()) / net_demand
+                    time_of_first_violation_no_visit = current_time + (hours_until_first_violation * 60)
+                else:
+                    time_of_first_violation_no_visit = end_time
+                
+                # Calculate number of violation within the time horizon
+                if end_time > time_of_first_violation_no_visit:
+                    num_violation_no_visit = ((end_time - time_of_first_violation_no_visit)/60) * abs(net_demand)
+                else:
+                    num_violation_no_visit = 0
+                
+                # Violations that we can't avoid due to driving time
+                if eta > time_of_first_violation_no_visit:
+                    unavoidable_violations = ((eta - time_of_first_violation_no_visit)/60) * abs(net_demand)
+                else:
+                    unavoidable_violations = 0
+                
+                # Number of bikes at station after visit
+                station_inventory_after_visit = initial_inventory + ((eta - current_time)/60) * abs(net_demand) - unavoidable_violations - loading_quantity + unloading_quantity + swap_quantity
+                
+                # Time for first violation if we visit the station
+                if net_demand < 0:
+                    time_until_first_violation = (station_inventory_after_visit / (-net_demand)) * 60
+                    if swap_quantity > loading_quantity + 3: # Knowing top 3 bikes at station are fully charged
+                        time_first_violation_after_visit = eta + min(time_until_first_violation, 100/calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60)
+                    else:
+                        time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)) * 60)
+                elif net_demand > 0:
+                    time_until_first_violation = (location.capacity - station_inventory_after_visit) / net_demand
+                    time_first_violation_after_visit = eta + time_until_first_violation * 60
+                else:
+                    time_first_violation_after_visit = end_time
+                
+                if time_first_violation_after_visit < end_time:
+                    violations_after_visit = ((end_time - time_first_violation_after_visit)/60) * abs(net_demand)
+                else:
+                    violations_after_visit = 0
+
+                # How many violations did we manage to avoid, not counting the ones we could not do anything about
+                avoided_violations = num_violation_no_visit - violations_after_visit - unavoidable_violations
+
+                # Calculating the deviation from target at end time
+                if net_demand <= 0:
+                    ending_inventory_after_visit = max(0, station_inventory_after_visit + ((end_time - eta)/60) * net_demand)
+                    ending_inventory_no_visit = max(0, initial_inventory + ((end_time - current_time)/60) * net_demand)
+                else:
+                    ending_inventory_after_visit = min(location.capacity, station_inventory_after_visit + ((end_time-eta)/60)*net_demand)
+                    ending_inventory_no_visit = min(location.capacity , initial_inventory + ((end_time-current_time)/60)*net_demand)
+
+                deviation_after_visit = abs(ending_inventory_after_visit - target_state)
+                deviation_no_visit = abs(ending_inventory_no_visit - target_state)
+
+                improved_deviation = deviation_no_visit - deviation_after_visit
+
+                # Calculate excess bikes and locks, with and wihtout visits
+                excess_bikes_after_visit = ending_inventory_after_visit
+                excess_locks_after_visit = location.capacity - ending_inventory_after_visit
+                if net_demand > 0:
+                    excess_bikes_no_visit = min(location.capacity, initial_inventory + ((end_time-current_time)/60) * net_demand)
+                    excess_locks_no_visit = max(0, location.capacity - (initial_inventory + ((end_time-current_time)/60) * net_demand))
+                elif net_demand <= 0:
+                    excess_bikes_no_visit = max(0, initial_inventory + ((end_time-current_time)/60) * net_demand)
+                    excess_locks_no_visit = min(location.capacity, location.capacity - (initial_inventory+((end_time-current_time)/60) * net_demand))
+                
+                # Calculate station type
+                station_type = calculate_station_type(target_state, station_inventory_after_visit)
+
+                for neighbor in neighbors:
+                    roamings = 0
+                    roamings_no_visit = 0
+                    net_demand_neighbor = scenario_dict[neighbor.location_id]
+                    expected_bikes_neighbor = len(neighbor.get_available_bikes()) + net_demand_neighbor
+                    neighbor_type = calculate_station_type(neighbor.get_target_state(simul.day(),simul.hour()), expected_bikes_neighbor)
+
+                    if neighbor_type == station_type:
+                        if net_demand_neighbor < 0:
+                            time_first_violation = current_time + (len(neighbor.get_available_bikes())/ (-net_demand_neighbor)) * 60
+                        elif net_demand_neighbor > 0:
+                            time_first_violation = current_time + ((neighbor.capacity - neighbor.number_of_bikes()) / (net_demand_neighbor)) * 60
+                        else:
+                            time_first_violation = end_time
+                        
+
+                        if time_first_violation < end_time:
+                            convertable_violations = (min(end_time - time_first_violation, end_time - eta)/60) * abs(net_demand_neighbor)
+
+                            # Count the roamings done with and without visitation
+                            if neighbor_type == 'p':
+                                if convertable_violations <= excess_locks_after_visit:
+                                    roamings += convertable_violations
+                                    excess_locks_after_visit -= convertable_violations
+                                else:
+                                    roamings += excess_locks_after_visit
+                                    excess_locks_after_visit -= excess_locks_after_visit
+                                
+                                if convertable_violations <= excess_locks_no_visit:
+                                    roamings_no_visit += convertable_violations 
+                                    excess_locks_no_visit -= convertable_violations
+                                else:
+                                    roamings_no_visit += excess_locks_no_visit
+                                    excess_locks_no_visit -= excess_locks_no_visit
+
+                            if neighbor_type == 'd':
+                                if convertable_violations <= excess_bikes_after_visit:
+                                    roamings += convertable_violations
+                                    excess_bikes_after_visit -= convertable_violations
+                                else:
+                                    roamings += excess_bikes_after_visit
+                                    excess_bikes_after_visit -= excess_bikes_after_visit
+                                
+                                if convertable_violations <= excess_bikes_no_visit:
+                                    roamings_no_visit += convertable_violations
+                                    excess_bikes_no_visit -= convertable_violations
+                                else:
+                                    roamings_no_visit += excess_bikes_no_visit
+                                    excess_bikes_no_visit -= excess_bikes_no_visit
+
+                    distance_scaling = ((simul.state.get_vehicle_travel_time(location.location_id, neighbor.location_id)/60)*VEHICLE_SPEED)/MAX_ROAMING_DISTANCE_SOLUTIONS
+                    neighbor_roamings += (1 - distance_scaling) * (roamings - roamings_no_visit)
+                
+                avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
+
+                counter += 1
+            else:
+                neighbors = location.get_neighbours()
+
+                eta = visit.arrival_time
+
+                if eta > end_time:
+                    eta = end_time
+                
+                initial_inventory = len(location.get_available_bikes())
+                net_demand = scenario_dict[location.location_id]
+                target_state = location.get_target_state(simul.day(), simul.hour())
+
+                # Calculate when the first starvation or congestion will occur if not visited
+                if net_demand < 0:
+                    sorted_escooters_at_area = sorted(location.get_bikes(), key=lambda bike: bike.battery, reverse=False)
+
+                    # Calculate hours until violation because no bikes have sufficient battery
+                    battery_top3 = [Ebike.battery for Ebike in sorted_escooters_at_area[-3:]]
+                    average_battery_top3 = sum(battery_top3)/len(battery_top3) if battery_top3 != [] else 0
+                    hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
+                    hours_until_violation_battery = average_battery_top3/hourly_discharge
+
+                    # Find the earlist moment for a violation
+                    hours_until_first_violation = min(
+                                                    (len(location.get_available_bikes())/ -net_demand), # How long until the net demand results in a starvation
+                                                    hours_until_violation_battery
+                                                    )
+                    
+                    # Find the time in minutes for the violation
+                    time_of_first_violation_no_visit = current_time + (hours_until_first_violation * 60)
+                    
+                elif net_demand > 0:
+                    # How long until the net demand results in a congestion
+                    hours_until_first_violation = (location.capacity - location.number_of_bikes()) / net_demand
+                    time_of_first_violation_no_visit = current_time + (hours_until_first_violation * 60)
+                else:
+                    time_of_first_violation_no_visit = end_time
+                
+                # Calculate number of violation within the time horizon
+                if end_time > time_of_first_violation_no_visit:
+                    num_violation_no_visit = ((end_time - time_of_first_violation_no_visit)/60) * abs(net_demand)
+                else:
+                    num_violation_no_visit = 0
+                
+                # Violations that we can't avoid due to driving time
+                if eta > time_of_first_violation_no_visit:
+                    unavoidable_violations = ((eta - time_of_first_violation_no_visit)/60) * abs(net_demand)
+                else:
+                    unavoidable_violations = 0
+                
+                # Number of bikes at station after visit
+                area_inventory_after_visit = initial_inventory + ((eta - current_time)/60) * abs(net_demand) - unavoidable_violations - loading_quantity + unloading_quantity + swap_quantity
+                
+                # Time for first violation if we visit
+                if net_demand < 0:
+                    time_until_first_violation = (area_inventory_after_visit / (-net_demand)) * 60
+                    if swap_quantity > loading_quantity + 3: # Knowing top 3 bikes at station are fully charged
+                        time_first_violation_after_visit = eta + min(time_until_first_violation, 100/calculate_hourly_discharge_rate(simul, total_num_escooters_in_system) * 60)
+                    else:
+                        time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)) * 60)
+                else:
+                    time_first_violation_after_visit = end_time
+                
+                if time_first_violation_after_visit < end_time:
+                    violations_after_visit = ((end_time - time_first_violation_after_visit)/60) * net_demand
+                else:
+                    violations_after_visit = 0
+
+                # How many violations did we manage to avoid, not counting the ones we could not do anything about
+                avoided_violations = num_violation_no_visit - violations_after_visit - unavoidable_violations
+
+                ending_inventory_after_visit = max(0, area_inventory_after_visit + ((end_time - eta)/60) * net_demand)
+                deviation_visit = abs(ending_inventory_after_visit - target_state)
+    
+                ending_inventory_no_visit = max(0, initial_inventory + ((end_time - current_time)/60) * net_demand)
+                deviation_no_visit = abs(ending_inventory_no_visit - target_state)
+
+                improved_deviation = deviation_no_visit - deviation_visit
+
+                excess_escooters = ending_inventory_after_visit
+                excess_escooters_no_visit = ending_inventory_no_visit
+
+                expected_number_of_escooters = area_inventory_after_visit
+                area_type = calculate_cluster_type(target_state, expected_number_of_escooters)
+
+                for neighbor in neighbors:
+                    roamings = 0
+                    roamings_no_visit = 0
+                    net_demand_neighbor = scenario_dict[neighbor.location_id]
+                    expected_ecooters_neighbor = len(neighbor.get_available_bikes()) + net_demand_neighbor
+                    neighbor_type = calculate_cluster_type(neighbor.get_target_state(simul.day(),simul.hour()),expected_ecooters_neighbor)
+
+                    if neighbor_type == area_type:
+                        if net_demand_neighbor < 0:
+                            time_first_violation = current_time + (len(neighbor.get_available_bikes())/-net_demand_neighbor) * 60
+                        else:
+                            time_first_violation = end_time
+                        
+
+                        if time_first_violation < end_time:
+                            convertable_violations = (min(end_time - time_first_violation, end_time - eta)/60) * net_demand_neighbor
+
+                            if neighbor_type == 'd':
+                                if abs(convertable_violations) <= excess_escooters:
+                                    roamings += abs(convertable_violations)
+                                    excess_escooters -= abs(convertable_violations)
+                                else:
+                                    roamings += excess_escooters
+                                    excess_escooters -= excess_escooters
+                                
+                                if abs(convertable_violations) <= excess_escooters_no_visit:
+                                    roamings_no_visit += abs(convertable_violations)
+                                    excess_escooters_no_visit -= abs(convertable_violations)
+                                else:
+                                    roamings_no_visit += excess_escooters_no_visit
+                                    excess_escooters_no_visit -= excess_escooters_no_visit
+                            
+                
+                    distance_scaling = ((simul.state.get_vehicle_travel_time(location.location_id, neighbor.location_id)/60)* VEHICLE_SPEED)/MAX_ROAMING_DISTANCE_SOLUTIONS
+                    neighbor_roamings += (1-distance_scaling)*roamings-roamings_no_visit
+                
+                avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
+
+                counter += 1
+            
+        return avoided_disutility
+    
+    def return_best_move_average(self, vehicle, simul, plan_scores):
+        destination_id, destination = super().return_best_move_average(vehicle, simul, plan_scores)
+        if isinstance(destination, sim.Station):
+            return destination_id, None
+        return destination_id, destination
 
 def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, overflow_criteria, starvation_criteria, swap_threshold):
     """

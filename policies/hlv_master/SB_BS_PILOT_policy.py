@@ -190,8 +190,7 @@ class BS_PILOT(Policy):
                 dep_time = plan.next_visit.get_depature_time()
                 temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
 
-                if dep_time > end_time:
-                    # print(f'dep_time({dep_time}) > end_time({end_time}), when time_horizon={self.time_horizon}')
+                if dep_time > end_time and temp_plan.branch_number == None:                    # print(f'dep_time({dep_time}) > end_time({end_time}), when time_horizon={self.time_horizon}')
                     dep_time = end_time - 1
                     # TODO
 
@@ -418,7 +417,7 @@ class BS_PILOT(Policy):
             swap_quantity = visit.swap_quantity
 
             station = visit.station
-            neighbors = station.neighbours
+            neighbors = station.get_neighbours()
 
             eta = visit.arrival_time
 
@@ -602,8 +601,9 @@ class BS_PILOT(Policy):
             best_plan = list(score_board_sorted.keys())[0]
             branch = best_plan.branch_number
             # simul.metrics.add_aggregate_metric(simul, "branch"+str(branch+1), 1)
-            # if branch is None:
-            #     print(best_plan, "simul_time:", simul.time)
+            if branch is None: #TODO er dette for quick fix??
+                first_move = simul.state.get_closest_depot(vehicle)
+                return first_move
             first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
             return first_move
         
@@ -611,7 +611,7 @@ class BS_PILOT(Policy):
         else: 
             tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_sb_vehicles()]
             potential_stations2 = [station for station in simul.state.get_stations() if station.location_id not in tabu_list]    
-            rng_balanced = np.random.default_rng(None)
+            rng_balanced = simul.state.rng.default_rng(None)
             return rng_balanced.choice(potential_stations2).location_id
 
 def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, congestion_criteria, starvation_criteria):
@@ -626,7 +626,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, conge
     - congestion_criteria = percentage of station capacity for a station to be considered congested
     - starvation_critera = percentage of station capacity for a station to be considered starved
     """
-    target_state = station.get_target_state(simul.day(), simul.hour())
+    target_state = round(station.get_target_state(simul.day(), simul.hour()))
     num_max_usable_bikes_after_visit = get_max_num_usable_bikes(station, vehicle)
 
     # Count how many neighbors are starved or congested

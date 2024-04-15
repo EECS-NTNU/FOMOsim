@@ -32,17 +32,21 @@ class EScooterDeparture(Event):
             escooter = available_escooters.pop(0)
 
             if FULL_TRIP:
-
-                # get an arrival area from the leave prob distribution
-                p=departure_area.get_move_probabilities(world.state, world.day(), world.hour())
-                sum_p = sum(p.values())
-                p_normalized = []
-                for i in p.keys():
-                    if sum_p > 0:
-                        p_normalized.append(p[i] * (1.0/sum_p))
-                    else:
-                        p_normalized.append(1/len(p))
-                arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
+                if world.state.rng.random() < RANDOM_DESTINATION_PROB:
+                    # Exclude the current area from the random selection
+                    other_areas = [area for area in world.state.get_areas() if area.location_id != self.departure_area_id]
+                    arrival_area = world.state.rng.choice(other_areas)
+                else:
+                    # get an arrival area from the leave prob distribution
+                    p=departure_area.get_move_probabilities(world.state, world.day(), world.hour())
+                    sum_p = sum(p.values())
+                    p_normalized = []
+                    for i in p.keys():
+                        if sum_p > 0:
+                            p_normalized.append(p[i] * (1.0/sum_p))
+                        else:
+                            p_normalized.append(1/len(p))
+                    arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
 
                 # calculate arrival time
                 travel_time = world.state.get_travel_time(
@@ -93,11 +97,16 @@ class EScooterDeparture(Event):
                     distance = float('inf')
 
                 # Use acceptance/rejection function to decide if roaming is accepted
-                if self.acceptance_rejection(distance):
+                if self.acceptance_rejection(distance, world):
                     available_escooters = closest_neighbour_with_bikes.get_available_bikes()
                     escooter=available_escooters.pop(0)
                     
-                    arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
+                    if world.state.rng.random() < RANDOM_DESTINATION_PROB:
+                        # Exclude the current area from the random selection
+                        other_areas = [area for area in world.state.get_areas() if area.location_id != self.departure_area_id]
+                        arrival_area = world.state.rng.choice(other_areas)
+                    else:
+                        arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
 
                     # calculate arrival time 
                     #total travel time, roaming for bike from departure area to neighbour + cycling to arrival area
@@ -151,9 +160,9 @@ class EScooterDeparture(Event):
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, departing from area {self.departure_area_id}>"
     
-    def acceptance_rejection(self,distance):
+    def acceptance_rejection(self,distance, world):
         prob_acceptance = -1.6548*distance**2-0.7036*distance+1.0133
-        random_roaming_limit = random.uniform(0,1)
+        random_roaming_limit = world.state.rng.uniform(0,1)
         if random_roaming_limit <= prob_acceptance:
             return True
         else:
