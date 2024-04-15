@@ -42,7 +42,7 @@ def main(seed):
     # start_time = time.time()
 
     # the following is for reading a precalculated initial state from a json file
-    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_final_W3")
+    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_test_W3_NEW")
     print(str([station for station in state.get_stations() if station.area is None]))
     
     # state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
