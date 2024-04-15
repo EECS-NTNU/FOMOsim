@@ -87,6 +87,9 @@ class Station(Location):
     def spare_capacity(self):
         return self.capacity - len(self.bikes)
     
+    def get_neighbours(self):
+        return self.neighbours
+    
     def get_target_state(self, day, hour):
         return self.target_state[day % 7][hour % 24]
 
@@ -186,4 +189,4 @@ class Station(Location):
         )
 
     def __str__(self):
-        return f"Station {self.location_id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):3d} Bikes {len(self.bikes):3d}"
+        return f"Station {self.location_id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8)} Bikes {len(self.bikes):3d}"

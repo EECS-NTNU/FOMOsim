@@ -3,7 +3,7 @@ from settings import *
 
 def calculate_net_demand(station, time_now, day, hour, planning_horizon):
     """
-    Returns net demand for the given planning horizon. Calculated by the current demand and the demand for the next hour (if needed).
+    Returns net demand (int) for the given planning horizon. Calculated by the current demand and the demand for the next hour (if needed).
 
     Parameters:
     - station = Station-object to calculate demand for
@@ -29,7 +29,7 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
     net_demand_planning_horizon = (minutes_current_hour*net_demand_current + 
                                    minutes_next_hour*net_demand_next) / (planning_horizon if planning_horizon != 0 else 1)
     
-    return net_demand_planning_horizon
+    return round(net_demand_planning_horizon)
 
 
 def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, is_electric = True, is_station_based = False):

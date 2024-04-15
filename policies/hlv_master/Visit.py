@@ -3,7 +3,13 @@ import sim
 import time
 
 class Visit():
-    def __init__(self, station, loading_quantity, unloading_quantity, swap_quantity, arrival_time, vehicle):
+    def __init__(self, 
+                 station, 
+                 loading_quantity, 
+                 unloading_quantity, 
+                 swap_quantity, 
+                 arrival_time, 
+                 vehicle):
         self.station = station
         self.loading_quantity = loading_quantity
         self.unloading_quantity = unloading_quantity

@@ -23,7 +23,7 @@ import random
 # from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(days=2)
+DURATION = timeInMinutes(days=5)
 INSTANCE = 'TD_W34'
 WEEK = 34
 
@@ -43,6 +43,8 @@ def main(seed):
 
     # the following is for reading a precalculated initial state from a json file
     state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_final_W3")
+    print(str([station for station in state.get_stations() if station.area is None]))
+    
     # state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
 
     # duration = time.time() - start_time

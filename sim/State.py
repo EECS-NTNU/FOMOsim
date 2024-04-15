@@ -559,7 +559,8 @@ class State(LoadSave):
 
             #### TODO - legg til tid for dette
             for e_scooter in vehicle.get_bike_inventory():
-                e_scooter.swap_battery()
+                if e_scooter.hasBattery():
+                    e_scooter.swap_battery()
                 
         else:
             if vehicle.cluster is None: # TODO hvis du er i en stasjon

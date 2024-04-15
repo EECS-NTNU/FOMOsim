@@ -216,6 +216,11 @@ class Cluster(Location):
         return [
             bike for bike in self.get_bikes() if bike.usable()
         ]
+    
+    def get_unusable_bikes(self):
+        return [
+            bike for bike in self.get_bikes() if not bike.usable()
+        ]
 
     def get_swappable_bikes(self, battery_limit = BATTERY_LIMIT_TO_SWAP):
         bikes = [
