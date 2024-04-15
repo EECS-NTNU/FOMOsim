@@ -189,10 +189,11 @@ class HexagonTargetState():
                         next_demands.append(0)
                         next_depature_rates.append(0)
 
-                    if len(all_next_demands) > periods:
-                        all_next_demands = all_next_demands[:(periods)]
-                    if len(all_next_depature_rates) > periods:
-                        all_next_depature_rates = all_next_depature_rates[:(periods)]
+                    # lookahed_period = periods + 2
+                    # if len(all_next_demands) > lookahed_period:
+                    #     all_next_demands = all_next_demands[:lookahed_period]
+                    # if len(all_next_depature_rates) > periods:
+                    #     all_next_depature_rates = all_next_depature_rates[:lookahed_period]
 
                     # Scenario 2 (kun positive)
                     if all(next_demand >= 0 for next_demand in next_demands): #lik sum alle fremtidige depature rates før trend skifter
@@ -266,16 +267,12 @@ class HexagonTargetState():
                         if sum_pos_neg < 0:
                             self.target_states[day][hour] += round(abs(sum_pos_neg))
 
-                
-                        
                     # Scenario 9 (positiv -> negativ -> positiv) #usikker på denne
                     elif next_demands[0] >= 0 and next_demands[1] < 0 and next_demands[2] >= 0:
                         print("pnp", next_demands)
                         sum_neg_pos = next_demands[0] + next_demands[1]
                         if sum_neg_pos < 0:
                             self.target_states[day][hour] = round(abs(sum_neg_pos))
-
-                    
 
         return self.target_states
     
