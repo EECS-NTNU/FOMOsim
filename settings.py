@@ -58,11 +58,11 @@ FF_ROAMING_AREA_RADIUS = 3
 # ------- PILOT PARAMETERS ----------
 
 # SETTINGS_INSTANCE = 'BG_W35'
-INSTANCE_FILE = 'OS_W31'
-# SETTINGS_INSTANCE = 'TD_W34_old'
+# INSTANCE_FILE = 'OS_W31'
+INSTANCE_FILE = 'TD_W34'
 
 # settings_state = "instances/ebike/"
-STATE_FOLDER = "instances/ebike_with_depot/"
+# STATE_FOLDER = "instances/ebike_with_depot/"
 
 DURATION = 24*1
 NUM_VEHICLES = 1
@@ -109,7 +109,7 @@ DISCOUNTING_FACTOR_LIST = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 INSTANCES_LIST = ['OS_W34', 'OS_W31', "NY_W31", "BO_W31",'BG_W35', 'TD_W34_old']
 SEEDS_LIST=[10,11,12,13,14,15,16,17,18,19]
 
-RESULT_FOLDER = str(INSTANCE_FILE) + '_' + str(NUM_VEHICLES) + 'V_' + str(len(SEEDS_LIST)) +'S_' + str(DURATION//24) + 'D_PILOT_' + ('T' if SORTED_BIKES else 'F') + ('T' if ONLY_SWAP_ALLOWED else 'F') + ('T' if USE_BATTERY_CRITICALITY else 'F')
+RESULT_FOLDER = 'Collab2_FF' + str(INSTANCE_FILE) + '_' + str(NUM_VEHICLES) + 'V_' + str(len(SEEDS_LIST)) +'S_' + str(DURATION//24) + 'D_PILOT_' + ('T' if SORTED_BIKES else 'F') + ('T' if ONLY_SWAP_ALLOWED else 'F') + ('T' if USE_BATTERY_CRITICALITY else 'F')
 
 # CLUSTERING
 MAX_WALKING_AREAS = 3

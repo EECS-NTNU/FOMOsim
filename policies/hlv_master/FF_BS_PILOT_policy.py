@@ -452,11 +452,6 @@ class BS_PILOT_FF(Policy):
                 
                 # Find the time in minutes for the violation
                 time_of_first_violation_no_visit = current_time + (hours_until_first_violation * 60)
-                
-            elif net_demand > 0:
-                # How long until the net demand results in a congestion
-                hours_until_first_violation = (area.capacity - area.number_of_bikes()) / net_demand
-                time_of_first_violation_no_visit = current_time + (hours_until_first_violation * 60)
             else:
                 time_of_first_violation_no_visit = end_time
             

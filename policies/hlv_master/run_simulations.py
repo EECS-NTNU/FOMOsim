@@ -32,11 +32,13 @@ def run_simulation(seed, policy, duration= DURATION, num_vehicles= NUM_VEHICLES,
     ###############################################################
     
     # state = init_state.read_initial_state("instances/ebike/"+INSTANCE)
-    state = init_state.read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
+    state = init_state.read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_test_W3_NEW")
     state.set_seed(seed)
     vehicles = [policy for i in range(num_vehicles)]
-    state.set_sb_vehicles(vehicles)
-    tstate = target_state.USTargetState()
+    state.set_vehicles(vehicles)
+    tstate = target_state.HLVTargetState(
+            'instances/Ryde/FINAL_target_state_1066_NEW.json.gz'
+            )
     dmand = demand.Demand()
     simulator = sim.Simulator(
         initial_state = state,
@@ -44,7 +46,7 @@ def run_simulation(seed, policy, duration= DURATION, num_vehicles= NUM_VEHICLES,
         demand = dmand,
         start_time = START_TIME,
         duration = DURATION,
-        verbose = True,
+        verbose = False,
     )
     simulator.run()
     if queue != None:
@@ -130,14 +132,16 @@ def test_seeds_mp(list_of_seeds, policy, filename, num_vehicles= NUM_VEHICLES, d
     q = mp.Queue()
     processes = []
     returned_simulators = []
-
+    i = 1
     for seed in seeds:
         process = mp.Process(target=run_simulation, args = (seed, policy, duration, num_vehicles, q, instance))
         processes.append(process)
         process.start()
     for process in processes:
+        print("process", i)
         ret = q.get()   #will block
         returned_simulators.append(ret)
+        i += 1
     for process in processes:
         process.join()
     for simulator in returned_simulators:
@@ -166,12 +170,12 @@ if __name__ == "__main__":
     num_vehicles = NUM_VEHICLES
     
     policy_dict = {
-        'SB_base': policies.hlv_master.BS_PILOT(),
+        # 'SB_base': policies.hlv_master.BS_PILOT(),
         # 'FF_base': policies.hlv_master.BS_PILOT_FF(),
         # 'SB_Collab2': policies.hlv_master.SB_Collab2(),
         # 'FF_Collab2': policies.hlv_master.FF_Collab2(),
-        # 'Collab3': policies.hlv_master.Collab3(),
-        # 'Collab4': policies.hlv_master.Collab4(),
+        'Collab3': policies.hlv_master.Collab3(),
+        'Collab4': policies.hlv_master.Collab4(),
                    }
     
     # list_of_instances = ['TD_34']
