@@ -58,25 +58,25 @@ def main(seed):
     policy = policies.hlv_master.BS_PILOT()
     state.set_sb_vehicles([policy])
 
-    print("Policy: BS_PILOT_FF, Seed:", seed)
-    policy_ff = policies.hlv_master.BS_PILOT_FF()
-    state.set_ff_vehicles([policy_ff])
+    # print("Policy: BS_PILOT_FF, Seed:", seed)
+    # policy_ff = policies.hlv_master.BS_PILOT_FF()
+    # state.set_ff_vehicles([policy_ff])
 
-    print("Policy: FF_Collab2, Seed:", seed)
-    policy2_ff = policies.hlv_master.FF_Collab2()
-    state.set_ff_vehicles([policy2_ff]) 
+    # print("Policy: FF_Collab2, Seed:", seed)
+    # policy2_ff = policies.hlv_master.FF_Collab2()
+    # state.set_ff_vehicles([policy2_ff]) 
     
-    print("Policy: SB_Collab2, Seed:", seed)
-    policy2_sb = policies.hlv_master.SB_Collab2()
-    state.set_sb_vehicles([policy2_sb]) 
+    # print("Policy: SB_Collab2, Seed:", seed)
+    # policy2_sb = policies.hlv_master.SB_Collab2()
+    # state.set_sb_vehicles([policy2_sb]) 
     
-    print("Policy: Collab3, Seed:", seed)
-    policy3 = policies.hlv_master.Collab3()
-    state.set_vehicles([policy3])
+    # print("Policy: Collab3, Seed:", seed)
+    # policy3 = policies.hlv_master.Collab3()
+    # state.set_vehicles([policy3])
 
-    print("Policy: Collab4, Seed:", seed)
-    policy4 = policies.hlv_master.Collab4()
-    state.set_vehicles([policy4]) 
+    # print("Policy: Collab4, Seed:", seed)
+    # policy4 = policies.hlv_master.Collab4()
+    # state.set_vehicles([policy4]) 
 
     ###############################################################################
     # Set up target state
@@ -161,7 +161,7 @@ def main(seed):
     # output.visualize([bikes[11].metrics], metric="travel_time_congested")
 
 if __name__ == "__main__":
-    seed_list = [random.randint(1, 3000) for _ in range(10)]
-    # seed_list = [2096]
+    # seed_list = [random.randint(1, 3000) for _ in range(10)]
+    seed_list = [10]
     for seed in seed_list:
         main(seed)

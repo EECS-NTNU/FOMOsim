@@ -12,6 +12,7 @@ stateParams.txt
 # *.csv
 policies/inngjerdingen_moeller/saved_time_data/NY_W31_static_data.json
 policies/inngjerdingen_moeller/saved_time_data/BO_W31_static_data.json
+policies/hlv_master/results/
 
 # .json-files Ryde
 instances/Ryde/
