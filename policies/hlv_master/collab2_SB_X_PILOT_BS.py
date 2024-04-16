@@ -45,6 +45,8 @@ class SB_Collab2(BS_PILOT):
         - vehicle = Vehicle-object that is doing the action
         """
         action = super().get_best_action(simul, vehicle)
+
+        start_help_time = time.time()
         pickup_escooter_ids = []
        
         # Find the areas of the stations visit
@@ -77,8 +79,9 @@ class SB_Collab2(BS_PILOT):
         #     print("origianl delivery action", action.delivery_bikes)
 
 
-        simul.metrics.add_aggregate_metric(simul, "Num helping pickups", len(pickup_escooter_ids))
-        simul.metrics.add_aggregate_metric(simul, "Num helping deliveries", len(delivery_escooter_ids))
+        simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
+        simul.metrics.add_aggregate_metric(simul, "num helping escooter pickups", len(pickup_escooter_ids))
+        simul.metrics.add_aggregate_metric(simul, "num helping escooter deliveries", len(delivery_escooter_ids))
 
         action.helping_pickup = pickup_escooter_ids
         action.helping_delivery = delivery_escooter_ids

@@ -40,16 +40,17 @@ class BikeArrival(Event):
             self.bike.travel(world, self.travel_time, self.congested)
 
             if self.bike.battery < 0:
-                arrival_station.metrics.add_aggregate_metric(world, "battery violation", 1)
-                world.metrics.add_aggregate_metric(world, "battery violation", 1)
-                arrival_station.metrics.add_aggregate_metric(world, "Failed events", 1)
-                world.metrics.add_aggregate_metric(world, "Failed events", 1)
+                world.metrics.add_aggregate_metric(world, "battery violations", 1)
+                world.metrics.add_aggregate_metric(world, "failed events", 1)
                 self.bike.battery = 0
 
             # add bike to the arrived station (location is changed in add_bike method)
             if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:
                     world.state.remove_used_bike(self.bike)
+                
+                world.metrics.add_aggregate_metric(world, "bike arrival", 1)
+
             else:
                 if FULL_TRIP:
                     # go to another station
@@ -72,21 +73,20 @@ class BikeArrival(Event):
                         )
                     )
 
+                    world.metrics.add_aggregate_metric(world, "events", 1)
+
+
                 else:
                     world.state.set_bike_in_use(self.bike)
 
-                
                 distance = arrival_station.distance_to(next_station.get_lat(), next_station.get_lon())
                 if distance <= MAX_ROAMING_DISTANCE_SOLUTIONS:
-                    arrival_station.metrics.add_aggregate_metric(world, "short_congestion", 1)
-                    world.metrics.add_aggregate_metric(world, "short_congestion", 1)
+                    world.metrics.add_aggregate_metric(world, "short congestions", 1)
                 else:
-                    arrival_station.metrics.add_aggregate_metric(world, "long_congestion", 1)
-                    world.metrics.add_aggregate_metric(world, "long_congestion", 1)
-                    arrival_station.metrics.add_aggregate_metric(world, "Failed events", 1)
-                    world.metrics.add_aggregate_metric(world, "Failed events", 1)
+                    world.metrics.add_aggregate_metric(world, "long congestions", 1)
+                    world.metrics.add_aggregate_metric(world, "failed events", 1)
                 
-                arrival_station.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
+                world.metrics.add_aggregate_metric(world, "roaming for locks", 1)
                 world.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
 
     def __repr__(self):

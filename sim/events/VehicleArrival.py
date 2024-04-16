@@ -38,21 +38,26 @@ class VehicleArrival(Event):
         # perform the best action on the state and send vehicle to new location
         refill_time = world.state.do_action(action, self.vehicle, world_time)
         
+        # TODO fjernet driving time
+        driving_time = world.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
+        
         action_time = (
             action.get_action_time(
-                world.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
+                driving_time
             )
             + refill_time
         )
-
-        # TODO fjernet driving time
-        # driving_time = world.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
 
         # Compute the arrival time for the Vehicle arrival event created by the action
         arrival_time += self.time + action_time # + driving_time
 
         # Add a new Vehicle Arrival event for the next station arrival to the world event_queue
         world.add_event(VehicleArrival(arrival_time, self.vehicle))
+
+        world.metrics.add_aggregate_metric(world, "events", 1)
+        world.metrics.add_aggregate_metric(world, "vehicle arrivals", 1)
+        world.metrics.add_aggregate_metric(world, "accumulated action time", action_time - driving_time)
+        world.metrics.add_aggregate_metric(world, "accumulated driving time", driving_time)
 
         self.vehicle.eta = arrival_time
 

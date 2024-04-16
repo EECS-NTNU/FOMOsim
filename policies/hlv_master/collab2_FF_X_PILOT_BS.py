@@ -35,6 +35,8 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
     
     def get_best_action(self, simul, vehicle):
         action = super().get_best_action(simul, vehicle)
+        start_help_time = time.time()
+
         if action.cluster is None: # Ikke hjelp hvis du skal til depot
             return action
 
@@ -73,8 +75,9 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
 
         helping_cluster = Cluster(current_stations, vehicle.location, station_bikes, [])
 
-        simul.metrics.add_aggregate_metric(simul, "Num helping pickups", len(helping_pickups))
-        simul.metrics.add_aggregate_metric(simul, "Num helping deliveries", len(helping_delivery))
+        simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
+        simul.metrics.add_aggregate_metric(simul, "num helping bike pickups", len(helping_pickups))
+        simul.metrics.add_aggregate_metric(simul, "num helping bike deliveries", len(helping_delivery))
 
         action.helping_pickup = helping_pickups
         action.helping_delivery = helping_delivery

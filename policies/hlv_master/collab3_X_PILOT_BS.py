@@ -92,11 +92,23 @@ class Collab3(BS_PILOT_FF):
             num_bikes_pickup = len(bikes_to_pickup)
             num_bikes_deliver = len(bikes_to_deliver)
             num_batteries_to_swap = len(batteries_to_swap)
+
+            simul.metrics.add_aggregate_metric(simul, 'num battery swaps', num_batteries_to_swap)
+            simul.metrics.add_aggregate_metric(simul, 'num bike pickups', num_bikes_pickup)
+            simul.metrics.add_aggregate_metric(simul, 'num bike deliveries', num_bikes_deliver)
+
         else:
             bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
             num_bikes_pickup = len(bikes_to_pickup)
             num_bikes_deliver = len(bikes_to_deliver)
             num_batteries_to_swap = len(batteries_to_swap)
+
+            simul.metrics.add_aggregate_metric(simul, 'num battery swaps', num_batteries_to_swap)
+            simul.metrics.add_aggregate_metric(simul, 'num escooter pickups', num_bikes_pickup)
+            simul.metrics.add_aggregate_metric(simul, 'num escooter deliveries', num_bikes_deliver)
+
+        middle_logging_time = time.time() 
+        simul.metrics.add_aggregate_metric(simul, "accumulated find action time", middle_logging_time - start_logging_time)
 
         # Make a plan for all vehicles
         # Dictionary with key = vehicle_id, 
@@ -126,9 +138,12 @@ class Collab3(BS_PILOT_FF):
                                                      total_num_sb_bikes_in_system,
                                                      total_num_ff_bikes_in_system)
         
-        simul.metrics.add_aggregate_metric(simul, "Accumulated solution time", time.time()-start_logging_time)
-        simul.metrics.add_aggregate_metric(simul, 'Number of get_best_action', 1)
-
+        end_time = time.time()
+        
+        simul.metrics.add_aggregate_metric(simul, "accumulated find location time", end_time - middle_logging_time)
+        simul.metrics.add_aggregate_metric(simul, "accumulated sol time", end_time - start_logging_time)        
+        simul.metrics.add_aggregate_metric(simul, 'get_best_action', 1)
+        
         return sim.Action(
             batteries_to_swap,
             bikes_to_pickup,

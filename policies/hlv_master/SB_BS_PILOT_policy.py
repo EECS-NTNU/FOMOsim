@@ -84,6 +84,9 @@ class BS_PILOT(Policy):
             number_of_bikes_pickup = len(bikes_to_pickup)
             number_of_bikes_deliver = len(bikes_to_deliver)
             number_of_batteries_to_swap = len(batteries_to_swap)
+        
+        middle_logging_time = time.time() 
+        simul.metrics.add_aggregate_metric(simul, "accumulated find action time", middle_logging_time - start_logging_time)
 
         # Make a plan for all vehicles
         # Dictionary with key = vehicle_id, 
@@ -112,8 +115,14 @@ class BS_PILOT(Policy):
                                             end_time, 
                                             total_num_sb_bikes_in_system)
 
-        simul.metrics.add_aggregate_metric(simul, "Accumulated solution time", time.time()-start_logging_time)
-        simul.metrics.add_aggregate_metric(simul, 'Number of get_best_action', 1)
+        end_time = time.time()
+        
+        simul.metrics.add_aggregate_metric(simul, "accumulated find location time", end_time - middle_logging_time)
+        simul.metrics.add_aggregate_metric(simul, "accumulated sol time", end_time - start_logging_time)        
+        simul.metrics.add_aggregate_metric(simul, 'get_best_action', 1)
+        simul.metrics.add_aggregate_metric(simul, 'num battery swaps', len(batteries_to_swap))
+        simul.metrics.add_aggregate_metric(simul, 'num bike pickups', len(bikes_to_pickup))
+        simul.metrics.add_aggregate_metric(simul, 'num bike deliveries', len(bikes_to_deliver))
 
         return sim.Action(
             batteries_to_swap,

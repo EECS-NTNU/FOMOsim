@@ -75,7 +75,8 @@ class BikeDeparture(Event):
 
             world.state.set_bike_in_use(bike)
 
-            world.metrics.add_aggregate_metric(world, "events", 2) #successfull pickup and an arrival
+            world.metrics.add_aggregate_metric(world, "bike departure", 1)
+            world.metrics.add_aggregate_metric(world, "events", 2)
 
         else:
             if FULL_TRIP:
@@ -129,28 +130,22 @@ class BikeDeparture(Event):
 
                     world.state.set_bike_in_use(bike)
 
-                    world.metrics.add_aggregate_metric(world, "events", 2) #one roaming and an arrival
+                    world.metrics.add_aggregate_metric(world, "bikes departure", 1)
+                    world.metrics.add_aggregate_metric(world, "events", 2)
 
-                    departure_station.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
                     world.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
-                    departure_station.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
                     world.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
 
                 else:
                     if departure_station.number_of_bikes() <= 0:
-                        departure_station.metrics.add_aggregate_metric(world, "starvations, no bikes", 1) 
-                        world.metrics.add_aggregate_metric(world, "starvations, no bikes", 1)
+                        world.metrics.add_aggregate_metric(world, "bike starvations", 1)
                     else:
-                        departure_station.metrics.add_aggregate_metric(world, "starvations, no battery", 1) 
-                        world.metrics.add_aggregate_metric(world, "starvations, no battery", 1)
+                        world.metrics.add_aggregate_metric(world, "battery starvations", 1)
 
-                    world.metrics.add_aggregate_metric(world, "events", 1) #only one starvation --> lost demand and no arrival
-                    departure_station.metrics.add_aggregate_metric(world, "starvation", 1) 
-                    world.metrics.add_aggregate_metric(world, "starvation", 1)
-                    departure_station.metrics.add_aggregate_metric(world, "Failed events", 1) 
-                    world.metrics.add_aggregate_metric(world, "Failed events", 1)
+                    world.metrics.add_aggregate_metric(world, "events", 1)
+                    world.metrics.add_aggregate_metric(world, "starvations", 1)
+                    world.metrics.add_aggregate_metric(world, "failed events", 1)
                     
-        departure_station.metrics.add_aggregate_metric(world, "trips", 1)
         world.metrics.add_aggregate_metric(world, "trips", 1)
 
     def __repr__(self):

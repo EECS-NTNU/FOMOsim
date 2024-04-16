@@ -54,8 +54,6 @@ class EScooterDeparture(Event):
                     arrival_area.location_id,
                 )
 
-                travel_time = travel_time if travel_time < 30 else 30
-
                 # create an arrival event for the departed bike
                 world.add_event(
                     sim.EScooterArrival(
@@ -72,7 +70,8 @@ class EScooterDeparture(Event):
 
             world.state.set_bike_in_use(escooter)
 
-            world.metrics.add_aggregate_metric(world, "events", 2) #successfull pickup and an arrival
+            world.metrics.add_aggregate_metric(world, "escooter departure", 1)
+            world.metrics.add_aggregate_metric(world, "events", 2)
 
         else:
             if FULL_TRIP:
@@ -114,8 +113,6 @@ class EScooterDeparture(Event):
                         closest_neighbour_with_bikes.location_id,
                         arrival_area.location_id,) + world.state.get_travel_time(departure_area.location_id,
                         closest_neighbour_with_bikes.location_id)*(BIKE_SPEED/WALKING_SPEED)
-                    
-                    travel_time = travel_time if travel_time < 45 else 45
 
                     # remove bike from the new departure area
                     closest_neighbour_with_bikes.remove_bike(escooter)
@@ -133,28 +130,22 @@ class EScooterDeparture(Event):
                         )
                     )
 
-                    world.metrics.add_aggregate_metric(world, "events", 2) #one roaming and an arrival
+                    world.metrics.add_aggregate_metric(world, "escooter departure", 1)
+                    world.metrics.add_aggregate_metric(world, "events", 2)
 
-                    departure_area.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
-                    world.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
-                    departure_area.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
-                    world.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
+                    world.metrics.add_aggregate_metric(world, "roaming for escooters", 1)
+                    world.metrics.add_aggregate_metric(world, "roaming distance for escooters", distance)
 
                 else:
                     if departure_area.number_of_bikes() <= 0:
-                        departure_area.metrics.add_aggregate_metric(world, "starvations, no bikes", 1) 
-                        world.metrics.add_aggregate_metric(world, "starvations, no bikes", 1)
+                        world.metrics.add_aggregate_metric(world, "escooter starvations", 1)
                     else:
-                        departure_area.metrics.add_aggregate_metric(world, "starvations, no battery", 1) 
-                        world.metrics.add_aggregate_metric(world, "starvations, no battery", 1)
+                        world.metrics.add_aggregate_metric(world, "battery starvations", 1)
 
-                    world.metrics.add_aggregate_metric(world, "events", 1) #only one starvation --> lost demand and no arrival
-                    departure_area.metrics.add_aggregate_metric(world, "starvation", 1) 
-                    world.metrics.add_aggregate_metric(world, "starvation", 1)
-                    departure_area.metrics.add_aggregate_metric(world, "Failed events", 1) 
-                    world.metrics.add_aggregate_metric(world, "Failed events", 1)
+                    world.metrics.add_aggregate_metric(world, "events", 1)
+                    world.metrics.add_aggregate_metric(world, "starvations", 1)
+                    world.metrics.add_aggregate_metric(world, "failed events", 1)
 
-        departure_area.metrics.add_aggregate_metric(world, "trips", 1)
         world.metrics.add_aggregate_metric(world, "trips", 1)
 
     def __repr__(self):

@@ -50,6 +50,7 @@ class Collab4(Collab3):
 
         # Station -> Station
         if isinstance(current_location, sim.Station) and isinstance(next_location, sim.Station):
+            start_help_time = time.time()
             helping_pickups = []
 
             # Find the areas of the stations visit
@@ -73,9 +74,14 @@ class Collab4(Collab3):
                 
             helping_delivery = [bike.bike_id for bike in vehicle.get_ff_bike_inventory()]
             helping_cluster = current_cluster
+
+            simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
+            simul.metrics.add_aggregate_metric(simul, "num helping escooter pickups", len(helping_pickups))
+            simul.metrics.add_aggregate_metric(simul, "num helping escooter deliveries", len(helping_delivery))
         
         # Station -> Area/Cluster
         elif isinstance(current_location, sim.Station) and not isinstance(next_location, sim.Station):
+            start_help_time = time.time()
             current_area = simul.state.get_location_by_id(current_location.area)
             current_cluster = Cluster([current_area], current_area, current_area.get_bikes(), current_area.get_neighbours())
             current_cluster, _  = build_cluster_d([], current_cluster, MAX_WALKING_AREAS, len(vehicle.get_ff_bike_inventory()), simul)
@@ -97,9 +103,13 @@ class Collab4(Collab3):
 
             helping_pickups = []
             helping_cluster = current_cluster
+            
+            simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
+            simul.metrics.add_aggregate_metric(simul, "num helping escooter deliveries", len(helping_delivery))
         
         # Area/Cluster -> Station
         elif not isinstance(current_location, sim.Station) and isinstance(next_location, sim.Station):
+            start_help_time = time.time()
             current_stations = [simul.state.get_location_by_id(area.station) for area in vehicle.cluster.areas if area.station is not None] if vehicle.cluster is not None else []
             if current_stations != []:
                 next_deviation = len(next_location.get_available_bikes()) - next_location.get_target_state(simul.day(), simul.hour())
@@ -107,16 +117,17 @@ class Collab4(Collab3):
 
                 helping_delivery = []
                 delivery_count = 0
-                for i in range(len(current_deviations)):
-
-                    if current_deviations[i] < 0:
-
+                for deviation in current_deviations:
+                    if deviation < 0:
                         if next_deviation > 0:
-                            delivery_count += len(vehicle.get_sb_bike_inventory) 
-                        else:
-                            excess_bikes = len(vehicle.get_sb_bike_inventory()) - next_deviation - delivery_count
+                            excess_bikes = len(vehicle.get_sb_bike_inventory()) - delivery_count
                             if excess_bikes > 0:
-                                delivery_count += min(excess_bikes, current_deviations[i])
+                                delivery_count += min(excess_bikes, - deviation) 
+                        else:
+                            excess_bikes = len(vehicle.get_sb_bike_inventory()) + next_deviation - delivery_count
+                            if excess_bikes > 0:
+                                delivery_count += min(excess_bikes, - deviation)
+                helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()[:delivery_count]]
                 
                 station_bikes = {}
                 for station in current_stations:
@@ -129,10 +140,14 @@ class Collab4(Collab3):
                 helping_pickups = []
                 helping_delivery = []
                 helping_cluster = None
+            
+            simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
+            simul.metrics.add_aggregate_metric(simul, "num helping bike deliveries", len(helping_delivery))
 
         # Area/Cluster -> Area/Cluster
         else:
             # Helping policy added on 
+            start_help_time = time.time()
             current_stations = [simul.state.get_location_by_id(area.station) for area in vehicle.cluster.areas if area.station is not None] if vehicle.cluster is not None else []
             if current_stations != []:
                 next_stations = [simul.state.get_location_by_id(area.station) for area in action.cluster.areas if area.station is not None]
@@ -172,6 +187,10 @@ class Collab4(Collab3):
                 helping_pickups = []
                 helping_delivery = []
                 helping_cluster = None
+            
+            simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
+            simul.metrics.add_aggregate_metric(simul, "num helping bike pickups", len(helping_pickups))
+            simul.metrics.add_aggregate_metric(simul, "num helping bike deliveries", len(helping_delivery))
 
         action.helping_pickup =  helping_pickups
         action.helping_delivery = helping_delivery
