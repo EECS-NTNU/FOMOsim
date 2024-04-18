@@ -42,29 +42,21 @@ def main(seed):
     # start_time = time.time()
 
     # the following is for reading a precalculated initial state from a json file
-    state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TD_W19_test_W3_NEW")
-    print(str([station for station in state.get_stations() if station.area is None]))
-    
-    # state = read_initial_state(sb_jsonFilename = "instances/"+INSTANCE, ff_jsonFilename="instances/Ryde/TR_random_100_matrixes")
-
-    # duration = time.time() - start_time
-    # print("Init time: ", str(duration))
-    # print("Areas: ", str(len(state.get_areas())))
-
+    state = read_initial_state(sb_jsonFilename = SB_INSTANCE_FILE, ff_jsonFilename = FF_INSTANCE_FILE)
     state.set_seed(seed)
-
+    
     ###############################################################################
-    print("Policy: BS_PILOT, Seed:", seed)
-    policy = policies.hlv_master.BS_PILOT()
-    state.set_sb_vehicles([policy])
+    # print("Policy: BS_PILOT, Seed:", seed)
+    # policy = policies.hlv_master.BS_PILOT()
+    # state.set_sb_vehicles([policy])
 
     # print("Policy: BS_PILOT_FF, Seed:", seed)
     # policy_ff = policies.hlv_master.BS_PILOT_FF()
     # state.set_ff_vehicles([policy_ff])
 
-    # print("Policy: FF_Collab2, Seed:", seed)
-    # policy2_ff = policies.hlv_master.FF_Collab2()
-    # state.set_ff_vehicles([policy2_ff]) 
+    print("Policy: FF_Collab2, Seed:", seed)
+    policy2_ff = policies.hlv_master.FF_Collab2()
+    state.set_ff_vehicles([policy2_ff]) 
     
     # print("Policy: SB_Collab2, Seed:", seed)
     # policy2_sb = policies.hlv_master.SB_Collab2()
@@ -80,12 +72,7 @@ def main(seed):
 
     ###############################################################################
     # Set up target state
-    print("areas:", len(state.get_areas()))
-
-    # tstate = target_state.USTargetState()
-    tstate = target_state.HLVTargetState(
-        'instances/Ryde/FINAL_target_state_1066_NEW.json.gz'
-        )
+    tstate = target_state.HLVTargetState(FF_TARGET_STATE_FILE)
 
     ###############################################################################
     # Set up demand
@@ -108,15 +95,17 @@ def main(seed):
     # Output to console
     print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
-    print(f"Starvations = {simulator.metrics.get_aggregate_value('starvation')}")
+    print(f"Bike departures = {simulator.metrics.get_aggregate_value('bike departure')}")
+    print(f"Escooter departures = {simulator.metrics.get_aggregate_value('escooter departure')}")
+    print(f"Bike arrival = {simulator.metrics.get_aggregate_value('bike arrival')}")
+    print(f"Escooter arrival = {simulator.metrics.get_aggregate_value('escooter arrival')}")
+    print(f"Starvations = {simulator.metrics.get_aggregate_value('starvations')}")
     print(f"Roaming for bikes = {simulator.metrics.get_aggregate_value('roaming for bikes')}")
     print(f"Roaming distance for bikes = {round(simulator.metrics.get_aggregate_value('roaming distance for bikes'), 2)} km")
-    print(f"Congestions = {simulator.metrics.get_aggregate_value('long_congestion')}")
+    print(f"Congestions = {simulator.metrics.get_aggregate_value('long congestions')}")
     print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
-    print(f"Total escooter trips = {simulator.count_escooter_trips}")
-    print(f"Total bike trips = {simulator.count_bike_trips}")
-    print(f"help pickup = {round(simulator.metrics.get_aggregate_value('Num helping pickups'), 2)}")
-    print(f"help delivery = {round(simulator.metrics.get_aggregate_value('Num helping deliveries'), 2)}")
+    print(f"help pickup = {round(simulator.metrics.get_aggregate_value('num helping bike pickups'), 2)}")
+    print(f"help delivery = {round(simulator.metrics.get_aggregate_value('num helping bike deliveries'), 2)}")
     # results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
     # results_visualizer.visualize_violations_and_roaming()
     # results_visualizer.visualize_total_roaming_distances()

@@ -61,33 +61,35 @@ def test_seeds_mp(list_of_seeds, policy, is_SB, filename, policy_name): #change 
     append = False
     for simulator_metrics, seed in results:
         write_sim_results_to_file(filename, simulator_metrics, seed, DURATION, policy_name, append=append)
-        append = True
 
         filename_time = "sol_time_"+filename
-        write_sol_time_to_file(filename_time, simulator_metrics, policy_name)
+        write_sol_time_to_file(filename_time, simulator_metrics, policy_name, append)
+        append = True
 
         # TODO alle som skrives i write_sim_results_to_file
-        visualize(filename, policy_name, simulator_metrics, 'Failed events')
-        visualize(filename, policy_name, simulator_metrics, 'battery violation')
+        visualize(filename, policy_name, simulator_metrics, 'failed events')
         visualize(filename, policy_name, simulator_metrics, 'trips')
-        visualize(filename, policy_name, simulator_metrics, 'starvations, no bikes')
-        visualize(filename, policy_name, simulator_metrics, 'starvations, no battery')
-        visualize(filename, policy_name, simulator_metrics, 'starvation')
+        visualize(filename, policy_name, simulator_metrics, 'bike starvations')
+        visualize(filename, policy_name, simulator_metrics, 'escooter starvations')
+        visualize(filename, policy_name, simulator_metrics, 'battery starvations')
+        visualize(filename, policy_name, simulator_metrics, 'battery violations')
+        visualize(filename, policy_name, simulator_metrics, 'starvations')
+        visualize(filename, policy_name, simulator_metrics, 'long congestions')
 
         # TODO fix
         write_parameters_to_file('parameters_' + filename, policy, policy_name, NUM_VEHICLES, DURATION)
     
-    visualize_aggregated_results(filename, policy_name)
+    # visualize_aggregated_results(filename, policy_name)
 
 if __name__ == "__main__":
     
     policy_dict = {
         'SB_base': (policies.hlv_master.BS_PILOT(), True),
-        'FF_base': (policies.hlv_master.BS_PILOT_FF(), False),
-        'SB_Collab2': (policies.hlv_master.SB_Collab2(), True),
-        'FF_Collab2': (policies.hlv_master.FF_Collab2(), False),
-        'Collab3': (policies.hlv_master.Collab3(), None),
-        'Collab4': (policies.hlv_master.Collab4(), None)
+        # 'FF_base': (policies.hlv_master.BS_PILOT_FF(), False),
+        # 'SB_Collab2': (policies.hlv_master.SB_Collab2(), True),
+        # 'FF_Collab2': (policies.hlv_master.FF_Collab2(), False),
+        # 'Collab3': (policies.hlv_master.Collab3(), None),
+        # 'Collab4': (policies.hlv_master.Collab4(), None)
         }
   
     start_time = time.time()

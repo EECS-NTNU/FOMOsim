@@ -11,15 +11,74 @@ import matplotlib.dates as mdates
 from matplotlib import gridspec
 
 def write_sim_results_to_file(filename, simulator_metrics, seed, duration, policy_name, append=False):
-    header = ['Duration','Events','Starvations','No scooters',  'No battery', 'Battery Violation', 'Roaming for bikes', 'Roaming distance for bikes', 'Seed']
+    header = ['Duration',
+              'Events',
+              'Trips',
+              'Bike Departures',
+              'Escooter Departures',
+              'Bike Arrivals',
+              'Escooter Arrivals',
+              'Vehicle Arrivals',
+              'Failed Events',
+              'Starvations',
+              'Escooter Starvations',
+              'Bike Starvations',
+              'Battery Starvations',
+              'Battery Violations',
+              'Long Congestions',
+              'Short Congestions',
+              'Roaming for bikes',
+              'Roaming distance for bikes',
+              'Roaming for escooters',
+              'Roaming distance for escooters',
+              'Roaming for locks',
+              'Roaming distance for locks',
+              'Number of bikes delivered',
+              'Number of bikes picked up',
+              'Number of battery swaps',
+              'Number of esooters delivered',
+              'Number of escooters picked up',
+              'Number of helping bikes delivered',
+              'Number of helping bikes picked up',
+              'Number of helping esooters delivered',
+              'Number of helping escooters picked up',
+              'Seed']
+    
     data=[duration, 
           simulator_metrics.get_aggregate_value('events'), 
-          simulator_metrics.get_aggregate_value('starvation'), # TODO bike starvation vs. escooter starvation, congestions
-          simulator_metrics.get_aggregate_value('starvations, no bikes'), 
-          simulator_metrics.get_aggregate_value('starvations, no battery'), 
-          simulator_metrics.get_aggregate_value('battery violation'), 
-          simulator_metrics.get_aggregate_value('roaming for bikes'),
-          round(simulator_metrics.get_aggregate_value('roaming distance for bikes'),2), 
+          simulator_metrics.get_aggregate_value('trips'), 
+          simulator_metrics.get_aggregate_value('bike departure'), 
+          simulator_metrics.get_aggregate_value('escooter departure'),
+          simulator_metrics.get_aggregate_value('bike arrival'),
+          simulator_metrics.get_aggregate_value('escooter arrival'),
+          simulator_metrics.get_aggregate_value('vehicle arrivals'),
+
+          simulator_metrics.get_aggregate_value('failed events'), 
+          simulator_metrics.get_aggregate_value('starvations'),
+          simulator_metrics.get_aggregate_value('escooter starvations'),
+          simulator_metrics.get_aggregate_value('bike starvations'),
+          simulator_metrics.get_aggregate_value('battery starvations'), 
+          simulator_metrics.get_aggregate_value('battery violations'), 
+          simulator_metrics.get_aggregate_value('long congestions'),
+          simulator_metrics.get_aggregate_value('short congestions'), 
+
+          simulator_metrics.get_aggregate_value('roaming for bikes'), 
+          round(simulator_metrics.get_aggregate_value('roaming distance for bikes'), 2),
+          simulator_metrics.get_aggregate_value('roaming for escooters'), 
+          round(simulator_metrics.get_aggregate_value('roaming distance for escooters'), 2),
+          simulator_metrics.get_aggregate_value('roaming for locks'), 
+          round(simulator_metrics.get_aggregate_value('roaming distance for locks'), 2),
+
+          simulator_metrics.get_aggregate_value('num bike deliveries'),
+          simulator_metrics.get_aggregate_value('num bike pickups'),
+          simulator_metrics.get_aggregate_value('num battery swaps'),
+          simulator_metrics.get_aggregate_value('num escooter deliveries'),
+          simulator_metrics.get_aggregate_value('num escooter pickups'),
+          simulator_metrics.get_aggregate_value('num helping bike deliveries'),
+          simulator_metrics.get_aggregate_value('num helping bike pickups'),
+          simulator_metrics.get_aggregate_value('num helping escooter deliveries'),
+          simulator_metrics.get_aggregate_value('num helping escooter pickups'),
+
           seed]
     
     try:
@@ -43,7 +102,6 @@ def write_sim_results_to_file(filename, simulator_metrics, seed, duration, polic
     except: 
         print("Error writing to CSV, write_sim_results_to_file")
         return None
-    
 
 def write_parameters_to_file(filename, policy, policy_name, num_vehicles, duration):
     data = {
@@ -66,30 +124,46 @@ def write_parameters_to_file(filename, policy, policy_name, num_vehicles, durati
         print("Error writing to CSV, write_parameters_to_file")
         return None
 
-def write_sol_time_to_file(filename, simulator_metrics, policy_name):
-    data=[simulator_metrics.get_aggregate_value('accumulated solution time'), simulator_metrics.get_aggregate_value('number of problems solved')] #TODO find_action_time, find_next_location_time, num_probs, num_action_time_larger_find_next_loc
+def write_sol_time_to_file(filename, simulator_metrics, policy_name, append = False):
+    header = ['Accumulated time to find action',
+              'Accumulated time to find location',
+              'Accumulated action time',
+              'Accumulated driving time',
+              'Accumulated solution time',
+              'Accumulated time to find helping actions',
+              'Number of get_best_action']
+    data=[simulator_metrics.get_aggregate_value('accumulated find action time'),
+          simulator_metrics.get_aggregate_value('accumulated find location time'),
+          simulator_metrics.get_aggregate_value('accumulated action time'),
+          simulator_metrics.get_aggregate_value('accumulated driving time'),
+          simulator_metrics.get_aggregate_value('accumulated sol time'),
+          simulator_metrics.get_aggregate_value('accumulated find helping action time'),
+          simulator_metrics.get_aggregate_value('get_best_action')]
     try:
         path= f'./policies/hlv_master/results/{policy_name}/' + filename
-        with open(path,'a',newline='') as f:
-            writer=csv.writer(f)
-            writer.writerow(data)
+
+        # If file does not exist, add header
+        if append==False:
+            with open(path,'w', newline='') as f:
+                writer=csv.writer(f)
+                writer.writerow(header)
+                writer.writerow(data)
+        
+        # If file exists, do not add header
+        else: 
+            with open(path,'a',newline='') as f:
+                writer=csv.writer(f)
+                writer.writerow(data)
     except: 
         print("Error writing to CSV, write_sol_time_to_file")
         return None
 
-def write_sim_results_to_list(simulator, duration):
-    data=[duration, simulator.metrics.get_aggregate_value('events'), simulator.metrics.get_aggregate_value('starvation'), 
-          simulator.metrics.get_aggregate_value('starvations, no bikes'), simulator.metrics.get_aggregate_value('starvations, no battery'),
-          simulator.metrics.get_aggregate_value('battery violation'), simulator.metrics.get_aggregate_value('roaming for bikes'),
-          round(simulator.metrics.get_aggregate_value('roaming distance for bikes'),2), simulator.state.seed]
-    return data
-
 def visualize_aggregated_violations_and_roaming(aggregated_data, filename):
-    data = {'Starvations':aggregated_data['starvation'],
-            'No scooters':aggregated_data['starvations, no bikes'],
-            'No battery':aggregated_data['starvations, no battery'],
-            'Battery Violation':aggregated_data['battery violation'],
-            'Roaming':aggregated_data['roaming for bikes']}
+    data = {'Starvations': aggregated_data['starvation'],
+            'No scooters': aggregated_data['starvations, no bikes'],
+            'No battery': aggregated_data['starvations, no battery'],
+            'Battery Violation': aggregated_data['battery violation'],
+            'Roaming': aggregated_data['roaming for bikes']}
     type_of_event = list(data.keys())
     values = list(data.values())
     colors = ['salmon', 'mediumpurple', 'cornflowerblue', 'red', 'green']
@@ -178,7 +252,15 @@ def visualize_aggregated_results(filename, policy_name):
             path = f'./policies/hlv_master/results/{policy_name}/' + filename
             with open(path, 'r', newline='') as f:
                 reader = csv.reader(f, delimiter=',')
-                aggregated_data = {'events':0, 'starvation':0, 'starvations, no bikes':0,'starvations, no battery':0, 'battery violation': 0, 'roaming for bikes':0, 'roaming distance for bikes':0} 
+                aggregated_data = {'events':0, 
+                                   'starvations':0, 
+                                   'bike starvations':0,
+                                   'escooter starvations':0,
+                                   'battery starvations':0,
+                                   'battery violations': 0, 
+                                   'long congestions':0,
+                                   'short congestions': 0,
+                                   'roaming distance for bikes':0} 
                 for col in reader:
                     aggregated_data['events'] += int(col[1])
                     aggregated_data['starvation'] += int(col[2])
@@ -187,9 +269,10 @@ def visualize_aggregated_results(filename, policy_name):
                     aggregated_data['battery violation'] += int(col[5])
                     aggregated_data['roaming for bikes'] += float(col[6])
                     aggregated_data['roaming distance for bikes'] += float(col[7])
-            visualize_aggregated_violations_and_roaming(aggregated_data, filename)
+
+            visualize_aggregated_violations_and_roaming(aggregated_data, filename) # 
             visualize_aggregated_total_roaming_distances(aggregated_data, filename)
-            # visualize_aggregated_average_roaming_distances(aggregated_data, filename)
+            visualize_aggregated_average_roaming_distances(aggregated_data, filename)
             visualize_aggregated_share_of_events(aggregated_data, filename)
         
         except:
@@ -202,7 +285,7 @@ def totime(ts):
     startdate=datetime.datetime.strptime(weektext, "%Y %W %w %H:%M")
     return datetime.datetime.fromtimestamp(startdate.timestamp() + ts * 60)
 
-def visualize(filename, policy_name, metrics, metric_name="starvation"):
+def visualize(filename, policy_name, metrics, metric_name="starvations"):
     fig, ax = plt.subplots()
     ax.set_xlabel("Time", labelpad=10, fontsize=12)
     ax.set_ylabel("Number", labelpad=10, fontsize=12)

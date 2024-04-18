@@ -38,9 +38,8 @@ MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
 
 # HLV
 BATTERY_LEVEL_LOWER_BOUND = 20 #% not functionality if under
-
-AVERAGE_LENGHT_OF_TRIP = 10 #minutes -> to calculate average_discount
-
+AVERAGE_LENGHT_OF_TRIP = 15 #minutes -> to calculate average_discount
+CONGESTION_CRITERIA = 0.9
 OVERFLOW_CRITERIA = 2.1 # of target state
 STARVATION_CRITERIA = 0.35 # of target state
 
@@ -61,16 +60,16 @@ SB_INSTANCE_FILE = 'instances/TD_W34'
 FF_INSTANCE_FILE = 'instances/Ryde/TD_W19_test_W3_NEW'
 FF_TARGET_STATE_FILE = 'instances/Ryde/FINAL_target_state_1066_NEW.json.gz'
 START_TIME = 7 # hour of day the simulation starts at
-DURATION = 24*1
+DURATION = 24*60*7
 NUM_VEHICLES = 1
 
-MAX_DEPTH = 1 # alpha, best = 6
-NUM_SUCCESSORS = 1 # beta, best = 3
-TIME_HORIZON = 30 # best = 40
+MAX_DEPTH = 6 # alpha, best = 6
+NUM_SUCCESSORS = 3 # beta, best = 3
+TIME_HORIZON = 60 # best = 40
 
 CRITICAILITY_WEIGHTS_SET = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
 EVALUATION_WEIGHTS = [0.45, 0.1, 0.45]
-NUM_SCENARIOS = 10
+NUM_SCENARIOS = 50
 DISCOUNTING_FACTOR = 0.6
 
 # CLUSTERING
@@ -83,7 +82,7 @@ ADJUSTING_CRITICALITY = 0.5
 RANDOM_DESTINATION_PROB = 0.02
 
 # run_simulations.py
-SEEDS_LIST=[10,11,12,13,14]
+SEEDS_LIST=[10,11,12,13,14,15,16,17,18,19]
 
 # RESULT_FOLDER = f'SEEDS{len(SEEDS_LIST)}_V{NUM_VEHICLES}_OR{MAX_WALKING_AREAS}_C{MAX_NUMBER_OF_CLUSTERS}_SCENARIOS{NUM_SCENARIOS}'
 RESULT_FOLDER = ''

@@ -130,7 +130,7 @@ class BikeDeparture(Event):
 
                     world.state.set_bike_in_use(bike)
 
-                    world.metrics.add_aggregate_metric(world, "bikes departure", 1)
+                    world.metrics.add_aggregate_metric(world, "bike departure", 1)
                     world.metrics.add_aggregate_metric(world, "events", 2)
 
                     world.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
