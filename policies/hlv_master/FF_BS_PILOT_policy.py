@@ -81,7 +81,14 @@ class BS_PILOT_FF(Policy):
             escooters_to_pickup = []
             escooters_to_deliver = []
             batteries_to_swap = []
+            number_of_escooters_pickup = len(escooters_to_pickup)
+            number_of_escooters_deliver = len(escooters_to_deliver)
+            number_of_batteries_to_swap = len(batteries_to_swap)
         elif vehicle.cluster is None:
+            if len(vehicle.bike_inventory()) == vehicle.bike_inventory_capacity:
+                print("burde være hos delivery nå")
+                print(vehicle.cluster, vehicle.cluster.get_target_state(simul.day, simul.hour))
+
             escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
             number_of_escooters_pickup = len(escooters_to_pickup)
             number_of_escooters_deliver = len(escooters_to_deliver)

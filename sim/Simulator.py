@@ -90,9 +90,6 @@ class Simulator(LoadSave):
     def single_step(self):
         event = self.event_queue.pop(0)
 
-        if isinstance(event, sim.VehicleArrival):
-            print('Vehicle arrived')
-
         if settings.TRAFFIC_LOGGING:
             loggTime(event.time)
             loggLocations(self.state)

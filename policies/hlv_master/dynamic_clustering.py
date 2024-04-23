@@ -94,7 +94,7 @@ def clusterDelivery(areas, n, max_lenght, veichle, simul):
     for area in largest_shortfall_areas:
         if area not in tabu_list:
             c = Cluster([area], area, area.get_bikes(), area.get_neighbours())
-            build_cluster_d(tabu_list, c, max_lenght, cut_off, simul)
+            c, tabu_list = build_cluster_d(tabu_list, c, max_lenght, cut_off, simul)
             
             difference = c.get_difference_from_target(simul.day(), simul.hour())
             if difference < 0:
@@ -226,5 +226,5 @@ class Cluster(Location):
     
     def __repr__(self):
         return (
-            f'Cluster: (Center = {self.center_area.location_id}, Areas = {len(self.areas)}, Bikes = {len(self.get_bikes())} (avail = {len(self.get_available_bikes())})'
+            f'Cluster: (Center = {self.center_area.location_id}, Areas = {len(self.areas)} (not_included = {len(self.not_included)}), Bikes = {len(self.get_bikes())} (avail = {len(self.get_available_bikes())})'
         )

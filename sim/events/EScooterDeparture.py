@@ -32,10 +32,11 @@ class EScooterDeparture(Event):
             escooter = available_escooters.pop(0)
 
             if FULL_TRIP:
-                if world.state.rng.random() < RANDOM_DESTINATION_PROB:
+                if world.state.rng.uniform(0, 1) < RANDOM_DESTINATION_PROB:
                     # Exclude the current area from the random selection
                     other_areas = [area for area in world.state.get_areas() if area.location_id != self.departure_area_id]
                     arrival_area = world.state.rng.choice(other_areas)
+                    world.metrics.add_aggregate_metric(world, "random trips", 1)
                 else:
                     # get an arrival area from the leave prob distribution
                     p=departure_area.get_move_probabilities(world.state, world.day(), world.hour())
@@ -100,10 +101,11 @@ class EScooterDeparture(Event):
                     available_escooters = closest_neighbour_with_bikes.get_available_bikes()
                     escooter=available_escooters.pop(0)
                     
-                    if world.state.rng.random() < RANDOM_DESTINATION_PROB:
+                    if world.state.rng.uniform(0, 1) < RANDOM_DESTINATION_PROB:
                         # Exclude the current area from the random selection
                         other_areas = [area for area in world.state.get_areas() if area.location_id != self.departure_area_id]
                         arrival_area = world.state.rng.choice(other_areas)
+                        world.metrics.add_aggregate_metric(world, "random trips", 1)
                     else:
                         arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
 
@@ -139,11 +141,14 @@ class EScooterDeparture(Event):
                 else:
                     if departure_area.number_of_bikes() <= 0:
                         world.metrics.add_aggregate_metric(world, "escooter starvations", 1)
+                        departure_area.metrics.add_aggregate_metric(world, "escooter starvations", 1)
                     else:
                         world.metrics.add_aggregate_metric(world, "battery starvations", 1)
+                        departure_area.metrics.add_aggregate_metric(world, "battery starvations", 1)
 
                     world.metrics.add_aggregate_metric(world, "events", 1)
                     world.metrics.add_aggregate_metric(world, "starvations", 1)
+                    departure_area.metrics.add_aggregate_metric(world, "starvations", 1)
                     world.metrics.add_aggregate_metric(world, "failed events", 1)
 
         world.metrics.add_aggregate_metric(world, "trips", 1)

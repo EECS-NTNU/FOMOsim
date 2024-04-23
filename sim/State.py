@@ -150,10 +150,10 @@ class State(LoadSave):
             if "location" in area:
                 center_position = area["location"]
                 
-                lat, lon = center_position[0], center_position[1]
-                min_lat, max_lat, min_lon, max_lon = 63.415774, 63.440144, 10.370453, 10.431571
-                if not (min_lon <= lon <= max_lon and min_lat <= lat <= max_lat):
-                    continue
+                # lat, lon = center_position[0], center_position[1]
+                # min_lat, max_lat, min_lon, max_lon = 63.415774, 63.440144, 10.370453, 10.431571
+                # if not (min_lon <= lon <= max_lon and min_lat <= lat <= max_lat):
+                #     continue
             
             border_vertices = None
             if "edges" in area:
@@ -414,7 +414,7 @@ class State(LoadSave):
         for policy in policies:
             num_vehicles = len(self.vehicles)
             self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
-                                             start_location = self.locations["A0"], 
+                                             start_location = self.locations["D0"], 
                                              policy = policy, 
                                              battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
                                              bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 

@@ -82,11 +82,10 @@ class Area(Location):
             mp = {area.location_id: 1/num_areas for area in state.get_areas()}
             return mp
         mp = self.move_probabilities[day % 7][hour % 24]
-        for area in state.get_areas():
-            mp.setdefault(area.location_id, 0.0)
-        # TODO fjern når du ikke tester
-        mp2 = {area_id: value for area_id, value in mp.items() if area_id in state.areas.keys()}
-        return mp2 # return mp
+        mp2 = {area.location_id: 0.0 for area in state.get_areas()}
+        for key, value in mp.items():
+            mp2[key] = value
+        return mp2
 
     def get_arrive_intensity(self, day, hour):
         return self.arrive_intensities[day % 7][hour % 24] if self.arrive_intensities else 0

@@ -107,6 +107,23 @@ def main(seed):
     print(f"help pickup = {round(simulator.metrics.get_aggregate_value('num helping bike pickups'), 2)}")
     print(f"help delivery = {round(simulator.metrics.get_aggregate_value('num helping bike deliveries'), 2)}")
 
+    print("events", simulator.metrics.get_aggregate_value('events'))
+    print("trips", simulator.metrics.get_aggregate_value('trips'))
+    print("bike departure", simulator.metrics.get_aggregate_value('bike departure'))
+    print("escooter departure", simulator.metrics.get_aggregate_value('escooter departure'))
+    print("bike arrival", simulator.metrics.get_aggregate_value('bike arrival'))
+    print("escooter arrival", simulator.metrics.get_aggregate_value('escooter arrival'))
+    print("vehicle arrivals", simulator.metrics.get_aggregate_value('vehicle arrivals'))
+
+    print("failed events", simulator.metrics.get_aggregate_value('failed events'))
+    print("starvations", simulator.metrics.get_aggregate_value('starvations'))
+    print("escooter starvations", simulator.metrics.get_aggregate_value('escooter starvations'))
+    print("bike starvations", simulator.metrics.get_aggregate_value('bike starvations'))
+    print("battery starvations", simulator.metrics.get_aggregate_value('battery starvations'))
+    print("battery violations", simulator.metrics.get_aggregate_value('battery violations'))
+    print("long congestions", simulator.metrics.get_aggregate_value('long congestions'))
+    print("short congestions", simulator.metrics.get_aggregate_value('short congestions'))
+
     print("Number of bike deliveries", simulator.metrics.get_aggregate_value('num bike deliveries'))
     print("Number of bike pickups", simulator.metrics.get_aggregate_value('num bike pickups'))
     print("Number of battery swaps", simulator.metrics.get_aggregate_value('num battery swaps'))
