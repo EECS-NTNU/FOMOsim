@@ -20,7 +20,7 @@ class GenerateEScooterTrips(Event):
 
         for departure_area in world.state.get_areas():
             # poisson process to select number of trips in a iteration
-            number_of_trips = 2*round(
+            number_of_trips = round(
                 world.state.rng.poisson(departure_area.get_leave_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
             )
 

@@ -59,14 +59,9 @@ def build_cluster_p(tabu_list, c, max_depth, cut_off, simul):
     for i in range(max_depth):
         neighbours = c.get_neighbours()
         for neighbour in neighbours:
-                # stop expanding the cluster if you cannot pick up more bikes
-                if (c.get_difference_from_target(simul.day(), simul.hour())) > cut_off:
-                    break
-
                 # if neighbor doesn't have an overload of escooters, do not add to cluster
                 if len(neighbour.get_available_bikes()) - neighbour.get_target_state(simul.day(), simul.hour()) <= 0:
                     c.add_not_included_neighbor(neighbour)
-                    continue
 
                 c.add_area(neighbour)
                 tabu_list.append(neighbour)
@@ -120,14 +115,9 @@ def build_cluster_d(tabu_list, c, max_depth, cut_off, simul):
     for i in range(max_depth):
         neighbours = c.get_neighbours()
         for neighbour in neighbours:
-                # Stop adding areas to cluster if all bikes available will be delivered
-                if (c.get_target_state(simul.day(), simul.hour())) - len(c.get_bikes()) > cut_off:
-                    break
-                
                 # Only add as neighbor, not in cluster, if area does not need more bikes
                 if (len(neighbour.get_available_bikes()) - neighbour.get_target_state(simul.day(), simul.hour())) > 0:
                     c.add_not_included_neighbor(neighbour)
-                    continue
 
                 c.add_area(neighbour)
                 tabu_list.append(neighbour)
@@ -164,10 +154,16 @@ class Cluster(Location):
         return [bike.bike_id for area in self.areas for bike in area.bikes.values()]
     
     def get_bikes(self):
+        """
+        TODO
+        Used to find which IDs to pick up, so this has to only include the bikes we want to pick up
+        """
         return [bike for area in self.areas for bike in area.get_bikes()]
 
     def get_neighbours(self):
-        neighbours = {neighbor.location_id: neighbor for area in self.areas for neighbor in area.get_neighbours() if neighbor not in self.areas}
+        neighbours = {neighbor.location_id: neighbor for area in self.areas 
+                                                     for neighbor in area.get_neighbours() 
+                                                     if neighbor not in self.areas}
         return list(neighbours.values())
     
     def number_of_bikes(self):

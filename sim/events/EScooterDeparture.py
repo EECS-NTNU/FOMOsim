@@ -152,6 +152,7 @@ class EScooterDeparture(Event):
         return f"<{self.__class__.__name__} at time {self.time}, departing from area {self.departure_area_id}>"
     
     def acceptance_rejection(self,distance, world):
+        # TODO denne må tilpasses e-scooter kunder
         prob_acceptance = -1.6548*distance**2-0.7036*distance+1.0133
         random_roaming_limit = world.state.rng.uniform(0,1)
         if random_roaming_limit <= prob_acceptance:

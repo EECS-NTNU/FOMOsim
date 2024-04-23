@@ -57,10 +57,10 @@ FF_ROAMING_AREA_RADIUS = 3 # How many areas is a user willing to roam to find a 
 # ------- PILOT PARAMETERS ----------
 
 SB_INSTANCE_FILE = 'instances/TD_W34'
-FF_INSTANCE_FILE = 'instances/Ryde/TD_W19_test_W3_NEW'
+FF_INSTANCE_FILE = 'instances/Ryde/TD_W19_test_W3_NEW2'
 FF_TARGET_STATE_FILE = 'instances/Ryde/FINAL_target_state_1066_NEW.json.gz'
 START_TIME = 7 # hour of day the simulation starts at
-DURATION = 24*60*7
+DURATION = 24*60*2
 NUM_VEHICLES = 1
 
 MAX_DEPTH = 6 # alpha, best = 6
@@ -73,12 +73,12 @@ NUM_SCENARIOS = 50
 DISCOUNTING_FACTOR = 0.6
 
 # CLUSTERING
-MAX_WALKING_AREAS = 3
+MAX_WALKING_AREAS = 6
 MAX_NUMBER_OF_CLUSTERS = 10
 NEIGHBOR_BATTERY_LIMIT = 50
 LOCATION_TYPE_MARGIN = 0.15
 
-ADJUSTING_CRITICALITY = 0.5
+ADJUSTING_CRITICALITY = 0
 RANDOM_DESTINATION_PROB = 0.02
 
 # run_simulations.py
