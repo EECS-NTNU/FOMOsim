@@ -686,7 +686,7 @@ def get_max_num_usable_bikes(station, vehicle):
     - station = Station being considered
     - vehicle = Vehicle considered to rebalance station
     """
-    return len(station.get_available_bikes()) + min(len(station.get_swappable_bikes()), vehicle.battery_inventory)
+    return len(station.get_available_bikes()) + min(len(station.get_unusable_bikes()), vehicle.battery_inventory)
 
 def get_bike_ids_load_swap(station, vehicle, num_bikes, station_type):
     """

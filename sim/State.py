@@ -51,18 +51,6 @@ class State(LoadSave):
         self.traveltime_vehicle_matrix = traveltime_vehicle_matrix
         self.traveltime_vehicle_matrix_stddev = traveltime_vehicle_matrix_stddev
 
-        # if traveltime_matrix is None:
-        #     self.traveltime_matrix = self.calculate_traveltime(BIKE_SPEED)
-
-        # if traveltime_vehicle_matrix is None:
-        #     self.traveltime_vehicle_matrix = self.calculate_traveltime(VEHICLE_SPEED)
-
-        # if traveltime_matrix_stddev is None:
-        #     self.traveltime_matrix_stddev = {key: 0 for key in self.traveltime_matrix}
-        
-        # if traveltime_vehicle_matrix_stddev is None:
-        #     self.traveltime_vehicle_matrix_stddev = {key: 0 for key in self.traveltime_vehicle_matrix}
-
         self.mapdata = mapdata
 
     # TODO
@@ -150,10 +138,12 @@ class State(LoadSave):
             if "location" in area:
                 center_position = area["location"]
                 
-                # lat, lon = center_position[0], center_position[1]
-                # min_lat, max_lat, min_lon, max_lon = 63.415774, 63.440144, 10.370453, 10.431571
-                # if not (min_lon <= lon <= max_lon and min_lat <= lat <= max_lat):
-                #     continue
+                #TODO remove when final run
+                if TEST:
+                    lat, lon = center_position[0], center_position[1]
+                    min_lat, max_lat, min_lon, max_lon = 63.415774, 63.440144, 10.370453, 10.431571
+                    if not (min_lon <= lon <= max_lon and min_lat <= lat <= max_lat):
+                        continue
             
             border_vertices = None
             if "edges" in area:
@@ -517,7 +507,7 @@ class State(LoadSave):
         start_loc = self.get_location_by_id(start_location_id)
         end_loc = self.get_location_by_id(end_location_id)
         if isinstance(start_loc, sim.Area) or isinstance(end_loc, sim.Area) or isinstance(start_loc, sim.Depot) or isinstance(end_loc, sim.Depot):
-            return (geopy.distance.distance((start_loc.lat, start_loc.lon), (end_loc.lat, end_loc.lon)).km / BIKE_SPEED) * 60
+            return (geopy.distance.distance((start_loc.lat, start_loc.lon), (end_loc.lat, end_loc.lon)).km / ESCOOTER_SPEED) * 60
 
         elif self.traveltime_matrix_stddev is not None and len(self.traveltime_matrix_stddev) == len(self.traveltime_matrix): # and (start_location_id, end_location_id) in self.traveltime_matrix_stddev:
             return self.rng2.lognormal(self.traveltime_matrix[(start_location_id, end_location_id)], 

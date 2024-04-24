@@ -12,7 +12,8 @@ MINUTES_CONSTANT_PER_ACTION = 1.5 # Constat time in addition (f.eks park the car
 
 # Bike settings
 BATTERY_LIMIT_TO_USE = 20.0 # Battery limit for the bike to be up for rental
-BIKE_SPEED = 13.2 # Average speed of a bike
+BIKE_SPEED = 7 # Average speed of a bike
+ESCOOTER_SPEED = 13.2 # Average speed of a bike
 BATTERY_CHANGE_PER_MINUTE = 0.4 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
 
 # Depot settings
@@ -33,14 +34,14 @@ TRAFFIC_LOGGING = False
 RANDOM_DESTINATION_PROB = 0.02
 
 START_TIME = 7 # hour of day the simulation starts at
-DURATION = 24*60*2
+DURATION = 24*60*7
 NUM_VEHICLES = 2
 
 # User behaviour
 WALKING_SPEED = 4
 MAX_ROAMING_DISTANCE_SIMULATOR = 0.6 #km, for simulation
 MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
-FF_ROAMING_AREA_RADIUS = 8 # How many areas is a user willing to roam to find a bike?
+FF_ROAMING_AREA_RADIUS = 500//50 # How many areas is a user willing to roam to find a bike?
 AVERAGE_LENGHT_OF_TRIP = 15 #minutes -> to calculate average_discount
 
 # File settings
@@ -72,9 +73,10 @@ NUM_SCENARIOS = 10
 DISCOUNTING_FACTOR = 0.6
 MAX_NUMBER_OF_CLUSTERS = 10
 ADJUSTING_CRITICALITY = 0
+CLUSTER_USE_NEIGHBOURS = True
 
 # ------- MANAGERIAL INSIGHTS ----------
-MAX_WALKING_AREAS = 6
+MAX_WALKING_AREAS = 300 // 50
 
 # ------- TODO -------
 NEIGHBOR_BALANCE_PICKUP = 0.5 # hva er dette?
@@ -88,3 +90,4 @@ NEIGHBOR_BATTERY_LIMIT = 50
 SEEDS_LIST=[10,11,12,13,14,15,16,17,18,19]
 
 RESULT_FOLDER = ''
+TEST = True

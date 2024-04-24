@@ -65,6 +65,13 @@ class Area(Location):
             target_state = self.target_state
         )
 
+    def get_difference_from_target(self, day, hour, with_neighbours):
+        if with_neighbours:
+            num_bikes = sum(neighbor.number_of_bikes() for neighbor in self.neighbours) + self.number_of_bikes()
+            sum_target = sum(neighbor.get_target_state(day, hour) for neighbor in self.neighbours) + self.get_target_state(day, hour)
+            return num_bikes - sum_target
+        return self.number_of_bikes() - self.get_target_state(day, hour)
+
     def set_bikes(self, bikes):
         self.bikes = {bike.bike_id : bike for bike in bikes}
         for bike in bikes:
@@ -84,7 +91,8 @@ class Area(Location):
         mp = self.move_probabilities[day % 7][hour % 24]
         mp2 = {area.location_id: 0.0 for area in state.get_areas()}
         for key, value in mp.items():
-            mp2[key] = value
+            if key in mp2.keys():
+                mp2[key] = value
         return mp2
 
     def get_arrive_intensity(self, day, hour):

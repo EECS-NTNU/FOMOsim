@@ -42,7 +42,7 @@ def run_simulation(seed, policy, is_SB):
         demand = dmand,
         start_time = START_TIME,
         duration = DURATION,
-        verbose = True,
+        verbose = False,
     )
     simulator.run()
     return simulator.metrics, seed

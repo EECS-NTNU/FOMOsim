@@ -114,7 +114,7 @@ class EScooterDeparture(Event):
                     travel_time = world.state.get_travel_time(
                         closest_neighbour_with_bikes.location_id,
                         arrival_area.location_id,) + world.state.get_travel_time(departure_area.location_id,
-                        closest_neighbour_with_bikes.location_id)*(BIKE_SPEED/WALKING_SPEED)
+                        closest_neighbour_with_bikes.location_id)*(ESCOOTER_SPEED/WALKING_SPEED)
 
                     # remove bike from the new departure area
                     closest_neighbour_with_bikes.remove_bike(escooter)
