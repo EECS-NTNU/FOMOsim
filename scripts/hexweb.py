@@ -8,6 +8,7 @@ from shapely.geometry import Point, Polygon
 from datetime import datetime, timezone
 import numpy as np
 import geopy.distance
+import math 
 
 class Hexagon:
     "Lager et område, brukes til å telle arrivals/departures og move probabilities"
@@ -210,7 +211,7 @@ class HexagonTargetState():
     
                         # Update the target state for the given day and hour with the absolute sum of departure rates
                         # self.target_states[day][hour] = round(abs(sum_departure_rates))
-                        self.target_states[day][hour] = round(next_depature_rates[0])
+                        self.target_states[day][hour] = math.ceil(next_depature_rates[0])
 
                     # Scenario 3 (kun negative)
                     elif all(next_demand < 0 for next_demand in next_demands): #absolutt sum av net_demand for de 3 timene
@@ -221,7 +222,7 @@ class HexagonTargetState():
                                 sum_negative_periods += next_demand
                             else: 
                                 break
-                        self.target_states[day][hour] = abs(round(sum_negative_periods))
+                        self.target_states[day][hour] = math.ceil(abs(sum_negative_periods))
                         
                     # Scenario 4 (først positiv så negativ, negativ)
                     elif next_demands[1] < 0 and next_demands[2] < 0 and next_demands[0] >= 0:  #target state lik abs sum negati net demand - positiv net demand i starten helt til skrifter fortegn
@@ -252,12 +253,12 @@ class HexagonTargetState():
                     # Scenario 6 (først negativ så positiv, positiv)
                     elif next_demands[1] >=0 and next_demands[2] >= 0 and next_demands[0] < 0: 
                         print("npp", next_demands)
-                        self.target_states[day][hour] = round(abs(next_demands[0]))
+                        self.target_states[day][hour] = math.ceil(abs(next_demands[0]))
 
                     # Scenario 7 (først negativ så negativ, positiv)
                     elif next_demands[2] >=0 and next_demands[1] < 0 and next_demands[0] < 0: 
                         print("nnp", next_demands)
-                        self.target_states[day][hour] = round(abs(next_demands[0] + next_demands[1]))
+                        self.target_states[day][hour] = math.ceil(abs(next_demands[0] + next_demands[1]))
                 
                     # Scenario 8 (negativ -> positiv -> negativ)
                     elif next_demands[0] < 0 and next_demands[1] >= 0 and next_demands[2] < 0:
