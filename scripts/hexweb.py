@@ -349,6 +349,16 @@ class HexWeb:
             chosen_hex = random.choice(self.hexagons)
             chosen_hex.add_e_scooters_random(1)
             scooters_remaining -= 1
+    
+    def distribute_scooters_target_state(self):
+        for hex in self.hexagons:
+            for i in range(7):
+                init = hex.initial_target_states[i]
+                while init > 0:
+                    batteri = randint(0, 100)
+                    hex.e_scooters.append(batteri)
+                    init -= 1
+            
 
     def filter_elevation_hex_centers(self, api_key):
         relevant_hexagons = []

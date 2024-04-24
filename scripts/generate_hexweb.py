@@ -22,6 +22,7 @@ def generate_hex_json():
     # Fjerner de som er under havet
     hex_web.hexagons = hex_web.filter_elevation_hex_centers(api_key)
 
+
     # Lagre hexagons som brukes
     new_json_hex_data = {
         'areas': [{'hex_id': hexagon.hex_id, 'location': hexagon.center, 'edges': hexagon.vertices, 'e_scooters': hexagon.e_scooters} for hexagon in hex_web.hexagons],

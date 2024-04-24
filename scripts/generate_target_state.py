@@ -25,7 +25,8 @@ def generate_json_target_state():
     with open(INIT_TARGET_STATE, 'r', encoding='utf-8') as f:
          initial_target_state_data = json.load(f)
 
-    hexagons = HexWeb.generate_hex_web_target_state_from_json(hex_data)
+    hexweb = HexWeb.generate_hex_web_target_state_from_json(hex_data)
+    hexagons = hexweb.hexagons
    #HexWeb.set_initial_target_state(hexagons, initial_target_state_data)
     #def set_initial_target_state(hexagons, initial_target_state_data):
     for init_hex in initial_target_state_data['areas']:
@@ -33,6 +34,9 @@ def generate_json_target_state():
             if hexagon.hex_id == init_hex['id']:
                 hexagon.initial_target_states = init_hex['final_target_states']
                 break
+    
+    #distribute initial escooter positions based on initial target states
+    #hexweb.distribute_scooters_target_state()
 
     for hex in hexagons:
         hex.calc_target_state()
@@ -40,6 +44,8 @@ def generate_json_target_state():
 
     #hexweb.distribute_scooters_random()
 
+    
+    
     json_target_state_data = {
         'name': 'Ryde',
         'city': 'Trondheim',
@@ -57,6 +63,8 @@ def generate_json_target_state():
     
     with open('/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/instances/Ryde/FINAL_target_state_1066_NEW.json', 'w', encoding='utf-8') as f:
         json.dump(json_target_state_data, f, indent=4)
+    
+
 
 generate_json_target_state()
         
