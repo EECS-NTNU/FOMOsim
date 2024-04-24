@@ -8,8 +8,8 @@ import gzip
 
 def generate_json_target_state():
     
-    FINISHED_DATA_FILE = '/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/TD_W19_test_W3_NEW.json.gz'
-    INIT_TARGET_STATE = '/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/initial_target_state_1066.json'
+    # FINISHED_DATA_FILE = '/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/TD_W19_test_W3_NEW.json.gz'
+    # INIT_TARGET_STATE = '/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/initial_target_state_1066.json'
 
     with gzip.open(FINISHED_DATA_FILE, 'rt', encoding='utf-8') as f:
         hex_data = json.load(f)
@@ -55,32 +55,27 @@ def generate_json_target_state():
     # with gzip.open(write_file, 'wt', encoding="ascii") as zipfile:
     #        json.dump(json_data, zipfile)
 
-    FINISHED_TARGET_FILE = "/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/FINAL_target_state_1066_NEW_ceil.json.gz"
+    # FINISHED_TARGET_FILE = "/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/FINAL_target_state_1066_NEW_ceil.json.gz"
     # Lagre data som en gzip-komprimert JSON-fil
-    with gzip.open(FINISHED_TARGET_FILE, 'wt', encoding='ascii') as zipfile:
+    with gzip.open(FINISHED_TARGET_STATE_DATA_FILE, 'wt', encoding='ascii') as zipfile:
         json.dump(json_target_state_data, zipfile)
-    
-    with open('/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/FINAL_target_state_1066_NEW_ceil.json', 'w', encoding='utf-8') as f:
-        json.dump(json_target_state_data, f, indent=4)
-    
 
-
-generate_json_target_state()
+# generate_json_target_state()
         
-with open('/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/FINAL_target_state_1066_NEW_ceil.json', 'r') as file:
-    data = json.load(file)
+# with open('/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/FINAL_target_state_1066_NEW_ceil.json', 'r') as file:
+#     data = json.load(file)
 
-counter = 0 
-final_target_states = [[0 for j in range(24)] for i in range(7)]
-hex_data_dict = {}
-targert_states = [[0 for i in range(24)] for j in range(7)]
+# counter = 0 
+# final_target_states = [[0 for j in range(24)] for i in range(7)]
+# hex_data_dict = {}
+# targert_states = [[0 for i in range(24)] for j in range(7)]
      
-for hex_data in data['areas']:  
+# for hex_data in data['areas']:  
     
-    hex_final_target_states = hex_data['target_states']
-    for i in range(7):
-        for j in range(24):
-            final_target_states[i][j] += hex_final_target_states[i][j]
+#     hex_final_target_states = hex_data['target_states']
+#     for i in range(7):
+#         for j in range(24):
+#             final_target_states[i][j] += hex_final_target_states[i][j]
 
-with open('/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/check_FINAL_states_ceil.json', 'w', encoding='utf-8') as f:
-        json.dump(final_target_states, f, indent=4)
+# with open('/Users/elinehareide/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Eline - Høst 2023/Prosjektoppgave/fomo/instances/Ryde/check_FINAL_states_ceil.json', 'w', encoding='utf-8') as f:
+#         json.dump(final_target_states, f, indent=4)
