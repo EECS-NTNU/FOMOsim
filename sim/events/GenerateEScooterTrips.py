@@ -18,6 +18,8 @@ class GenerateEScooterTrips(Event):
 
         super().perform(world)
 
+        print(f'Time:', world.time)
+
         for departure_area in world.state.get_areas():
             # poisson process to select number of trips in a iteration
             number_of_trips = round(

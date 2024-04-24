@@ -21,7 +21,7 @@ class BS_PILOT(Policy):
                 evaluation_weights = EVALUATION_WEIGHTS, 
                 number_of_scenarios = NUM_SCENARIOS, 
                 discounting_factor = DISCOUNTING_FACTOR,
-                overflow_criteria = OVERFLOW_CRITERIA,
+                congestion_criteria = CONGESTION_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP
                  ):
@@ -32,7 +32,7 @@ class BS_PILOT(Policy):
         self.evaluation_weights = evaluation_weights
         self.number_of_scenarios = number_of_scenarios
         self.discounting_factor = discounting_factor
-        self.overflow_criteria = overflow_criteria
+        self.congestion_criteria = congestion_criteria
         self.starvation_criteria = starvation_criteria
         self.swap_threshold = swap_threshold
         super().__init__()
@@ -80,7 +80,7 @@ class BS_PILOT(Policy):
             bikes_to_deliver = []
             batteries_to_swap = []
         else:
-            bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria)
+            bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.congestion_criteria, self.starvation_criteria)
             number_of_bikes_pickup = len(bikes_to_pickup)
             number_of_bikes_deliver = len(bikes_to_deliver)
             number_of_batteries_to_swap = len(batteries_to_swap)
@@ -232,7 +232,7 @@ class BS_PILOT(Policy):
         # Returns the location with the best average score over all scenarios
         return self.return_best_move_average(vehicle, simul, plan_scores)
 
-    def calculate_loading_quantities_and_swaps_pilot(self, vehicle, simul, station, eta):
+    def calculate_loading_quantities_and_swaps_pilot(self, num_bikes_now, battery_inventory_now, simul, station, eta):
         """
         Returns the NUMBER of bikes to pick up, deliver and swap batteries on. Takes future demand into account by calculating it for the next hour, and treats it as evenly distributed throughout that hour
 
@@ -247,19 +247,20 @@ class BS_PILOT(Policy):
 
         # Calculate number of bikes arriving/leaving in the time period until vehicle arrival
         net_demand = calculate_net_demand(station, simul.time, simul.day(), simul.hour(), min(time_until_arrival, 60))
-        max_num_usable_bikes = get_max_num_usable_bikes(station, vehicle)
+        max_num_usable_bikes = len(station.get_available_bikes()) + min(len(station.get_unusable_bikes()), battery_inventory_now)
         max_num_usable_bikes_eta = max_num_usable_bikes + net_demand
 
         # Calculate the amount of neighbors that are starving or congested, can impact the number of bikes to operate on
         num_starved_neighbors = 0
         num_overflowing_neighbors = 0
+
         for neighbor in station.get_neighbours():
             net_demand_neighbor = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), min(time_until_arrival, 60))
             num_usable_bikes_neighbor_eta = len(neighbor.get_available_bikes()) + net_demand_neighbor
             target_state_neighbor = neighbor.get_target_state(simul.day(), simul.hour())
             if num_usable_bikes_neighbor_eta < self.starvation_criteria * target_state_neighbor:
                 num_starved_neighbors += 1
-            elif num_usable_bikes_neighbor_eta > self.overflow_criteria * target_state_neighbor:
+            elif num_usable_bikes_neighbor_eta > self.congestion_criteria * target_state_neighbor:
                 num_overflowing_neighbors += 1
 
         number_of_bikes_pickup = 0
@@ -268,25 +269,44 @@ class BS_PILOT(Policy):
 
         # Calculate how many bikes to do different actions on
         if max_num_usable_bikes_eta < target_state: # deliver
-            number_of_bikes_deliver = min(len(vehicle.get_sb_bike_inventory()), 
+            number_of_bikes_deliver = min(num_bikes_now, 
                                           target_state - max_num_usable_bikes_eta + BIKES_STARVED_NEIGHBOR * num_starved_neighbors)
-            number_of_battery_swaps = min( len(station.get_swappable_bikes()), 
-                                          vehicle.battery_inventory)
+            number_of_battery_swaps = min(len(station.get_swappable_bikes()), 
+                                          battery_inventory_now)
         
         elif max_num_usable_bikes_eta > target_state: # pick-up
-            remaining_cap_vehicle = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory())
+            remaining_cap_vehicle = VEHICLE_BATTERY_INVENTORY - num_bikes_now
             num_less_bikes = min(remaining_cap_vehicle, 
                                  max_num_usable_bikes_eta - target_state + BIKES_OVERFLOW_NEIGHBOR * num_overflowing_neighbors)
 
-            num_bikes_to_swap_and_pickup = min(len(station.get_swappable_bikes()), 
-                                               vehicle.battery_inventory, 
-                                               num_less_bikes)
-            number_of_bikes_pickup = round(num_less_bikes) - num_bikes_to_swap_and_pickup
-            number_of_battery_swaps = min(vehicle.battery_inventory, max(0,len(station.get_swappable_bikes()) - num_bikes_to_swap_and_pickup))
+            num_swappable_bikes = len(station.get_swappable_bikes(self.swap_threshold))
+            vehicle_battery_inventory = battery_inventory_now
+
+            num_bikes_only_swap = min(max(0, target_state - len(station.get_available_bikes())), 
+                                            vehicle_battery_inventory)
+            vehicle_battery_inventory -= num_bikes_only_swap
+            
+            # Restriction on how many bikes can be swapped and picked up
+            num_bikes_to_swap_and_pickup = min( num_swappable_bikes,
+                                                vehicle_battery_inventory, 
+                                                num_less_bikes)
+
+            # Update the number of batteries left in vehicle
+            vehicle_battery_inventory -= num_bikes_to_swap_and_pickup
+            
+            # Number of escooters that can only be picked up, not swapped battery on
+            num_escooters_to_only_pickup = num_less_bikes - num_bikes_to_swap_and_pickup
+
+            # Number of escooters that can only have their battery swapped, but stays at the location
+            num_bikes_only_swap += min(vehicle_battery_inventory,
+                                            max(0, num_swappable_bikes - num_bikes_to_swap_and_pickup - num_bikes_only_swap))
+            
+            number_of_bikes_pickup = num_bikes_to_swap_and_pickup + num_escooters_to_only_pickup
+            number_of_battery_swaps = num_bikes_only_swap
         
         else: # only swap
             swappable_bikes = station.get_swappable_bikes()
-            number_of_battery_swaps = min(len(swappable_bikes), vehicle.battery_inventory)
+            number_of_battery_swaps = min(len(swappable_bikes), battery_inventory_now)
         
         return number_of_bikes_pickup, number_of_bikes_deliver, number_of_battery_swaps
 
@@ -654,7 +674,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, conge
         num_bikes_to_deliver = min(len([bike for bike in vehicle.get_sb_bike_inventory() if bike.usable()]), 
                                    target_state - num_max_usable_bikes_after_visit + BIKES_STARVED_NEIGHBOR * num_starved_neighbors
                                    )
-        bikes_to_deliver, bikes_to_swap = get_bike_ids_load_swap(station, vehicle, num_bikes_to_deliver, "deliver")
+        bikes_to_deliver, bikes_to_swap = get_bike_ids_load_swap(station, vehicle, target_state, num_bikes_to_deliver, "deliver")
         bikes_to_pickup = []
     
     # If the station is a pickup station, calculate which bikes to pickup, and which to bikes at the station to swap batteries on
@@ -663,7 +683,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, conge
         num_bikes_to_pickup = min(remaining_vehicle_capacity,
                                   num_max_usable_bikes_after_visit - target_state + BIKES_OVERFLOW_NEIGHBOR * num_congested_neighbors, 
                                   len(station.get_bikes()))
-        bikes_to_pickup, bikes_to_swap = get_bike_ids_load_swap(station, vehicle, num_bikes_to_pickup, "pickup")
+        bikes_to_pickup, bikes_to_swap = get_bike_ids_load_swap(station, vehicle, target_state, num_bikes_to_pickup, "pickup")
         bikes_to_deliver=[]
 
     # If no bikes need to be picked up or delivered, find out how many bikes to swap batteries on
@@ -688,7 +708,7 @@ def get_max_num_usable_bikes(station, vehicle):
     """
     return len(station.get_available_bikes()) + min(len(station.get_unusable_bikes()), vehicle.battery_inventory)
 
-def get_bike_ids_load_swap(station, vehicle, num_bikes, station_type):
+def get_bike_ids_load_swap(station, vehicle, target_state, num_bikes, station_type):
     """
     Returns lists of the IDs of the bikes to deliver/pick-up and swap.
 
@@ -718,25 +738,41 @@ def get_bike_ids_load_swap(station, vehicle, num_bikes, station_type):
     
     # Returns lists of bike IDs on which to load and which to swap batteries on
     elif station_type == "pickup":
+        
+        num_swappable_bikes = len(station.get_swappable_bikes())
+        vehicle_battery_inventory = vehicle.battery_inventory
+        
+        # Swap such that target state is reached, if there are not enough usable bikes
+        num_bikes_to_only_swap = min(max(0, target_state - len(station.get_available_bikes())), 
+                                         vehicle_battery_inventory)
+        vehicle_battery_inventory -= num_bikes_to_only_swap
+
         # Restriction on how many bikes can be swapped and picked up
-        num_bikes_to_swap_and_pickup = min(
-            len(station.get_swappable_bikes()),
-            vehicle.battery_inventory, 
-            round(num_bikes)
-            )
-        num_bikes_to_only_pickup = num_bikes - num_bikes_to_swap_and_pickup
-        num_bikes_to_only_swap = min(vehicle.battery_inventory, 
-                                     max(0,len(station.get_swappable_bikes()) - num_bikes_to_swap_and_pickup))
+        num_bikes_to_swap_and_pickup = min( num_swappable_bikes,
+                                            vehicle_battery_inventory, 
+                                            round(num_bikes))
+        
+        # Update the number of batteries left in vehicle
+        vehicle_battery_inventory -= num_bikes_to_swap_and_pickup
+        
+        # Number of escooters that can only be picked up, not swapped battery on
+        num_bikes_to_only_pickup = round(num_bikes) - num_bikes_to_swap_and_pickup
+
+        # Number of escooters that can only have their battery swapped, but stays at the location
+        num_bikes_to_only_swap += min(vehicle_battery_inventory,
+                                         max(0, num_swappable_bikes - num_bikes_to_swap_and_pickup - num_bikes_to_only_swap))
 
         bikes_to_swap = []
-        bikes_to_pickup = [bike.bike_id for bike in bikes_at_station[:num_bikes_to_swap_and_pickup]]
+        # Swap batteries on the escooters with lowest battery level
+        if num_bikes_to_only_swap > 0:
+            bikes_to_swap += [bike.bike_id for bike in bikes_at_station[:num_bikes_to_only_swap]]
+
+        # Pick up the escooters only in "overflowing" areas
+        bikes_to_pickup = [bike.bike_id for bike in bikes_at_station[num_bikes_to_only_swap:num_bikes_to_only_swap+num_bikes_to_swap_and_pickup]]
+
+        # Pick up the escooters with the most battery
         if num_bikes_to_only_pickup > 0:
             bikes_to_pickup += [bike.bike_id for bike in bikes_at_station[-num_bikes_to_only_pickup:]]
-        
-        elif num_bikes_to_only_swap > 0:
-            bikes_to_swap += [bike.bike_id for bike in bikes_at_station[num_bikes_to_swap_and_pickup:num_bikes_to_swap_and_pickup+num_bikes_to_only_swap]]
-
-        return bikes_to_pickup, bikes_to_swap
     
     return [],[]
 

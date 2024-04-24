@@ -38,7 +38,7 @@ def clusterPickup(areas, n, max_lenght, vehicle, simul):
             c, tabu_list = build_cluster_p(tabu_list, c, max_lenght, cut_off, simul)
 
             # Only add the cluster into potenial clusters if it doesn't balance it self out by it's neighbors, but have too many bikes
-            difference = c.get_difference_from_target(simul.day(), simul.hour())
+            difference = c.get_max_num_usable(vehicle) - c.get_target_state(simul.day(), simul.hour())
             if difference > 0:
                 clusters.append(c)
             else:
@@ -58,12 +58,9 @@ def build_cluster_p(tabu_list, c, max_depth, cut_off, simul):
             c.add_area(neighbour)
             tabu_list.append(neighbour)
 
-            if len(c.areas) < len(c.not_included):
-                print("HÆ P")
-
     return c, tabu_list
 
-def clusterDelivery(areas, n, max_lenght, veichle, simul):
+def clusterDelivery(areas, n, max_lenght, vehicle, simul):
     """
     Returns a list of n cluster-objects that are pickup clusters.
 
@@ -78,7 +75,7 @@ def clusterDelivery(areas, n, max_lenght, veichle, simul):
     tabu_list = []
     clusters = []
     all_possible_clusters = []
-    cut_off = len(veichle.bike_inventory)
+    cut_off = len(vehicle.bike_inventory)
 
     start_time = time.time()
     # Make list of n areas that are lacking the most
@@ -91,7 +88,7 @@ def clusterDelivery(areas, n, max_lenght, veichle, simul):
             c = Cluster([area], area, area.get_bikes(), area.get_neighbours())
             c, tabu_list = build_cluster_d(tabu_list, c, max_lenght, cut_off, simul)
             
-            difference = c.get_difference_from_target(simul.day(), simul.hour())
+            difference = c.get_max_num_usable(vehicle) - c.get_target_state(simul.day(), simul.hour())
             if difference < 0:
                 clusters.append(c)
             else:
@@ -116,10 +113,8 @@ def build_cluster_d(tabu_list, c, max_depth, cut_off, simul):
 
             c.add_area(neighbour)
             tabu_list.append(neighbour)
-            
-            if len(c.areas) < len(c.not_included):
-                print("HÆ D")
     return c, tabu_list
+
 
 class Cluster(Location):
     def __init__(
@@ -161,6 +156,9 @@ class Cluster(Location):
                      for bike in area.get_bikes() 
                      if area not in self.not_included]
 
+    def get_max_num_usable(self, vehicle):
+        return len(self.get_available_bikes()) + min(len(self.get_unusable_bikes()), vehicle.battery_inventory)
+    
     def get_neighbours(self):
         neighbours = {neighbor.location_id: neighbor for area in self.areas 
                                                      for neighbor in area.get_neighbours() 
@@ -180,13 +178,18 @@ class Cluster(Location):
         return sorted(bikes, key=lambda bike: bike.battery, reverse=False)
 
     def get_bike_from_id(self, bike_id):
+        #TODO lag dict og hent
         for bike in self.get_bikes():
             if bike.bike_id == bike_id:
                 return bike
+        print(bike_id, [bike.bike_id for bike in self.get_bikes()])
         return None
     
     def get_difference_from_target(self, day, hour):
         """
+        TODO
+        skal denne brukes i hjelpe-policy?
+
         Returns the difference from target state for all areas in the cluster 
         and the areas not included in the cluster, as they are in allowed walking distance and can absorb demand.
 

@@ -11,7 +11,7 @@ MINUTES_PER_ACTION = 1 # Minutes to load/unload/battery swaps
 MINUTES_CONSTANT_PER_ACTION = 1.5 # Constat time in addition (f.eks park the car and start again)
 
 # Bike settings
-BATTERY_LIMIT_TO_USE = 20.0 # Battery limit for the bike to be up for rental
+BATTERY_LIMIT_TO_USE = 15 # Battery limit for the bike to be up for rental
 BIKE_SPEED = 7 # Average speed of a bike
 ESCOOTER_SPEED = 13.2 # Average speed of a bike
 BATTERY_CHANGE_PER_MINUTE = 0.4 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
@@ -62,8 +62,6 @@ BATTERY_LIMIT_TO_SWAP = 70
 CONGESTION_CRITERIA = 0.9
 OVERFLOW_CRITERIA = 2.1 # of target state
 STARVATION_CRITERIA = 0.35 # of target state
-BIKES_OVERFLOW_NEIGHBOR = 1 # how many additional bikes to pick up for each "starved" neighbor
-BIKES_STARVED_NEIGHBOR = 2 # how many additional bikes to let be for each "starved" neighbor
 MAX_DEPTH = 3 # alpha, best = 6
 NUM_SUCCESSORS = 3 # beta, best = 3
 TIME_HORIZON = 40 # best = 40
@@ -73,10 +71,12 @@ NUM_SCENARIOS = 10
 DISCOUNTING_FACTOR = 0.6
 MAX_NUMBER_OF_CLUSTERS = 10
 ADJUSTING_CRITICALITY = 0
-CLUSTER_USE_NEIGHBOURS = True
+CLUSTER_USE_NEIGHBOURS = False
 
 # ------- MANAGERIAL INSIGHTS ----------
 MAX_WALKING_AREAS = 300 // 50
+BIKES_OVERFLOW_NEIGHBOR = 1 # how many additional bikes to pick up for each "starved" neighbor
+BIKES_STARVED_NEIGHBOR = 2 # how many additional bikes to let be for each "starved" neighbor
 
 # ------- TODO -------
 NEIGHBOR_BALANCE_PICKUP = 0.5 # hva er dette?
