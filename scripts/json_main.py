@@ -5,6 +5,6 @@ from json_settings import *
 from generate_target_state import *
 
 # read_write_ryde_data()
-generate_hex_json()
-generate_json()
+# generate_hex_json()
+# generate_json()
 generate_json_target_state()

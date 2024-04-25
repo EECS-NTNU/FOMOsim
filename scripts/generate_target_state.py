@@ -22,7 +22,7 @@ def generate_json_target_state():
     # print(f'sumlist = {sumlist}')
     # return
         
-    with open(INIT_TARGET_STATE, 'r', encoding='utf-8') as f:
+    with open(INIT_TARGET_FILE, 'r', encoding='utf-8') as f:
          initial_target_state_data = json.load(f)
 
     hexagons = HexWeb.generate_hex_web_target_state_from_json(hex_data)
