@@ -146,15 +146,9 @@ class Cluster(Location):
     
     def get_bikes(self):
         """
-        TODO
         Used to find which IDs to pick up, so this has to only include the bikes we want to pick up
         """
         return [bike for area in self.areas for bike in area.get_bikes()]
-    
-    def get_cluster_bikes(self):
-        return [bike for area in self.areas 
-                     for bike in area.get_bikes() 
-                     if area not in self.not_included]
 
     def get_max_num_usable(self, vehicle):
         return len(self.get_available_bikes()) + min(len(self.get_unusable_bikes()), vehicle.battery_inventory)
@@ -179,6 +173,10 @@ class Cluster(Location):
 
     def get_bike_from_id(self, bike_id):
         #TODO lag dict og hent
+        if not isinstance(bike_id, str):
+            print("Not an ID:", bike_id)
+            print(bike_id.bike_id)
+
         for bike in self.get_bikes():
             if bike.bike_id == bike_id:
                 return bike

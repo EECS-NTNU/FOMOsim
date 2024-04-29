@@ -97,6 +97,7 @@ class BS_PILOT_FF(Policy):
 
         middle_logging_time = time.time() 
         simul.metrics.add_aggregate_metric(simul, "accumulated find action time", middle_logging_time - start_logging_time)
+        # print("Find action:", middle_logging_time - start_logging_time)
 
         # Make a plan for all vehicles
         # Dictionary with key: vehicle_id, 
@@ -125,18 +126,16 @@ class BS_PILOT_FF(Policy):
                                                      end_time, 
                                                      total_num_ff_bikes_in_system)
 
-        end_time = time.time()
-        
-        simul.metrics.add_aggregate_metric(simul, "accumulated find location time", end_time - middle_logging_time)
-        simul.metrics.add_aggregate_metric(simul, "accumulated sol time", end_time - start_logging_time)        
+        ending_time = time.time()
+        # print("find location time:", ending_time - middle_logging_time)
+
+        simul.metrics.add_aggregate_metric(simul, "accumulated find location time", ending_time - middle_logging_time)
+        simul.metrics.add_aggregate_metric(simul, "accumulated sol time", ending_time - start_logging_time)        
         simul.metrics.add_aggregate_metric(simul, 'get_best_action', 1)
         simul.metrics.add_aggregate_metric(simul, 'num battery swaps', len(batteries_to_swap))
         simul.metrics.add_aggregate_metric(simul, 'num escooter pickups', len(escooters_to_pickup))
         simul.metrics.add_aggregate_metric(simul, 'num escooter deliveries', len(escooters_to_deliver))
         
-        if len(escooters_to_deliver) > 0:
-            print("num escooter deliveries:", simul.metrics.get_aggregate_value('num escooter deliveries'))
-
         return sim.Action(
             batteries_to_swap,
             escooters_to_pickup,
@@ -228,7 +227,9 @@ class BS_PILOT_FF(Policy):
                         temp_plan.find_next_visit()
                     else:
                         break
-                
+
+                    if dep_time < 0:
+                        print("Dep tid er negetiv?", dep_time, new_visit)
                 
                 completed_plans.append(temp_plan)
         
@@ -283,12 +284,11 @@ class BS_PILOT_FF(Policy):
 
         # Calculate how many escooters to do different actions on
         #TODO dobbelt sjekk
-        if difference_from_target_neighbours < 0: # delivery
-            number_of_escooters_deliver = min(num_bikes_now, 
-                                -neighborhood_difference_target)
-            number_of_escooters_swap = min(len(cluster.get_swappable_bikes(self.swap_threshold)),
-                                        battery_inventory_now)
-        elif difference_from_target_neighbours > 0: # pick-up
+        if neighborhood_difference_target < 0: # delivery
+            number_of_escooters_deliver = min(num_bikes_now, -neighborhood_difference_target)
+            number_of_escooters_swap = min( len(cluster.get_swappable_bikes(self.swap_threshold)),
+                                            battery_inventory_now)
+        elif neighborhood_difference_target > 0: # pick-up
             remaining_cap_vehicle = VEHICLE_BIKE_INVENTORY - num_bikes_now
             number_of_less_escooters = min(remaining_cap_vehicle, 
                                            neighborhood_difference_target,
@@ -323,7 +323,7 @@ class BS_PILOT_FF(Policy):
             escooters_in_cluster_low_battery = cluster.get_swappable_bikes()
             number_of_escooters_swap = min(len(escooters_in_cluster_low_battery), 
                                            battery_inventory_now)
-        
+            
         return number_of_escooters_pickup, number_of_escooters_deliver, number_of_escooters_swap
     
     def greedy_next_visit(self, plan, simul, number_of_successors, weight_set, total_num_bikes_in_system):
@@ -705,10 +705,9 @@ def get_escooter_ids_load_swap(cluster, vehicle, num_escooters, target_state, cl
         escooters_to_swap = [escooter.bike_id for escooter in escooters_at_cluster[:num_escooters_to_swap]]
         escooters_to_deliver = [escooter.bike_id for escooter in escooters_in_vehicle[-number_of_escooters_to_deliver:]]
 
-        if len(escooters_to_deliver) != len(set(escooters_to_deliver)) or len(escooters_to_swap) != len(set(escooters_to_swap)):
-            print("duplikater et sted:")
-            print(escooters_to_deliver)
-            print(escooters_to_swap)
+        # for item in escooters_to_deliver+escooters_to_swap:
+        #     if not isinstance(item, str):
+        #         print("ikke streng")
 
         return escooters_to_deliver, escooters_to_swap
     
@@ -738,9 +737,6 @@ def get_escooter_ids_load_swap(cluster, vehicle, num_escooters, target_state, cl
         num_escooters_to_only_swap += min(vehicle_battery_inventory,
                                          max(0, num_swappable_bikes - num_escooters_to_swap_and_pickup - num_escooters_to_only_swap))
 
-        if num_escooters_to_only_pickup + num_escooters_to_only_swap + num_escooters_to_swap_and_pickup > len(escooters_at_cluster):
-            print("noe skurrer, flere ting som skjer enn det er plass til!")
-
         escooters_to_swap = []
         # Swap batteries on the escooters with lowest battery level
         if num_escooters_to_only_swap > 0:
@@ -752,14 +748,13 @@ def get_escooter_ids_load_swap(cluster, vehicle, num_escooters, target_state, cl
         # Pick up the escooters with the most battery
         if num_escooters_to_only_pickup > 0:
             escooters_to_pickup += [escooter.bike_id for escooter in escooters_at_cluster[-num_escooters_to_only_pickup:]]
-        
-        if len(escooters_to_pickup) != len(set(escooters_to_pickup)) or len(escooters_to_swap) != len(set(escooters_to_swap)):
-            print("duplikater et sted:")
-            print(escooters_to_pickup)
-            print(escooters_to_swap)
+
+        # for item in escooters_to_pickup+escooters_to_swap:
+        #     if not isinstance(item, str):
+        #         print("ikke streng")
 
         return escooters_to_pickup, escooters_to_swap
-    
+
     return [],[]
 
 def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle):
