@@ -4,7 +4,7 @@ from settings import *
 import sim
 from policies.hlv_master.Visit import Visit
 from policies.hlv_master.Plan import Plan
-from .dynamic_clustering import Cluster, build_cluster_d, build_cluster_p
+from .dynamic_clustering import Cluster, build_cluster
 import numpy as np
 import time
 

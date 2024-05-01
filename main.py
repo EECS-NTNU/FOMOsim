@@ -23,7 +23,7 @@ import random
 # from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(days=7)
+DURATION = timeInMinutes(days=2)
 INSTANCE = 'TD_W34'
 WEEK = 34
 

@@ -661,7 +661,7 @@ class State(LoadSave):
     
     def get_closest_available_area(self, area, radius = FF_ROAMING_AREA_RADIUS):    
         available_area = None
-        neighbors = area.neighbours
+        neighbors = area.neighbours[:]
 
         while neighbors and not available_area:
             current_neighbor = neighbors.pop(0)  # Remove the first neighbor from the list to check it

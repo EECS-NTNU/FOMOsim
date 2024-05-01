@@ -5,7 +5,7 @@ from .Visit import Visit
 from .Plan import Plan
 from .FF_Criticality_score import calculate_criticality, calculate_cluster_type
 from .Simple_calculations import calculate_net_demand, copy_arr_iter, generate_discounting_factors, calculate_hourly_discharge_rate
-from .dynamic_clustering import clusterPickup, clusterDelivery, Cluster
+from .dynamic_clustering import find_clusters
 
 import numpy as np
 import time
@@ -116,7 +116,7 @@ class BS_PILOT_FF(Policy):
         # All locations the vehicles are at or are on their way to is added to the tabu list and plan
         tabu_list = [v.location.location_id for v in simul.state.get_ff_vehicles()]
         plan = Plan(plan_dict, tabu_list)
-
+        
         # Use X-PILOT-BS to find which location to drive to next
         next_location, cluster = self.PILOT_function(simul, 
                                                      vehicle, 
@@ -127,7 +127,7 @@ class BS_PILOT_FF(Policy):
                                                      total_num_ff_bikes_in_system)
 
         ending_time = time.time()
-        # print("find location time:", ending_time - middle_logging_time)
+        print("find location time:", ending_time - middle_logging_time)
 
         simul.metrics.add_aggregate_metric(simul, "accumulated find location time", ending_time - middle_logging_time)
         simul.metrics.add_aggregate_metric(simul, "accumulated sol time", ending_time - start_logging_time)        
@@ -759,6 +759,9 @@ def get_escooter_ids_load_swap(cluster, vehicle, num_escooters, target_state, cl
 
 def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle):
     """
+    TODO
+    Fiks så denne tar hensyn til hvordan ting ser ut i framtiden
+
     Returns a list of Station-Objects that are not in the tabu list, and that need help to reach target state.
 
     Parameters:
@@ -772,16 +775,15 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle):
 
     # Vehicle's inventory is capable of both pickups and deliveries
     if cutoff_vehicle * vehicle.bike_inventory_capacity <= bikes_at_vehicle <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
-        potential_pickup_stations = clusterPickup(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul)
-        potential_delivery_stations = clusterDelivery(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul)
+        potential_pickup_stations = find_clusters(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul.day(), simul.hour(), "both")
 
         potential_stations = potential_pickup_stations + potential_delivery_stations
     else:
         # Vehicle's inventory is not able to deliver escooters
         if bikes_at_vehicle <= cutoff_vehicle*vehicle.bike_inventory_capacity:
-            potential_stations = clusterPickup(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul)
+            potential_stations = find_clusters(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul.day(), simul.hour(), "pickup")
         # Vehicle's inventory is not able to pick up more escooters
         elif bikes_at_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
-            potential_stations = clusterDelivery(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul)
+            potential_stations = find_clusters(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul.day(), simul.hour(), "delivery")
 
     return potential_stations

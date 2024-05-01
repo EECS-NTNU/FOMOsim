@@ -8,7 +8,7 @@ from .collab3_Criticality_Score import calculate_criticality_ff, calculate_criti
 from .FF_Criticality_score import calculate_cluster_type
 from .SB_Criticality_score import calculate_station_type
 from policies.hlv_master.Simple_calculations import copy_arr_iter, calculate_net_demand, generate_discounting_factors, calculate_hourly_discharge_rate
-from policies.hlv_master.dynamic_clustering import clusterDelivery, clusterPickup
+from policies.hlv_master.dynamic_clustering import find_clusters
 import numpy as np
 import time
 
@@ -784,19 +784,19 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle,
 
     # Vehicle's inventory is capable of both pickups and deliveries
     if cutoff_vehicle * vehicle.bike_inventory_capacity <= bikes_in_vehicle <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
-        potential_pickup_clusters = clusterPickup(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul)
+        potential_pickup_clusters = find_clusters(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul.day(), simul.hour(), "pickup")
         if ff_bikes_in_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
-            potential_delivery_clusters = clusterDelivery(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul)
+            potential_delivery_clusters = find_clusters(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul.day(), simul.hour(), "delivery")
 
         potential_stations = potential_pickup_clusters + potential_delivery_clusters
     else:
         potential_stations = []
         # Vehicle's inventory is not able to deliver escooters
         if bikes_in_vehicle <= cutoff_vehicle*vehicle.bike_inventory_capacity:
-            potential_stations = clusterPickup(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul)
+            potential_stations = find_clusters(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul.day(), simul.hour(), "pickup")
         # Vehicle's inventory is not able to pick up more escooters
         elif ff_bikes_in_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
-            potential_stations = clusterDelivery(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul)
+            potential_stations = find_clusters(simul.state.get_areas(), MAX_NUMBER_OF_CLUSTERS, MAX_WALKING_AREAS, vehicle, simul.day(), simul.hour(), "delivery")
 
     return potential_stations
 

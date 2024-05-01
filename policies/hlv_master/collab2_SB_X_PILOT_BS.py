@@ -4,7 +4,7 @@ from settings import *
 import sim
 from .Visit import Visit
 from .Plan import Plan
-from .dynamic_clustering import Cluster, build_cluster_d, build_cluster_p
+from .dynamic_clustering import Cluster, find_clusters
 import time
 
 class SB_Collab2(BS_PILOT):
