@@ -45,9 +45,11 @@ FF_ROAMING_AREA_RADIUS = 500//50 # How many areas is a user willing to roam to f
 AVERAGE_LENGHT_OF_TRIP = 15 #minutes -> to calculate average_discount
 
 # File settings
+RESOLUTION = 11 #11, 10, 9, 8
+RADIUS = 100 #100, 58, 22, 10
 SB_INSTANCE_FILE = 'instances/TD_W34'
-FF_INSTANCE_FILE = 'instances/Ryde/TD_W19_test_W3_NEW2'
-FF_TARGET_STATE_FILE = 'instances/Ryde/FINAL_target_state_1066_NEW.json.gz'
+FF_INSTANCE_FILE = f'instances/Ryde/TD_700_res{RESOLUTION}_radius{RADIUS}_W3'
+FF_TARGET_STATE_FILE = f'instances/Ryde/target_states_700_res{RESOLUTION}_radius{RADIUS}.json.gz'
 
 # ------- COMPUTATIONAL VARIABLES ----------
 
