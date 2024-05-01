@@ -24,16 +24,6 @@ class Action:
         :param delivery_bikes: ids of bikes to deliver
         :param next_location: id of next location to visit
         """
-        for scooter in pick_ups:
-            if not isinstance(scooter, str):
-                print(" Nei A ")
-        for scooter in delivery_bikes:
-            if not isinstance(scooter, str):
-                print(" Nei A ")
-        for scooter in battery_swaps:
-            if not isinstance(scooter, str):
-                print(" Nei A ")
-
         self.battery_swaps = battery_swaps
         self.pick_ups = pick_ups
         self.delivery_bikes = delivery_bikes

@@ -65,7 +65,7 @@ class BS_PILOT(Policy):
                 [],
                 next_location
             )
-            bikes_to_pickup = vehicle.location.get_swappable_bikes()
+            bikes_to_pickup = [bike.bike_id for bike in vehicle.location.get_swappable_bikes()]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(bikes_to_pickup))
             return sim.Action(
                 [],

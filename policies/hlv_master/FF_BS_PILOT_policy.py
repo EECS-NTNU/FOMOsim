@@ -59,6 +59,7 @@ class BS_PILOT_FF(Policy):
         # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all escooters at location that is unusable
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
             next_location = simul.state.get_closest_depot(vehicle)
+            print("Goes to depot", next_location)
             # If no depot, just stay and do nothing
             if next_location == vehicle.location.location_id:
                 return sim.Action(
@@ -67,7 +68,7 @@ class BS_PILOT_FF(Policy):
                 [],
                 next_location
             )
-            escooters_to_pickup = vehicle.location.get_swappable_bikes()
+            escooters_to_pickup = [bike.bike_id for bike in vehicle.location.get_swappable_bikes()]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
             return sim.Action(
                 [],
@@ -666,16 +667,6 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, over
         escooters_to_swap = [escooter.bike_id for escooter in swappable_escooters_at_location[:num_escooters_to_swap]]
 
     # Return lists of escooter IDs to do each action on
-    for scooter in escooters_to_deliver:
-        if not isinstance(scooter, str):
-            print(" Nei P ")
-    for scooter in escooters_to_pickup:
-        if not isinstance(scooter, str):
-            print(" Nei P ")
-    for scooter in escooters_to_swap:
-        if not isinstance(scooter, str):
-            print(" Nei P ")
-
     return escooters_to_pickup, escooters_to_deliver, escooters_to_swap
 
 def get_max_num_usable_escooters(cluster, vehicle): 
