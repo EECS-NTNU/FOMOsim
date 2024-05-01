@@ -14,9 +14,9 @@ def generate_escooters():
         resolution = resolutions[i]
         ring_radius = ring_radiuss[i]
 
-        FINISHED_DATA_FILE = f'/Users/itlam/fomo/instances/Ryde/TD_res{resolution}_radius{ring_radius}_test_W{WEEKS}.json.gz'
-        FINISHED_DATA_FILE2 = f'/Users/itlam/fomo/instances/Ryde/TD_res{resolution}_radius{ring_radius}_W{WEEKS}.json.gz'
-        INIT_TARGET_FILE = f'/Users/itlam/fomo/instances/Ryde/initial_target_state_1066_res{resolution}_radius{ring_radius}.json'
+        FINISHED_DATA_FILE = f'/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/instances/Ryde/TD_res{resolution}_radius{ring_radius}_test_W{WEEKS}.json.gz'
+        FINISHED_DATA_FILE2 = f'/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/instances/Ryde/TD_700_res{resolution}_radius{ring_radius}_W{WEEKS}.json.gz'
+        INIT_TARGET_FILE = f'/Users/isabellam/NTNU/H2023/Prosjektoppgave/fomo/instances/Ryde/initial_target_state_700_res{resolution}_radius{ring_radius}.json'
 
         with gzip.open(FINISHED_DATA_FILE, 'rt', encoding='utf-8') as file:
             sim_data = json.load(file)
