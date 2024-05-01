@@ -135,9 +135,9 @@ class Cluster(Location):
 
     def get_bike_from_id(self, bike_id):
         #TODO lag dict og hent
-        if not isinstance(bike_id, str):
+        if isinstance(bike_id, sim.EScooter):
             print("Not an ID:", bike_id)
-            print(bike_id.bike_id)
+            bike_id = bike_id.bike_id
 
         for bike in self.get_bikes():
             if bike.bike_id == bike_id:

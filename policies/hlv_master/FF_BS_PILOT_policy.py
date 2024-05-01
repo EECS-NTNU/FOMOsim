@@ -127,7 +127,7 @@ class BS_PILOT_FF(Policy):
                                                      total_num_ff_bikes_in_system)
 
         ending_time = time.time()
-        print("find location time:", ending_time - middle_logging_time)
+        # print("find location time:", ending_time - middle_logging_time)
 
         simul.metrics.add_aggregate_metric(simul, "accumulated find location time", ending_time - middle_logging_time)
         simul.metrics.add_aggregate_metric(simul, "accumulated sol time", ending_time - start_logging_time)        
@@ -666,6 +666,16 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, over
         escooters_to_swap = [escooter.bike_id for escooter in swappable_escooters_at_location[:num_escooters_to_swap]]
 
     # Return lists of escooter IDs to do each action on
+    for scooter in escooters_to_deliver:
+        if not isinstance(scooter, str):
+            print(" Nei P ")
+    for scooter in escooters_to_pickup:
+        if not isinstance(scooter, str):
+            print(" Nei P ")
+    for scooter in escooters_to_swap:
+        if not isinstance(scooter, str):
+            print(" Nei P ")
+
     return escooters_to_pickup, escooters_to_deliver, escooters_to_swap
 
 def get_max_num_usable_escooters(cluster, vehicle): 
