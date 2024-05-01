@@ -38,7 +38,6 @@ class VehicleArrival(Event):
         # perform the best action on the state and send vehicle to new location
         refill_time = world.state.do_action(action, self.vehicle, world_time)
         
-        # TODO fjernet driving time
         driving_time = world.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
         
         action_time = (

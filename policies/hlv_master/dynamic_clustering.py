@@ -7,8 +7,9 @@ from settings import *
 import copy
 import time
 from collections import deque
+from .Simple_calculations import calculate_net_demand
 
-def find_clusters(areas, n, max_length, vehicle, day, hour, operation):
+def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_location, operation, simul):
     """
     Returns a list of n cluster-objects that are pickup clusters.
 
@@ -23,15 +24,17 @@ def find_clusters(areas, n, max_length, vehicle, day, hour, operation):
     tabu_list = []
     clusters = []
     all_possible_clusters = []
+    day_now = int((time_now // (60*24)) % 7)
+    hour_now = int((time_now // 60) % 24)
 
     # Makes a list of the n areas with the highest overflow of escooters
     if operation == "delivery":
-        possible_areas = heapq.nlargest(n, areas, key=lambda area: -area.get_difference_from_target(day, hour, CLUSTER_USE_NEIGHBOURS))
+        possible_areas = heapq.nlargest(n, areas, key=lambda area: -area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
     elif operation == "pickup":
-        possible_areas = heapq.nlargest(n, areas, key=lambda area: area.get_difference_from_target(day, hour, CLUSTER_USE_NEIGHBOURS))
+        possible_areas = heapq.nlargest(n, areas, key=lambda area: area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
     elif operation == "both":
-        possible_areas = heapq.nlargest(n//2, areas, key=lambda area: -area.get_difference_from_target(day, hour, CLUSTER_USE_NEIGHBOURS))
-        possible_areas += heapq.nlargest(n//2, areas, key=lambda area: area.get_difference_from_target(day, hour, CLUSTER_USE_NEIGHBOURS))
+        possible_areas = heapq.nlargest(n//2, areas, key=lambda area: -area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
+        possible_areas += heapq.nlargest(n//2, areas, key=lambda area: area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
 
     # Make clusters for all, with the area as a center, if the area are not already added in another cluster
     for area in possible_areas:
@@ -42,7 +45,11 @@ def find_clusters(areas, n, max_length, vehicle, day, hour, operation):
             c, tabu_list = build_cluster(tabu_list, c, max_length)
 
             # Only add the cluster into potenial clusters if it doesn't balance it self out by it's neighbors, but have too many bikes
-            difference = c.get_max_num_usable(vehicle) - c.get_target_state(day, hour)
+            travel_time = simul.state.get_travel_time(departure_location.location_id, area.location_id) + MINUTES_CONSTANT_PER_ACTION
+            arrival_time = time_now + travel_time
+            day_arrival = int((arrival_time // (60*24)) % 7)
+            hour_arrival = int((arrival_time // 60) % 24)
+            difference = c.get_max_num_usable(battery_inventory, time_now, day_now, hour_now, travel_time) - c.get_target_state(day_arrival, hour_arrival)
 
             if (difference > 0 and operation == "pickup") or (difference < 0 and operation == "delivery") or (difference != 0 and operation == "both"):
                 clusters.append(c)
@@ -102,9 +109,12 @@ class Cluster(Location):
         """
         return [bike for area in self.areas for bike in area.get_bikes()]
 
-    def get_max_num_usable(self, vehicle):
-        return len(self.get_available_bikes()) + min(len(self.get_unusable_bikes()), vehicle.battery_inventory)
+    def get_max_num_usable(self, battery_inventory, time_now, day, hour, travel_time):
+        return len(self.get_available_bikes()) + self.cluster_net_demand(time_now, day, hour, travel_time) + min(len(self.get_unusable_bikes()), battery_inventory)
     
+    def cluster_net_demand(self, time_now, day, hour, travel_time):
+        return sum(calculate_net_demand(area, time_now, day, hour, min(travel_time, 60)) for area in self.areas)
+
     def get_neighbours(self):
         neighbours = {neighbor.location_id: neighbor for area in self.areas 
                                                      for neighbor in area.get_neighbours() 
@@ -137,9 +147,6 @@ class Cluster(Location):
     
     def get_difference_from_target(self, day, hour):
         """
-        TODO
-        skal denne brukes i hjelpe-policy?
-
         Returns the difference from target state for all areas in the cluster 
         and the areas not included in the cluster, as they are in allowed walking distance and can absorb demand.
 

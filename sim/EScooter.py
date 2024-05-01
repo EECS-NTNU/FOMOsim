@@ -3,7 +3,6 @@ from settings import *
 from sim.Location import Location
 from sim.Metric import Metric
 
-# TODO remove logs
 class EScooter(Location):
     """
     E-Scooter class

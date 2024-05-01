@@ -46,7 +46,7 @@ class BikeDeparture(Event):
                     p_normalized = []
                     for i in range(len(p)):
                         if sum > 0:
-                            p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
+                            p_normalized.append(p[i] * (1.0/sum))
                         else:
                             p_normalized.append(1/len(p))
                     arrival_station_id = world.state.rng.choice(list(mp.keys()), p = p_normalized)
@@ -90,7 +90,7 @@ class BikeDeparture(Event):
                 p_normalized = []
                 for i in range(len(p)):
                     if sum > 0:
-                        p_normalized.append(p[i] * (1.0/sum)) # TODO, not sure if this is needed
+                        p_normalized.append(p[i] * (1.0/sum))
                     else:
                         p_normalized.append(1/len(p))
                 if self.acceptance_rejection(distance, world):

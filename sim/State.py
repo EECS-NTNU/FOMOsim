@@ -53,7 +53,6 @@ class State(LoadSave):
 
         self.mapdata = mapdata
 
-    # TODO
     def sloppycopy(self, *args):
         new_state = State(
             list(self.get_locations()),
@@ -127,7 +126,7 @@ class State(LoadSave):
         areas = []
 
         escooter_id_counter = 0
-        area_num = 0 # TODO denne trengs ikke alltid
+        area_num = 0
         for area in statedata["areas"]:
 
             area_id = "A" + str(area_num)
@@ -199,13 +198,11 @@ class State(LoadSave):
 
             area_num += 1
 
-        # TODO - hvordan skal disse se ut?
         if 'depots' in statedata:
             for depot in statedata['depots']:
                 depotObj = sim.Depot(depot['id'], False, center_location= depot['location'])
                 areas.append(depotObj)
 
-        # TODO - dette må sikkert fikses
         mapdata = None
         if "map" in statedata:
             mapdata = (statedata["map"], statedata["map_boundingbox"])
@@ -303,8 +300,8 @@ class State(LoadSave):
             # create bikes
             bikes = []
             for _ in range(station["num_bikes"]):
-                if statedata["bike_class"] == "EBike": # TODO har et system enten kun bare vanlig sykler eller el-sykler?
-                    bikes.append(sim.EBike(bike_id= "EB" + str(num_ebikes), battery=100)) # TODO legge til funksjonalitet for at start batteri nivå er satt i json
+                if statedata["bike_class"] == "EBike":
+                    bikes.append(sim.EBike(bike_id= "EB" + str(num_ebikes), battery=100))
                     num_ebikes += 1
                 else:
                     bikes.append(sim.Bike(bike_id= "B"+str(num_bikes), is_station_based=True))
@@ -526,7 +523,6 @@ class State(LoadSave):
                                            self.traveltime_vehicle_matrix_stddev[(start_location_id, end_location_id)])
         return self.traveltime_vehicle_matrix[(start_location_id, end_location_id)]
 
-    # TODO remove debugger
     def do_action(self, action, vehicle, time):
         """
         Performs an action on the state -> changing the state
@@ -547,13 +543,13 @@ class State(LoadSave):
             )
             vehicle.add_battery_inventory(batteries_to_swap)
 
-            #### TODO - legg til tid for dette
+            # TODO - legg til tid for dette
             for e_scooter in vehicle.get_bike_inventory():
                 if e_scooter.hasBattery():
                     e_scooter.swap_battery()
                 
         else:
-            if vehicle.cluster is None: # TODO hvis du er i en stasjon
+            if vehicle.cluster is None:
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.location.get_bike_from_id(
                         pick_up_bike_id
@@ -793,14 +789,12 @@ class State(LoadSave):
                 key=lambda d: vehicle.location.distance_to(*d.get_location()),
                 default=None
             )
-        #TODO flytter seg ikke hvis det ikke finnes depot, men dette burde vel ikke skje?
         if not closest_depot:
             vehicle.battery_inventory = vehicle.battery_inventory_capacity
             return vehicle.location.location_id
         
         return closest_depot.location_id
     
-    # TODO forstå denne
     def sample(self, sample_size: int):
         # Filter out bikes not in sample
         sampled_bike_ids = self.rng2.choice(
@@ -840,7 +834,6 @@ class State(LoadSave):
         """
         return [vehicle for vehicle in self.get_vehicles() if not vehicle.is_station_based]
     
-    # TODO Trenger vi denne, evt. hva gjør vi for FF?
     def read_neighboring_stations_from_file(self):
         neighboring_stations = dict()      #{station_ID: [list of station_IDs]}
         filename = 'policies/inngjerdingen_moeller/saved_time_data/' + (self.mapdata[0]).split('.')[0].split('/')[-1] +'_static_data.json'

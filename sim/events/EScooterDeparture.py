@@ -90,7 +90,7 @@ class EScooterDeparture(Event):
                     p_normalized = []
                     for i in p.keys():
                         if sum_p > 0:
-                            p_normalized.append(p[i] * (1.0/sum_p)) # TODO, not sure if this is needed
+                            p_normalized.append(p[i] * (1.0/sum_p))
                         else:
                             p_normalized.append(1/len(p))
                 else:
