@@ -85,11 +85,12 @@ if __name__ == "__main__":
     
     policy_dict = {
         # 'SB_base': (policies.hlv_master.BS_PILOT(), True),
-        'FF_base_skriv_tid': (policies.hlv_master.BS_PILOT_FF(), False),
+        # 'FF_base_res'+str(RESOLUTION)+'_rad'+str(RADIUS): (policies.hlv_master.BS_PILOT_FF(), False),
         # 'SB_Collab2': (policies.hlv_master.SB_Collab2(), True),
         # 'FF_Collab2': (policies.hlv_master.FF_Collab2(), False),
         # 'Collab3': (policies.hlv_master.Collab3(), None),
-        # 'Collab4': (policies.hlv_master.Collab4(), None)
+        # 'Collab4': (policies.hlv_master.Collab4(), None),
+        f'DoNothing_res{RESOLUTION}_rad{RADIUS}': (policies.DoNothing(), None)
         }
   
     start_time = time.time()

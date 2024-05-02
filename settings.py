@@ -7,7 +7,7 @@ SIM SETTINGS
 VEHICLE_BATTERY_INVENTORY = 50 # How many batteries can a vehicle hold?
 VEHICLE_BIKE_INVENTORY = 20 # How many bikes can be carried in a vehicle?
 VEHICLE_SPEED = 25 # Average speed of a vehicle? (km/h)
-MINUTES_PER_ACTION = 1 # Minutes to load/unload/battery swaps
+MINUTES_PER_ACTION = 3 # Minutes to load/unload/battery swaps
 MINUTES_CONSTANT_PER_ACTION = 1.5 # Constat time in addition (f.eks park the car and start again)
 
 # Bike settings
@@ -41,7 +41,7 @@ NUM_VEHICLES = 2
 WALKING_SPEED = 4
 MAX_ROAMING_DISTANCE_SIMULATOR = 0.6 #km, for simulation
 MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
-FF_ROAMING_AREA_RADIUS = 500//50 # How many areas is a user willing to roam to find a bike?
+FF_ROAMING_AREA_RADIUS = 9 # How many areas is a user willing to roam to find a bike?
 AVERAGE_LENGHT_OF_TRIP = 15 #minutes -> to calculate average_discount
 
 # File settings
@@ -69,14 +69,14 @@ NUM_SUCCESSORS = 3 # beta, best = 3
 TIME_HORIZON = 40 # best = 40
 CRITICAILITY_WEIGHTS_SET = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
 EVALUATION_WEIGHTS = [0.45, 0.1, 0.45]
-NUM_SCENARIOS = 20
+NUM_SCENARIOS = 30
 DISCOUNTING_FACTOR = 0.6
 MAX_NUMBER_OF_CLUSTERS = 10
 ADJUSTING_CRITICALITY = 0
 CLUSTER_USE_NEIGHBOURS = False
 
 # ------- MANAGERIAL INSIGHTS ----------
-MAX_WALKING_AREAS = 300 // 50
+MAX_WALKING_AREAS = 5
 BIKES_OVERFLOW_NEIGHBOR = 1 # how many additional bikes to pick up for each "starved" neighbor
 BIKES_STARVED_NEIGHBOR = 2 # how many additional bikes to let be for each "starved" neighbor
 
@@ -92,4 +92,4 @@ NEIGHBOR_BATTERY_LIMIT = 50
 SEEDS_LIST=[10,11,12,13,14,15,16,17,18,19]
 
 RESULT_FOLDER = ''
-TEST = True
+TEST = False

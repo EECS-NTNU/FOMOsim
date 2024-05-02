@@ -59,7 +59,7 @@ class BS_PILOT_FF(Policy):
         # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all escooters at location that is unusable
         if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
             next_location = simul.state.get_closest_depot(vehicle)
-            print("Goes to depot", next_location)
+            # print("Goes to depot", next_location)
             # If no depot, just stay and do nothing
             if next_location == vehicle.location.location_id:
                 return sim.Action(
