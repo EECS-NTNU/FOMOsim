@@ -45,7 +45,7 @@ def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_l
             c, tabu_list = build_cluster(tabu_list, c, max_length)
 
             # Only add the cluster into potenial clusters if it doesn't balance it self out by it's neighbors, but have too many bikes
-            travel_time = simul.state.get_travel_time(departure_location.location_id, area.location_id) + MINUTES_CONSTANT_PER_ACTION
+            travel_time = simul.state.get_vehicle_travel_time(departure_location.location_id, area.location_id) + MINUTES_CONSTANT_PER_ACTION
             arrival_time = time_now + travel_time
             day_arrival = int((arrival_time // (60*24)) % 7)
             hour_arrival = int((arrival_time // 60) % 24)

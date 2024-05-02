@@ -241,6 +241,8 @@ class BS_PILOT(Policy):
         - simul = Simulator
         - station = Station the vehicle is considering doing the action at
         - eta = Estimated time of arrival for the vehicle to arrive at station
+
+        FYI - If changes in this method, change in Collab3
         """
         target_state = round(station.get_target_state(simul.day(),simul.hour())) 
         time_until_arrival = eta - simul.time
@@ -429,6 +431,8 @@ class BS_PILOT(Policy):
         - simul = Simulator
         - weights = weights for avoided violations, neighbor roamings, and improved deviation
         - total_num_bikes_in_system = the total amount of bicycles that are in the SB system
+        
+        FYI -If changes in this method, update Collab3
         """
         
         discounting_factors = generate_discounting_factors(len(route), self.discounting_factor)
@@ -465,7 +469,7 @@ class BS_PILOT(Policy):
                 battery_top3 = [Ebike.battery for Ebike in sorted_bikes_in_station[-3:]]
                 average_battery_top3 = sum(battery_top3)/len(battery_top3) if battery_top3 != [] else 0
                 hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
-                hours_until_violation_battery = average_battery_top3/hourly_discharge
+                hours_until_violation_battery = average_battery_top3/hourly_discharge if hourly_discharge != 0 else 8
 
                 # Find the earlist moment for a violation
                 hours_until_first_violation = min(
@@ -773,6 +777,8 @@ def get_bike_ids_load_swap(station, vehicle, target_state, num_bikes, station_ty
         # Pick up the escooters with the most battery
         if num_bikes_to_only_pickup > 0:
             bikes_to_pickup += [bike.bike_id for bike in bikes_at_station[-num_bikes_to_only_pickup:]]
+
+        return bikes_to_pickup, bikes_to_swap
     
     return [],[]
 

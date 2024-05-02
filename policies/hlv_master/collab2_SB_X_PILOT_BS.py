@@ -4,7 +4,7 @@ from settings import *
 import sim
 from .Visit import Visit
 from .Plan import Plan
-from .dynamic_clustering import Cluster, find_clusters
+from .dynamic_clustering import Cluster, find_clusters, build_cluster
 import time
 
 class SB_Collab2(BS_PILOT):
@@ -53,32 +53,28 @@ class SB_Collab2(BS_PILOT):
         current_area = simul.state.get_location_by_id(vehicle.location.area)
         next_area = simul.state.get_location_by_id(simul.state.get_location_by_id(action.next_location).area)
 
-        current_cluster = Cluster([current_area], current_area, current_area.get_bikes(), current_area.get_neighbours())
-        next_cluster = Cluster([next_area], next_area, next_area.get_bikes(), next_area.get_neighbours())
-        current_cluster, _ = build_cluster_p([], current_cluster, MAX_WALKING_AREAS, vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(action.pick_ups), simul)
-        next_cluster, _ = build_cluster_d([], next_cluster, MAX_WALKING_AREAS, vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(action.pick_ups), simul)
+        current_cluster = Cluster(areas=[current_area], center_area=current_area)
+        next_cluster = Cluster(areas=[next_area], center_area=next_area)
+        current_cluster, _ = build_cluster([], current_cluster, MAX_WALKING_AREAS)
+        next_cluster, _ = build_cluster([], next_cluster, MAX_WALKING_AREAS)
 
-        current_deviation = current_cluster.get_difference_from_target(simul.day(), simul.hour())
-        next_deviation = next_cluster.get_difference_from_target(simul.day(), simul.hour())
+        current_deviation = current_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), 0) - current_cluster.get_target_state(simul.day(), simul.hour())
+        travel_time = simul.state.get_vehicle_travel_time(current_area.location_id, next_area.location_id)
+        arrival_time = simul.time + travel_time
+        day_arrival = int((arrival_time // (60*24)) % 7)
+        hour_arrival = int((arrival_time // 60) % 24)
+        next_deviation = next_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), travel_time) - next_cluster.get_target_state(day_arrival, hour_arrival)
 
         if current_deviation > 0 and next_deviation < 0:
-            num_escooters = min(current_deviation, 
+            num_escooters = min(current_deviation,
                                 -next_deviation, 
                                 vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(action.pick_ups)
                                 )
-            # print("Collab2, helping escooters =", num_escooters)
-            pickup_escooter_ids, _ = get_escooter_ids_load_swap(current_cluster, vehicle, num_escooters, "pickup", 0) # since you can't swap
-            # print(pickup_escooter_ids)
-            # print(current_cluster, current_cluster.get_bikes())
-            # print("original pickup action", action.pick_ups)
+
+            pickup_escooter_ids, _ = get_escooter_ids_load_swap(current_cluster, vehicle, num_escooters, 0, "pickup", 0)
 
         delivery_escooter_ids = [bike.bike_id for bike in vehicle.get_ff_bike_inventory()]
-        # if delivery_escooter_ids:
-        #     print(delivery_escooter_ids)
-        #     print(vehicle.bike_inventory)
-        #     print("origianl delivery action", action.delivery_bikes)
-
-
+        
         simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
         simul.metrics.add_aggregate_metric(simul, "num helping escooter pickups", len(pickup_escooter_ids))
         simul.metrics.add_aggregate_metric(simul, "num helping escooter deliveries", len(delivery_escooter_ids))

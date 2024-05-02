@@ -446,6 +446,8 @@ class BS_PILOT_FF(Policy):
         - simul = Simulator
         - weights = weights for avoided violations, neighbor roamings, and improved deviation
         - total_num_bikes_in_system = the total amount of bicycles that are in the SB system
+
+        FYI - If changing in this method, update Collab3
         """
 
         discounting_factors = generate_discounting_factors(len(route), self.discounting_factor)
@@ -482,7 +484,7 @@ class BS_PILOT_FF(Policy):
                 battery_top3 = [Ebike.battery for Ebike in sorted_escooters_at_area[-3:]]
                 average_battery_top3 = sum(battery_top3)/len(battery_top3) if battery_top3 != [] else 0
                 hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
-                hours_until_violation_battery = average_battery_top3/hourly_discharge
+                hours_until_violation_battery = average_battery_top3/hourly_discharge if hourly_discharge != 0 else 8
 
                 # Find the earlist moment for a violation
                 hours_until_first_violation = min(
@@ -514,7 +516,8 @@ class BS_PILOT_FF(Policy):
             if net_demand < 0:
                 time_until_first_violation = (area_inventory_after_visit / (-net_demand)) * 60
                 if swap_quantity > loading_quantity + 3: # Knowing top 3 bikes at station are fully charged
-                    time_first_violation_after_visit = eta + min(time_until_first_violation, 100/calculate_hourly_discharge_rate(simul, total_num_escooters_in_system) * 60)
+                    hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
+                    time_first_violation_after_visit = eta + min(time_until_first_violation, 100/hourly_discharge * 60)
                 else:
                     time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)) * 60)
             else:

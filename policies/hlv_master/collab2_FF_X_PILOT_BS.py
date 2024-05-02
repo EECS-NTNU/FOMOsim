@@ -49,10 +49,11 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
 
         helping_pickups = []
         if sum(current_deviations) > 0 and sum(next_deviations) < 0:
+            # Number of SB-bikes to pickup
             num_bikes = min(
                 sum(current_deviations),
                 -sum(next_deviations),
-                vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(action.pick_ups)
+                vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()) - len(action.pick_ups) # Left capacity in vehicle
             )
             for i in range(len(current_stations)):
                 num_pickup = min(
@@ -61,19 +62,10 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
                 )
                 helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, num_pickup, "pickup")[0] if (num_pickup > 0) else []
                 num_bikes -= num_pickup
-            # print(helping_pickups)
-            # print(current_stations, [bike for bike in current_stations.get_bikes()])
-            # print("original pickup action", action.pick_ups)
-        
-        helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(int(sum(current_deviations)), len(vehicle.get_sb_bike_inventory()))]
-        # if helping_delivery:
-        #     print(helping_delivery)
-        #     print(vehicle.bike_inventory)
-        #     print("origianl delivery action", action.delivery_bikes)
-        
-        station_bikes = {}
 
-        helping_cluster = Cluster(current_stations, vehicle.location, station_bikes, [])
+        helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(int(sum(current_deviations)), len(vehicle.get_sb_bike_inventory()))]
+        
+        helping_cluster = Cluster(current_stations, vehicle.location, {}, [])
 
         simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
         simul.metrics.add_aggregate_metric(simul, "num helping bike pickups", len(helping_pickups))
