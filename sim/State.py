@@ -630,15 +630,14 @@ class State(LoadSave):
                     # Picking up bike and adding to vehicle inventory and swapping battery
                     vehicle.pick_up(helping_pickup_bike)
 
-                if len(action.helping_delivery) > 0:
+                for helping_delivery_id in action.helping_delivery:
                     day = int((time // (60*24)) % 7)
                     hour = int((time // (60)) % 24)
                     for station in action.helping_cluster.areas:
-                        while station.number_of_bikes() < station.get_target_state(day, hour) and len(vehicle.get_sb_bike_inventory()) > 0:
-                            helping_delivery_id = action.helping_delivery.pop()
-
+                        if station.number_of_bikes() < station.get_target_state(day, hour) and len(vehicle.get_sb_bike_inventory()) > 0:
                             helping_delivery_bike = vehicle.drop_off(helping_delivery_id)
                             station.add_bike(helping_delivery_bike)
+                            break
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)
