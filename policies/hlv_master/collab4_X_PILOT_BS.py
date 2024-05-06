@@ -193,6 +193,17 @@ class Collab4(Collab3):
             simul.metrics.add_aggregate_metric(simul, "num helping bike pickups", len(helping_pickups))
             simul.metrics.add_aggregate_metric(simul, "num helping bike deliveries", len(helping_delivery))
 
+        # if len(set(helping_pickups)) != len(helping_pickups):
+        #     print("Doble pickups")
+        #     print(helping_pickups)
+        # if len(set(helping_delivery)) != len(helping_delivery):
+        #     print("Doble delivery")
+        #     print(helping_delivery)
+        
+        # print(helping_pickups)
+        # print(helping_delivery)
+        # print(helping_cluster.get_bikes())
+
         action.helping_pickup =  helping_pickups
         action.helping_delivery = helping_delivery
         action.helping_cluster = helping_cluster

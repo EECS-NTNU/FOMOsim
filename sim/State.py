@@ -637,9 +637,8 @@ class State(LoadSave):
                         while station.number_of_bikes() < station.get_target_state(day, hour) and len(vehicle.get_sb_bike_inventory()) > 0:
                             helping_delivery_id = action.helping_delivery.pop()
 
-                            helping_delivery_bike = action.helping_cluster.get_bike_from_id(helping_delivery_id)
+                            helping_delivery_bike = vehicle.drop_off(helping_delivery_id)
                             station.add_bike(helping_delivery_bike)
-                            vehicle.drop_off(helping_delivery_id)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)

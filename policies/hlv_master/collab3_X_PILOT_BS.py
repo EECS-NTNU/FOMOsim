@@ -712,22 +712,24 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle,
 
     # Vehicle's inventory is capable of both pickups and deliveries
     if cutoff_vehicle * vehicle.bike_inventory_capacity <= ff_bikes_in_vehicle+sb_bikes_in_vehicle <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
-        potential_pickup_clusters = find_clusters(areas=simul.state.get_areas(), 
-                                                  n=MAX_NUMBER_OF_CLUSTERS//2, 
-                                                  max_length=operator_radius, 
-                                                  battery_inventory=batteries_in_vehicle, 
-                                                  time_now= time_of_departure, 
-                                                  departure_location = departure_location,
-                                                  operation="pickup",
-                                                  simul=simul)
+        max_clusters = MAX_NUMBER_OF_CLUSTERS
         if ff_bikes_in_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
+            max_clusters = max_clusters // 2
             potential_delivery_clusters = find_clusters(areas=simul.state.get_areas(), 
-                                                  n=MAX_NUMBER_OF_CLUSTERS//2, 
+                                                  n=max_clusters, 
                                                   max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
                                                   departure_location = departure_location,
                                                   operation="delivery",
+                                                  simul=simul)
+        potential_pickup_clusters = find_clusters(areas=simul.state.get_areas(), 
+                                                  n=max_clusters, 
+                                                  max_length=operator_radius, 
+                                                  battery_inventory=batteries_in_vehicle, 
+                                                  time_now= time_of_departure, 
+                                                  departure_location = departure_location,
+                                                  operation="pickup",
                                                   simul=simul)
         potential_stations = potential_pickup_clusters + potential_delivery_clusters
     else:

@@ -79,12 +79,12 @@ def calculate_criticality_ff(weights, simul, potential_clusters, station, total_
         criticalities_normalized[station][5] *= w_bc
 
         # TODO gir dette mening?
-        criticalities_normalized[station][0] += ADJUSTING_CRITICALITY
-        criticalities_normalized[station][1] += ADJUSTING_CRITICALITY
-        criticalities_normalized[station][2] += ADJUSTING_CRITICALITY
-        criticalities_normalized[station][3] += ADJUSTING_CRITICALITY
-        criticalities_normalized[station][4] += ADJUSTING_CRITICALITY
-        criticalities_normalized[station][5] += ADJUSTING_CRITICALITY
+        criticalities_normalized[station][0] *= ADJUSTING_CRITICALITY
+        criticalities_normalized[station][1] *= ADJUSTING_CRITICALITY
+        criticalities_normalized[station][2] *= ADJUSTING_CRITICALITY
+        criticalities_normalized[station][3] *= ADJUSTING_CRITICALITY
+        criticalities_normalized[station][4] *= ADJUSTING_CRITICALITY
+        criticalities_normalized[station][5] *= ADJUSTING_CRITICALITY
 
         criticalities_summed[station] = criticalities_normalized[station][0] + criticalities_normalized[station][1] 
         + criticalities_normalized[station][2] + criticalities_normalized[station][3] + criticalities_normalized[station][4] + criticalities_normalized[station][5]
