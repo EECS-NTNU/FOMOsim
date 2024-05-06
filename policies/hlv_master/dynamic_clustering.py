@@ -16,7 +16,7 @@ def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_l
     Parameters:
     - areas = all area-objects to consider as centers
     - n = number of clusters to be considered
-    - max_length = radius of areas
+    - max_length = radius of areas willing to walk
     - vehicle = vehicle-object that is doing the rebalancing
     - day, hour = time of the current event
     - operation = either delivery or pickup

@@ -22,7 +22,8 @@ class Collab4(Collab3):
                 starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP,
                 criticality_weights_set_ff = CRITICAILITY_WEIGHTS_SET,
-                criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET
+                criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET,
+                operator_radius = OPERATOR_RADIUS
                 ):
         super().__init__(
             max_depth = max_depth,
@@ -36,7 +37,8 @@ class Collab4(Collab3):
             starvation_criteria = starvation_criteria,
             swap_threshold = swap_threshold,
             criticality_weights_set_ff= criticality_weights_set_ff,
-            criticality_weights_set_sb= criticality_weights_set_sb
+            criticality_weights_set_sb= criticality_weights_set_sb,
+            operator_radius = operator_radius
         )
 
     def get_best_action(self, simul, vehicle):
@@ -60,15 +62,15 @@ class Collab4(Collab3):
 
             current_cluster = Cluster([current_area], current_area, current_area.get_bikes(), current_area.get_neighbours())
             next_cluster = Cluster([next_area], next_area, next_area.get_bikes(), next_area.get_neighbours())
-            current_cluster, _ = build_cluster([], current_cluster, MAX_WALKING_AREAS)
-            next_cluster, _ = build_cluster([], next_cluster, MAX_WALKING_AREAS)
+            current_cluster, _ = build_cluster([], current_cluster, self.operator_radius)
+            next_cluster, _ = build_cluster([], next_cluster, self.operator_radius)
 
-            current_deviation = current_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), 0) - current_cluster.get_target_state(simul.day(), simul.hour())
+            current_deviation = current_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), 0) - round(current_cluster.get_target_state(simul.day(), simul.hour()))
             travel_time = simul.state.get_vehicle_travel_time(current_area.location_id, next_area.location_id)
             arrival_time = simul.time + travel_time
             day_arrival = int((arrival_time // (60*24)) % 7)
             hour_arrival = int((arrival_time // 60) % 24)
-            next_deviation = next_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), travel_time) - next_cluster.get_target_state(day_arrival, hour_arrival)
+            next_deviation = next_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), travel_time) - round(next_cluster.get_target_state(day_arrival, hour_arrival))
 
             if current_deviation > 0 and next_deviation < 0:
                 num_escooters = min(current_deviation, 
@@ -89,10 +91,10 @@ class Collab4(Collab3):
             start_help_time = time.time()
             current_area = simul.state.get_location_by_id(current_location.area)
             current_cluster = Cluster([current_area], current_area, current_area.get_bikes(), current_area.get_neighbours())
-            current_cluster, _  = build_cluster([], current_cluster, MAX_WALKING_AREAS)
+            current_cluster, _  = build_cluster([], current_cluster, self.operator_radius)
 
-            next_deviation = len(next_location.get_available_bikes()) - next_location.get_target_state(simul.day(), simul.hour())
-            current_deviation = current_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), 0) - current_cluster.get_target_state(simul.day(), simul.hour())
+            next_deviation = len(next_location.get_available_bikes()) - round(next_location.get_target_state(simul.day(), simul.hour()))
+            current_deviation = current_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), 0) - round(current_cluster.get_target_state(simul.day(), simul.hour()))
 
             if current_deviation < 0:
                 if next_deviation > 0:
@@ -117,8 +119,8 @@ class Collab4(Collab3):
             start_help_time = time.time()
             current_stations = [simul.state.get_location_by_id(area.station) for area in vehicle.cluster.areas if area.station is not None] if vehicle.cluster is not None else []
             if current_stations != []:
-                next_deviation = len(next_location.get_available_bikes()) - next_location.get_target_state(simul.day(), simul.hour())
-                current_deviations = [station.number_of_bikes() - station.get_target_state(simul.day(), simul.hour()) for station in current_stations]
+                next_deviation = len(next_location.get_available_bikes()) - round(next_location.get_target_state(simul.day(), simul.hour()))
+                current_deviations = [station.number_of_bikes() - round(station.get_target_state(simul.day(), simul.hour())) for station in current_stations]
 
                 helping_delivery = []
                 delivery_count = 0
@@ -160,8 +162,8 @@ class Collab4(Collab3):
             if current_stations != []:
                 next_stations = [simul.state.get_location_by_id(area.station) for area in action.cluster.areas if area.station is not None]
 
-                current_deviations = [station.number_of_bikes() - station.get_target_state(simul.day(), simul.hour()) for station in current_stations]
-                next_deviations = [station.number_of_bikes() - station.get_target_state(simul.day(), simul.hour()) for station in next_stations]
+                current_deviations = [station.number_of_bikes() - round(station.get_target_state(simul.day(), simul.hour())) for station in current_stations]
+                next_deviations = [station.number_of_bikes() - round(station.get_target_state(simul.day(), simul.hour())) for station in next_stations]
 
                 helping_pickups = []
                 if sum(current_deviations) > 0 and sum(next_deviations) < 0:
@@ -176,7 +178,7 @@ class Collab4(Collab3):
                             max(0, current_deviations[i]),
                             num_bikes
                         )
-                        helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, num_pickup, "pickup")[0] if (num_pickup > 0) else []
+                        helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, round(current_stations[i].get_target_state(simul.day(), simul.hour())), num_pickup, "pickup")[0] if (num_pickup > 0) else []
                         num_bikes -= num_pickup
 
                 helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(int(sum(current_deviations)), len(vehicle.get_sb_bike_inventory()))]

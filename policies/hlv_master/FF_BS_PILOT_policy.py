@@ -24,8 +24,9 @@ class BS_PILOT_FF(Policy):
                 discounting_factor = DISCOUNTING_FACTOR,
                 overflow_criteria = OVERFLOW_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
-                swap_threshold = BATTERY_LIMIT_TO_SWAP
-                 ):
+                swap_threshold = BATTERY_LIMIT_TO_SWAP,
+                operator_radius = OPERATOR_RADIUS
+                ):
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
         self.time_horizon = time_horizon
@@ -36,6 +37,7 @@ class BS_PILOT_FF(Policy):
         self.overflow_criteria = overflow_criteria
         self.starvation_criteria = starvation_criteria
         self.swap_threshold = swap_threshold
+        self.operator_radius = operator_radius
         super().__init__()
     
     def get_best_action(self, simul, vehicle):
@@ -352,7 +354,7 @@ class BS_PILOT_FF(Policy):
 
         # Finds potential next clusters based on pick up or delivery status of the cluster and tabulist
         time_of_departure = plan.plan[vehicle.vehicle_id][-1].get_depature_time()
-        potential_clusters = find_potential_clusters(simul, LOCATION_TYPE_MARGIN, vehicle, num_bikes_now, battery_inventory_now, time_of_departure, plan.plan[vehicle.vehicle_id][-1].station)
+        potential_clusters = find_potential_clusters(simul, LOCATION_TYPE_MARGIN, vehicle, num_bikes_now, battery_inventory_now, time_of_departure, plan.plan[vehicle.vehicle_id][-1].station, self.operator_radius)
         if potential_clusters == []:
             return None
         
@@ -761,7 +763,7 @@ def get_escooter_ids_load_swap(cluster, vehicle, num_escooters, target_state, cl
 
     return [],[]
 
-def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle, batteries_in_vehicle, time_of_departure, departure_location):
+def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle, batteries_in_vehicle, time_of_departure, departure_location, operator_radius):
     """
     Returns a list of Station-Objects that are not in the tabu list, and that need help to reach target state.
 
@@ -778,7 +780,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle, ba
     if cutoff_vehicle * vehicle.bike_inventory_capacity <= bikes_at_vehicle <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
         potential_pickup_stations = find_clusters(areas=simul.state.get_areas(), 
                                                   n=MAX_NUMBER_OF_CLUSTERS, 
-                                                  max_length=MAX_WALKING_AREAS, 
+                                                  max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
                                                   departure_location = departure_location,
@@ -790,7 +792,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle, ba
         if bikes_at_vehicle <= cutoff_vehicle*vehicle.bike_inventory_capacity:
             potential_stations = find_clusters(areas=simul.state.get_areas(), 
                                                   n=MAX_NUMBER_OF_CLUSTERS, 
-                                                  max_length=MAX_WALKING_AREAS, 
+                                                  max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
                                                   departure_location = departure_location,
@@ -800,7 +802,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle, ba
         elif bikes_at_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
             potential_stations = find_clusters(areas=simul.state.get_areas(), 
                                                   n=MAX_NUMBER_OF_CLUSTERS, 
-                                                  max_length=MAX_WALKING_AREAS, 
+                                                  max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
                                                   departure_location = departure_location,

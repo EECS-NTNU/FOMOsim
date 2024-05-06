@@ -76,7 +76,7 @@ ADJUSTING_CRITICALITY = 0
 CLUSTER_USE_NEIGHBOURS = False
 
 # ------- MANAGERIAL INSIGHTS ----------
-MAX_WALKING_AREAS = 5
+OPERATOR_RADIUS = 5
 BIKES_OVERFLOW_NEIGHBOR = 1 # how many additional bikes to pick up for each "starved" neighbor
 BIKES_STARVED_NEIGHBOR = 2 # how many additional bikes to let be for each "starved" neighbor
 
@@ -92,4 +92,4 @@ NEIGHBOR_BATTERY_LIMIT = 50
 SEEDS_LIST=[10,11,12,13,14,15,16,17,18,19]
 
 RESULT_FOLDER = ''
-TEST = False
+TEST = True

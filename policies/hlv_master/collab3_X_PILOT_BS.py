@@ -25,7 +25,8 @@ class Collab3(BS_PILOT_FF):
                 starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP,
                 criticality_weights_set_ff = CRITICAILITY_WEIGHTS_SET,
-                criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET
+                criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET,
+                operator_radius = OPERATOR_RADIUS
                 ):
         super().__init__(
             max_depth = max_depth,
@@ -37,7 +38,8 @@ class Collab3(BS_PILOT_FF):
             discounting_factor = discounting_factor,
             overflow_criteria = overflow_criteria,
             starvation_criteria = starvation_criteria,
-            swap_threshold = swap_threshold
+            swap_threshold = swap_threshold,
+            operator_radius = operator_radius
         )
         self.criticality_weights_set_ff = criticality_weights_set_ff
         self.criticality_weights_set_sb = criticality_weights_set_sb
@@ -265,7 +267,7 @@ class Collab3(BS_PILOT_FF):
                 target_state_neighbor = neighbor.get_target_state(simul.day(), simul.hour())
                 if num_usable_bikes_neighbor_eta < self.starvation_criteria * target_state_neighbor:
                     num_starved_neighbors += 1
-                elif num_usable_bikes_neighbor_eta > self.congestion_criteria * target_state_neighbor:
+                elif num_usable_bikes_neighbor_eta > self.overflow_criteria * target_state_neighbor:
                     num_overflowing_neighbors += 1
 
             number_of_bikes_pickup = 0
@@ -340,7 +342,7 @@ class Collab3(BS_PILOT_FF):
         # Finds potential next stations based on pick up or delivery status of the station and tabulist
         potential_stations = find_potential_stations(simul,LOCATION_TYPE_MARGIN, LOCATION_TYPE_MARGIN,vehicle, num_sb_bikes_now, num_ff_bikes_now+num_sb_bikes_now, tabu_list)
         time_of_departure = plan.plan[vehicle.vehicle_id][-1].get_depature_time()
-        potential_clusters = find_potential_clusters(simul, LOCATION_TYPE_MARGIN, vehicle, num_ff_bikes_now, num_sb_bikes_now, num_battery_inventory_now, time_of_departure, plan.plan[vehicle.vehicle_id][-1].station)
+        potential_clusters = find_potential_clusters(simul, LOCATION_TYPE_MARGIN, vehicle, num_ff_bikes_now, num_sb_bikes_now, num_battery_inventory_now, time_of_departure, plan.plan[vehicle.vehicle_id][-1].station, self.operator_radius)
         if potential_stations == [] and potential_clusters == []:
             return None
         
@@ -448,9 +450,11 @@ class Collab3(BS_PILOT_FF):
                 if net_demand < 0:
                     time_until_first_violation = (station_inventory_after_visit / (-net_demand)) * 60
                     if swap_quantity > loading_quantity + 3: # Knowing top 3 bikes at station are fully charged
-                        time_first_violation_after_visit = eta + min(time_until_first_violation, 100/calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60)
+                        hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+                        time_first_violation_after_visit = eta + min(time_until_first_violation, 100/(hourly_discharge if hourly_discharge != 0 else 1) * 60)
                     else:
-                        time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)) * 60)
+                        hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+                        time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(hourly_discharge if hourly_discharge != 0 else 1) * 60)
                 elif net_demand > 0:
                     time_until_first_violation = (location.capacity - station_inventory_after_visit) / net_demand
                     time_first_violation_after_visit = eta + time_until_first_violation * 60
@@ -693,7 +697,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, over
     else:
         return calculate_loading_quantities_and_swaps_greedy_ff(vehicle, simul, location, overflow_criteria, starvation_criteria, swap_threshold)
 
-def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle, sb_bikes_in_vehicle, batteries_in_vehicle, time_of_departure, departure_location):
+def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle, sb_bikes_in_vehicle, batteries_in_vehicle, time_of_departure, departure_location, operator_radius):
     """
     Returns a list of Station-Objects that are not in the tabu list, and that need help to reach target state.
 
@@ -710,7 +714,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle,
     if cutoff_vehicle * vehicle.bike_inventory_capacity <= ff_bikes_in_vehicle+sb_bikes_in_vehicle <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
         potential_pickup_clusters = find_clusters(areas=simul.state.get_areas(), 
                                                   n=MAX_NUMBER_OF_CLUSTERS//2, 
-                                                  max_length=MAX_WALKING_AREAS, 
+                                                  max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
                                                   departure_location = departure_location,
@@ -719,7 +723,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle,
         if ff_bikes_in_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
             potential_delivery_clusters = find_clusters(areas=simul.state.get_areas(), 
                                                   n=MAX_NUMBER_OF_CLUSTERS//2, 
-                                                  max_length=MAX_WALKING_AREAS, 
+                                                  max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
                                                   departure_location = departure_location,
@@ -732,7 +736,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle,
         if ff_bikes_in_vehicle+sb_bikes_in_vehicle <= cutoff_vehicle*vehicle.bike_inventory_capacity:
             potential_stations = find_clusters(areas=simul.state.get_areas(), 
                                                   n=MAX_NUMBER_OF_CLUSTERS, 
-                                                  max_length=MAX_WALKING_AREAS, 
+                                                  max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
                                                   departure_location = departure_location,
@@ -742,7 +746,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle,
         elif ff_bikes_in_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
             potential_stations = find_clusters(areas=simul.state.get_areas(), 
                                                   n=MAX_NUMBER_OF_CLUSTERS, 
-                                                  max_length=MAX_WALKING_AREAS, 
+                                                  max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
                                                   departure_location = departure_location,

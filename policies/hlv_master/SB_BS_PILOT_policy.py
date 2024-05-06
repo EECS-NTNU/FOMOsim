@@ -506,9 +506,11 @@ class BS_PILOT(Policy):
             if net_demand < 0:
                 time_until_first_violation = (station_inventory_after_visit / (-net_demand)) * 60
                 if swap_quantity > loading_quantity + 3: # Knowing top 3 bikes at station are fully charged
-                    time_first_violation_after_visit = eta + min(time_until_first_violation, 100/calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60)
+                    hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+                    time_first_violation_after_visit = eta + min(time_until_first_violation, 100/(hourly_discharge if hourly_discharge else 1) * 60)
                 else:
-                    time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)) * 60)
+                    hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
+                    time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(hourly_discharge if hourly_discharge else 1) * 60)
             elif net_demand > 0:
                 time_until_first_violation = (station.capacity - station_inventory_after_visit) / net_demand
                 time_first_violation_after_visit = eta + time_until_first_violation * 60

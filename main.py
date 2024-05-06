@@ -23,7 +23,7 @@ import random
 # from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(days=2)
+DURATION = timeInMinutes(days=5)
 INSTANCE = 'TD_W34'
 WEEK = 34
 
@@ -50,9 +50,9 @@ def main(seed):
     # policy = policies.hlv_master.BS_PILOT()
     # state.set_sb_vehicles([policy])
 
-    print("Policy: BS_PILOT_FF, Seed:", seed)
-    policy_ff = policies.hlv_master.BS_PILOT_FF()
-    state.set_ff_vehicles([policy_ff])
+    # print("Policy: BS_PILOT_FF, Seed:", seed)
+    # policy_ff = policies.hlv_master.BS_PILOT_FF()
+    # state.set_ff_vehicles([policy_ff])
 
     # print("Policy: FF_Collab2, Seed:", seed)
     # policy2_ff = policies.hlv_master.FF_Collab2()
@@ -66,9 +66,9 @@ def main(seed):
     # policy3 = policies.hlv_master.Collab3()
     # state.set_vehicles([policy3])
 
-    # print("Policy: Collab4, Seed:", seed)
-    # policy4 = policies.hlv_master.Collab4()
-    # state.set_vehicles([policy4]) 
+    print("Policy: Collab4, Seed:", seed)
+    policy4 = policies.hlv_master.Collab4()
+    state.set_vehicles([policy4]) 
 
     ###############################################################################
     # Set up target state

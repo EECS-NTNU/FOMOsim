@@ -43,6 +43,7 @@ class State(LoadSave):
         self.vehicles = vehicles
         self.bikes_in_use = bikes_in_use
         self.seed = seed
+        self.roaming_radius = 1
 
         self.set_locations(locations)
 
@@ -655,9 +656,10 @@ class State(LoadSave):
         string += f"In use: {len(self.bikes_in_use.values())}"
         return string
     
-    def get_closest_available_area(self, area, radius = FF_ROAMING_AREA_RADIUS):    
+    def get_closest_available_area(self, area):    
         available_area = None
         neighbors = area.neighbours[:]
+        radius = self.roaming_radius
 
         while neighbors and not available_area:
             current_neighbor = neighbors.pop(0)  # Remove the first neighbor from the list to check it

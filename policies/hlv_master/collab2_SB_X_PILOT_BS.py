@@ -21,7 +21,8 @@ class SB_Collab2(BS_PILOT):
                 discounting_factor = DISCOUNTING_FACTOR,
                 overflow_criteria = OVERFLOW_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
-                swap_threshold = BATTERY_LIMIT_TO_SWAP
+                swap_threshold = BATTERY_LIMIT_TO_SWAP,
+                operator_radius = OPERATOR_RADIUS
                  ):
         super().__init__(
             max_depth = max_depth,
@@ -35,6 +36,7 @@ class SB_Collab2(BS_PILOT):
             starvation_criteria = starvation_criteria,
             swap_threshold = swap_threshold
         )
+        self.operator_radius = operator_radius
 
     def get_best_action(self, simul, vehicle):
         """
@@ -55,8 +57,8 @@ class SB_Collab2(BS_PILOT):
 
         current_cluster = Cluster(areas=[current_area], center_area=current_area)
         next_cluster = Cluster(areas=[next_area], center_area=next_area)
-        current_cluster, _ = build_cluster([], current_cluster, MAX_WALKING_AREAS)
-        next_cluster, _ = build_cluster([], next_cluster, MAX_WALKING_AREAS)
+        current_cluster, _ = build_cluster([], current_cluster, self.operator_radius)
+        next_cluster, _ = build_cluster([], next_cluster, self.operator_radius)
 
         current_deviation = current_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), 0) - current_cluster.get_target_state(simul.day(), simul.hour())
         travel_time = simul.state.get_vehicle_travel_time(current_area.location_id, next_area.location_id)

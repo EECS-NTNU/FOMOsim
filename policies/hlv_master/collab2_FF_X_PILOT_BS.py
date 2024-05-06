@@ -18,7 +18,8 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
                 discounting_factor = DISCOUNTING_FACTOR,
                 overflow_criteria = OVERFLOW_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
-                swap_threshold = BATTERY_LIMIT_TO_SWAP
+                swap_threshold = BATTERY_LIMIT_TO_SWAP,
+                operator_radius = OPERATOR_RADIUS
                  ):
         super().__init__(
             max_depth = max_depth,
@@ -30,7 +31,8 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
             discounting_factor = discounting_factor,
             overflow_criteria = overflow_criteria,
             starvation_criteria = starvation_criteria,
-            swap_threshold = swap_threshold
+            swap_threshold = swap_threshold,
+            operator_radius = operator_radius
         )
     
     def get_best_action(self, simul, vehicle):
