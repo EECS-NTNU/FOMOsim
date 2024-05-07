@@ -62,7 +62,7 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
                     max(0, current_deviations[i]),
                     num_bikes
                 )
-                helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, num_pickup, "pickup")[0] if (num_pickup > 0) else []
+                helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, current_stations[i].get_target_state(simul.day(), simul.hour()), num_pickup, "pickup")[0] if (num_pickup > 0) else []
                 num_bikes -= num_pickup
 
         helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(int(sum(current_deviations)), len(vehicle.get_sb_bike_inventory()))]

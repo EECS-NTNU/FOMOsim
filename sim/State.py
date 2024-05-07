@@ -273,7 +273,6 @@ class State(LoadSave):
             if "charging_station" in station:
                 charging_station = station["charging_station"]
 
-            # TODO fix depot init
             if ("is_depot" in station) and station["is_depot"]:
                 depot_capacity = DEFAULT_DEPOT_CAPACITY
                 if "depot_capacity" in station:

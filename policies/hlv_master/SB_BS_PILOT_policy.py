@@ -99,7 +99,7 @@ class BS_PILOT(Policy):
             
             # If the vehicle is driving, use pilot to calculate the loading and swap strategy and add to the plan
             else:
-                number_of_bikes_pickup, number_of_bikes_deliver, number_of_batteries_to_swap = self.calculate_loading_quantities_and_swaps_pilot(v, simul, v.location, v.eta)
+                number_of_bikes_pickup, number_of_bikes_deliver, number_of_batteries_to_swap = self.calculate_loading_quantities_and_swaps_pilot(len(v.bike_inventory), v.battery_inventory, simul, v.location, v.eta)
                 plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_bikes_pickup), int(number_of_bikes_deliver), int(number_of_batteries_to_swap), v.eta, v)]
         
         # All locations the vehicles are at or are on their way to is added to the tabu list and plan
@@ -199,9 +199,8 @@ class BS_PILOT(Policy):
                 dep_time = plan.next_visit.get_depature_time()
                 temp_plan = Plan(plan.copy_plan(), copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
 
-                if dep_time > end_time and temp_plan.branch_number == None:                    # print(f'dep_time({dep_time}) > end_time({end_time}), when time_horizon={self.time_horizon}')
+                if dep_time > end_time and temp_plan.branch_number == None:
                     dep_time = end_time - 1
-                    # TODO
 
                 # Add more visits until departure time has reached the end time
                 while dep_time < end_time:
@@ -327,11 +326,13 @@ class BS_PILOT(Policy):
         tabu_list = plan.tabu_list
         vehicle = plan.next_visit.vehicle
         num_bikes_now = len(vehicle.get_sb_bike_inventory())
+        battery_inventory_now = vehicle.battery_inventory
 
         # Update the vehicle bike inventory based on the planned operational actions
         for visit in plan.plan[vehicle.vehicle_id]:
             num_bikes_now += visit.loading_quantity
             num_bikes_now -= visit.unloading_quantity
+            battery_inventory_now -= visit.swap_quantity
 
         # Finds potential next stations based on pick up or delivery status of the station and tabulist
         potential_stations = find_potential_stations(simul,0.15,0.15,vehicle, num_bikes_now, tabu_list) # TODO margin
@@ -352,7 +353,7 @@ class BS_PILOT(Policy):
 
         for next_station in next_stations:
             arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.get_vehicle_travel_time(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_station.location_id) + MINUTES_CONSTANT_PER_ACTION
-            num_bikes_to_pickup, num_bikes_to_deliver, num_bikes_to_swap = self.calculate_loading_quantities_and_swaps_pilot(vehicle, simul, next_station, arrival_time)
+            num_bikes_to_pickup, num_bikes_to_deliver, num_bikes_to_swap = self.calculate_loading_quantities_and_swaps_pilot(num_bikes_now, battery_inventory_now, simul, next_station, arrival_time)
             new_visit = Visit(next_station, num_bikes_to_pickup, num_bikes_to_deliver, num_bikes_to_swap, arrival_time, vehicle)
             visits.append(new_visit)
         

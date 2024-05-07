@@ -134,15 +134,9 @@ class Cluster(Location):
         return sorted(bikes, key=lambda bike: bike.battery, reverse=False)
 
     def get_bike_from_id(self, bike_id):
-        #TODO lag dict og hent
-        if isinstance(bike_id, sim.EScooter):
-            print("Not an ID:", bike_id)
-            bike_id = bike_id.bike_id
-
         for bike in self.get_bikes():
             if bike.bike_id == bike_id:
                 return bike
-        print(bike_id, [bike.bike_id for bike in self.get_bikes()])
         return None
     
     def get_difference_from_target(self, day, hour):

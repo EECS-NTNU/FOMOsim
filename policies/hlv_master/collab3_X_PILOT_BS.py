@@ -144,6 +144,7 @@ class Collab3(BS_PILOT_FF):
         
         end_time = time.time()
         
+        simul.metrics.add_aggregate_metric(simul, "visited cluster", 1) if cluster else simul.metrics.add_aggregate_metric(simul, "visited stations", 1)
         simul.metrics.add_aggregate_metric(simul, "accumulated find location time", end_time - middle_logging_time)
         simul.metrics.add_aggregate_metric(simul, "accumulated sol time", end_time - start_logging_time)        
         simul.metrics.add_aggregate_metric(simul, 'get_best_action', 1)
