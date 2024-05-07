@@ -22,10 +22,9 @@ class BS_PILOT_FF(Policy):
                 evaluation_weights = EVALUATION_WEIGHTS, 
                 number_of_scenarios = NUM_SCENARIOS, 
                 discounting_factor = DISCOUNTING_FACTOR,
-                overflow_criteria = OVERFLOW_CRITERIA,
-                starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP,
-                operator_radius = OPERATOR_RADIUS
+                operator_radius = OPERATOR_RADIUS,
+                num_clusters = MAX_NUMBER_OF_CLUSTERS
                 ):
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
@@ -34,10 +33,9 @@ class BS_PILOT_FF(Policy):
         self.evaluation_weights = evaluation_weights
         self.number_of_scenarios = number_of_scenarios
         self.discounting_factor = discounting_factor
-        self.overflow_criteria = overflow_criteria
-        self.starvation_criteria = starvation_criteria
         self.swap_threshold = swap_threshold
         self.operator_radius = operator_radius
+        self.num_clusters = num_clusters
         super().__init__()
     
     def get_best_action(self, simul, vehicle):
@@ -70,7 +68,7 @@ class BS_PILOT_FF(Policy):
                 [],
                 next_location
             )
-            escooters_to_pickup = [bike.bike_id for bike in vehicle.location.get_swappable_bikes()]
+            escooters_to_pickup = [bike.bike_id for bike in vehicle.location.get_swappable_bikes(self.swap_threshold)]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
             return sim.Action(
                 [],
@@ -88,12 +86,12 @@ class BS_PILOT_FF(Policy):
             number_of_escooters_deliver = len(escooters_to_deliver)
             number_of_batteries_to_swap = len(batteries_to_swap)
         elif vehicle.cluster is None:
-            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
+            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.swap_threshold)
             number_of_escooters_pickup = len(escooters_to_pickup)
             number_of_escooters_deliver = len(escooters_to_deliver)
             number_of_batteries_to_swap = len(batteries_to_swap)
         else:
-            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
+            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.swap_threshold)
             number_of_escooters_pickup = len(escooters_to_pickup)
             number_of_escooters_deliver = len(escooters_to_deliver)
             number_of_batteries_to_swap = len(batteries_to_swap)
@@ -322,7 +320,7 @@ class BS_PILOT_FF(Policy):
             number_of_escooters_swap = num_escooters_to_only_swap
         
         else: # only swap
-            escooters_in_cluster_low_battery = cluster.get_swappable_bikes()
+            escooters_in_cluster_low_battery = cluster.get_swappable_bikes(self.swap_threshold)
             number_of_escooters_swap = min(len(escooters_in_cluster_low_battery), 
                                            battery_inventory_now)
             
@@ -354,7 +352,7 @@ class BS_PILOT_FF(Policy):
 
         # Finds potential next clusters based on pick up or delivery status of the cluster and tabulist
         time_of_departure = plan.plan[vehicle.vehicle_id][-1].get_depature_time()
-        potential_clusters = find_potential_clusters(simul, LOCATION_TYPE_MARGIN, vehicle, num_bikes_now, battery_inventory_now, time_of_departure, plan.plan[vehicle.vehicle_id][-1].station, self.operator_radius)
+        potential_clusters = find_potential_clusters(simul, LOCATION_TYPE_MARGIN, vehicle, num_bikes_now, battery_inventory_now, time_of_departure, plan.plan[vehicle.vehicle_id][-1].station, self.operator_radius, self.num_clusters)
         if potential_clusters == []:
             return None
         
@@ -616,6 +614,7 @@ class BS_PILOT_FF(Policy):
             branch = best_plan.branch_number
             if branch is None: # TODO dette skjer når den ikke klarer å lage plan med neste stopp
                 # print('branch is None')
+                simul.metrics.add_aggregate_metric(simul, 'brach None', 1)
                 first_move = simul.state.get_closest_depot(vehicle)
                 return first_move, None
             first_move = best_plan.plan[vehicle.vehicle_id][1].station.location_id
@@ -630,7 +629,7 @@ class BS_PILOT_FF(Policy):
             cluster = rng_balanced.choice(potential_stations2)
             return cluster.location_id, cluster
 
-def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, overflow_criteria, starvation_criteria, swap_threshold):
+def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, swap_threshold):
     """
     Returns a list of IDs of the bikes to deliver, pickup or swap batteries on.
     The calculation is done when a vehicle arrives at the station, and the list returned are performed.
@@ -666,7 +665,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, over
     else:
         escooters_to_pickup = []
         escooters_to_deliver = []
-        swappable_escooters_at_location = location.get_swappable_bikes()
+        swappable_escooters_at_location = location.get_swappable_bikes(swap_threshold)
         num_escooters_to_swap = min(len(swappable_escooters_at_location),
                                     vehicle.battery_inventory)
         escooters_to_swap = [escooter.bike_id for escooter in swappable_escooters_at_location[:num_escooters_to_swap]]
@@ -763,7 +762,7 @@ def get_escooter_ids_load_swap(cluster, vehicle, num_escooters, target_state, cl
 
     return [],[]
 
-def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle, batteries_in_vehicle, time_of_departure, departure_location, operator_radius):
+def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle, batteries_in_vehicle, time_of_departure, departure_location, operator_radius, num_clusters):
     """
     Returns a list of Station-Objects that are not in the tabu list, and that need help to reach target state.
 
@@ -779,7 +778,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle, ba
     # Vehicle's inventory is capable of both pickups and deliveries
     if cutoff_vehicle * vehicle.bike_inventory_capacity <= bikes_at_vehicle <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
         potential_pickup_stations = find_clusters(areas=simul.state.get_areas(), 
-                                                  n=MAX_NUMBER_OF_CLUSTERS, 
+                                                  n=num_clusters, 
                                                   max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
@@ -791,7 +790,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle, ba
         # Vehicle's inventory is not able to deliver escooters
         if bikes_at_vehicle <= cutoff_vehicle*vehicle.bike_inventory_capacity:
             potential_stations = find_clusters(areas=simul.state.get_areas(), 
-                                                  n=MAX_NUMBER_OF_CLUSTERS, 
+                                                  n=num_clusters, 
                                                   max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
@@ -801,7 +800,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, bikes_at_vehicle, ba
         # Vehicle's inventory is not able to pick up more escooters
         elif bikes_at_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
             potential_stations = find_clusters(areas=simul.state.get_areas(), 
-                                                  n=MAX_NUMBER_OF_CLUSTERS, 
+                                                  n=num_clusters, 
                                                   max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 

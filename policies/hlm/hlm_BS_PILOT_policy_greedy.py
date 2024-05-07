@@ -636,7 +636,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, station, overf
     
     elif num_escooters_accounted_for_battery_swaps > target_state:
         remaining_cap_vehicle = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory())
-        number_of_escooters_to_pickup = min(remaining_cap_vehicle, num_escooters_accounted_for_battery_swaps - target_state + BIKES_OVERFLOW_NEIGHBOR * overflowing_neighbors, len(station.bikes)) #discuss logic behind this
+        number_of_escooters_to_pickup = min(remaining_cap_vehicle, num_escooters_accounted_for_battery_swaps - target_state + BIKES_CONGESTED_NEIGHBOR * overflowing_neighbors, len(station.bikes)) #discuss logic behind this
         escooters_to_deliver_accounted_for_battery_swaps=[]
         escooters_to_pickup_accounted_for_battery_swaps, escooters_to_swap_accounted_for_battery_swap = id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_escooters_to_pickup, "pickup", upper_threshold)
 

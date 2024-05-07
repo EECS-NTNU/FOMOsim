@@ -54,22 +54,244 @@ def test_policies(list_of_seeds, policy_dict):
     for policy_name in policy_dict:
         res_filename=str(policy_name)+".csv"
         policy, is_SB = policy_dict[policy_name]
-        resolutions = [11,10,9,8]
-        hex_radiuss = [100,58,22,10]
-        roaming_radiuss = [9, 4, 2, 0]
-        operator_radiuss = [5, 2, 1, 0]
-        
-        for i in range(4):
-            resolution = resolutions[i]
-            hex_radius = hex_radiuss[i]
-            roaming_radius = roaming_radiuss[i]
-            operator_radius = operator_radiuss[i]
+        test_resolutions(policy, is_SB, res_filename, policy_name, list_of_seeds)
 
-            filename_sb = 'instances/TD_W34'
-            filename_ff = f'instances/Ryde/TD_700_res{resolution}_radius{hex_radius}_W3'
-            target_filename = f'instances/Ryde/target_states_700_res{resolution}_radius{hex_radius}.json.gz'
-            
-            test_seeds_mp(list_of_seeds, policy, is_SB, res_filename, policy_name+f'_res{resolution}_rad{hex_radius}', filename_sb, filename_ff, target_filename, operator_radius, roaming_radius)
+def test_timehorizons(list_of_seeds, list_of_timehorizons, policy_name):
+    for timehorizon in list_of_timehorizons:
+        filename = f'timehorizon_{timehorizon}_{policy_name}.csv'
+        if policy_name == 'FF_base':
+            policy = policies.BS_PILOT_FF(time_horizon= timehorizon)
+            is_SB = True
+        elif policy_name == 'SB_base':
+            policy = policies.BS_PILOT(time_horizon=timehorizon)
+            is_SB = False
+        elif policy_name == 'FF_collab2':
+            policy = policies.FF_Collab2(time_horizon=timehorizon)
+            is_SB = True
+        elif policy_name == 'SB_collab2':
+            policy = policies.SB_Collab2(time_horizon=timehorizon)
+            is_SB = False
+        elif policy_name == 'Collab3':
+            policy = policies.Collab3(time_horizon=timehorizon)
+            is_SB = None
+        elif policy_name == 'Collab4':
+            policy = policies.Collab4(time_horizon=timehorizon)
+            is_SB = None
+        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_criticality_weights(list_of_seeds, list_of_criticality_weights, policy_name):
+    for criticality_set in list_of_criticality_weights:
+        filename = f'criticality_weights_{criticality_set}_{policy_name}.csv'
+        if policy_name == 'FF_base':
+            policy = policies.BS_PILOT_FF(criticality_weights_set= criticality_set)
+            is_SB = True
+        elif policy_name == 'SB_base':
+            policy = policies.BS_PILOT(criticality_weights_set=criticality_set)
+            is_SB = False
+        elif policy_name == 'FF_collab2':
+            policy = policies.FF_Collab2(criticality_weights_set=criticality_set)
+            is_SB = True
+        elif policy_name == 'SB_collab2':
+            policy = policies.SB_Collab2(criticality_weights_set=criticality_set)
+            is_SB = False
+        elif policy_name == 'Collab3':
+            policy = policies.Collab3(criticality_weights_set=criticality_set)
+            is_SB = None
+        elif policy_name == 'Collab4':
+            policy = policies.Collab4(criticality_weights_set=criticality_set)
+            is_SB = None
+        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_criticality_weights_collab34(list_of_seeds, list_of_criticality_weights_sb, list_of_criticality_weights_ff, policy_name):
+    for criticality_set_sb in list_of_criticality_weights_sb:
+        for criticality_set_ff in list_of_criticality_weights_ff:
+            filename = f'criticality_weights_sb_{criticality_set_sb}_ff_{criticality_set_ff}_{policy_name}.csv'
+            if policy_name == 'Collab3':
+                policy = policies.Collab3(criticality_weights_set_ff=criticality_set_ff, criticality_weights_set_sb=criticality_set_sb)
+                is_SB = None
+            elif policy_name == 'Collab4':
+                policy = policies.Collab4(criticality_weights_set_ff=criticality_set_ff, criticality_weights_set_sb=criticality_set_sb)
+                is_SB = None
+            test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_adjustment_factor(list_of_seeds, list_of_adjustment_factors, policy_name):
+    for factor in list_of_adjustment_factors:
+        filename = f'adjustment_factor_{factor}_{policy_name}.csv'
+        if policy_name == 'Collab3':
+            policy = policies.Collab3(adjusting_criticality=factor)
+            is_SB = None
+        elif policy_name == 'Collab4':
+            policy = policies.Collab4(adjusting_criticality=factor)
+            is_SB = None
+        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_evaluation_sets(list_of_seeds, list_of_evaluation_sets, policy_name):
+    for evaluation_set in list_of_evaluation_sets:
+        filename = f'evaluation_set_{evaluation_set}_{policy_name}.csv'
+        if policy_name == 'FF_base':
+            policy = policies.BS_PILOT_FF(evaluation_weights= evaluation_set)
+            is_SB = True
+        elif policy_name == 'SB_base':
+            policy = policies.BS_PILOT(evaluation_weights=evaluation_set)
+            is_SB = False
+        elif policy_name == 'FF_collab2':
+            policy = policies.FF_Collab2(evaluation_weights=evaluation_set)
+            is_SB = True
+        elif policy_name == 'SB_collab2':
+            policy = policies.SB_Collab2(evaluation_weights=evaluation_set)
+            is_SB = False
+        elif policy_name == 'Collab3':
+            policy = policies.Collab3(evaluation_weights=evaluation_set)
+            is_SB = None
+        elif policy_name == 'Collab4':
+            policy = policies.Collab4(evaluation_weights=evaluation_set)
+            is_SB = None
+        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_discount_factor(list_of_seeds, list_of_discout_factors, policy_name):
+    for discount_factor in list_of_discout_factors:
+        filename = f'discount_factor_{discount_factor}_{policy_name}.csv'
+        if policy_name == 'FF_base':
+            policy = policies.BS_PILOT_FF(discounting_factor= discount_factor)
+            is_SB = True
+        elif policy_name == 'SB_base':
+            policy = policies.BS_PILOT(discounting_factor=discount_factor)
+            is_SB = False
+        elif policy_name == 'FF_collab2':
+            policy = policies.FF_Collab2(discounting_factor=discount_factor)
+            is_SB = True
+        elif policy_name == 'SB_collab2':
+            policy = policies.SB_Collab2(discounting_factor=discount_factor)
+            is_SB = False
+        elif policy_name == 'Collab3':
+            policy = policies.Collab3(discounting_factor=discount_factor)
+            is_SB = None
+        elif policy_name == 'Collab4':
+            policy = policies.Collab4(discounting_factor=discount_factor)
+            is_SB = None
+        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_scenarios(list_of_seeds, list_of_scenarios, policy_name):
+    for scenario in list_of_scenarios:
+        filename = f'num_scenarios_{scenario}_{policy_name}.csv'
+        if policy_name == 'FF_base':
+            policy = policies.BS_PILOT_FF(number_of_scenarios= scenario)
+            is_SB = True
+        elif policy_name == 'SB_base':
+            policy = policies.BS_PILOT(number_of_scenarios=scenario)
+            is_SB = False
+        elif policy_name == 'FF_collab2':
+            policy = policies.FF_Collab2(number_of_scenarios=scenario)
+            is_SB = True
+        elif policy_name == 'SB_collab2':
+            policy = policies.SB_Collab2(number_of_scenarios=scenario)
+            is_SB = False
+        elif policy_name == 'Collab3':
+            policy = policies.Collab3(number_of_scenarios=scenario)
+            is_SB = None
+        elif policy_name == 'Collab4':
+            policy = policies.Collab4(number_of_scenarios=scenario)
+            is_SB = None
+        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_alpha_beta(list_of_seeds, alpha, list_of_betas, policy_name):
+    for beta in list_of_betas:
+        filename = f'branching_a_{alpha}_b_{beta}_{policy_name}.csv'
+        if policy_name == 'FF_base':
+            policy = policies.BS_PILOT_FF(max_depth = alpha, number_of_successors = beta)
+            is_SB = True
+        elif policy_name == 'SB_base':
+            policy = policies.BS_PILOT(max_depth = alpha, number_of_successors = beta)
+            is_SB = False
+        elif policy_name == 'FF_collab2':
+            policy = policies.FF_Collab2(max_depth = alpha, number_of_successors = beta)
+            is_SB = True
+        elif policy_name == 'SB_collab2':
+            policy = policies.SB_Collab2(max_depth = alpha, number_of_successors = beta)
+            is_SB = False
+        elif policy_name == 'Collab3':
+            policy = policies.Collab3(max_depth = alpha, number_of_successors = beta)
+            is_SB = None
+        elif policy_name == 'Collab4':
+            policy = policies.Collab4(max_depth = alpha, number_of_successors = beta)
+            is_SB = None
+        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_swap_threshold(list_of_seeds, list_of_swap_thresholds, policy_name):
+    for threshold in list_of_swap_thresholds:
+        filename = f'swap_threshold_{threshold}_{policy_name}.csv'
+        if policy_name == 'FF_base':
+            policy = policies.BS_PILOT_FF(swap_threshold = threshold)
+            is_SB = True
+        elif policy_name == 'SB_base':
+            policy = policies.BS_PILOT(swap_threshold = threshold)
+            is_SB = False
+        elif policy_name == 'FF_collab2':
+            policy = policies.FF_Collab2(swap_threshold = threshold)
+            is_SB = True
+        elif policy_name == 'SB_collab2':
+            policy = policies.SB_Collab2(swap_threshold = threshold)
+            is_SB = False
+        elif policy_name == 'Collab3':
+            policy = policies.Collab3(swap_threshold = threshold)
+            is_SB = None
+        elif policy_name == 'Collab4':
+            policy = policies.Collab4(swap_threshold = threshold)
+            is_SB = None
+        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_num_clusters(list_of_seeds, list_of_num_clusters, policy_name):
+    for num in list_of_num_clusters:
+        filename = f'num_clusters_{num}_{policy_name}.csv'
+        if policy_name == 'FF_base':
+            policy = policies.BS_PILOT_FF(num_clusters = num)
+            is_SB = True
+        elif policy_name == 'FF_collab2':
+            policy = policies.FF_Collab2(num_clusters = num)
+            is_SB = True
+        elif policy_name == 'Collab3':
+            policy = policies.Collab3(num_clusters = num)
+            is_SB = None
+        elif policy_name == 'Collab4':
+            policy = policies.Collab4(num_clusters = num)
+            is_SB = None
+        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_starvation_congestion(list_of_seeds, list_of_congestions, list_of_starvations, policy_name):
+    for congestion in list_of_congestions:
+        for starvation in list_of_starvations:
+            filename = f'starvation_{starvation}_congestion_{congestion}_{policy_name}.csv'
+            if policy_name == 'SB_base':
+                policy = policies.BS_PILOT(congestion_criteria = congestion, starvation_criteria = starvation)
+                is_SB = True
+            elif policy_name == 'SB_collab2':
+                policy = policies.SB_Collab2(congestion_criteria = congestion, starvation_criteria = starvation)
+                is_SB = True
+            elif policy_name == 'Collab3':
+                policy = policies.Collab3(congestion_criteria = congestion, starvation_criteria = starvation)
+                is_SB = None
+            elif policy_name == 'Collab4':
+                policy = policies.Collab4(congestion_criteria = congestion, starvation_criteria = starvation)
+                is_SB = None
+            test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+
+def test_resolutions(policy, is_SB, res_filename, policy_name, list_of_seeds):
+    resolutions = [11,10,9,8]
+    hex_radiuss = [100,58,22,10]
+    roaming_radiuss = [9, 4, 2, 0]
+    operator_radiuss = [5, 2, 1, 0]
+    
+    for i in range(4):
+        resolution = resolutions[i]
+        hex_radius = hex_radiuss[i]
+        roaming_radius = roaming_radiuss[i]
+        operator_radius = operator_radiuss[i]
+
+        filename_sb = 'instances/TD_W34'
+        filename_ff = f'instances/Ryde/TD_700_res{resolution}_radius{hex_radius}_W3'
+        target_filename = f'instances/Ryde/target_states_700_res{resolution}_radius{hex_radius}.json.gz'
+        
+        test_seeds_mp(list_of_seeds, policy, is_SB, res_filename, policy_name+f'_res{resolution}_rad{hex_radius}', filename_sb, filename_ff, target_filename, operator_radius, roaming_radius)
 
 def test_seeds_mp(list_of_seeds, policy, is_SB, results_filename, policy_name, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius): #change duration and number of vehicles HERE!    
     args = [(seed, policy, is_SB, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius) for seed in list_of_seeds]

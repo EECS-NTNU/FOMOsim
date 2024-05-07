@@ -21,12 +21,14 @@ class Collab3(BS_PILOT_FF):
                 evaluation_weights = EVALUATION_WEIGHTS, 
                 number_of_scenarios = NUM_SCENARIOS, 
                 discounting_factor = DISCOUNTING_FACTOR,
-                overflow_criteria = OVERFLOW_CRITERIA,
+                congestion_criteria = CONGESTION_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP,
                 criticality_weights_set_ff = CRITICAILITY_WEIGHTS_SET,
                 criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET,
-                operator_radius = OPERATOR_RADIUS
+                operator_radius = OPERATOR_RADIUS,
+                num_clusters = MAX_NUMBER_OF_CLUSTERS,
+                adjusting_criticality = ADJUSTING_CRITICALITY
                 ):
         super().__init__(
             max_depth = max_depth,
@@ -36,13 +38,15 @@ class Collab3(BS_PILOT_FF):
             evaluation_weights = evaluation_weights, 
             number_of_scenarios = number_of_scenarios, 
             discounting_factor = discounting_factor,
-            overflow_criteria = overflow_criteria,
-            starvation_criteria = starvation_criteria,
             swap_threshold = swap_threshold,
-            operator_radius = operator_radius
+            operator_radius = operator_radius,
+            num_clusters = num_clusters
         )
         self.criticality_weights_set_ff = criticality_weights_set_ff
         self.criticality_weights_set_sb = criticality_weights_set_sb
+        self.adjusting_criticality = adjusting_criticality
+        self.congestion_criteria = congestion_criteria
+        self.starvation_criteria = starvation_criteria
     
     def get_best_action(self, simul, vehicle):
         """
@@ -74,7 +78,7 @@ class Collab3(BS_PILOT_FF):
                 [],
                 next_location
             )
-            bikes_to_pickup = [bike.bike_id for bike in vehicle.location.get_swappable_bikes()]
+            bikes_to_pickup = [bike.bike_id for bike in vehicle.location.get_swappable_bikes(self.swap_threshold)]
             max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(bikes_to_pickup))
             return sim.Action(
                 [],
@@ -92,7 +96,7 @@ class Collab3(BS_PILOT_FF):
             num_bikes_deliver = len(bikes_to_deliver)
             num_batteries_to_swap = len(batteries_to_swap)
         elif vehicle.cluster is None:
-            bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
+            bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.congestion_criteria, self.starvation_criteria, self.swap_threshold)
             num_bikes_pickup = len(bikes_to_pickup)
             num_bikes_deliver = len(bikes_to_deliver)
             num_batteries_to_swap = len(batteries_to_swap)
@@ -102,7 +106,7 @@ class Collab3(BS_PILOT_FF):
             simul.metrics.add_aggregate_metric(simul, 'num bike deliveries', num_bikes_deliver)
 
         else:
-            bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.overflow_criteria, self.starvation_criteria, self.swap_threshold)
+            bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.congestion_criteria, self.starvation_criteria, self.swap_threshold)
             num_bikes_pickup = len(bikes_to_pickup)
             num_bikes_deliver = len(bikes_to_deliver)
             num_batteries_to_swap = len(batteries_to_swap)
@@ -260,16 +264,15 @@ class Collab3(BS_PILOT_FF):
 
             # Calculate the amount of neighbors that are starving or congested, can impact the number of bikes to operate on
             num_starved_neighbors = 0
-            num_overflowing_neighbors = 0
+            num_congested_neighbors = 0
 
             for neighbor in location.get_neighbours():
                 net_demand_neighbor = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), min(time_until_arrival, 60))
                 num_usable_bikes_neighbor_eta = len(neighbor.get_available_bikes()) + net_demand_neighbor
-                target_state_neighbor = neighbor.get_target_state(simul.day(), simul.hour())
-                if num_usable_bikes_neighbor_eta < self.starvation_criteria * target_state_neighbor:
+                if num_usable_bikes_neighbor_eta < self.starvation_criteria * neighbor.capacity:
                     num_starved_neighbors += 1
-                elif num_usable_bikes_neighbor_eta > self.overflow_criteria * target_state_neighbor:
-                    num_overflowing_neighbors += 1
+                elif num_usable_bikes_neighbor_eta > self.congestion_criteria * neighbor.capacity:
+                    num_congested_neighbors += 1
 
             number_of_bikes_pickup = 0
             number_of_bikes_deliver = 0
@@ -279,13 +282,13 @@ class Collab3(BS_PILOT_FF):
             if max_num_usable_bikes_eta < target_state: # deliver
                 number_of_bikes_deliver = min(num_sb_bikes_now, 
                                             target_state - max_num_usable_bikes_eta + BIKES_STARVED_NEIGHBOR * num_starved_neighbors)
-                number_of_battery_swaps = min(len(location.get_swappable_bikes()), 
+                number_of_battery_swaps = min(len(location.get_swappable_bikes(self.swap_threshold)), 
                                             battery_inventory_now)
             
             elif max_num_usable_bikes_eta > target_state: # pick-up
                 remaining_cap_vehicle = VEHICLE_BATTERY_INVENTORY - num_sb_bikes_now
                 num_less_bikes = min(remaining_cap_vehicle, 
-                                    max_num_usable_bikes_eta - target_state + BIKES_OVERFLOW_NEIGHBOR * num_overflowing_neighbors)
+                                    max_num_usable_bikes_eta - target_state + BIKES_CONGESTED_NEIGHBOR * num_congested_neighbors)
 
                 num_swappable_bikes = len(location.get_swappable_bikes(self.swap_threshold))
                 vehicle_battery_inventory = battery_inventory_now
@@ -313,7 +316,7 @@ class Collab3(BS_PILOT_FF):
                 number_of_battery_swaps = num_bikes_only_swap
             
             else: # only swap
-                swappable_bikes = location.get_swappable_bikes()
+                swappable_bikes = location.get_swappable_bikes(self.swap_threshold)
                 number_of_battery_swaps = min(len(swappable_bikes), battery_inventory_now)
             
             return number_of_bikes_pickup, number_of_bikes_deliver, number_of_battery_swaps
@@ -343,7 +346,7 @@ class Collab3(BS_PILOT_FF):
         # Finds potential next stations based on pick up or delivery status of the station and tabulist
         potential_stations = find_potential_stations(simul,LOCATION_TYPE_MARGIN, LOCATION_TYPE_MARGIN,vehicle, num_sb_bikes_now, num_ff_bikes_now+num_sb_bikes_now, tabu_list)
         time_of_departure = plan.plan[vehicle.vehicle_id][-1].get_depature_time()
-        potential_clusters = find_potential_clusters(simul, LOCATION_TYPE_MARGIN, vehicle, num_ff_bikes_now, num_sb_bikes_now, num_battery_inventory_now, time_of_departure, plan.plan[vehicle.vehicle_id][-1].station, self.operator_radius)
+        potential_clusters = find_potential_clusters(simul, LOCATION_TYPE_MARGIN, vehicle, num_ff_bikes_now, num_sb_bikes_now, num_battery_inventory_now, time_of_departure, plan.plan[vehicle.vehicle_id][-1].station, self.operator_radius, self.num_clusters)
         if potential_stations == [] and potential_clusters == []:
             return None
         
@@ -351,7 +354,7 @@ class Collab3(BS_PILOT_FF):
 
         # Finds the criticality score of all potential locations, and sort them in descending order
         stations_sorted = calculate_criticality_sb(weight_set[1], simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station, total_num_sb_bikes_in_system, tabu_list) if potential_stations != [] else {}
-        clusters_sorted = calculate_criticality_ff(weight_set[0], simul, potential_clusters, plan.plan[vehicle.vehicle_id][-1].station, total_num_ff_bikes_in_system, tabu_list) if potential_clusters != [] else {}
+        clusters_sorted = calculate_criticality_ff(weight_set[0], simul, potential_clusters, plan.plan[vehicle.vehicle_id][-1].station, total_num_ff_bikes_in_system, tabu_list, self.adjusting_criticality) if potential_clusters != [] else {}
         sorted_criticalities_merged = dict(sorted({**stations_sorted, **clusters_sorted}.items(), key=lambda item: item[1], reverse=True))
         destinations_sorted_list = list(sorted_criticalities_merged.keys())
         
@@ -694,11 +697,11 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, over
     - starvation_critera = percentage of station capacity for a station to be considered starved
     """
     if isinstance(location, sim.Station):
-        return calculate_loading_quantities_and_swaps_greedy_sb(vehicle, simul, location, overflow_criteria, starvation_criteria)
+        return calculate_loading_quantities_and_swaps_greedy_sb(vehicle, simul, location, overflow_criteria, starvation_criteria, swap_threshold)
     else:
-        return calculate_loading_quantities_and_swaps_greedy_ff(vehicle, simul, location, overflow_criteria, starvation_criteria, swap_threshold)
+        return calculate_loading_quantities_and_swaps_greedy_ff(vehicle, simul, location, swap_threshold)
 
-def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle, sb_bikes_in_vehicle, batteries_in_vehicle, time_of_departure, departure_location, operator_radius):
+def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle, sb_bikes_in_vehicle, batteries_in_vehicle, time_of_departure, departure_location, operator_radius, num_clusters):
     """
     Returns a list of Station-Objects that are not in the tabu list, and that need help to reach target state.
 
@@ -713,7 +716,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle,
 
     # Vehicle's inventory is capable of both pickups and deliveries
     if cutoff_vehicle * vehicle.bike_inventory_capacity <= ff_bikes_in_vehicle+sb_bikes_in_vehicle <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
-        max_clusters = MAX_NUMBER_OF_CLUSTERS
+        max_clusters = num_clusters
         if ff_bikes_in_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
             max_clusters = max_clusters // 2
             potential_delivery_clusters = find_clusters(areas=simul.state.get_areas(), 
@@ -738,7 +741,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle,
         # Vehicle's inventory is not able to deliver escooters
         if ff_bikes_in_vehicle+sb_bikes_in_vehicle <= cutoff_vehicle*vehicle.bike_inventory_capacity:
             potential_stations = find_clusters(areas=simul.state.get_areas(), 
-                                                  n=MAX_NUMBER_OF_CLUSTERS, 
+                                                  n=num_clusters, 
                                                   max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 
@@ -748,7 +751,7 @@ def find_potential_clusters(simul, cutoff_vehicle, vehicle, ff_bikes_in_vehicle,
         # Vehicle's inventory is not able to pick up more escooters
         elif ff_bikes_in_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
             potential_stations = find_clusters(areas=simul.state.get_areas(), 
-                                                  n=MAX_NUMBER_OF_CLUSTERS, 
+                                                  n=num_clusters, 
                                                   max_length=operator_radius, 
                                                   battery_inventory=batteries_in_vehicle, 
                                                   time_now= time_of_departure, 

@@ -19,7 +19,7 @@ class SB_Collab2(BS_PILOT):
                 evaluation_weights = EVALUATION_WEIGHTS, 
                 number_of_scenarios = NUM_SCENARIOS, 
                 discounting_factor = DISCOUNTING_FACTOR,
-                congestion_criteria = OVERFLOW_CRITERIA,
+                congestion_criteria = CONGESTION_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP,
                 operator_radius = OPERATOR_RADIUS

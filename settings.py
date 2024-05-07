@@ -14,7 +14,6 @@ MINUTES_CONSTANT_PER_ACTION = 1.5 # Constat time in addition (f.eks park the car
 BATTERY_LIMIT_TO_USE = 15 # Battery limit for the bike to be up for rental
 BIKE_SPEED = 7 # Average speed of a bike
 ESCOOTER_SPEED = 13.2 # Average speed of a bike
-BATTERY_CHANGE_PER_MINUTE = 0.4 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
 
 # Depot settings
 DEFAULT_DEPOT_CAPACITY = 1000 # How many bikes can be parked at depot?
@@ -22,26 +21,27 @@ CHARGE_TIME_PER_BATTERY = 60 # How long does it take for a battery to charge ful
 SWAP_TIME_PER_BATTERY = 0.8 # How many minutes does it take to change out the inventory for each battery?
 CONSTANT_DEPOT_DURATION = 15
 
+# Simulator settings
+ITERATION_LENGTH_MINUTES = 60
+SIM_CACHE_DIR = "sim_cache"
+TRAFFIC_LOGGING = False
+RANDOM_DESTINATION_PROB = 0.02
+FULL_TRIP = True
+START_TIME = 7 # hour of day the simulation starts at
+DURATION = 24*60*7
+
 # Station settings
 DEFAULT_STATION_CAPACITY = 20
 
 # Policy settings
-FULL_TRIP = True
-ITERATION_LENGTH_MINUTES = 60
-STATION_CENTER_DELTA = 0
-SIM_CACHE_DIR = "sim_cache"
-TRAFFIC_LOGGING = False
-RANDOM_DESTINATION_PROB = 0.02
-
-START_TIME = 7 # hour of day the simulation starts at
-DURATION = 24*60*7
 NUM_VEHICLES = 2
+BATTERY_CHANGE_PER_MINUTE = 0.4 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
 
 # User behaviour
 WALKING_SPEED = 4
-MAX_ROAMING_DISTANCE_SIMULATOR = 0.6 #km, for simulation
+MAX_ROAMING_DISTANCE_SIMULATOR = 0.6 #km, for simulation -> BRUKES IKKE
 MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
-FF_ROAMING_AREA_RADIUS = 9 # How many areas is a user willing to roam to find a bike?
+FF_ROAMING_AREA_RADIUS = 9 # How many areas is a user willing to roam to find a bike? (Ca. 500m)
 AVERAGE_LENGHT_OF_TRIP = 15 #minutes -> to calculate average_discount
 
 # File settings
@@ -64,32 +64,47 @@ BATTERY_LIMIT_TO_SWAP = 70
 CONGESTION_CRITERIA = 0.9
 OVERFLOW_CRITERIA = 2.1 # of target state
 STARVATION_CRITERIA = 0.35 # of target state
+
 MAX_DEPTH = 3 # alpha, best = 6
 NUM_SUCCESSORS = 3 # beta, best = 3
+
 TIME_HORIZON = 40 # best = 40
+
 CRITICAILITY_WEIGHTS_SET = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
-EVALUATION_WEIGHTS = [0.45, 0.1, 0.45]
-NUM_SCENARIOS = 50
-DISCOUNTING_FACTOR = 0.6
-MAX_NUMBER_OF_CLUSTERS = 10
+CRITICAILITY_WEIGHTS_SET_FF = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
+CRITICAILITY_WEIGHTS_SET_SB = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
 ADJUSTING_CRITICALITY = 1.5
+
+EVALUATION_WEIGHTS = [0.45, 0.1, 0.45]
+
+NUM_SCENARIOS = 50
+
+DISCOUNTING_FACTOR = 0.6
+
+MAX_NUMBER_OF_CLUSTERS = 10
+
 CLUSTER_USE_NEIGHBOURS = True
+
+LOCATION_TYPE_MARGIN = 0.15
+
+NEIGHBOR_BATTERY_LIMIT = 50
 
 # ------- MANAGERIAL INSIGHTS ----------
 OPERATOR_RADIUS = 5
-BIKES_OVERFLOW_NEIGHBOR = 1 # how many additional bikes to pick up for each "starved" neighbor
+BIKES_CONGESTED_NEIGHBOR = 1 # how many additional bikes to pick up for each "starved" neighbor
 BIKES_STARVED_NEIGHBOR = 2 # how many additional bikes to let be for each "starved" neighbor
 
 # ------- TODO -------
+
+# Kan disse fjernes, brukes bare i prosjektoppgaven?
 NEIGHBOR_BALANCE_PICKUP = 0.5 # hva er dette?
 NEIGHBOR_BALANCE_DELIVERY = 0.5 # hva er dette?
-SORTED_BIKES = True # remove?
-ONLY_SWAP_ALLOWED = True # remove?
+ONLY_SWAP_ALLOWED = True
 USE_BATTERY_CRITICALITY = True # remove?
-LOCATION_TYPE_MARGIN = 0.15
-NEIGHBOR_BATTERY_LIMIT = 50
+
+SORTED_BIKES = True # remove? gjøre om i koden til at denne er true
 
 SEEDS_LIST=[10,11,12,13,14,15,16,17,18,19]
 
 RESULT_FOLDER = ''
-TEST = False
+TEST = True

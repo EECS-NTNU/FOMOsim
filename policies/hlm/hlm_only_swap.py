@@ -261,7 +261,7 @@ class Only_Swap(Policy): #Add default values from seperate setting sheme
         
         elif num_escooters_station_at_arrival_accounted_battery_swap > target_state:
             remaining_cap_vehicle = vehicle.bike_inventory_capacity - num_escooters_vehicle
-            number_of_less_escooters = min(remaining_cap_vehicle, num_escooters_station_at_arrival_accounted_battery_swap - target_state + BIKES_OVERFLOW_NEIGHBOR * overflowing_neighbors)
+            number_of_less_escooters = min(remaining_cap_vehicle, num_escooters_station_at_arrival_accounted_battery_swap - target_state + BIKES_CONGESTED_NEIGHBOR * overflowing_neighbors)
             escooters_to_pickup_accounted_for_battery_swaps, escooters_to_swap_accounted_for_battery_swap = id_escooters_accounted_for_battery_swaps(station, vehicle, number_of_less_escooters, "pickup", self.upper_threshold)
             number_of_escooters_pickup = len(escooters_to_pickup_accounted_for_battery_swaps)
             number_of_escooters_swap = len(escooters_to_swap_accounted_for_battery_swap)

@@ -56,7 +56,7 @@ class Vehicle:
         else:
             self.bike_inventory[bike.bike_id] = bike
             if bike.hasBattery():
-                if bike.battery < BATTERY_LIMIT_TO_SWAP and self.battery_inventory > 0:
+                if bike.battery < self.policy.swap_threshold and self.battery_inventory > 0:
                     self.change_battery(bike)
             bike.remove_location()
 

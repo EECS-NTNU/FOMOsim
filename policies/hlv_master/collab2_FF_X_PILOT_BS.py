@@ -16,10 +16,9 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
                 evaluation_weights = EVALUATION_WEIGHTS, 
                 number_of_scenarios = NUM_SCENARIOS, 
                 discounting_factor = DISCOUNTING_FACTOR,
-                overflow_criteria = OVERFLOW_CRITERIA,
-                starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP,
-                operator_radius = OPERATOR_RADIUS
+                operator_radius = OPERATOR_RADIUS,
+                num_clusters = MAX_NUMBER_OF_CLUSTERS
                  ):
         super().__init__(
             max_depth = max_depth,
@@ -29,10 +28,9 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
             evaluation_weights = evaluation_weights, 
             number_of_scenarios = number_of_scenarios, 
             discounting_factor = discounting_factor,
-            overflow_criteria = overflow_criteria,
-            starvation_criteria = starvation_criteria,
             swap_threshold = swap_threshold,
-            operator_radius = operator_radius
+            operator_radius = operator_radius,
+            num_clusters = num_clusters
         )
     
     def get_best_action(self, simul, vehicle):
@@ -62,7 +60,7 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
                     max(0, current_deviations[i]),
                     num_bikes
                 )
-                helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, current_stations[i].get_target_state(simul.day(), simul.hour()), num_pickup, "pickup")[0] if (num_pickup > 0) else []
+                helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, current_stations[i].get_target_state(simul.day(), simul.hour()), num_pickup, "pickup", self.swap_threshold)[0] if (num_pickup > 0) else []
                 num_bikes -= num_pickup
 
         helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(int(sum(current_deviations)), len(vehicle.get_sb_bike_inventory()))]

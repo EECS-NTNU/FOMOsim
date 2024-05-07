@@ -14,7 +14,7 @@ Criticality score is based on:
 - Driving time = The time it takes for the vehicle to arrive contributes to the criticality
 """
 
-def calculate_criticality_ff(weights, simul, potential_clusters, station, total_num_escooters_in_system, visited_clusters = None):
+def calculate_criticality_ff(weights, simul, potential_clusters, station, total_num_escooters_in_system, visited_clusters = None, adjusting_criticality = ADJUSTING_CRITICALITY):
     """
     Returns a dictionary with station and criticality score for all potential station to visit. The higher the score the more critical the station is.
 
@@ -77,14 +77,14 @@ def calculate_criticality_ff(weights, simul, potential_clusters, station, total_
         criticalities_normalized[station][3] *= w_dem
         criticalities_normalized[station][4] *= w_dri
         criticalities_normalized[station][5] *= w_bc
-
+        
         # TODO gir dette mening?
-        criticalities_normalized[station][0] *= ADJUSTING_CRITICALITY
-        criticalities_normalized[station][1] *= ADJUSTING_CRITICALITY
-        criticalities_normalized[station][2] *= ADJUSTING_CRITICALITY
-        criticalities_normalized[station][3] *= ADJUSTING_CRITICALITY
-        criticalities_normalized[station][4] *= ADJUSTING_CRITICALITY
-        criticalities_normalized[station][5] *= ADJUSTING_CRITICALITY
+        criticalities_normalized[station][0] *= adjusting_criticality
+        criticalities_normalized[station][1] *= adjusting_criticality
+        criticalities_normalized[station][2] *= adjusting_criticality
+        criticalities_normalized[station][3] *= adjusting_criticality
+        criticalities_normalized[station][4] *= adjusting_criticality
+        criticalities_normalized[station][5] *= adjusting_criticality
 
         criticalities_summed[station] = criticalities_normalized[station][0] + criticalities_normalized[station][1] 
         + criticalities_normalized[station][2] + criticalities_normalized[station][3] + criticalities_normalized[station][4] + criticalities_normalized[station][5]
