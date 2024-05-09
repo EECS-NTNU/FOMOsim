@@ -107,4 +107,4 @@ SORTED_BIKES = True # remove? gjøre om i koden til at denne er true
 SEEDS_LIST=[10,11,12,13,14,15,16,17,18,19]
 
 RESULT_FOLDER = ''
-TEST = True
+TEST = False

@@ -35,7 +35,8 @@ if __name__ == "__main__":
   
     start_time = time.time()
     
-    test_policies(list_of_seeds=SEEDS_LIST, policy_dict=policy_dict)
+    # test_policies(list_of_seeds=SEEDS_LIST, policy_dict=policy_dict)
+    test_adjustment_factor(list_of_seeds=SEEDS_LIST, list_of_adjustment_factors=[1, 1.2, 1.4, 1.6, 1.8, 2], policy_name='Collab3')
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))

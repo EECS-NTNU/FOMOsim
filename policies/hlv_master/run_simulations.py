@@ -21,20 +21,27 @@ import time
 import multiprocessing as mp
 from manage_results import *
 
-def run_simulation(seed, policy, is_SB, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius):
+def run_simulation(seed, policies, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles):
     state = init_state.read_initial_state(sb_jsonFilename = filename_sb, ff_jsonFilename = filename_ff)
     state.set_seed(seed)
     state.roaming_radius = roaming_radius
-    vehicles = [policy for i in range(NUM_VEHICLES)]
-    for p in vehicles:
-        p.operator_radius = operator_radius
+    policies *= num_vehicles
+    sb_vehicles = [policy for policy, is_SB in policies if is_SB == True]
+    ff_vehicles = [policy for policy, is_SB in policies if is_SB == False]
+    all_vehicles = [policy for policy, is_SB in policies if is_SB == None]
 
-    if is_SB is None:
-        state.set_vehicles(vehicles)
-    elif is_SB:
-        state.set_sb_vehicles(vehicles)
-    else:
-        state.set_ff_vehicles(vehicles)
+    for p in sb_vehicles:
+        p.operator_radius = operator_radius
+    for p in ff_vehicles:
+        p.operator_radius = operator_radius
+    for p in all_vehicles:
+        p.operator_radius = operator_radius
+    
+    state.set_vehicles(all_vehicles)
+    state.set_sb_vehicles(sb_vehicles)
+    state.set_ff_vehicles(ff_vehicles)
+
+    print(len(state.get_vehicles()))
     
     tstate = target_state.HLVTargetState(target_filename)
     
@@ -53,31 +60,28 @@ def run_simulation(seed, policy, is_SB, filename_sb, filename_ff, target_filenam
 def test_policies(list_of_seeds, policy_dict):
     for policy_name in policy_dict:
         res_filename=str(policy_name)+".csv"
-        policy, is_SB = policy_dict[policy_name]
-        test_resolutions(policy, is_SB, res_filename, policy_name, list_of_seeds)
+        policies = policy_dict[policy_name]
+        test_resolutions(policies, res_filename, policy_name, list_of_seeds)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons, policy_name):
     for timehorizon in list_of_timehorizons:
         filename = f'timehorizon_{timehorizon}_{policy_name}.csv'
         if policy_name == 'FF_base':
-            policy = policies.BS_PILOT_FF(time_horizon= timehorizon)
-            is_SB = True
+            policies = [policies.BS_PILOT_FF(time_horizon= timehorizon)]
+            is_SB = [False]
         elif policy_name == 'SB_base':
-            policy = policies.BS_PILOT(time_horizon=timehorizon)
-            is_SB = False
+            policies = [policies.BS_PILOT(time_horizon=timehorizon)]
+            is_SB = [True]
         elif policy_name == 'FF_collab2':
-            policy = policies.FF_Collab2(time_horizon=timehorizon)
-            is_SB = True
-        elif policy_name == 'SB_collab2':
-            policy = policies.SB_Collab2(time_horizon=timehorizon)
-            is_SB = False
+            policies = [policies.FF_Collab2(time_horizon=timehorizon), policies.SB_Collab2(time_horizon=timehorizon)]
+            is_SB = [False, True]
         elif policy_name == 'Collab3':
-            policy = policies.Collab3(time_horizon=timehorizon)
-            is_SB = None
+            policies = [policies.Collab3(time_horizon=timehorizon)]
+            is_SB = [None]
         elif policy_name == 'Collab4':
-            policy = policies.Collab4(time_horizon=timehorizon)
-            is_SB = None
-        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+            policies = [policies.Collab4(time_horizon=timehorizon)]
+            is_SB = [None]
+        test_resolutions(policies, filename, policy_name, list_of_seeds)
 
 def test_criticality_weights(list_of_seeds, list_of_criticality_weights, policy_name):
     for criticality_set in list_of_criticality_weights:
@@ -275,13 +279,13 @@ def test_starvation_congestion(list_of_seeds, list_of_congestions, list_of_starv
                 is_SB = None
             test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
 
-def test_resolutions(policy, is_SB, res_filename, policy_name, list_of_seeds):
-    resolutions = [11,10,9,8]
-    hex_radiuss = [100,58,22,10]
-    roaming_radiuss = [9, 4, 2, 0]
-    operator_radiuss = [5, 2, 1, 0]
+def test_resolutions(policies, res_filename, policy_name, list_of_seeds):
+    resolutions = [11, 10, 9]
+    hex_radiuss = [100, 58, 22]
+    roaming_radiuss = [9, 3, 1]
+    operator_radiuss = [4, 1, 0]
     
-    for i in range(4):
+    for i in range(len(resolutions)):
         resolution = resolutions[i]
         hex_radius = hex_radiuss[i]
         roaming_radius = roaming_radiuss[i]
@@ -291,10 +295,10 @@ def test_resolutions(policy, is_SB, res_filename, policy_name, list_of_seeds):
         filename_ff = f'instances/Ryde/TD_700_res{resolution}_radius{hex_radius}_W3'
         target_filename = f'instances/Ryde/target_states_700_res{resolution}_radius{hex_radius}.json.gz'
         
-        test_seeds_mp(list_of_seeds, policy, is_SB, res_filename, policy_name+f'_res{resolution}_rad{hex_radius}', filename_sb, filename_ff, target_filename, operator_radius, roaming_radius)
+        test_seeds_mp(list_of_seeds, policies, res_filename, policy_name+f'_res{resolution}_rad{hex_radius}', filename_sb, filename_ff, target_filename, operator_radius, roaming_radius)
 
-def test_seeds_mp(list_of_seeds, policy, is_SB, results_filename, policy_name, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius): #change duration and number of vehicles HERE!    
-    args = [(seed, policy, is_SB, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius) for seed in list_of_seeds]
+def test_seeds_mp(list_of_seeds, policies, results_filename, policy_name, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles = NUM_VEHICLES): #change duration and number of vehicles HERE!    
+    args = [(seed, policies, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles) for seed in list_of_seeds]
     with mp.Pool(processes=mp.cpu_count()) as pool:
         results = pool.starmap(run_simulation, args)
     
@@ -317,18 +321,16 @@ def test_seeds_mp(list_of_seeds, policy, is_SB, results_filename, policy_name, f
         visualize(results_filename, policy_name, simulator_metrics, 'long congestions')
 
         # TODO fix
-        write_parameters_to_file('parameters_' + results_filename, policy, policy_name, NUM_VEHICLES, DURATION)
+        write_parameters_to_file('parameters_' + results_filename, policies, policy_name, NUM_VEHICLES, DURATION)
     
     # visualize_aggregated_results(filename, policy_name)
 
 if __name__ == "__main__":
     policy_dict = {
-        'SB_base': (policies.hlv_master.BS_PILOT(), True),
-        'FF_base': (policies.hlv_master.BS_PILOT_FF(), False),
-        'SB_Collab2': (policies.hlv_master.SB_Collab2(), True),
-        'FF_Collab2': (policies.hlv_master.FF_Collab2(), False),
-        'Collab3': (policies.hlv_master.Collab3(), None),
-        'Collab4': (policies.hlv_master.Collab4(), None)
+        'Base': [(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)],
+        'Collab2': [(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)],
+        'Collab3': [(policies.hlv_master.Collab3(), None)],
+        'Collab4': [(policies.hlv_master.Collab4(), None)]
                    }
   
     list_of_seeds = SEEDS_LIST
