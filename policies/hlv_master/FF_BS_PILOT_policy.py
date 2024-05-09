@@ -15,12 +15,12 @@ class BS_PILOT_FF(Policy):
     Class for X-PILOT-BS policy. Finds the best action for e-scooter systems.
     """
     def __init__(self, 
-                max_depth = MAX_DEPTH, 
-                number_of_successors = NUM_SUCCESSORS, 
-                time_horizon = TIME_HORIZON, 
-                criticality_weights_set = CRITICAILITY_WEIGHTS_SET, 
-                evaluation_weights = EVALUATION_WEIGHTS, 
-                number_of_scenarios = NUM_SCENARIOS, 
+                max_depth = MAX_DEPTH,
+                number_of_successors = NUM_SUCCESSORS,
+                time_horizon = TIME_HORIZON,
+                criticality_weights_set = CRITICAILITY_WEIGHTS_SET,
+                evaluation_weights = EVALUATION_WEIGHTS,
+                number_of_scenarios = NUM_SCENARIOS,
                 discounting_factor = DISCOUNTING_FACTOR,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP,
                 operator_radius = OPERATOR_RADIUS,

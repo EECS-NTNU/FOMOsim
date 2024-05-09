@@ -44,6 +44,7 @@ def run_simulation(seed, policies, filename_sb, filename_ff, target_filename, op
     print(len(state.get_vehicles()))
     
     tstate = target_state.HLVTargetState(target_filename)
+    tstate.set_target_states(state)
     
     dmand = demand.Demand()
     simulator = sim.Simulator(
@@ -83,40 +84,26 @@ def test_timehorizons(list_of_seeds, list_of_timehorizons, policy_name):
             is_SB = [None]
         test_resolutions(policies, filename, policy_name, list_of_seeds)
 
-def test_criticality_weights(list_of_seeds, list_of_criticality_weights, policy_name):
-    for criticality_set in list_of_criticality_weights:
-        filename = f'criticality_weights_{criticality_set}_{policy_name}.csv'
-        if policy_name == 'FF_base':
-            policy = policies.BS_PILOT_FF(criticality_weights_set= criticality_set)
-            is_SB = True
-        elif policy_name == 'SB_base':
-            policy = policies.BS_PILOT(criticality_weights_set=criticality_set)
-            is_SB = False
-        elif policy_name == 'FF_collab2':
-            policy = policies.FF_Collab2(criticality_weights_set=criticality_set)
-            is_SB = True
-        elif policy_name == 'SB_collab2':
-            policy = policies.SB_Collab2(criticality_weights_set=criticality_set)
-            is_SB = False
-        elif policy_name == 'Collab3':
-            policy = policies.Collab3(criticality_weights_set=criticality_set)
-            is_SB = None
-        elif policy_name == 'Collab4':
-            policy = policies.Collab4(criticality_weights_set=criticality_set)
-            is_SB = None
-        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+def test_criticality_weights(list_of_seeds, dict_of_criticality_weights, policy_name):
+    for letter, criticality_set in dict_of_criticality_weights.items():
+        filename = f'criticality_weights_{letter}_{policy_name}.csv'
+        policy_dict = { 'Base': [(policies.hlv_master.BS_PILOT(criticality_weights_set = criticality_set), True), 
+                                (policies.hlv_master.BS_PILOT_FF(criticality_weights_set = criticality_set), False)],
+                        'Collab2': [(policies.hlv_master.SB_Collab2(criticality_weights_set = criticality_set), True), 
+                                    (policies.hlv_master.FF_Collab2(criticality_weights_set = criticality_set), False)],
+                        'Collab3': [(policies.hlv_master.Collab3(criticality_weights_set_ff = criticality_set), None)],
+                        'Collab4': [(policies.hlv_master.Collab4(criticality_weights_set_ff = criticality_set), None)]
+                        }
+        test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
 def test_criticality_weights_collab34(list_of_seeds, list_of_criticality_weights_sb, list_of_criticality_weights_ff, policy_name):
-    for criticality_set_sb in list_of_criticality_weights_sb:
-        for criticality_set_ff in list_of_criticality_weights_ff:
-            filename = f'criticality_weights_sb_{criticality_set_sb}_ff_{criticality_set_ff}_{policy_name}.csv'
-            if policy_name == 'Collab3':
-                policy = policies.Collab3(criticality_weights_set_ff=criticality_set_ff, criticality_weights_set_sb=criticality_set_sb)
-                is_SB = None
-            elif policy_name == 'Collab4':
-                policy = policies.Collab4(criticality_weights_set_ff=criticality_set_ff, criticality_weights_set_sb=criticality_set_sb)
-                is_SB = None
-            test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+    for letter1, criticality_set_sb in list_of_criticality_weights_sb:
+        for letter2, criticality_set_ff in list_of_criticality_weights_ff:
+            filename = f'criticality_weights_{letter1}_{letter2}_{policy_name}.csv'
+            policy_dict = { 'Collab3': [(policies.hlv_master.Collab3(criticality_weights_set_sb = criticality_set_sb, criticality_weights_set_ff = criticality_set_ff), None)],
+                            'Collab4': [(policies.hlv_master.Collab4(criticality_weights_set_sb = criticality_set_sb, criticality_weights_set_ff = criticality_set_ff), None)]
+                            }
+            test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
 def test_adjustment_factor(list_of_seeds, list_of_adjustment_factors, policy_name):
     for factor in list_of_adjustment_factors:
@@ -129,28 +116,17 @@ def test_adjustment_factor(list_of_seeds, list_of_adjustment_factors, policy_nam
             is_SB = None
         test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
 
-def test_evaluation_sets(list_of_seeds, list_of_evaluation_sets, policy_name):
-    for evaluation_set in list_of_evaluation_sets:
-        filename = f'evaluation_set_{evaluation_set}_{policy_name}.csv'
-        if policy_name == 'FF_base':
-            policy = policies.BS_PILOT_FF(evaluation_weights= evaluation_set)
-            is_SB = True
-        elif policy_name == 'SB_base':
-            policy = policies.BS_PILOT(evaluation_weights=evaluation_set)
-            is_SB = False
-        elif policy_name == 'FF_collab2':
-            policy = policies.FF_Collab2(evaluation_weights=evaluation_set)
-            is_SB = True
-        elif policy_name == 'SB_collab2':
-            policy = policies.SB_Collab2(evaluation_weights=evaluation_set)
-            is_SB = False
-        elif policy_name == 'Collab3':
-            policy = policies.Collab3(evaluation_weights=evaluation_set)
-            is_SB = None
-        elif policy_name == 'Collab4':
-            policy = policies.Collab4(evaluation_weights=evaluation_set)
-            is_SB = None
-        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+def test_evaluation_sets(list_of_seeds, dict_of_evaluation_sets, policy_name):
+    for letter, evaluation_set in dict_of_evaluation_sets.items():
+        filename = f'evaluation_set_{letter}_{policy_name}.csv'
+        policy_dict = { 'Base': [(policies.hlv_master.BS_PILOT(evaluation_weights = evaluation_set), True), 
+                                (policies.hlv_master.BS_PILOT_FF(evaluation_weights = evaluation_set), False)],
+                        'Collab2': [(policies.hlv_master.SB_Collab2(evaluation_weights = evaluation_set), True), 
+                                    (policies.hlv_master.FF_Collab2(evaluation_weights = evaluation_set), False)],
+                        'Collab3': [(policies.hlv_master.Collab3(evaluation_weights = evaluation_set), None)],
+                        'Collab4': [(policies.hlv_master.Collab4(evaluation_weights = evaluation_set), None)]
+                        }
+        test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
 def test_discount_factor(list_of_seeds, list_of_discout_factors, policy_name):
     for discount_factor in list_of_discout_factors:
@@ -280,10 +256,10 @@ def test_starvation_congestion(list_of_seeds, list_of_congestions, list_of_starv
             test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
 
 def test_resolutions(policies, res_filename, policy_name, list_of_seeds):
-    resolutions = [11, 10, 9]
-    hex_radiuss = [100, 58, 22]
-    roaming_radiuss = [9, 3, 1]
-    operator_radiuss = [4, 1, 0]
+    resolutions = [10] #[11, 10, 9]
+    hex_radiuss = [58] #[100, 58, 22]
+    roaming_radiuss = [2] #[9, 3, 1]
+    operator_radiuss = [1] #[4, 1, 0]
     
     for i in range(len(resolutions)):
         resolution = resolutions[i]

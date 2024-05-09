@@ -73,6 +73,7 @@ def main(seed):
     ###############################################################################
     # Set up target state
     tstate = target_state.HLVTargetState(FF_TARGET_STATE_FILE)
+    tstate.set_target_states(state)
 
     ###############################################################################
     # Set up demand

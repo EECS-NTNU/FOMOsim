@@ -35,7 +35,22 @@ if __name__ == "__main__":
   
     start_time = time.time()
     
-    test_policies(list_of_seeds=SEEDS_LIST, policy_dict=policy_dict)
+    # test_policies(list_of_seeds=SEEDS_LIST, policy_dict=policy_dict)
+    dict_ev= {'a': [0.0, 0.0, 1.0],
+              'b': [0.1, 0.3, 0.6],
+              'c': [0.25, 0.25, 0.5],
+              'd': [0.1, 0.6, 0.3],
+              'e': [0.25, 0.5, 0.25],
+              'f': [0.0, 0.1, 0.0],
+              'g': [0.3, 0.1, 0.6],
+              'h': [0.33, 0.33, 0.33],
+              'i': [0.3, 0.6, 0.1],
+              'j': [0.5, 0.25, 0.25],
+              'k': [0.67, 0.0, 0.33],
+              'l': [0.67, 0.33, 0.0],
+              'm': [0.1, 0.0, 0.0]}
+    
+    test_evaluation_sets(list_of_seeds=SEEDS_LIST, dict_of_evaluation_sets=dict_ev, policy_name='Base')
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))
