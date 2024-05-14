@@ -130,11 +130,11 @@ class Collab4(Collab3):
                 delivery_count = 0
                 for deviation in current_deviations:
                     if deviation < 0:
-                        if next_deviation > 0:
-                            excess_bikes = len(vehicle.get_sb_bike_inventory()) + delivery_count
+                        if next_deviation > 0: # no need to take the next location action into consideration
+                            excess_bikes = len(vehicle.get_sb_bike_inventory()) - delivery_count
                             if excess_bikes > 0:
                                 delivery_count += min(excess_bikes, - deviation) 
-                        else:
+                        else: # need to take the next location action into consideration
                             excess_bikes = len(vehicle.get_sb_bike_inventory()) + next_deviation - delivery_count
                             if excess_bikes > 0:
                                 delivery_count += min(excess_bikes, - deviation)

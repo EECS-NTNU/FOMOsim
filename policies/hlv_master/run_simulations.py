@@ -131,129 +131,75 @@ def test_evaluation_sets(list_of_seeds, dict_of_evaluation_sets, policy_name):
 def test_discount_factor(list_of_seeds, list_of_discout_factors, policy_name):
     for discount_factor in list_of_discout_factors:
         filename = f'discount_factor_{discount_factor}_{policy_name}.csv'
-        if policy_name == 'FF_base':
-            policy = policies.BS_PILOT_FF(discounting_factor= discount_factor)
-            is_SB = True
-        elif policy_name == 'SB_base':
-            policy = policies.BS_PILOT(discounting_factor=discount_factor)
-            is_SB = False
-        elif policy_name == 'FF_collab2':
-            policy = policies.FF_Collab2(discounting_factor=discount_factor)
-            is_SB = True
-        elif policy_name == 'SB_collab2':
-            policy = policies.SB_Collab2(discounting_factor=discount_factor)
-            is_SB = False
-        elif policy_name == 'Collab3':
-            policy = policies.Collab3(discounting_factor=discount_factor)
-            is_SB = None
-        elif policy_name == 'Collab4':
-            policy = policies.Collab4(discounting_factor=discount_factor)
-            is_SB = None
-        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+        policy_dict = { 'Base': [(policies.hlv_master.BS_PILOT(discounting_factor= discount_factor), True), 
+                                (policies.hlv_master.BS_PILOT_FF(discounting_factor= discount_factor), False)],
+                        'Collab2': [(policies.hlv_master.SB_Collab2(discounting_factor= discount_factor), True), 
+                                    (policies.hlv_master.FF_Collab2(discounting_factor= discount_factor), False)],
+                        'Collab3': [(policies.hlv_master.Collab3(discounting_factor= discount_factor), None)],
+                        'Collab4': [(policies.hlv_master.Collab4(discounting_factor= discount_factor), None)]
+                        }
+        test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
 def test_scenarios(list_of_seeds, list_of_scenarios, policy_name):
     for scenario in list_of_scenarios:
         filename = f'num_scenarios_{scenario}_{policy_name}.csv'
-        if policy_name == 'FF_base':
-            policy = policies.BS_PILOT_FF(number_of_scenarios= scenario)
-            is_SB = True
-        elif policy_name == 'SB_base':
-            policy = policies.BS_PILOT(number_of_scenarios=scenario)
-            is_SB = False
-        elif policy_name == 'FF_collab2':
-            policy = policies.FF_Collab2(number_of_scenarios=scenario)
-            is_SB = True
-        elif policy_name == 'SB_collab2':
-            policy = policies.SB_Collab2(number_of_scenarios=scenario)
-            is_SB = False
-        elif policy_name == 'Collab3':
-            policy = policies.Collab3(number_of_scenarios=scenario)
-            is_SB = None
-        elif policy_name == 'Collab4':
-            policy = policies.Collab4(number_of_scenarios=scenario)
-            is_SB = None
-        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+        policy_dict = { 'Base': [(policies.hlv_master.BS_PILOT(number_of_scenarios= scenario), True), 
+                                (policies.hlv_master.BS_PILOT_FF(number_of_scenarios= scenario), False)],
+                        'Collab2': [(policies.hlv_master.SB_Collab2(number_of_scenarios= scenario), True), 
+                                    (policies.hlv_master.FF_Collab2(number_of_scenarios= scenario), False)],
+                        'Collab3': [(policies.hlv_master.Collab3(number_of_scenarios= scenario), None)],
+                        'Collab4': [(policies.hlv_master.Collab4(number_of_scenarios= scenario), None)]
+                        }
+        test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
 def test_alpha_beta(list_of_seeds, alpha, list_of_betas, policy_name):
     for beta in list_of_betas:
         filename = f'branching_a_{alpha}_b_{beta}_{policy_name}.csv'
-        if policy_name == 'FF_base':
-            policy = policies.BS_PILOT_FF(max_depth = alpha, number_of_successors = beta)
-            is_SB = True
-        elif policy_name == 'SB_base':
-            policy = policies.BS_PILOT(max_depth = alpha, number_of_successors = beta)
-            is_SB = False
-        elif policy_name == 'FF_collab2':
-            policy = policies.FF_Collab2(max_depth = alpha, number_of_successors = beta)
-            is_SB = True
-        elif policy_name == 'SB_collab2':
-            policy = policies.SB_Collab2(max_depth = alpha, number_of_successors = beta)
-            is_SB = False
-        elif policy_name == 'Collab3':
-            policy = policies.Collab3(max_depth = alpha, number_of_successors = beta)
-            is_SB = None
-        elif policy_name == 'Collab4':
-            policy = policies.Collab4(max_depth = alpha, number_of_successors = beta)
-            is_SB = None
-        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+        policy_dict = { 'Base': [(policies.hlv_master.BS_PILOT(max_depth = alpha, number_of_successors = beta), True), 
+                                (policies.hlv_master.BS_PILOT_FF(max_depth = alpha, number_of_successors = beta), False)],
+                        'Collab2': [(policies.hlv_master.SB_Collab2(max_depth = alpha, number_of_successors = beta), True), 
+                                    (policies.hlv_master.FF_Collab2(max_depth = alpha, number_of_successors = beta), False)],
+                        'Collab3': [(policies.hlv_master.Collab3(max_depth = alpha, number_of_successors = beta), None)],
+                        'Collab4': [(policies.hlv_master.Collab4(max_depth = alpha, number_of_successors = beta), None)]
+                        }
+        test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
 def test_swap_threshold(list_of_seeds, list_of_swap_thresholds, policy_name):
     for threshold in list_of_swap_thresholds:
         filename = f'swap_threshold_{threshold}_{policy_name}.csv'
-        if policy_name == 'FF_base':
-            policy = policies.BS_PILOT_FF(swap_threshold = threshold)
-            is_SB = True
-        elif policy_name == 'SB_base':
-            policy = policies.BS_PILOT(swap_threshold = threshold)
-            is_SB = False
-        elif policy_name == 'FF_collab2':
-            policy = policies.FF_Collab2(swap_threshold = threshold)
-            is_SB = True
-        elif policy_name == 'SB_collab2':
-            policy = policies.SB_Collab2(swap_threshold = threshold)
-            is_SB = False
-        elif policy_name == 'Collab3':
-            policy = policies.Collab3(swap_threshold = threshold)
-            is_SB = None
-        elif policy_name == 'Collab4':
-            policy = policies.Collab4(swap_threshold = threshold)
-            is_SB = None
-        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+        policy_dict = { 'Base': [(policies.hlv_master.BS_PILOT(swap_threshold = threshold), True), 
+                                (policies.hlv_master.BS_PILOT_FF(swap_threshold = threshold), False)],
+                        'Collab2': [(policies.hlv_master.SB_Collab2(swap_threshold = threshold), True), 
+                                    (policies.hlv_master.FF_Collab2(swap_threshold = threshold), False)],
+                        'Collab3': [(policies.hlv_master.Collab3(swap_threshold = threshold), None)],
+                        'Collab4': [(policies.hlv_master.Collab4(swap_threshold = threshold), None)]
+                        }
+        test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
 def test_num_clusters(list_of_seeds, list_of_num_clusters, policy_name):
     for num in list_of_num_clusters:
         filename = f'num_clusters_{num}_{policy_name}.csv'
-        if policy_name == 'FF_base':
-            policy = policies.BS_PILOT_FF(num_clusters = num)
-            is_SB = True
-        elif policy_name == 'FF_collab2':
-            policy = policies.FF_Collab2(num_clusters = num)
-            is_SB = True
-        elif policy_name == 'Collab3':
-            policy = policies.Collab3(num_clusters = num)
-            is_SB = None
-        elif policy_name == 'Collab4':
-            policy = policies.Collab4(num_clusters = num)
-            is_SB = None
-        test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+        policy_dict = { 'Base': [(policies.hlv_master.BS_PILOT(), True), 
+                                (policies.hlv_master.BS_PILOT_FF(num_clusters = num), False)],
+                        'Collab2': [(policies.hlv_master.SB_Collab2(), True), 
+                                    (policies.hlv_master.FF_Collab2(num_clusters = num), False)],
+                        'Collab3': [(policies.hlv_master.Collab3(num_clusters = num), None)],
+                        'Collab4': [(policies.hlv_master.Collab4(num_clusters = num), None)]
+                        }
+        test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
 def test_starvation_congestion(list_of_seeds, list_of_congestions, list_of_starvations, policy_name):
     for congestion in list_of_congestions:
         for starvation in list_of_starvations:
             filename = f'starvation_{starvation}_congestion_{congestion}_{policy_name}.csv'
-            if policy_name == 'SB_base':
-                policy = policies.BS_PILOT(congestion_criteria = congestion, starvation_criteria = starvation)
-                is_SB = True
-            elif policy_name == 'SB_collab2':
-                policy = policies.SB_Collab2(congestion_criteria = congestion, starvation_criteria = starvation)
-                is_SB = True
-            elif policy_name == 'Collab3':
-                policy = policies.Collab3(congestion_criteria = congestion, starvation_criteria = starvation)
-                is_SB = None
-            elif policy_name == 'Collab4':
-                policy = policies.Collab4(congestion_criteria = congestion, starvation_criteria = starvation)
-                is_SB = None
-            test_resolutions(policy, is_SB, filename, policy_name, list_of_seeds)
+            policy_dict = { 'Base': [(policies.hlv_master.BS_PILOT(congestion_criteria = congestion, starvation_criteria = starvation), True), 
+                                (policies.hlv_master.BS_PILOT_FF(congestion_criteria = congestion, starvation_criteria = starvation), False)],
+                        'Collab2': [(policies.hlv_master.SB_Collab2(congestion_criteria = congestion, starvation_criteria = starvation), True), 
+                                    (policies.hlv_master.FF_Collab2(congestion_criteria = congestion, starvation_criteria = starvation), False)],
+                        'Collab3': [(policies.hlv_master.Collab3(congestion_criteria = congestion, starvation_criteria = starvation), None)],
+                        'Collab4': [(policies.hlv_master.Collab4(congestion_criteria = congestion, starvation_criteria = starvation), None)]
+                        }
+            test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
 def test_resolutions(policies, res_filename, policy_name, list_of_seeds):
     resolutions = [10] #[11, 10, 9]
@@ -301,6 +247,160 @@ def test_seeds_mp(list_of_seeds, policies, results_filename, policy_name, filena
     
     # visualize_aggregated_results(filename, policy_name)
 
+def run_tests(number):
+    # evaluation_weights = [{
+    #           'a': [0.0, 0.0, 1.0],
+    #           'b': [0.1, 0.3, 0.6],
+    #           'c': [0.25, 0.25, 0.5],
+    #           'd': [0.1, 0.6, 0.3],
+    #           'e': [0.25, 0.5, 0.25]},
+    #           {'f': [0.0, 0.1, 0.0],
+    #           'g': [0.3, 0.1, 0.6],
+    #           'h': [0.33, 0.33, 0.33],
+    #           'i': [0.3, 0.6, 0.1],
+    #           'j': [0.5, 0.25, 0.25]},
+    #           {'k': [0.67, 0.0, 0.33],
+    #           'l': [0.67, 0.33, 0.0],
+    #           'm': [0.1, 0.0, 0.0],
+    #           'n': [0.8, 0, 0.2]},
+    #           {'o': [0.15, 0.1, 0.75],
+    #           'p': [0.05, 0.05, 0.9],
+    #           'q': [0.2, 0, 0.8],
+    #           'r': [0.9, 0, 0.1]},
+    #           {'s': [0.95, 0.0, 0.05],
+    #           't': [0.85, 0, 0.15],
+    #           'v': [0.5, 0, 0.5],
+    #           'u': [0, 0, 1]}
+    # ]
+    # test_evaluation_sets(list_of_seeds=SEEDS_LIST, dict_of_evaluation_sets=evaluation_weights[number], policy_name='Base')
+
+    # discount_factors = [
+    #                         [1.0, 0.1],
+    #                         [0.2, 0.3],
+    #                         [0.4, 0.5],
+    #                         [0.6, 0.7],
+    #                         [0.8, 0.9]
+    #                     ]
+    # test_discount_factor(list_of_seeds= SEEDS_LIST, list_of_discout_factors = discount_factors[number], policy_name='Base')
+    
+    # crit_set = [
+    # #             {'a': [[0.0, 0.0, 0.0, 0.0, 0.0, 1.0]],
+    # #             'b': [[0.0, 0.0, 0.0, 0.0, 1.0, 0.0]],
+    # #             'c': [[0.0, 0.0, 0.0, 1.0, 0.0, 0.0]],
+    # #             'd': [[0.0, 0.0, 1.0, 0.0, 0.0, 0.0]],
+    # #             'e': [[0.0, 1.0, 0.0, 0.0, 0.0, 0.0]],
+    # #             'f': [[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]},
+
+    # #             {'g': [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6]],
+    # #             'h': [[0.025, 0.06, 0.1, 0.165, 0.25, 0.4]],
+    # #             'i': [[0.165, 0.25, 0.4, 0.025, 0.06, 0.1]],
+    # #             'j': [[0.25, 0.1, 0.025, 0.4, 0.06, 0.165]],
+    # #             'k': [[0.4, 0.165, 0.1, 0.06, 0.25, 0.025]],
+    # #             'l': [[0.025, 0.4, 0.1, 0.25, 0.165, 0.06]]},
+                
+    # #             {'m': [[0.025, 0.165, 0.25, 0.1, 0.4, 0.06]],
+    # #             'n': [[0.025, 0.06, 0.4, 0.25, 0.1, 0.165]],
+    # #             'o': [[0.25, 0.06, 0.025, 0.165, 0.4, 0.1]],
+    # #             'p': [[0.06, 0.1, 0.165, 0.4, 0.25, 0.025]],
+    # #             'q': [[0.1, 0.165, 0.25, 0.06, 0.025, 0.4]],
+    # #             'r': [[0.165, 0.4, 0.025, 0.06, 0.1, 0.25]]},
+
+    # #             {'s': [[0.4, 0.025, 0.165, 0.1, 0.06, 0.25]],
+    # #             't': [[0.06, 0.4, 0.25, 0.1, 0.025, 0.165]],
+    # #             'u': [[0.1, 0.025, 0.165, 0.06, 0.4, 0.25]],
+    # #             'v': [[0.165, 0.025, 0.4, 0.1, 0.25, 0.06]],
+    # #             'w': [[0.25, 0.1, 0.025, 0.06, 0.165, 0.4]],
+    # #             'x': [[0.4, 0.25, 0.025, 0.165, 0.06, 0.1]]},
+
+    # #             {'y': [[0.025, 0.165, 0.1, 0.4, 0.06, 0.25]],
+    # #             'aa': [[0.06, 0.1, 0.4, 0.025, 0.165, 0.25]],
+    # #             'ab': [[0.06, 0.165, 0.025, 0.25, 0.1, 0.4]],
+    # #             'ac': [[0.025, 0.1, 0.06, 0.25, 0.4, 0.165]],
+    # #             'ad': [[0.06, 0.25, 0.025, 0.4, 0.165, 0.1]],
+    # #             'z': [[0.06, 0.4, 0.165, 0.025, 0.25, 0.1]]}
+    # ]
+
+    # crit_set = [dict(
+    #     a=[[1/6, 1/6, 1/6, 1/6, 1/6, 1/6]], 
+    #     b=[[0.3, 0.15, 0.25, 0.2, 0.1, 0]], 
+    #     c=[[0.15, 0.3, 0.15, 0.1, 0.1, 0.2]], 
+    #     d=[[0.25, 0.25, 0.1, 0.1, 0.2, 0.1]]), # Balanced
+
+    #     dict(
+    #     e=[[0.15, 0.4, 0.05, 0.05, 0, 0.35]], 
+    #     f=[[0.05, 0.9, 0.05, 0, 0, 0]], 
+    #     g=[[0.1, 0.5, 0.1, 0.1, 0.1, 0.1]], 
+    #     h=[[0.3, 0.5, 0, 0, 0.2, 0]]), # Long term
+
+    #     dict(
+    #     i=[[0.4, 0, 0, 0.1, 0, 0.5]], 
+    #     j=[[0.6, 0.05, 0.05, 0.1, 0.05, 0.15]], 
+    #     k=[[0.6, 0.1, 0.05, 0.2, 0.05, 0]], 
+    #     l=[[0.5, 0.05, 0.1, 0.05, 0.1, 0.2]]), # Short term
+
+    #     dict(
+    #     m=[[1, 0, 0, 0, 0, 0]], 
+    #     n=[[0, 1, 0, 0, 0, 0]], 
+    #     o=[[0, 0, 1, 0, 0, 0]]),
+
+    #     dict(
+    #     p=[[0, 0, 0, 1, 0, 0]], 
+    #     q=[[0, 0, 0, 0, 1, 0]], 
+    #     r=[[0, 0, 0, 0, 0, 1]])] # Extremes
+
+        # s= [[0.05, 0.85, 0.05, 0, 0, 0.05]], # f
+        # t=[[0.25, 0.45, 0, 0, 0.2, 0.1]], # h
+        # u = [[0.3, 0.45, 0, 0, 0.2, 0.05]], # h
+        # v =[[0.5, 0.1, 0.05, 0.2, 0.05, 0.1]], # k
+        # w =[[0.55, 0.1, 0.05, 0.2, 0.05, 0.05]], # k
+        # x =[[0.45, 0.1, 0.05, 0.2, 0.05, 0.15]], # k
+        # y =[[0.6, 0.1, 0.05, 0.15, 0.05, 0.05]], # k
+        # z =[[0.6, 0.05, 0.05, 0.15, 0.05, 0.1]] # k
+        # Long term
+
+    # test_criticality_weights(list_of_seeds=SEEDS_LIST, dict_of_criticality_weights=crit_set[number], policy_name='Base')
+
+    num_clusters = [[4, 50],
+                    [8, 30],
+                    [15, 20],
+                    [25, 10],
+                    [40, 6]
+                    ]
+    test_num_clusters(list_of_seeds=SEEDS_LIST, list_of_num_clusters=num_clusters[number], policy_name='Base')
+
+    # alphas = [[1,2],
+    #           [3,4],
+    #           [5],
+    #           [6],
+    #           [7]]
+    # betas =[1,2,3,4,5]
+    # for a in alphas[number]:
+    #     test_alpha_beta(list_of_seeds=SEEDS_LIST, alpha=a, list_of_betas=betas, policy_name='Base')
+
+    # time_horizons = [[10, 20],
+    #                  [30],
+    #                  [40],
+    #                  [50],
+    #                  [60]    
+    # ]
+    # test_timehorizons(list_of_seeds=SEEDS_LIST, list_of_timehorizons=time_horizons[number], policy_name='Base')
+
+    # num_scenarios = [[1, 10, 120],
+    #                  [20, 100],
+    #                  [30, 90],
+    #                  [40, 80],
+    #                  [50, 60, 70]
+    #                  ]
+    # test_scenarios(list_of_seeds=SEEDS_LIST, list_of_scenarios=num_scenarios[number], policy_name='Base')
+
+    # adj_factors = [[0.25, 0.5, 0.6, 2],
+    #                 [0.7, 0.8, 0.9],
+    #                 [1, 1.1, 1.2],
+    #                 [1.3, 1.4, 1.5],
+    #                 [1.6, 1.7, 1.8, 1.9]]
+    # test_adjustment_factor(list_of_seeds=SEEDS_LIST, list_of_adjustment_factors=adj_factors[number], policy_name="Collab3")
+
+
 if __name__ == "__main__":
     policy_dict = {
         'Base': [(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)],
@@ -314,6 +414,37 @@ if __name__ == "__main__":
     start_time = time.time()
     
     test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict)
+
+
+    dict_ev= {
+              'a': [0.0, 0.0, 1.0],
+              'b': [0.1, 0.3, 0.6],
+              'c': [0.25, 0.25, 0.5],
+              'd': [0.1, 0.6, 0.3],
+              'e': [0.25, 0.5, 0.25],
+              
+              'f': [0.0, 0.1, 0.0],
+              'g': [0.3, 0.1, 0.6],
+              'h': [0.33, 0.33, 0.33],
+              'i': [0.3, 0.6, 0.1],
+              'j': [0.5, 0.25, 0.25],
+              
+              'k': [0.67, 0.0, 0.33],
+              'l': [0.67, 0.33, 0.0],
+              'm': [0.1, 0.0, 0.0],
+              'n': [0.8, 0, 0.2],
+              
+              'o': [0.15, 0.1, 0.75],
+              'p': [0.05, 0.05, 0.9],
+              'q': [0.2, 0, 0.8],
+              'r': [0.9, 0, 0.1],
+              
+              's': [0.95, 0.0, 0.05],
+              't': [0.85, 0, 0.15],
+              'v': [0.5, 0, 0.5],
+              'u': [0, 0, 1]
+    }
+    test_evaluation_sets(list_of_seeds=SEEDS_LIST, dict_of_evaluation_sets=dict_ev, policy_name='Base')
 
     duration = time.time() - start_time
     print("Running time: ", str(duration))

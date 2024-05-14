@@ -105,18 +105,20 @@ def write_sim_results_to_file(filename, simulator_metrics, seed, duration, polic
         print("Error writing to CSV, write_sim_results_to_file")
         return None
 
-def write_parameters_to_file(filename, policy, policy_name, num_vehicles, duration):
-    data = {
-        'max_depth': policy.max_depth, 
-        'number_of_successors': policy.number_of_successors, 
-        'time_horizon': policy.time_horizon, 
-        'criticality_weights_sets': policy.criticality_weights_set, 
-        'evaluation_weights': policy.evaluation_weights, 
-        'number_of_scenarios': policy.number_of_scenarios, 
-        'discounting_factor': policy.discounting_factor,
-        'num_vehicles': num_vehicles,
-        'duration': duration//24
-    }
+def write_parameters_to_file(filename, policies, policy_name, num_vehicles, duration):
+    data = {}
+    for policy, is_SB in policies:
+        data[is_SB] = {
+            'max_depth': policy.max_depth, 
+            'number_of_successors': policy.number_of_successors, 
+            'time_horizon': policy.time_horizon, 
+            'criticality_weights_sets': policy.criticality_weights_set, 
+            'evaluation_weights': policy.evaluation_weights, 
+            'number_of_scenarios': policy.number_of_scenarios, 
+            'discounting_factor': policy.discounting_factor,
+            'num_vehicles': num_vehicles,
+            'duration': duration//(24*60)
+        }
     try:
         path= f'./policies/hlv_master/results/{policy_name}/' + filename
         with open(path,'a',newline='') as f:

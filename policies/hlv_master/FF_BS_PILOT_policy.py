@@ -56,8 +56,27 @@ class BS_PILOT_FF(Policy):
         end_time = simul.time + self.time_horizon 
         total_num_ff_bikes_in_system = len(simul.state.get_all_ff_bikes())
 
+        # Loading and swap strategy at current area or cluster is always chosen greedily
+        if isinstance(vehicle.location, sim.Depot): # No action needed if at depot
+            escooters_to_pickup = []
+            escooters_to_deliver = []
+            batteries_to_swap = []
+            number_of_escooters_pickup = 0
+            number_of_escooters_deliver = 0
+            number_of_batteries_to_swap = 0
+        elif vehicle.cluster is None:
+            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.swap_threshold)
+            number_of_escooters_pickup = len(escooters_to_pickup)
+            number_of_escooters_deliver = len(escooters_to_deliver)
+            number_of_batteries_to_swap = len(batteries_to_swap)
+        else:
+            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.swap_threshold)
+            number_of_escooters_pickup = len(escooters_to_pickup)
+            number_of_escooters_deliver = len(escooters_to_deliver)
+            number_of_batteries_to_swap = len(batteries_to_swap)
+        
         # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all escooters at location that is unusable
-        if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
+        if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0 and number_of_batteries_to_swap + number_of_escooters_pickup > 0:
             next_location = simul.state.get_closest_depot(vehicle)
             # print("Goes to depot", next_location)
             # If no depot, just stay and do nothing
@@ -69,32 +88,15 @@ class BS_PILOT_FF(Policy):
                 next_location
             )
             escooters_to_pickup = [bike.bike_id for bike in vehicle.location.get_swappable_bikes(self.swap_threshold)]
-            max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup))
+            escooters_unusable = [bike.bike_id for bike in vehicle.location.get_unusable_bikes()]
+            escooters_over_target = len([bike for bike in vehicle.get_ff_bike_inventory() if bike.usable()]) - vehicle.cluster.get_target_state(simul.day(), simul.hour()) + len(escooters_unusable)
+            max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(escooters_to_pickup), max(escooters_over_target, 0))
             return sim.Action(
                 [],
                 escooters_to_pickup[:max_pickup],
                 [],
                 next_location
             )
-
-        # Loading and swap strategy at current area or cluster is always chosen greedily
-        if isinstance(vehicle.location, sim.Depot): # No action needed if at depot
-            escooters_to_pickup = []
-            escooters_to_deliver = []
-            batteries_to_swap = []
-            number_of_escooters_pickup = len(escooters_to_pickup)
-            number_of_escooters_deliver = len(escooters_to_deliver)
-            number_of_batteries_to_swap = len(batteries_to_swap)
-        elif vehicle.cluster is None:
-            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.swap_threshold)
-            number_of_escooters_pickup = len(escooters_to_pickup)
-            number_of_escooters_deliver = len(escooters_to_deliver)
-            number_of_batteries_to_swap = len(batteries_to_swap)
-        else:
-            escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.swap_threshold)
-            number_of_escooters_pickup = len(escooters_to_pickup)
-            number_of_escooters_deliver = len(escooters_to_deliver)
-            number_of_batteries_to_swap = len(batteries_to_swap)
 
         middle_logging_time = time.time() 
         simul.metrics.add_aggregate_metric(simul, "accumulated find action time", middle_logging_time - start_logging_time)
