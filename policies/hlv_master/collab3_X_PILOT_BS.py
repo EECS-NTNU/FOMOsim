@@ -24,8 +24,8 @@ class Collab3(BS_PILOT_FF):
                 congestion_criteria = CONGESTION_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP,
-                criticality_weights_set_ff = CRITICAILITY_WEIGHTS_SET,
-                criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET,
+                criticality_weights_set_ff = CRITICAILITY_WEIGHTS_SET_FF,
+                criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET_SB,
                 operator_radius = OPERATOR_RADIUS,
                 num_clusters = MAX_NUMBER_OF_CLUSTERS,
                 adjusting_criticality = ADJUSTING_CRITICALITY
@@ -67,26 +67,6 @@ class Collab3(BS_PILOT_FF):
         total_num_sb_bikes_in_system = len(simul.state.get_all_sb_bikes())
         total_num_ff_bikes_in_system = len(simul.state.get_all_ff_bikes())
 
-        # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all escooters at location that is unusable
-        if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0:
-            next_location = simul.state.get_closest_depot(vehicle)
-            # If no depot, just stay and do nothing
-            if next_location == vehicle.location.location_id:
-                return sim.Action(
-                [],
-                [],
-                [],
-                next_location
-            )
-            bikes_to_pickup = [bike.bike_id for bike in vehicle.location.get_swappable_bikes(self.swap_threshold)]
-            max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(bikes_to_pickup))
-            return sim.Action(
-                [],
-                bikes_to_pickup[:max_pickup],
-                [],
-                next_location
-            )
-
         # Loading and swap strategy at current area or cluster is always chosen greedily
         if isinstance(vehicle.location, sim.Depot): # No action needed if at depot
             bikes_to_pickup = []
@@ -104,7 +84,6 @@ class Collab3(BS_PILOT_FF):
             simul.metrics.add_aggregate_metric(simul, 'num battery swaps', num_batteries_to_swap)
             simul.metrics.add_aggregate_metric(simul, 'num bike pickups', num_bikes_pickup)
             simul.metrics.add_aggregate_metric(simul, 'num bike deliveries', num_bikes_deliver)
-
         else:
             bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.cluster, self.congestion_criteria, self.starvation_criteria, self.swap_threshold)
             num_bikes_pickup = len(bikes_to_pickup)
@@ -114,6 +93,26 @@ class Collab3(BS_PILOT_FF):
             simul.metrics.add_aggregate_metric(simul, 'num battery swaps', num_batteries_to_swap)
             simul.metrics.add_aggregate_metric(simul, 'num escooter pickups', num_bikes_pickup)
             simul.metrics.add_aggregate_metric(simul, 'num escooter deliveries', num_bikes_deliver)
+
+        # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all escooters at location that is unusable
+        if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0 and num_bikes_pickup + num_batteries_to_swap > 0:
+            next_location = simul.state.get_closest_depot(vehicle)
+            # If no depot, just stay and do nothing
+            if next_location == vehicle.location.location_id:
+                return sim.Action(
+                [],
+                [],
+                [],
+                next_location
+            )
+            bikes_to_pickup = [bike.bike_id for bike in vehicle.location.get_swappable_bikes(self.swap_threshold)]
+            max_pickup = min(vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory()), len(bikes_to_pickup))
+            return sim.Action(
+                [],
+                bikes_to_pickup[:max_pickup],
+                [],
+                next_location
+            )
 
         middle_logging_time = time.time() 
         simul.metrics.add_aggregate_metric(simul, "accumulated find action time", middle_logging_time - start_logging_time)

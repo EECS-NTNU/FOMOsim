@@ -17,7 +17,7 @@ class BS_PILOT(Policy):
                 max_depth = MAX_DEPTH, 
                 number_of_successors = NUM_SUCCESSORS, 
                 time_horizon = TIME_HORIZON, 
-                criticality_weights_set = CRITICAILITY_WEIGHTS_SET, 
+                criticality_weights_set = CRITICAILITY_WEIGHTS_SET_SB, 
                 evaluation_weights = EVALUATION_WEIGHTS, 
                 number_of_scenarios = NUM_SCENARIOS, 
                 discounting_factor = DISCOUNTING_FACTOR,
@@ -54,9 +54,20 @@ class BS_PILOT(Policy):
         end_time = simul.time + self.time_horizon 
         total_num_sb_bikes_in_system = len(simul.state.get_all_sb_bikes())
 
+        # Loading and swap strategy at current location is always chosen greedily
+        if isinstance(vehicle.location, sim.Depot): # No action needed if at depot
+            bikes_to_pickup = []
+            bikes_to_deliver = []
+            batteries_to_swap = []
+        else:
+            bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.congestion_criteria, self.starvation_criteria, self.swap_threshold)
+            number_of_bikes_pickup = len(bikes_to_pickup)
+            number_of_bikes_deliver = len(bikes_to_deliver)
+            number_of_batteries_to_swap = len(batteries_to_swap)
+        
         # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all bikes at station that is unusable
-        if vehicle.battery_inventory <= 0 and len(simul.state.get_depots()) > 0:
-            next_location = self.simul.state.get_closest_depot(vehicle)
+        if vehicle.battery_inventory <= 0 and len(simul.state.get_depots()) > 0 and number_of_bikes_pickup + number_of_batteries_to_swap > 0:
+            next_location = simul.state.get_closest_depot(vehicle)
             # If no depot, just stay and do nothing
             if next_location == vehicle.location.location_id:
                 return sim.Action(
@@ -74,17 +85,6 @@ class BS_PILOT(Policy):
                 next_location
             )
 
-        # Loading and swap strategy at current location is always chosen greedily
-        if isinstance(vehicle.location, sim.Depot): # No action needed if at depot
-            bikes_to_pickup = []
-            bikes_to_deliver = []
-            batteries_to_swap = []
-        else:
-            bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.congestion_criteria, self.starvation_criteria, self.swap_threshold)
-            number_of_bikes_pickup = len(bikes_to_pickup)
-            number_of_bikes_deliver = len(bikes_to_deliver)
-            number_of_batteries_to_swap = len(batteries_to_swap)
-        
         middle_logging_time = time.time() 
         simul.metrics.add_aggregate_metric(simul, "accumulated find action time", middle_logging_time - start_logging_time)
 

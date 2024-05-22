@@ -49,6 +49,9 @@ class Vehicle:
     
     def get_ff_bike_inventory(self):
         return [bike for bike in self.bike_inventory.values() if not bike.is_station_based]
+    
+    def get_available_ff_bikes(self):
+        return [bike for bike in self.bike_inventory.values() if bike.usable() and not bike.is_station_based]
 
     def pick_up(self, bike):
         if len(self.bike_inventory) + 1 > self.bike_inventory_capacity:

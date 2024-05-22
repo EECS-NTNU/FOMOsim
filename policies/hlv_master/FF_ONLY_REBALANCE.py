@@ -10,7 +10,7 @@ from .dynamic_clustering import find_clusters
 import numpy as np
 import time
 
-class BS_PILOT_FF(Policy):
+class FF_ONLY_REBALANCE(Policy):
     """
     Class for X-PILOT-BS policy. Finds the best action for e-scooter systems.
     """
@@ -76,7 +76,7 @@ class BS_PILOT_FF(Policy):
             number_of_batteries_to_swap = len(batteries_to_swap)
         
         # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all escooters at location that is unusable
-        if vehicle.battery_inventory <= 0 and len(simul.state.depots) > 0 and number_of_batteries_to_swap + number_of_escooters_pickup > 0:
+        if vehicle.bike_inventory <= vehicle.bike_inventory_capacity and len(simul.state.depots) > 0 and number_of_batteries_to_swap + number_of_escooters_pickup > 0:
             next_location = simul.state.get_closest_depot(vehicle)
             # print("Goes to depot", next_location)
             # If no depot, just stay and do nothing
@@ -266,7 +266,7 @@ class BS_PILOT_FF(Policy):
 
         # Calculate number of esooters arriving/leaving in the time period until vehicle arrival
         net_demand = calculate_net_demand(cluster, simul.time, simul.day(), simul.hour(), min(time_until_arrival, 60))
-        max_num_usable_escooters = len(cluster.get_available_bikes()) + min(len(cluster.get_unusable_bikes()), battery_inventory_now)
+        max_num_usable_escooters = len(cluster.get_available_bikes())
         max_num_usable_escooters_eta = max_num_usable_escooters + net_demand
 
         # Calculate the amount of neighbors that are starving or congested, can impact the number of bikes to operate on
@@ -288,43 +288,13 @@ class BS_PILOT_FF(Policy):
         # Calculate how many escooters to do different actions on
         if neighborhood_difference_target < 0: # delivery
             number_of_escooters_deliver = min(num_bikes_now, -neighborhood_difference_target)
-            number_of_escooters_swap = min( len(cluster.get_swappable_bikes(self.swap_threshold)),
-                                            battery_inventory_now)
         elif neighborhood_difference_target > 0: # pick-up
             remaining_cap_vehicle = VEHICLE_BIKE_INVENTORY - num_bikes_now
             number_of_less_escooters = min(remaining_cap_vehicle, 
                                            neighborhood_difference_target,
                                            max_num_usable_escooters_eta)
             
-            num_swappable_bikes = len(cluster.get_swappable_bikes(self.swap_threshold))
-            vehicle_battery_inventory = battery_inventory_now
-
-            num_escooters_to_only_swap = min(max(0, target_state - len(cluster.get_available_bikes())), 
-                                            vehicle_battery_inventory)
-            vehicle_battery_inventory -= num_escooters_to_only_swap
-            
-            # Restriction on how many bikes can be swapped and picked up
-            num_escooters_to_swap_and_pickup = min( num_swappable_bikes,
-                                                    vehicle_battery_inventory, 
-                                                    number_of_less_escooters)
-
-            # Update the number of batteries left in vehicle
-            vehicle_battery_inventory -= num_escooters_to_swap_and_pickup
-            
-            # Number of escooters that can only be picked up, not swapped battery on
-            num_escooters_to_only_pickup = number_of_less_escooters - num_escooters_to_swap_and_pickup
-
-            # Number of escooters that can only have their battery swapped, but stays at the location
-            num_escooters_to_only_swap += min(vehicle_battery_inventory,
-                                            max(0, num_swappable_bikes - num_escooters_to_swap_and_pickup - num_escooters_to_only_swap))
-            
-            number_of_escooters_pickup = num_escooters_to_swap_and_pickup + num_escooters_to_only_pickup
-            number_of_escooters_swap = num_escooters_to_only_swap
-        
-        else: # only swap
-            escooters_in_cluster_low_battery = cluster.get_swappable_bikes(self.swap_threshold)
-            number_of_escooters_swap = min(len(escooters_in_cluster_low_battery), 
-                                           battery_inventory_now)
+            number_of_escooters_pickup = number_of_less_escooters
             
         return number_of_escooters_pickup, number_of_escooters_deliver, number_of_escooters_swap
     
@@ -343,14 +313,12 @@ class BS_PILOT_FF(Policy):
         tabu_list = plan.tabu_list
         vehicle = plan.next_visit.vehicle
         num_bikes_now = len(vehicle.get_ff_bike_inventory())
-        battery_inventory_now = len(vehicle.bike_inventory)
+        battery_inventory_now = 0
 
         # Update the vehicle bike inventory based on the planned operational actions
         for visit in plan.plan[vehicle.vehicle_id]:
             num_bikes_now += visit.loading_quantity
             num_bikes_now -= visit.unloading_quantity
-            battery_inventory_now -= visit.swap_quantity + visit.loading_quantity
-            battery_inventory_now = max(0, battery_inventory_now)
 
         # Finds potential next clusters based on pick up or delivery status of the cluster and tabulist
         time_of_departure = plan.plan[vehicle.vehicle_id][-1].get_depature_time()
@@ -667,10 +635,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, swap
     else:
         escooters_to_pickup = []
         escooters_to_deliver = []
-        swappable_escooters_at_location = location.get_swappable_bikes(swap_threshold)
-        num_escooters_to_swap = min(len(swappable_escooters_at_location),
-                                    vehicle.battery_inventory)
-        escooters_to_swap = [escooter.bike_id for escooter in swappable_escooters_at_location[:num_escooters_to_swap]]
+        escooters_to_swap = []
 
     # Return lists of escooter IDs to do each action on
     return escooters_to_pickup, escooters_to_deliver, escooters_to_swap
@@ -683,7 +648,7 @@ def get_max_num_usable_escooters(cluster, vehicle):
     - cluster = Cluster-object being considered
     - vehicle = Vehicle considered to rebalance station
     """
-    return len(cluster.get_available_bikes()) + min(len(cluster.get_unusable_bikes()), vehicle.battery_inventory)
+    return len(cluster.get_available_bikes())
 
 def get_escooter_ids_load_swap(cluster, vehicle, num_escooters, target_state, cluster_type, swap_threshold):
     """
@@ -695,21 +660,14 @@ def get_escooter_ids_load_swap(cluster, vehicle, num_escooters, target_state, cl
     - num_bikes = difference from target state after battery swap on site is done + effects of neighbors
     - station_type = if there has to be unloading or pick-ups done at the station
     """
-    if SORTED_BIKES:
-        escooters_at_cluster = sorted(cluster.get_bikes(), key=lambda bike: bike.battery, reverse=False)
-        escooters_in_vehicle =  sorted(vehicle.get_ff_bike_inventory(), key=lambda bike: bike.battery, reverse=False)
-    else:
-        escooters_at_cluster = cluster.get_bikes()
-        escooters_in_vehicle = vehicle.get_ff_bike_inventory()
+    escooters_at_cluster = cluster.get_bikes()
+    escooters_in_vehicle = vehicle.get_ff_bike_inventory()
 
     # Returns lists of escooter IDs on which to deliver and which to swap batteries on
     if cluster_type == "deliver":
-
-        num_escooters_to_swap = min(len(cluster.get_swappable_bikes(swap_threshold)),
-                                    vehicle.battery_inventory)
         number_of_escooters_to_deliver = min(num_escooters, len(vehicle.get_available_ff_bikes()))
 
-        escooters_to_swap = [escooter.bike_id for escooter in escooters_at_cluster[:num_escooters_to_swap]]
+        escooters_to_swap = []
         escooters_to_deliver = [escooter.bike_id for escooter in escooters_in_vehicle[-number_of_escooters_to_deliver:]]
 
         # for item in escooters_to_deliver+escooters_to_swap:
@@ -720,45 +678,12 @@ def get_escooter_ids_load_swap(cluster, vehicle, num_escooters, target_state, cl
     
     # Returns lists of escooter IDs on which to load and which to swap batteries on
     elif cluster_type == "pickup":
-
-        num_swappable_bikes = len(cluster.get_swappable_bikes(swap_threshold))
-        vehicle_battery_inventory = vehicle.battery_inventory
-
-        # Swap such that target state is reached, if there are not enough usable bikes
-        num_escooters_to_only_swap = min(max(0, target_state - len(cluster.get_available_bikes())), 
-                                         vehicle_battery_inventory)
-        vehicle_battery_inventory -= num_escooters_to_only_swap
-        
         # Restriction on how many bikes can be swapped and picked up
-        num_escooters_to_swap_and_pickup = min( num_swappable_bikes,
-                                                vehicle_battery_inventory, 
-                                                round(num_escooters))
-
-        # Update the number of batteries left in vehicle
-        vehicle_battery_inventory -= num_escooters_to_swap_and_pickup
-        
-        # Number of escooters that can only be picked up, not swapped battery on
-        num_escooters_to_only_pickup = round(num_escooters) - num_escooters_to_swap_and_pickup
-
-        # Number of escooters that can only have their battery swapped, but stays at the location
-        num_escooters_to_only_swap += min(vehicle_battery_inventory,
-                                         max(0, num_swappable_bikes - num_escooters_to_swap_and_pickup - num_escooters_to_only_swap))
-
-        escooters_to_swap = []
-        # Swap batteries on the escooters with lowest battery level
-        if num_escooters_to_only_swap > 0:
-            escooters_to_swap += [escooter.bike_id for escooter in escooters_at_cluster[:num_escooters_to_only_swap]]
+        num_escooters_to_swap_and_pickup = round(num_escooters)
 
         # Pick up the escooters only in "overflowing" areas
-        escooters_to_pickup = [escooter.bike_id for escooter in escooters_at_cluster[num_escooters_to_only_swap:num_escooters_to_only_swap+num_escooters_to_swap_and_pickup]]
-
-        # Pick up the escooters with the most battery
-        if num_escooters_to_only_pickup > 0:
-            escooters_to_pickup += [escooter.bike_id for escooter in escooters_at_cluster[-num_escooters_to_only_pickup:]]
-
-        # for item in escooters_to_pickup+escooters_to_swap:
-        #     if not isinstance(item, str):
-        #         print("ikke streng")
+        escooters_to_pickup = [escooter.bike_id for escooter in escooters_at_cluster[:num_escooters_to_swap_and_pickup]]
+        escooters_to_swap = []
 
         return escooters_to_pickup, escooters_to_swap
 

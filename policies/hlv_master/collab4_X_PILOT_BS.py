@@ -21,8 +21,8 @@ class Collab4(Collab3):
                 congestion_criteria = CONGESTION_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP,
-                criticality_weights_set_ff = CRITICAILITY_WEIGHTS_SET,
-                criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET,
+                criticality_weights_set_ff = CRITICAILITY_WEIGHTS_SET_FF,
+                criticality_weights_set_sb = CRITICAILITY_WEIGHTS_SET_SB,
                 operator_radius = OPERATOR_RADIUS,
                 num_clusters = MAX_NUMBER_OF_CLUSTERS,
                 adjusting_criticality = ADJUSTING_CRITICALITY

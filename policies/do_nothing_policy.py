@@ -11,7 +11,7 @@ class DoNothing(Policy):
                  max_depth = MAX_DEPTH, 
                 number_of_successors = NUM_SUCCESSORS, 
                 time_horizon = TIME_HORIZON, 
-                criticality_weights_set = CRITICAILITY_WEIGHTS_SET, 
+                criticality_weights_set = CRITICAILITY_WEIGHTS_SET_SB, 
                 evaluation_weights = EVALUATION_WEIGHTS, 
                 number_of_scenarios = NUM_SCENARIOS, 
                 discounting_factor = DISCOUNTING_FACTOR,

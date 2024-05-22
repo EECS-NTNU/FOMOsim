@@ -84,7 +84,7 @@ def write_sim_results_to_file(filename, simulator_metrics, seed, duration, polic
           seed]
     
     try:
-        folder_path= f'./policies/hlv_master/results/{policy_name}'
+        folder_path= f'./policies/hlv_master/results_{TEST_NAME}/{policy_name}'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         path= folder_path + '/' + filename
@@ -120,7 +120,7 @@ def write_parameters_to_file(filename, policies, policy_name, num_vehicles, dura
             'duration': duration//(24*60)
         }
     try:
-        path= f'./policies/hlv_master/results/{policy_name}/' + filename
+        path= f'./policies/hlv_master/results_{TEST_NAME}/{policy_name}/' + filename
         with open(path,'a',newline='') as f:
             writer=csv.writer(f)
             writer.writerow(list(data.values()))
@@ -144,7 +144,7 @@ def write_sol_time_to_file(filename, simulator_metrics, policy_name, append = Fa
           simulator_metrics.get_aggregate_value('accumulated find helping action time'),
           simulator_metrics.get_aggregate_value('get_best_action')]
     try:
-        path= f'./policies/hlv_master/results/{policy_name}/' + filename
+        path= f'./policies/hlv_master/results_{TEST_NAME}/{policy_name}/' + filename
 
         # If file does not exist, add header
         if append==False:
@@ -179,7 +179,7 @@ def visualize_aggregated_violations_and_roaming(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(values[i]), xy=(type_of_event[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlv_master/results/aggr_violations_and_roaming_'+outfile)
+    plt.savefig(f'./policies/hlv_master/results_{TEST_NAME}/aggr_violations_and_roaming_' + outfile)
     
 def visualize_aggregated_total_roaming_distances(aggregated_data, filename):
     data = {# 'Roaming for locks':aggregated_data['roaming distance for locks'],
@@ -197,7 +197,7 @@ def visualize_aggregated_total_roaming_distances(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(round(values[i], 2)), xy=(type_of_roaming[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlv_master/results/aggr_total_roaming_distances_'+outfile)
+    plt.savefig(f'./policies/hlv_master/results_{TEST_NAME}/aggr_total_roaming_distances_'+outfile)
 
 def visualize_aggregated_average_roaming_distances(aggregated_data, filename):
     long_congestions = aggregated_data['long congestion']
@@ -227,7 +227,7 @@ def visualize_aggregated_average_roaming_distances(aggregated_data, filename):
     for i in range(len(values)):
         plt.annotate(str(round(values[i], 2)), xy=(type_of_roaming[i],values[i]), ha='center', va='bottom')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlv_master/results/aggr_average_roaming_distances_'+outfile)
+    plt.savefig(f'./policies/hlv_master/results_{TEST_NAME}/aggr_average_roaming_distances_'+outfile)
 
 def visualize_aggregated_share_of_events(aggregated_data, filename):
     tot_events = aggregated_data['events']
@@ -248,12 +248,12 @@ def visualize_aggregated_share_of_events(aggregated_data, filename):
     ax.pie(values, labels=labels, explode=explode, autopct='%1.1f%%', colors=colors)
     ax.axis('equal')
     outfile=filename[:-4]+".png"
-    plt.savefig('./policies/hlv_master/results/aggr_share_of_events_'+outfile)
+    plt.savefig(f'./policies/hlv_master/results_{TEST_NAME}/aggr_share_of_events_'+outfile)
 
 
 def visualize_aggregated_results(filename, policy_name):
         try:
-            path = f'./policies/hlv_master/results/{policy_name}/' + filename
+            path = f'./policies/hlv_master/results_{TEST_NAME}/{policy_name}/' + filename
             with open(path, 'r', newline='') as f:
                 reader = csv.reader(f, delimiter=',')
                 aggregated_data = {'events':0, 
@@ -321,7 +321,7 @@ def visualize(filename, policy_name, metrics, metric_name="starvations"):
     data_pairs = zip(xx,yy)
 
     try:
-        path= f'./policies/hlv_master/results/{policy_name}/cumulated_'+ metric_name +'_' + filename
+        path= f'./policies/hlv_master/results_{TEST_NAME}/{policy_name}/cumulated_'+ metric_name +'_' + filename
         with open(path,'a',newline='') as f:
             writer=csv.writer(f)
             for pair in data_pairs:
@@ -336,5 +336,5 @@ def visualize(filename, policy_name, metrics, metric_name="starvations"):
     ax.xaxis.set_minor_formatter(mdates.DateFormatter("%a %H:%M"))
 
     outfile=filename[:-4]+".png"
-    plt.savefig(f'./policies/hlv_master/results/{policy_name}/' + 'cumulated_'+ metric_name +'_'+outfile)
+    plt.savefig(f'./policies/hlv_master/results_{TEST_NAME}/{policy_name}/' + 'cumulated_'+ metric_name +'_'+outfile)
     plt.close(fig)

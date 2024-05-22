@@ -2,6 +2,7 @@
 SIM SETTINGS
 """
 # ------- PRE-DETERMINED PARAMETERS ----------
+TEST_NAME = 'thresholds'
 
 # Vehicle settings
 VEHICLE_BATTERY_INVENTORY = 50 # How many batteries can a vehicle hold?
@@ -57,31 +58,31 @@ FF_TARGET_STATE_FILE = f'instances/Ryde/target_states_700_res{RESOLUTION}_radius
 SERVICE_TIME_FROM = 0 # 06:00
 SERVICE_TIME_TO = 24 # 20:00
 
-# Bike settings
-BATTERY_LIMIT_TO_SWAP = 70
-
 # Policy settings
 CONGESTION_CRITERIA = 0.80
 OVERFLOW_CRITERIA = 2.1 # of target state
 STARVATION_CRITERIA = 0.2 # of target state
 
-MAX_DEPTH = 6 # alpha, best = 6
-NUM_SUCCESSORS = 3 # beta, best = 3
+MAX_DEPTH = 4 #
+NUM_SUCCESSORS = 5 #
 
-TIME_HORIZON = 40 # best = 40
+TIME_HORIZON = 40 #
 
-CRITICAILITY_WEIGHTS_SET = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
+# Fortsatt litt merkelig etter compuational, vet ikke helt hva vi skal velge her TODO
 CRITICAILITY_WEIGHTS_SET_FF = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
-CRITICAILITY_WEIGHTS_SET_SB = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
-ADJUSTING_CRITICALITY = 1
+CRITICAILITY_WEIGHTS_SET_SB = [[0.3, 0.15, 0, 0.2, 0.1, 0], [0.3, 0.5, 0, 0, 0.2, 0], [0.6, 0.1, 0, 0.2, 0.05, 0]]
+# CRITICAILITY_WEIGHTS_SET_SB = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
 
-EVALUATION_WEIGHTS = [0.85,0,0.15]
+ADJUSTING_CRITICALITY = 1.2 #
 
-NUM_SCENARIOS = 50
+EVALUATION_WEIGHTS = [0.85,0,0.15] #
 
-DISCOUNTING_FACTOR = 1
+NUM_SCENARIOS = 80 #
 
-MAX_NUMBER_OF_CLUSTERS = 10
+DISCOUNTING_FACTOR = 1 #
+
+MAX_NUMBER_OF_CLUSTERS = 15 #
+
 
 CLUSTER_USE_NEIGHBOURS = True
 
@@ -90,9 +91,11 @@ LOCATION_TYPE_MARGIN = 0.15
 NEIGHBOR_BATTERY_LIMIT = 50
 
 # ------- MANAGERIAL INSIGHTS ----------
-OPERATOR_RADIUS = 1
+BATTERY_LIMIT_TO_SWAP = 70
+
+OPERATOR_RADIUS = 1 
 BIKES_CONGESTED_NEIGHBOR = 1 # how many additional bikes to pick up for each "starved" neighbor
-BIKES_STARVED_NEIGHBOR = 2 # how many additional bikes to let be for each "starved" neighbor
+BIKES_STARVED_NEIGHBOR = 1 # how many additional bikes to let be for each "starved" neighbor
 
 # ------- TODO -------
 
@@ -106,5 +109,4 @@ SORTED_BIKES = True # remove? gjøre om i koden til at denne er true
 
 SEEDS_LIST=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 
-RESULT_FOLDER = ''
 TEST = False
