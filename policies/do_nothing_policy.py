@@ -15,7 +15,7 @@ class DoNothing(Policy):
                 evaluation_weights = EVALUATION_WEIGHTS, 
                 number_of_scenarios = NUM_SCENARIOS, 
                 discounting_factor = DISCOUNTING_FACTOR,
-                overflow_criteria = OVERFLOW_CRITERIA,
+                congestion_criteria = CONGESTION_CRITERIA,
                 starvation_criteria = STARVATION_CRITERIA,
                 swap_threshold = BATTERY_LIMIT_TO_SWAP
                  ):
@@ -26,7 +26,7 @@ class DoNothing(Policy):
         self.evaluation_weights = evaluation_weights
         self.number_of_scenarios = number_of_scenarios
         self.discounting_factor = discounting_factor
-        self.overflow_criteria = overflow_criteria
+        self.congestion_criteria = congestion_criteria
         self.starvation_criteria = starvation_criteria
         self.swap_threshold = swap_threshold
         super().__init__()

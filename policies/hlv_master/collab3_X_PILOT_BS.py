@@ -683,7 +683,7 @@ class Collab3(BS_PILOT_FF):
             return destination_id, None
         return destination_id, destination
 
-def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, overflow_criteria, starvation_criteria, swap_threshold):
+def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, congestion_criteria, starvation_criteria, swap_threshold):
     """
     Returns a list of IDs of the bikes to deliver, pickup or swap batteries on.
     The calculation is done when a vehicle arrives at the station, and the list returned are performed.
@@ -696,7 +696,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, over
     - starvation_critera = percentage of station capacity for a station to be considered starved
     """
     if isinstance(location, sim.Station):
-        return calculate_loading_quantities_and_swaps_greedy_sb(vehicle, simul, location, overflow_criteria, starvation_criteria, swap_threshold)
+        return calculate_loading_quantities_and_swaps_greedy_sb(vehicle, simul, location, congestion_criteria, starvation_criteria, swap_threshold)
     else:
         return calculate_loading_quantities_and_swaps_greedy_ff(vehicle, simul, location, swap_threshold)
 

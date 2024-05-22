@@ -2,7 +2,7 @@
 SIM SETTINGS
 """
 # ------- PRE-DETERMINED PARAMETERS ----------
-TEST_NAME = 'thresholds'
+TEST_NAME = 'cluster_target'
 
 # Vehicle settings
 VEHICLE_BATTERY_INVENTORY = 50 # How many batteries can a vehicle hold?
@@ -19,7 +19,7 @@ ESCOOTER_SPEED = 13.2 # Average speed of a bike
 # Depot settings
 DEFAULT_DEPOT_CAPACITY = 1000 # How many bikes can be parked at depot?
 CHARGE_TIME_PER_BATTERY = 60 # How long does it take for a battery to charge fully in minutes?
-SWAP_TIME_PER_BATTERY = 0.8 # How many minutes does it take to change out the inventory for each battery?
+SWAP_TIME_PER_BATTERY = 0.5 # How many minutes does it take to change out the inventory for each battery?
 CONSTANT_DEPOT_DURATION = 15
 
 # Simulator settings
@@ -35,14 +35,13 @@ DURATION = 24*60*7
 DEFAULT_STATION_CAPACITY = 20
 
 # Policy settings
-NUM_VEHICLES = 2
 BATTERY_CHANGE_PER_MINUTE = 0.4 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
 
 # User behaviour
-WALKING_SPEED = 4
+WALKING_SPEED = 4.8
 MAX_ROAMING_DISTANCE_SIMULATOR = 0.6 #km, for simulation -> BRUKES IKKE
 MAX_ROAMING_DISTANCE_SOLUTIONS = 0.35 #km, for decision making
-FF_ROAMING_AREA_RADIUS = 2 # How many areas is a user willing to roam to find a bike? (Ca. 500m)
+FF_ROAMING_AREA_RADIUS = 3 # How many areas is a user willing to roam to find a bike? (Ca. 500m)
 AVERAGE_LENGHT_OF_TRIP = 15 #minutes -> to calculate average_discount
 
 # File settings
@@ -52,43 +51,40 @@ SB_INSTANCE_FILE = 'instances/TD_W34'
 FF_INSTANCE_FILE = f'instances/Ryde/TD_700_res{RESOLUTION}_radius{RADIUS}_W3'
 FF_TARGET_STATE_FILE = f'instances/Ryde/target_states_700_res{RESOLUTION}_radius{RADIUS}.json.gz'
 
+CONGESTION_CRITERIA = 0.80
+OVERFLOW_CRITERIA = 2.1
+STARVATION_CRITERIA = 0.2
+CRITICAILITY_WEIGHTS_SET_SB = [[0.3, 0.15, 0, 0.2, 0.1, 0], [0.3, 0.5, 0, 0, 0.2, 0], [0.6, 0.1, 0, 0.2, 0.05, 0]] # Beste til inngjerdingen & møller
+CLUSTER_USE_NEIGHBOURS = True
+LOCATION_TYPE_MARGIN = 0.15
+NEIGHBOR_BATTERY_LIMIT = 50
+
 # ------- COMPUTATIONAL VARIABLES ----------
 
 # Vehicle settings
-SERVICE_TIME_FROM = 0 # 06:00
-SERVICE_TIME_TO = 24 # 20:00
+NUM_VEHICLES = 2
+SERVICE_TIME_FROM = 0
+SERVICE_TIME_TO = 24
 
 # Policy settings
-CONGESTION_CRITERIA = 0.80
-OVERFLOW_CRITERIA = 2.1 # of target state
-STARVATION_CRITERIA = 0.2 # of target state
+MAX_DEPTH = 5
+NUM_SUCCESSORS = 3
 
-MAX_DEPTH = 4 #
-NUM_SUCCESSORS = 5 #
-
-TIME_HORIZON = 40 #
+TIME_HORIZON = 40 
 
 # Fortsatt litt merkelig etter compuational, vet ikke helt hva vi skal velge her TODO
-CRITICAILITY_WEIGHTS_SET_FF = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
-CRITICAILITY_WEIGHTS_SET_SB = [[0.3, 0.15, 0, 0.2, 0.1, 0], [0.3, 0.5, 0, 0, 0.2, 0], [0.6, 0.1, 0, 0.2, 0.05, 0]]
+CRITICAILITY_WEIGHTS_SET_FF = [[1/5, 1/5, 0, 1/5, 1/5, 1/5], [0.05, 0.9, 0, 0, 0, 0.05], [0.45, 0.1, 0, 0.2, 0.05, 0.2]]
 # CRITICAILITY_WEIGHTS_SET_SB = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
 
-ADJUSTING_CRITICALITY = 1.2 #
+ADJUSTING_CRITICALITY = 1
 
-EVALUATION_WEIGHTS = [0.85,0,0.15] #
+EVALUATION_WEIGHTS = [1/3, 1/3, 1/3] 
 
-NUM_SCENARIOS = 80 #
+NUM_SCENARIOS = 60
 
-DISCOUNTING_FACTOR = 1 #
+DISCOUNTING_FACTOR = 1
 
-MAX_NUMBER_OF_CLUSTERS = 15 #
-
-
-CLUSTER_USE_NEIGHBOURS = True
-
-LOCATION_TYPE_MARGIN = 0.15
-
-NEIGHBOR_BATTERY_LIMIT = 50
+MAX_NUMBER_OF_CLUSTERS = 15 
 
 # ------- MANAGERIAL INSIGHTS ----------
 BATTERY_LIMIT_TO_SWAP = 70

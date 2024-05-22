@@ -148,7 +148,7 @@ def calculate_neighborhood_criticality(simul, cluster, cluster_type):
     - cluster = Station-object under consideration
     - cluster_type = if it is a pick up or delivery station (or balanced)
     """
-
+    return 0
     neighborhood_crit = 0
     neighbors = cluster.get_neighbours()
     

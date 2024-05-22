@@ -198,16 +198,15 @@ def calculate_neighborhood_criticality(simul, station, station_type, visited_sta
                 station_crit -= 1
             
             #Battery level composition
-            if station_type == 'd':
-                battery_levels_neighbor = [bike.battery for bike in neighbor.get_available_bikes()]
-                avg_battery_level = (sum(battery_levels_neighbor) / len(battery_levels_neighbor)) if len(battery_levels_neighbor) > 0 else 0
+            # if station_type == 'd':
+            #     battery_levels_neighbor = [bike.battery for bike in neighbor.get_available_bikes()]
+            #     avg_battery_level = (sum(battery_levels_neighbor) / len(battery_levels_neighbor)) if len(battery_levels_neighbor) > 0 else 0
 
-                if neighbor_type == 'd':
-                    if avg_battery_level < NEIGHBOR_BATTERY_LIMIT:
-                        station_crit += 1
+            #     if neighbor_type == 'd':
+            #         if avg_battery_level < NEIGHBOR_BATTERY_LIMIT:
+            #             station_crit += 1
             
-
-        
+            
         # Calculate the distance between the neighbor and current station, use this to adjust the station's criticality
         distance = station.distance_to(*neighbor.get_location())
         station_crit *= (1 - (distance/MAX_ROAMING_DISTANCE_SOLUTIONS))
@@ -265,6 +264,7 @@ def calculate_battery_level_composition_criticality(simul, station, total_num_bi
     - station = Station-object under consideration
     - total_num_bikes_in_system = total number of bikes in the system
     """
+    return 0
     current_escooters = station.bikes
     hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, False, True)
 
