@@ -71,6 +71,11 @@ class Area(Location):
             sum_target = sum(neighbor.get_target_state(day, hour) for neighbor in self.neighbours) + self.get_target_state(day, hour)
             return num_bikes - sum_target
         return self.number_of_bikes() - self.get_target_state(day, hour)
+    
+    def get_difference_from_target_discounted_drive_time(self, day, hour, depature_area, simul):
+        travel_time = simul.state.get_vehicle_travel_time(depature_area.location_id, self.location_id)
+        diff = self.get_difference_from_target(day, hour, True)
+        return diff * (1 - (travel_time/30))
 
     def set_bikes(self, bikes):
         self.bikes = {bike.bike_id : bike for bike in bikes}

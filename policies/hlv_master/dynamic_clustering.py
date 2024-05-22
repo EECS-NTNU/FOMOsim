@@ -8,6 +8,7 @@ import copy
 import time
 from collections import deque
 from .Simple_calculations import calculate_net_demand
+from .FF_Criticality_score import calculate_time_to_violation
 
 def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_location, operation, simul):
     """
@@ -21,6 +22,12 @@ def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_l
     - day, hour = time of the current event
     - operation = either delivery or pickup
     """
+    #Test different selection criteria 
+    critierta = 'target'
+    #critierta = 'target+drive'
+    #critierta = 'violation'
+
+
     tabu_list = []
     clusters = []
     all_possible_clusters = []
@@ -28,13 +35,28 @@ def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_l
     hour_now = int((time_now // 60) % 24)
 
     # Makes a list of the n areas with the highest overflow of escooters
-    if operation == "delivery":
-        possible_areas = heapq.nlargest(n, areas, key=lambda area: -area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
-    elif operation == "pickup":
-        possible_areas = heapq.nlargest(n, areas, key=lambda area: area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
-    elif operation == "both":
-        possible_areas = heapq.nlargest(n//2, areas, key=lambda area: -area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
-        possible_areas += heapq.nlargest(n//2, areas, key=lambda area: area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
+    if critierta == "target":
+        if operation == "delivery":
+            possible_areas = heapq.nlargest(n, areas, key=lambda area: -area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
+        elif operation == "pickup":
+            possible_areas = heapq.nlargest(n, areas, key=lambda area: area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
+        elif operation == "both":
+            possible_areas = heapq.nlargest(n//2, areas, key=lambda area: -area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
+            possible_areas += heapq.nlargest(n//2, areas, key=lambda area: area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
+    elif critierta == "target+drive":
+        if operation == "delivery":
+            possible_areas = heapq.nlargest(n, areas, key=lambda area: -area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, simul))
+        elif operation == "pickup":
+            possible_areas = heapq.nlargest(n, areas, key=lambda area: area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, simul))
+        elif operation == "both":
+            possible_areas = heapq.nlargest(n//2, areas, key=lambda area: -area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, simul))
+            possible_areas += heapq.nlargest(n//2, areas, key=lambda area: area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, simul))
+        
+    elif critierta == "violation":
+        possible_areas = heapq.nsmallest(n, areas, key=lambda area: calculate_time_to_violation(calculate_net_demand(area, simul.time, simul.day(), simul.hour(), TIME_HORIZON), area, simul, len(simul.state.get_all_ff_bikes())))
+    
+    
+
 
     # Make clusters for all, with the area as a center, if the area are not already added in another cluster
     for area in possible_areas:
