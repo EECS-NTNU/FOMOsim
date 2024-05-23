@@ -12,7 +12,7 @@ Criticality score is based on:
 - Driving time = The time it takes for the vehicle to arrive contributes to the criticality
 """
 
-def calculate_criticality(weights, simul, potential_clusters, station, total_num_escooters_in_system, visited_clusters = None):
+def calculate_criticality(weights, simul, potential_clusters, station, total_num_escooters_in_system, visited_clusters = None, hourly_discharge = 0):
     """
     Returns a dictionary with station and criticality score for all potential station to visit. The higher the score the more critical the station is.
 
@@ -41,7 +41,7 @@ def calculate_criticality(weights, simul, potential_clusters, station, total_num
         potential_cluster_type = calculate_cluster_type(target_state, len(potential_cluster.get_available_bikes()) + net_demand)
 
         # Time to violation
-        time_to_violation = calculate_time_to_violation(net_demand, potential_cluster, simul, total_num_escooters_in_system)
+        time_to_violation = calculate_time_to_violation(net_demand, potential_cluster, simul, total_num_escooters_in_system, hourly_discharge)
         time_to_violation_list.append(time_to_violation)
 
         # Deviation from target state
@@ -61,7 +61,7 @@ def calculate_criticality(weights, simul, potential_clusters, station, total_num
         driving_time_list.append(driving_time_crit)
 
         # Battery level composition criticality
-        battery_level_comp_crit = calculate_battery_level_composition_criticality(simul, potential_cluster, total_num_escooters_in_system)
+        battery_level_comp_crit = calculate_battery_level_composition_criticality(simul, potential_cluster, total_num_escooters_in_system, hourly_discharge)
         BL_composition_list.append(battery_level_comp_crit)
 
         criticalities[potential_cluster] = [time_to_violation, deviation_from_target_state, neighborhood_crit, demand_crit, driving_time_crit, battery_level_comp_crit]
@@ -87,7 +87,7 @@ def calculate_criticality(weights, simul, potential_clusters, station, total_num
 
     return criticalities_summed
 
-def calculate_time_to_violation(net_demand, cluster, simul, total_num_escooters_in_system):
+def calculate_time_to_violation(net_demand, cluster, simul, total_num_escooters_in_system, hourly_discharge = None):
     """
     Returns a float-score of how critical the station is based on how many hours until a starvation/congestion occurs.
     A low score is critical, while high is less critical
@@ -102,23 +102,36 @@ def calculate_time_to_violation(net_demand, cluster, simul, total_num_escooters_
 
     # Calculate time if a starvation might occur
     if net_demand < 0:
-        sorted_bikes_by_battery = sorted(cluster.get_bikes(), key=lambda bike: bike.battery, reverse=False)
-        
-        # Time until there is no bikes left at a cluster that has sufficiant battery level
-        violation_demand = len(cluster.get_available_bikes()) / -net_demand
+        # Retrieve bikes once to avoid multiple calls
+        bikes = cluster.get_bikes()
 
-        # Calculate the time until there are only bikes at station with too low battery for rental, based on hourly discharge in system
-        bikes_most_charged = [bike.battery for bike in sorted_bikes_by_battery[-3:]]
-        average_battery_top3 = sum(bikes_most_charged)/len(bikes_most_charged) if len(bikes_most_charged) != 0 else 0
-        battery_over_limit_top3 = max(average_battery_top3 - BATTERY_LIMIT_TO_USE,0)
-        hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
+        # Pre-sort the bikes by battery level only once
+        sorted_bikes_by_battery = sorted(bikes, key=lambda bike: bike.battery)
+
+        # Efficiently calculate demand violation using a generator
+        violation_demand = sum(1 for bike in sorted_bikes_by_battery if bike.usable()) / -net_demand if net_demand != 0 else float('inf')
+
+        # Get the top charged bikes, up to 3 but at least one if available
+        num_top_bikes = min(3, len(sorted_bikes_by_battery))
+        top_charged_bikes = sorted_bikes_by_battery[-num_top_bikes:] if num_top_bikes else []
+
+        # Calculate the average battery of the available top charged bikes
+        if top_charged_bikes:
+            average_battery_top3 = sum(bike.battery for bike in top_charged_bikes) / len(top_charged_bikes)
+            battery_over_limit_top3 = max(average_battery_top3 - BATTERY_LIMIT_TO_USE, 0)
+        else:
+            average_battery_top3 = 0
+            battery_over_limit_top3 = 0
+
+        # Calculate the hourly discharge rate once
+        if hourly_discharge is None:
+            hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
+
+        # Calculate the time to battery limit violation
         violation_battery = battery_over_limit_top3 / hourly_discharge if hourly_discharge != 0 else 8
 
-        time_to_violation = min(
-            violation_demand, 
-            violation_battery,
-            8 # Treat all times above 8 the same
-        )
+        # Calculate the minimum time to any type of violation
+        time_to_violation = min(violation_demand, violation_battery, 8)
     
     # Set time to violation far in the future
     else:
@@ -232,7 +245,7 @@ def calculate_driving_time_crit(simul, current_cluster, potential_cluster):
     """
     return simul.state.get_vehicle_travel_time(current_cluster.location_id, potential_cluster.location_id)
 
-def calculate_battery_level_composition_criticality(simul, station, total_num_bikes_in_system):
+def calculate_battery_level_composition_criticality(simul, station, total_num_bikes_in_system, hourly_discharge_rate):
     """
     Returns a float-score based on how the battery levels may be in the future.
     The lower the score, the more critical.
@@ -244,7 +257,6 @@ def calculate_battery_level_composition_criticality(simul, station, total_num_bi
     """
     
     current_escooters = station.get_bikes()
-    hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system) * 60
 
     # Make list of the batteries of usable bikes at the station in current time and the next hour 
     battery_levels_current = [escooter.battery for escooter in current_escooters if escooter.usable()]

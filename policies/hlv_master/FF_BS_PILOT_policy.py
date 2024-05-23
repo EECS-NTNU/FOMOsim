@@ -160,7 +160,7 @@ class BS_PILOT_FF(Policy):
         - end_time = Time horizon to evaluate
         - total_num_bikes_in_system = Total number of bikes in system
         """
-        
+        hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, True, False)
         # Create a tree of possible plans, each are evaluated with different criticality weights
         completed_plans = []
         for weight_set in self.criticality_weights_set:
@@ -180,9 +180,9 @@ class BS_PILOT_FF(Policy):
                     # If the next vehicle is not the vehicle considered, reduce the number of successors
                     if next_vehicle != vehicle:
                         num_successors_other_vehicle = max(1, number_of_successors//2)
-                        new_visits = self.greedy_next_visit(plan, simul, num_successors_other_vehicle, weight_set, total_num_bikes_in_system)
+                        new_visits = self.greedy_next_visit(plan, simul, num_successors_other_vehicle, weight_set, total_num_bikes_in_system, hourly_discharge)
                     else:
-                        new_visits = self.greedy_next_visit(plan, simul, number_of_successors, weight_set, total_num_bikes_in_system)
+                        new_visits = self.greedy_next_visit(plan, simul, number_of_successors, weight_set, total_num_bikes_in_system, hourly_discharge)
                     
                     # If there are no new visits or there is no visit within the time frame, finalize the plan
                     if new_visits == None or plan.next_visit.get_depature_time() > end_time:
@@ -220,7 +220,7 @@ class BS_PILOT_FF(Policy):
 
                 # Add more visits until departure time has reached the end time
                 while dep_time < end_time:
-                    new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set, total_num_bikes_in_system)
+                    new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set, total_num_bikes_in_system, hourly_discharge)
     
                     if new_visit != None:
                         new_visit = new_visit[0]
@@ -244,7 +244,7 @@ class BS_PILOT_FF(Policy):
             for scenario_dict in scenarios:
                 score = 0
                 for v in plan.plan:
-                    score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights, total_num_bikes_in_system)
+                    score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights, hourly_discharge)
                 plan_scores[plan].append(score)
         
         # Returns the center and cluster with the best average score over all scenarios
@@ -328,7 +328,7 @@ class BS_PILOT_FF(Policy):
             
         return number_of_escooters_pickup, number_of_escooters_deliver, number_of_escooters_swap
     
-    def greedy_next_visit(self, plan, simul, number_of_successors, weight_set, total_num_bikes_in_system):
+    def greedy_next_visit(self, plan, simul, number_of_successors, weight_set, total_num_bikes_in_system, hourly_discharge):
         """
         Returns a list of Visits, greedily generated based on criticality scores.
 
@@ -361,7 +361,7 @@ class BS_PILOT_FF(Policy):
         number_of_successors = min(number_of_successors, len(potential_clusters))
 
         # Finds the criticality score of all potential clusters, and sort them in descending order
-        clusters_sorted = calculate_criticality(weight_set, simul, potential_clusters, plan.plan[vehicle.vehicle_id][-1].station, total_num_bikes_in_system ,tabu_list)
+        clusters_sorted = calculate_criticality(weight_set, simul, potential_clusters, plan.plan[vehicle.vehicle_id][-1].station, total_num_bikes_in_system ,tabu_list, hourly_discharge)
         clusters_sorted_list = list(clusters_sorted.keys())
         
         # Selects the most critical clusters as next visits
@@ -437,7 +437,7 @@ class BS_PILOT_FF(Policy):
         # Return a list of num_scenarios dictionaries with expected net demand for each area in the future
         return scenarios
     
-    def evaluate_route(self, route, scenario_dict, end_time, simul, weights, total_num_escooters_in_system):
+    def evaluate_route(self, route, scenario_dict, end_time, simul, weights, hourly_discharge):
         """
         Returns the score based on if the vehicle drives this route in comparisson to not driving it at all
 
@@ -485,7 +485,6 @@ class BS_PILOT_FF(Policy):
                 # Calculate hours until violation because no bikes have sufficient battery
                 battery_top3 = [Ebike.battery for Ebike in sorted_escooters_at_area[-3:]]
                 average_battery_top3 = sum(battery_top3)/len(battery_top3) if battery_top3 != [] else 0
-                hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
                 hours_until_violation_battery = average_battery_top3/hourly_discharge if hourly_discharge != 0 else 8
 
                 # Find the earlist moment for a violation
@@ -518,10 +517,9 @@ class BS_PILOT_FF(Policy):
             if net_demand < 0:
                 time_until_first_violation = (area_inventory_after_visit / (-net_demand)) * 60
                 if swap_quantity > loading_quantity + 3: # Knowing top 3 bikes at station are fully charged
-                    hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
                     time_first_violation_after_visit = eta + min(time_until_first_violation, 100/hourly_discharge * 60)
                 else:
-                    time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)) * 60)
+                    time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(hourly_discharge) * 60)
             else:
                 time_first_violation_after_visit = end_time
             

@@ -2,7 +2,7 @@
 SIM SETTINGS
 """
 # ------- PRE-DETERMINED PARAMETERS ----------
-TEST_NAME = 'cluster_target'
+TEST_NAME = 'criticality'
 
 # Vehicle settings
 VEHICLE_BATTERY_INVENTORY = 50 # How many batteries can a vehicle hold?
@@ -84,7 +84,7 @@ NUM_SCENARIOS = 60
 
 DISCOUNTING_FACTOR = 1
 
-MAX_NUMBER_OF_CLUSTERS = 15 
+MAX_NUMBER_OF_CLUSTERS = 20 #
 
 # ------- MANAGERIAL INSIGHTS ----------
 BATTERY_LIMIT_TO_SWAP = 70

@@ -14,7 +14,7 @@ Criticality score is based on:
 - Driving time = The time it takes for the vehicle to arrive contributes to the criticality
 """
 
-def calculate_criticality_ff(weights, simul, potential_clusters, station, total_num_escooters_in_system, visited_clusters = None, adjusting_criticality = ADJUSTING_CRITICALITY):
+def calculate_criticality_ff(weights, simul, potential_clusters, station, total_num_escooters_in_system, visited_clusters = None, adjusting_criticality = ADJUSTING_CRITICALITY, hourly_discharge = 0):
     """
     Returns a dictionary with station and criticality score for all potential station to visit. The higher the score the more critical the station is.
 
@@ -43,7 +43,7 @@ def calculate_criticality_ff(weights, simul, potential_clusters, station, total_
         potential_cluster_type = calculate_cluster_type(target_state, len(potential_cluster.get_available_bikes()) + net_demand)
 
         # Time to violation
-        time_to_violation = calculate_time_to_violation_FF(net_demand, potential_cluster, simul, total_num_escooters_in_system)
+        time_to_violation = calculate_time_to_violation_FF(net_demand, potential_cluster, simul, total_num_escooters_in_system, hourly_discharge)
         time_to_violation_list.append(time_to_violation)
 
         # Deviation from target state
@@ -63,7 +63,7 @@ def calculate_criticality_ff(weights, simul, potential_clusters, station, total_
         driving_time_list.append(driving_time_crit)
 
         # Battery level composition criticality
-        battery_level_comp_crit = calculate_battery_level_composition_criticality_FF(simul, potential_cluster, total_num_escooters_in_system)
+        battery_level_comp_crit = calculate_battery_level_composition_criticality_FF(simul, potential_cluster, total_num_escooters_in_system, hourly_discharge)
         BL_composition_list.append(battery_level_comp_crit)
 
         criticalities[potential_cluster] = [time_to_violation, deviation_from_target_state, neighborhood_crit, demand_crit, driving_time_crit, battery_level_comp_crit]

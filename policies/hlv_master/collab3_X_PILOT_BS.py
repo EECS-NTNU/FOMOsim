@@ -161,6 +161,7 @@ class Collab3(BS_PILOT_FF):
         )
 
     def PILOT_function(self, simul, vehicle, initial_plan, max_depth, num_successors, end_time, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system):
+        hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_ff_bikes_in_system, True, False)
         completed_plans = []
         for i in range(len(self.criticality_weights_set_ff)):
             plans = [[] for i in range(max_depth +1)]
@@ -177,9 +178,9 @@ class Collab3(BS_PILOT_FF):
 
                     if next_vehicle != vehicle:
                         num_successors_other_veheicle = max(1, round(num_successors/2))
-                        new_visits = self.greedy_next_visit(plan, simul, num_successors_other_veheicle, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system)
+                        new_visits = self.greedy_next_visit(plan, simul, num_successors_other_veheicle, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system, hourly_discharge)
                     else:
-                        new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system)
+                        new_visits = self.greedy_next_visit(plan, simul, num_successors, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system, hourly_discharge)
                     
                     if new_visits == None or plan.next_visit.get_depature_time() > end_time:
                         new_plan = Plan(plan.copy_plan(),copy_arr_iter(plan.tabu_list), weight_set, plan.branch_number)
@@ -213,7 +214,7 @@ class Collab3(BS_PILOT_FF):
                     dep_time = end_time - 1
 
                 while dep_time < end_time:
-                    new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system)
+                    new_visit = self.greedy_next_visit(temp_plan, simul, 1, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system, hourly_discharge)
                     
                     if new_visit != None:
                         new_visit = new_visit[0]
@@ -236,7 +237,7 @@ class Collab3(BS_PILOT_FF):
             for scenario_dict in scenarios:
                 score = 0
                 for v in plan.plan:
-                    score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system)
+                    score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, simul, self.evaluation_weights, hourly_discharge)
                 plan_scores[plan].append(score)
         
         # Returns the station with the best avarage score over all scenarios
@@ -322,7 +323,7 @@ class Collab3(BS_PILOT_FF):
         else:
             return super().calculate_loading_quantities_and_swaps_pilot(num_ff_bikes_now, battery_inventory_now, simul, location, eta)
         
-    def greedy_next_visit(self, plan, simul, number_of_successors, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system):
+    def greedy_next_visit(self, plan, simul, number_of_successors, weight_set, total_num_sb_bikes_in_system, total_num_ff_bikes_in_system, hourly_discharge):
         visits = []
         tabu_list = plan.tabu_list
         vehicle = plan.next_visit.vehicle
@@ -353,7 +354,7 @@ class Collab3(BS_PILOT_FF):
 
         # Finds the criticality score of all potential locations, and sort them in descending order
         stations_sorted = calculate_criticality_sb(weight_set[1], simul, potential_stations, plan.plan[vehicle.vehicle_id][-1].station, total_num_sb_bikes_in_system, tabu_list) if potential_stations != [] else {}
-        clusters_sorted = calculate_criticality_ff(weight_set[0], simul, potential_clusters, plan.plan[vehicle.vehicle_id][-1].station, total_num_ff_bikes_in_system, tabu_list, self.adjusting_criticality) if potential_clusters != [] else {}
+        clusters_sorted = calculate_criticality_ff(weight_set[0], simul, potential_clusters, plan.plan[vehicle.vehicle_id][-1].station, total_num_ff_bikes_in_system, tabu_list, self.adjusting_criticality, hourly_discharge) if potential_clusters != [] else {}
         sorted_criticalities_merged = dict(sorted({**stations_sorted, **clusters_sorted}.items(), key=lambda item: item[1], reverse=True))
         destinations_sorted_list = list(sorted_criticalities_merged.keys())
         
@@ -368,7 +369,7 @@ class Collab3(BS_PILOT_FF):
         
         return visits
     
-    def evaluate_route(self, route, scenario_dict, end_time, simul, weights, total_num_bikes_in_system, total_num_escooters_in_system):
+    def evaluate_route(self, route, scenario_dict, end_time, simul, weights, hourly_discharge):
         """
         Returns the score based on if the vehicle drives this route in comparisson to not driving it at all
 
@@ -397,6 +398,7 @@ class Collab3(BS_PILOT_FF):
 
             location = visit.station
             if isinstance(location, sim.Station):
+                hourly_discharge = 0
                 neighbors = location.get_neighbours()
 
                 eta = visit.arrival_time
@@ -415,7 +417,6 @@ class Collab3(BS_PILOT_FF):
                     # Calculate hours until violation because no bikes have sufficient battery
                     battery_top3 = [Ebike.battery for Ebike in sorted_bikes_in_station[-3:]]
                     average_battery_top3 = sum(battery_top3)/len(battery_top3) if battery_top3 != [] else 0
-                    hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
                     hours_until_violation_battery = average_battery_top3/hourly_discharge if hourly_discharge != 0 else 8
 
                     # Find the earlist moment for a violation
@@ -453,10 +454,8 @@ class Collab3(BS_PILOT_FF):
                 if net_demand < 0:
                     time_until_first_violation = (station_inventory_after_visit / (-net_demand)) * 60
                     if swap_quantity > loading_quantity + 3: # Knowing top 3 bikes at station are fully charged
-                        hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
                         time_first_violation_after_visit = eta + min(time_until_first_violation, 100/(hourly_discharge if hourly_discharge != 0 else 1) * 60)
                     else:
-                        hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system)
                         time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(hourly_discharge if hourly_discharge != 0 else 1) * 60)
                 elif net_demand > 0:
                     time_until_first_violation = (location.capacity - station_inventory_after_visit) / net_demand
@@ -573,7 +572,6 @@ class Collab3(BS_PILOT_FF):
                     # Calculate hours until violation because no bikes have sufficient battery
                     battery_top3 = [Ebike.battery for Ebike in sorted_escooters_at_area[-3:]]
                     average_battery_top3 = sum(battery_top3)/len(battery_top3) if battery_top3 != [] else 0
-                    hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
                     hours_until_violation_battery = average_battery_top3/hourly_discharge if hourly_discharge != 0 else 8 
 
                     # Find the earlist moment for a violation
@@ -606,10 +604,9 @@ class Collab3(BS_PILOT_FF):
                 if net_demand < 0:
                     time_until_first_violation = (area_inventory_after_visit / (-net_demand)) * 60
                     if swap_quantity > loading_quantity + 3: # Knowing top 3 bikes at station are fully charged
-                        hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
                         time_first_violation_after_visit = eta + min(time_until_first_violation, 100/hourly_discharge * 60)
                     else:
-                        time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)) * 60)
+                        time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(hourly_discharge) * 60)
                 else:
                     time_first_violation_after_visit = end_time
                 

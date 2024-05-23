@@ -24,8 +24,8 @@ def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_l
     """
     #Test different selection criteria 
     critierta = 'target'
-    #critierta = 'target+drive'
-    #critierta = 'violation'
+    # critierta = 'target+drive'
+    # critierta = 'violation'
 
 
     tabu_list = []
@@ -53,7 +53,7 @@ def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_l
             possible_areas += heapq.nlargest(n//2, areas, key=lambda area: area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, simul))
         
     elif critierta == "violation":
-        possible_areas = heapq.nsmallest(n, areas, key=lambda area: calculate_time_to_violation(calculate_net_demand(area, simul.time, simul.day(), simul.hour(), TIME_HORIZON), area, simul, len(simul.state.get_all_ff_bikes())))
+        possible_areas = heapq.nsmallest(n, areas, key=lambda area: calculate_time_to_violation(calculate_net_demand(area, time_now, day_now, hour_now, TIME_HORIZON), area, simul, len(simul.state.get_all_ff_bikes())))
     
     
 
