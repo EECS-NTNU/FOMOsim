@@ -40,9 +40,16 @@ class Action:
         :param travel_time: travel_time in min from current station to next station
         :return: Total time to perform action in minutes
         """
+        walking_time = [0.8,1,2,3]
+        operator_radius = 0
+        if self.helping_cluster:
+            operator_radius = self.helping_cluster.operating_radius
+        if self.cluster:
+            operator_radius = self.cluster.operating_radius
+
         operation_duration = (
             len(self.battery_swaps) + len(self.pick_ups) + len(self.delivery_bikes) + len(self.helping_pickup) + len(self.helping_delivery)
-        ) * MINUTES_PER_ACTION
+        ) * MINUTES_PER_ACTION * (walking_time[operator_radius])
         travel_duration = (
             travel_time
             + MINUTES_CONSTANT_PER_ACTION

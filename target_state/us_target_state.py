@@ -30,4 +30,4 @@ class USTargetState(TargetState):
             arrive = area.arrive_intensities[day][hour]
             leave_std = area.leave_intensities_stdev[day][hour]
             arrive_std = area.arrive_intensities_stdev[day][hour]
-            area.target_state[day][hour] = max(0, round((leave + leave_std - (arrive - arrive_std))) + np.random.randint(0, 2))
+            area.target_state[day][hour] = max(0, round((leave + leave_std - (arrive - arrive_std))) + state.rng.randint(0, 2))

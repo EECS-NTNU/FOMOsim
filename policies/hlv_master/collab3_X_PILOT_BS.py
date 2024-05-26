@@ -170,7 +170,7 @@ class Collab3(BS_PILOT_FF):
 
             for depth in range(1, max_depth+1):
                 if depth > 1:
-                    num_successors = max(1, num_successors//2)
+                    num_successors = max(1, round(num_successors/2))
                 
                 while plans[depth-1] != []:
                     plan = plans[depth-1].pop(0)
@@ -604,9 +604,9 @@ class Collab3(BS_PILOT_FF):
                 if net_demand < 0:
                     time_until_first_violation = (area_inventory_after_visit / (-net_demand)) * 60
                     if swap_quantity > loading_quantity + 3: # Knowing top 3 bikes at station are fully charged
-                        time_first_violation_after_visit = eta + min(time_until_first_violation, 100/hourly_discharge * 60)
+                        time_first_violation_after_visit = eta + min(time_until_first_violation, 100/hourly_discharge * 60 if hourly_discharge != 0 else 480)
                     else:
-                        time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(hourly_discharge) * 60)
+                        time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(hourly_discharge) * 60 if hourly_discharge != 0 else 480)
                 else:
                     time_first_violation_after_visit = end_time
                 
@@ -666,7 +666,7 @@ class Collab3(BS_PILOT_FF):
                             
                 
                     distance_scaling = ((simul.state.get_vehicle_travel_time(location.location_id, neighbor.location_id)/60)* VEHICLE_SPEED)/MAX_ROAMING_DISTANCE_SOLUTIONS
-                    neighbor_roamings += (1-distance_scaling)*roamings-roamings_no_visit
+                    neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
                 
                 avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
 

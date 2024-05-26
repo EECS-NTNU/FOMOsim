@@ -2,11 +2,13 @@
 SIM SETTINGS
 """
 # ------- PRE-DETERMINED PARAMETERS ----------
-TEST_NAME = 'criticality'
 
 # Vehicle settings
 VEHICLE_BATTERY_INVENTORY = 50 # How many batteries can a vehicle hold?
 VEHICLE_BIKE_INVENTORY = 20 # How many bikes can be carried in a vehicle?
+
+TEST_NAME = 'policies' # f'inventory_balance_B{VEHICLE_BATTERY_INVENTORY}_I{VEHICLE_BIKE_INVENTORY}'
+
 VEHICLE_SPEED = 25 # Average speed of a vehicle? (km/h)
 MINUTES_PER_ACTION = 3 # Minutes to load/unload/battery swaps
 MINUTES_CONSTANT_PER_ACTION = 5 # Constat time in addition (f.eks park the car and start again)
@@ -61,35 +63,35 @@ NEIGHBOR_BATTERY_LIMIT = 50
 
 # ------- COMPUTATIONAL VARIABLES ----------
 
+MAX_NUMBER_OF_CLUSTERS = 20 #
+CRITICAILITY_WEIGHTS_SET_FF = [[0.3, 0.15, 0, 0.2, 0.1, 0.25], [0.15, 0.5, 0, 0.1, 0.15, 0.1], [0.5, 0.05, 0, 0.1, 0.05, 0.3]] #
+
+# Policy settings
+MAX_DEPTH = 3 #
+NUM_SUCCESSORS = 5 #
+
+TIME_HORIZON = 40 #
+
+# CRITICAILITY_WEIGHTS_SET_SB = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
+
+DISCOUNTING_FACTOR = 0.2 #
+
+NUM_SCENARIOS = 100 #
+
+EVALUATION_WEIGHTS = [0.85, 0, 0.15] #
+
+ADJUSTING_CRITICALITY = 1.2 #
+
+# ------- MANAGERIAL INSIGHTS ----------
 # Vehicle settings
 NUM_VEHICLES = 2
 SERVICE_TIME_FROM = 0
 SERVICE_TIME_TO = 24
 
-# Policy settings
-MAX_DEPTH = 5
-NUM_SUCCESSORS = 3
+BATTERY_LIMIT_TO_SWAP = 80 #
 
-TIME_HORIZON = 40 
+OPERATOR_RADIUS = 1
 
-# Fortsatt litt merkelig etter compuational, vet ikke helt hva vi skal velge her TODO
-CRITICAILITY_WEIGHTS_SET_FF = [[1/5, 1/5, 0, 1/5, 1/5, 1/5], [0.05, 0.9, 0, 0, 0, 0.05], [0.45, 0.1, 0, 0.2, 0.05, 0.2]]
-# CRITICAILITY_WEIGHTS_SET_SB = [[1/6, 1/6, 1/6, 1/6, 1/6, 1/6], [0.05, 0.9, 0.05, 0, 0, 0], [0.45, 0.1, 0.05, 0.2, 0.05, 0.15]]
-
-ADJUSTING_CRITICALITY = 1
-
-EVALUATION_WEIGHTS = [1/3, 1/3, 1/3] 
-
-NUM_SCENARIOS = 60
-
-DISCOUNTING_FACTOR = 1
-
-MAX_NUMBER_OF_CLUSTERS = 20 #
-
-# ------- MANAGERIAL INSIGHTS ----------
-BATTERY_LIMIT_TO_SWAP = 70
-
-OPERATOR_RADIUS = 1 
 BIKES_CONGESTED_NEIGHBOR = 1 # how many additional bikes to pick up for each "starved" neighbor
 BIKES_STARVED_NEIGHBOR = 1 # how many additional bikes to let be for each "starved" neighbor
 

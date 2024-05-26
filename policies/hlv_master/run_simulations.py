@@ -58,11 +58,24 @@ def run_simulation(seed, policies, filename_sb, filename_ff, target_filename, op
     simulator.run()
     return simulator.metrics, seed
 
+def test_num_vehicles(list_of_seeds, list_of_num_vehicles, policy_name):
+    for num_vehicles in list_of_num_vehicles:
+        filename = f'num_vehicles_{num_vehicles}_{policy_name}.csv'
+        policy_dict = { 'Base_SB': [(policies.hlv_master.BS_PILOT(), True)], 
+                        'Base_FF': [[(policies.hlv_master.BS_PILOT_FF(), False)], num_vehicles],
+                        'Collab2': [(policies.hlv_master.SB_Collab2(), True), 
+                                    (policies.hlv_master.FF_Collab2(), False)],
+                        'Collab3': [[(policies.hlv_master.Collab3(), None)], num_vehicles],
+                        'Collab4': [(policies.hlv_master.Collab4(), None)]
+                    }
+        test_resolutions(policy_dict[policy_name][0], filename, policy_name, list_of_seeds, policy_dict[policy_name][1])
+
 def test_policies(list_of_seeds, policy_dict):
     for policy_name in policy_dict:
         res_filename=str(policy_name)+".csv"
-        policies = policy_dict[policy_name]
-        test_resolutions(policies, res_filename, policy_name, list_of_seeds)
+        policies = policy_dict[policy_name][0]
+        num_vehicles = policy_dict[policy_name][1]
+        test_resolutions(policies, res_filename, policy_name, list_of_seeds, num_vehicles)
 
 def test_timehorizons(list_of_seeds, list_of_timehorizons, policy_name):
     for timehorizon in list_of_timehorizons:
@@ -301,53 +314,78 @@ def run_tests(number):
     ]
 
     crit_set = [
+        # dict(
+        # a=[[1/5, 1/5, 0, 1/5, 1/5, 1/5]], 
+        # b=[[0.3, 0.15, 0, 0.2, 0.1, 0.25]]),
+
+        # dict( 
+        # c=[[0.2, 0.3, 0, 0.15, 0.15, 0.2]], 
+        # d=[[0.2, 0.2, 0, 0.15, 0.1, 0.35]]), # Balanced
+
+        # dict(
+        # e=[[0.15, 0.45, 0, 0.05, 0, 0.35]], 
+        # f=[[0.05, 0.9, 0, 0, 0, 0.05]]),
+
+        # dict( 
+        # g=[[0.15, 0.5, 0, 0.1, 0.15, 0.1]], 
+        # h=[[0.3, 0.5, 0, 0, 0.2, 0]]), # Long term
+
+        # dict(
+        # i=[[0.4, 0, 0, 0.1, 0, 0.5]], 
+        # j=[[0.6, 0.05, 0, 0.1, 0.05, 0.2]]),
+
+        # dict( 
+        # k=[[0.6, 0.1, 0, 0.2, 0.1, 0]], 
+        # l=[[0.5, 0.15, 0, 0.05, 0.1, 0.2]]), # Short term
+
+        # dict(
+        # m=[[1, 0, 0, 0, 0, 0]], 
+        # n=[[0, 1, 0, 0, 0, 0]]),
+
+        # dict( 
+        # o=[[0, 0, 0, 1, 0, 0]]),
+
+        # dict(
+        # p=[[0, 0, 0, 0, 1, 0]]),
+
+        # dict( 
+        # q=[[0, 0, 0, 0, 0, 1]]), # Extremes
+
+        # ------- FURTHER TESTING
+
+        # dict(
+        #     r = [[0.35, 0.15, 0, 0.2, 0.15, 0.2]]),
+        
+        # dict(
+        #     s = [[0.25, 0.2, 0, 0.2, 0.15, 0.15]]
+        # ),
+
+        # dict(
+        #     t = [[0.1, 0.65, 0, 0.05, 0.1, 0.1]]),
+        # dict(
+        #     u = [[0.05, 0.8, 0, 0.05, 0.05, 0.05]]
+        # ),
+
+        # dict(
+        #     v = [[0.3, 0.05, 0, 0.15, 0.1, 0.4]]),
+
+
         dict(
-        a=[[1/5, 1/5, 0, 1/5, 1/5, 1/5]], 
-        b=[[0.3, 0.15, 0, 0.2, 0.1, 0.25]]),
-
-        dict( 
-        c=[[0.2, 0.3, 0, 0.15, 0.15, 0.2]], 
-        d=[[0.2, 0.2, 0, 0.15, 0.1, 0.35]]), # Balanced
+            w = [[0.5, 0.05, 0, 0.1, 0.05, 0.3]]
+        ),
 
         dict(
-        e=[[0.15, 0.45, 0, 0.05, 0, 0.35]], 
-        f=[[0.05, 0.9, 0, 0, 0, 0.05]]),
-
-        dict( 
-        g=[[0.15, 0.5, 0, 0.1, 0.15, 0.1]], 
-        h=[[0.3, 0.5, 0, 0, 0.2, 0]]), # Long term
-
+            x = [[0.15, 0, 0, 0, 0.8, 0.05]]),
         dict(
-        i=[[0.4, 0, 0, 0.1, 0, 0.5]], 
-        j=[[0.6, 0.05, 0, 0.1, 0.05, 0.2]]),
-
-        dict( 
-        k=[[0.6, 0.1, 0, 0.2, 0.1, 0]], 
-        l=[[0.5, 0.15, 0, 0.05, 0.1, 0.2]]), # Short term
-
+            y = [[1/3, 0, 0, 0, 1/3, 1/3]]
+        ),
         dict(
-        m=[[1, 0, 0, 0, 0, 0]], 
-        n=[[0, 1, 0, 0, 0, 0]]),
-
-        dict( 
-        o=[[0, 0, 0, 1, 0, 0]]),
-
+            z = [[0,0,0,0,0,0]]
+        ),
         dict(
-        p=[[0, 0, 0, 0, 1, 0]]),
-
-        dict( 
-        q=[[0, 0, 0, 0, 0, 1]]), # Extremes
-
-        # dict(s= [[0.05, 0.85, 0.05, 0, 0, 0.05]], # f
-        # t=[[0.25, 0.45, 0, 0, 0.2, 0.1]], # h
-        # u = [[0.3, 0.45, 0, 0, 0.2, 0.05]], # h
-        # v =[[0.5, 0.1, 0.05, 0.2, 0.05, 0.1]], # k
-        # w =[[0.55, 0.1, 0.05, 0.2, 0.05, 0.05]], # k
-        # x =[[0.45, 0.1, 0.05, 0.2, 0.05, 0.15]], # k
-        # y =[[0.6, 0.1, 0.05, 0.15, 0.05, 0.05]], # k
-        # z =[[0.6, 0.05, 0.05, 0.15, 0.05, 0.1]]) # k
+            zz = [[0.5,0,0,0,0.5,0]]
+        )
         ]
-
 
     alphas = [[1],
               [3],
@@ -356,48 +394,53 @@ def run_tests(number):
               [7]]
     betas =[1,2,3,4,5]
 
-    # alphas = [[4],
-    #           [2]]
-    # betas =[1,2,3,4,5]
+    alphas = [[4],
+              [2]]
+    betas =[1,2,3,4,5]
 
-    # alphas = [[1, 4, 7],
-    #           [3,5],
-    #           [2, 6]]
-    # betas =[7, 10, 15, 20]
+    alphas = [[5, 7], 
+              [6],
+            #   [1, 2, 7],
+            #   [3,5],
+            #   [4, 6]
+            ]
+    betas =[15]
 
-    time_horizons = [[10],
-                     [20],
-                     [30],
-                     [40],
+    time_horizons = [
+                    #  [10],
+                    #  [20],
+                    #  [30],
+                    #  [40],
                      [50],
-                     [60]    
+                     [60]
     ]
 
     discount_factors = [
-                        [1],
-                        [0.9],
-                        [0.8],
-                        [0.7],
+                        # [1],
+                        # [0.9],
+                        # [0.8],
+                        # [0.7],
                         [0.6],
-                        [0.5],
+                        [0.5, 0.4, 0.3, 0.2, 0.1],
                         [0.4],
                         [0.3],
                         [0.2],
                         [0.1]
                     ]
 
-    num_scenarios = [[1],
-                     [10],
-                     [20],
-                     [30],
-                     [40],
-                     [50],
-                     [60],
-                     [70],
-                     [80],
-                     [90],
-                     [100],
-                     [250],
+    num_scenarios = [
+                    #  [1],
+                    #  [10],
+                    #  [20],
+                    #  [30],
+                    #  [40],
+                    #  [50],
+                    #  [60],
+                    #  [70],
+                    #  [80],
+                    #  [90],
+                    #  [100],
+                    #  [250],
                      [500],
                      [1000],
                      [2000]
@@ -431,58 +474,41 @@ def run_tests(number):
     evaluation_weights = [
                 {
                 'a': [0.0, 0.0, 1.0],
-                'b': [0.1, 0.1, 0.8]},
-
-                {
+                'b': [0.1, 0.1, 0.8],
                 'c': [0.1, 0.3, 0.6],
                 'd': [0.3, 0.1, 0.6]}, # most on reduced deviation
-                
-                {
-                'e': [1, 0, 0],
-                'f': [0.8, 0.1, 0.1]},
-                
-                {
+
+                {'e': [1, 0, 0],
+                'f': [0.8, 0.1, 0.1],
                 'g': [0.6, 0.1, 0.3],
                 'h': [0.6, 0.3, 0.1]}, # most on avoided violations
-                
-                {
-                'i': [0, 1, 0],
-                'j': [0.1, 0.8, 0.1]},
 
-                {
+                {'i': [0, 1, 0],
+                'j': [0.1, 0.8, 0.1],
                 'k': [0.1, 0.6, 0.3],
                 'l': [0.3, 0.6, 0.1]}, # most on enabled roaming
 
-                {
-                'm': [0.5, 0.0, 0.5],
+                {'m': [0.5, 0.0, 0.5],
                 'n': [0.5, 0.5, 0],
-                'o': [0, 0.5, 0.5]}, # Remove one variable (other are equal)
-                
-                {
+                'o': [0, 0.5, 0.5], # Remove one variable (other are equal)
                 'p': [0, 0.8, 0.2],
                 'q': [0, 0.2, 0.8]},
 
-                {
-                'r': [0.8, 0, 0.2],
-                's': [0.2, 0, 0.8]},
-                
-                {
+                {'r': [0.8, 0, 0.2],
+                's': [0.2, 0, 0.8],
                 't': [0.8, 0.2, 0],
                 'v': [0.2, 0.8, 0],
                 'u': [1/3, 1/3, 1/3]} # Remove one variable (others have one heavy and one light) and one all equal
         ]
 
-    adj_factors = [[0.25, 0.5], 
-                   [0.6, 2],
-                   [0.7, 0.8],
-                   [0.9, 1],
-                   [1.1, 1.2],
-                   [1.3, 1.4],
-                   [1.6, 1.7], 
-                   [1.8, 1.9],
-                   [1.5]]
+    adj_factors = [
+                   [0.25, 0.5, 0.6, 0.7, 0.8, 0.9],
+                   [1, 1.1, 1.2, 1.3, 1.4], 
+                   [1.5, 1.6, 1.7, 1.8, 1.9, 2]
+                   ]
     
-    swap_thresholds = [[10], 
+    swap_thresholds = [
+                       [10], 
                        [20],
                        [30], 
                        [40],
@@ -493,27 +519,28 @@ def run_tests(number):
                        [90], 
                        [100]]
     
-    radiuses = [[0],
-                [1],
-                [2],
-                [3],
-                [4]]
-    
+    radiuses = [[0,1,2,3]]
 
+    num_vehicles_list = [[1,2,3],
+                         [1,2,3],
+                         [4,5,6]
+                         ]
+    
     # test_num_clusters(list_of_seeds=SEEDS_LIST, list_of_num_clusters=num_clusters[number], policy_name='Base_FF')
-    test_criticality_weights(list_of_seeds=SEEDS_LIST, dict_of_criticality_weights=crit_set[number], policy_name='Base_FF')
+    # test_criticality_weights(list_of_seeds=SEEDS_LIST, dict_of_criticality_weights=crit_set[number], policy_name='Base_FF')
     # for a in alphas[number]:
     #     test_alpha_beta(list_of_seeds=SEEDS_LIST, alpha=a, list_of_betas=betas, policy_name='Base_FF')
     # test_timehorizons(list_of_seeds=SEEDS_LIST, list_of_timehorizons=time_horizons[number], policy_name='Base_FF')
     # test_discount_factor(list_of_seeds= SEEDS_LIST, list_of_discout_factors = discount_factors[number], policy_name='Base_FF')
     # test_scenarios(list_of_seeds=SEEDS_LIST, list_of_scenarios=num_scenarios[number], policy_name='Base_FF')    
     # test_evaluation_sets(list_of_seeds=SEEDS_LIST, dict_of_evaluation_sets=evaluation_weights[number], policy_name='Base_FF')
-    # test_adjustment_factor(list_of_seeds=SEEDS_LIST, list_of_adjustment_factors=adj_factors[number], policy_name="Collab3")
+    # test_adjustment_factor(list_of_seeds=SEEDS_LIST, list_of_adjustment_factors=adj_factors[number], policy_name="Collab4")
     # test_swap_threshold(list_of_seeds=SEEDS_LIST, list_of_swap_thresholds = swap_thresholds[number], policy_name = 'Base_FF')
     # test_operator_radius(list_of_seeds=SEEDS_LIST, list_of_radius = radiuses[number], policy_name = 'Base_FF')
+    # test_num_vehicles(list_of_seeds = SEEDS_LIST, list_of_num_vehicles = num_vehicles_list[number], policy_name = 'Collab3')
 
     # policy_dict = {
-    #     'Base': [(policies.hlv_master.BS_PILOT_FF(), False)],
+    #     'FF_Base': [(policies.hlv_master.BS_PILOT_FF(), False)],
         # 'Do_Nothing': [(policies.DoNothing(), None)],
         # 'Base': [(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)],
         # 'Collab2': [(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)],
@@ -521,17 +548,29 @@ def run_tests(number):
         # 'Collab4': [(policies.hlv_master.Collab4(), None)]
         # }
 
-    # policy_dict = [      
-                # {'Do_Nothing': [(policies.DoNothing(), None)]},
-                # {'FF_Only_Swap': [(policies.hlv_master.FF_ONLY_SWAP(), False)]},
-                # {'FF_Only_Rebalance': [(policies.hlv_master.FF_ONLY_REBALANCE(), False)]},
-                # {'Base': [(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)]},
-                # {'Collab2': [(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)]},
-                # {'Collab3': [(policies.hlv_master.Collab3(), None)]},
-                # {'Collab4': [(policies.hlv_master.Collab4(), None)]}
-                # ]
+    # policy_dict = {
+    #             # 'FF_Base': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+    #             # 'FF_Only_Swap': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+    #             # 'FF_Only_Rebalance': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+    #             'Base': [[(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+    #             'Collab2': [[(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)], NUM_VEHICLES],
+    #             'Collab3': [[(policies.hlv_master.Collab3(), None)], NUM_VEHICLES*2],
+    #             'Collab4': [[(policies.hlv_master.Collab4(), None)], NUM_VEHICLES*2],
+    #             'Do_Nothing': [[(policies.DoNothing(), None)], NUM_VEHICLES],
+    # }
+
+    policy_dict = [
+                # 'FF_Base': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+                # 'FF_Only_Swap': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+                # 'FF_Only_Rebalance': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+                {'Base': [[(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES]},
+                {'Collab2': [[(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)], NUM_VEHICLES]},
+                {'Collab3': [[(policies.hlv_master.Collab3(), None)], NUM_VEHICLES*2]},
+                {'Collab4': [[(policies.hlv_master.Collab4(), None)], NUM_VEHICLES*2]},
+                {'Do_Nothing': [[(policies.DoNothing(), None)], NUM_VEHICLES]},
+    ]
     
-    # test_policies(list_of_seeds=SEEDS_LIST, policy_dict=policy_dict)
+    test_policies(list_of_seeds=SEEDS_LIST, policy_dict=policy_dict[number])
 
 if __name__ == "__main__":
     policy_dict = {

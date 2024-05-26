@@ -65,7 +65,7 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
 
         helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(int(sum(current_deviations)), len(vehicle.get_sb_bike_inventory()))]
         
-        helping_cluster = Cluster(current_stations, vehicle.location, {}, [])
+        helping_cluster = Cluster(current_stations, vehicle.location, self.operator_radius, {}, [])
 
         simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
         simul.metrics.add_aggregate_metric(simul, "num helping bike pickups", len(helping_pickups))

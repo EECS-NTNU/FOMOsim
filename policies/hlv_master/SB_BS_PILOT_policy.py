@@ -155,7 +155,7 @@ class BS_PILOT(Policy):
             for depth in range(1, max_depth+1):
                 # Halve the branching width for each depth 
                 if depth > 1:
-                    number_of_successors = max(1, number_of_successors//2)
+                    number_of_successors = max(1, round(number_of_successors/2))
 
                 # Explore as long as there are plans at the current depth
                 while plans[depth-1] != []:
@@ -164,7 +164,7 @@ class BS_PILOT(Policy):
 
                     # If the next vehicle is not the vehicle considered, reduce the number of successors
                     if next_vehicle != vehicle:
-                        num_successors_other_vehicle = max(1, number_of_successors//2)
+                        num_successors_other_vehicle = max(1, round(number_of_successors/2))
                         new_visits = self.greedy_next_visit(plan, simul, num_successors_other_vehicle, weight_set, total_num_bikes_in_system)
                     else:
                         new_visits = self.greedy_next_visit(plan, simul, number_of_successors, weight_set, total_num_bikes_in_system)
@@ -367,7 +367,7 @@ class BS_PILOT(Policy):
         - number_of_scenarios = numbers of scenarios to generate
         - poisson = Uses poisson distribution if True, normal distribution if False
         """
-        rng = np.random.default_rng(simul.state.seed) 
+        rng = simul.state.rng
         scenarios = []
         locations_dict = simul.state.get_sb_locations()
         if number_of_scenarios < 1:

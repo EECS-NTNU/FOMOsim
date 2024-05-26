@@ -64,8 +64,8 @@ class Collab4(Collab3):
             current_area = simul.state.get_location_by_id(current_location.area)
             next_area = simul.state.get_location_by_id(next_location.area)
 
-            current_cluster = Cluster([current_area], current_area, current_area.get_bikes(), current_area.get_neighbours())
-            next_cluster = Cluster([next_area], next_area, next_area.get_bikes(), next_area.get_neighbours())
+            current_cluster = Cluster([current_area], current_area, self.operator_radius, current_area.get_bikes(), current_area.get_neighbours())
+            next_cluster = Cluster([next_area], next_area, self.operator_radius, next_area.get_bikes(), next_area.get_neighbours())
             current_cluster, _ = build_cluster([], current_cluster, self.operator_radius)
             next_cluster, _ = build_cluster([], next_cluster, self.operator_radius)
 
@@ -94,7 +94,7 @@ class Collab4(Collab3):
         elif isinstance(current_location, sim.Station) and not isinstance(next_location, sim.Station):
             start_help_time = time.time()
             current_area = simul.state.get_location_by_id(current_location.area)
-            current_cluster = Cluster([current_area], current_area, current_area.get_bikes(), current_area.get_neighbours())
+            current_cluster = Cluster([current_area], current_area, self.operator_radius, current_area.get_bikes(), current_area.get_neighbours())
             current_cluster, _  = build_cluster([], current_cluster, self.operator_radius)
 
             next_deviation = len(next_location.get_available_bikes()) - round(next_location.get_target_state(simul.day(), simul.hour()))
@@ -144,7 +144,7 @@ class Collab4(Collab3):
                 for station in current_stations:
                     station_bikes.update(station.bikes)
                 
-                helping_cluster = Cluster(current_stations, vehicle.location, station_bikes, [])
+                helping_cluster = Cluster(current_stations, vehicle.location, self.operator_radius, station_bikes, [])
                 
                 helping_pickups = []
             else:
@@ -187,7 +187,7 @@ class Collab4(Collab3):
 
                 helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(int(sum(current_deviations)), len(vehicle.get_sb_bike_inventory()))]
                 
-                helping_cluster = Cluster(current_stations, vehicle.location, {}, [])
+                helping_cluster = Cluster(current_stations, vehicle.location, self.operator_radius, {}, [])
             else:
                 helping_pickups = []
                 helping_delivery = []

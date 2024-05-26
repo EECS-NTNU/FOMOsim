@@ -55,8 +55,8 @@ class SB_Collab2(BS_PILOT):
         current_area = simul.state.get_location_by_id(vehicle.location.area)
         next_area = simul.state.get_location_by_id(simul.state.get_location_by_id(action.next_location).area)
 
-        current_cluster = Cluster(areas=[current_area], center_area=current_area)
-        next_cluster = Cluster(areas=[next_area], center_area=next_area)
+        current_cluster = Cluster(areas=[current_area], center_area=current_area, operating_radius = self.operator_radius)
+        next_cluster = Cluster(areas=[next_area], center_area=next_area, operating_radius = self.operator_radius)
         current_cluster, _ = build_cluster([], current_cluster, self.operator_radius)
         next_cluster, _ = build_cluster([], next_cluster, self.operator_radius)
 

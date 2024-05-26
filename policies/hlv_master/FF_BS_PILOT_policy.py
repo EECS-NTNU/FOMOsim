@@ -170,7 +170,7 @@ class BS_PILOT_FF(Policy):
             for depth in range(1, max_depth+1):
                 # Halve the branching width for each depth 
                 if depth > 1:
-                    number_of_successors = max(1, number_of_successors//2)
+                    number_of_successors = max(1, round(number_of_successors/2))
                 
                 # Explore as long as there are plans at the current depth
                 while plans[depth-1] != []:
@@ -179,7 +179,7 @@ class BS_PILOT_FF(Policy):
 
                     # If the next vehicle is not the vehicle considered, reduce the number of successors
                     if next_vehicle != vehicle:
-                        num_successors_other_vehicle = max(1, number_of_successors//2)
+                        num_successors_other_vehicle = max(1, round(number_of_successors/2))
                         new_visits = self.greedy_next_visit(plan, simul, num_successors_other_vehicle, weight_set, total_num_bikes_in_system, hourly_discharge)
                     else:
                         new_visits = self.greedy_next_visit(plan, simul, number_of_successors, weight_set, total_num_bikes_in_system, hourly_discharge)
@@ -384,7 +384,7 @@ class BS_PILOT_FF(Policy):
         - number_of_scenarios = numbers of scenarios to generate
         - poisson = Uses poisson distribution if True, normal distribution if False
         """
-        rng = np.random.default_rng(simul.state.seed) 
+        rng = simul.state.rng
         scenarios = []
         locations_dict = simul.state.locations
         if number_of_scenarios < 1:
@@ -517,9 +517,9 @@ class BS_PILOT_FF(Policy):
             if net_demand < 0:
                 time_until_first_violation = (area_inventory_after_visit / (-net_demand)) * 60
                 if swap_quantity > loading_quantity + 3: # Knowing top 3 bikes at station are fully charged
-                    time_first_violation_after_visit = eta + min(time_until_first_violation, 100/hourly_discharge * 60)
+                    time_first_violation_after_visit = eta + min(time_until_first_violation, 100/hourly_discharge * 60 if hourly_discharge != 0 else 480)
                 else:
-                    time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(hourly_discharge) * 60)
+                    time_first_violation_after_visit = eta + min(time_until_first_violation, (average_battery_top3)/(hourly_discharge) * 60 if hourly_discharge != 0 else 480)
             else:
                 time_first_violation_after_visit = end_time
             
@@ -576,10 +576,9 @@ class BS_PILOT_FF(Policy):
                             else:
                                 roamings_no_visit += excess_escooters_no_visit
                                 excess_escooters_no_visit -= excess_escooters_no_visit
-                        
             
                 distance_scaling = ((simul.state.get_vehicle_travel_time(area.location_id, neighbor.location_id)/60)* VEHICLE_SPEED)/MAX_ROAMING_DISTANCE_SOLUTIONS
-                neighbor_roamings += (1-distance_scaling)*roamings-roamings_no_visit
+                neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
             
             avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
 

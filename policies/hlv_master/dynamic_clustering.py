@@ -61,7 +61,7 @@ def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_l
     # Make clusters for all, with the area as a center, if the area are not already added in another cluster
     for area in possible_areas:
         if area not in tabu_list:
-            c = Cluster(areas=[area], center_area=area, bikes=area.get_bikes(), neighbours=area.get_neighbours())
+            c = Cluster(areas=[area], center_area=area, operating_radius = max_length, bikes=area.get_bikes(), neighbours=area.get_neighbours())
             
             # Expands the cluster, looking at areas with needing to have escooters picked up
             c, tabu_list = build_cluster(tabu_list, c, max_length)
@@ -102,8 +102,9 @@ class Cluster(Location):
         self,
         areas,
         center_area,
+        operating_radius,
         bikes = [], #dict, key = bike_id, value = object
-        neighbours = []
+        neighbours = [],
     ):
         super().__init__(
             *(center_area.get_location() if center_area.get_location() else self.__compute_center(center_area.border_vertices)), center_area.location_id
@@ -111,6 +112,7 @@ class Cluster(Location):
 
         self.center_area = center_area
         self.areas = areas
+        self.operating_radius = operating_radius
         self.neighbours = neighbours
         self.not_included = []
 
