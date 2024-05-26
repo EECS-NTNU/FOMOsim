@@ -640,7 +640,7 @@ def calculate_loading_quantities_and_swaps_greedy(vehicle, simul, location, swap
     - congestion_criteria = percentage of station capacity for a station to be considered congested
     - starvation_critera = percentage of station capacity for a station to be considered starved
     """
-    escooters_to_swap = location.get_swappable_bikes(swap_threshold)[:vehicle.battery_inventory]
+    escooters_to_swap = [bike.bike_id for bike in location.get_swappable_bikes(swap_threshold)[:vehicle.battery_inventory]]
 
     # Return lists of escooter IDs to do each action on
     return [], [], escooters_to_swap
