@@ -846,3 +846,24 @@ class State(LoadSave):
 
 
         return neighboring_stations
+    
+    def add_escooters(self, number):
+        if number == 0:
+            return 
+        
+        num_escooters = 700
+        areas_to_add = []
+        for area in self.get_areas():
+            sum_arrival_rates = sum(area.get_arrive_intensity(day, hour) for day in range(7) for hour in range(24))
+            if sum_arrival_rates > 0:
+                areas_to_add.append(area)
+        
+        num_areas = len(areas_to_add)
+        while number > 0:
+            id = "ES"+str(num_escooters)
+            escooter = sim.EScooter(*(area.get_location()), location_id = area.location_id, bike_id = id, battery = self.rng.integers(20,100))
+            adding_area = areas_to_add[number % num_areas]
+            adding_area.add_bike(escooter)
+
+            number -= 1
+            num_escooters += 1

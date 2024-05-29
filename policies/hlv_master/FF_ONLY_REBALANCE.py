@@ -76,7 +76,7 @@ class FF_ONLY_REBALANCE(Policy):
             number_of_batteries_to_swap = len(batteries_to_swap)
         
         # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all escooters at location that is unusable
-        if vehicle.bike_inventory <= vehicle.bike_inventory_capacity and len(simul.state.depots) > 0 and number_of_batteries_to_swap + number_of_escooters_pickup > 0:
+        if len(vehicle.bike_inventory) <= vehicle.bike_inventory_capacity and len(simul.state.depots) > 0 and number_of_batteries_to_swap + number_of_escooters_pickup > 0:
             next_location = simul.state.get_closest_depot(vehicle)
             # print("Goes to depot", next_location)
             # If no depot, just stay and do nothing
@@ -671,7 +671,6 @@ def get_escooter_ids_load_swap(cluster, vehicle, num_escooters, target_state, cl
         escooters_to_deliver = [escooter.bike_id for escooter in escooters_in_vehicle[-number_of_escooters_to_deliver:]]
 
         # for item in escooters_to_deliver+escooters_to_swap:
-        #     if not isinstance(item, str):
         #         print("ikke streng")
 
         return escooters_to_deliver, escooters_to_swap

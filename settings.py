@@ -7,10 +7,7 @@ SIM SETTINGS
 VEHICLE_BATTERY_INVENTORY = 50 # How many batteries can a vehicle hold?
 VEHICLE_BIKE_INVENTORY = 20 # How many bikes can be carried in a vehicle?
 
-TEST_NAME = 'policies' # f'inventory_balance_B{VEHICLE_BATTERY_INVENTORY}_I{VEHICLE_BIKE_INVENTORY}'
-
 VEHICLE_SPEED = 25 # Average speed of a vehicle? (km/h)
-MINUTES_PER_ACTION = 3 # Minutes to load/unload/battery swaps
 MINUTES_CONSTANT_PER_ACTION = 5 # Constat time in addition (f.eks park the car and start again)
 
 # Bike settings
@@ -90,7 +87,10 @@ SERVICE_TIME_TO = 24
 
 BATTERY_LIMIT_TO_SWAP = 80 #
 
-OPERATOR_RADIUS = 1
+MINUTES_PER_ACTION = 3 # 1, 3, 6, 9 Minutes to load/unload/battery swaps
+OPERATOR_RADIUS = 1 # 0, 1, 2, 3
+
+TEST_NAME = 'policies' # f'operator_radius_{OPERATOR_RADIUS}' # f'inventory_balance_B{VEHICLE_BATTERY_INVENTORY}_I{VEHICLE_BIKE_INVENTORY}'
 
 BIKES_CONGESTED_NEIGHBOR = 1 # how many additional bikes to pick up for each "starved" neighbor
 BIKES_STARVED_NEIGHBOR = 1 # how many additional bikes to let be for each "starved" neighbor

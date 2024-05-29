@@ -20,6 +20,7 @@ def write_sim_results_to_file(filename, simulator_metrics, seed, duration, polic
               'Bike Arrivals',
               'Escooter Arrivals',
               'Vehicle Arrivals',
+              'Depot Visits',
               'Failed Events',
               'Starvations',
               'Escooter Starvations',
@@ -54,6 +55,7 @@ def write_sim_results_to_file(filename, simulator_metrics, seed, duration, polic
           simulator_metrics.get_aggregate_value('bike arrival'),
           simulator_metrics.get_aggregate_value('escooter arrival'),
           simulator_metrics.get_aggregate_value('vehicle arrivals'),
+          simulator_metrics.get_aggregate_value('depot visits'),
 
           simulator_metrics.get_aggregate_value('failed events'), 
           simulator_metrics.get_aggregate_value('starvations'),

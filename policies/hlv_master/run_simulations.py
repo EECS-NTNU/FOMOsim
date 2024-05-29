@@ -21,9 +21,11 @@ import time
 import multiprocessing as mp
 from manage_results import *
 
-def run_simulation(seed, policies, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles):
+def run_simulation(seed, policies, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles, extra_escooters = 0):
     state = init_state.read_initial_state(sb_jsonFilename = filename_sb, ff_jsonFilename = filename_ff)
     state.set_seed(seed)
+    state.add_escooters(extra_escooters)
+
     state.roaming_radius = roaming_radius
     policies *= num_vehicles
     sb_vehicles = [policy for policy, is_SB in policies if is_SB == True]
@@ -181,12 +183,13 @@ def test_swap_threshold(list_of_seeds, list_of_swap_thresholds, policy_name):
 def test_operator_radius(list_of_seeds, list_of_radius, policy_name):
     for radius in list_of_radius:
         filename = f'operator_radius_{radius}_{policy_name}.csv'
-        policy_dict = { 'Base_SB': [(policies.hlv_master.BS_PILOT(), True)], 
+        policy_dict = { 
+                        # 'Base_SB': [(policies.hlv_master.BS_PILOT(), True)], 
                         'Base_FF': [(policies.hlv_master.BS_PILOT_FF(operator_radius = radius), False)],
-                        'Collab2': [(policies.hlv_master.SB_Collab2(), True), 
-                                    (policies.hlv_master.FF_Collab2(operator_radius = radius), False)],
-                        'Collab3': [(policies.hlv_master.Collab3(operator_radius = radius), None)],
-                        'Collab4': [(policies.hlv_master.Collab4(operator_radius = radius), None)]
+                        # 'Collab2': [(policies.hlv_master.SB_Collab2(), True), 
+                        #             (policies.hlv_master.FF_Collab2(operator_radius = radius), False)],
+                        # 'Collab3': [(policies.hlv_master.Collab3(operator_radius = radius), None)],
+                        # 'Collab4': [(policies.hlv_master.Collab4(operator_radius = radius), None)]
                         }
         test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
@@ -202,6 +205,22 @@ def test_num_clusters(list_of_seeds, list_of_num_clusters, policy_name):
                         }
         test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
+def test_extra_escooters(list_of_seeds, list_of_extra_escooters, policy_name):
+    for num in list_of_extra_escooters:
+        filename = f'extra_escooters_{num}_{policy_name}.csv'
+        policy_dict = {
+                'Base_FF': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+                'FF_Only_Swap': [[(policies.hlv_master.FF_SWAP_ONLY(), False)], NUM_VEHICLES],
+                'FF_Only_Rebalance2': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+                'Base': [[(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+                'Collab2': [[(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)], NUM_VEHICLES],
+                'Collab3': [[(policies.hlv_master.Collab3(), None)], NUM_VEHICLES*2],
+                'Collab4': [[(policies.hlv_master.Collab4(), None)], NUM_VEHICLES*2],
+                'Do_Nothing': [[(policies.DoNothing(), None)], NUM_VEHICLES],
+        }
+
+        test_resolutions(policy_dict[policy_name][0], filename, policy_name, list_of_seeds, policy_dict[policy_name][1], num)
+
 def test_starvation_congestion(list_of_seeds, list_of_congestions, list_of_starvations, policy_name):
     for congestion in list_of_congestions:
         for starvation in list_of_starvations:
@@ -215,7 +234,7 @@ def test_starvation_congestion(list_of_seeds, list_of_congestions, list_of_starv
                         }
             test_resolutions(policy_dict[policy_name], filename, policy_name, list_of_seeds)
 
-def test_resolutions(policies, res_filename, policy_name, list_of_seeds, num_vehicles = NUM_VEHICLES):
+def test_resolutions(policies, res_filename, policy_name, list_of_seeds, num_vehicles = NUM_VEHICLES, extra_escooters = 0):
     resolutions = [10] #[11, 10, 9]
     hex_radiuss = [58] #[100, 58, 22]
     roaming_radiuss = [3] #[9, 3, 1]
@@ -231,10 +250,10 @@ def test_resolutions(policies, res_filename, policy_name, list_of_seeds, num_veh
         filename_ff = f'instances/Ryde/TD_700_res{resolution}_radius{hex_radius}_W3'
         target_filename = f'instances/Ryde/target_states_700_res{resolution}_radius{hex_radius}.json.gz'
         
-        test_seeds_mp(list_of_seeds, policies, res_filename, policy_name+f'_res{resolution}_rad{hex_radius}', filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles)
+        test_seeds_mp(list_of_seeds, policies, res_filename, policy_name+f'_res{resolution}_rad{hex_radius}', filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles, extra_escooters)
 
-def test_seeds_mp(list_of_seeds, policies, results_filename, policy_name, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles = NUM_VEHICLES): #change duration and number of vehicles HERE!    
-    args = [(seed, policies, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles) for seed in list_of_seeds]
+def test_seeds_mp(list_of_seeds, policies, results_filename, policy_name, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles = NUM_VEHICLES, extra_escooters = 0): #change duration and number of vehicles HERE!    
+    args = [(seed, policies, filename_sb, filename_ff, target_filename, operator_radius, roaming_radius, num_vehicles, extra_escooters) for seed in list_of_seeds]
     with mp.Pool(processes=mp.cpu_count()) as pool:
         results = pool.starmap(run_simulation, args)
     
@@ -508,24 +527,26 @@ def run_tests(number):
                    ]
     
     swap_thresholds = [
-                       [10], 
-                       [20],
-                       [30], 
-                       [40],
-                       [50], 
-                       [60],
-                       [70], 
-                       [80],
-                       [90], 
-                       [100]]
+                       [10, 15, 20, 30], 
+                       [40, 50, 60],
+                       [70, 80, 90, 100]]
     
-    radiuses = [[0,1,2,3]]
+    radiuses = [[0],
+                [1],
+                [2],
+                [3]
+                ]
 
     num_vehicles_list = [[1,2,3],
                          [1,2,3],
                          [4,5,6]
                          ]
     
+    extra_escooters = [
+                        [0, 100],
+                        [200, 300]
+                    ]
+
     # test_num_clusters(list_of_seeds=SEEDS_LIST, list_of_num_clusters=num_clusters[number], policy_name='Base_FF')
     # test_criticality_weights(list_of_seeds=SEEDS_LIST, dict_of_criticality_weights=crit_set[number], policy_name='Base_FF')
     # for a in alphas[number]:
@@ -538,39 +559,43 @@ def run_tests(number):
     # test_swap_threshold(list_of_seeds=SEEDS_LIST, list_of_swap_thresholds = swap_thresholds[number], policy_name = 'Base_FF')
     # test_operator_radius(list_of_seeds=SEEDS_LIST, list_of_radius = radiuses[number], policy_name = 'Base_FF')
     # test_num_vehicles(list_of_seeds = SEEDS_LIST, list_of_num_vehicles = num_vehicles_list[number], policy_name = 'Collab3')
+    # test_extra_escooters(list_of_seeds = SEEDS_LIST, list_of_extra_escooters = extra_escooters[number], policy_name = 'Base_FF')
 
     # policy_dict = {
     #     'FF_Base': [(policies.hlv_master.BS_PILOT_FF(), False)],
-        # 'Do_Nothing': [(policies.DoNothing(), None)],
-        # 'Base': [(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)],
-        # 'Collab2': [(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)],
-        # 'Collab3': [(policies.hlv_master.Collab3(), None)],
-        # 'Collab4': [(policies.hlv_master.Collab4(), None)]
-        # }
+    #     'Do_Nothing': [(policies.DoNothing(), None)],
+    #     'Base': [(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)],
+    #     'Collab2': [(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)],
+    #     'Collab3': [(policies.hlv_master.Collab3(), None)],
+    #     'Collab4': [(policies.hlv_master.Collab4(), None)]
+    #     }
 
-    # policy_dict = {
+    policy_dict = {
+                # 'Base_FF': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+                # 'FF_Only_Swap': [[(policies.hlv_master.FF_SWAP_ONLY(), False)], NUM_VEHICLES],
+                'FF_Only_Rebalance2': [[(policies.hlv_master.FF_ONLY_REBALANCE(), False)], NUM_VEHICLES],
+                # 'Base': [[(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+                # 'Collab2': [[(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)], NUM_VEHICLES],
+                # 'Collab3': [[(policies.hlv_master.Collab3(), None)], NUM_VEHICLES*2],
+                # 'Collab4': [[(policies.hlv_master.Collab4(), None)], NUM_VEHICLES*2],
+                # 'Do_Nothing': [[(policies.DoNothing(), None)], NUM_VEHICLES],
+    }
+
+    test_policies(list_of_seeds=SEEDS_LIST, policy_dict=policy_dict)
+
+
+    # policy_dict = [
     #             # 'FF_Base': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
     #             # 'FF_Only_Swap': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
     #             # 'FF_Only_Rebalance': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
-    #             'Base': [[(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
-    #             'Collab2': [[(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)], NUM_VEHICLES],
-    #             'Collab3': [[(policies.hlv_master.Collab3(), None)], NUM_VEHICLES*2],
-    #             'Collab4': [[(policies.hlv_master.Collab4(), None)], NUM_VEHICLES*2],
-    #             'Do_Nothing': [[(policies.DoNothing(), None)], NUM_VEHICLES],
-    # }
-
-    policy_dict = [
-                # 'FF_Base': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
-                # 'FF_Only_Swap': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
-                # 'FF_Only_Rebalance': [[(policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
-                {'Base': [[(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES]},
-                {'Collab2': [[(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)], NUM_VEHICLES]},
-                {'Collab3': [[(policies.hlv_master.Collab3(), None)], NUM_VEHICLES*2]},
-                {'Collab4': [[(policies.hlv_master.Collab4(), None)], NUM_VEHICLES*2]},
-                {'Do_Nothing': [[(policies.DoNothing(), None)], NUM_VEHICLES]},
-    ]
+    #             {'Base': [[(policies.hlv_master.BS_PILOT(), True), (policies.hlv_master.BS_PILOT_FF(), False)], NUM_VEHICLES],
+    #             'Collab2': [[(policies.hlv_master.SB_Collab2(), True), (policies.hlv_master.FF_Collab2(), False)], NUM_VEHICLES]},
+    #             {'Collab3': [[(policies.hlv_master.Collab3(), None)], NUM_VEHICLES*2],
+    #             'Collab4': [[(policies.hlv_master.Collab4(), None)], NUM_VEHICLES*2]},
+    #             {'Do_Nothing': [[(policies.DoNothing(), None)], NUM_VEHICLES]},
+    # ]
     
-    test_policies(list_of_seeds=SEEDS_LIST, policy_dict=policy_dict[number])
+    # test_policies(list_of_seeds=SEEDS_LIST, policy_dict=policy_dict[number])
 
 if __name__ == "__main__":
     policy_dict = {

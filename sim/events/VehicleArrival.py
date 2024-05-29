@@ -40,12 +40,7 @@ class VehicleArrival(Event):
         
         driving_time = world.state.get_vehicle_travel_time(arrival_station_id, action.next_location)
         
-        action_time = (
-            action.get_action_time(
-                driving_time
-            )
-            + refill_time
-        )
+        action_time = action.get_action_time(driving_time) + refill_time
 
         # Compute the arrival time for the Vehicle arrival event created by the action
         arrival_time += self.time + action_time # + driving_time

@@ -64,6 +64,7 @@ class BS_PILOT_FF(Policy):
             number_of_escooters_pickup = 0
             number_of_escooters_deliver = 0
             number_of_batteries_to_swap = 0
+            simul.metrics.add_aggregate_metric(simul, 'depot visits', 1)
         elif vehicle.cluster is None:
             escooters_to_pickup, escooters_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, simul, vehicle.location, self.swap_threshold)
             number_of_escooters_pickup = len(escooters_to_pickup)
@@ -109,12 +110,12 @@ class BS_PILOT_FF(Policy):
         for v in simul.state.get_ff_vehicles():
             # If vehicle is at a location, add current location to the plan with the greedy loading and swap strategy
             if v.eta == 0:
-                plan_dict[v.vehicle_id] = [Visit(v.location, number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap, simul.time, v)]
+                plan_dict[v.vehicle_id] = [Visit(v.location, number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap, simul.time, v, self.operator_radius)]
 
             # If the vehicle is driving, use pilot to calculate the loading and swap strategy and add to the plan
             else:
                 number_of_escooters_pickup, number_of_escooters_deliver, number_of_batteries_to_swap = self.calculate_loading_quantities_and_swaps_pilot(len(v.bike_inventory), v.battery_inventory, simul, v.location, v.eta)
-                plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_escooters_pickup), int(number_of_escooters_deliver), int(number_of_batteries_to_swap), v.eta, v)]
+                plan_dict[v.vehicle_id] = [Visit(v.location, int(number_of_escooters_pickup), int(number_of_escooters_deliver), int(number_of_batteries_to_swap), v.eta, v, self.operator_radius)]
         
         # All locations the vehicles are at or are on their way to is added to the tabu list and plan
         tabu_list = [v.location.location_id for v in simul.state.get_ff_vehicles()]
@@ -370,7 +371,7 @@ class BS_PILOT_FF(Policy):
         for next_cluster in next_clusters:
             arrival_time = plan.plan[vehicle.vehicle_id][-1].get_depature_time() + simul.state.get_travel_time(plan.plan[vehicle.vehicle_id][-1].station.location_id, next_cluster.location_id) + MINUTES_CONSTANT_PER_ACTION
             number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap = self.calculate_loading_quantities_and_swaps_pilot(num_bikes_now, battery_inventory_now, simul, next_cluster, arrival_time)
-            new_visit = Visit(next_cluster, number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap, arrival_time, vehicle)
+            new_visit = Visit(next_cluster, number_of_escooters_to_pickup, number_of_escooters_to_deliver, number_of_escooters_to_swap, arrival_time, vehicle, self.operator_radius)
             visits.append(new_visit)
         
         return visits
