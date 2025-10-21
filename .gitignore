@@ -9,7 +9,13 @@ log_files
 saved_states
 sim_cache
 stateParams.txt
-*.csv
+# *.csv
+policies/inngjerdingen_moeller/saved_time_data/NY_W31_static_data.json
+policies/inngjerdingen_moeller/saved_time_data/BO_W31_static_data.json
+policies/hlv_master/*/
+
+# .json-files Ryde
+instances/Ryde/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -144,3 +150,12 @@ dmypy.json
 .pyre/
 GUI/loggFiles/sessionLog.txt
 GUI/loggFiles/sessionLog.txt
+
+# HLV
+policies/inngjerdingen_moeller/simulation_results
+policies/hlm/simulation_results
+policies/hlm/results_to_use
+policies/hlm/study
+policies/hlm/tests
+policies/hlm/comparison_policies
+policies/hlm/OS_W31_2V_10S_5D_PILOT_TTT

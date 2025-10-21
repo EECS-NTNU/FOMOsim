@@ -33,7 +33,7 @@ class EqualProbTargetState(TargetState):
         super().__init__()
 
     def update_target_state(self, state, day, hour):
-        for st in state.locations:
+        for st in state.get_locations():
             cap = st.capacity
             leave = st.get_leave_intensity(day, hour)
             arrive = st.get_arrive_intensity(day, hour)

@@ -10,7 +10,7 @@ from .MasterProblem.master_model import run_master_model
 
 def get_index(station_id, stations):
     for i in range(len(stations)):
-        if stations[i].id == station_id:
+        if stations[i].location_id == station_id:
             return i
 
 
@@ -27,7 +27,7 @@ def get_criticality_score(state, location, vehicle, time_horizon, driving_time, 
     demand_per_hour = location.get_leave_intensity(state.day(), state.hour())
     vehicle_current_charged_bikes = len(vehicle.bike_inventory)
     current_charged_bikes = len(location.get_available_bikes())
-    current_flat_bikes = len(location.get_swappable_bikes(settings.BATTERY_LIMIT))
+    current_flat_bikes = len(location.get_swappable_bikes(settings.BATTERY_LIMIT_TO_USE))
     vehicle_current_station_current_charged_bikes = len(vehicle.location.get_available_bikes())
     get_outgoing_customer_rate = location.get_leave_intensity(state.day(), state.hour())
     available_parking = location.capacity - len(location.bikes)
@@ -136,7 +136,7 @@ class HeuristicManager:
         model_man = ModelManager(self.state, vehicle, self.time_horizon)
         route_scores = list()
         for route in gen.finished_gen_routes:
-            route_full_set_index = [get_index(st.id, self.station_set) for st in route.stations]
+            route_full_set_index = [get_index(st.location_id, self.station_set) for st in route.stations]
             pattern_scores = list()
             for pattern in gen.patterns:
                 scenario_scores = list()

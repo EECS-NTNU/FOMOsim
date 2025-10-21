@@ -16,7 +16,7 @@ class MasterData:
         
         self.S_STATIONS = []
         for station in all_stations:
-            self.S_STATIONS.append(station.id)
+            self.S_STATIONS.append(station.location_id)
             
         self.V_VEHICLES = set()
         for route in generated_routes:
@@ -46,8 +46,8 @@ class MasterData:
             for i in route.stations:
                 self.A_MATRIX[(i,v,r)]=1    
                 
-        self.V_BASE = sum(base_violations[station.id] for station in all_stations)
-        self.D_BASE = sum(deviation_not_visited[station.id] for station in all_stations)
+        self.V_BASE = sum(base_violations[station.location_id] for station in all_stations)
+        self.D_BASE = sum(deviation_not_visited[station.location_id] for station in all_stations)
                         
         self.V_PREVENTED = {(v,r):0 for v in self.V_VEHICLES for r in self.R_ROUTES[v]}
         self.D_PREVENTED = {(v,r):0 for v in self.V_VEHICLES for r in self.R_ROUTES[v]}

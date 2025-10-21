@@ -2,7 +2,7 @@ from shapely.geometry import MultiPoint
 import numpy as np
 from sim.Location import Location
 import sim
-from settings import STATION_CENTER_DELTA, BATTERY_LIMIT, DEFAULT_STATION_CAPACITY
+from settings import *
 import copy
 
 class Station(Location):
@@ -13,7 +13,7 @@ class Station(Location):
     def __init__(
         self,
         station_id,
-        bikes = [],
+        bikes = {},
         leave_intensities=None,
         leave_intensities_stdev=None,
         arrive_intensities=None,
@@ -21,10 +21,12 @@ class Station(Location):
         center_location=None,
         move_probabilities=None,
         average_number_of_bikes=None,
-        target_state=0,
-        capacity=DEFAULT_STATION_CAPACITY,
+        target_state=None,
+        capacity = DEFAULT_STATION_CAPACITY,
         original_id = None,
-        charging_station = None,
+        charging_station = None, 
+        area = None,
+        is_station_based = True
     ):
         super().__init__(
             *(center_location if center_location else self.__compute_center(bikes)), station_id
@@ -32,20 +34,26 @@ class Station(Location):
 
         self.set_bikes(bikes)
 
-        self.historical_leave_intensities = leave_intensities
-        self.historical_leave_intensities_stdev = leave_intensities_stdev
-        self.historical_arrive_intensities = arrive_intensities
-        self.historical_arrive_intensities_stdev = arrive_intensities_stdev
+        self.area = area
+        self.leave_intensities = leave_intensities if leave_intensities else [[0 for _ in range(24)] for _ in range(7)] 
+        self.leave_intensities_stdev = leave_intensities_stdev if leave_intensities_stdev else [[0 for _ in range(24)] for _ in range(7)] 
+        self.arrive_intensities = arrive_intensities if arrive_intensities else [[0 for _ in range(24)] for _ in range(7)] 
+        self.arrive_intensities_stdev = arrive_intensities_stdev if arrive_intensities_stdev else [[0 for _ in range(24)] for _ in range(7)] 
 
         self.move_probabilities = move_probabilities
+        self.is_station_based = is_station_based
 
         self.average_number_of_bikes = average_number_of_bikes
-        self.capacity = int(capacity)
+        self.capacity = int(capacity) if capacity != 'inf' else float(capacity) # handles if capacity isn't infinite
         self.original_id = original_id
         self.charging_station = charging_station
+        self.neighbours = []
 
-        self.target_state = target_state
-
+        if target_state is not None:
+            self.target_state = target_state
+        else:
+            self.target_state = [[0 for hour in range(24)] for day in range(7)]
+            
         self.metrics = sim.Metric()
 
         if len(self.bikes) > self.capacity:
@@ -53,16 +61,13 @@ class Station(Location):
 
     def sloppycopy(self, *args):
         return Station(
-            self.id,
+            self.location_id,
             list(copy.deepcopy(self.bikes).values()),
 
-            historical_leave_intensities=self.historical_leave_intensities,
-            historical_leave_intensities_stdev=self.historical_leave_intensities_stdev,
-            historical_arrive_intensities=self.historical_arrive_intensities,
-            historical_arrive_intensities_stdev=self.historical_arrive_intensities_stdev,
-
             leave_intensities=self.leave_intensities,
+            leave_intensities_stdev=self.leave_intensities_stdev,
             arrive_intensities=self.arrive_intensities,
+            arrive_intensities_stdev=self.arrive_intensities_stdev,
 
             move_probabilities=self.move_probabilities,
 
@@ -78,19 +83,26 @@ class Station(Location):
         return False
 
     def set_bikes(self, bikes):
-        self.bikes = {bike.id : bike for bike in bikes}
+        self.bikes = {bike.bike_id : bike for bike in bikes}
+        for bike in bikes:
+            bike.set_location(self.lat, self.lon, self.location_id)
 
     def spare_capacity(self):
         return self.capacity - len(self.bikes)
-
-    def get_target_state(self):
-        return self.target_state
+    
+    def get_neighbours(self):
+        return self.neighbours
+    
+    def get_target_state(self, day, hour):
+        return self.target_state[day % 7][hour % 24]
 
     def get_move_probabilities(self, state, day, hour):
+        """
+        Returns a dictionary. Key = location_id, Value = probability to go there
+        """
         if self.move_probabilities is None:
-            mp = []
-            for station in range(len(state.locations)):
-                mp.append(1 / len(state.locations))
+            num_stations = len(state.stations)
+            mp = {station_id: 1/num_stations for station_id in state.get_station_ids()}
             return mp
         return self.move_probabilities[day % 7][hour % 24]
 
@@ -99,6 +111,12 @@ class Station(Location):
 
     def get_leave_intensity(self, day, hour):
         return self.leave_intensities[day % 7][hour % 24]
+
+    def get_arrive_intensity_stdev(self, day, hour):
+        return self.arrive_intensities_stdev[day % 7][hour % 24]
+    
+    def get_leave_intensity_stdev(self, day, hour):
+        return self.leave_intensities_stdev[day % 7][hour % 24]
 
     def number_of_bikes(self):
         return len(self.bikes)
@@ -116,22 +134,28 @@ class Station(Location):
         if len(self.bikes) >= self.capacity:
             return False
         # Adding bike to bike list
-        self.bikes[bike.id] = bike
-        bike.set_location(self.get_lat(), self.get_lon())
+        self.bikes[bike.bike_id] = bike
+        bike.set_location(self.get_lat(), self.get_lon(), self.location_id)
         return True
 
     def remove_bike(self, bike):
-        del self.bikes[bike.id]
+        del self.bikes[bike.bike_id]
+        # bike.set_location(None, None, None)
 
     def get_bikes(self):
-        return self.bikes.values()
+        return list(self.bikes.values())
 
     def get_available_bikes(self):
         return [
             bike for bike in self.bikes.values() if bike.usable()
         ]
+    
+    def get_unusable_bikes(self):
+        return [
+            bike for bike in self.bikes.values() if not bike.usable()
+        ]
 
-    def get_swappable_bikes(self, battery_limit=70):
+    def get_swappable_bikes(self, battery_limit=BATTERY_LIMIT_TO_SWAP):
         """
         Filter out bikes with 100% battery and sort them by battery percentage
         """
@@ -142,11 +166,30 @@ class Station(Location):
 
     def get_bike_from_id(self, bike_id):
         return self.bikes[bike_id]
+    
+    def set_neighboring_stations(self, neighboring_stations_dict, location_list):
+        """
+        Defines the list neighboring_stations consisting of Station-objects
+        """
+        self_index = location_list.index(self)
+        neighboring_stations_list = neighboring_stations_dict[self_index]
+        for index in neighboring_stations_list:
+            self.neighbours.append(location_list[index])
+    
+    def set_move_probabilities(self, station_list):
+        move_probabilities = [[{} for _ in range(24)] for _ in range(7)]
+        for day in range(7):
+            for hour in range(24):
+                for ind in range(len(self.move_probabilities[day][hour])):
+                    station_id = station_list[ind].location_id
+                    move_probabilities[day][hour][station_id] = self.move_probabilities[day][hour][ind]
+        
+        self.move_probabilities = move_probabilities
 
     def __repr__(self):
         return (
-            f"<Station {self.id}: {len(self.bikes)} bikes>"
+            f"<Station {self.location_id}: {len(self.bikes)} bikes>"
         )
 
     def __str__(self):
-        return f"Station {self.id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state():3d} Bikes {len(self.bikes):3d}"
+        return f"Station {self.location_id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8)} Bikes {len(self.bikes):3d}"

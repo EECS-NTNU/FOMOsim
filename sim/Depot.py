@@ -11,25 +11,29 @@ class Depot(Station):
 
     def __init__(
         self,
-        depot_id: int,
+        depot_id,
+        is_station_based,
         depot_capacity = DEFAULT_DEPOT_CAPACITY,
         bikes = [],
         leave_intensities=None,
         arrive_intensities=None,
+        leave_intensities_stdev=None,
+        arrive_intensities_stdev=None,
         center_location=None,
         move_probabilities=None,
         average_number_of_bikes=None,
         target_state=None,
-        capacity=DEFAULT_STATION_CAPACITY,
+        capacity= DEFAULT_DEPOT_CAPACITY,
         original_id = None,
         charging_station = None,
     ):
         super().__init__(
-            depot_id, bikes, leave_intensities, arrive_intensities,
+            depot_id, bikes, leave_intensities, leave_intensities_stdev, arrive_intensities, arrive_intensities_stdev,
             center_location, move_probabilities, average_number_of_bikes, target_state,
             capacity, original_id, charging_station
         )
 
+        self.is_station_based = is_station_based
         self.depot_capacity = depot_capacity
         self.battery_inventory = depot_capacity
         self.time = 0
@@ -37,8 +41,9 @@ class Depot(Station):
 
     def sloppycopy(self, *args):
         return Depot(
-            self.id,
+            self.location_id,
             self.depot_capacity,
+            self.is_station_based,
             list(copy.deepcopy(self.bikes).values()),
             leave_intensities=self.leave_intensities,
             arrive_intensities=self.arrive_intensities,
@@ -55,12 +60,18 @@ class Depot(Station):
         return True
 
     def swap_battery_inventory(self, time, number_of_battery_to_change) -> int:
+        """
+        Method to perform a swapping of batteries at depot. Raises error if inventory is not capable.
+        Adds the batteries to charging list, and reduces the battery inventory.
+
+        Returns the time it takes to persom battery swaps at the depot.
+        """
         self.battery_inventory += self.get_delta_capacity(time)
         self.time = time
 
         if number_of_battery_to_change > self.battery_inventory:
             raise ValueError(
-                f"Depot has only {self.battery_inventory} batteries available. "
+                f"Depot has only {self.battery_inventory} batteries available."
                 f"Vehicle tried to swap {number_of_battery_to_change}"
             )
 
@@ -74,9 +85,18 @@ class Depot(Station):
         )
 
     def get_available_battery_swaps(self, time):
+        """
+        Returns the number of batteries that are fully charged.
+        """
         return self.battery_inventory + self.get_delta_capacity(time, update_charging=False)
 
     def get_delta_capacity(self, time, update_charging=True):
+        """
+        Method that updates the charging list. 
+        Removes the timestamp and amount of the batteries that are fully charged (if update = True), and counts the batteries that are now fully charged.
+
+        Returns the amount of batteries that are now fully charged.
+        """
         delta_capacity = 0
         time_filter = (
             lambda filter_time, filter_charging_start_time: filter_time
@@ -94,7 +114,7 @@ class Depot(Station):
         return delta_capacity
 
     def __str__(self):
-        return f"Depot   {self.id:2d}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state():3d} Bikes {len(self.bikes):3d} Cap {self.depot_capacity} Inv {self.battery_inventory}"
+        return f"Depot   {self.location_id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8)} Bikes {len(self.bikes):3d} Cap {self.depot_capacity} Inv {self.battery_inventory}"
 
     def __repr__(self):
-        return f"<Depot, id: {self.id}, cap: {self.battery_inventory}>"
+        return f"<Depot, id: {self.location_id}, cap: {self.battery_inventory}>"

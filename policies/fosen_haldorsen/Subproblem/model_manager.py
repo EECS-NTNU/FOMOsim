@@ -68,7 +68,7 @@ class ModelManager:
     def get_base_inventory(station, visit_time_float, customer_arrivals=None):
         # convert from new sim
         station_current_charged_bikes = len(station.get_available_bikes())
-        station_current_flat_bikes = len(station.get_swappable_bikes(settings.BATTERY_LIMIT))
+        station_current_flat_bikes = len(station.get_swappable_bikes(settings.BATTERY_LIMIT_TO_USE))
 
         visit_time = int(visit_time_float)
         L_CS = station_current_charged_bikes

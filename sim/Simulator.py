@@ -8,12 +8,11 @@ import bisect
 import sim
 import settings
 from sim import Metric
-import target_state
-import demand
 
 from progress.bar import IncrementalBar
 
 from helpers import loggTime, loggLocations, loggEvent
+# import policies.inngjerdingen_moeller
 
 class Simulator():
     """
@@ -21,7 +20,6 @@ class Simulator():
     This class uses the state as the environment and the policy as the actor. Additionally, it is the main driver of the
     event based simulation system using the event classes.
     """
-
     def __init__(
             self,
             duration,
@@ -57,14 +55,15 @@ class Simulator():
 
         # Add generate trip event to the event_queue
         self.event_queue.append(sim.GenerateBikeTrips(start_time))
+        self.event_queue.append(sim.GenerateEScooterTrips(start_time))
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
-        for vehicle in self.state.vehicles:
+        for vehicle in self.state.get_vehicles():
             self.event_queue.append(
                 sim.VehicleArrival(self.state.time, vehicle)
             )
 
         self.metrics = Metric()
-        self.cluster = cluster
+        self.cluster = cluster 
         self.verbose = verbose
         if label is None:
           self.label = "Sim"
@@ -79,6 +78,9 @@ class Simulator():
                 max=round(duration / settings.ITERATION_LENGTH_MINUTES) + 1,
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
+
+        for vehicle in self.state.get_vehicles():
+            vehicle.policy.init_sim(self)
 
     def __repr__(self):
         string = f"<Sim with {self.state.time} of {self.end_time} elapsed. {len(self.event_queue)} events in event_queue>"
@@ -105,14 +107,17 @@ class Simulator():
                 sys.stdout.flush()
                 self.last_monotonic = monotonic
 
+        # Plotting system state
+        # if self.time > 5000 and self.time <= 5000: 
+        #     policies.inngjerdingen_moeller.visualize_stations_from_simulator(self)
+
     def full_step(self):
         while True:
             event = self.event_queue[0]
-
             if isinstance(event, sim.GenerateBikeTrips):
                 d = int((event.time // (60*24)) % 7)
                 h = int((event.time // 60) % 24)
-                self.demand.update_demands(self.state, d, h)
+                # self.demand.update_demands(self.state, d, h)
                 if self.target_state is not None:
                     self.target_state.update_target_state(self.state, d, h)
                 self.single_step()

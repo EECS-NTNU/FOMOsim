@@ -37,8 +37,8 @@ class Policy(abc.ABC):
         if  self.hour_from <= state.hour() < self.hour_to: 
             return self.get_best_action(state, vehicle)
         else:
-            #TO DO: send to DEPOT instead of letting it dwell idle
-            return Action([], [], [], 0)
+            depot_id = simul.state.get_closest_depot(vehicle)
+            return sim.Action([], [], [], depot_id)
 
     def __repr__(self):
         return f"{self.__class__.__name__}"

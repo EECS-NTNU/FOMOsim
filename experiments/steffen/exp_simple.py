@@ -78,7 +78,7 @@ if __name__ == "__main__":
             if analysis["numvehicles"] > 0:
                 policyargs = analysis["policyargs"]
                 policy = getattr(policies, analysis["policy"])(**policyargs)
-                initial_state.set_vehicles([policy]*analysis["numvehicles"])
+                initial_state.set_sb_vehicles([policy]*analysis["numvehicles"])
 
             simulations = []
             for seed in seeds:

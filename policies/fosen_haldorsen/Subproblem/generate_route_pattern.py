@@ -30,7 +30,7 @@ class Route:
                 vehicle_available_bike_capacity = self.vehicle.bike_inventory_capacity - len(self.vehicle.bike_inventory)
                 vehicle_current_charged_bikes = len(self.vehicle.bike_inventory)
                 starting_station_available_parking = self.starting_station.capacity - len(self.starting_station.get_bikes())
-                starting_station_current_flat_bikes = len(self.starting_station.get_swappable_bikes(settings.BATTERY_LIMIT))
+                starting_station_current_flat_bikes = len(self.starting_station.get_swappable_bikes(settings.BATTERY_LIMIT_TO_USE))
                 vehicle_current_flat_bikes = 0
                 vehicle_current_batteries = self.vehicle.battery_inventory
 
@@ -68,7 +68,7 @@ class GenerateRoutePattern:
         self.handling_time = handling_time
 
     def get_station_car_travel_time(self, station, end_st_id):
-        return self.state.get_vehicle_travel_time(station.id, end_st_id)
+        return self.simul.state.get_vehicle_travel_time(station.location_id, end_st_id)
 
     def get_columns(self):
         finished_routes = list()
@@ -78,7 +78,7 @@ class GenerateRoutePattern:
                 if col.length < self.time_horizon - self.flexibility:
                     if not self.criticality:
                         cand_scores = col.starting_station.get_candidate_stations(
-                            self.all_stations, tabu_list=[c.id for c in col.stations], max_candidates=9)
+                            self.all_stations, tabu_list=[c.location_id for c in col.stations], max_candidates=9)
                     # candidates = all stations
                     else:
                         candidates = self.all_stations
@@ -90,8 +90,8 @@ class GenerateRoutePattern:
                                 first = False
                                 if len(col.stations) == 1:
                                     first = True
-                                driving_time = self.get_station_car_travel_time(col.stations[-1], st.id)
-                                score = hm.get_criticality_score(self.state, st, self.vehicle, self.time_horizon, 
+                                driving_time = self.get_station_car_travel_time(col.stations[-1], st.location_id)
+                                score = hm.get_criticality_score(self.simul, st, self.vehicle, self.time_horizon, 
                                                                  driving_time, self.w_viol,
                                                                  self.w_drive, self.w_dev, self.w_net, first)
                                 cand_scores.append([st, driving_time, score])

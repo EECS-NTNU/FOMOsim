@@ -34,7 +34,7 @@ def calculate_net_demand(station,time_now, day,hour, planning_horizon):  #MOVE S
     net_demand_planning_horizon = (minutes_current_hour*net_demand_current + 
                                    minutes_next_hour*net_demand_next)/planning_horizon
     
-    return net_demand_planning_horizon
+    return 2*net_demand_planning_horizon
 
 
 def extract_N_best_elements(a_list,N):

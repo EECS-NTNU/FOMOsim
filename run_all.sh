@@ -5,12 +5,12 @@
 
 TIMEOUT="24h"                                # A node times out after this amount of time
 FOMO_DIRECTORY="/storage/users/$USER/fomo"   # Where to find the FOMO directory 
-#RUN_FILE = "run_cluster_sim_reps.py"
+RUN_FILE = "run_simulations.py"
 
 # The following settings are only used when finding nodes automatically:
 
-NODE_ROWS="145"  # The node rows to pick from     "13456789"     2 asks for password
-MAX_NODES=50        # Maximum number of nodes
+NODE_ROWS="4"  # The node rows to pick from     "13456789"     2 asks for password
+MAX_NODES=5       # Maximum number of nodes
 LOAD_LIMIT=0.008       # Don't use a node if it has a higher percent load than this
 
 ###############################################################################

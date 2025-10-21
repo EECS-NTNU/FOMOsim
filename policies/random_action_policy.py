@@ -14,7 +14,7 @@ class RandomActionPolicy(Policy):
         bikes_to_pickup = []
         bikes_to_deliver = []
 
-        next_location_id = state.rng.choice([i for i in range(len(state.locations)) if i != vehicle.location.id])
+        next_location_id = simul.state.rng.choice([i for i in simul.state.get_location_ids() if i != vehicle.location.location_id])
 
         if not vehicle.is_at_depot():
             num_deliver = 0
@@ -34,10 +34,10 @@ class RandomActionPolicy(Policy):
                 bikes_to_pickup = state.rng.choice(pickable, num_pickup, replace=False)
 
             if num_deliver > 0:
-                deliverable = [ bike.id for bike in vehicle.get_bike_inventory() ]
-                bikes_to_deliver = state.rng.choice(deliverable, num_deliver, replace=False)
+                deliverable = [ bike.bike_id for bike in vehicle.get_bike_inventory() ]
+                bikes_to_deliver = simul.state.rng.choice(deliverable, num_deliver, replace=False)
 
-            swappable = [ bike.id for bike in vehicle.location.get_swappable_bikes() if bike.id not in bikes_to_pickup ]
+            swappable = [ bike.bike_id for bike in vehicle.location.get_swappable_bikes() if bike.bike_id not in bikes_to_pickup ]
 
             num_swap = 0
             max_swap = max(0, min(len(swappable), vehicle.battery_inventory - num_pickup))
