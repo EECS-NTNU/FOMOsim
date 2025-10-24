@@ -28,7 +28,7 @@ class EScooter(Location):
       else:
           self.metrics.add_metric(simul, "travel_time", travel_time)
       self.battery -= travel_time * self.battery_change_per_minute
-      self.log2.append(self.location_id)
+      self.log2.append(self.id)
 
     def usable(self):
       return self.battery >= BATTERY_LIMIT_TO_USE
@@ -40,4 +40,4 @@ class EScooter(Location):
        self.battery = 100.0
 
     def __repr__(self):
-      return f"ID-{self.bike_id} B-{round(self.battery,1)} L-{self.location_id}"
+      return f"ID-{self.bike_id} B-{round(self.battery,1)} L-{self.id}"

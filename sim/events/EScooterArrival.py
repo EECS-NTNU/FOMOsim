@@ -40,8 +40,8 @@ class EScooterArrival(Event):
             self.escooter.travel(world, self.travel_time, self.congested)
 
             if self.escooter.battery < 0:
-                world.metrics.add_aggregate_metric(world, "battery violations", 1)
-                world.metrics.add_aggregate_metric(world, "failed events", 1)
+                world.state.metrics.add_aggregate_metric(world, "battery violations", 1)
+                world.state.metrics.add_aggregate_metric(world, "failed events", 1)
                 self.escooter.battery = 0
 
             if FULL_TRIP:
@@ -49,7 +49,7 @@ class EScooterArrival(Event):
 
             arrival_area.add_bike(self.escooter)
         
-        world.metrics.add_aggregate_metric(world, "escooter arrival", 1)
+        world.state.metrics.add_aggregate_metric(world, "escooter arrival", 1)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_area_id}>"

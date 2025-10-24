@@ -38,34 +38,34 @@ class SB_Collab2(BS_PILOT):
         )
         self.operator_radius = operator_radius
 
-    def get_best_action(self, simul, vehicle):
+    def get_best_action(self, state, vehicle):
         """
         Returns an Action (with which bikes to swap batteries on, which bikes to pick-up, which bikes to unload, next location to drive to)
 
         Parameters:
-        - simul = simulator
+        - state = State
         - vehicle = Vehicle-object that is doing the action
         """
-        action = super().get_best_action(simul, vehicle)
+        action = super().get_best_action(state, vehicle)
 
         start_help_time = time.time()
         pickup_escooter_ids = []
        
         # Find the areas of the stations visit
-        current_area = simul.state.get_location_by_id(vehicle.location.area)
-        next_area = simul.state.get_location_by_id(simul.state.get_location_by_id(action.next_location).area)
+        current_area = state.get_location_by_id(vehicle.location.area)
+        next_area = state.get_location_by_id(state.get_location_by_id(action.next_location).area)
 
         current_cluster = Cluster(areas=[current_area], center_area=current_area, operating_radius = self.operator_radius)
         next_cluster = Cluster(areas=[next_area], center_area=next_area, operating_radius = self.operator_radius)
         current_cluster, _ = build_cluster([], current_cluster, self.operator_radius)
         next_cluster, _ = build_cluster([], next_cluster, self.operator_radius)
 
-        current_deviation = current_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), 0) - current_cluster.get_target_state(simul.day(), simul.hour())
-        travel_time = simul.state.get_vehicle_travel_time(current_area.location_id, next_area.location_id)
-        arrival_time = simul.time + travel_time
+        current_deviation = current_cluster.get_max_num_usable(0, state.time, state.day(), state.hour(), 0) - current_cluster.get_target_state(state.day(), state.hour())
+        travel_time = state.get_vehicle_travel_time(current_area.id, next_area.id)
+        arrival_time = state.time + travel_time
         day_arrival = int((arrival_time // (60*24)) % 7)
         hour_arrival = int((arrival_time // 60) % 24)
-        next_deviation = next_cluster.get_max_num_usable(0, simul.time, simul.day(), simul.hour(), travel_time) - next_cluster.get_target_state(day_arrival, hour_arrival)
+        next_deviation = next_cluster.get_max_num_usable(0, state.time, state.day(), state.hour(), travel_time) - next_cluster.get_target_state(day_arrival, hour_arrival)
 
         if current_deviation > 0 and next_deviation < 0:
             num_escooters = min(current_deviation,
@@ -77,9 +77,9 @@ class SB_Collab2(BS_PILOT):
 
         delivery_escooter_ids = [bike.bike_id for bike in vehicle.get_ff_bike_inventory()]
         
-        simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
-        simul.metrics.add_aggregate_metric(simul, "num helping escooter pickups", len(pickup_escooter_ids))
-        simul.metrics.add_aggregate_metric(simul, "num helping escooter deliveries", len(delivery_escooter_ids))
+        state.metrics.add_aggregate_metric(state, "accumulated find helping action time", time.time() - start_help_time)
+        state.metrics.add_aggregate_metric(state, "num helping escooter pickups", len(pickup_escooter_ids))
+        state.metrics.add_aggregate_metric(state, "num helping escooter deliveries", len(delivery_escooter_ids))
 
         action.helping_pickup = pickup_escooter_ids
         action.helping_delivery = delivery_escooter_ids

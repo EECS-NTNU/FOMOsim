@@ -22,7 +22,7 @@ class HLVTargetState(TargetState):
                 self.set_sb_targets(state, day, hour)
         
         for area in state.get_areas():
-            area.target_state = self.target_state_ff[area.location_id]
+            area.target_state = self.target_state_ff[area.id]
     
     def set_sb_targets(self, state, day, hour):
         num_sb_bikes = len(state.get_all_sb_bikes())
@@ -62,4 +62,4 @@ class HLVTargetState(TargetState):
             st.target_state[day][hour] = ts
         
         for area in state.get_areas():
-            area.target_state[day][hour] = self.target_state_ff[area.location_id][day][hour]
+            area.target_state[day][hour] = self.target_state_ff[area.id][day][hour]

@@ -33,19 +33,19 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
             num_clusters = num_clusters
         )
     
-    def get_best_action(self, simul, vehicle):
-        action = super().get_best_action(simul, vehicle)
+    def get_best_action(self, state, vehicle):
+        action = super().get_best_action(state, vehicle)
         start_help_time = time.time()
 
         if action.cluster is None: # Ikke hjelp hvis du skal til depot
             return action
 
         # Helping policy added on 
-        current_stations = [simul.state.get_location_by_id(area.station) for area in vehicle.cluster.areas if area.station is not None] if vehicle.cluster is not None else []
-        next_stations = [simul.state.get_location_by_id(area.station) for area in action.cluster.areas if area.station is not None]
+        current_stations = [state.get_location_by_id(area.station) for area in vehicle.cluster.areas if area.station is not None] if vehicle.cluster is not None else []
+        next_stations = [state.get_location_by_id(area.station) for area in action.cluster.areas if area.station is not None]
 
-        current_deviations = [station.number_of_bikes() - station.get_target_state(simul.day(), simul.hour()) for station in current_stations]
-        next_deviations = [station.number_of_bikes() - station.get_target_state(simul.day(), simul.hour()) for station in next_stations]
+        current_deviations = [station.number_of_bikes() - station.get_target_state(state.day(), state.hour()) for station in current_stations]
+        next_deviations = [station.number_of_bikes() - station.get_target_state(state.day(), state.hour()) for station in next_stations]
 
         helping_pickups = []
         if sum(current_deviations) > 0 and sum(next_deviations) < 0:
@@ -60,16 +60,16 @@ class FF_Collab2(BS_PILOT_FF): #Add default values from seperate setting sheme
                     max(0, current_deviations[i]),
                     num_bikes
                 )
-                helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, current_stations[i].get_target_state(simul.day(), simul.hour()), num_pickup, "pickup", self.swap_threshold)[0] if (num_pickup > 0) else []
+                helping_pickups += get_bike_ids_load_swap(current_stations[i], vehicle, current_stations[i].get_target_state(state.day(), state.hour()), num_pickup, "pickup", self.swap_threshold)[0] if (num_pickup > 0) else []
                 num_bikes -= num_pickup
 
         helping_delivery = [bike.bike_id for bike in vehicle.get_sb_bike_inventory()][:min(int(sum(current_deviations)), len(vehicle.get_sb_bike_inventory()))]
         
         helping_cluster = Cluster(current_stations, vehicle.location, self.operator_radius, {}, [])
 
-        simul.metrics.add_aggregate_metric(simul, "accumulated find helping action time", time.time() - start_help_time)
-        simul.metrics.add_aggregate_metric(simul, "num helping bike pickups", len(helping_pickups))
-        simul.metrics.add_aggregate_metric(simul, "num helping bike deliveries", len(helping_delivery))
+        state.metrics.add_aggregate_metric(state, "accumulated find helping action time", time.time() - start_help_time)
+        state.metrics.add_aggregate_metric(state, "num helping bike pickups", len(helping_pickups))
+        state.metrics.add_aggregate_metric(state, "num helping bike deliveries", len(helping_delivery))
 
         action.helping_pickup = helping_pickups
         action.helping_delivery = helping_delivery

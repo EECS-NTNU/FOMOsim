@@ -61,7 +61,8 @@ class Station(Location):
 
     def sloppycopy(self, *args):
         return Station(
-            self.location_id,
+            #self.location_id,
+            self.id,
             list(copy.deepcopy(self.bikes).values()),
 
             leave_intensities=self.leave_intensities,
@@ -85,7 +86,8 @@ class Station(Location):
     def set_bikes(self, bikes):
         self.bikes = {bike.bike_id : bike for bike in bikes}
         for bike in bikes:
-            bike.set_location(self.lat, self.lon, self.location_id)
+            #bike.set_location(self.lat, self.lon, self.location_id)
+            bike.set_location(self.lat, self.lon)
 
     def spare_capacity(self):
         return self.capacity - len(self.bikes)
@@ -135,7 +137,8 @@ class Station(Location):
             return False
         # Adding bike to bike list
         self.bikes[bike.bike_id] = bike
-        bike.set_location(self.get_lat(), self.get_lon(), self.location_id)
+        #bike.set_location(self.get_lat(), self.get_lon(), self.location_id)
+        bike.set_location(self.get_lat(), self.get_lon())
         return True
 
     def remove_bike(self, bike):
@@ -181,15 +184,15 @@ class Station(Location):
         for day in range(7):
             for hour in range(24):
                 for ind in range(len(self.move_probabilities[day][hour])):
-                    station_id = station_list[ind].location_id
+                    station_id = station_list[ind].id
                     move_probabilities[day][hour][station_id] = self.move_probabilities[day][hour][ind]
         
         self.move_probabilities = move_probabilities
 
     def __repr__(self):
         return (
-            f"<Station {self.location_id}: {len(self.bikes)} bikes>"
+            f"<Station {self.id}: {len(self.bikes)} bikes>"
         )
 
     def __str__(self):
-        return f"Station {self.location_id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8)} Bikes {len(self.bikes):3d}"
+        return f"Station {self.id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8)} Bikes {len(self.bikes):3d}"

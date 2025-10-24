@@ -4,7 +4,7 @@ import csv
 from settings import *
 import os
 import datetime
-from sim import Action, EBike, State, Vehicle, Metric
+#from sim import Action, EBike, State, Vehicle, Metric
 import matplotlib.pyplot as plt
 import copy
 import matplotlib.dates as mdates

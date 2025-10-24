@@ -41,7 +41,7 @@ class Depot(Station):
 
     def sloppycopy(self, *args):
         return Depot(
-            self.location_id,
+            self.id,
             self.depot_capacity,
             self.is_station_based,
             list(copy.deepcopy(self.bikes).values()),
@@ -114,7 +114,7 @@ class Depot(Station):
         return delta_capacity
 
     def __str__(self):
-        return f"Depot   {self.location_id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8)} Bikes {len(self.bikes):3d} Cap {self.depot_capacity} Inv {self.battery_inventory}"
+        return f"Depot   {self.id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8)} Bikes {len(self.bikes):3d} Cap {self.depot_capacity} Inv {self.battery_inventory}"
 
     def __repr__(self):
-        return f"<Depot, id: {self.location_id}, cap: {self.battery_inventory}>"
+        return f"<Depot, id: {self.id}, cap: {self.battery_inventory}>"

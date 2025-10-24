@@ -12,13 +12,13 @@ Criticality score is based on:
 - Driving time = The time it takes for the vehicle to arrive contributes to the criticality
 """
 
-def calculate_criticality(weights, simul, potential_stations, station, total_num_bikes_in_system, visited_stations = None):
+def calculate_criticality(weights, state, potential_stations, station, total_num_bikes_in_system, visited_stations = None):
     """
     Returns a dictionary with station and criticality score for all potential station to visit. The higher the score the more critical the station is.
 
     Parameters:
     - weights = list of the weights of how much each component matters. Float from 0-1, summed to 1
-    - simul = Simulator
+    - state = State
     - potential_stations = list of Station-objects to consider visiting
     - total_num_bikes_in_system = int, number of bikes total
     - visited_stations = tabu_list og stations that should not be visited
@@ -36,12 +36,12 @@ def calculate_criticality(weights, simul, potential_stations, station, total_num
     BL_composition_list = []
 
     for potential_station in potential_stations:
-        net_demand = calculate_net_demand(potential_station, simul.time, simul.day(), simul.hour(), TIME_HORIZON)
-        target_state = potential_station.get_target_state(simul.day(),simul.hour())
+        net_demand = calculate_net_demand(potential_station, state.time, state.day(), state.hour(), TIME_HORIZON)
+        target_state = potential_station.get_target_state(state.day(),state.hour())
         potential_station_type = calculate_station_type(target_state, len(potential_station.get_available_bikes()) + net_demand)
 
         # Time to violation
-        time_to_violation = calculate_time_to_violation(net_demand, potential_station, simul, total_num_bikes_in_system)
+        time_to_violation = calculate_time_to_violation(net_demand, potential_station, state, total_num_bikes_in_system)
         time_to_violation_list.append(time_to_violation)
 
         # Deviation from target state
@@ -49,7 +49,7 @@ def calculate_criticality(weights, simul, potential_stations, station, total_num
         deviation_list.append(deviation_from_target_state)
 
         # Neighborhood criticality
-        neighborhood_crit = calculate_neighborhood_criticality(simul, potential_station, potential_station_type, visited_stations)
+        neighborhood_crit = calculate_neighborhood_criticality(state, potential_station, potential_station_type, visited_stations)
         neighborhood_crit_list.append(neighborhood_crit)
 
         # Demand criticality
@@ -57,11 +57,11 @@ def calculate_criticality(weights, simul, potential_stations, station, total_num
         demand_crit_list.append(demand_crit)
 
         # Driving time criticality
-        driving_time_crit = calculate_driving_time_crit(simul, station, potential_station)
+        driving_time_crit = calculate_driving_time_crit(state, station, potential_station)
         driving_time_list.append(driving_time_crit)
 
         # Battery level composition criticality
-        battery_level_comp_crit = calculate_battery_level_composition_criticality(simul, potential_station, total_num_bikes_in_system)
+        battery_level_comp_crit = calculate_battery_level_composition_criticality(state, potential_station, total_num_bikes_in_system)
         BL_composition_list.append(battery_level_comp_crit)
 
         criticalities[potential_station] = [time_to_violation, deviation_from_target_state, neighborhood_crit, demand_crit, driving_time_crit, battery_level_comp_crit]
@@ -84,7 +84,7 @@ def calculate_criticality(weights, simul, potential_stations, station, total_num
 
     return criticalities_summed
 
-def calculate_time_to_violation(net_demand, station, simul, total_num_bikes_in_system):
+def calculate_time_to_violation(net_demand, station, state, total_num_bikes_in_system):
     """
     Returns a float-score of how critical the station is based on how many hours until a starvation/congestion occurs.
     A low score is critical, while high is less critical
@@ -92,7 +92,7 @@ def calculate_time_to_violation(net_demand, station, simul, total_num_bikes_in_s
     Parameters:
     - net_demand = float, the net demand calculated from the location's arrive/leave intensities (positive = bikes are arriving, negative = bikes are departuring)
     - station = Station-object under consideration
-    - simul = Simulator
+    - state = State
     - total_num_bikes_in_system = total number of bikes in the system
     """
     time_to_violation = 0
@@ -113,9 +113,9 @@ def calculate_time_to_violation(net_demand, station, simul, total_num_bikes_in_s
         bikes_most_charged = [bike.battery for bike in sorted_bikes_by_battery[-3:]]
         average_battery_top3 = sum(bikes_most_charged)/len(bikes_most_charged) if len(bikes_most_charged) > 0 else 0
         battery_over_limit_top3 = max(average_battery_top3 - BATTERY_LIMIT_TO_USE, 0)
-        hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, False, True)
+        hourly_discharge = calculate_hourly_discharge_rate(state, total_num_bikes_in_system, False, True)
         if hourly_discharge == 0:
-            rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, False, True)
+            rate = calculate_hourly_discharge_rate(state, total_num_bikes_in_system, False, True)
         violation_battery = battery_over_limit_top3 / hourly_discharge
 
         time_to_violation = min(
@@ -151,13 +151,13 @@ def calculate_deviation_from_target_state(station, net_demand, target_state):
     
     return deviation_from_target_state
 
-def calculate_neighborhood_criticality(simul, station, station_type, visited_stations):
+def calculate_neighborhood_criticality(state, station, station_type, visited_stations):
     """
     Returns a int-score on how the neighboring stations, impact the criticality.
     The higher the score, the more critical.
 
     Parameters:
-    - simul = Simulator
+    - state = State
     - station = Station-object under consideration
     - station_type = if it is a pick up or delivery station (or balanced)
     - vistited_stations = list of Station-objects that are in the tabu_list
@@ -169,13 +169,13 @@ def calculate_neighborhood_criticality(simul, station, station_type, visited_sta
         station_crit = 0
 
         # If this neighoring station has been visited, it is not critical
-        if visited_stations != None and neighbor.location_id in visited_stations:
+        if visited_stations != None and neighbor.id in visited_stations:
             station_crit -= 3
 
         # If it has not been visited
         else:
-            neighbor_net_demand = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), TIME_HORIZON)
-            neighbor_target_state = neighbor.get_target_state(simul.day(),simul.hour())
+            neighbor_net_demand = calculate_net_demand(neighbor, state.time, state.day(), state.hour(), TIME_HORIZON)
+            neighbor_target_state = neighbor.get_target_state(state.day(),state.hour())
 
             expected_number_usable_bikes = len(neighbor.get_available_bikes()) + neighbor_net_demand
             neighbor_type = calculate_station_type(neighbor_target_state, expected_number_usable_bikes)
@@ -247,26 +247,26 @@ def calculate_demand_criticality(station_type, net_demand):
     
     return demand_crit
 
-def calculate_driving_time_crit(simul, current_station, potential_station):
+def calculate_driving_time_crit(state, current_station, potential_station):
     """
     Returns the driving time between two stations.
     The lower the score the more critical.
     """
-    return simul.state.get_vehicle_travel_time(current_station.location_id, potential_station.location_id)
+    return state.get_vehicle_travel_time(current_station.id, potential_station.id)
 
-def calculate_battery_level_composition_criticality(simul, station, total_num_bikes_in_system):
+def calculate_battery_level_composition_criticality(state, station, total_num_bikes_in_system):
     """
     Returns a float-score based on how the battery levels may be in the future.
     The lower the score, the more critical.
 
     Parameters:
-    - simul = Simulator
+    - state = State
     - station = Station-object under consideration
     - total_num_bikes_in_system = total number of bikes in the system
     """
     return 0
     current_escooters = station.bikes
-    hourly_discharge_rate = calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, False, True)
+    hourly_discharge_rate = calculate_hourly_discharge_rate(state, total_num_bikes_in_system, False, True)
 
     # Make list of the batteries of usable bikes at the station in current time and the next hour 
     battery_levels_current = [escooter.battery for escooter in current_escooters.values() if escooter.usable()]

@@ -7,7 +7,7 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
 
     Parameters:
     - station = Station-object to calculate demand for
-    - time_now = current time of the simulator
+    - time_now = current time of the stateator
     - day, hour = day and hour to get the demand at station
     - planning_horizon = time length to check demand for
     """
@@ -32,12 +32,12 @@ def calculate_net_demand(station, time_now, day, hour, planning_horizon):
     return round(net_demand_planning_horizon)
 
 
-def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, is_electric = True, is_station_based = False):
+def calculate_hourly_discharge_rate(state, total_num_bikes_in_system, is_electric = True, is_station_based = False):
     """
     Returns average battery discharge over the whole system.
 
     Parameters:
-    - simul = Simulator
+    - state = State
     - total_num_bikes_in_system = Total number of bikes in the system
     - is_electric = boolean, only checking discharge for electric systems
     """
@@ -45,13 +45,13 @@ def calculate_hourly_discharge_rate(simul, total_num_bikes_in_system, is_electri
     if not is_electric:
         return 1 # TODO
 
-    time_now = simul.time
-    day = simul.day()
-    hour = simul.hour()
+    time_now = state.time
+    day = state.day()
+    hour = state.hour()
     next_hour = (hour + 1) % 24
     next_day = day if next_hour > hour else day +1
 
-    locations = simul.state.get_stations() if is_station_based else simul.state.get_areas()
+    locations = state.get_stations() if is_station_based else state.get_areas()
     
     number_of_trips_current_hour = sum([loc.get_leave_intensity(day, hour) for loc in locations])
     number_of_trips_next_hour = sum([loc.get_leave_intensity(next_day, next_hour) for loc in locations])

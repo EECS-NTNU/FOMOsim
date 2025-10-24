@@ -23,25 +23,25 @@ class BikeArrival(Event):
         self.travel_time = travel_time
         self.congested = congested
 
-    def perform(self, simul) -> None:
+    def perform(self, world) -> None:
         """
-        :param simul: simul object
+        :param world: world object
         """
 
-        super().perform(simul)
+        super().perform(world)
 
         # get arrival station 
         arrival_station = world.state.get_location_by_id(self.arrival_station_id)
 
         if not FULL_TRIP:
-            self.bike = simul.state.get_used_bike()
+            self.bike = world.state.get_used_bike()
 
         if self.bike is not None:
-            self.bike.travel(simul, self.travel_time, self.congested)
+            self.bike.travel(world, self.travel_time, self.congested)
 
             if self.bike.battery < 0:
-                world.metrics.add_aggregate_metric(world, "battery violations", 1)
-                world.metrics.add_aggregate_metric(world, "failed events", 1)
+                world.state.metrics.add_aggregate_metric(world, "battery violations", 1)
+                world.state.metrics.add_aggregate_metric(world, "failed events", 1)
                 self.bike.battery = 0
 
             # add bike to the arrived station (location is changed in add_bike method)
@@ -49,7 +49,7 @@ class BikeArrival(Event):
                 if FULL_TRIP:
                     world.state.remove_used_bike(self.bike)
                 
-                world.metrics.add_aggregate_metric(world, "bike arrival", 1)
+                world.state.metrics.add_aggregate_metric(world, "bike arrival", 1)
 
             else:
                 if FULL_TRIP:
@@ -57,23 +57,23 @@ class BikeArrival(Event):
                     next_station = world.state.get_neighbouring_stations(arrival_station, 1, not_full=True)[0]
 
                     travel_time = world.state.get_travel_time(
-                        arrival_station.location_id,
-                        next_station.location_id,
+                        arrival_station.id,
+                        next_station.id,
                     )
 
                     # create an arrival event for the departed bike
-                    simul.add_event(
+                    world.add_event(
                         sim.BikeArrival(
                             self.time,
                             travel_time,
                             self.bike,
-                            next_station.location_id,
-                            arrival_station.location_id,
+                            next_station.id,
+                            arrival_station.id,
                             congested = True
                         )
                     )
 
-                    world.metrics.add_aggregate_metric(world, "events", 1)
+                    world.state.metrics.add_aggregate_metric(world, "events", 1)
 
 
                 else:
@@ -81,13 +81,13 @@ class BikeArrival(Event):
 
                 distance = arrival_station.distance_to(next_station.get_lat(), next_station.get_lon())
                 if distance <= MAX_ROAMING_DISTANCE_SOLUTIONS:
-                    world.metrics.add_aggregate_metric(world, "short congestions", 1)
+                    world.state.metrics.add_aggregate_metric(world, "short congestions", 1)
                 else:
-                    world.metrics.add_aggregate_metric(world, "long congestions", 1)
-                    world.metrics.add_aggregate_metric(world, "failed events", 1)
+                    world.state.metrics.add_aggregate_metric(world, "long congestions", 1)
+                    world.state.metrics.add_aggregate_metric(world, "failed events", 1)
                 
-                world.metrics.add_aggregate_metric(world, "roaming for locks", 1)
-                world.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
+                world.state.metrics.add_aggregate_metric(world, "roaming for locks", 1)
+                world.state.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_station_id}>"

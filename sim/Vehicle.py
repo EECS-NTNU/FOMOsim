@@ -18,7 +18,7 @@ class Vehicle:
         is_station_based
     ):
         
-        self.vehicle_id = vehicle_id
+        self.id = vehicle_id
         self.battery_inventory = battery_inventory_capacity
         self.battery_inventory_capacity = battery_inventory_capacity
         self.bike_inventory = {}
@@ -30,6 +30,8 @@ class Vehicle:
         self.handling_time = MINUTES_PER_ACTION
         self.parking_time = MINUTES_CONSTANT_PER_ACTION
         self.cluster = None
+        self.NUMBER = 77
+
 
     def change_battery(self, bike):
         if self.battery_inventory <= 0:
@@ -82,7 +84,7 @@ class Vehicle:
 
     def __repr__(self):
         return (
-            f"<Vehicle {self.vehicle_id} at {self.location.location_id}, {len(self.bike_inventory)} bikes,"
+            f"<Vehicle {self.id} at {self.location.id}, {len(self.bike_inventory)} bikes,"
             f" {self.battery_inventory} batteries>"
         )
 

@@ -1,5 +1,4 @@
 import geopy.distance
-from settings import *
 
 class Location:
     """
@@ -9,7 +8,7 @@ class Location:
     def __init__(self, lat, lon, location_id):
         self.lat = lat
         self.lon = lon
-        self.location_id = location_id # either the id of the area/station or the location of the bike
+        self.id = location_id
         self.bikes = []
 
     def get_lat(self):
@@ -24,9 +23,8 @@ class Location:
     def remove_location(self):
         self.lon = None
         self.lat = None
-        self.location_id = None
 
-    def get_target_state(self):
+    def get_target_state(self, day, hour):
         return 0
 
     def get_arrive_intensity(self, day, hour):
@@ -38,17 +36,12 @@ class Location:
     def get_available_bikes(self):
         return []
 
-    def get_swappable_bikes(self, battery_limit = BATTERY_LIMIT_TO_SWAP):
+    def get_swappable_bikes(self, battery_limit=70):
         return []
 
-    def set_location(self, lat: float, lon: float, location_id):
+    def set_location(self, lat: float, lon: float):
         self.lat = lat
         self.lon = lon
-        self.location_id = location_id
 
     def distance_to(self, lat: float, lon: float):
-        """
-        Returns the distance from the location to a coordinate. 
-        Used in State.get_station_by_lat_lon, which returns the nearest station to the coordinates. 
-        """
         return geopy.distance.distance((self.lat, self.lon), (lat, lon)).km

@@ -14,16 +14,16 @@ class Metric:
 
         self.aggregate = {}
 
-    def add_metric(self, simul, metric, value):
+    def add_metric(self, sim, metric, value):
         if metric not in self.metrics:
             self.metrics[metric] = []
             self.aggregate[metric] = False
 
-        self.metrics[metric].append((simul.state.time, value))
-        if((self.min_time == 0) or (self.min_time > simul.state.time)):
-            self.min_time = simul.state.time
-        if(simul.state.time > self.max_time):
-            self.max_time = simul.state.time
+        self.metrics[metric].append((sim.time, value))
+        if((self.min_time == 0) or (self.min_time > sim.time)):
+            self.min_time = sim.time
+        if(sim.time > self.max_time):
+            self.max_time = sim.time
 
     # def add_metric(self, metric, value):
     #     if metric not in self.metrics:
@@ -83,7 +83,7 @@ class Metric:
                     min = val
         return min
 
-    def add_aggregate_metric(self, simul, metric, value):
+    def add_aggregate_metric(self, sim, metric, value):
         if metric not in self.metrics:
             self.metrics[metric] = []
             self.aggregate[metric] = False
@@ -94,20 +94,20 @@ class Metric:
         if len(series) > 0:
             last_time = series[-1][0]
             last_value = series[-1][1]
-        if last_time == simul.state.time:
+        if last_time == sim.time:
             series[-1] = (last_time, last_value + value)
         else:
-            series.append((simul.state.time, last_value + value))
+            series.append((sim.time, last_value + value))
 
-        if((self.min_time == 0) or (self.min_time > simul.state.time)):
-            self.min_time = simul.state.time
-        if(simul.state.time > self.max_time):
-            self.max_time = simul.state.time
+        if((self.min_time == 0) or (self.min_time > sim.time)):
+            self.min_time = sim.time
+        if(sim.time > self.max_time):
+            self.max_time = sim.time
 
     # analysis metrics added every timestep
-    def add_analysis_metrics(self, simul):
-        #self.add_metric(simul, "average_battery", sum([bike.battery for bike in simul.state.get_all_bikes() if bike.hasBattery()]) / len(simul.state.get_all_bikes()))
-        #self.add_metric(simul, "total_available_bikes", simul.state.get_num_available_bikes())
+    def add_analysis_metrics(self, sim):
+        #self.add_metric(sim, "average_battery", sum([bike.battery for bike in sim.state.get_all_bikes() if bike.hasBattery()]) / len(sim.state.get_all_bikes()))
+        #self.add_metric(sim, "total_available_bikes", sim.state.get_num_available_bikes())
         pass
 
     def timeline(self):

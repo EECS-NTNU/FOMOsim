@@ -35,13 +35,13 @@ class GenerateEScooterTrips(Event):
             )
 
             if settings.TRAFFIC_LOGGING and len(trips_departure_time) > 0:
-                loggDepartures(departure_area.location_id, trips_departure_time) 
+                loggDepartures(departure_area.id, trips_departure_time) 
 
             # generate departure event and add to world event_queue
             for departure_time in trips_departure_time:
                 # add departure event to the event_queue
                 departure_event = sim.EScooterDeparture(
-                    departure_time, departure_area.location_id
+                    departure_time, departure_area.id
                 )
                 world.add_event(departure_event)
         
@@ -66,7 +66,7 @@ class GenerateEScooterTrips(Event):
                     arrival_event = sim.EScooterArrival(
                         arrival_time,
                         None,
-                        arrival_area.location_id,
+                        arrival_area.id,
                         None,
                         0,
                     )

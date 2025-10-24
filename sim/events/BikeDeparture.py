@@ -14,15 +14,15 @@ class BikeDeparture(Event):
         super().__init__(departure_time)
         self.departure_station_id = departure_station_id
 
-    def perform(self, simul) -> None:
+    def perform(self, world) -> None:
         """
         :param simul: simul object
         """
 
-        super().perform(simul)
+        super().perform(world)
 
         # get departure station
-        departure_station = simul.state.get_location_by_id(self.departure_station_id)
+        departure_station = world.state.get_location_by_id(self.departure_station_id)
 
         # get all available bike in the station
         available_bikes = departure_station.get_available_bikes()
@@ -34,7 +34,7 @@ class BikeDeparture(Event):
             if FULL_TRIP:
                 if world.state.rng.random() < RANDOM_DESTINATION_PROB:
                     # Exclude the current area from the random selection
-                    other_stations = [station.location_id for station in world.state.get_stations() if station.location_id != self.departure_station_id]
+                    other_stations = [station.id for station in world.state.get_stations() if station.id != self.departure_station_id]
                     arrival_station_id = world.state.rng.choice(other_stations)
                 else:
                     # get an arrival station from the leave prob distribution
@@ -54,19 +54,19 @@ class BikeDeparture(Event):
                 arrival_station = world.state.get_location_by_id(arrival_station_id)
 
                 travel_time = world.state.get_travel_time(
-                    departure_station.location_id,
-                    arrival_station.location_id,
+                    departure_station.id,
+                    arrival_station.id,
                 )
 
 
                 # create an arrival event for the departed bike
-                simul.add_event(
+                world.add_event(
                     sim.BikeArrival(
                         self.time,
                         travel_time,
                         bike,
-                        arrival_station.location_id,
-                        departure_station.location_id,
+                        arrival_station.id,
+                        departure_station.id,
                     )
                 )
 
@@ -75,8 +75,8 @@ class BikeDeparture(Event):
 
             world.state.set_bike_in_use(bike)
 
-            world.metrics.add_aggregate_metric(world, "bike departure", 1)
-            world.metrics.add_aggregate_metric(world, "events", 2)
+            world.state.metrics.add_aggregate_metric(world, "bike departure", 1)
+            world.state.metrics.add_aggregate_metric(world, "events", 2)
 
         else:
             if FULL_TRIP:
@@ -99,7 +99,7 @@ class BikeDeparture(Event):
                     
                     if world.state.rng.random() < RANDOM_DESTINATION_PROB:
                         # Exclude the current area from the random selection
-                        other_stations = [station.location_id for station in world.state.get_stations() if station.location_id != self.departure_station_id]
+                        other_stations = [station.id for station in world.state.get_stations() if station.id != self.departure_station_id]
                         arrival_station_id = world.state.rng.choice(other_stations)
                     else:
                         arrival_station_id = world.state.rng.choice(list(mp.keys()), p = p_normalized)
@@ -107,9 +107,9 @@ class BikeDeparture(Event):
                     arrival_station = world.state.get_location_by_id(arrival_station_id)
 
                     travel_time = world.state.get_travel_time(
-                        closest_neighbour_with_bikes.location_id,
-                        arrival_station.location_id,) + world.state.get_travel_time(departure_station.location_id,
-                        closest_neighbour_with_bikes.location_id)*(BIKE_SPEED/WALKING_SPEED) 
+                        closest_neighbour_with_bikes.id,
+                        arrival_station.id,) + world.state.get_travel_time(departure_station.id,
+                        closest_neighbour_with_bikes.id)*(BIKE_SPEED/WALKING_SPEED) 
                     #total travel time, roaming for bike from departure station to neighbour + cycling to arrival station
 
                     # calculate arrival time 
@@ -120,8 +120,8 @@ class BikeDeparture(Event):
                             self.time,
                             travel_time,
                             bike,
-                            arrival_station.location_id,
-                            closest_neighbour_with_bikes.location_id,
+                            arrival_station.id,
+                            closest_neighbour_with_bikes.id,
                         )
                     )
 
@@ -130,23 +130,23 @@ class BikeDeparture(Event):
 
                     world.state.set_bike_in_use(bike)
 
-                    world.metrics.add_aggregate_metric(world, "bike departure", 1)
-                    world.metrics.add_aggregate_metric(world, "events", 2)
+                    world.state.metrics.add_aggregate_metric(world, "bike departure", 1)
+                    world.state.metrics.add_aggregate_metric(world, "events", 2)
 
-                    world.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
-                    world.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
+                    world.state.metrics.add_aggregate_metric(world, "roaming for bikes", 1)
+                    world.state.metrics.add_aggregate_metric(world, "roaming distance for bikes", distance)
 
                 else:
                     if departure_station.number_of_bikes() <= 0:
-                        world.metrics.add_aggregate_metric(world, "bike starvations", 1)
+                        world.state.metrics.add_aggregate_metric(world, "bike starvations", 1)
                     else:
-                        world.metrics.add_aggregate_metric(world, "battery starvations", 1)
+                        world.state.metrics.add_aggregate_metric(world, "battery starvations", 1)
 
-                    world.metrics.add_aggregate_metric(world, "events", 1)
-                    world.metrics.add_aggregate_metric(world, "starvations", 1)
-                    world.metrics.add_aggregate_metric(world, "failed events", 1)
+                    world.state.metrics.add_aggregate_metric(world, "events", 1)
+                    world.state.metrics.add_aggregate_metric(world, "starvations", 1)
+                    world.state.metrics.add_aggregate_metric(world, "failed events", 1)
                     
-        world.metrics.add_aggregate_metric(world, "trips", 1)
+        world.state.metrics.add_aggregate_metric(world, "trips", 1)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, departing from station {self.departure_station_id}>"

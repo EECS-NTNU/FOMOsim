@@ -7,6 +7,7 @@ import sys
 import bisect
 import sim
 import settings
+from sim.LoadSave import LoadSave
 from sim import Metric
 
 from progress.bar import IncrementalBar
@@ -14,7 +15,7 @@ from progress.bar import IncrementalBar
 from helpers import loggTime, loggLocations, loggEvent
 # import policies.inngjerdingen_moeller
 
-class Simulator():
+class Simulator(LoadSave):
     """
     Class containing all metadata about an instance. This class contains both the state, the policy and parameters.
     This class uses the state as the environment and the policy as the actor. Additionally, it is the main driver of the
@@ -30,6 +31,7 @@ class Simulator():
             cluster=False,
             verbose=False,
             label=None,
+            TEST_VAL = 42
     ):
         super().__init__()
         self.created_at = datetime.datetime.now().isoformat(timespec="minutes")
@@ -50,7 +52,7 @@ class Simulator():
         self.state = initial_state
         self.target_state = target_state
         self.demand = demand
-        self.state.time = start_time
+        self.time = start_time
         self.event_queue: List[sim.Event] = []
 
         # Add generate trip event to the event_queue
@@ -59,10 +61,10 @@ class Simulator():
         # Initialize the event_queue with a vehicle arrival for every vehicle at time zero
         for vehicle in self.state.get_vehicles():
             self.event_queue.append(
-                sim.VehicleArrival(self.state.time, vehicle)
+                sim.VehicleArrival(self.time, vehicle)
             )
 
-        self.metrics = Metric()
+        #self.metrics = Metric()
         self.cluster = cluster 
         self.verbose = verbose
         if label is None:
@@ -79,11 +81,11 @@ class Simulator():
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
 
-        for vehicle in self.state.get_vehicles():
-            vehicle.policy.init_sim(self)
+        # for vehicle in self.state.get_vehicles():
+        #     vehicle.policy.init_sim(self)
 
     def __repr__(self):
-        string = f"<Sim with {self.state.time} of {self.end_time} elapsed. {len(self.event_queue)} events in event_queue>"
+        string = f"<Sim with {self.time} of {self.end_time} elapsed. {len(self.event_queue)} events in event_queue>"
         return string
 
     def single_step(self):
@@ -98,7 +100,8 @@ class Simulator():
         if settings.TRAFFIC_LOGGING:
             loggEvent(event)
 
-        self.metrics.add_analysis_metrics(self)
+        #self.metrics.add_analysis_metrics(self)
+        self.state.metrics.add_analysis_metrics(self.state)
 
         monotonic = time.monotonic()
         if self.cluster:
@@ -132,12 +135,18 @@ class Simulator():
         The sim object uses a queue initialized with vehicle arrival events and a GenerateBikeTrips event.
         It then pops events from this queue. The queue is always sorted in by the time of the events.
         """
-        while self.state.time < self.end_time:
+        while self.time < self.end_time:
             self.full_step()
             if self.verbose:
                 self.progress_bar.next()
         if self.verbose:
             self.progress_bar.finish()
+
+    def day(self):
+        return int((self.time // (60*24)) % 7)
+
+    def hour(self):
+        return int((self.time // 60) % 24)
 
     def add_event(self, event: sim.Event) -> None:
         """
@@ -161,11 +170,12 @@ class Simulator():
         new_sim = Simulator(
             0,
             self.state.sloppycopy(),
-            self.state.time,
+            self.time,
             self.verbose,
             self.label,
         )
         new_sim.duration = self.end_time
         new_sim.event_queue = copy.deepcopy(self.event_queue)
-        new_sim.metrics = copy.deepcopy(self.metrics)
+        #new_sim.metrics = copy.deepcopy(self.metrics)
+        new_sim.state.metrics = copy.deepcopy(self.state.metrics)
         return new_sim

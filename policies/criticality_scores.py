@@ -7,7 +7,8 @@ def calculate_criticality_normalized(weights,state,start_station_id, potential_s
  
     [omega1,omega2,omega3,omega4] = weights
 
-    potential_station = state.stations[potential_station_id]  
+    #potential_station = state.stations[potential_station_id]  
+    potential_station = state.locations[potential_station_id] 
     
     driving_time = state.get_vehicle_travel_time(start_station_id,potential_station_id)
     driving_time_normalized = driving_time /max_driving_time #function of max, mean, median,...?
@@ -26,7 +27,8 @@ def calculate_criticality_normalized(weights,state,start_station_id, potential_s
     if max_time_to_violation > 0:
         time_to_violation_normalized = time_to_violation/max_time_to_violation
     
-    target_state = potential_station.get_target_state()
+    #target_state = potential_station.get_target_state()
+    target_state = potential_station.get_target_state(state.day(), state.hour())
     deviation_from_target_state = abs(target_state-len(potential_station.bikes))
     deviation_from_target_state_normalized = 0
     if max_deviation > 0:

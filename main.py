@@ -20,10 +20,15 @@ from helpers import timeInMinutes
 import time
 import random
 
+# Profiling imports (from Joseph)
+import cProfile
+
 # from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
-DURATION = timeInMinutes(days=7)
+DURATION = timeInMinutes(days=1)
+#INSTANCE = 'BG_W8'
+#INSTANCE = 'BG_W25'
 INSTANCE = 'TD_W34'
 WEEK = 34
 
@@ -46,13 +51,17 @@ def main(seed):
     state.set_seed(seed)
     
     ###############################################################################
+    print("Policy: BS Greedy, Seed:", seed)
+    policy = policies.GreedyPolicy()
+    state.set_sb_vehicles([policy])
+
     # print("Policy: BS_PILOT, Seed:", seed)
     # policy = policies.hlv_master.BS_PILOT()
     # state.set_sb_vehicles([policy])
 
-    print("Policy: BS_PILOT_FF, Seed:", seed)
-    policy_ff = policies.hlv_master.BS_PILOT_FF()
-    state.set_ff_vehicles([policy_ff])
+    # print("Policy: BS_PILOT_FF, Seed:", seed)
+    # policy_ff = policies.hlv_master.BS_PILOT_FF()
+    # state.set_ff_vehicles([policy_ff])
 
     # print("Policy: FF_Collab2, Seed:", seed)
     # policy2_ff = policies.hlv_master.FF_Collab2()
@@ -94,39 +103,83 @@ def main(seed):
     simulator.run()
 
     # Output to console
+    print("================= STATE VERSION =================")
     print(f"Simulation time = {DURATION} minutes")
-    print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
-    print(f"Bike departures = {simulator.metrics.get_aggregate_value('bike departure')}")
-    print(f"Escooter departures = {simulator.metrics.get_aggregate_value('escooter departure')}")
-    print(f"Bike arrival = {simulator.metrics.get_aggregate_value('bike arrival')}")
-    print(f"Escooter arrival = {simulator.metrics.get_aggregate_value('escooter arrival')}")
-    print(f"Vehicle arrivals = {simulator.metrics.get_aggregate_value('vehicle arrivals')}")
-    print(f"Starvations = {simulator.metrics.get_aggregate_value('starvations')}")
-    print(f"Roaming for bikes = {simulator.metrics.get_aggregate_value('roaming for bikes')}")
-    print(f"Roaming distance for bikes = {round(simulator.metrics.get_aggregate_value('roaming distance for bikes'), 2)} km")
-    print(f"Congestions = {simulator.metrics.get_aggregate_value('long congestions')}")
-    print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
-    print(f"help pickup = {round(simulator.metrics.get_aggregate_value('num helping bike pickups'), 2)}")
-    print(f"help delivery = {round(simulator.metrics.get_aggregate_value('num helping bike deliveries'), 2)}")
+    print(f"Total requested trips = {state.metrics.get_aggregate_value('trips')}")
+    print(f"Bike departures = {state.metrics.get_aggregate_value('bike departure')}")
+    print(f"Escooter departures = {state.metrics.get_aggregate_value('escooter departure')}")
+    print(f"Bike arrival = {state.metrics.get_aggregate_value('bike arrival')}")
+    print(f"Escooter arrival = {state.metrics.get_aggregate_value('escooter arrival')}")
+    print(f"Vehicle arrivals = {state.metrics.get_aggregate_value('vehicle arrivals')}")
+    print(f"Starvations = {state.metrics.get_aggregate_value('starvations')}")
+    print(f"Roaming for bikes = {state.metrics.get_aggregate_value('roaming for bikes')}")
+    print(f"Roaming distance for bikes = {round(state.metrics.get_aggregate_value('roaming distance for bikes'), 2)} km")
+    print(f"Congestions = {state.metrics.get_aggregate_value('long congestions')}")
+    print(f"Roaming distance for locks = {round(state.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
+    print(f"help pickup = {round(state.metrics.get_aggregate_value('num helping bike pickups'), 2)}")
+    print(f"help delivery = {round(state.metrics.get_aggregate_value('num helping bike deliveries'), 2)}")
 
-    print("Failed events =", simulator.metrics.get_aggregate_value('failed events'))
-    print("Starvations =", simulator.metrics.get_aggregate_value('starvations'))
-    print("Escooter starvations =", simulator.metrics.get_aggregate_value('escooter starvations'))
-    print("Bike starvations =", simulator.metrics.get_aggregate_value('bike starvations'))
-    print("Battery starvations =", simulator.metrics.get_aggregate_value('battery starvations'))
-    print("Battery violations =", simulator.metrics.get_aggregate_value('battery violations'))
-    print("Long congestions =", simulator.metrics.get_aggregate_value('long congestions'))
-    print("Short congestions =", simulator.metrics.get_aggregate_value('short congestions'))
+    print("Failed events =", state.metrics.get_aggregate_value('failed events'))
+    print("Starvations =", state.metrics.get_aggregate_value('starvations'))
+    print("Escooter starvations =", state.metrics.get_aggregate_value('escooter starvations'))
+    print("Bike starvations =", state.metrics.get_aggregate_value('bike starvations'))
+    print("Battery starvations =", state.metrics.get_aggregate_value('battery starvations'))
+    print("Battery violations =", state.metrics.get_aggregate_value('battery violations'))
+    print("Long congestions =", state.metrics.get_aggregate_value('long congestions'))
+    print("Short congestions =", state.metrics.get_aggregate_value('short congestions'))
 
-    print("Number of bike deliveries =", simulator.metrics.get_aggregate_value('num bike deliveries'))
-    print("Number of bike pickups =", simulator.metrics.get_aggregate_value('num bike pickups'))
-    print("Number of battery swaps =", simulator.metrics.get_aggregate_value('num battery swaps'))
-    print("Number of escooter deliveries =", simulator.metrics.get_aggregate_value('num escooter deliveries'))
-    print("Number of escooter pickups =", simulator.metrics.get_aggregate_value('num escooter pickups'))
-    print("Number of helping bike deliveries =", simulator.metrics.get_aggregate_value('num helping bike deliveries'))
-    print("Number of helping bike pickups =", simulator.metrics.get_aggregate_value('num helping bike pickups'))
-    print("Number of helping escooter deliveries =", simulator.metrics.get_aggregate_value('num helping escooter deliveries'))
-    print("Number of helping escooter pickups =", simulator.metrics.get_aggregate_value('num helping escooter pickups'))
+    print("Number of bike deliveries =", state.metrics.get_aggregate_value('num bike deliveries'))
+    print("Number of bike pickups =", state.metrics.get_aggregate_value('num bike pickups'))
+    print("Number of battery swaps =", state.metrics.get_aggregate_value('num battery swaps'))
+    print("Number of escooter deliveries =", state.metrics.get_aggregate_value('num escooter deliveries'))
+    print("Number of escooter pickups =", state.metrics.get_aggregate_value('num escooter pickups'))
+    print("Number of helping bike deliveries =", state.metrics.get_aggregate_value('num helping bike deliveries'))
+    print("Number of helping bike pickups =", state.metrics.get_aggregate_value('num helping bike pickups'))
+    print("Number of helping escooter deliveries =", state.metrics.get_aggregate_value('num helping escooter deliveries'))
+    print("Number of helping escooter pickups =", state.metrics.get_aggregate_value('num helping escooter pickups'))
+
+
+
+    # # Output to console
+    # print("================= SIMULATION VERSION =================")
+    # print(f"Simulation time = {DURATION} minutes")
+    # print(f"Total requested trips = {simulator.metrics.get_aggregate_value('trips')}")
+    # print(f"Bike departures = {simulator.metrics.get_aggregate_value('bike departure')}")
+    # print(f"Escooter departures = {simulator.metrics.get_aggregate_value('escooter departure')}")
+    # print(f"Bike arrival = {simulator.metrics.get_aggregate_value('bike arrival')}")
+    # print(f"Escooter arrival = {simulator.metrics.get_aggregate_value('escooter arrival')}")
+    # print(f"Vehicle arrivals = {simulator.metrics.get_aggregate_value('vehicle arrivals')}")
+    # print(f"Starvations = {simulator.metrics.get_aggregate_value('starvations')}")
+    # print(f"Roaming for bikes = {simulator.metrics.get_aggregate_value('roaming for bikes')}")
+    # print(f"Roaming distance for bikes = {round(simulator.metrics.get_aggregate_value('roaming distance for bikes'), 2)} km")
+    # print(f"Congestions = {simulator.metrics.get_aggregate_value('long congestions')}")
+    # print(f"Roaming distance for locks = {round(simulator.metrics.get_aggregate_value('roaming distance for locks'), 2)} km")
+    # print(f"help pickup = {round(simulator.metrics.get_aggregate_value('num helping bike pickups'), 2)}")
+    # print(f"help delivery = {round(simulator.metrics.get_aggregate_value('num helping bike deliveries'), 2)}")
+
+    # print("Failed events =", simulator.metrics.get_aggregate_value('failed events'))
+    # print("Starvations =", simulator.metrics.get_aggregate_value('starvations'))
+    # print("Escooter starvations =", simulator.metrics.get_aggregate_value('escooter starvations'))
+    # print("Bike starvations =", simulator.metrics.get_aggregate_value('bike starvations'))
+    # print("Battery starvations =", simulator.metrics.get_aggregate_value('battery starvations'))
+    # print("Battery violations =", simulator.metrics.get_aggregate_value('battery violations'))
+    # print("Long congestions =", simulator.metrics.get_aggregate_value('long congestions'))
+    # print("Short congestions =", simulator.metrics.get_aggregate_value('short congestions'))
+
+    # print("Number of bike deliveries =", simulator.metrics.get_aggregate_value('num bike deliveries'))
+    # print("Number of bike pickups =", simulator.metrics.get_aggregate_value('num bike pickups'))
+    # print("Number of battery swaps =", simulator.metrics.get_aggregate_value('num battery swaps'))
+    # print("Number of escooter deliveries =", simulator.metrics.get_aggregate_value('num escooter deliveries'))
+    # print("Number of escooter pickups =", simulator.metrics.get_aggregate_value('num escooter pickups'))
+    # print("Number of helping bike deliveries =", simulator.metrics.get_aggregate_value('num helping bike deliveries'))
+    # print("Number of helping bike pickups =", simulator.metrics.get_aggregate_value('num helping bike pickups'))
+    # print("Number of helping escooter deliveries =", simulator.metrics.get_aggregate_value('num helping escooter deliveries'))
+    # print("Number of helping escooter pickups =", simulator.metrics.get_aggregate_value('num helping escooter pickups'))
+    
+    
+    
+    
+    
     # results_visualizer = policies.inngjerdingen_moeller.manage_results.VisualizeResults(simulator)
     # results_visualizer.visualize_violations_and_roaming()
     # results_visualizer.visualize_total_roaming_distances()

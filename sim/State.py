@@ -1,4 +1,7 @@
+import sim
+from sim.LoadSave import LoadSave
 import numpy as np
+from settings import *
 import copy
 import json
 import gzip
@@ -6,13 +9,9 @@ import os
 import random
 import geopy
 # from policies.inngjerdingen_moeller.parameters_MILP import MILP_data 
+from sim import Metric
 
-
-import sim
-
-from settings import *
-
-class State():
+class State(LoadSave):
     """
     Container class for the whole state of all stations. Data concerning the interplay between stations are stored here
     """
@@ -29,8 +28,10 @@ class State():
         traveltime_vehicle_matrix_stddev=None, 
         rng = None,
         rng2 = None,
-        seed = None
+        seed = None,
     ):
+        self.time = 0
+
         if rng is None:
             self.rng = np.random.default_rng(None)
         else:
@@ -54,6 +55,7 @@ class State():
         self.traveltime_vehicle_matrix_stddev = traveltime_vehicle_matrix_stddev
 
         self.mapdata = mapdata
+        self.metrics = Metric()
 
     def sloppycopy(self, *args):
         new_state = State(
@@ -69,7 +71,7 @@ class State():
 
         for vehicle in new_state.get_vehicles():
             vehicle.location = new_state.get_location_by_id(
-                vehicle.location.location_id
+                vehicle.location.id
             )
 
         return new_state
@@ -95,8 +97,8 @@ class State():
         
         for station in merged_state.get_stations():
             area = merged_state.get_area_by_lat_lon(station.get_lat(), station.get_lon())
-            station.area = area.location_id
-            area.station = station.location_id
+            station.area = area.id
+            area.station = station.id
 
         merged_state.mapdata = sb_state.mapdata
         
@@ -191,7 +193,7 @@ class State():
 
             bikes = []
             for battery in area["e_scooters"]:
-                bikes.append(sim.EScooter(*(center_position), location_id = areaObj.location_id, bike_id = "ES"+str(escooter_id_counter), battery = battery))
+                bikes.append(sim.EScooter(*(center_position), location_id = areaObj.id, bike_id = "ES"+str(escooter_id_counter), battery = battery))
                 escooter_id_counter += 1
 
             areaObj.set_bikes(bikes)
@@ -254,9 +256,9 @@ class State():
         locations = []
         num_stations = 0
         num_depots = 0
-
         num_ebikes = 0
         num_bikes = 0
+        
         for station in statedata["stations"]:
             capacity = DEFAULT_STATION_CAPACITY
             if "capacity" in station:
@@ -297,7 +299,7 @@ class State():
                                          arrive_intensities_stdev = station["arrive_intensities_stdev"],
                                          move_probabilities = station["move_probabilities"],
                                          )
-
+        
             # create bikes
             bikes = []
             for _ in range(station["num_bikes"]):
@@ -317,6 +319,7 @@ class State():
             locations.append(stationObj)
 
         # create state
+        
         mapdata = None
         if "map" in statedata:
             mapdata = (statedata["map"], statedata["map_boundingbox"])
@@ -328,13 +331,13 @@ class State():
         for i in range(len(statedata["traveltime"])):
             for y in range(len(statedata["traveltime"])):
                 if statedata["traveltime"]:
-                    traveltime_matrix[(locations[i].location_id, locations[y].location_id)] = statedata["traveltime"][i][y]
+                    traveltime_matrix[(locations[i].id, locations[y].id)] = statedata["traveltime"][i][y]
                 if statedata["traveltime_stdev"]:
-                    traveltime_matrix_stddev[(locations[i].location_id, locations[y].location_id)] = statedata["traveltime_stdev"][i][y]
+                    traveltime_matrix_stddev[(locations[i].id, locations[y].id)] = statedata["traveltime_stdev"][i][y]
                 if statedata["traveltime_vehicle"]:
-                    traveltime_vehicle_matrix[(locations[i].location_id, locations[y].location_id)] = statedata["traveltime_vehicle"][i][y]
+                    traveltime_vehicle_matrix[(locations[i].id, locations[y].id)] = statedata["traveltime_vehicle"][i][y]
                 if statedata["traveltime_vehicle_stdev"]:
-                    traveltime_vehicle_matrix_stddev[(locations[i].location_id, locations[y].location_id)] = statedata["traveltime_vehicle_stdev"][i][y]
+                    traveltime_vehicle_matrix_stddev[(locations[i].id, locations[y].id)] = statedata["traveltime_vehicle_stdev"][i][y]
 
         state = State(locations= locations,
                       mapdata = mapdata,
@@ -358,8 +361,8 @@ class State():
                 distance = location.distance_to(*neighbour_coords)
                 travel_time = (distance / speed) * 60  # Calculate travel time once
                 # Set travel time for both directions due to symmetry
-                traveltime_matrix[(location.location_id, neighbour.location_id)] = travel_time
-                traveltime_matrix[(neighbour.location_id, location.location_id)] = travel_time
+                traveltime_matrix[(location.id, neighbour.id)] = travel_time
+                traveltime_matrix[(neighbour.id, location.id)] = travel_time
         return traveltime_matrix
 
         # traveltime_matrix = {}
@@ -369,10 +372,10 @@ class State():
         # return traveltime_matrix
 
     def set_locations(self, locations):
-        self.locations = {location.location_id: location for location in locations}
-        self.stations = { station.location_id : station for station in locations if isinstance(station, sim.Station) and not isinstance(station, sim.Depot)}
-        self.depots = { station.location_id : station for station in locations if isinstance(station, sim.Depot) }
-        self.areas = { area.location_id : area for area in locations if isinstance(area, sim.Area) }
+        self.locations = {location.id: location for location in locations}
+        self.stations = { station.id : station for station in locations if isinstance(station, sim.Station) and not isinstance(station, sim.Depot)}
+        self.depots = { station.id : station for station in locations if isinstance(station, sim.Depot) }
+        self.areas = { area.id : area for area in locations if isinstance(area, sim.Area) }
 
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
@@ -699,8 +702,8 @@ class State():
         neighbours = [
             state_station
             for state_station in self.get_stations()
-            if state_station.location_id != station.location_id
-            and state_station.location_id not in (exclude if exclude else [])
+            if state_station.id != station.id
+            and state_station.id not in (exclude if exclude else [])
         ]
         if is_sorted:
             if not_full:
@@ -708,32 +711,32 @@ class State():
                     [
                         state_station
                         for state_station in self.get_stations()
-                        if state_station.location_id != station.location_id
-                        and state_station.location_id not in (exclude if exclude else [])
+                        if state_station.id != station.id
+                        and state_station.id not in (exclude if exclude else [])
                         and state_station.spare_capacity() >= 1
                     ],
-                    key=lambda state_station: self.traveltime_matrix[(station.location_id, state_station.location_id)],
+                    key=lambda state_station: self.traveltime_matrix[(station.id, state_station.id)],
                 )
             elif not_empty:
                 neighbours = sorted(
                     [
                         state_station
                         for state_station in self.get_stations()
-                        if state_station.location_id != station.location_id
-                        and state_station.location_id not in (exclude if exclude else [])
+                        if state_station.id != station.id
+                        and state_station.id not in (exclude if exclude else [])
                         and len(state_station.get_available_bikes()) >= 1
                     ],
-                    key=lambda state_station: self.traveltime_matrix[(station.location_id, state_station.location_id)],
+                    key=lambda state_station: self.traveltime_matrix[(station.id, state_station.id)],
                 )
             else:
                 neighbours = sorted(
                     [
                         state_station
                         for state_station in self.get_stations()
-                        if state_station.location_id != station.location_id
-                        and state_station.location_id not in (exclude if exclude else [])
+                        if state_station.id != station.id
+                        and state_station.id not in (exclude if exclude else [])
                     ],
-                    key=lambda state_station: self.traveltime_matrix[(station.location_id, state_station.location_id)],
+                    key=lambda state_station: self.traveltime_matrix[(station.id, state_station.id)],
                 )
 
         test = neighbours[:number_of_neighbours] if number_of_neighbours else neighbours
@@ -791,9 +794,9 @@ class State():
             )
         if not closest_depot:
             vehicle.battery_inventory = vehicle.battery_inventory_capacity
-            return vehicle.location.location_id
+            return vehicle.location.id
         
-        return closest_depot.location_id
+        return closest_depot.id
     
     def sample(self, sample_size: int):
         # Filter out bikes not in sample
@@ -807,11 +810,14 @@ class State():
                 if bike.bike_id in sampled_bike_ids
             ])
 
+
     def day(self):
         return int((self.time // (60*24)) % 7)
 
+
     def hour(self):
         return int((self.time // 60) % 24)
+
 
     def get_vehicle_by_id(self, vehicle_id):
         """

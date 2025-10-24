@@ -24,6 +24,7 @@ class Area(Location):
         center_location = None,
         move_probabilities = None,
         target_state = None,
+        capacity = DEFAULT_STATION_CAPACITY,
         is_station_based = False
     ):
         super().__init__(
@@ -31,6 +32,8 @@ class Area(Location):
         )
 
         self.set_bikes(bikes)
+        self.capacity = int(capacity) if capacity != 'inf' else float(capacity) # handles if capacity isn't infinite
+
 
         self.station = station
         self.border_vertices = border_vertices
@@ -53,7 +56,7 @@ class Area(Location):
 
     def sloppycopy(self, *args):
         return Area(
-            self.location_id,
+            self.id,
             list(copy.deepcopy(self.border_vertices)),
             list(copy.deepcopy(self.bikes).values()),
             leave_intensities=self.leave_intensities,
@@ -72,15 +75,15 @@ class Area(Location):
             return num_bikes - sum_target
         return self.number_of_bikes() - self.get_target_state(day, hour)
     
-    def get_difference_from_target_discounted_drive_time(self, day, hour, depature_area, simul):
-        travel_time = simul.state.get_vehicle_travel_time(depature_area.location_id, self.location_id)
+    def get_difference_from_target_discounted_drive_time(self, day, hour, depature_area, state):
+        travel_time = state.get_vehicle_travel_time(depature_area.id, self.id)
         diff = self.get_difference_from_target(day, hour, True)
         return diff * (1 - (travel_time/30))
 
     def set_bikes(self, bikes):
         self.bikes = {bike.bike_id : bike for bike in bikes}
         for bike in bikes:
-            bike.set_location(self.lat, self.lon, self.location_id)
+            bike.set_location(self.lat, self.lon)
 
     def get_neighbours(self):
         return self.neighbours
@@ -91,10 +94,10 @@ class Area(Location):
     def get_move_probabilities(self, state, day, hour):
         if self.move_probabilities is None: # if not set, it is a uniform distribution between all areas
             num_areas = len(state.areas)
-            mp = {area.location_id: 1/num_areas for area in state.get_areas()}
+            mp = {area.id: 1/num_areas for area in state.get_areas()}
             return mp
         mp = self.move_probabilities[day % 7][hour % 24]
-        mp2 = {area.location_id: 0.0 for area in state.get_areas()}
+        mp2 = {area.id: 0.0 for area in state.get_areas()}
         for key, value in mp.items():
             if key in mp2.keys():
                 mp2[key] = value
@@ -122,7 +125,7 @@ class Area(Location):
     def add_bike(self, bike):
         # Adding bike to bike list
         self.bikes[bike.bike_id] = bike
-        bike.set_location(self.get_lat(), self.get_lon(), self.location_id)
+        bike.set_location(self.get_lat(), self.get_lon())
         return True
 
     def remove_bike(self, bike):
@@ -156,8 +159,8 @@ class Area(Location):
     
     def __repr__(self):
         return (
-            f"<Area {self.location_id}: {len(self.bikes)} bikes>"
+            f"<Area {self.id}: {len(self.bikes)} bikes>"
         )
 
     def __str__(self):
-        return f"Area {self.location_id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):4.2f} Bikes {len(self.bikes):3d}"
+        return f"Area {self.id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8):4.2f} Bikes {len(self.bikes):3d}"

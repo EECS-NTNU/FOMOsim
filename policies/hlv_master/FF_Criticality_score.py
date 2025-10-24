@@ -12,13 +12,13 @@ Criticality score is based on:
 - Driving time = The time it takes for the vehicle to arrive contributes to the criticality
 """
 
-def calculate_criticality(weights, simul, potential_clusters, station, total_num_escooters_in_system, visited_clusters = None, hourly_discharge = 0):
+def calculate_criticality(weights, state, potential_clusters, station, total_num_escooters_in_system, visited_clusters = None, hourly_discharge = 0):
     """
     Returns a dictionary with station and criticality score for all potential station to visit. The higher the score the more critical the station is.
 
     Parameters:
     - weights = list of the weights of how much each component matters. Float from 0-1, summed to 1
-    - simul = Simulator
+    - state = State
     - potential_clusters= list of Cluster-objects to consider visiting
     - total_num_bikes_in_system = int, number of bikes total
     - visited_cluster = tabu_list og clusters that should not be visited
@@ -36,12 +36,12 @@ def calculate_criticality(weights, simul, potential_clusters, station, total_num
     BL_composition_list = []
 
     for potential_cluster in potential_clusters:
-        net_demand = calculate_net_demand(potential_cluster, simul.time, simul.day(), simul.hour(), TIME_HORIZON)
-        target_state = potential_cluster.get_target_state(simul.day(),simul.hour())
+        net_demand = calculate_net_demand(potential_cluster, state.time, state.day(), state.hour(), TIME_HORIZON)
+        target_state = potential_cluster.get_target_state(state.day(),state.hour())
         potential_cluster_type = calculate_cluster_type(target_state, len(potential_cluster.get_available_bikes()) + net_demand)
 
         # Time to violation
-        time_to_violation = calculate_time_to_violation(net_demand, potential_cluster, simul, total_num_escooters_in_system, hourly_discharge)
+        time_to_violation = calculate_time_to_violation(net_demand, potential_cluster, state, total_num_escooters_in_system, hourly_discharge)
         time_to_violation_list.append(time_to_violation)
 
         # Deviation from target state
@@ -49,7 +49,7 @@ def calculate_criticality(weights, simul, potential_clusters, station, total_num
         deviation_list.append(deviation_from_target_state)
 
         # Neighborhood criticality
-        neighborhood_crit = calculate_neighborhood_criticality(simul, potential_cluster, potential_cluster_type)
+        neighborhood_crit = calculate_neighborhood_criticality(state, potential_cluster, potential_cluster_type)
         neighborhood_crit_list.append(neighborhood_crit)
 
         # Demand criticality
@@ -57,11 +57,11 @@ def calculate_criticality(weights, simul, potential_clusters, station, total_num
         demand_crit_list.append(demand_crit)
 
         # Driving time criticality
-        driving_time_crit = calculate_driving_time_crit(simul, station, potential_cluster)
+        driving_time_crit = calculate_driving_time_crit(state, station, potential_cluster)
         driving_time_list.append(driving_time_crit)
 
         # Battery level composition criticality
-        battery_level_comp_crit = calculate_battery_level_composition_criticality(simul, potential_cluster, total_num_escooters_in_system, hourly_discharge)
+        battery_level_comp_crit = calculate_battery_level_composition_criticality(state, potential_cluster, total_num_escooters_in_system, hourly_discharge)
         BL_composition_list.append(battery_level_comp_crit)
 
         criticalities[potential_cluster] = [time_to_violation, deviation_from_target_state, neighborhood_crit, demand_crit, driving_time_crit, battery_level_comp_crit]
@@ -87,7 +87,7 @@ def calculate_criticality(weights, simul, potential_clusters, station, total_num
 
     return criticalities_summed
 
-def calculate_time_to_violation(net_demand, cluster, simul, total_num_escooters_in_system, hourly_discharge = None):
+def calculate_time_to_violation(net_demand, cluster, state, total_num_escooters_in_system, hourly_discharge = None):
     """
     Returns a float-score of how critical the station is based on how many hours until a starvation/congestion occurs.
     A low score is critical, while high is less critical
@@ -95,7 +95,7 @@ def calculate_time_to_violation(net_demand, cluster, simul, total_num_escooters_
     Parameters:
     - net_demand = float, the net demand calculated from the location's arrive/leave intensities (positive = bikes are arriving, negative = bikes are departuring)
     - cluster = Cluster-object under consideration
-    - simul = Simulator
+    - state = State
     - total_num_escooters_in_system = total number of bikes in the system
     """
     time_to_violation = 0
@@ -125,7 +125,7 @@ def calculate_time_to_violation(net_demand, cluster, simul, total_num_escooters_
 
         # Calculate the hourly discharge rate once
         if hourly_discharge is None:
-            hourly_discharge = calculate_hourly_discharge_rate(simul, total_num_escooters_in_system)
+            hourly_discharge = calculate_hourly_discharge_rate(state, total_num_escooters_in_system)
 
         # Calculate the time to battery limit violation
         violation_battery = battery_over_limit_top3 / hourly_discharge if hourly_discharge != 0 else 8
@@ -151,13 +151,13 @@ def calculate_deviation_from_target_state(cluster, net_demand, target_state):
     
     return deviation_from_target_state
 
-def calculate_neighborhood_criticality(simul, cluster, cluster_type):
+def calculate_neighborhood_criticality(state, cluster, cluster_type):
     """
     Returns a int-score on how the neighboring stations, impact the criticality.
     The higher the score, the more critical.
 
     Parameters:
-    - simul = Simulator
+    - state = State
     - cluster = Station-object under consideration
     - cluster_type = if it is a pick up or delivery station (or balanced)
     """
@@ -168,8 +168,8 @@ def calculate_neighborhood_criticality(simul, cluster, cluster_type):
     for neighbor in neighbors:
         cluster_crit = 0
         
-        neighbor_net_demand = calculate_net_demand(neighbor, simul.time, simul.day(), simul.hour(), 60)
-        neighbor_target_state = neighbor.get_target_state(simul.day(),simul.hour())
+        neighbor_net_demand = calculate_net_demand(neighbor, state.time, state.day(), state.hour(), 60)
+        neighbor_target_state = neighbor.get_target_state(state.day(),state.hour())
 
         expected_num_usable_escooters = len(neighbor.get_available_bikes()) + neighbor_net_demand
         neighbor_type = calculate_cluster_type(neighbor_target_state, expected_num_usable_escooters)
@@ -238,20 +238,20 @@ def calculate_demand_criticality(cluster_type, net_demand):
 
     return demand_crit
 
-def calculate_driving_time_crit(simul, current_cluster, potential_cluster):
+def calculate_driving_time_crit(state, current_cluster, potential_cluster):
     """
     Returns the driving time between two cluster-centers.
     The lower the score the more critical.
     """
-    return simul.state.get_vehicle_travel_time(current_cluster.location_id, potential_cluster.location_id)
+    return state.get_vehicle_travel_time(current_cluster.id, potential_cluster.id)
 
-def calculate_battery_level_composition_criticality(simul, station, total_num_bikes_in_system, hourly_discharge_rate):
+def calculate_battery_level_composition_criticality(state, station, total_num_bikes_in_system, hourly_discharge_rate):
     """
     Returns a float-score based on how the battery levels may be in the future.
     The lower the score, the more critical.
 
     Parameters:
-    - simul = Simulator
+    - state = State
     - station = Station-object under consideration
     - total_num_bikes_in_system = total number of bikes in the system
     """

@@ -10,7 +10,7 @@ from collections import deque
 from .Simple_calculations import calculate_net_demand
 from .FF_Criticality_score import calculate_time_to_violation
 
-def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_location, operation, simul):
+def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_location, operation, state):
     """
     Returns a list of n cluster-objects that are pickup clusters.
 
@@ -45,15 +45,15 @@ def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_l
             possible_areas += heapq.nlargest(n//2, areas, key=lambda area: area.get_difference_from_target(day_now, hour_now, CLUSTER_USE_NEIGHBOURS))
     elif critierta == "target+drive":
         if operation == "delivery":
-            possible_areas = heapq.nlargest(n, areas, key=lambda area: -area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, simul))
+            possible_areas = heapq.nlargest(n, areas, key=lambda area: -area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, state))
         elif operation == "pickup":
-            possible_areas = heapq.nlargest(n, areas, key=lambda area: area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, simul))
+            possible_areas = heapq.nlargest(n, areas, key=lambda area: area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, state))
         elif operation == "both":
-            possible_areas = heapq.nlargest(n//2, areas, key=lambda area: -area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, simul))
-            possible_areas += heapq.nlargest(n//2, areas, key=lambda area: area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, simul))
+            possible_areas = heapq.nlargest(n//2, areas, key=lambda area: -area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, state))
+            possible_areas += heapq.nlargest(n//2, areas, key=lambda area: area.get_difference_from_target_discounted_drive_time(day_now, hour_now, departure_location, state))
         
     elif critierta == "violation":
-        possible_areas = heapq.nsmallest(n, areas, key=lambda area: calculate_time_to_violation(calculate_net_demand(area, time_now, day_now, hour_now, TIME_HORIZON), area, simul, len(simul.state.get_all_ff_bikes())))
+        possible_areas = heapq.nsmallest(n, areas, key=lambda area: calculate_time_to_violation(calculate_net_demand(area, time_now, day_now, hour_now, TIME_HORIZON), area, state, len(state.get_all_ff_bikes())))
     
     
 
@@ -67,7 +67,7 @@ def find_clusters(areas, n, max_length, battery_inventory, time_now, departure_l
             c, tabu_list = build_cluster(tabu_list, c, max_length)
 
             # Only add the cluster into potenial clusters if it doesn't balance it self out by it's neighbors, but have too many bikes
-            travel_time = simul.state.get_vehicle_travel_time(departure_location.location_id, area.location_id) + MINUTES_CONSTANT_PER_ACTION
+            travel_time = state.get_vehicle_travel_time(departure_location.id, area.id) + MINUTES_CONSTANT_PER_ACTION
             arrival_time = time_now + travel_time
             day_arrival = int((arrival_time // (60*24)) % 7)
             hour_arrival = int((arrival_time // 60) % 24)
@@ -93,7 +93,7 @@ def build_cluster(tabu_list, c, max_depth):
         neighbours = deque(new_neighbours)
     
     if len(c.areas) > 127:
-        print("for mange neighbours", c.location_id, len(c.areas))
+        print("for mange neighbours", c.id, len(c.areas))
 
     return c, tabu_list
 
@@ -107,7 +107,7 @@ class Cluster(Location):
         neighbours = [],
     ):
         super().__init__(
-            *(center_area.get_location() if center_area.get_location() else self.__compute_center(center_area.border_vertices)), center_area.location_id
+            *(center_area.get_location() if center_area.get_location() else self.__compute_center(center_area.border_vertices)), center_area.id
         )
 
         self.center_area = center_area
@@ -140,7 +140,7 @@ class Cluster(Location):
         return sum(calculate_net_demand(area, time_now, day, hour, min(travel_time, 60)) for area in self.areas)
 
     def get_neighbours(self):
-        neighbours = {neighbor.location_id: neighbor for area in self.areas 
+        neighbours = {neighbor.id: neighbor for area in self.areas 
                                                      for neighbor in area.get_neighbours() 
                                                      if neighbor not in self.areas}
         return list(neighbours.values())
@@ -207,5 +207,5 @@ class Cluster(Location):
     
     def __repr__(self):
         return (
-            f'Cluster: (Center = {self.center_area.location_id}, Areas = {len(self.areas)} (not_included = {len(self.not_included)}), Bikes = {len(self.get_bikes())} (avail = {len(self.get_available_bikes())})'
+            f'Cluster: (Center = {self.center_area.id}, Areas = {len(self.areas)} (not_included = {len(self.not_included)}), Bikes = {len(self.get_bikes())} (avail = {len(self.get_available_bikes())})'
         )
