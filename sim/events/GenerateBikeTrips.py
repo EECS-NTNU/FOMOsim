@@ -15,21 +15,21 @@ class GenerateBikeTrips(Event):
         super().__init__(time)
 
    # def perform(self, simul) -> None:
-    def perform(self, world) -> None:
+    def perform(self, simul) -> None:
 
         #super().perform(simul)
-        super().perform(world)
+        super().perform(simul)
 
-        for departure_station in world.state.get_stations():
+        for departure_station in simul.state.get_stations():
             # poisson process to select number of trips in a iteration
             number_of_trips = 2*round(
-                world.state.rng.poisson(departure_station.get_leave_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
+                simul.state.rng.poisson(departure_station.get_leave_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
             )
 
             # generate trip departure times (can be implemented with np.random.uniform if we want decimal times)
             # both functions generate numbers from a discrete uniform distribution
             trips_departure_time = sorted(
-                world.state.rng.integers(
+                simul.state.rng.integers(
                     self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                 )
             )
@@ -42,23 +42,23 @@ class GenerateBikeTrips(Event):
                 departure_event = sim.BikeDeparture(
                     departure_time, departure_station.id
                 )
-                world.add_event(departure_event)
+                simul.add_event(departure_event)
                 # path= 'policies/inngjerdingen_moeller/simulation_results/InnMoll.csv'
                 # with open(path,'a', newline='') as f:
                 #     writer=csv.writer(f)
                 #     writer.writerow([departure_station.location_id,int(departure_time)])
         
         if not FULL_TRIP: 
-            for arrival_station in world.state.get_stations():
+            for arrival_station in simul.state.get_stations():
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(
-                    world.state.rng.poisson(arrival_station.get_arrive_intensity(world.state.day(), world.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
+                    simul.state.rng.poisson(arrival_station.get_arrive_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
                 )
 
                 # generate trip arrival times (can be implemented with np.random.uniform if we want decimal times)
                 # both functions generate numbers from a discrete uniform distribution
                 trips_arrival_time = sorted(
-                    world.state.rng.integers(
+                    simul.state.rng.integers(
                         self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                     )
                 )
@@ -73,6 +73,6 @@ class GenerateBikeTrips(Event):
                         None,
                         0,
                     )
-                    world.add_event(arrival_event)
+                    simul.add_event(arrival_event)
 
-        world.add_event(GenerateBikeTrips(self.time + ITERATION_LENGTH_MINUTES))
+        simul.add_event(GenerateBikeTrips(self.time + ITERATION_LENGTH_MINUTES))

@@ -24,9 +24,9 @@ class EScooter(Location):
 
     def travel(self, simul, travel_time, congested = False):
       if congested:
-          self.metrics.add_metric(simul, "travel_time_congested", travel_time)
+          self.metrics.add_metric(simul.state, "travel_time_congested", travel_time)
       else:
-          self.metrics.add_metric(simul, "travel_time", travel_time)
+          self.metrics.add_metric(simul.state, "travel_time", travel_time)
       self.battery -= travel_time * self.battery_change_per_minute
       self.log2.append(self.id)
 

@@ -23,46 +23,46 @@ class BikeArrival(Event):
         self.travel_time = travel_time
         self.congested = congested
 
-    def perform(self, world) -> None:
+    def perform(self, simul) -> None:
         """
-        :param world: world object
+        :param simul: Simulation object
         """
 
-        super().perform(world)
+        super().perform(simul)
 
         # get arrival station 
-        arrival_station = world.state.get_location_by_id(self.arrival_station_id)
+        arrival_station = simul.state.get_location_by_id(self.arrival_station_id)
 
         if not FULL_TRIP:
-            self.bike = world.state.get_used_bike()
+            self.bike = simul.state.get_used_bike()
 
         if self.bike is not None:
-            self.bike.travel(world, self.travel_time, self.congested)
+            self.bike.travel(simul, self.travel_time, self.congested)
 
             if self.bike.battery < 0:
-                world.state.metrics.add_aggregate_metric(world, "battery violations", 1)
-                world.state.metrics.add_aggregate_metric(world, "failed events", 1)
+                simul.state.metrics.add_aggregate_metric(simul.state, "battery violations", 1)
+                simul.state.metrics.add_aggregate_metric(simul.state, "failed events", 1)
                 self.bike.battery = 0
 
             # add bike to the arrived station (location is changed in add_bike method)
             if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:
-                    world.state.remove_used_bike(self.bike)
+                    simul.state.remove_used_bike(self.bike)
                 
-                world.state.metrics.add_aggregate_metric(world, "bike arrival", 1)
+                simul.state.metrics.add_aggregate_metric(simul.state, "bike arrival", 1)
 
             else:
                 if FULL_TRIP:
                     # go to another station
-                    next_station = world.state.get_neighbouring_stations(arrival_station, 1, not_full=True)[0]
+                    next_station = simul.state.get_neighbouring_stations(arrival_station, 1, not_full=True)[0]
 
-                    travel_time = world.state.get_travel_time(
+                    travel_time = simul.state.get_travel_time(
                         arrival_station.id,
                         next_station.id,
                     )
 
                     # create an arrival event for the departed bike
-                    world.add_event(
+                    simul.add_event(
                         sim.BikeArrival(
                             self.time,
                             travel_time,
@@ -73,21 +73,21 @@ class BikeArrival(Event):
                         )
                     )
 
-                    world.state.metrics.add_aggregate_metric(world, "events", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "events", 1)
 
 
                 else:
-                    world.state.set_bike_in_use(self.bike)
+                    simul.state.set_bike_in_use(self.bike)
 
                 distance = arrival_station.distance_to(next_station.get_lat(), next_station.get_lon())
                 if distance <= MAX_ROAMING_DISTANCE_SOLUTIONS:
-                    world.state.metrics.add_aggregate_metric(world, "short congestions", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "short congestions", 1)
                 else:
-                    world.state.metrics.add_aggregate_metric(world, "long congestions", 1)
-                    world.state.metrics.add_aggregate_metric(world, "failed events", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "long congestions", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "failed events", 1)
                 
-                world.state.metrics.add_aggregate_metric(world, "roaming for locks", 1)
-                world.state.metrics.add_aggregate_metric(world, "roaming distance for locks", distance)
+                simul.state.metrics.add_aggregate_metric(simul.state, "roaming for locks", 1)
+                simul.state.metrics.add_aggregate_metric(simul.state, "roaming distance for locks", distance)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_station_id}>"

@@ -23,33 +23,33 @@ class EScooterArrival(Event):
         self.travel_time = travel_time
         self.congested = congested
 
-    def perform(self, world) -> None:
+    def perform(self, simul) -> None:
         """
-        :param world: world object
+        :param simul: Simulation object
         """
 
-        super().perform(world)
+        super().perform(simul)
 
         # get arrival area 
-        arrival_area = world.state.get_location_by_id(self.arrival_area_id)
+        arrival_area = simul.state.get_location_by_id(self.arrival_area_id)
 
         if not FULL_TRIP:
-            self.escooter = world.state.get_used_bike()
+            self.escooter = simul.state.get_used_bike()
 
         if self.escooter is not None:
-            self.escooter.travel(world, self.travel_time, self.congested)
+            self.escooter.travel(simul, self.travel_time, self.congested)
 
             if self.escooter.battery < 0:
-                world.state.metrics.add_aggregate_metric(world, "battery violations", 1)
-                world.state.metrics.add_aggregate_metric(world, "failed events", 1)
+                simul.state.metrics.add_aggregate_metric(simul.state, "battery violations", 1)
+                simul.state.metrics.add_aggregate_metric(simul.state, "failed events", 1)
                 self.escooter.battery = 0
 
             if FULL_TRIP:
-                world.state.remove_used_bike(self.escooter)
+                simul.state.remove_used_bike(self.escooter)
 
             arrival_area.add_bike(self.escooter)
         
-        world.state.metrics.add_aggregate_metric(world, "escooter arrival", 1)
+        simul.state.metrics.add_aggregate_metric(simul.state, "escooter arrival", 1)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_area_id}>"

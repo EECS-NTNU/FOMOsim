@@ -51,13 +51,13 @@ def main(seed):
     state.set_seed(seed)
     
     ###############################################################################
-    print("Policy: BS Greedy, Seed:", seed)
-    policy = policies.GreedyPolicy()
-    state.set_sb_vehicles([policy])
-
-    # print("Policy: BS_PILOT, Seed:", seed)
-    # policy = policies.hlv_master.BS_PILOT()
+    # print("Policy: BS Greedy, Seed:", seed)
+    # policy = policies.GreedyPolicy()
     # state.set_sb_vehicles([policy])
+
+    print("Policy: BS_PILOT, Seed:", seed)
+    policy = policies.hlv_master.BS_PILOT()
+    state.set_sb_vehicles([policy])
 
     # print("Policy: BS_PILOT_FF, Seed:", seed)
     # policy_ff = policies.hlv_master.BS_PILOT_FF()

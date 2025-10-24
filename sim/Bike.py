@@ -22,9 +22,9 @@ class Bike(Location):
 
     def travel(self, simul, travel_time, congested = False):
         if congested:
-            self.metrics.add_metric(simul, "travel_time_congested", travel_time)
+            self.metrics.add_metric(simul.state, "travel_time_congested", travel_time)
         else:
-            self.metrics.add_metric(simul, "travel_time", travel_time)
+            self.metrics.add_metric(simul.state, "travel_time", travel_time)
 
     def usable(self):
       return True

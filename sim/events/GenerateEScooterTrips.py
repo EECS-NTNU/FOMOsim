@@ -14,22 +14,22 @@ class GenerateEScooterTrips(Event):
     def __init__(self, time: int):
         super().__init__(time)
 
-    def perform(self, world) -> None:
+    def perform(self, simul) -> None:
 
-        super().perform(world)
+        super().perform(simul)
 
-        print("Time:", world.time)
+        print("Time:", simul.state.time)
 
-        for departure_area in world.state.get_areas():
+        for departure_area in simul.state.get_areas():
             # poisson process to select number of trips in a iteration
             number_of_trips = round(
-                world.state.rng.poisson(departure_area.get_leave_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
+                simul.state.rng.poisson(departure_area.get_leave_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
             )
 
             # generate trip departure times (can be implemented with np.random.uniform if we want decimal times)
             # both functions generate numbers from a discrete uniform distribution
             trips_departure_time = sorted(
-                world.state.rng.integers(
+                simul.state.rng.integers(
                     self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                 )
             )
@@ -37,30 +37,30 @@ class GenerateEScooterTrips(Event):
             if settings.TRAFFIC_LOGGING and len(trips_departure_time) > 0:
                 loggDepartures(departure_area.id, trips_departure_time) 
 
-            # generate departure event and add to world event_queue
+            # generate departure event and add to simul event_queue
             for departure_time in trips_departure_time:
                 # add departure event to the event_queue
                 departure_event = sim.EScooterDeparture(
                     departure_time, departure_area.id
                 )
-                world.add_event(departure_event)
+                simul.add_event(departure_event)
         
         if not FULL_TRIP: 
-            for arrival_area in world.state.get_areas():
+            for arrival_area in simul.state.get_areas():
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(
-                    world.state.rng.poisson(arrival_area.get_arrive_intensity(world.day(), world.hour()) / (60/ITERATION_LENGTH_MINUTES))
+                    simul.state.rng.poisson(arrival_area.get_arrive_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
                 )
 
                 # generate trip arrival times (can be implemented with np.random.uniform if we want decimal times)
                 # both functions generate numbers from a discrete uniform distribution
                 trips_arrival_time = sorted(
-                    world.state.rng.integers(
+                    simul.state.rng.integers(
                         self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                     )
                 )
 
-                # generate arrival event and add to world event_queue
+                # generate arrival event and add to simul event_queue
                 for arrival_time in trips_arrival_time:
                     # add arrival event to the event_queue
                     arrival_event = sim.EScooterArrival(
@@ -70,6 +70,6 @@ class GenerateEScooterTrips(Event):
                         None,
                         0,
                     )
-                    world.add_event(arrival_event)
+                    simul.add_event(arrival_event)
 
-        world.add_event(GenerateEScooterTrips(self.time + ITERATION_LENGTH_MINUTES))
+        simul.add_event(GenerateEScooterTrips(self.time + ITERATION_LENGTH_MINUTES))

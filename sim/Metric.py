@@ -14,16 +14,16 @@ class Metric:
 
         self.aggregate = {}
 
-    def add_metric(self, sim, metric, value):
+    def add_metric(self, state, metric, value):
         if metric not in self.metrics:
             self.metrics[metric] = []
             self.aggregate[metric] = False
 
-        self.metrics[metric].append((sim.time, value))
-        if((self.min_time == 0) or (self.min_time > sim.time)):
-            self.min_time = sim.time
-        if(sim.time > self.max_time):
-            self.max_time = sim.time
+        self.metrics[metric].append((state.time, value))
+        if((self.min_time == 0) or (self.min_time > state.time)):
+            self.min_time = state.time
+        if(state.time > self.max_time):
+            self.max_time = state.time
 
     # def add_metric(self, metric, value):
     #     if metric not in self.metrics:
@@ -83,7 +83,7 @@ class Metric:
                     min = val
         return min
 
-    def add_aggregate_metric(self, sim, metric, value):
+    def add_aggregate_metric(self, state, metric, value):
         if metric not in self.metrics:
             self.metrics[metric] = []
             self.aggregate[metric] = False
@@ -94,15 +94,15 @@ class Metric:
         if len(series) > 0:
             last_time = series[-1][0]
             last_value = series[-1][1]
-        if last_time == sim.time:
+        if last_time == state.time:
             series[-1] = (last_time, last_value + value)
         else:
-            series.append((sim.time, last_value + value))
+            series.append((state.time, last_value + value))
 
-        if((self.min_time == 0) or (self.min_time > sim.time)):
-            self.min_time = sim.time
-        if(sim.time > self.max_time):
-            self.max_time = sim.time
+        if((self.min_time == 0) or (self.min_time > state.time)):
+            self.min_time = state.time
+        if(state.time > self.max_time):
+            self.max_time = state.time
 
     # analysis metrics added every timestep
     def add_analysis_metrics(self, sim):

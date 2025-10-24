@@ -14,15 +14,15 @@ class EScooterDeparture(Event):
         super().__init__(departure_time)
         self.departure_area_id = departure_area_id
 
-    def perform(self, world) -> None:
+    def perform(self, simul) -> None:
         """
-        :param world: world object
+        :param simul: Simulation object
         """
 
-        super().perform(world)
+        super().perform(simul)
 
         # get departure area
-        departure_area = world.state.get_location_by_id(self.departure_area_id)
+        departure_area = simul.state.get_location_by_id(self.departure_area_id)
 
         # get all available bike in the area
         available_escooters = departure_area.get_available_bikes()
@@ -32,14 +32,14 @@ class EScooterDeparture(Event):
             escooter = available_escooters.pop(0)
 
             if FULL_TRIP:
-                if world.state.rng.uniform(0, 1) < RANDOM_DESTINATION_PROB:
+                if simul.state.rng.uniform(0, 1) < RANDOM_DESTINATION_PROB:
                     # Exclude the current area from the random selection
-                    other_areas = [area for area in world.state.get_areas() if area.id != self.departure_area_id]
-                    arrival_area = world.state.rng.choice(other_areas)
-                    world.state.metrics.add_aggregate_metric(world, "random trips", 1)
+                    other_areas = [area for area in simul.state.get_areas() if area.id != self.departure_area_id]
+                    arrival_area = simul.state.rng.choice(other_areas)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "random trips", 1)
                 else:
                     # get an arrival area from the leave prob distribution
-                    p=departure_area.get_move_probabilities(world.state, world.day(), world.hour())
+                    p=departure_area.get_move_probabilities(simul.state, simul.state.day(), simul.state.hour())
                     sum_p = sum(p.values())
                     p_normalized = []
                     for i in p.keys():
@@ -47,16 +47,16 @@ class EScooterDeparture(Event):
                             p_normalized.append(p[i] * (1.0/sum_p))
                         else:
                             p_normalized.append(1/len(p))
-                    arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
+                    arrival_area = simul.state.rng.choice(simul.state.get_areas(), p = p_normalized)
 
                 # calculate arrival time
-                travel_time = world.state.get_travel_time(
+                travel_time = simul.state.get_travel_time(
                     departure_area.id,
                     arrival_area.id,
                 )
 
                 # create an arrival event for the departed bike
-                world.add_event(
+                simul.add_event(
                     sim.EScooterArrival(
                         self.time,
                         travel_time,
@@ -69,23 +69,23 @@ class EScooterDeparture(Event):
             # remove bike from the departure area
             departure_area.remove_bike(escooter)
 
-            world.state.set_bike_in_use(escooter)
+            simul.state.set_bike_in_use(escooter)
 
-            world.state.metrics.add_aggregate_metric(world, "escooter departure", 1)
-            world.state.metrics.add_aggregate_metric(world, "events", 2)
+            simul.state.metrics.add_aggregate_metric(simul.state, "escooter departure", 1)
+            simul.state.metrics.add_aggregate_metric(simul.state, "events", 2)
 
         else:
             if FULL_TRIP:
 
                 # Find closest area within allowed radius of Hexagons to search for available bikes
-                closest_neighbour_with_bikes = world.state.get_closest_available_area(departure_area)
+                closest_neighbour_with_bikes = simul.state.get_closest_available_area(departure_area)
 
                 if closest_neighbour_with_bikes:
                     # Find distance to closest neighbor and 
                     distance = departure_area.distance_to(closest_neighbour_with_bikes.get_lat(), closest_neighbour_with_bikes.get_lon())
                     
                     # Get probability distribution for finding arrival area
-                    p = departure_area.get_move_probabilities(world.state, world.day(), world.hour())
+                    p = departure_area.get_move_probabilities(simul.state, simul.state.day(), simul.state.hour())
                     sum_p = sum(p.values())
                     p_normalized = []
                     for i in p.keys():
@@ -97,32 +97,32 @@ class EScooterDeparture(Event):
                     distance = float('inf')
 
                 # Use acceptance/rejection function to decide if roaming is accepted
-                if self.acceptance_rejection(distance, world):
+                if self.acceptance_rejection(distance, simul):
                     available_escooters = closest_neighbour_with_bikes.get_available_bikes()
                     escooter=available_escooters.pop(0)
                     
-                    if world.state.rng.uniform(0, 1) < RANDOM_DESTINATION_PROB:
+                    if simul.state.rng.uniform(0, 1) < RANDOM_DESTINATION_PROB:
                         # Exclude the current area from the random selection
-                        other_areas = [area for area in world.state.get_areas() if area.id != self.departure_area_id]
-                        arrival_area = world.state.rng.choice(other_areas)
-                        world.state.metrics.add_aggregate_metric(world, "random trips", 1)
+                        other_areas = [area for area in simul.state.get_areas() if area.id != self.departure_area_id]
+                        arrival_area = simul.state.rng.choice(other_areas)
+                        simul.state.metrics.add_aggregate_metric(simul.state, "random trips", 1)
                     else:
-                        arrival_area = world.state.rng.choice(world.state.get_areas(), p = p_normalized)
+                        arrival_area = simul.state.rng.choice(simul.state.get_areas(), p = p_normalized)
 
                     # calculate arrival time 
                     #total travel time, roaming for bike from departure area to neighbour + cycling to arrival area
-                    travel_time = world.state.get_travel_time(
+                    travel_time = simul.state.get_travel_time(
                         closest_neighbour_with_bikes.id,
-                        arrival_area.id,) + world.state.get_travel_time(departure_area.id,
+                        arrival_area.id,) + simul.state.get_travel_time(departure_area.id,
                         closest_neighbour_with_bikes.id)*(ESCOOTER_SPEED/WALKING_SPEED)
 
                     # remove bike from the new departure area
                     closest_neighbour_with_bikes.remove_bike(escooter)
 
-                    world.state.set_bike_in_use(escooter)
+                    simul.state.set_bike_in_use(escooter)
 
                     # create an arrival event for the roaming user from the new departure area
-                    world.add_event(
+                    simul.add_event(
                         sim.EScooterArrival(
                             self.time,
                             travel_time,
@@ -132,34 +132,34 @@ class EScooterDeparture(Event):
                         )
                     )
 
-                    world.state.metrics.add_aggregate_metric(world, "escooter departure", 1)
-                    world.state.metrics.add_aggregate_metric(world, "events", 2)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "escooter departure", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "events", 2)
 
-                    world.state.metrics.add_aggregate_metric(world, "roaming for escooters", 1)
-                    world.state.metrics.add_aggregate_metric(world, "roaming distance for escooters", distance)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "roaming for escooters", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "roaming distance for escooters", distance)
 
                 else:
                     if departure_area.number_of_bikes() <= 0:
-                        world.state.metrics.add_aggregate_metric(world, "escooter starvations", 1)
-                        departure_area.metrics.add_aggregate_metric(world, "escooter starvations", 1)
+                        simul.state.metrics.add_aggregate_metric(simul.state, "escooter starvations", 1)
+                        departure_area.metrics.add_aggregate_metric(simul.state, "escooter starvations", 1)
                     else:
-                        world.state.metrics.add_aggregate_metric(world, "battery starvations", 1)
-                        departure_area.metrics.add_aggregate_metric(world, "battery starvations", 1)
+                        simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
+                        departure_area.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
 
-                    world.state.metrics.add_aggregate_metric(world, "events", 1)
-                    world.state.metrics.add_aggregate_metric(world, "starvations", 1)
-                    departure_area.metrics.add_aggregate_metric(world, "starvations", 1)
-                    world.state.metrics.add_aggregate_metric(world, "failed events", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "events", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "starvations", 1)
+                    departure_area.metrics.add_aggregate_metric(simul.state, "starvations", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "failed events", 1)
 
-        world.state.metrics.add_aggregate_metric(world, "trips", 1)
+        simul.state.metrics.add_aggregate_metric(simul.state, "trips", 1)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, departing from area {self.departure_area_id}>"
     
-    def acceptance_rejection(self,distance, world):
+    def acceptance_rejection(self,distance, simul):
         # TODO denne må tilpasses e-scooter kunder
         prob_acceptance = -1.6548*distance**2-0.7036*distance+1.0133
-        random_roaming_limit = world.state.rng.uniform(0,1)
+        random_roaming_limit = simul.state.rng.uniform(0,1)
         if random_roaming_limit <= prob_acceptance:
             return True
         else:
