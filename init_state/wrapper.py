@@ -72,22 +72,29 @@ def get_initial_state(name, source, number_of_stations=None, number_of_bikes=Non
 
     return state
 
-def read_initial_state(sb_jsonFilename = None, ff_jsonFilename = None, number_of_stations=None, number_of_bikes=None):
-    if sb_jsonFilename:
-        with gzip.open(f"{sb_jsonFilename}.json.gz", "r") as sb_infile:
-            dirname = os.path.dirname(sb_jsonFilename);
+def read_initial_state(sb_jsonFilename=None, ff_jsonFilename=None, use_bikes=True, use_escooters=True,
+                       number_of_stations=None, number_of_bikes=None):
+    if use_bikes:
+        if sb_jsonFilename:
+            with gzip.open(f"{sb_jsonFilename}.json.gz", "r") as sb_infile:
+                dirname = os.path.dirname(sb_jsonFilename);
 
-            # load json state
-            sb_statedata = json.load(sb_infile)
+                # load json state
+                sb_statedata = json.load(sb_infile)
+        else:
+            sb_statedata = None
     else:
         sb_statedata = None
     
-    if ff_jsonFilename:
-        with gzip.open(f"{ff_jsonFilename}.json.gz", "r") as ff_infile:
-            dirname = os.path.dirname(ff_jsonFilename);
+    if use_escooters:
+        if ff_jsonFilename:
+            with gzip.open(f"{ff_jsonFilename}.json.gz", "r") as ff_infile:
+                dirname = os.path.dirname(ff_jsonFilename);
 
-            # load json state
-            ff_statedata = json.load(ff_infile)
+                # load json state
+                ff_statedata = json.load(ff_infile)
+        else:
+            ff_statedata = None
     else:
         ff_statedata = None
 
@@ -100,7 +107,8 @@ def read_initial_state(sb_jsonFilename = None, ff_jsonFilename = None, number_of
         set_num_bikes(sb_statedata, number_of_bikes)
     
     # set path to map - bilde (TD_W34.png)
-    if("map" in sb_statedata): sb_statedata["map"] = dirname + "/" + sb_statedata["map"]
+    if(sb_statedata is not None):
+        if("map" in sb_statedata): sb_statedata["map"] = dirname + "/" + sb_statedata["map"]
 
     state = sim.State.get_initial_state(sb_statedata, ff_statedata)
 

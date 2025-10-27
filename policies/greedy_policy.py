@@ -79,7 +79,8 @@ class GreedyPolicy(Policy):
                 # TO DO: MAKE SURE THIS MAKES SENSE!!!!
                 swappable_bikes = vehicle.location.get_swappable_bikes()
                 number_of_batteries_to_swap = min(vehicle.battery_inventory, len(swappable_bikes))
-                batteries_to_swap = [bike.id for bike in swappable_bikes][:number_of_batteries_to_swap]
+                #batteries_to_swap = [bike.id for bike in swappable_bikes][:number_of_batteries_to_swap]
+                batteries_to_swap = [bike.bike_id for bike in swappable_bikes][:number_of_batteries_to_swap]
                 
             elif num_bikes_station > target_state: #pick-up bikes
             

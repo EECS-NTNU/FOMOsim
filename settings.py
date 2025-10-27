@@ -2,6 +2,9 @@
 SIM SETTINGS
 """
 # ------- PRE-DETERMINED PARAMETERS ----------
+# Global settings
+USE_BIKES = True
+USE_ESCOOTERS = True
 
 # Vehicle settings
 VEHICLE_BATTERY_INVENTORY = 50 # How many batteries can a vehicle hold?

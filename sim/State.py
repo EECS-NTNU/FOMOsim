@@ -384,32 +384,35 @@ class State(LoadSave):
     def set_vehicles(self, policies):
         for policy in policies:
             num_vehicles = len(self.vehicles)
-            self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
-                                             start_location = self.locations["S0"], 
-                                             policy = policy, 
-                                             battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
-                                             bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
-                                             is_station_based = None)
+            if num_vehicles > 0:
+                self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
+                                                start_location = self.locations["S0"], 
+                                                policy = policy, 
+                                                battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
+                                                bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
+                                                is_station_based = None)
 
     def set_sb_vehicles(self, policies):
         for policy in policies:
             num_vehicles = len(self.vehicles)
-            self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
-                                             start_location = self.locations["S0"], 
-                                             policy = policy, 
-                                             battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
-                                             bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
-                                             is_station_based = True)
+            if num_vehicles > 0:
+                self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
+                                                start_location = self.locations["S0"], 
+                                                policy = policy, 
+                                                battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
+                                                bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
+                                                is_station_based = True)
 
     def set_ff_vehicles(self, policies):
         for policy in policies:
             num_vehicles = len(self.vehicles)
-            self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
-                                             start_location = self.locations["D0"], 
-                                             policy = policy, 
-                                             battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
-                                             bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
-                                             is_station_based = False)
+            if num_vehicles > 0:
+                self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
+                                                start_location = self.locations["D0"], 
+                                                policy = policy, 
+                                                battery_inventory_capacity = VEHICLE_BATTERY_INVENTORY, 
+                                                bike_inventory_capacity = VEHICLE_BIKE_INVENTORY, 
+                                                is_station_based = False)
             
     def set_move_probabilities(self, move_probabilities):
         for st in self.get_locations():
