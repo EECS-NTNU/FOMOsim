@@ -51,7 +51,6 @@ class Simulator(LoadSave):
         self.state = initial_state
         self.target_state = target_state
         self.demand = demand
-        #self.time = start_time
         self.state.time = start_time
         self.event_queue: List[sim.Event] = []
 
@@ -141,12 +140,6 @@ class Simulator(LoadSave):
                 self.progress_bar.next()
         if self.verbose:
             self.progress_bar.finish()
-
-    # def day(self):
-    #     return int((self.time // (60*24)) % 7)
-
-    # def hour(self):
-    #     return int((self.time // 60) % 24)
 
     def add_event(self, event: sim.Event) -> None:
         """

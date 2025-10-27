@@ -2,29 +2,14 @@
 FOMO simulator example
 """
 from settings import *
-import init_state
-import init_state.json_source
-import init_state.csv_source
 from init_state import read_initial_state
 import target_state
 import policies
-# import policies.fosen_haldorsen
-# import policies.haflan_haga_spetalen
-# import policies.gleditsch_hagen
-import policies.inngjerdingen_moeller
-# import policies.hlm
 import policies.hlv_master
 import sim
 import output
 import demand
 from helpers import timeInMinutes
-import time
-import random
-
-# Profiling imports (from Joseph)
-import cProfile
-
-# from output.plots import cityTrafficStats
 
 START_TIME = timeInMinutes(hours=7)
 DURATION = timeInMinutes(days=1)
@@ -33,8 +18,8 @@ DURATION = timeInMinutes(days=1)
 def main(seed):
 
     ###############################################################################
-    # Get initial state
-
+    # Set up initial state
+    ###############################################################################
     # The following is for creating a new initial state from trip data
     # state = init_state.get_initial_state(source=init_state.json_source,
     #                                      name="Trondheim",
@@ -54,9 +39,10 @@ def main(seed):
 
     state = read_initial_state(sb_jsonFilename = SB_INSTANCE_FILE, ff_jsonFilename = FF_INSTANCE_FILE, 
                                use_bikes=USE_BIKES, use_escooters=USE_ESCOOTERS)
-    #state = init_state.read_initial_state("instances/"+INSTANCE);
     state.set_seed(seed)
     
+    ###############################################################################
+    # Set the decision policy
     ###############################################################################
     # print("Policy: BS Greedy, Seed:", seed)
     # policy = policies.GreedyPolicy()
@@ -86,19 +72,23 @@ def main(seed):
     policy4 = policies.hlv_master.Collab4()
     state.set_vehicles([policy4]) 
 
+    
     ###############################################################################
     # Set up target state
+    ###############################################################################
     tstate = target_state.HLVTargetState(FF_TARGET_STATE_FILE)
     tstate.set_target_states(state)
 
+    
     ###############################################################################
     # Set up demand
-
+    ###############################################################################
     dmand = demand.Demand()
 
+    
     ###############################################################################
     # Set up simulator
-
+    ###############################################################################
     simulator = sim.Simulator(
         initial_state = state,
         target_state = tstate,
@@ -109,7 +99,9 @@ def main(seed):
     )
     simulator.run()
 
-    # Output to console
+    ###############################################################################
+    # Output metric data to console
+    ###############################################################################
     print("================= Simulation Stats =================")
     print(f"Simulation time = {DURATION} minutes")
     print(f"Total requested trips = {state.metrics.get_aggregate_value('trips')}")
@@ -146,41 +138,8 @@ def main(seed):
     print("Number of helping escooter pickups =", state.metrics.get_aggregate_value('num helping escooter pickups'))
 
     
-
-    # If comparissons between roaming=True and roaming=False: 
-    # print(f"Different station choices = {simulator.metrics.get_aggregate_value('different_station_choice')}")
-    # print(f"Different pickup quantities = {simulator.metrics.get_aggregate_value('different_pickup_quantity')}")
-    # print(f"Different deliver quantities = {simulator.metrics.get_aggregate_value('different_deliver_quantity')}")
-    # print(f"Number of overlaps = {simulator.metrics.get_aggregate_value('overlap')}")
-    # print(f"Number of identical choices = {simulator.metrics.get_aggregate_value('same_choice')}")
-    # print(f"Number of subproblems solved = {simulator.metrics.get_aggregate_value('number_of_subproblems')}")
-    
     # Output to file
-    # output.write_csv(simulator, "output.csv", hourly = False)
-
-    # Plot to screen
-    # output.visualize([simulator.metrics], metric="trips")
-    # output.visualize([simulator.metrics], metric="starvation")
-    # output.visualize([simulator.metrics], metric="congestion")
-    # output.visualize_heatmap([simulator], metric="trips")
-    
-    # output.visualize([simulator.metrics], metric="roaming for bikes")
-    # output.visualize([simulator.metrics], metric="roaming distance for bikes")
-    # output.visualize([simulator.metrics], metric="roaming distance for locks")
-
-    # If comparissons between roaming=True and roaming=False : 
-    # output.visualize([simulator.metrics], metric="different_station_choice")
-    # output.visualize([simulator.metrics], metric="different_pickup_quantity")
-    # output.visualize([simulator.metrics], metric="different_deliver_quantity")
-    # output.visualize([simulator.metrics], metric="number_of_subproblems")
-    
-    
-    # Show travel times for a given bike
-    # bikes = simulator.state.get_all_bikes()
-    # bikes = sorted(bikes, key=lambda bike: bike.metrics.getLen("travel_time"), reverse=True)
-    # print(f"Bike {bikes[11].bike_id}: {bikes[11].metrics.getSum('travel_time')} {bikes[11].metrics.getSum('travel_time_congested')}")
-    # output.visualize([bikes[11].metrics], metric="travel_time")
-    # output.visualize([bikes[11].metrics], metric="travel_time_congested")
+    output.write_csv(state, "output.csv", hourly = False)
 
 if __name__ == "__main__":
     # seed_list = [random.randint(1, 3000) for _ in range(10)]
