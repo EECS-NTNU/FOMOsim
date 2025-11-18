@@ -137,33 +137,6 @@ def run_subproblem_model(data):
         # Routing constraints
         ############################################################################################
         
-        """# (1) Prevent physically impossible arcs
-        # No arcs TO the source (source is only for departures)
-        for v in Vh:
-            for i in N0:
-                for t in T0:
-                    m.addConstr(x[i, s, v, t] == 0, name=f"no_arc_to_source_i{i}_v{v}_t{t}")
-        
-        # No arcs FROM the sink (sink is only for arrivals)
-        for v in Vh:
-            for j in N0:
-                for t in T0:
-                    m.addConstr(x[d, j, v, t] == 0, name=f"no_arc_from_sink_j{j}_v{v}_t{t}")
-        
-        # Source can only be used at t=0 (initial departure)
-        for v in Vh:
-            for j in N0:
-                for t in Tpos:
-                    m.addConstr(x[s, j, v, t] == 0, name=f"source_only_t0_j{j}_v{v}_t{t}")
-        
-        # Stations cannot go directly to sink at t=0 (vehicle must make at least one move)
-        for v in Vh:
-            for i in N:
-                m.addConstr(x[i, d, v, 0] == 0, name=f"no_station_to_sink_t0_i{i}_v{v}")
-        
-        # Source cannot go directly to sink at t=0 (vehicle must visit at least one station)
-        for v in Vh:
-            m.addConstr(x[s, d, v, 0] == 0, name=f"no_source_to_sink_t0_v{v}")"""
         
         # (2) Each vehicle departs from source at t=0 to exactly one station
         for v in Vh:
@@ -181,17 +154,9 @@ def run_subproblem_model(data):
                 quicksum(get_x(i, d, v, t) for i in N for t in Tpos) == 1, 
                 name=f"arr_sink_v{v}"
             )
+            
         # (4) vehicle flow conservation at stations j∈N with travel time delays
-        # OLD (WRONG): ∑_i ∑_t x_{i j v t} = ∑_k ∑_t x_{j k v t}
-        # for v in Vh:
-        #     for j in N:
-        #         m.addConstr(
-        #             quicksum(x[i, j, v, t] for i in N for t in Tpos) ==
-        #             quicksum(x[j, k, v, t] for k in N for t in Tpos),
-        #             name=f"flow_v{v}_j{j}"
-        #         )
-        
-        # NEW: Time-indexed flow conservation accounting for travel delays
+        #  Time-indexed flow conservation accounting for travel delays
         # Apply to all time periods including t=0
         for v in Vh:
             for j in N:
