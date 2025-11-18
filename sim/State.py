@@ -395,7 +395,7 @@ class State(LoadSave):
     def set_sb_vehicles(self, policies):
         for policy in policies:
             num_vehicles = len(self.vehicles)
-            if num_vehicles > 0:
+            if num_vehicles >= 0:
                 self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
                                                 start_location = self.locations["S0"], 
                                                 policy = policy, 
