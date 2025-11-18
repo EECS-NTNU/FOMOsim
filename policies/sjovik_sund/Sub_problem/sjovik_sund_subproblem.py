@@ -43,6 +43,7 @@ def run_subproblem_model(data):
         D    = data["D"]
         w_S, w_C, w_D = data["w_S"], data["w_C"], data["w_D"]
         r_M = data["r_M"]
+        
  
         ###############################################################################################################
         # Sanity checks and preprocessing -> ensure T_DD[ii]=1 and T_D[ii]=0
@@ -104,8 +105,9 @@ def run_subproblem_model(data):
         m_iv = m.addVars(N, Vh, vtype=GRB.BINARY, name="m_iv")
  
         # qL, qU ≥ 0 (integer unless relaxed), defined for i in N (stations only), v in V, t in Tpos
-        qL = m.addVars(N, Vh, Tpos, lb=0.0, name="qL")
-        qU = m.addVars(N, Vh, Tpos, lb=0.0, name="qU")
+
+        qL = m.addVars(N, Vh, Tpos, vtype=GRB.BINARY, lb=0.0, name="qL")
+        qU = m.addVars(N, Vh, Tpos, vtype=GRB.BINARY, lb=0.0, name="qU")
  
         # qV_ijvt ≥ 0 (integer unless relaxed), for i,j in N0, v in V, t in T0
         qV = m.addVars(N0, N0, Vh, T0, lb=0.0, name="qV")
@@ -144,8 +146,6 @@ def run_subproblem_model(data):
                 quicksum(get_x(s, j, v, 0) for j in N) == 1, 
                 name=f"dep_source_v{v}"
             )
-            
-            
  
         # (3) arrival at sink within horizon: ∑_i ∑_t x_{i d v t} = 1
         for v in Vh:
@@ -177,15 +177,6 @@ def run_subproblem_model(data):
                     )
                     
                     m.addConstr(inflow == outflow, name=f"flow_v{v}_j{j}_t{t}")
- 
-        # (4b) Each vehicle must depart from source exactly once
-        # This ensures the vehicle starts at its current location (represented by source node)
-        for v in Vh:
-            m.addConstr(
-                #quicksum(x[s, j, v, t] for j in N for t in T0) == 1,
-                quicksum(get_x(s, j, v, t) for j in N for t in T0) == 1,
-                name=f"depart_source_v{v}"
-            )
  
         # (5) single trip per period: ∑_{i,j∈N0} x_{i j v t} ≤ 1 for each v,t∈Tpos
         for v in Vh:
