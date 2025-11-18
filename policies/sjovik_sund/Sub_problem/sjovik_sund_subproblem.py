@@ -37,7 +37,7 @@ def run_subproblem_model(data):
         T_M_max = data["T_M_max"]
         Q_V  = data["Q_V"]
         Q_V0 = data["Q_V0"]
-        I_N  = data["I_N"]
+        Q_S  = data["Q_S"]
         I_N0 = data["I_N0"]
         I_T  = data["I_T"]
         D    = data["D"]
@@ -57,8 +57,49 @@ def run_subproblem_model(data):
         ###################################################################################################
      
         # Routing selection x_ijvt ∈ {0,1}
-        x = m.addVars(N0, N0, Vh, T0, vtype=GRB.BINARY, name="x")
- 
+        #x = m.addVars(N0, N0, Vh, T0, vtype=GRB.BINARY, name="x")
+        # create only possible x variables, i.e., where travel time fits in horizon
+        # this means arcs where t + T_DD_ij <= T and the one that are from source to the station of the vehicle triggering th subproblem and those in transit
+        # Create only valid arcs that:
+        # 1. Have defined travel times in T_DD
+        # 2. Fit within time horizon (t + T_DD_ij <= T)
+        # 3. Are physically possible (no arcs TO source, no arcs FROM sink, etc.)
+        
+        x = {}
+        for i in N0:
+            for j in N0:
+                travel_time = T_DD.get((i, j), None)
+                if travel_time is not None:
+                    # Filter out physically impossible arcs
+                    # No arcs TO source (source is only for departures)
+                    if j == s:
+                        continue
+                    # No arcs FROM sink (sink is only for arrivals)
+                    if i == d:
+                        continue
+                    
+                    for v in Vh:
+                        for t in T0:
+                            # Arc must complete within horizon
+                            if t + travel_time <= T:
+                                # Source can only be used at t=0
+                                if i == s and t > 0:
+                                    continue
+                                # Stations cannot go to sink at t=0 (must make at least one move)
+                                if i in N and j == d and t == 0:
+                                    continue
+                                # Source cannot go directly to sink at t=0
+                                if i == s and j == d and t == 0:
+                                    continue
+                                
+                                x[(i, j, v, t)] = m.addVar(vtype=GRB.BINARY, name=f"x[{i},{j},{v},{t}]")
+        
+        # Helper function to safely access x variables (returns 0 if variable doesn't exist)
+        def get_x(i, j, v, t):
+            return x.get((i, j, v, t), 0)   
+        
+        
+        
         # Maintenance selection m_iv ∈ {0,1}
         m_iv = m.addVars(N, Vh, vtype=GRB.BINARY, name="m_iv")
  
@@ -95,32 +136,107 @@ def run_subproblem_model(data):
         ##########################################################################################
         # Routing constraints
         ############################################################################################
+        
+        """# (1) Prevent physically impossible arcs
+        # No arcs TO the source (source is only for departures)
         for v in Vh:
-            m.addConstr(quicksum(x[s, j, v, 0] for j in N) == 1, name=f"dep_source_v{v}")
+            for i in N0:
+                for t in T0:
+                    m.addConstr(x[i, s, v, t] == 0, name=f"no_arc_to_source_i{i}_v{v}_t{t}")
+        
+        # No arcs FROM the sink (sink is only for arrivals)
+        for v in Vh:
+            for j in N0:
+                for t in T0:
+                    m.addConstr(x[d, j, v, t] == 0, name=f"no_arc_from_sink_j{j}_v{v}_t{t}")
+        
+        # Source can only be used at t=0 (initial departure)
+        for v in Vh:
+            for j in N0:
+                for t in Tpos:
+                    m.addConstr(x[s, j, v, t] == 0, name=f"source_only_t0_j{j}_v{v}_t{t}")
+        
+        # Stations cannot go directly to sink at t=0 (vehicle must make at least one move)
+        for v in Vh:
+            for i in N:
+                m.addConstr(x[i, d, v, 0] == 0, name=f"no_station_to_sink_t0_i{i}_v{v}")
+        
+        # Source cannot go directly to sink at t=0 (vehicle must visit at least one station)
+        for v in Vh:
+            m.addConstr(x[s, d, v, 0] == 0, name=f"no_source_to_sink_t0_v{v}")"""
+        
+        # (2) Each vehicle departs from source at t=0 to exactly one station
+        for v in Vh:
+            m.addConstr(
+                quicksum(get_x(s, j, v, 0) for j in N) == 1, 
+                name=f"dep_source_v{v}"
+            )
+            
+            
  
         # (3) arrival at sink within horizon: ∑_i ∑_t x_{i d v t} = 1
         for v in Vh:
-            m.addConstr(quicksum(x[i, d, v, t] for i in N for t in Tpos) == 1, name=f"arr_sink_v{v}")
- 
-        # (4) vehicle flow conservation at stations j∈N: ∑_i ∑_t x_{i j v t} = ∑_k ∑_t x_{j k v t}
+            #m.addConstr(quicksum(x[i, d, v, t] for i in N for t in Tpos) == 1, name=f"arr_sink_v{v}")
+            m.addConstr(
+                quicksum(get_x(i, d, v, t) for i in N for t in Tpos) == 1, 
+                name=f"arr_sink_v{v}"
+            )
+        # (4) vehicle flow conservation at stations j∈N with travel time delays
+        # OLD (WRONG): ∑_i ∑_t x_{i j v t} = ∑_k ∑_t x_{j k v t}
+        # for v in Vh:
+        #     for j in N:
+        #         m.addConstr(
+        #             quicksum(x[i, j, v, t] for i in N for t in Tpos) ==
+        #             quicksum(x[j, k, v, t] for k in N for t in Tpos),
+        #             name=f"flow_v{v}_j{j}"
+        #         )
+        
+        # NEW: Time-indexed flow conservation accounting for travel delays
+        # Apply to all time periods including t=0
         for v in Vh:
             for j in N:
-                m.addConstr(
-                    quicksum(x[i, j, v, t] for i in N for t in Tpos) ==
-                    quicksum(x[j, k, v, t] for k in N for t in Tpos),
-                    name=f"flow_v{v}_j{j}"
-                )
+                for t in T0:  # Changed from Tpos to T0 to include t=0
+                    # Inflow: vehicles arriving at j at time t (considering travel time from i to j)
+                    inflow = quicksum(
+                        #x[(i, j, v, t) - T_DD[(i, j)]]
+                        get_x(i, j, v, t - T_DD[(i, j)]) 
+                        for i in (N + [s])  # Only stations and source, not sink
+                        if (i, j) in T_DD and t - T_DD[(i, j)] >= 0
+                    )
+                    # Outflow: vehicles leaving j at time t
+                    outflow = quicksum(
+                        #x[(i, j, v, t)]
+                        get_x(j, k, v, t) 
+                        for k in (N + [d])  # Only stations and sink, not source
+                        if (j, k) in T_DD
+                    )
+                    
+                    m.addConstr(inflow == outflow, name=f"flow_v{v}_j{j}_t{t}")
+ 
+        # (4b) Each vehicle must depart from source exactly once
+        # This ensures the vehicle starts at its current location (represented by source node)
+        for v in Vh:
+            m.addConstr(
+                #quicksum(x[s, j, v, t] for j in N for t in T0) == 1,
+                quicksum(get_x(s, j, v, t) for j in N for t in T0) == 1,
+                name=f"depart_source_v{v}"
+            )
  
         # (5) single trip per period: ∑_{i,j∈N0} x_{i j v t} ≤ 1 for each v,t∈Tpos
         for v in Vh:
             for t in Tpos:
-                m.addConstr(quicksum(x[i, j, v, t] for i in N0 for j in N0) <= 1, name=f"one_trip_v{v}_t{t}")
+                #m.addConstr(quicksum(x[i, j, v, t] for i in N0 for j in N0) <= 1, name=f"one_trip_v{v}_t{t}")
+                m.addConstr(
+                    quicksum(get_x(i, j, v, t) for i in N0 for j in N0) <= 1, 
+                    name=f"one_trip_v{v}_t{t}"
+                )
  
         # (6) single visit per station by entire fleet within horizon:
         #     ∑_{i∈N\{j}} ∑_{v} ∑_{t} x_{i j v t} ≤ 1  for each j∈N
         for j in N:
             m.addConstr(
-                quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
+                #quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
+                quicksum(get_x(i, j, v, t) for i in N if i != j for v in Vh for t in Tpos) <= 1,
                 name=f"single_visit_j{j}"
             )
  
@@ -144,7 +260,7 @@ def run_subproblem_model(data):
         # (9) capacity
         for i in N:
             for t in T0:
-                m.addConstr(lN[i, t] <= I_N[i], name=f"cap_i{i}_t{t}")
+                m.addConstr(lN[i, t] <= Q_S[i], name=f"cap_i{i}_t{t}")
  
         #############################################################################################################
         # Vehicle loading, unloading, and capacity constraints
@@ -164,10 +280,10 @@ def run_subproblem_model(data):
                 for t in Tpos:
                     incoming = quicksum(
                         qV[j, i, v, valid_tshift(t, j, i)]
-                        for j in N0
-                        if valid_tshift(t, j, i) >= 0
+                        for j in (N + [s])  # Exclude sink - no arcs FROM sink
+                        if (j, i) in T_DD and valid_tshift(t, j, i) >= 0
                     )
-                    outgoing = quicksum(qV[i, k, v, t] for k in N0)
+                    outgoing = quicksum(qV[i, k, v, t] for k in (N + [d]) if (i, k) in T_DD)  # Exclude source - no arcs TO source
                     m.addConstr(
                         incoming - qU[i, v, t] + qL[i, v, t] == outgoing,
                         name=f"veh_load_bal_i{i}_v{v}_t{t}"
@@ -179,8 +295,8 @@ def run_subproblem_model(data):
                 for t in Tpos:
                     incoming = quicksum(
                         qV[j, i, v, valid_tshift(t, j, i)]
-                        for j in N0
-                        if valid_tshift(t, j, i) >= 0
+                        for j in (N + [s])  # Exclude sink - no arcs FROM sink
+                        if (j, i) in T_DD and valid_tshift(t, j, i) >= 0
                     )
                     m.addConstr(qU[i, v, t] <= incoming, name=f"unload_le_incoming_i{i}_v{v}_t{t}")
  
@@ -195,8 +311,9 @@ def run_subproblem_model(data):
             for j in N0:
                 for v in Vh:
                     for t in T0:
-                        m.addConstr(qV[i, j, v, t] <= Q_V[v] * x[i, j, v, t],
-                                    name=f"cap_link_i{i}_j{j}_v{v}_t{t}")
+                        if (i, j, v, t) in x:  # Only add constraint if variable exists
+                            m.addConstr(qV[i, j, v, t] <= Q_V[v] * x[(i, j, v, t)],
+                                        name=f"cap_link_i{i}_j{j}_v{v}_t{t}")
  
         #############################################################################################################
         # Timing constraints & maintenance integration (15)–(20)
@@ -207,10 +324,12 @@ def run_subproblem_model(data):
             for t in Tpos:
                 # Upper bound (15) - Build the LHS expression
                 travel_term = quicksum(
-                    T_D[(i, j)] * x[i, j, v, t_prime - T_DD[(i, j)]]
+                    #T_D[(i, j)] * x[(i, j, v, t_prime - T_DD[(i, j)])]
+                    T_D[(i, j)] * get_x(i, j, v, t_prime - T_DD[(i, j)])
                     for t_prime in Tpos if t_prime <= t
-                    for i in N0 for j in N
-                    if t_prime - T_DD[(i, j)] >= 0
+                    for i in (N + [s]) for j in N  # Exclude sink from i - no arcs FROM sink
+                    #if t_prime - T_DD[(i, j)] >= 0
+                    if (i, j) in T_DD and t_prime - T_DD[(i, j)] >= 0
                 )
                 service_term = quicksum(
                     T_L * (qL[i, v, t_prime] + qU[i, v, t_prime]) + tM[i, v, t_prime]
@@ -239,7 +358,8 @@ def run_subproblem_model(data):
                 for t in Tpos:
                     m.addConstr(
                         T_L * (qL[i, v, t] + qU[i, v, t]) + tM[i, v, t]
-                        <= 2 * tau * quicksum(x[i, j, v, t] for j in N0),
+                        #<= 2* tau * quicksum(x[i, j, v, t] for j in N0),
+                        <= 2 * tau * quicksum(get_x(i, j, v, t) for j in N0),
                         name=f"service_presence_i{i}_v{v}_t{t}"
                     )
  

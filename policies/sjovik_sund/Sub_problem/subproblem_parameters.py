@@ -109,16 +109,53 @@ class MILP_parameters:
                     self.T_D[(i, j)] = travel_time
                     self.T_DD[(i, j)] = int(travel_time // self.tau) + 1
         
-        # Depot connections: zero travel time (vehicles start/end at depot logically)
-        depot_nodes = [self.source, self.sink]
-        all_nodes = self.stations + depot_nodes
+        # Sink has zero travel time from any station (logical end point)
+        for station_idx in self.stations:
+            self.T_D[(station_idx, self.sink)] = 0.0
+            self.T_DD[(station_idx, self.sink)] = 1
+            # Source travel times will be set in initialize_source_for_vehicles()
+   
+    def initialize_source_for_vehicles(self):
+        """
+        Initialize source node connections in space-time network.
         
-        for depot in depot_nodes:
-            for node in all_nodes:
-                self.T_D[(depot, node)] = 0.0
-                self.T_D[(node, depot)] = 0.0
-                self.T_DD[(depot, node)] = 1
-                self.T_DD[(node, depot)] = 1
+        The source node (s) represents the initial state at t=0 and connects to appropriate (i,t) nodes:
+        - If vehicle is AT a station: arc from s to (station, t=0) with ZERO travel time
+        - If vehicle is EN ROUTE: arc from s to (destination, t=arrival) with remaining travel time
+        
+        This follows the space-time network formulation where source initializes the subproblem
+        and connects it to the last observed state of the system.
+        """
+        vehicles = list(self.state.vehicles.values())
+        #print("HEI vehicles:",vehicles)
+        if len(vehicles) > 0:
+            vehicle = vehicles[0]  # Assuming single vehicle for now
+            current_station_id = vehicle.location.id
+            #print(f"HEI Initializing source for vehicle {vehicle.id} at station {current_station_id}")
+            
+            #print(self.station_id_to_index)
+            if current_station_id in self.station_id_to_index:
+                current_station_idx = self.station_id_to_index[current_station_id]
+                print(f"\n=== INITIALIZING SOURCE NODE (Space-Time Network) ===")
+                print(f"Vehicle currently at station {current_station_id} (index {current_station_idx})")
+                
+                # Only create arc to current station
+                self.T_D[(self.source, current_station_idx)] = 0.0
+                self.T_DD[(self.source, current_station_idx)] = 1  # Minimum one period
+                print(f"  Arc: s -> ({self.index_to_station_id[current_station_idx]}, t=0) [vehicle present]")
+                
+                # Debug: Print ALL T_DD entries involving source
+                print(f"\nAll T_DD entries with source (s={self.source}):")
+                source_arcs = [(i, j, periods) for (i, j), periods in self.T_DD.items() if i == self.source]
+                for i, j, periods in sorted(source_arcs, key=lambda x: x[1]):
+                    if j == self.sink:
+                        print(f"  T_DD[({i}, {j})] = {periods}  [s -> sink]")
+                    elif j in self.index_to_station_id:
+                        print(f"  T_DD[({i}, {j})] = {periods}  [s -> {self.index_to_station_id[j]}]")
+                    else:
+                        print(f"  T_DD[({i}, {j})] = {periods}  [s -> unknown node {j}]")
+                print(f"Total source arcs: {len(source_arcs)}")
+                print(f"=== END SOURCE INITIALIZATION ===")
    
     def _initialize_station_inventories(self):
         for station_idx in self.stations:
@@ -204,17 +241,18 @@ class MILP_parameters:
         for vehicle_idx in self.V:
             vehicle_id = self.index_to_vehicle_id[vehicle_idx]
             vehicle = self.state.vehicles[vehicle_id]
-            
+            #print(vehicle.eta)
             if vehicle.eta > 0:
+                #print("HEI")
                 # Vehicle is in transit - get its destination station
-                destination_station_id = vehicle.location.location_id
+                destination_station_id = vehicle.location.id
                 
                 # Convert to MILP index
                 if destination_station_id in self.station_id_to_index:
                     destination_idx = self.station_id_to_index[destination_station_id]
                     
                     # Calculate remaining travel time in minutes
-                    remaining_time = vehicle.eta - self.simul.time
+                    remaining_time = vehicle.eta - self.state.time
                     
                     # Set travel time from depot (source) to destination
                     self.T_D[(self.source, destination_idx)] = remaining_time
@@ -264,6 +302,9 @@ class MILP_parameters:
        
         # Initialize travel time parameters
         self._initialize_travel_times()
+        
+        # Initialize source node based on vehicle locations (must be after _initialize_travel_times)
+        self.initialize_source_for_vehicles()
         
         # Initialize vehicle ETAs (for vehicles in transit - must be after travel times)
         self.initialize_vehicle_ETAs()
