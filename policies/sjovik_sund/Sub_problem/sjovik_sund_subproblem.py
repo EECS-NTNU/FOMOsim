@@ -11,7 +11,10 @@ def run_subproblem_model(data):
     try:
         m = Model("DSBRP_Subproblem")
         m.setParam('OutputFlag', False)
-        m.setParam('TimeLimit', 300)  # 5 minutes instead of 1 hour
+        m.setParam('TimeLimit', 300)  # 5 minutes max
+        m.setParam('MIPGap', 0.05)  # Stop at 5% gap (faster, good-enough solutions)
+        m.setParam('Presolve', 2)  # Aggressive presolve
+        m.setParam('MIPFocus', 1)  # Focus on finding good feasible solutions quickly
  
         ###########################################################################################################
         # SETS
@@ -43,7 +46,7 @@ def run_subproblem_model(data):
         D    = data["D"]
         w_S, w_C, w_D = data["w_S"], data["w_C"], data["w_D"]
         r_M = data["r_M"]
-        
+        eta = data["eta"]  # Initial destination station for each vehicle
  
         ###############################################################################################################
         # Sanity checks and preprocessing -> ensure T_DD[ii]=1 and T_D[ii]=0
@@ -57,53 +60,39 @@ def run_subproblem_model(data):
         # Decision variables
         ###################################################################################################
      
-        # Routing selection x_ijvt ∈ {0,1}
-        #x = m.addVars(N0, N0, Vh, T0, vtype=GRB.BINARY, name="x")
-        # create only possible x variables, i.e., where travel time fits in horizon
-        # this means arcs where t + T_DD_ij <= T and the one that are from source to the station of the vehicle triggering th subproblem and those in transit
-        # Create only valid arcs that:
-        # 1. Have defined travel times in T_DD
-        # 2. Fit within time horizon (t + T_DD_ij <= T)
-        # 3. Are physically possible (no arcs TO source, no arcs FROM sink, etc.)
-        
-        x = {}
+        # Build list of feasible arcs first
+        feasible_arcs = []
         for i in N0:
             for j in N0:
                 travel_time = T_DD.get((i, j), None)
                 if travel_time is not None:
-                    # Filter out physically impossible arcs
-                    # No arcs TO source (source is only for departures)
-                    if j == s:
+                    if j == s or i == d:  # No arcs TO source, no arcs FROM sink
                         continue
-                    # No arcs FROM sink (sink is only for arrivals)
-                    if i == d:
-                        continue
-                    
                     for v in Vh:
                         for t in T0:
-                            # Arc must complete within horizon
                             if t + travel_time <= T:
-                                # Source can only be used at t=0
                                 if i == s and t > 0:
                                     continue
-                                # Stations cannot go to sink at t=0 (must make at least one move)
                                 if i in N and j == d and t == 0:
                                     continue
-                                # Source cannot go directly to sink at t=0
                                 if i == s and j == d and t == 0:
                                     continue
-                                
-                                x[(i, j, v, t)] = m.addVar(vtype=GRB.BINARY, name=f"x[{i},{j},{v},{t}]")
+                                feasible_arcs.append((i, j, v, t))
         
-        # Helper function to safely access x variables (returns 0 if variable doesn't exist)
+        # Batch create x and qV variables using tupledict (much faster!)
+        x = m.addVars(feasible_arcs, vtype=GRB.BINARY, name="x")
+        qV = m.addVars(feasible_arcs, lb=0.0, name="qV")
+        
+        # Helper functions to safely access variables (returns 0 if variable doesn't exist)
         def get_x(i, j, v, t):
-            return x.get((i, j, v, t), 0)   
+            return x.get((i, j, v, t), 0)
         
-        
+        def get_qV(i, j, v, t):
+            return qV.get((i, j, v, t), 0)
         
         # Maintenance selection m_iv ∈ {0,1}
         m_iv = m.addVars(N, Vh, vtype=GRB.BINARY, name="m_iv")
- 
+
         # qL, qU ≥ 0 (integer unless relaxed), defined for i in N (stations only), v in V, t in Tpos
 
         qL = m.addVars(N, Vh, Tpos, vtype=GRB.BINARY, lb=0.0, name="qL")
@@ -140,11 +129,13 @@ def run_subproblem_model(data):
         ############################################################################################
         
         
-        # (2) Each vehicle departs from source at t=0 to exactly one station
+        # (2) Each vehicle departs from source at t=0 to its designated station eta^v
+        # Ensures vehicle v goes from source s to station eta[v] at time 0: x_{s,eta^v,v,0} = 1
         for v in Vh:
+            target_station = eta[v]
             m.addConstr(
-                quicksum(get_x(s, j, v, 0) for j in N) == 1, 
-                name=f"dep_source_v{v}"
+                get_x(s, target_station, v, 0) == 1,
+                name=f"dep_source_v{v}_to_eta{target_station}"
             )
  
         # (3) arrival at sink within horizon: ∑_i ∑_t x_{i d v t} = 1
@@ -224,7 +215,7 @@ def run_subproblem_model(data):
        
         # (10) initial vehicle load:
         for v in Vh:
-            m.addConstr(quicksum(qV[s, j, v, 0] for j in N0) == Q_V0[v], name=f"init_vehicle_load_v{v}")
+            m.addConstr(quicksum(get_qV(s, j, v, 0) for j in N0) == Q_V0[v], name=f"init_vehicle_load_v{v}")
  
         # Helper: safe lookup of shifted t-index (t - T_DD_ij)
         def valid_tshift(t, i, j):
@@ -235,11 +226,11 @@ def run_subproblem_model(data):
             for v in Vh:
                 for t in Tpos:
                     incoming = quicksum(
-                        qV[j, i, v, valid_tshift(t, j, i)]
+                        get_qV(j, i, v, valid_tshift(t, j, i))
                         for j in (N + [s])  # Exclude sink - no arcs FROM sink
                         if (j, i) in T_DD and valid_tshift(t, j, i) >= 0
                     )
-                    outgoing = quicksum(qV[i, k, v, t] for k in (N + [d]) if (i, k) in T_DD)  # Exclude source - no arcs TO source
+                    outgoing = quicksum(get_qV(i, k, v, t) for k in (N + [d]) if (i, k) in T_DD)  # Exclude source - no arcs TO source
                     m.addConstr(
                         incoming - qU[i, v, t] + qL[i, v, t] == outgoing,
                         name=f"veh_load_bal_i{i}_v{v}_t{t}"
@@ -250,7 +241,7 @@ def run_subproblem_model(data):
             for v in Vh:
                 for t in Tpos:
                     incoming = quicksum(
-                        qV[j, i, v, valid_tshift(t, j, i)]
+                        get_qV(j, i, v, valid_tshift(t, j, i))
                         for j in (N + [s])  # Exclude sink - no arcs FROM sink
                         if (j, i) in T_DD and valid_tshift(t, j, i) >= 0
                     )
@@ -268,9 +259,27 @@ def run_subproblem_model(data):
                 for v in Vh:
                     for t in T0:
                         if (i, j, v, t) in x:  # Only add constraint if variable exists
-                            m.addConstr(qV[i, j, v, t] <= Q_V[v] * x[(i, j, v, t)],
+                            m.addConstr(get_qV(i, j, v, t) <= Q_V[v] * x[(i, j, v, t)],
                                         name=f"cap_link_i{i}_j{j}_v{v}_t{t}")
- 
+        # (14b) Explicit vehicle capacity after service operations (redundant but explicit)
+        # This is implied by (11) + (14) + (5), but makes capacity limit crystal clear
+        '''
+        for i in N:
+            for v in Vh:
+                for t in Tpos:
+                    incoming = quicksum(
+                        get_qV(j, i, v, valid_tshift(t, j, i))
+                        for j in (N + [s])
+                        if (j, i) in T_DD and valid_tshift(t, j, i) >= 0
+                    )
+                    m.addConstr(
+                        incoming - qU[i, v, t] + qL[i, v, t] <= Q_V[v],
+                        name=f"explicit_cap_i{i}_v{v}_t{t}"
+                    )
+        
+        '''
+
+
         #############################################################################################################
         # Timing constraints & maintenance integration (15)–(20)
         ##############################################################################################################

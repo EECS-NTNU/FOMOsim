@@ -125,6 +125,7 @@ class SjovikSundPolicy(Policy):
         print(f"\n=== BEFORE Loading/Unloading ===")
         print(f"Vehicle has {len(bike_ids_on_vehicle_before)} bikes: {bike_ids_on_vehicle_before}")
         print(f"Station has {len(bikes_at_station)} bikes available")
+        print(f"Vehicle capacity: {vehicle.bike_inventory_capacity}")
         
         # Round up pickups (be aggressive about loading), round down deliveries (conservative about unloading)
         num_to_pickup = min(len(bikes_at_station), math.ceil(loading_quantity))
