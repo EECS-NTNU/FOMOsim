@@ -3,7 +3,7 @@ from settings import VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION
  
 class MILP_parameters:
  
-    def __init__(self, simul, time_horizon = 25, weights = None, tau=5):
+    def __init__(self, simul, time_horizon = 6, weights = None, tau=5):
         """
         Initialize subproblem parameters for DSBRP (Dynamic Stochastic Bike Rebalancing Problem)
         """
@@ -50,6 +50,7 @@ class MILP_parameters:
         # Vehicle capacity parameters
         self.Q_V = {}          # {vehicle_idx: capacity} - Capacity of vehicle v (max bikes it can carry)
         self.Q_V0 = {}         # {vehicle_idx: initial_load} - Initial load of vehicle v (bikes currently on vehicle)
+        self.eta = {}          # {vehicle_idx: station_idx} - Initial destination station for vehicle v (where it's headed at t=0)
        
         # Station inventory parameters
         self.Q_S = {}          # {station_idx: capacity} - Capacity of station i (max bikes station can hold)
@@ -188,6 +189,24 @@ class MILP_parameters:
             vehicle_id = self.index_to_vehicle_id[vehicle_idx]
             vehicle = self.state.vehicles[vehicle_id]
             self.Q_V0[vehicle_idx] = len(vehicle.get_bike_inventory())
+    
+    def _initialize_vehicle_destinations(self):
+        """
+        Initialize eta (η^v) - the initial destination station for each vehicle.
+        This is the station where the vehicle is currently located or heading to at t=0.
+        Used in constraint (2) to ensure vehicle v departs from source to station eta[v].
+        """
+        for vehicle_idx in self.V:
+            vehicle_id = self.index_to_vehicle_id[vehicle_idx]
+            vehicle = self.state.vehicles[vehicle_id]
+            vehicle_location_id = vehicle.location.id
+            
+            if vehicle_location_id in self.station_id_to_index:
+                self.eta[vehicle_idx] = self.station_id_to_index[vehicle_location_id]
+            else:
+                # If vehicle is at depot or unknown location, default to first station
+                # This shouldn't happen in normal operation
+                self.eta[vehicle_idx] = min(self.stations)
    
     def _initialize_demand(self):
         """
@@ -280,6 +299,7 @@ class MILP_parameters:
             "T_M_max": self.T_M_max,
             "Q_V": self.Q_V,
             "Q_V0": self.Q_V0,
+            "eta": self.eta,
             "Q_S": self.Q_S,
             "I_N0": self.I_N0,
             "I_T": self.I_T,
@@ -317,6 +337,7 @@ class MILP_parameters:
         # Initialize vehicle parameters
         self._initialize_vehicle_capacities()
         self._initialize_vehicle_loads()
+        self._initialize_vehicle_destinations()
        
         # Initialize demand
         self._initialize_demand()

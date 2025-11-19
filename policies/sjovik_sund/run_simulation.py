@@ -19,13 +19,19 @@ import demand
 import output
 from helpers import timeInMinutes
 from settings import *
+
+# Import visualization if needed
+try:
+    VISUALIZATION_AVAILABLE = True
+except ImportError:
+    VISUALIZATION_AVAILABLE = False
  
 import time
 import multiprocessing as mp
 import csv
  
  
-def run_simulation(seed, policy, duration=24*5, num_vehicles=1, queue=None, INSTANCE=None):
+def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTANCE=None):
   
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
@@ -175,7 +181,7 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         
         # Write all results
         for i, simulator in enumerate(returned_simulators):
-            solve_time = simulator.time  # Total simulation time
+            solve_time = simulator.state.time  # Total simulation time
             write_results_to_file(results_file, simulator, duration, solve_time, list_of_seeds[i], append=(i > 0))
             print(f"Seed {list_of_seeds[i]}: Completed in {solve_time:.2f}s")
     
@@ -225,7 +231,7 @@ if __name__ == "__main__":
    
     # Dictionary of policies to test
     policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=25, tau=5, weights=[0.45,0.45,0.1,0.01])
+        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=[0.45,0.45,0.1,0.01])
         # Add more policy variations here
     }
    

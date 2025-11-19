@@ -1,0 +1,205 @@
+import os
+import sys
+from pathlib import Path
+
+# Add project root to path
+path = Path(__file__).parents[2]
+os.chdir(path)
+sys.path.insert(0, '')
+
+from policies.sjovik_sund.Sub_problem.subproblem_parameters import MILP_parameters
+from policies.sjovik_sund.Sub_problem.sjovik_sund_subproblem import run_subproblem_model
+from policies.sjovik_sund.sjovik_sund_policy import SjovikSundPolicy
+from policies.sjovik_sund.visualize_subproblem import Visualizer
+
+import sim
+import demand
+from init_state.wrapper import read_initial_state
+import target_state
+from helpers import timeInMinutes
+import time
+
+
+def test_subproblems(filename, start_day, start_hour, t_state, time_horizon, tau, duration, number_of_runs, number_of_vehicles):
+    """Test multiple subproblems and measure performance."""
+    results = dict()
+    
+    for test_number in range(0, number_of_runs):
+        if test_number > 2 and test_number < 6:
+            start_hour = 12
+        elif test_number > 5:
+            start_hour = 16
+            
+        test_state = read_initial_state(filename)
+        test_state.set_seed(1)
+        test_demand = demand.Demand()
+        test_demand.update_demands(test_state, start_day, start_hour)
+        start_time = timeInMinutes(hours=start_hour)
+        t_state.update_target_state(test_state, start_day, start_hour)
+        policy = SjovikSundPolicy()
+        test_state.set_sb_vehicles([policy for _ in range(0, number_of_vehicles)])
+        
+        # Get list of station IDs
+        station_ids = list(test_state.stations.keys())
+        
+        # Get list of vehicles
+        vehicles = test_state.get_vehicles()
+        
+        for vehicle_idx in range(0, number_of_vehicles):
+            station_idx = (test_number + 5*vehicle_idx) % len(station_ids)
+            vehicles[vehicle_idx].location = test_state.stations[station_ids[station_idx]]
+            
+        test_simul = sim.Simulator(
+            initial_state=test_state,
+            target_state=t_state,
+            demand=test_demand,
+            start_time=start_time,
+            duration=duration,
+            verbose=True,
+        )
+        
+        d = MILP_parameters(test_simul, time_horizon, tau=tau)
+        d.initalize_parameters()
+        m = run_subproblem_model(d.to_dict())
+        
+        results[test_number] = [round(m.Runtime, 2), m.MIPGap]
+        print("\n----Test run number:", str(test_number+1), "----")
+        print("Start hour:", str(start_hour))
+        print("Runtime of experiment was", str(round(m.Runtime, 2)))
+        print("MIP gap was ", str(m.MIPGap))
+        
+        # Uncomment to visualize:
+        # v = Visualizer(m, d)
+        # v.visualize_route()
+        
+    total_runtime = 0
+    total_MIPGap = 0
+    for run in range(0, number_of_runs):
+        total_runtime += results[run][0]
+        total_MIPGap += results[run][1]
+    avg_runtime = total_runtime/number_of_runs
+    avg_MIPGap = total_MIPGap/number_of_runs
+    
+    print("\n--------TESTING COMPLETE--------")
+    print("Average runtime:", str(round(avg_runtime, 2)))
+    print("Average MIP-gap", str(avg_MIPGap))
+
+
+def test_single_subproblem(filename, start_day, start_hour, t_state, time_horizon, tau, duration, number_of_vehicles):
+    """Test a single subproblem with visualization."""
+    test_state = read_initial_state(filename)
+    test_state.set_seed(1)
+    test_demand = demand.Demand()
+    test_demand.update_demands(test_state, start_day, start_hour)
+    start_time = timeInMinutes(hours=start_hour)
+    t_state.update_target_state(test_state, start_day, start_hour)
+    policy = SjovikSundPolicy()
+    test_state.set_sb_vehicles([policy for _ in range(0, number_of_vehicles)])
+    
+    # Get list of station IDs
+    station_ids = list(test_state.stations.keys())
+    
+    # Get list of vehicles
+    vehicles = test_state.get_vehicles()
+    
+    for vehicle_idx in range(0, number_of_vehicles):
+        station_idx = (1 + 5*vehicle_idx) % len(station_ids)
+        vehicles[vehicle_idx].location = test_state.stations[station_ids[station_idx]]
+        
+    test_simul = sim.Simulator(
+        initial_state=test_state,
+        target_state=t_state,
+        demand=test_demand,
+        start_time=start_time,
+        duration=duration,
+        verbose=True,
+    )
+    
+    d = MILP_parameters(test_simul, time_horizon, tau=tau)
+    d.initalize_parameters()
+    m = run_subproblem_model(d.to_dict())
+    
+    print("Runtime of experiment was", str(round(m.Runtime, 2)))
+    print("MIP gap was ", str(m.MIPGap))
+    
+    # Visualize the subproblem solution
+    v = Visualizer(m, d)
+    v.visualize_route()
+    v.visualize_map_and_route()
+    # v.visualize_stations()
+
+
+def test_policy(filename, number_of_runs, start_day, start_hour, t_state, policy, duration, number_of_vehicles):
+    """Test policy performance (solution time)."""
+    test_state = read_initial_state(filename)
+    test_state.set_seed(1)
+    test_demand = demand.Demand()
+    test_demand.update_demands(test_state, start_day, start_hour)
+    start_time = timeInMinutes(hours=start_hour)
+    t_state.update_target_state(test_state, start_day, start_hour)
+    test_state.set_sb_vehicles([policy for _ in range(0, number_of_vehicles)])
+    solution_times = []
+    
+    # Get list of station IDs
+    station_ids = list(test_state.stations.keys())
+    
+    # Get list of vehicles
+    vehicles = test_state.get_vehicles()
+    
+    for run in range(number_of_runs):
+        for vehicle_idx in range(0, number_of_vehicles):
+            station_idx = (run*4 + 1 + 5*vehicle_idx) % len(station_ids)
+            vehicles[vehicle_idx].location = test_state.stations[station_ids[station_idx]]
+            
+        test_simul = sim.Simulator(
+            initial_state=test_state,
+            target_state=t_state,
+            demand=test_demand,
+            start_time=start_time,
+            duration=duration,
+            verbose=True,
+        )
+        
+        start_solve = time.time()
+        action = policy.get_best_action(test_simul, vehicles[0])
+        solution_times.append(time.time() - start_solve)
+        
+    avg_sol_time = sum(solution_times)/len(solution_times)
+    print("Average solution time:", round(avg_sol_time, 3))
+
+
+if __name__ == "__main__":
+    # ------------ TESTING DATA MANUALLY ---------------
+    # filename = "instances/EH_W31"
+    filename = "instances/TD_W34"
+    # filename = "instances/NY_W31"
+    # filename = "instances/OS_W34"
+    # filename = "instances/BG_W25"
+    # filename = "instances/BO_W31"
+
+    START_DAY = 0  # 0 -> monday
+    START_HOUR = 8  # 8 -> 08:00 am
+    START_TIME = timeInMinutes(hours=START_HOUR)
+    DURATION = timeInMinutes(hours=1)
+    time_horizon = 25
+    tau = 5
+    number_of_runs = 9
+    number_of_vehicles = 1
+ 
+    # tstate = target_state.EvenlyDistributedTargetState()
+    # tstate = target_state.OutflowTargetState()
+    # tstate = target_state.EqualProbTargetState()
+    tstate = target_state.USTargetState()
+    # tstate = target_state.HalfCapacityTargetState()
+
+    policy = SjovikSundPolicy(roaming=False, time_horizon=time_horizon, tau=tau)
+    
+    # Test multiple subproblems
+    # test_subproblems(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_runs, number_of_vehicles)
+    
+    # Test single subproblem with visualization
+    test_single_subproblem(filename, START_DAY, START_HOUR, tstate, time_horizon, tau, DURATION, number_of_vehicles)
+    
+    # Test policy performance
+    # test_policy(filename, 10, START_DAY, START_HOUR, tstate, policy, DURATION, number_of_vehicles)
+    # ----------------------------------------------------

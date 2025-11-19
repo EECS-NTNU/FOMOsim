@@ -395,7 +395,7 @@ class State(LoadSave):
     def set_sb_vehicles(self, policies):
         for policy in policies:
             num_vehicles = len(self.vehicles)
-            if num_vehicles > 0:
+            if num_vehicles >= 0:
                 self.vehicles["V" + str(num_vehicles)] = sim.Vehicle("V" + str(num_vehicles), 
                                                 start_location = self.locations["S0"], 
                                                 policy = policy, 
@@ -599,7 +599,9 @@ class State(LoadSave):
 
                     self.get_location_by_id(vehicle.location.area).add_bike(helping_delivery_bike)
 
-            else:
+            else: 
+                # Burde denne heller vært at man kanlulerer differansen i loading og unloading og at dette gir et tall som indikerer hva som skal kjøres av pick up og deliver? 
+                # også plukker du opp/deliver differansen?
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(pick_up_bike_id)
 

@@ -3,10 +3,11 @@ import sim
 import math
 from policies.sjovik_sund.Sub_problem.subproblem_parameters import MILP_parameters
 from policies.sjovik_sund.Sub_problem.sjovik_sund_subproblem import run_subproblem_model
+from policies.sjovik_sund.visualize_subproblem import Visualizer
  
  
 class SjovikSundPolicy(Policy):
-    def __init__(self, roaming = False, time_horizon=25, tau=5, weights=None):
+    def __init__(self, roaming = False, time_horizon=6, tau=5, weights=None):
         self.roaming = roaming
         self.time_horizon = time_horizon
         self.tau = tau
@@ -19,6 +20,11 @@ class SjovikSundPolicy(Policy):
         gurobi_output = run_subproblem_model(data.to_dict())
         next_station, bikes_to_pickup, bikes_to_deliver = self.return_solution(gurobi_output, vehicle, data)
         print(f"Vehicle {vehicle.id} going to station {next_station} to pick up {len(bikes_to_pickup)} bikes and deliver {len(bikes_to_deliver)} bikes.")
+        
+        # Uncomment to visualize subproblem solution:
+        #v = Visualizer(gurobi_output, data)
+        #v.visualize_route()
+        #v.visualize_map_and_route()
             
         return sim.Action(
             [],               # batteries to swap
@@ -109,17 +115,6 @@ class SjovikSundPolicy(Policy):
         
         print(f"\nTotal loading_quantity: {loading_quantity}, unloading_quantity: {unloading_quantity}")
         
-        # OLD CODE (commented out - had rounding issues with fractional bikes)
-        # if not (loading_quantity == 0 and unloading_quantity == 0):
-        #     bikes_at_station = list(vehicle.location.bikes.values())
-        #     bikes_at_vehicle = vehicle.get_bike_inventory()
-        #     print(f"Will pick up: min({len(bikes_at_station)}, {int(loading_quantity)}) = {min(len(bikes_at_station), int(loading_quantity))}")
-        #     print(f"Will deliver: min({len(bikes_at_vehicle)}, {int(unloading_quantity)}) = {min(len(bikes_at_vehicle), int(unloading_quantity))}")
-        #     for bike in range(0, min(len(bikes_at_station), int(loading_quantity))):
-        #         loading_ids.append(bikes_at_station[bike].bike_id)
-        #     for bike in range(0,min(len(bikes_at_vehicle), int(unloading_quantity))):
-        #         unloading_ids.append(bikes_at_vehicle[bike].bike_id)
-        
         # NEW CODE: Use ceiling for pickups (round up), floor for deliveries (round down)
         # This ensures we respect the model's fractional quantities properly
         bikes_at_station = list(vehicle.location.bikes.values()) #creates list of bike objects
@@ -130,6 +125,7 @@ class SjovikSundPolicy(Policy):
         print(f"\n=== BEFORE Loading/Unloading ===")
         print(f"Vehicle has {len(bike_ids_on_vehicle_before)} bikes: {bike_ids_on_vehicle_before}")
         print(f"Station has {len(bikes_at_station)} bikes available")
+        print(f"Vehicle capacity: {vehicle.bike_inventory_capacity}")
         
         # Round up pickups (be aggressive about loading), round down deliveries (conservative about unloading)
         num_to_pickup = min(len(bikes_at_station), math.ceil(loading_quantity))
