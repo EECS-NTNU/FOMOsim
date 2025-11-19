@@ -20,14 +20,16 @@ def run_subproblem_arc_model(data):
         # SETS
         ############################################################################################################
  
-        T = data["T"]
-        tau = data["tau"]
+        T  = int(data["T"])
         N = list(data["N"])
         s = data["s"]; d = data["d"]
         Vh = list(data["V"])
         N0 = N + [s, d]
         Tpos = list(range(1, T+1))   # {1,...,T}
         T0 = list(range(0, T+1))     # {0,...,T}
+        
+        # Get travel times early (needed for arc construction)
+        T_DD = data["T_DD"]
 
         # Build the set of feasible arcs A based on travel times and time horizon
         # An arc (i,j) is feasible if:
@@ -75,6 +77,7 @@ def run_subproblem_arc_model(data):
         # PARAMETERS
         ############################################################################################################
  
+        tau  = data["tau"]  # Period length in minutes (needed for time constraints)
         T_D  = data["T_D"]
         T_DD = data["T_DD"]
         T_L  = float(data["T_L"])
@@ -233,9 +236,10 @@ def run_subproblem_arc_model(data):
  
         # (6) single visit per station by entire fleet within horizon:
         #     ∑_{a∈δ⁺(j)} ∑_{v} ∑_{t} x_{a v t} ≤ 1  for each j∈N
+        # Use T0 to include t=0 (initial arrival from source)
         for j in N:
             m.addConstr(
-                quicksum(get_x(a, v, t) for a in delta_in[j] for v in Vh for t in Tpos if a[0] != j) <= 1,
+                quicksum(get_x(a, v, t) for a in delta_in[j] for v in Vh for t in T0 if a[0] != j) <= 1,
                 name=f"single_visit_j{j}"
             )
  
@@ -314,6 +318,23 @@ def run_subproblem_arc_model(data):
                         m.addConstr(get_qV(a, v, t) <= Q_V[v] * x[(a, v, t)],
                                     name=f"cap_link_i{i}_j{j}_v{v}_t{t}")
  
+        # (14b) Explicit vehicle capacity after service operations
+        # BURDE EGT IKKE TRENGE DETTE, DA DET ER IMPLISITT I ANDRE KONSTRANTER
+        # Ensures that: incoming_load - unload + load <= vehicle_capacity
+        # This prevents the vehicle from exceeding capacity after loading at a station
+        for i in N:
+            for v in Vh:
+                for t in Tpos:
+                    incoming = quicksum(
+                        get_qV(a, v, t - T_DD[a])
+                        for a in delta_in[i]
+                        if t - T_DD[a] >= 0
+                    )
+                    m.addConstr(
+                        incoming - qU[i, v, t] + qL[i, v, t] <= Q_V[v],
+                        name=f"explicit_cap_i{i}_v{v}_t{t}"
+                    )
+
         #############################################################################################################
         # Timing constraints & maintenance integration (15)–(20)
         ##############################################################################################################

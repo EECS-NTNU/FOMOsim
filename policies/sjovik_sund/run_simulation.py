@@ -25,7 +25,7 @@ import multiprocessing as mp
 import csv
  
  
-def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTANCE=None):
+def run_simulation(seed, policy, duration=12, num_vehicles=1, queue=None, INSTANCE=None):
   
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)

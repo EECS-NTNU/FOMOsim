@@ -1,6 +1,7 @@
 from gurobipy import *
 import time
 import numpy as np
+import math
  
 #######################################################################################################
 # This is the DSBRP subproblem for the Sjovik Sund policy
@@ -81,7 +82,7 @@ def run_subproblem_model(data):
         
         # Batch create x and qV variables using tupledict (much faster!)
         x = m.addVars(feasible_arcs, vtype=GRB.BINARY, name="x")
-        qV = m.addVars(feasible_arcs, lb=0.0, name="qV")
+        qV = m.addVars(feasible_arcs, vtype = GRB.INTEGER, lb=0.0, name="qV")
         
         # Helper functions to safely access variables (returns 0 if variable doesn't exist)
         def get_x(i, j, v, t):
@@ -94,8 +95,8 @@ def run_subproblem_model(data):
         m_iv = m.addVars(N, Vh, vtype=GRB.BINARY, name="m_iv")
 
         # qL, qU ≥ 0 (integer unless relaxed), defined for i in N (stations only), v in V, t in Tpos
-        qL = m.addVars(N, Vh, Tpos, lb=0.0, name="qL")
-        qU = m.addVars(N, Vh, Tpos, lb=0.0, name="qU")        
+        qL = m.addVars(N, Vh, Tpos, lb=0.0, vtype=GRB.INTEGER, name="qL")
+        qU = m.addVars(N, Vh, Tpos, lb=0.0, vtype=GRB.INTEGER, name="qU")        
 
         # lN_it ≥ 0 for i in N, t in T0
         lN = m.addVars(N, T0, vtype=GRB.CONTINUOUS, lb=0.0, name="lN")
@@ -168,7 +169,7 @@ def run_subproblem_model(data):
                     m.addConstr(inflow == outflow, name=f"flow_v{v}_j{j}_t{t}")
  
  
-        # (5) single trip per period: ∑_{i,j∈N0} x_{i j v t} ≤ 1 for each v,t∈Tpos
+        # (5) single trip per period: ∑_{i,j∈N0} x_{i j v t} ≤ 1 for each v, t∈Tpos
         for v in Vh:
             for t in Tpos:
                 #m.addConstr(quicksum(x[i, j, v, t] for i in N0 for j in N0) <= 1, name=f"one_trip_v{v}_t{t}")
@@ -179,10 +180,11 @@ def run_subproblem_model(data):
  
         # (6) single visit per station by entire fleet within horizon:
         #     ∑_{i∈N\{j}} ∑_{v} ∑_{t} x_{i j v t} ≤ 1  for each j∈N
+        # Use T0 to include t=0 (initial arrival from source)
         for j in N:
             m.addConstr(
                 #quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
-                quicksum(get_x(i, j, v, t) for i in N if i != j for v in Vh for t in Tpos) <= 1,
+                quicksum(get_x(i, j, v, t) for i in N0 if i != j for v in Vh for t in T0) <= 1,
                 name=f"single_visit_j{j}"
             )
  
@@ -260,9 +262,14 @@ def run_subproblem_model(data):
                         if (i, j, v, t) in x:  # Only add constraint if variable exists
                             m.addConstr(get_qV(i, j, v, t) <= Q_V[v] * x[(i, j, v, t)],
                                         name=f"cap_link_i{i}_j{j}_v{v}_t{t}")
-        # (14b) Explicit vehicle capacity after service operations (redundant but explicit)
-        # This is implied by (11) + (14) + (5), but makes capacity limit crystal clear
+        
+
+
         '''
+        # (14b) Explicit vehicle capacity after service operations
+        # BURDE EGT IKKE TRENGE DETTE, DA DET ER IMPLISITT I ANDRE KONSTRANTER
+        # Ensures that: incoming_load - unload + load <= vehicle_capacity
+        # This prevents the vehicle from exceeding capacity after loading at a station
         for i in N:
             for v in Vh:
                 for t in Tpos:
@@ -274,9 +281,18 @@ def run_subproblem_model(data):
                     m.addConstr(
                         incoming - qU[i, v, t] + qL[i, v, t] <= Q_V[v],
                         name=f"explicit_cap_i{i}_v{v}_t{t}"
+                    )    
+                #14a
+        # Loading quantity cannot exceed vehicle capacity¨
+        for i in N:
+            for v in Vh:
+                for t in Tpos:
+                    m.addConstr(
+                        qL[i, v, t] <= Q_V[v],
+                        name=f"load_le_veh_cap_i{i}_v{v}_t{t}"
                     )
-        
         '''
+
 
 
         #############################################################################################################

@@ -6,7 +6,7 @@ from policies.sjovik_sund.Sub_problem.sjovik_sund_subproblem import run_subprobl
  
  
 class SjovikSundPolicy(Policy):
-    def __init__(self, roaming = False, time_horizon=25, tau=5, weights=None):
+    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None):
         self.roaming = roaming
         self.time_horizon = time_horizon
         self.tau = tau
@@ -14,9 +14,17 @@ class SjovikSundPolicy(Policy):
         super().__init__()
  
     def get_best_action(self, simul, vehicle):
+        # Solve subproblem for ALL vehicles based on current system state
         data = MILP_parameters(simul, self.time_horizon, self.weights, self.tau)
         data.initalize_parameters()
         gurobi_output = run_subproblem_model(data.to_dict())
+        
+        # Check if model found a feasible solution
+        if gurobi_output.Status in [3, 4] or gurobi_output.SolCount == 0:
+            print(f"⚠ WARNING: Model infeasible or no solution - vehicle {vehicle.id} stays at current location")
+            return sim.Action([], [], [], vehicle.location.id)
+        
+        # Extract this vehicle's action from the multi-vehicle solution
         next_station, bikes_to_pickup, bikes_to_deliver = self.return_solution(gurobi_output, vehicle, data)
         print(f"Vehicle {vehicle.id} going to station {next_station} to pick up {len(bikes_to_pickup)} bikes and deliver {len(bikes_to_deliver)} bikes.")
             
@@ -97,15 +105,19 @@ class SjovikSundPolicy(Policy):
         for var in gurobi_output.getVars():
             variable = var.varName.strip("]").split("[")
             name = variable[0]
+            # Only process qL and qU variables
+            if name not in ['qL', 'qU']:
+                continue
             indices = variable[1].split(',')
             # Model uses qL[i,v,t] and qU[i,v,t] where i=station, v=vehicle, t=period
-            # Look at current_station_idx (where vehicle currently is)
-            if name == 'qL' and int(indices[1]) == vehicle_idx and var.x > 0.01 and int(indices[0]) == current_station_idx:
+            # Look at current_station_idx (where vehicle currently is) AND only in the departure period
+            period_t = int(indices[2])
+            if name == 'qL' and int(indices[1]) == vehicle_idx and var.x > 0.01 and int(indices[0]) == current_station_idx and period_t == first_move_period:
                 loading_quantity += var.x
-                print(f"✓ Loading {var.x} bikes at CURRENT station index {indices[0]} in period {indices[2]}")
-            elif name == 'qU' and int(indices[1]) == vehicle_idx and var.x > 0.01 and int(indices[0]) == current_station_idx:
+                print(f"✓ Loading {var.x} bikes at CURRENT station index {indices[0]} in period {indices[2]} (departure period)")
+            elif name == 'qU' and int(indices[1]) == vehicle_idx and var.x > 0.01 and int(indices[0]) == current_station_idx and period_t == first_move_period:
                 unloading_quantity += var.x
-                print(f"✓ Unloading {var.x} bikes at CURRENT station index {indices[0]} in period {indices[2]}")
+                print(f"✓ Unloading {var.x} bikes at CURRENT station index {indices[0]} in period {indices[2]} (departure period)")
         
         print(f"\nTotal loading_quantity: {loading_quantity}, unloading_quantity: {unloading_quantity}")
         
