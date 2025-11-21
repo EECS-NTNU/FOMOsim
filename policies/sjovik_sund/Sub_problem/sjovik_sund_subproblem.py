@@ -1,7 +1,6 @@
 from gurobipy import *
 import time
 import numpy as np
-import math
  
 #######################################################################################################
 # This is the DSBRP subproblem for the Sjovik Sund policy
@@ -60,9 +59,51 @@ def run_subproblem_model(data):
         ###################################################################################################
         # Decision variables
         ###################################################################################################
-     
+
         # Build list of feasible arcs first
         feasible_arcs = []
+
+        # 1. Explicitly add Source -> Start Station arcs (Crucial!)
+        for v in Vh:
+            feasible_arcs.append((s, eta[v], v, 0))
+
+        # 2. General Network Arcs (Station -> Station)
+        for i in N:
+            for j in N:
+                travel_time = T_DD.get((i, j), None)
+                if travel_time is not None:
+                    for v in Vh:
+                        for t in T0:
+                            if t + travel_time <= T:
+                                feasible_arcs.append((i, j, v, t))
+
+        # 3. Sink Arcs (Station -> Sink)
+        # Assuming 0 travel time to sink, allowed only at time T
+        for j in N:
+            for v in Vh:
+                     feasible_arcs.append((j, d, v, T))
+
+        # Debug: Print initialized nodes/arcs summary
+        print("\n=== FEASIBLE ARCS SUMMARY ===")
+        print(f"Total feasible arcs: {len(feasible_arcs)}")
+        
+        # Count arcs by type
+        source_arcs = [a for a in feasible_arcs if a[0] == s]
+        sink_arcs = [a for a in feasible_arcs if a[1] == d]
+        network_arcs = [a for a in feasible_arcs if a[0] in N and a[1] in N]
+        
+        print(f"Source arcs (s->node): {len(source_arcs)}")
+        print(f"Sink arcs (node->d): {len(sink_arcs)}")
+        print(f"Network arcs (node->node): {len(network_arcs)}")
+        
+        # Print specific source arcs to verify initialization
+        print("\nInitialized Source Arcs:")
+        for arc in source_arcs:
+            print(f"  {arc}")
+            
+        print("=============================\n")
+        
+        """
         for i in N0:
             for j in N0:
                 travel_time = T_DD.get((i, j), None)
@@ -79,7 +120,7 @@ def run_subproblem_model(data):
                                 if i == s and j == d and t == 0:
                                     continue
                                 feasible_arcs.append((i, j, v, t))
-        
+        """
         # Batch create x and qV variables using tupledict (much faster!)
         x = m.addVars(feasible_arcs, vtype=GRB.BINARY, name="x")
         qV = m.addVars(feasible_arcs, vtype = GRB.INTEGER, lb=0.0, name="qV")
@@ -141,7 +182,8 @@ def run_subproblem_model(data):
         for v in Vh:
             #m.addConstr(quicksum(x[i, d, v, t] for i in N for t in Tpos) == 1, name=f"arr_sink_v{v}")
             m.addConstr(
-                quicksum(get_x(i, d, v, t) for i in N for t in Tpos) == 1, 
+                # quicksum(get_x(i, d, v, t) for i in N for t in Tpos) == 1, FJERNET FOR Å TILLATE SOURCE -> SINK
+                quicksum(get_x(i, d, v, t) for i in (N + [s]) for t in T0) == 1, 
                 name=f"arr_sink_v{v}"
             )
             
@@ -150,7 +192,7 @@ def run_subproblem_model(data):
         # Apply to all time periods including t=0
         for v in Vh:
             for j in N:
-                for t in T0:  # Changed from Tpos to T0 to include t=0
+                for t in Tpos:  # Changed from Tpos to T0 to include t=0
                     # Inflow: vehicles arriving at j at time t (considering travel time from i to j)
                     inflow = quicksum(
                         #x[(i, j, v, t) - T_DD[(i, j)]]
@@ -181,13 +223,18 @@ def run_subproblem_model(data):
         # (6) single visit per station by entire fleet within horizon:
         #     ∑_{i∈N\{j}} ∑_{v} ∑_{t} x_{i j v t} ≤ 1  for each j∈N
         # Use T0 to include t=0 (initial arrival from source)
+
+        
         for j in N:
-            m.addConstr(
-                #quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
-                quicksum(get_x(i, j, v, t) for i in N0 if i != j for v in Vh for t in T0) <= 1,
-                name=f"single_visit_j{j}"
-            )
- 
+            for v in Vh:
+                m.addConstr(
+                    #quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
+                    quicksum(get_x(i, j, v, t) for i in N0 if i != j for v in Vh for t in T0) <= 1,
+                    name=f"single_visit_j{j}"
+                )        
+        
+        
+
         ##########################################################################################
         # Station inventory balance constraints
         ###########################################################################################
@@ -259,47 +306,56 @@ def run_subproblem_model(data):
             for j in N0:
                 for v in Vh:
                     for t in T0:
-                        if (i, j, v, t) in x:  # Only add constraint if variable exists
-                            m.addConstr(get_qV(i, j, v, t) <= Q_V[v] * x[(i, j, v, t)],
+                        if (i, j, v, t) in feasible_arcs:  # Only add constraint if variable exists
+                            m.addConstr(get_qV(i, j, v, t) <= Q_V[v] * get_x(i, j, v, t),
                                         name=f"cap_link_i{i}_j{j}_v{v}_t{t}")
-        
-
-
-        '''
-        # (14b) Explicit vehicle capacity after service operations
-        # BURDE EGT IKKE TRENGE DETTE, DA DET ER IMPLISITT I ANDRE KONSTRANTER
-        # Ensures that: incoming_load - unload + load <= vehicle_capacity
-        # This prevents the vehicle from exceeding capacity after loading at a station
-        for i in N:
-            for v in Vh:
-                for t in Tpos:
-                    incoming = quicksum(
-                        get_qV(j, i, v, valid_tshift(t, j, i))
-                        for j in (N + [s])
-                        if (j, i) in T_DD and valid_tshift(t, j, i) >= 0
-                    )
-                    m.addConstr(
-                        incoming - qU[i, v, t] + qL[i, v, t] <= Q_V[v],
-                        name=f"explicit_cap_i{i}_v{v}_t{t}"
-                    )    
-                #14a
-        # Loading quantity cannot exceed vehicle capacity¨
-        for i in N:
-            for v in Vh:
-                for t in Tpos:
-                    m.addConstr(
-                        qL[i, v, t] <= Q_V[v],
-                        name=f"load_le_veh_cap_i{i}_v{v}_t{t}"
-                    )
-        '''
+    
 
 
 
         #############################################################################################################
         # Timing constraints & maintenance integration (15)–(20)
         ##############################################################################################################
- 
- 
+        # Constraints (15) & (16): Time bounds - CORRECTED VERSION
+        for v in Vh:
+            for t in Tpos:
+                # Calculate total time spent by vehicle v up to (and including) period t
+                
+                # 1. Completed travel segments (journeys that finished by period t)
+                completed_travel = quicksum(
+                    T_D[(i, j)] * get_x(i, j, v, t_prime - T_DD[(i, j)])
+                    for t_prime in Tpos if t_prime <= t
+                    for i in (N + [s]) for j in N
+                    if (i, j) in T_DD and t_prime - T_DD[(i, j)] >= 0
+                )
+                
+                # 2. Partial travel time (for journeys still in progress at period t)
+                partial_travel = quicksum(
+                    min(t * tau, T_D[(i, j)]) * get_x(i, j, v, start_time)
+                    for start_time in T0 if start_time <= t
+                    for i in (N + [s]) for j in N
+                    if (i, j) in T_DD and start_time + T_DD[(i, j)] > t  # Journey not yet completed
+                )
+                
+                # 3. Service time (loading, unloading, maintenance)
+                service_term = quicksum(
+                    T_L * (qL[i, v, t_prime] + qU[i, v, t_prime]) + tM[i, v, t_prime]
+                    for t_prime in Tpos if t_prime <= t 
+                    for i in N
+                )
+                
+                # Upper bound (15): Total time ≤ available time
+                m.addConstr(
+                    completed_travel + partial_travel + service_term <= t * tau, 
+                    name=f"time_ub_v{v}_t{t}"
+                )
+                
+                # Lower bound (16): Total time ≥ minimum required time
+                m.addConstr(
+                    completed_travel + partial_travel + service_term >= (t - 1) * tau, 
+                    name=f"time_lb_v{v}_t{t}"
+                )
+        """
         for v in Vh:
             for t in Tpos:
                 # Upper bound (15) - Build the LHS expression
@@ -321,6 +377,9 @@ def run_subproblem_model(data):
                 m.addConstr(travel_term + service_term >= (t - 2) * tau, name=f"time_lb_v{v}_t{t}")
  
  
+        
+        """
+        
         # (17) Global maintenance upper bound per station
         for i in N:
             m.addConstr(quicksum(tM[i, v, t] for v in Vh for t in Tpos) <= T_M_max[i], name=f"maint_max_i{i}")
@@ -362,6 +421,22 @@ def run_subproblem_model(data):
         m.Params.OutputFlag = 1
  
         m.optimize()
+
+        if m.Status == GRB.INFEASIBLE:
+            print("\nModel is infeasible. Computing IIS...")
+            m.computeIIS()
+            m.write("model_iis.ilp")
+            print("IIS written to model_iis.ilp")
+            
+            # Optional: Print the constraints in the IIS
+            print("\nConstraints in IIS:")
+            for c in m.getConstrs():
+                if c.IISConstr:
+                    print(f"  {c.ConstrName}")
+            # Check bounds
+            for v in m.getVars():
+                 if v.IISLB > 0 or v.IISUB > 0:
+                     print(f" Variable bound: {v.VarName}")
  
         # Return the model object so the policy can extract solution variables
         # obj_val = m.getObjective().getValue()
@@ -373,4 +448,3 @@ def run_subproblem_model(data):
         print(f"Error code: {e.errno if hasattr(e, 'errno') else 'N/A'}")
         print("="*50)
         raise  # Re-raise the error so we can see the full traceback
- 

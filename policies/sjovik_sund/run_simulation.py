@@ -25,7 +25,7 @@ import multiprocessing as mp
 import csv
  
  
-def run_simulation(seed, policy, duration=12, num_vehicles=1, queue=None, INSTANCE=None):
+def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTANCE=None):
   
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
@@ -40,6 +40,28 @@ def run_simulation(seed, policy, duration=12, num_vehicles=1, queue=None, INSTAN
     vehicles = [policy for i in range(num_vehicles)]
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
     tstate = target_state.USTargetState()
+
+    # TEMPORARY FIX: Force V1 to start elsewhere for multi-vehicle testing
+    if num_vehicles > 1 and "V1" in state.vehicles:
+        # Assuming V1's ID is exactly "V1"
+        V1_obj = state.vehicles["V1"]
+       
+        # Find a non-S0 station: prioritize S4, then S1 as fallbacks
+        target_station_id = None
+        if "S4" in state.locations and len(state.stations) > 4:
+            target_station_id = "S4"
+        elif "S1" in state.locations and len(state.stations) > 1:
+            target_station_id = "S1"
+       
+        if target_station_id:
+            # Reassign V1's location in the State object
+            V1_obj.location = state.locations[target_station_id]
+            print(f"FORCED: Vehicle V1 moved to starting location {target_station_id} for testing.")
+        else:
+            print("WARNING: Could not find suitable station (S4 or S1) to move V1 to.")
+    # END TEMPORARY FIX
+
+
     d = demand.Demand()
     simulator = sim.Simulator(
         initial_state=state,
@@ -219,13 +241,13 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24  # hours - full day simulation
-    num_vehicles = 1  # Need at least 1 vehicle to test the policy!
+    duration = 24  # hours - SHORT TEST (change to 24 for full day)
+    num_vehicles = 2 # Need at least 1 vehicle to test the policy!
    
    
     # Dictionary of policies to test
     policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=[0.45,0.45,0.1,0.01])
+        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=[0.7,0.2,0.1,0.0])
         # Add more policy variations here
     }
    
