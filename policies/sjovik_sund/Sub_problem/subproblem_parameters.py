@@ -108,12 +108,12 @@ class MILP_parameters:
                     travel_time = (distance_km / VEHICLE_SPEED) * 60 + MINUTES_CONSTANT_PER_ACTION
                     
                     self.T_D[(i, j)] = travel_time
-                    self.T_DD[(i, j)] = int(travel_time // self.tau) + 1
+                    self.T_DD[(i, j)] = math.ceil(travel_time / self.tau)
         
         # Sink has zero travel time from any station (logical end point)
         for station_idx in self.stations:
             self.T_D[(station_idx, self.sink)] = 0.0
-            self.T_DD[(station_idx, self.sink)] = 1
+            self.T_DD[(station_idx, self.sink)] = 0.0
             # Source travel times will be set in initialize_source_for_vehicles()
    
     def initialize_source_for_vehicles(self):
@@ -247,8 +247,8 @@ class MILP_parameters:
         # Her må det kanskje kjøres en sjekk på hvorvidt det skal gjøres maintenance eller ikke
         # Fordi min tid er jo 0 hvis ikke det skal gjøres maintenance, men hvis den settes til å skulle gjøre maintenance så er det en annen min tid
         for station_idx in self.stations:
-            self.T_M_min[station_idx] = 0  # No minimum maintenance time
-            self.T_M_max[station_idx] = 5  # No maximum maintenance time
+            self.T_M_min[station_idx] = 1  # No minimum maintenance time
+            self.T_M_max[station_idx] = 10  # No maximum maintenance time
     
     def initialize_vehicle_ETAs(self):
         """
@@ -273,11 +273,22 @@ class MILP_parameters:
                     # Calculate remaining travel time in minutes
                     remaining_time = vehicle.eta - self.state.time
                     
-                    # Set travel time from depot (source) to destination
-                    self.T_D[(self.source, destination_idx)] = remaining_time
+                    # Check if remaining time exceeds horizon
+                    time_horizon_minutes = self.T * self.tau
                     
-                    # Set discretized travel time (in periods)
-                    self.T_DD[(self.source, destination_idx)] = max(1, (remaining_time // self.tau) + 1)
+                    if remaining_time > time_horizon_minutes:
+                        print(f"Vehicle {vehicle_id} remaining time {remaining_time:.2f} > horizon {time_horizon_minutes}. Routing directly to sink.")
+                        # Route directly to sink
+                        self.eta[vehicle_idx] = self.sink
+                        # Set travel time to match horizon
+                        self.T_D[(self.source, self.sink)] = float(time_horizon_minutes)
+                        self.T_DD[(self.source, self.sink)] = self.T
+                    else:
+                        # Set travel time from depot (source) to destination
+                        self.T_D[(self.source, destination_idx)] = remaining_time
+                        
+                        # Set discretized travel time (in periods)
+                        self.T_DD[(self.source, destination_idx)] = max(1, (remaining_time // self.tau) + 1)
  
  
    
