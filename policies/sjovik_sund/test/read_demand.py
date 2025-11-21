@@ -4,12 +4,17 @@ import json
 import gzip
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 
 from settings import SB_INSTANCE_FILE
 
 def read_demand():
-    instance_path = os.path.join(os.path.dirname(__file__), '..', '..', SB_INSTANCE_FILE + '.json.gz')
+    # Use repository root when reading the instance so tests can be executed from other
+    # folders without breaking path resolution
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+    instance_path = os.path.join(repo_root, SB_INSTANCE_FILE + '.json.gz')
     print(f"Reading demand from instance file: {instance_path}")
     
     with gzip.open(instance_path, 'rt') as f:
