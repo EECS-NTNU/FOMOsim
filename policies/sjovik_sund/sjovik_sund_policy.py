@@ -19,7 +19,7 @@ class SjovikSundPolicy(Policy):
         data = MILP_parameters(simul, self.time_horizon, self.weights, self.tau)
         data.initalize_parameters()
         
-        # --- NEW: Print Simulation Clock ---
+        # --- Print Simulation Clock ---
         time = simul.time
         day = time // (24*60)
         hour = (time % (24*60)) // 60           
@@ -28,7 +28,7 @@ class SjovikSundPolicy(Policy):
         print(f"SIMULATION CLOCK: Day {day}, Hour {hour}, Minute {minute}")
         print(f"{'='*60}")
 
-        # --- NEW: Print Vehicles in Transit ---
+        # --- Print Vehicles in Transit ---
         print("\n--- Vehicles in Transit ---")
         vehicles_in_transit = False
         for v_id, v_obj in simul.vehicles.items():
@@ -51,11 +51,12 @@ class SjovikSundPolicy(Policy):
         if not vehicles_in_transit:
             print("No vehicles currently in transit.")
 
+
         gurobi_output = run_subproblem_model(data.to_dict())
         
         # Check if model found a feasible solution
         if gurobi_output.Status in [3, 4] or gurobi_output.SolCount == 0:
-            print(f"⚠ WARNING: Model infeasible or no solution - vehicle {vehicle.id} stays at current location")
+            print(f" WARNING: Model infeasible or no solution - vehicle {vehicle.id} stays at current location")
             return sim.Action([], [], [], vehicle.location.id)
         
         # --- NEW: Print All Planned Actions ---
@@ -94,26 +95,6 @@ class SjovikSundPolicy(Policy):
             var_type = name.split("[")[0]
             if var_type in ['x', 'qL', 'qU', 'qV', 'tM', 'm_iv']:
                 print(f"  {name} = {val:.2f}")
-        """
-         # Print State Variables (lN, starv, cong, dev) ONLY for visited stations
-        print("\nState Variables (Visited Stations Only):")
-        # Helper to group variables by type
-        state_vars = {'lN': [], 'starv': [], 'cong': [], 'dev': []}
-        # Print state variables only for visited stations
-        for name, val in solution_vars:
-            var_type = name.split("[")[0]
-            if var_type in state_vars:
-                # Check if this variable belongs to a visited station
-                indices = name.strip("]").split("[")[1].split(',')
-                s_idx = int(indices[0])
-                if s_idx in visited_stations:
-                    state_vars[var_type].append(f"{name}={val:.2f}")
-
-        # Print horizontally
-        for var_type, values in state_vars.items():
-            if values:
-                print(f"  {var_type}: {', '.join(values)}")       
-        """
 
 
         print("---------------------------------------------")
@@ -148,8 +129,6 @@ class SjovikSundPolicy(Policy):
         # Get MILP indices
         vehicle_idx = data.vehicle_id_to_index[vehicle.id]
         current_station_idx = data.station_id_to_index[vehicle.location.id]
-
-        ## SISTE KOMMENTAR FØR ENDRING 
        
         print(f"\n=== ROUTING ANALYSIS for Vehicle {vehicle.id} (Index {vehicle_idx}) ===")
         
