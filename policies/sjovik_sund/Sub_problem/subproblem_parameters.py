@@ -219,12 +219,13 @@ class MILP_parameters:
         
         Note: Includes period 0 (initial time period) through T
         """
+        print(self.to_dict().keys())
         for station_idx in self.stations:
             station_id = self.index_to_station_id[station_idx]
             station = self.state.stations[station_id]
             day = self.state.day()
             hour = self.state.hour()
-           
+
             for period in range(0, self.T + 1):
                 # Calculate expected demand for this time period
                 # tau is in minutes, intensities are per hour

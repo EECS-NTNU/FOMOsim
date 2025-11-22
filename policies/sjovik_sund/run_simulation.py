@@ -37,8 +37,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     DURATION = timeInMinutes(hours=duration)
    
     #INSTANCE = "NY_W31"
-    #INSTANCE = "TD_W34"
-    INSTANCE = "OS_W34" 
+    INSTANCE = "TD_W34"
+    #INSTANCE = "OS_W31"
+    #INSTANCE = "EH_W31"
     
      
     # Load initial state
@@ -238,7 +239,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 3  # hours - SHORT TEST (change to 24 for full day)
+    duration = 1  # hours - SHORT TEST (change to 24 for full day)
     num_vehicles = 1 # Need at least 1 vehicle to test the policy!
    
    

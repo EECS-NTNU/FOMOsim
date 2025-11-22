@@ -175,7 +175,7 @@ def run_subproblem_model(data):
 
                 obj_calc = starv_contrib + cong_contrib + dev_contrib + maint_contrib
                 model_obj = float(model.ObjVal) if model.Status == GRB.OPTIMAL or model.Status == GRB.SUBOPTIMAL or model.Status == GRB.FEASIBLE else None
-
+             
                 out = {
                     'timestamp': ts,
                     'model_obj': model_obj,
@@ -207,7 +207,7 @@ def run_subproblem_model(data):
         ###########################################################################################################
         # OBJECTIVE
         ###########################################################################################################
-       
+    
         m.setObjective(quicksum(
             quicksum(w_S*s_var[i,t] + w_C*c_var[i,t] - quicksum(r_M * tM[i,v,t] for v in Vh) for t in Tpos)+ w_D * d_abs[i]
             for i in N
@@ -279,7 +279,8 @@ def run_subproblem_model(data):
             for v in Vh:
                 m.addConstr(
                     #quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
-                    quicksum(get_x(i, j, v, t) for i in N0 if i != j for v in Vh for t in T0) <= 1,
+                    #quicksum(get_x(i, j, v, t) for i in N0 if i != j for v in Vh for t in T0) <= 1,
+                    quicksum(get_x(i, j, v, t) for i in N0 if i != j for t in T0) <= 1,
                     name=f"single_visit_j{j}"
                 )        
         

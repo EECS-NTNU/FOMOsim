@@ -56,7 +56,6 @@ class SjovikSundPolicy(Policy):
         
         # Check if model found a feasible solution
         if gurobi_output.Status in [3, 4] or gurobi_output.SolCount == 0:
-            print(f" WARNING: Model infeasible or no solution - vehicle {vehicle.id} stays at current location")
             return sim.Action([], [], [], vehicle.location.id)
         
         # --- NEW: Print All Planned Actions ---
@@ -101,7 +100,6 @@ class SjovikSundPolicy(Policy):
 
         # Extract this vehicle's action from the multi-vehicle solution
         next_station, bikes_to_pickup, bikes_to_deliver = self.return_solution(gurobi_output, vehicle, data)
-        
         # --- NEW: Adjusted Print Sentences ---
         # 1. Current Action
         print(f"\nVehicle {vehicle.id} at {vehicle.location.id}: Picking up {len(bikes_to_pickup)} bikes, Delivering {len(bikes_to_deliver)} bikes.")
@@ -109,13 +107,13 @@ class SjovikSundPolicy(Policy):
         # 2. Next Movement
         travel_time = data.T_D.get((data.station_id_to_index[vehicle.location.id], data.station_id_to_index[next_station]), 0.0)
         print(f"Vehicle {vehicle.id} is going to station {next_station} next. The trip should take {travel_time:.2f} minutes. Estimated arrival at minute {simul.time + travel_time:.2f}.")
-            
+        
         return sim.Action(
             [],               # batteries to swap
             bikes_to_pickup, #list of bike id's
             bikes_to_deliver, #list of bike id's
             next_station, #id
-        )  
+        )
  
       
     def return_solution(self, gurobi_output, vehicle, data):
