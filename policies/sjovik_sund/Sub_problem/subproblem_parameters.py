@@ -41,7 +41,7 @@ class MILP_parameters:
         # Travel time parameters
         self.T_D = {}          # {(station_idx_i, station_idx_j): travel_time_minutes} - Travel time from i to j in minutes
         self.T_DD = {}         # {(station_idx_i, station_idx_j): num_periods} - Discretized travel time periods from i to j
-        self.T_L = 0.5         # Loading/unloading time per bike in minutes (float)
+        self.T_L = 3         # Loading/unloading time per bike in minutes (float)
        
         # Maintenance time parameters
         self.T_M_min = {}      # {station_idx: min_time_minutes} - Minimum maintenance time at station i

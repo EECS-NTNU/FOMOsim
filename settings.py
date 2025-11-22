@@ -11,12 +11,15 @@ VEHICLE_BATTERY_INVENTORY = 50 # How many batteries can a vehicle hold?
 VEHICLE_BIKE_INVENTORY = 20 # How many bikes can be carried in a vehicle?
 
 VEHICLE_SPEED = 25 # Average speed of a vehicle? (km/h)
-MINUTES_CONSTANT_PER_ACTION = 5 # Constat time in addition (f.eks park the car and start again)
+MINUTES_CONSTANT_PER_ACTION = 3 # Constat time in addition (f.eks park the car and start again)
 
 # Bike settings
 BATTERY_LIMIT_TO_USE = 15 # Battery limit for the bike to be up for rental
 BIKE_SPEED = 7 # Average speed of a bike
 ESCOOTER_SPEED = 13.2 # Average speed of a bike
+MAINTENANCE_THRESHOLD_FOR_NO_RENTAL = 0.8 # above this value, bike is not available for rental
+
+
 
 # Depot settings
 DEFAULT_DEPOT_CAPACITY = 1000 # How many bikes can be parked at depot?
@@ -38,6 +41,7 @@ DEFAULT_STATION_CAPACITY = 20
 
 # Policy settings
 BATTERY_CHANGE_PER_MINUTE = 0.4 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
+MAINTENANCE_INCREASE_PER_MINUTE = 0.1 # Increase in maintenance criticality for each minute the bike is in use (0.01 = 0.10%, 100 minutes use -> 100%)
 
 # User behaviour
 WALKING_SPEED = 4.8
@@ -89,8 +93,9 @@ SERVICE_TIME_FROM = 0
 SERVICE_TIME_TO = 24
 
 BATTERY_LIMIT_TO_SWAP = 80 #
+MAINTENANCE_LIMIT_TO_CHECK = 0.2 #
 
-MINUTES_PER_ACTION = 3 # 1, 3, 6, 9 Minutes to load/unload/battery swaps
+MINUTES_PER_ACTION = 3 # 1, 3, 6, 9 Minutes to load/unload/battery swaps/maintenance per action
 OPERATOR_RADIUS = 1 # 0, 1, 2, 3
 
 TEST_NAME = 'policies' # f'operator_radius_{OPERATOR_RADIUS}' # f'inventory_balance_B{VEHICLE_BATTERY_INVENTORY}_I{VEHICLE_BIKE_INVENTORY}'

@@ -47,7 +47,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     state.set_seed(seed)
     vehicles = [policy for i in range(num_vehicles)]
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
-    tstate = target_state.USTargetState()
+    #tstate = target_state.USTargetState()
+    tstate = target_state.EqualProbTargetState()
+    #tstate = target_state.HalfCapacityTargetState()
 
     # TEMPORARY FIX: Force V1 to start elsewhere for multi-vehicle testing
     if num_vehicles > 1 and "V1" in state.vehicles:
@@ -239,13 +241,13 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 1  # hours - SHORT TEST (change to 24 for full day)
+    duration = 3  # hours - SHORT TEST (change to 24 for full day)
     num_vehicles = 1 # Need at least 1 vehicle to test the policy!
    
    
     # Dictionary of policies to test
     policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=[0.45,0.45,0.1,0.01])
+        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=4, tau=5, weights=[0.45,0.45,0.1,0.01])
         # Add more policy variations here
     }
    

@@ -18,6 +18,7 @@ class Bike(Location):
         self.metrics = Metric()
         self.bike_id = bike_id
         self.battery = 100.0
+        self.maintenance_criticality= 0.0
         self.log = []
 
     def travel(self, simul, travel_time, congested = False):
@@ -25,11 +26,18 @@ class Bike(Location):
             self.metrics.add_metric(simul.state, "travel_time_congested", travel_time)
         else:
             self.metrics.add_metric(simul.state, "travel_time", travel_time)
+        
+        # Update maintenance criticality based on usage
+        maintenance_increase = travel_time * MAINTENANCE_INCREASE_PER_MINUTE
+        self.maintenance_criticality = min(1.0, self.maintenance_criticality + maintenance_increase)
 
     def usable(self):
       return True
 
     def hasBattery(self):
+      return False
+    
+    def needsMaintenance(self):
       return False
 
     def __repr__(self):
