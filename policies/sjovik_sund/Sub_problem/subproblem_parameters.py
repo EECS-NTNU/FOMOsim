@@ -127,36 +127,30 @@ class MILP_parameters:
         This follows the space-time network formulation where source initializes the subproblem
         and connects it to the last observed state of the system.
         """
+        print(f"\n=== INITIALIZING SOURCE NODE (Space-Time Network) ===")
+        
         vehicles = list(self.state.vehicles.values())
-        #print("HEI vehicles:",vehicles)
-        if len(vehicles) > 0:
-            vehicle = vehicles[0]  # Assuming single vehicle for now
+        for vehicle in vehicles:
             current_station_id = vehicle.location.id
-            #print(f"HEI Initializing source for vehicle {vehicle.id} at station {current_station_id}")
             
-            #print(self.station_id_to_index)
             if current_station_id in self.station_id_to_index:
                 current_station_idx = self.station_id_to_index[current_station_id]
-                print(f"\n=== INITIALIZING SOURCE NODE (Space-Time Network) ===")
-                print(f"Vehicle currently at station {current_station_id} (index {current_station_idx})")
+                remaining_time = vehicle.eta - self.state.time if vehicle.eta > self.state.time else 0.0
                 
-                # Only create arc to current station
-                self.T_D[(self.source, current_station_idx)] = 0.0
-                self.T_DD[(self.source, current_station_idx)] = 1  # Minimum one period
-                print(f"  Arc: s -> ({self.index_to_station_id[current_station_idx]}, t=0) [vehicle present]")
+                # Determine vehicle status
+                if remaining_time == 0:
+                    status = "at station"
+                    self.T_D[(self.source, current_station_idx)] = 0.0
+                    self.T_DD[(self.source, current_station_idx)] = 1
+                else:
+                    status = "in transit"
+                    self.T_D[(self.source, current_station_idx)] = remaining_time
+                    self.T_DD[(self.source, current_station_idx)] = max(1, math.ceil(remaining_time / self.tau))
                 
-                # Debug: Print ALL T_DD entries involving source
-                print(f"\nAll T_DD entries with source (s={self.source}):")
-                source_arcs = [(i, j, periods) for (i, j), periods in self.T_DD.items() if i == self.source]
-                for i, j, periods in sorted(source_arcs, key=lambda x: x[1]):
-                    if j == self.sink:
-                        print(f"  T_DD[({i}, {j})] = {periods}  [s -> sink]")
-                    elif j in self.index_to_station_id:
-                        print(f"  T_DD[({i}, {j})] = {periods}  [s -> {self.index_to_station_id[j]}]")
-                    else:
-                        print(f"  T_DD[({i}, {j})] = {periods}  [s -> unknown node {j}]")
-                print(f"Total source arcs: {len(source_arcs)}")
-                print(f"=== END SOURCE INITIALIZATION ===")
+                print(f"Vehicle {vehicle.id}: {status} ({current_station_id})")
+                print(f"  Arc: s -> {current_station_id} | T_D = {self.T_D[(self.source, current_station_idx)]:.2f} min | T_DD = {self.T_DD[(self.source, current_station_idx)]} periods")
+        
+        print(f"=== END SOURCE INITIALIZATION ===")
    
     def _initialize_station_inventories(self):
         for station_idx in self.stations:

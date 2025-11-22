@@ -27,11 +27,14 @@ import csv
  
 def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTANCE=None):
   
-    START_TIME = timeInMinutes(hours=7)
+    START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
    
     #INSTANCE = "NY_W31"
     INSTANCE = "TD_W34" 
+    #INSTANCE = "OS_W34"
+    #INSTANCE = "TD_W21"
+    #INSTANCE = "EH_W31"
     
      
     # Load initial state
@@ -73,6 +76,13 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     )
     
     simulator.run()
+    
+    # Write vehicle routes to file if using SjovikSundPolicy
+    for vehicle in state.vehicles.values():
+        if hasattr(vehicle.policy, 'write_routes_to_file'):
+            vehicle.policy.write_routes_to_file(seed)
+            break  # Only need to call once since all vehicles share the same policy instance
+    
     if queue is not None:
         queue.put(simulator)
     return simulator
@@ -241,16 +251,10 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24  # hours - SHORT TEST (change to 24 for full day)
+    duration = 8  # hours - SHORT TEST (change to 24 for full day)
     num_vehicles = 2 # Need at least 1 vehicle to test the policy!
-   
-   
-    # Dictionary of policies to test
-    policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=[0.7,0.2,0.1,0.0])
-        # Add more policy variations here
-    }
-   
+    
+    
     # Test parameters
     #list_of_time_horizons = [10, 15, 20, 25, 30]
     #list_of_tau = [3, 5, 10, 15]
@@ -263,12 +267,19 @@ if __name__ == "__main__":
         'deviation_focus': [0.3, 0.3, 0.4, 0.01],
     }
    
+    # Dictionary of policies to test
+    policy_dict = {
+        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=5, tau=5, weights=[0.45,0.45,0.09,0.01])
+        # Add more policy variations here
+    }
+   
+
     # List of seeds to test
     list_of_seeds = [1]  # Start with just 1 seed for debugging
    
     # Instances to test
     #list_of_instances = ['instances/BO_W31', 'instances/TD_W34', 'instances/OS_W34']
-    list_of_instances = ['instances/TD_W34']
+    list_of_instances = ['instances/TD_W34','instances/OS_W34']
    
     # Start timing
     start_time = time.time()
