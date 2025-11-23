@@ -1,5 +1,9 @@
 import math
 from settings import VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION
+
+# Maintenance constants - shared across MILP and policy
+TIME_PER_BIKE_MAINTENANCE = 3.0  # Minutes to service one bike (matches MINUTES_PER_ACTION)
+MAX_BIKES_PER_VISIT = 10  # Maximum bikes that can be serviced at one station visit
  
 class MILP_parameters:
  
@@ -242,14 +246,63 @@ class MILP_parameters:
    
     def _initialize_maintenance(self):
         """
-        Initialize maintenance parameters.
-        Set to 0 for all stations if not using maintenance.
+        Initialize maintenance parameters based on station maintenance needs.
+        Only allocate time to stations with bikes that need maintenance.
         """
-        # Her må det kanskje kjøres en sjekk på hvorvidt det skal gjøres maintenance eller ikke
-        # Fordi min tid er jo 0 hvis ikke det skal gjøres maintenance, men hvis den settes til å skulle gjøre maintenance så er det en annen min tid
+        stations_with_maintenance = []
+        
         for station_idx in self.stations:
-            self.T_M_min[station_idx] = 1  # No minimum maintenance time
-            self.T_M_max[station_idx] = 10  # No maximum maintenance time
+            station_id = self.index_to_station_id[station_idx]
+            station = self.state.stations[station_id]
+            
+            # Get maintenance statistics
+            avg_maint = station.get_average_maintenance_criticality()
+            stats = station.get_maintenance_criticality_stats()
+            
+            # Only allocate maintenance time if station has bikes with some criticality
+            if stats['count'] == 0 or avg_maint < 0.05:
+                # No bikes or negligible maintenance needs
+                self.T_M_min[station_idx] = 0
+                self.T_M_max[station_idx] = 0
+            else:
+                # Calculate how many bikes should be serviced
+                # Priority 1: High-criticality bikes (>0.5)
+                bikes_to_service = stats['high_criticality_count']
+                
+                # Priority 2: If no critical bikes but avg > 0.3, service proportionally
+                if bikes_to_service == 0 and avg_maint >= 0.3:
+                    bikes_to_service = max(1, int(stats['count'] * avg_maint))
+                
+                # Priority 3: If avg between 0.05-0.3, service at least 1 bike per visit
+                # This allows early maintenance before bikes become critical
+                if bikes_to_service == 0 and avg_maint >= 0.05:
+                    bikes_to_service = max(1, int(stats['count'] * avg_maint * 2))
+                
+                # Cap by MAX_BIKES_PER_VISIT (realistic constraint)
+                bikes_to_service = min(bikes_to_service, MAX_BIKES_PER_VISIT)
+                
+                # Time = bikes to service × time per bike
+                max_time = bikes_to_service * TIME_PER_BIKE_MAINTENANCE
+                
+                # If maintenance is chosen, must service at least 1 bike (no partial servicing)
+                # This ensures either: 0 min (no maintenance) OR at least 3 min (fix 1+ bikes)
+                self.T_M_min[station_idx] = TIME_PER_BIKE_MAINTENANCE if max_time > 0 else 0
+                self.T_M_max[station_idx] = max_time if max_time > 0 else 0
+                
+                if max_time > 0:
+                    stations_with_maintenance.append((station_id, avg_maint, bikes_to_service, max_time))
+        
+        # Debug output
+        if stations_with_maintenance:
+            print(f"\n--- Maintenance Time Allocation ---")
+            print(f"Stations with maintenance capacity:")
+            for sid, avg, bikes, time in sorted(stations_with_maintenance, key=lambda x: x[1], reverse=True):
+                station_idx = self.station_id_to_index[sid]
+                t_min = self.T_M_min[station_idx]
+                print(f"  {sid}: avg={avg:.3f}, bikes={bikes}, T_M=[{t_min:.1f}, {time:.1f}] min")
+        else:
+            print(f"\n--- Maintenance Time Allocation ---")
+            print(f"No stations allocated maintenance time (all avg_maint < 0.05)")
     
     def initialize_vehicle_ETAs(self):
         """

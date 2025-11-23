@@ -247,8 +247,10 @@ if __name__ == "__main__":
    
     # Dictionary of policies to test
     policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=4, tau=5, weights=[0.45,0.45,0.1,0.01])
+        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=4, tau=5, weights=[0.45,0.45,0.1,0.1])
         # Add more policy variations here
+        # weights = [w_S, w_C, w_D, r_M]
+        # r_M=0.1 makes maintenance competitive with deviation (each minute of maintenance ~ 1 unit of deviation reduction)
     }
    
     # Test parameters

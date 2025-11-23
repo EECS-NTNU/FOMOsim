@@ -1,7 +1,10 @@
 from policies import Policy
 import sim
 import math
-from policies.sjovik_sund.Sub_problem.subproblem_parameters import MILP_parameters
+from policies.sjovik_sund.Sub_problem.subproblem_parameters import (
+    MILP_parameters, 
+    TIME_PER_BIKE_MAINTENANCE
+)
 from policies.sjovik_sund.Sub_problem.sjovik_sund_subproblem import run_subproblem_model
 from policies.sjovik_sund.visualize_subproblem import Visualizer
  
@@ -15,6 +18,36 @@ class SjovikSundPolicy(Policy):
         super().__init__()
  
     def get_best_action(self, simul, vehicle):
+        # Print state with current time's target states
+        day = simul.day()
+        hour = simul.hour()
+        print(f"\n<State: {len(simul.get_parked_bikes())} bikes in {len(simul.stations)} stations with {len(simul.vehicles)} vehicles>")
+        print(f"Current Time: Day {day}, Hour {hour}\n")
+        
+        # Print stations with maintenance information
+        print(f"{'Station':<10} {'Arrive':<8} {'Leave':<8} {'Ideal':<8} {'Bikes':<7} {'AvgMaint':<10}")
+        print("-" * 65)
+        for station in simul.get_stations():
+            target = station.get_target_state(day, hour)
+            avg_maint = station.get_average_maintenance_criticality()
+            print(f"{station.id:<10} {station.get_arrive_intensity(day, hour):>7.2f} "
+                  f"{station.get_leave_intensity(day, hour):>7.2f} {target:>7.1f} "
+                  f"{len(station.bikes):>6} {avg_maint:>9.3f}")
+        
+        # Print maintenance summary
+        high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
+                               for s in simul.get_stations() 
+                               if s.get_average_maintenance_criticality() > 0.3 and len(s.bikes) > 0]
+        
+        if high_maint_stations:
+            high_maint_stations.sort(key=lambda x: x[1], reverse=True)
+            print(f"\n Stations with elevated maintenance needs (>0.3):")
+            for station, maint in high_maint_stations[:5]:  # Top 5
+                stats = station.get_maintenance_criticality_stats()
+                print(f"  {station.id}: Avg={maint:.3f}, Max={stats['max']:.3f}, "
+                      f"High bikes (>0.5): {stats['high_criticality_count']}/{stats['count']}")
+        
+        print()
         # Solve subproblem for ALL vehicles based on current system state
         data = MILP_parameters(simul, self.time_horizon, self.weights, self.tau)
         data.initalize_parameters()
@@ -88,23 +121,25 @@ class SjovikSundPolicy(Policy):
         # Sort for readability (e.g., by variable name then indices)
         solution_vars.sort(key=lambda x: x[0])
         
-        # Print Decision Variables (x, qL, qU, qV, tM, m_iv)
+        # Print Decision Variables (x, qL, qU, qV, tM)
+        # Note: m_iv is a binary flag (not a decision) and is omitted for clarity
         print("Decisions:")
         for name, val in solution_vars:
             var_type = name.split("[")[0]
-            if var_type in ['x', 'qL', 'qU', 'qV', 'tM', 'm_iv']:
+            if var_type in ['x', 'qL', 'qU', 'qV', 'tM']:
                 print(f"  {name} = {val:.2f}")
 
 
         print("---------------------------------------------")
 
         # Extract this vehicle's action from the multi-vehicle solution
-        next_station, bikes_to_pickup, bikes_to_deliver = self.return_solution(gurobi_output, vehicle, data)
-        # --- NEW: Adjusted Print Sentences ---
-        # 1. Current Action
+        # (return_solution also handles maintenance bike servicing)
+        next_station, bikes_to_pickup, bikes_to_deliver, maintenance_time = self.return_solution(gurobi_output, vehicle, data)
+        
+        # --- Print Action Summary ---
         print(f"\nVehicle {vehicle.id} at {vehicle.location.id}: Picking up {len(bikes_to_pickup)} bikes, Delivering {len(bikes_to_deliver)} bikes.")
         
-        # 2. Next Movement
+        # Next Movement
         travel_time = data.T_D.get((data.station_id_to_index[vehicle.location.id], data.station_id_to_index[next_station]), 0.0)
         print(f"Vehicle {vehicle.id} is going to station {next_station} next. The trip should take {travel_time:.2f} minutes. Estimated arrival at minute {simul.time + travel_time:.2f}.")
         
@@ -113,10 +148,11 @@ class SjovikSundPolicy(Policy):
             bikes_to_pickup, #list of bike id's
             bikes_to_deliver, #list of bike id's
             next_station, #id
+            maintenance_time=maintenance_time  # Include maintenance time from MILP solution
         )
  
       
-    def return_solution(self, gurobi_output, vehicle, data):
+    """def return_solution(self, gurobi_output, vehicle, data):
         first_move_period = 1000
         loading_quantity = 0
         unloading_quantity = 0
@@ -174,7 +210,7 @@ class SjovikSundPolicy(Policy):
             v_idx = int(indices[1])
             period_t = int(indices[2])
             
-            if v_idx == vehicle_idx and s_idx == current_station_idx and period_t == first_move_period:
+            if v_idx == vehicle_idx and s_idx == current_station_idx and period_t <= first_move_period:
                 if name == 'qL' and var.x > 0.01:
                     loading_quantity += var.x
                     print(f"  Load: {var.x:.2f} (Period {period_t})")
@@ -206,4 +242,108 @@ class SjovikSundPolicy(Policy):
         print(f"  Deliver: {num_to_deliver} bikes (Target: {unloading_quantity:.2f})")
         
         return station_id, loading_ids, unloading_ids  
- 
+ """
+    
+    def return_solution(self, gurobi_output, vehicle, data):
+        # Initialize variables
+        first_move_period = 1000
+        loading_quantity = unloading_quantity = maintenance_time = 0.0
+        loading_ids, unloading_ids = [], []
+        station_id = vehicle.location.id
+        vehicle_idx = data.vehicle_id_to_index[vehicle.id]
+        current_station_idx = data.station_id_to_index[vehicle.location.id]
+
+        print(f"\n=== ROUTING ANALYSIS for Vehicle {vehicle.id} (Index {vehicle_idx}) ===")
+        #SISTE ENDRINGER HER
+        # 1. Extract and print route sequence
+        print(f"Route Sequence:")
+        route_sequence = []
+        
+        for var in gurobi_output.getVars():
+            variable = var.varName.strip("]").split("[")
+            name, indices = variable[0], variable[1].split(',')
+            
+            if name == 'x' and round(var.x, 0) == 1 and int(indices[2]) == vehicle_idx:
+                from_idx, to_idx, period = int(indices[0]), int(indices[1]), int(indices[3])
+                
+                # Format station names
+                from_name = data.index_to_station_id.get(from_idx, "Source" if from_idx == -1 else "Sink" if from_idx == -2 else str(from_idx))
+                to_name = data.index_to_station_id.get(to_idx, "Source" if to_idx == -1 else "Sink" if to_idx == -2 else str(to_idx))
+                route_sequence.append((period, from_name, to_name, from_idx, to_idx))
+
+                # Find first move from current station to a different station
+                if from_idx == current_station_idx and to_idx >= 0 and to_idx != current_station_idx and period <= first_move_period:
+                    first_move_period = period
+                    station_id = data.index_to_station_id[to_idx]
+
+        # Print route sequence
+        for period, from_name, to_name, _, _ in sorted(route_sequence, key=lambda x: x[0]):
+            print(f"  Period {period}: {from_name} -> {to_name}")
+        if not route_sequence:
+            print("  (No movement from current station found in solution)")
+
+        # 2. Extract actions at current station
+        print(f"\nActions at Current Station ({vehicle.location.id}):")
+        
+        for var in gurobi_output.getVars():
+            variable = var.varName.strip("]").split("[")
+            name, indices = variable[0], variable[1].split(',')
+            
+            if name in ['qL', 'qU', 'tM'] and var.x > 0.01:
+                s_idx, v_idx, period_t = int(indices[0]), int(indices[1]), int(indices[2])
+                
+                if v_idx == vehicle_idx and s_idx == current_station_idx and period_t <= first_move_period:
+                    if name == 'qL':
+                        loading_quantity += var.x
+                        print(f"  Load: {var.x:.2f} (Period {period_t})")
+                    elif name == 'qU':
+                        unloading_quantity += var.x
+                        print(f"  Unload: {var.x:.2f} (Period {period_t})")
+                    elif name == 'tM':
+                        maintenance_time += var.x
+                        print(f"  Maintenance: {var.x:.2f} minutes (Period {period_t})")
+        
+        if loading_quantity == 0 and unloading_quantity == 0 and maintenance_time == 0:
+            print("  (No loading/unloading/maintenance actions)")
+
+        # 3. Select bikes to pickup/deliver
+        bikes_at_station = list(vehicle.location.bikes.values())
+        bikes_at_vehicle = vehicle.get_bike_inventory()
+        
+        # Round up pickups, round down deliveries
+        num_to_pickup = min(len(bikes_at_station), math.ceil(loading_quantity))
+        num_to_deliver = min(len(bikes_at_vehicle), math.floor(unloading_quantity))
+        
+        unloading_ids = [bikes_at_vehicle[i].bike_id for i in range(num_to_deliver)]
+        loading_ids = [bikes_at_station[i].bike_id for i in range(num_to_pickup)]
+        
+        print(f"\nBike Transfer Summary:")
+        print(f"  Pickup: {num_to_pickup} bikes (Target: {loading_quantity:.2f})")
+        print(f"  {loading_ids}")
+        print(f"  Deliver: {num_to_deliver} bikes (Target: {unloading_quantity:.2f})")
+        print(f"  {unloading_ids}")
+        print(f"  Maintenance: {maintenance_time:.2f} minutes")
+        
+        # --- Service bikes (reset maintenance criticality) ---
+        if maintenance_time > 0.001:
+            # Calculate how many bikes were actually serviced
+            bikes_serviced = int(maintenance_time / TIME_PER_BIKE_MAINTENANCE)
+            
+            # Get bikes at station sorted by maintenance criticality (highest first)
+            bikes_at_station = [b for b in vehicle.location.get_bikes() 
+                               if hasattr(b, 'maintenance_criticality')]
+            bikes_at_station.sort(key=lambda b: b.maintenance_criticality, reverse=True)
+            
+            # Reset only the bikes that were actually serviced (highest criticality first)
+            bikes_reset = 0
+            for bike in bikes_at_station[:bikes_serviced]:
+                bike.maintenance_criticality = 0.0
+                bikes_reset += 1
+            
+            print(f"\n##### Maintenance performed at {vehicle.location.id}: {maintenance_time:.1f} minutes")
+            print(f"   Bikes serviced: {bikes_reset}/{len(bikes_at_station)} (prioritized by criticality)")
+            if bikes_reset < len(bikes_at_station):
+                remaining_avg = sum(b.maintenance_criticality for b in bikes_at_station[bikes_reset:]) / len(bikes_at_station[bikes_reset:])
+                print(f"   Remaining bikes avg maintenance: {remaining_avg:.3f}")
+        
+        return station_id, loading_ids, unloading_ids, maintenance_time

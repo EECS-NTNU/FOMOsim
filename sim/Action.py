@@ -15,7 +15,8 @@ class Action:
         cluster = None,
         helping_pickup = [],
         helping_delivery = [],
-        helping_cluster = None
+        helping_cluster = None,
+        maintenance_time = 0.0
     ):
         """
         Object to represent an action
@@ -23,6 +24,7 @@ class Action:
         :param pick_ups: ids of bikes to pick up
         :param delivery_bikes: ids of bikes to deliver
         :param next_location: id of next location to visit
+        :param maintenance_time: time in minutes spent on bike maintenance at current station
         """
         self.battery_swaps = battery_swaps
         self.pick_ups = pick_ups
@@ -32,6 +34,7 @@ class Action:
         self.helping_pickup = helping_pickup
         self.helping_delivery = helping_delivery
         self.helping_cluster = helping_cluster
+        self.maintenance_time = maintenance_time
 
     def get_action_time(self, travel_time):
         """
@@ -48,7 +51,8 @@ class Action:
             travel_time
             + MINUTES_CONSTANT_PER_ACTION
         )
-        return operation_duration + travel_duration
+        # Include maintenance time in total action duration
+        return operation_duration + travel_duration + self.maintenance_time
 
     def __repr__(self):
         return (
