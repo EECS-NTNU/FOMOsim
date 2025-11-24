@@ -148,6 +148,28 @@ class SjovikSundPolicy(Policy):
             if var_type in ['x', 'qL', 'qU', 'qV', 'tM', "m_iv"]:
                 print(f"  {name} = {val:.2f}")
 
+        
+        """
+         # Print State Variables (lN, starv, cong, dev) ONLY for visited stations
+        print("\nState Variables (Visited Stations Only):")
+        # Helper to group variables by type
+        state_vars = {'lN': [], 'starv': [], 'cong': [], 'dev': []}
+        # Print state variables only for visited stations
+        for name, val in solution_vars:
+            var_type = name.split("[")[0]
+            if var_type in state_vars:
+                # Check if this variable belongs to a visited station
+                indices = name.strip("]").split("[")[1].split(',')
+                s_idx = int(indices[0])
+                if s_idx in visited_stations:
+                    state_vars[var_type].append(f"{name}={val:.2f}")
+
+        # Print horizontally
+        for var_type, values in state_vars.items():
+            if values:
+                print(f"  {var_type}: {', '.join(values)}")       
+        """
+
 
         print("---------------------------------------------")
 

@@ -331,16 +331,17 @@ def run_subproblem_model(data):
                     name=f"one_trip_v{v}_t{t}"
                 )
  
-        # (6) single visit per station by entire fleet within horizon:
+        # (6) single visit per station per vehicle within horizon:
         #     ∑_{i∈N\{j}} ∑_{v} ∑_{t} x_{i j v t} ≤ 1  for each j∈N
         # Use T0 to include t=0 (initial arrival from source)
 
+        # TEST MED ENTIRE FLEET
         
         for j in N:
             for v in Vh:
                 m.addConstr(
                     #quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
-                    quicksum(get_x(i, j, v, t) for i in N0 if i != j for t in T0 for v in Vh) <= 1,
+                    quicksum(get_x(i, j, v, t) for i in N0 if i != j for t in T0) <= 1,
                     name=f"single_visit_j{j}"
                 )        
         
