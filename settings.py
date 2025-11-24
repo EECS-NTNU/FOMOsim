@@ -41,7 +41,7 @@ DEFAULT_STATION_CAPACITY = 20
 
 # Policy settings
 BATTERY_CHANGE_PER_MINUTE = 0.4 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
-MAINTENANCE_INCREASE_PER_MINUTE = 0.01 # Increase in maintenance criticality for each minute the bike is in use (0.01 = 0.10%, 100 minutes use -> 100%)
+MAINTENANCE_INCREASE_PER_MINUTE = 0.05 # Increase in maintenance criticality for each minute the bike is in use (0.01 = 0.10%, 100 minutes use -> 100%)
 
 # User behaviour
 WALKING_SPEED = 4.8

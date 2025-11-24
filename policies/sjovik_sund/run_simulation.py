@@ -349,7 +349,7 @@ if __name__ == "__main__":
    
     # Dictionary of policies to test
     policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=5, tau=5, weights=[0.45,0.45,0.09,0.01])
+        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=5, tau=5, weights=[0.1,0.7,0.1,0.1])
         # Add more policy variations here
     }
    
