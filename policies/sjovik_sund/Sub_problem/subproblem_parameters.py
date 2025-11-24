@@ -402,7 +402,7 @@ class MILP_parameters:
         self._initialize_demand()
        
         # Initialize maintenance parameters (set to 0 if not using maintenance)
-
+        self._initialize_maintenance()
 
 
 

@@ -228,10 +228,11 @@ class SjovikSundPolicy(Policy):
         first_move_period = 1000
         loading_quantity = unloading_quantity = maintenance_time = 0.0
         loading_ids, unloading_ids = [], []
-        station_id = vehicle.location.id
+        next_station_id = vehicle.location.id
         vehicle_idx = data.vehicle_id_to_index[vehicle.id]
         current_station_idx = data.station_id_to_index[vehicle.location.id]
-        print(f"\n=== ROUTING ANALYSIS for Vehicle {vehicle.id} (Index {vehicle_idx}) ===")
+
+        print(f"\n=== ROUTING ANALYSIS for Vehicle {vehicle.id} at station {vehicle.location.id} ===")
         #SISTE ENDRINGER HER
         # 1. Extract and print route sequence
         print(f"Route Sequence:")
@@ -252,7 +253,7 @@ class SjovikSundPolicy(Policy):
                 # Find first move from current station to a different station
                 if from_idx == current_station_idx and to_idx >= 0 and to_idx != current_station_idx and period < first_move_period:
                     first_move_period = period
-                    station_id = data.index_to_station_id[to_idx]
+                    next_station_id = data.index_to_station_id[to_idx]
 
         # Print route sequence
         for period, from_name, to_name, _, _ in sorted(route_sequence, key=lambda x: x[0]):
@@ -261,7 +262,7 @@ class SjovikSundPolicy(Policy):
             print("  (No movement from current station found in solution)")
 
         # 2. Extract actions at current station
-        print(f"\nActions at Current Station ({vehicle.location.id}):")
+        print(f"\nDecision actions at Current Station ({vehicle.location.id}):")
         
         for var in gurobi_output.getVars():
             variable = var.varName.strip("]").split("[")
@@ -285,24 +286,41 @@ class SjovikSundPolicy(Policy):
             print("  (No loading/unloading/maintenance actions)")
 
         # 3. Select bikes to pickup/deliver
+        net_transfer = loading_quantity - unloading_quantity
+
         bikes_at_station = list(vehicle.location.bikes.values())
         bikes_at_vehicle = vehicle.get_bike_inventory()
+
+        if net_transfer > 0: #net pickup
+            num_to_pickup = min(len(bikes_at_station), math.ceil(net_transfer))
+            num_to_deliver = 0
+            loading_ids = [bikes_at_station[i].bike_id for i in range(num_to_pickup)]
+            unloading_ids = []
+        elif net_transfer < 0: #net delivery
+            num_to_deliver = min(len(bikes_at_vehicle), math.floor(-net_transfer))
+            num_to_pickup = 0
+            unloading_ids = [bikes_at_vehicle[i].bike_id for i in range(num_to_deliver)]
+            loading_ids = []
+        else: #no change
+            num_to_pickup = num_to_deliver = 0
+            loading_ids = []
+            unloading_ids = []
         
-        # Round up pickups, round down deliveries
-        num_to_pickup = min(len(bikes_at_station), math.ceil(loading_quantity))
-        num_to_deliver = min(len(bikes_at_vehicle), math.floor(unloading_quantity))
-        
-        unloading_ids = [bikes_at_vehicle[i].bike_id for i in range(num_to_deliver)]
-        loading_ids = [bikes_at_station[i].bike_id for i in range(num_to_pickup)]
         
         print(f"\nBike Transfer Summary:")
+        print(f"  Target: Load {loading_quantity:.2f}, Unload {unloading_quantity:.2f}")
+        #print(f"  Net: {net_transfer:+.2f} → Executing: Pickup {num_to_pickup}, Deliver {num_to_deliver}")
+        print(f"\n Net Transfer at Station: {net_transfer:.2f} bikes (Loading: {loading_quantity:.2f}, Unloading: {unloading_quantity:.2f})")
+    
+
         print(f"  Pickup: {num_to_pickup} bikes (Target: {loading_quantity:.2f})")
         print(f"  {loading_ids}")
         print(f"  Deliver: {num_to_deliver} bikes (Target: {unloading_quantity:.2f})")
         print(f"  {unloading_ids}")
-        print(f"  Maintenance: {maintenance_time:.2f} minutes")
+        #print(f"  Maintenance: {maintenance_time:.2f} minutes")
         
-        return station_id, loading_ids, unloading_ids, maintenance_time
+        return next_station_id, loading_ids, unloading_ids, maintenance_time
+    
     
     def write_routes_to_file(self, seed=None):
         """Write the actual routes taken by all vehicles to a file"""
