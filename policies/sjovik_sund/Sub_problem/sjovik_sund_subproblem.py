@@ -105,24 +105,6 @@ def run_subproblem_model(data):
             
         print("=============================\n")
         
-        """
-        for i in N0:
-            for j in N0:
-                travel_time = T_DD.get((i, j), None)
-                if travel_time is not None:
-                    if j == s or i == d:  # No arcs TO source, no arcs FROM sink
-                        continue
-                    for v in Vh:
-                        for t in T0:
-                            if t + travel_time <= T:
-                                if i == s and t > 0:
-                                    continue
-                                if i in N and j == d and t == 0:
-                                    continue
-                                if i == s and j == d and t == 0:
-                                    continue
-                                feasible_arcs.append((i, j, v, t))
-        """
         # Batch create x and qV variables using tupledict (much faster!)
         x = m.addVars(feasible_arcs, vtype=GRB.BINARY, name="x")
         qV = m.addVars(feasible_arcs, vtype = GRB.INTEGER, lb=0.0, name="qV")
@@ -154,67 +136,6 @@ def run_subproblem_model(data):
         # deviation di ≥ 0 continuous
         d_abs = m.addVars(N, vtype=GRB.CONTINUOUS, lb=0.0, name="dev")
 
-         # Helper: export objective-term breakdown for analysis / thesis
-        def _export_objective_breakdown(model, data, ts=None):
-            try:
-                if ts is None:
-                    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
- 
-                # Aggregate raw sums
-                starv_sum = sum(s_var[i, t].X for i in N for t in Tpos)
-                cong_sum = sum(c_var[i, t].X for i in N for t in Tpos)
-                maint_time = sum(tM[i, v, t].X for i in N for v in Vh for t in Tpos)
-                dev_sum = sum(d_abs[i].X for i in N)
- 
-                # Weighted contributions (match objective expression)
-                starv_contrib = data.get('w_S', 1.0) * starv_sum
-                cong_contrib = data.get('w_C', 1.0) * cong_sum
-                dev_contrib = data.get('w_D', 1.0) * dev_sum
-                maint_contrib = - data.get('r_M', 0.0) * maint_time
- 
-                obj_calc = starv_contrib + cong_contrib + dev_contrib + maint_contrib
-                model_obj = float(model.ObjVal) if model.Status == GRB.OPTIMAL or model.Status == GRB.SUBOPTIMAL or model.Status == GRB.FEASIBLE else None
-             
- 
- 
-                out = {
-                    'timestamp': ts,
-                    'model_obj': model_obj,
-                    'terms': {
-                        'starvation': {'sum': starv_sum, 'weight': data.get('w_S', 1.0), 'contribution': starv_contrib},
-                        'congestion': {'sum': cong_sum, 'weight': data.get('w_C', 1.0), 'contribution': cong_contrib},
-                        'deviation': {'sum': dev_sum, 'weight': data.get('w_D', 1.0), 'contribution': dev_contrib},
-                        'maintenance_time': {'sum': maint_time, 'rate': data.get('r_M', 0.0), 'contribution': maint_contrib} # i stedet for denne altså:
-                    },
-                    'computed_obj_from_terms': obj_calc
-                }
-                #denne kan gå inn over
-                """'maintenance_time': {
-                            'sum': maint_time,
-                            'rate': data.get('r_M', 0.0),
-                            'contribution_time': maint_contrib_time,
-                            'events': maint_events,
-                            'contribution_event': maint_contrib_event
-                        }"""
- 
-                fname = f"subproblem_objective_breakdown_{ts}.json"
-                with open(fname, 'w') as fh:
-                    json.dump(out, fh, indent=2)
- 
-                # Print compact summary
-                print('\n=== Objective Breakdown ===')
-                print(f"Model objective: {model_obj}")
-                print(f"Starvation contribution: {starv_contrib} (raw {starv_sum})")
-                print(f"Congestion  contribution: {cong_contrib} (raw {cong_sum})")
-                print(f"Deviation   contribution: {dev_contrib} (raw {dev_sum})")
-                print(f"Maintenance contribution: {maint_contrib} (raw time {maint_time})")
-                #print(f"Maintenance contribution (time-based): {maint_contrib_time} (raw time {maint_time})")
-                #print(f"Maintenance contribution (per-event): {maint_contrib_event} (events {maint_events})")
-                print(f"Sum of contributions: {obj_calc}")
-                print(f"Wrote objective breakdown to {fname}\n")
-            except Exception as e:
-                print(f"Failed to export objective breakdown: {e}")
- 
  
         # Helper: export objective-term breakdown for analysis / thesis
         def _export_objective_breakdown(model, data, ts=None):
@@ -523,6 +444,7 @@ def run_subproblem_model(data):
         m.optimize()
 
         # Export objective-term breakdown when a solution (or incumbent) exists
+        """
         try:
             if m.Status in (GRB.OPTIMAL, GRB.SUBOPTIMAL, GRB.USER_OBJ_LIMIT):
                 _export_objective_breakdown(m, data)
@@ -530,7 +452,9 @@ def run_subproblem_model(data):
             # Best-effort: don't fail the solver wrapper if export breaks
             print("Warning: objective breakdown export failed.")
             print(str(e))
-            print(traceback.format_exc())
+            print(traceback.format_exc())        
+        """
+
 
         if m.Status == GRB.INFEASIBLE:
             print("\nModel is infeasible. Computing IIS...")

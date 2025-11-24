@@ -21,14 +21,14 @@ This is realistic behavior - real-world travel times vary due to traffic, weathe
  
  
 class SjovikSundPolicy(Policy):
-    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None):
+    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None, hour_from=7, hour_to=16):
         self.roaming = roaming
         self.time_horizon = time_horizon
         self.tau = tau
         self.weights = weights
         self.vehicle_routes = {}  # Track actual routes: {vehicle_id: [(time, station_id), ...]}
-        self.vehicle_routes = {}  # Track actual routes: {vehicle_id: [(time, station_id), ...]}
         super().__init__()
+        self.set_time_of_service(hour_from=hour_from, hour_to=hour_to)  # Set working hours (default 7 AM - 4 PM)
  
     def get_best_action(self, simul, vehicle):
         # Print state with current time's target states
@@ -285,6 +285,7 @@ class SjovikSundPolicy(Policy):
         if loading_quantity == 0 and unloading_quantity == 0 and maintenance_time == 0:
             print("  (No loading/unloading/maintenance actions)")
 
+        #VEHICLE ACTIONS FIX 
         # 3. Select bikes to pickup/deliver
         net_transfer = loading_quantity - unloading_quantity
 
