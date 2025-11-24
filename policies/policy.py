@@ -47,7 +47,7 @@ class Policy(abc.ABC):
         if  self.hour_from <= simul.hour() < self.hour_to: 
             return self.get_best_action(simul, vehicle)
         else:
-            depot_id = simul.state.get_closest_depot(vehicle)
+            depot_id = simul.get_closest_depot(vehicle)
             return sim.Action([], [], [], depot_id)
 
     def __repr__(self):
