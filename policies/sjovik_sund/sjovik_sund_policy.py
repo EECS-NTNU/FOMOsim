@@ -108,6 +108,8 @@ class SjovikSundPolicy(Policy):
             var_type = name.split("[")[0]
             if var_type in ['x', 'qL', 'qU', 'qV', 'tM', 'm_iv']:
                 print(f"  {name} = {val:.2f}")
+
+        
         """
          # Print State Variables (lN, starv, cong, dev) ONLY for visited stations
         print("\nState Variables (Visited Stations Only):")
