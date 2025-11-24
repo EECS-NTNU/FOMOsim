@@ -32,7 +32,7 @@ class Bike(Location):
         self.maintenance_criticality = min(1.0, self.maintenance_criticality + maintenance_increase)
 
     def usable(self):
-      return True
+      return self.maintenance_criticality < MAINTENANCE_THRESHOLD_FOR_NO_RENTAL
 
     def hasBattery(self):
       return False

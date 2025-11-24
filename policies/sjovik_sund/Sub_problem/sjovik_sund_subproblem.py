@@ -197,9 +197,9 @@ def run_subproblem_model(data):
                             'contribution_event': maint_contrib_event
                         }"""
  
-                fname = f"subproblem_objective_breakdown_{ts}.json"
-                with open(fname, 'w') as fh:
-                    json.dump(out, fh, indent=2)
+                #fname = f"subproblem_objective_breakdown_{ts}.json"
+               # with open(fname, 'w') as fh:
+                   # json.dump(out, fh, indent=2)
  
                 # Print compact summary
                 print('\n=== Objective Breakdown ===')
@@ -530,7 +530,7 @@ def run_subproblem_model(data):
             # Best-effort: don't fail the solver wrapper if export breaks
             print("Warning: objective breakdown export failed.")
             print(str(e))
-            print(traceback.format_exc())
+            #print(traceback.format_exc())
 
         if m.Status == GRB.INFEASIBLE:
             print("\nModel is infeasible. Computing IIS...")

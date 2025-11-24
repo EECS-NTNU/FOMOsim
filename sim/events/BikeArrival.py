@@ -37,11 +37,8 @@ class BikeArrival(Event):
             self.bike = simul.state.get_used_bike()
 
         if self.bike is not None:
+            # Update bike state based on trip (includes maintenance increase)
             self.bike.travel(simul, self.travel_time, self.congested)
-
-            # UPDATE MAINTENANCE CRITICALITY BASED ON TRIP
-            trip_maintenance_increase = self.travel_time * MAINTENANCE_INCREASE_PER_MINUTE
-            self.bike.maintenance_criticality = min(1.0, self.bike.maintenance_criticality + trip_maintenance_increase)
         
 
             if self.bike.battery < 0:

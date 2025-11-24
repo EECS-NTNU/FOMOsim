@@ -10,6 +10,7 @@ import random
 import geopy
 # from policies.inngjerdingen_moeller.parameters_MILP import MILP_data 
 from sim import Metric
+from sim.maintenance_model import perform_maintenance
 
 class State(LoadSave):
     """
@@ -646,6 +647,31 @@ class State(LoadSave):
                             helping_delivery_bike = vehicle.drop_off(helping_delivery_id)
                             station.add_bike(helping_delivery_bike)
                             break
+
+        # Perform maintenance on bikes at current location
+        if action.maintenance_time > 0 and not vehicle.is_at_depot():
+            # Get bikes at current location that need maintenance, sorted by criticality (highest first)
+            if hasattr(vehicle.location, 'get_bikes_in_need_of_maintenance'):
+                bikes_to_maintain = vehicle.location.get_bikes_in_need_of_maintenance(threshold=0.0)
+                print(f"Bikes needing maintenance at location {vehicle.location.id}: {[bike.bike_id for bike in bikes_to_maintain]}")
+            else:
+                # Fallback: get all bikes and sort by maintenance criticality
+                print(f"Location {vehicle.location.id} does not have 'get_bikes_in_need_of_maintenance' method. Using all bikes for maintenance check.")
+                bikes_at_location = vehicle.location.get_bikes()
+                bikes_to_maintain = sorted(
+                    [bike for bike in bikes_at_location if hasattr(bike, 'maintenance_criticality')],
+                    key=lambda b: b.maintenance_criticality,
+                    reverse=True
+                )
+            
+            # Calculate time per bike and number of bikes that can be serviced
+            if bikes_to_maintain:
+                time_per_bike = MINUTES_PER_ACTION  # 3 minutes per bike for maintenance
+                num_bikes_to_service = int(action.maintenance_time / time_per_bike)
+                
+                # Apply maintenance to the bikes with highest criticality
+                for i, bike in enumerate(bikes_to_maintain[:num_bikes_to_service]):
+                    bike.maintenance_criticality = perform_maintenance(bike, time_per_bike)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)
