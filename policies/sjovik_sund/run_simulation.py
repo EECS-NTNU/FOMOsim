@@ -188,10 +188,10 @@ def write_simulation_summary(filename, simulator, duration, policy, seed):
         # 2. Accumulated Objective Function
         f.write("\n--- ACCUMULATED OBJECTIVE FUNCTION ---\n")
         
-        # Get aggregate metrics
+        # Get aggregate metrics 
+        # Regner bare med long congestions her
         starvations = simulator.state.metrics.get_aggregate_value('starvations')
-        congestions = simulator.state.metrics.get_aggregate_value('short congestions') + \
-                      simulator.state.metrics.get_aggregate_value('long congestions')
+        congestions = simulator.state.metrics.get_aggregate_value('long congestions') # + simulator.state.metrics.get_aggregate_value('short congestions')
         maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
         
         # USIKKER PÅ OM VI BØR HA MED DEVIATIONS, tatt vekk per nå
@@ -331,7 +331,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 2  # hours - SHORT TEST (change to 24 for full day)
+    duration = 48  # hours - SHORT TEST (change to 24 for full day)
     num_vehicles = 2 # Need at least 1 vehicle to test the policy!
     
     
