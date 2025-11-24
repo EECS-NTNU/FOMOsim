@@ -10,6 +10,7 @@ import random
 import geopy
 # from policies.inngjerdingen_moeller.parameters_MILP import MILP_data 
 from sim import Metric
+from sim.maintenance_model import perform_maintenance
 
 class State(LoadSave):
     """
@@ -646,6 +647,57 @@ class State(LoadSave):
                             helping_delivery_bike = vehicle.drop_off(helping_delivery_id)
                             station.add_bike(helping_delivery_bike)
                             break
+
+        # Perform maintenance on bikes at current location
+        if action.maintenance_time > 0 and not vehicle.is_at_depot():
+            # Get bikes at current location that need maintenance, sorted by criticality (highest first)
+            if hasattr(vehicle.location, 'get_bikes_in_need_of_maintenance'):
+                bikes_to_maintain = vehicle.location.get_bikes_in_need_of_maintenance(threshold=0.0)
+            else:
+                # Fallback: get all bikes and sort by maintenance criticality
+                bikes_at_location = vehicle.location.get_bikes()
+                bikes_to_maintain = sorted(
+                    [bike for bike in bikes_at_location if hasattr(bike, 'maintenance_criticality')],
+                    key=lambda b: b.maintenance_criticality,
+                    reverse=True
+                )
+            
+            # Calculate time per bike and number of bikes that can be serviced
+            if bikes_to_maintain:
+                time_per_bike = MINUTES_PER_ACTION  # 3 minutes per bike for maintenance
+                num_bikes_to_service = int(action.maintenance_time / time_per_bike)
+                
+                # Print BEFORE maintenance
+                print(f"\n  MAINTENANCE at {vehicle.location.id} (t={time:.1f}, allocated={action.maintenance_time:.1f}min)")
+                print(f"     Bikes at station BEFORE maintenance ({len(bikes_to_maintain)} total):")
+                for bike in bikes_to_maintain[:min(10, len(bikes_to_maintain))]:  # Show first 10
+                    usable = "usable" if bike.usable() else "UNUSABLE"
+                    print(f"       {bike.bike_id}: maint={bike.maintenance_criticality:.3f} ({usable})")
+                if len(bikes_to_maintain) > 10:
+                    print(f"       ... and {len(bikes_to_maintain) - 10} more bikes")
+                
+                # Apply maintenance to the bikes with highest criticality
+                serviced_bikes = []
+                for i, bike in enumerate(bikes_to_maintain[:num_bikes_to_service]):
+                    old_criticality = bike.maintenance_criticality
+                    bike.maintenance_criticality = perform_maintenance(bike, time_per_bike)
+                    serviced_bikes.append((bike, old_criticality))
+                
+                # Print AFTER maintenance
+                print(f"\n     Serviced {len(serviced_bikes)} bikes ({time_per_bike:.1f} min each):")
+                for bike, old_crit in serviced_bikes:
+                    print(f"       {bike.bike_id}: {old_crit:.3f} -> {bike.maintenance_criticality:.3f} (now usable)")
+                
+                # Show remaining bikes needing maintenance
+                remaining_high = [b for b in bikes_to_maintain[num_bikes_to_service:] if b.maintenance_criticality >= 0.5]
+                if remaining_high:
+                    print(f"\n     Remaining bikes still needing maintenance ({len(remaining_high)} with maint>=0.5):")
+                    for bike in remaining_high[:5]:  # Show first 5
+                        usable = "usable" if bike.usable() else "UNUSABLE"
+                        print(f"       {bike.bike_id}: maint={bike.maintenance_criticality:.3f} ({usable})")
+                    if len(remaining_high) > 5:
+                        print(f"       ... and {len(remaining_high) - 5} more")
+                print()
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)
