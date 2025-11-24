@@ -51,6 +51,13 @@ class BikeArrival(Event):
                 if FULL_TRIP:
                     simul.state.remove_used_bike(self.bike)
                 
+                # Print bike arrival information
+                maint_status = f"maint={self.bike.maintenance_criticality:.3f}" if hasattr(self.bike, 'maintenance_criticality') else ""
+                usable_status = " usable" if self.bike.usable() else " UNUSABLE"
+                congestion_str = " [CONGESTED]" if self.congested else ""
+                print(f"   ARRIVAL: Bike {self.bike.bike_id} at {arrival_station.id} "
+                      f"(t={self.time:.1f}, {maint_status}, {usable_status}){congestion_str}")
+                
                 simul.state.metrics.add_aggregate_metric(simul.state, "bike arrival", 1)
 
             else:
@@ -62,6 +69,11 @@ class BikeArrival(Event):
                         arrival_station.id,
                         next_station.id,
                     )
+                    
+                    # Print roaming information
+                    maint_status = f"maint={self.bike.maintenance_criticality:.3f}" if hasattr(self.bike, 'maintenance_criticality') else ""
+                    print(f"   ROAMING: Bike {self.bike.bike_id} - {arrival_station.id} FULL -> routing to {next_station.id} from {arrival_station.id} "
+                          f"(t={self.time:.1f}, {maint_status}, +{travel_time:.1f}min)")
 
                     # create an arrival event for the departed bike
                     simul.add_event(
