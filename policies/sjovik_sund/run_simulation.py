@@ -90,6 +90,13 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
             vehicle.policy.write_routes_to_file(seed)
             break  # Only need to call once since all vehicles share the same policy instance
     
+    
+    # Write vehicle routes to file if using SjovikSundPolicy
+    for vehicle in state.vehicles.values():
+        if hasattr(vehicle.policy, 'write_routes_to_file'):
+            vehicle.policy.write_routes_to_file(seed)
+            break  # Only need to call once since all vehicles share the same policy instance
+    
     if queue is not None:
         queue.put(simulator)
     return simulator

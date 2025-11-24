@@ -27,6 +27,7 @@ class SjovikSundPolicy(Policy):
         self.tau = tau
         self.weights = weights
         self.vehicle_routes = {}  # Track actual routes: {vehicle_id: [(time, station_id), ...]}
+        self.vehicle_routes = {}  # Track actual routes: {vehicle_id: [(time, station_id), ...]}
         super().__init__()
  
     def get_best_action(self, simul, vehicle):
