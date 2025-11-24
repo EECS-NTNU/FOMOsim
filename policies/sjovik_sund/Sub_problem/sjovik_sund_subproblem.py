@@ -422,13 +422,13 @@ def run_subproblem_model(data):
                 m.addConstr(quicksum(tM[i, v, t] for t in Tpos) >= T_M_min[i] * m_iv[i, v],
                             name=f"maint_min_i{i}_v{v}")
 
-        # (18b) MODIFIED: Link m_iv to actual visits (prevents phantom maintenance)
-        # m_iv can only be 1 if vehicle actually visits the station
+        # (18b) Rolling horizon: Only allow maintenance at current station (where vehicle starts)
+        # This prevents rewarding phantom future maintenance that won't be executed
         for i in N:
             for v in Vh:
-                m.addConstr(m_iv[i, v] <= quicksum(get_x(j, i, v, t) for j in (N + [s]) for t in T0 
-                                                    if (j, i) in T_DD and t >= 0),
-                           name=f"maint_visit_link_i{i}_v{v}")
+                #if i != eta[v]:  # If not the current station for this vehicle
+                    #m.addConstr(m_iv[i, v] == 0, name=f"maint_current_only_i{i}_v{v}")
+                m.addConstr(m_iv[i,v] <= quicksum(get_x(i, j, v, t) for j in N0 for t in Tpos), name=f"maint_current_only_i{i}_v{v}")    
 
         # (19) Link service (loading/unloading/maintenance) to presence in period t
         for i in N:

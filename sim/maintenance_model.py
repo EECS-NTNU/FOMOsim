@@ -1,0 +1,80 @@
+from settings import MAINTENANCE_INCREASE_PER_MINUTE
+import random
+
+def update_bike_maintenance(bike, travel_time, battery_level=None, congested=False):
+    """
+    Advanced maintenance model considering multiple factors.
+    
+    Args:
+        bike: Bike object
+        travel_time: Minutes of travel
+        battery_level: Current battery (for e-bikes), optional
+        congested: Whether the trip was congested (extra wear)
+    
+    Returns:
+        float: New maintenance criticality (0.0 to 1.0)
+    """
+    # Base wear from distance/time
+    base_wear = travel_time * MAINTENANCE_INCREASE_PER_MINUTE
+    
+    # Factor 1: Battery stress (for e-bikes)
+    battery_multiplier = 1.0
+    if battery_level is not None:
+        if battery_level < 20:
+            battery_multiplier = 1.5  # Low battery = more motor stress
+        elif battery_level < 50:
+            battery_multiplier = 1.2
+    
+    # Factor 2: Congestion penalty (rerouting, extra stops)
+    congestion_multiplier = 1.3 if congested else 1.0
+    
+    # Factor 3: Random wear (simulate unexpected damage)
+    # Small chance of extra wear (1% chance of 0.1-0.3 extra)
+    random_wear = 0.0
+    if random.random() < 0.01:  # 1% chance
+        random_wear = random.uniform(0.1, 0.3)
+    
+    # Factor 4: Accelerated degradation when already high
+    # High maintenance bikes degrade faster (cascading failures)
+    degradation_multiplier = 1.0
+    if bike.maintenance_criticality > 0.7:
+        degradation_multiplier = 1.5  # 50% faster when already critical
+    elif bike.maintenance_criticality > 0.5:
+        degradation_multiplier = 1.2  # 20% faster when high
+    
+    # Calculate total wear
+    total_wear = (
+        base_wear * 
+        battery_multiplier * 
+        congestion_multiplier * 
+        degradation_multiplier + 
+        random_wear
+    )
+    
+    # Update and cap at 1.0
+    new_criticality = min(1.0, bike.maintenance_criticality + total_wear)
+    
+    return new_criticality
+
+
+def perform_maintenance(bike, maintenance_time):
+    """
+    Reduce maintenance criticality based on time spent servicing.
+    
+    Args:
+        bike: Bike object
+        maintenance_time: Minutes spent on maintenance
+    
+    Returns:
+        float: New maintenance criticality
+    """
+    # Full service (30+ minutes) = complete reset
+    if maintenance_time >= 30:
+        return 0.0
+    
+    # Partial service = proportional reduction
+    # e.g., 15 minutes = 50% reduction
+    reduction_factor = maintenance_time / 30.0
+    new_criticality = bike.maintenance_criticality * (1.0 - reduction_factor)
+    
+    return max(0.0, new_criticality)

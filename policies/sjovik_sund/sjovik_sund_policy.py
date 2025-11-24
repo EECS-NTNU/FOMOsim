@@ -126,7 +126,7 @@ class SjovikSundPolicy(Policy):
         print("Decisions:")
         for name, val in solution_vars:
             var_type = name.split("[")[0]
-            if var_type in ['x', 'qL', 'qU', 'qV', 'tM']:
+            if var_type in ['x', 'qL', 'qU', 'qV', 'tM', "m_iv"]:
                 print(f"  {name} = {val:.2f}")
 
 
