@@ -36,10 +36,14 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
    
-    #INSTANCE = "NY_W31"
     INSTANCE = "TD_W34"
+    #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
     #INSTANCE = "EH_W31"
+
+    start_stations = [0,5,10,15,20,25,30,35,40] #use this for Trondheim
+    # start_stations = [4,5,10,15,20,25,30,35,40] #use this for Oslo
+    # start_stations = [0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2] #use this for Edinburgh
     
      
     # Load initial state
@@ -47,30 +51,26 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     state.set_seed(seed)
     vehicles = [policy for i in range(num_vehicles)]
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
+
     #tstate = target_state.USTargetState()
     tstate = target_state.EqualProbTargetState()
     #tstate = target_state.HalfCapacityTargetState()
 
-    # TEMPORARY FIX: Force V1 to start elsewhere for multi-vehicle testing
-    if num_vehicles > 1 and "V1" in state.vehicles:
-        # Assuming V1's ID is exactly "V1"
-        V1_obj = state.vehicles["V1"]
-       
-        # Find a non-S0 station: prioritize S4, then S1 as fallbacks
-        target_station_id = None
-        if "S4" in state.locations and len(state.stations) > 4:
-            target_station_id = "S4"
-        elif "S1" in state.locations and len(state.stations) > 1:
-            target_station_id = "S1"
-       
-        if target_station_id:
-            # Reassign V1's location in the State object
-            V1_obj.location = state.locations[target_station_id]
-            print(f"FORCED: Vehicle V1 moved to starting location {target_station_id} for testing.")
-        else:
-            print("WARNING: Could not find suitable station (S4 or S1) to move V1 to.")
-    # END TEMPORARY FIX
+    # Assign vehicles to start stations based on instance
+    start_stations = [0]
+    if "TD" in INSTANCE: start_stations = [0,5,10,15,20,25,30,35,40]
+    elif "OS" in INSTANCE: start_stations = [4,5,10,15,20,25,30,35,40]
+    elif "EH" in INSTANCE: start_stations = [0,1,2,3,4,5,6,7,0, 1,2,3,4,5,6,7,0,1, 2,3,4,5,6,7,0,1,2]
 
+    # Distribute vehicles to start stations
+    for i in range(num_vehicles):
+        vehicle_id = f"V{i}"
+        if vehicle_id in state.vehicles:
+            station_id = f"S{start_stations[i % len(start_stations)]}"
+            if station_id in state.locations:
+                state.vehicles[vehicle_id].location = state.locations[station_id]
+                print(f"Vehicle {vehicle_id} assigned to {station_id}")
+    
 
     d = demand.Demand()
     simulator = sim.Simulator(
@@ -85,17 +85,11 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     simulator.run()
     
     # Write vehicle routes to file if using SjovikSundPolicy
-    for vehicle in state.vehicles.values():
-        if hasattr(vehicle.policy, 'write_routes_to_file'):
-            vehicle.policy.write_routes_to_file(seed)
-            break  # Only need to call once since all vehicles share the same policy instance
-    
-    
-    # Write vehicle routes to file if using SjovikSundPolicy
-    for vehicle in state.vehicles.values():
-        if hasattr(vehicle.policy, 'write_routes_to_file'):
-            vehicle.policy.write_routes_to_file(seed)
-            break  # Only need to call once since all vehicles share the same policy instance
+    # MOVED TO write_simulation_summary
+    # for vehicle in state.vehicles.values():
+    #     if hasattr(vehicle.policy, 'write_routes_to_file'):
+    #         vehicle.policy.write_routes_to_file(seed)
+    #         break  # Only need to call once since all vehicles share the same policy instance
     
     if queue is not None:
         queue.put(simulator)
@@ -134,6 +128,7 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
                 'Vehicle Arrivals',
                 'Bike Deliveries',
                 'Bike Pickups',
+                'Maintenance Time (minutes)',
             ])
        
         # Write data row
@@ -152,29 +147,34 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
             simulator.state.metrics.get_aggregate_value('vehicle arrivals'),
             simulator.state.metrics.get_aggregate_value('num bike deliveries'),
             simulator.state.metrics.get_aggregate_value('num bike pickups'),
+            simulator.state.metrics.get_aggregate_value('maintenance time'),
         ])
  
  
-def write_parameters_to_file(filename, policy, num_vehicles, duration):
+def write_simulation_summary(filename, simulator, duration, policy, seed):
     """
-    Write policy parameters to a text file.
+    Write simulation summary including parameters, objective function, and routes.
     """
     results_dir = './policies/sjovik_sund/simulation_results/'
     os.makedirs(results_dir, exist_ok=True)
     filepath = results_dir + filename
-   
+
     with open(filepath, 'w') as f:
         f.write("="*80 + "\n")
-        f.write("SJOVIK SUND POLICY PARAMETERS\n")
+        f.write(f"SJOVIK SUND POLICY SIMULATION SUMMARY (Seed {seed})\n")
         f.write("="*80 + "\n\n")
+        
+        # 1. Parameters
+        f.write("--- PARAMETERS ---\n")
         f.write(f"Policy Type: MILP-based (Direct Optimization)\n")
         f.write(f"Number of Vehicles: {num_vehicles}\n")
-        f.write(f"Simulation Duration: {duration} hours\n\n")
+        f.write(f"Simulation Duration: {duration:.1f} hours\n")
        
-        f.write("MILP Parameters:\n")
-        f.write(f"  Time Horizon (T): {policy.time_horizon} periods\n")
-        f.write(f"  Period Length (tau): {policy.tau} minutes\n")
-        f.write(f"  Roaming Enabled: {policy.roaming}\n")
+        if hasattr(policy, 'time_horizon'):
+            f.write(f"MILP Parameters:\n")
+            f.write(f"  Time Horizon (T): {policy.time_horizon} periods\n")
+            f.write(f"  Period Length (tau): {policy.tau} minutes\n")
+            f.write(f"  Roaming Enabled: {policy.roaming}\n")
        
         if policy.weights:
             f.write(f"\nObjective Weights:\n")
@@ -183,7 +183,76 @@ def write_parameters_to_file(filename, policy, num_vehicles, duration):
             f.write(f"  Deviation Weight (w_D): {policy.weights[2]}\n")
             f.write(f"  Maintenance reward (r_M): {policy.weights[3]}\n")
         else:
-            f.write(f"\nObjective Weights: Default (0.45, 0.45, 0.1)\n")
+            f.write(f"\nObjective Weights: Default (0.45, 0.45, 0.09, 0.01)\n")
+        
+        # 2. Accumulated Objective Function
+        f.write("\n--- ACCUMULATED OBJECTIVE FUNCTION ---\n")
+        
+        # Get aggregate metrics
+        starvations = simulator.state.metrics.get_aggregate_value('starvations')
+        congestions = simulator.state.metrics.get_aggregate_value('short congestions') + \
+                      simulator.state.metrics.get_aggregate_value('long congestions')
+        maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
+        
+        # USIKKER PÅ OM VI BØR HA MED DEVIATIONS, tatt vekk per nå
+        #deviations = simulator.state.metrics.get_aggregate_value('deviation')
+        
+        # Calculate objective
+        w_S, w_C, w_D, r_M = policy.weights if policy.weights else (0.45, 0.45, 0.09, 0.01)
+        
+        obj_val = (w_S * starvations) + (w_C * congestions) - (r_M * maintenance_time)
+        
+        f.write(f"Total Objective Value: {obj_val:.4f}\n")
+        f.write(f"Breakdown:\n")
+        f.write(f"  Starvations: {starvations} (Contribution: {w_S * starvations:.4f})\n")
+        f.write(f"  Congestions: {congestions} (Contribution: {w_C * congestions:.4f})\n")
+        #f.write(f"  Deviations: {deviations} (Contribution: {w_D * deviations:.4f})\n")
+        f.write(f"  Maintenance Time: {maintenance_time:.2f} (Contribution: {-r_M * maintenance_time:.4f})\n")
+        
+        # 3. Routes
+        f.write("\n--- ACTUAL VEHICLE ROUTES ---\n")
+        
+        # Extract routes from policy attached to vehicles in the simulator
+        policy_with_routes = None
+        for vehicle in simulator.state.vehicles.values():
+            if hasattr(vehicle.policy, 'vehicle_routes'):
+                policy_with_routes = vehicle.policy
+                break
+        
+        if policy_with_routes and policy_with_routes.vehicle_routes:
+            for vehicle_id, route in policy_with_routes.vehicle_routes.items():
+                f.write(f"Vehicle {vehicle_id} Route:\n")
+                if not route:
+                    f.write("  No route recorded\n\n")
+                    continue
+                
+                # Sort by time to ensure chronological order
+                route.sort(key=lambda x: x[0])
+                
+                # Write route with time information
+                for i, (time_val, station_id) in enumerate(route):
+                    # Convert time to day/hour/minute format
+                    day = int(time_val // (24*60))
+                    hour = int((time_val % (24*60)) // 60)
+                    minute = int(time_val % 60)
+                    
+                    if i == 0:
+                        f.write(f"  Start: {station_id} at Day {day}, Hour {hour:02d}:{minute:02d} (t={time_val:.1f})\n")
+                    else:
+                        # Calculate travel time from previous station
+                        prev_time = route[i-1][0]
+                        travel_duration = time_val - prev_time
+                        f.write(f"  Move {i}: {station_id} at Day {day}, Hour {hour:02d}:{minute:02d} (t={time_val:.1f}) [+{travel_duration:.1f} min]\n")
+                
+                # Summary statistics
+                total_time = route[-1][0] - route[0][0] if len(route) > 1 else 0
+                unique_stations = len(set(station for _, station in route))
+                f.write(f"  Summary: {len(route)} stops, {unique_stations} unique stations, {total_time:.1f} min total\n\n")
+        else:
+             f.write("No route information available.\n")
+       
+
+    print(f"Simulation summary written to: {filepath}")
 
 
 def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True):
@@ -223,6 +292,11 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         for i, simulator in enumerate(returned_simulators):
             solve_time = simulator.state.time  # Total simulation time
             write_results_to_file(results_file, simulator, duration, solve_time, list_of_seeds[i], append=(i > 0))
+            
+            # Write summary for this seed
+            summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{list_of_seeds[i]}.txt"
+            write_simulation_summary(summary_filename, simulator, duration, policy, list_of_seeds[i])
+            
             print(f"Seed {list_of_seeds[i]}: Completed in {solve_time:.2f}s")
     
     else:
@@ -233,6 +307,11 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             simulator = run_simulation(seed, policy, duration, num_vehicles)
             solve_time = time.time() - start_solve
             write_results_to_file(results_file, simulator, duration, solve_time, seed, append=(i > 0))
+            
+            # Write summary for this seed
+            summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{seed}.txt"
+            write_simulation_summary(summary_filename, simulator, duration, policy, seed)
+            
             print(f"Seed {seed}: Completed in {solve_time:.2f}s")
     
     print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
@@ -244,9 +323,6 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
         print(f"Testing Policy: {policy_name}")
         print(f"{'='*80}\n")
         
-        # Write policy parameters to file
-        write_parameters_to_file(f'{policy_name}_parameters.txt', policy, num_vehicles, duration)
-        
         # Test this policy with all seeds
         results_file = f'{policy_name}_results.csv'
         test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing)
@@ -255,7 +331,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 8  # hours - SHORT TEST (change to 24 for full day)
+    duration = 2  # hours - SHORT TEST (change to 24 for full day)
     num_vehicles = 2 # Need at least 1 vehicle to test the policy!
     
     

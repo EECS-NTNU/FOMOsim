@@ -149,28 +149,6 @@ class SjovikSundPolicy(Policy):
             if var_type in ['x', 'qL', 'qU', 'qV', 'tM', "m_iv"]:
                 print(f"  {name} = {val:.2f}")
 
-        
-        """
-         # Print State Variables (lN, starv, cong, dev) ONLY for visited stations
-        print("\nState Variables (Visited Stations Only):")
-        # Helper to group variables by type
-        state_vars = {'lN': [], 'starv': [], 'cong': [], 'dev': []}
-        # Print state variables only for visited stations
-        for name, val in solution_vars:
-            var_type = name.split("[")[0]
-            if var_type in state_vars:
-                # Check if this variable belongs to a visited station
-                indices = name.strip("]").split("[")[1].split(',')
-                s_idx = int(indices[0])
-                if s_idx in visited_stations:
-                    state_vars[var_type].append(f"{name}={val:.2f}")
-
-        # Print horizontally
-        for var_type, values in state_vars.items():
-            if values:
-                print(f"  {var_type}: {', '.join(values)}")       
-        """
-
 
         print("---------------------------------------------")
 
@@ -185,10 +163,11 @@ class SjovikSundPolicy(Policy):
         self.vehicle_routes[vehicle.id].append((simul.time, vehicle.location.id))
         
         # SISTE ENDRINGER HER 
-        # Record metrics for deliveries and pickups
+        # Record metrics for deliveries, pickups and maintenance
         simul.metrics.add_aggregate_metric(simul, 'num bike pickups', len(bikes_to_pickup))
         simul.metrics.add_aggregate_metric(simul, 'num bike deliveries', len(bikes_to_deliver))
         simul.metrics.add_aggregate_metric(simul, 'vehicle arrivals', 1)
+        simul.metrics.add_aggregate_metric(simul, 'maintenance time', maintenance_time)
         
         # --- DEBUG: Print current station status ---
         print(f"\n--- STATION STATUS CHECK ---")
@@ -322,9 +301,9 @@ class SjovikSundPolicy(Policy):
         
         return next_station_id, loading_ids, unloading_ids, maintenance_time
     
-    
-    def write_routes_to_file(self, seed=None):
-        """Write the actual routes taken by all vehicles to a file"""
+"""
+    def write_routes_to_file(self, seed=None): #NOTINUSE
+        Write the actual routes taken by all vehicles to a file
         import os
         
         # Create results directory if it doesn't exist
@@ -377,3 +356,5 @@ class SjovikSundPolicy(Policy):
         
         print(f"Vehicle routes written to: {filepath}")  
  
+ 
+ """
