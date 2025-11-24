@@ -105,24 +105,6 @@ def run_subproblem_model(data):
             
         print("=============================\n")
         
-        """
-        for i in N0:
-            for j in N0:
-                travel_time = T_DD.get((i, j), None)
-                if travel_time is not None:
-                    if j == s or i == d:  # No arcs TO source, no arcs FROM sink
-                        continue
-                    for v in Vh:
-                        for t in T0:
-                            if t + travel_time <= T:
-                                if i == s and t > 0:
-                                    continue
-                                if i in N and j == d and t == 0:
-                                    continue
-                                if i == s and j == d and t == 0:
-                                    continue
-                                feasible_arcs.append((i, j, v, t))
-        """
         # Batch create x and qV variables using tupledict (much faster!)
         x = m.addVars(feasible_arcs, vtype=GRB.BINARY, name="x")
         qV = m.addVars(feasible_arcs, vtype = GRB.INTEGER, lb=0.0, name="qV")
@@ -153,7 +135,6 @@ def run_subproblem_model(data):
  
         # deviation di ≥ 0 continuous
         d_abs = m.addVars(N, vtype=GRB.CONTINUOUS, lb=0.0, name="dev")
- 
  
         # Helper: export objective-term breakdown for analysis / thesis
         def _export_objective_breakdown(model, data, ts=None):
@@ -461,6 +442,7 @@ def run_subproblem_model(data):
         m.optimize()
 
         # Export objective-term breakdown when a solution (or incumbent) exists
+        """
         try:
             if m.Status in (GRB.OPTIMAL, GRB.SUBOPTIMAL, GRB.USER_OBJ_LIMIT):
                 _export_objective_breakdown(m, data)
@@ -468,7 +450,9 @@ def run_subproblem_model(data):
             # Best-effort: don't fail the solver wrapper if export breaks
             print("Warning: objective breakdown export failed.")
             print(str(e))
-            #print(traceback.format_exc())
+            print(traceback.format_exc())        
+        """
+
 
         if m.Status == GRB.INFEASIBLE:
             print("\nModel is infeasible. Computing IIS...")
