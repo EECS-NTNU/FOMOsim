@@ -19,6 +19,12 @@ import demand
 import output
 from helpers import timeInMinutes
 from settings import *
+
+# Import visualization if needed
+try:
+    VISUALIZATION_AVAILABLE = True
+except ImportError:
+    VISUALIZATION_AVAILABLE = False
  
 import time
 import multiprocessing as mp
@@ -31,9 +37,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     DURATION = timeInMinutes(hours=duration)
    
     #INSTANCE = "NY_W31"
-    INSTANCE = "TD_W34" 
-    #INSTANCE = "OS_W34"
-    #INSTANCE = "TD_W21"
+    INSTANCE = "TD_W34"
+    #INSTANCE = "OS_W31"
     #INSTANCE = "EH_W31"
     
      
@@ -42,7 +47,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     state.set_seed(seed)
     vehicles = [policy for i in range(num_vehicles)]
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
-    tstate = target_state.USTargetState()
+    #tstate = target_state.USTargetState()
+    tstate = target_state.EqualProbTargetState()
+    #tstate = target_state.HalfCapacityTargetState()
 
     # TEMPORARY FIX: Force V1 to start elsewhere for multi-vehicle testing
     if num_vehicles > 1 and "V1" in state.vehicles:
@@ -76,6 +83,13 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     )
     
     simulator.run()
+    
+    # Write vehicle routes to file if using SjovikSundPolicy
+    for vehicle in state.vehicles.values():
+        if hasattr(vehicle.policy, 'write_routes_to_file'):
+            vehicle.policy.write_routes_to_file(seed)
+            break  # Only need to call once since all vehicles share the same policy instance
+    
     
     # Write vehicle routes to file if using SjovikSundPolicy
     for vehicle in state.vehicles.values():
@@ -225,16 +239,6 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
 
  
 def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=True):
-    """
-    Test multiple policies with multiple seeds each.
-    
-    Args:
-        list_of_seeds: List of random seeds to test for each policy
-        policy_dict: Dictionary mapping policy names to policy instances
-        num_vehicles: Number of vehicles to use
-        duration: Simulation duration in hours
-        use_multiprocessing: If True, run seeds in parallel; if False, run sequentially
-    """
     for policy_name, policy in policy_dict.items():
         print(f"\n{'='*80}")
         print(f"Testing Policy: {policy_name}")
@@ -259,7 +263,7 @@ if __name__ == "__main__":
     #list_of_time_horizons = [10, 15, 20, 25, 30]
     #list_of_tau = [3, 5, 10, 15]
    
-    # Weight combinations: [w_S, w_C, w_D]
+    # Weight combinations: [w_S, w_C, w_D. r_M]
     weights_dict = {
         'balanced': [0.45, 0.45, 0.1, 0.01],
         'starvation_focus': [0.7, 0.2, 0.1, 0.01],

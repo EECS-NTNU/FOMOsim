@@ -96,7 +96,36 @@ class Station(Location):
         return self.neighbours
     
     def get_target_state(self, day, hour):
-        return self.target_state[day % 7][hour % 24]
+        #return self.target_state[day % 7][hour % 24]
+        ts = self.target_state
+        #print("TARGET STATE:", ts)
+        # Support multiple possible formats for target_state that can appear in instances:
+        # - 7x24 list: ts[day][hour]
+        # - 7-length list of ints: ts[day]
+        # - 24-length list of ints: ts[hour]
+        # - scalar int/float: uniform target
+        if isinstance(ts, (int, float)):
+            #print("YOOOOOOOOOO")
+            return int(ts)
+        try:
+            #print("HHHEHCGHROCGRGCR#CGR#HCH#RLHCI#RHCH#RIC")
+            # Preferred: 7x24
+            return ts[day % 7][hour % 24]
+        except Exception:
+            #print("EHHEHEHE")
+            try:
+                # 7-length (per day)
+                if len(ts) == 7:
+                    val = ts[day % 7]
+                    return int(val) if isinstance(val, (int, float)) else val
+                # 24-length (per hour)
+                if len(ts) == 24:
+                    val = ts[hour % 24]
+                    return int(val) if isinstance(val, (int, float)) else val
+            except Exception:
+                pass
+        # Fallback
+        return 0
 
     def get_move_probabilities(self, state, day, hour):
         """
@@ -169,6 +198,67 @@ class Station(Location):
 
     def get_bike_from_id(self, bike_id):
         return self.bikes[bike_id]
+    
+    def get_average_maintenance_criticality(self):
+        """
+        Calculate the average maintenance criticality score of all bikes at this station.
+        
+        Returns:
+            float: Average maintenance criticality (0.0 if no bikes present)
+        """
+        if len(self.bikes) == 0:
+            return 0.0
+        
+        total_criticality = sum(bike.maintenance_criticality for bike in self.bikes.values())
+        return total_criticality / len(self.bikes)
+    
+    def get_maintenance_criticality_stats(self):
+        """
+        Get detailed maintenance criticality statistics for bikes at this station.
+        
+        Returns:
+            dict: {
+                'average': float,
+                'max': float,
+                'min': float,
+                'count': int,
+                'high_criticality_count': int (bikes with criticality > 0.5)
+            }
+        """
+        if len(self.bikes) == 0:
+            return {
+                'average': 0.0,
+                'max': 0.0,
+                'min': 0.0,
+                'count': 0,
+                'high_criticality_count': 0
+            }
+        
+        criticalities = [bike.maintenance_criticality for bike in self.bikes.values()]
+        
+        return {
+            'average': sum(criticalities) / len(criticalities),
+            'max': max(criticalities),
+            'min': min(criticalities),
+            'count': len(criticalities),
+            'high_criticality_count': sum(1 for c in criticalities if c > 0.5)
+        }
+    
+    def get_bikes_in_need_of_maintenance(self, threshold=MAINTENANCE_LIMIT_TO_CHECK):
+        """
+        Get a list of bikes that need maintenance based on a criticality threshold.
+        
+        Args:
+            threshold (float): Maintenance criticality threshold (default: MAINTENANCE_LIMIT_TO_CHECK)
+        
+        Returns:
+            list: List of Bike objects needing maintenance
+        """
+        bikes = [
+            bike for bike in self.bikes.values() if bike.maintenance_criticality >= threshold
+        ]
+         
+        return sorted(bikes, key=lambda bike: bike.maintenance_criticality, reverse=True)
     
     def set_neighboring_stations(self, neighboring_stations_dict, location_list):
         """

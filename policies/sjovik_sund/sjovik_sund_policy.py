@@ -1,8 +1,12 @@
 from policies import Policy
 import sim
 import math
-from policies.sjovik_sund.Sub_problem.subproblem_parameters import MILP_parameters
+from policies.sjovik_sund.Sub_problem.subproblem_parameters import (
+    MILP_parameters, 
+    TIME_PER_BIKE_MAINTENANCE
+)
 from policies.sjovik_sund.Sub_problem.sjovik_sund_subproblem import run_subproblem_model
+from policies.sjovik_sund.visualize_subproblem import Visualizer
 
 """
 IMPORTANT NOTE ON TRAVEL TIMES:
@@ -23,9 +27,44 @@ class SjovikSundPolicy(Policy):
         self.tau = tau
         self.weights = weights
         self.vehicle_routes = {}  # Track actual routes: {vehicle_id: [(time, station_id), ...]}
+        self.vehicle_routes = {}  # Track actual routes: {vehicle_id: [(time, station_id), ...]}
         super().__init__()
  
     def get_best_action(self, simul, vehicle):
+        # Print state with current time's target states
+        day = simul.day()
+        hour = simul.hour()
+        print(f"\n<State: {len(simul.get_parked_bikes())} bikes in {len(simul.stations)} stations with {len(simul.vehicles)} vehicles>")
+        print(f"Current Time: Day {day}, Hour {hour}\n")
+        
+        # Print stations with maintenance information
+        print(f"{'Station':<10} {'Arrive':<8} {'Leave':<8} {'Ideal':<8} {'Bikes':<7} {'AvgMaint':<10}")
+        print("-" * 65)
+        for station in simul.get_stations():
+            target = station.get_target_state(day, hour)
+            avg_maint = station.get_average_maintenance_criticality()
+            print(f"{station.id:<10} {station.get_arrive_intensity(day, hour):>7.2f} "
+                  f"{station.get_leave_intensity(day, hour):>7.2f} {target:>7.1f} "
+                  f"{len(station.bikes):>6} {avg_maint:>9.3f}")
+        
+        # Print maintenance summary
+        high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
+                               for s in simul.get_stations() 
+                               if s.get_average_maintenance_criticality() > 0.3 and len(s.bikes) > 0]
+        
+        if high_maint_stations:
+            high_maint_stations.sort(key=lambda x: x[1], reverse=True)
+            print(f"\n Stations with elevated maintenance needs (>0.3):")
+            for station, maint in high_maint_stations[:5]:  # Top 5
+                stats = station.get_maintenance_criticality_stats()
+                print(f"  {station.id}: Avg={maint:.3f}, Max={stats['max']:.3f}, "
+                      f"High bikes (>0.5): {stats['high_criticality_count']}/{stats['count']}")
+        
+        print()
+        # Solve subproblem for ALL vehicles based on current system state
+        data = MILP_parameters(simul, self.time_horizon, self.weights, self.tau)
+        data.initalize_parameters()
+        
         # --- Print Simulation Clock ---
         time = simul.time
         day = time // (24*60)
@@ -65,11 +104,11 @@ class SjovikSundPolicy(Policy):
         if not vehicles_in_transit:
             print("No vehicles currently in transit.")
 
+
         gurobi_output = run_subproblem_model(data.to_dict())
         
         # Check if model found a feasible solution
         if gurobi_output.Status in [3, 4] or gurobi_output.SolCount == 0:
-            print(f"⚠ WARNING: Model infeasible or no solution - vehicle {vehicle.id} stays at current location")
             return sim.Action([], [], [], vehicle.location.id)
         
         # --- NEW: Print All Planned Actions ---
@@ -102,11 +141,12 @@ class SjovikSundPolicy(Policy):
         # Sort for readability (e.g., by variable name then indices)
         solution_vars.sort(key=lambda x: x[0])
         
-        # Print Decision Variables (x, qL, qU, qV, tM, m_iv)
+        # Print Decision Variables (x, qL, qU, qV, tM)
+        # Note: m_iv is a binary flag (not a decision) and is omitted for clarity
         print("Decisions:")
         for name, val in solution_vars:
             var_type = name.split("[")[0]
-            if var_type in ['x', 'qL', 'qU', 'qV', 'tM', 'm_iv']:
+            if var_type in ['x', 'qL', 'qU', 'qV', 'tM', "m_iv"]:
                 print(f"  {name} = {val:.2f}")
 
         
@@ -179,7 +219,8 @@ class SjovikSundPolicy(Policy):
             bikes_to_pickup, #list of bike id's
             bikes_to_deliver, #list of bike id's
             next_station, #id
-        )  
+            maintenance_time=maintenance_time  # Include maintenance time from MILP solution
+        )
  
       
     def return_solution(self, gurobi_output, vehicle, data):
@@ -190,7 +231,6 @@ class SjovikSundPolicy(Policy):
         station_id = vehicle.location.id
         vehicle_idx = data.vehicle_id_to_index[vehicle.id]
         current_station_idx = data.station_id_to_index[vehicle.location.id]
-
         print(f"\n=== ROUTING ANALYSIS for Vehicle {vehicle.id} (Index {vehicle_idx}) ===")
         #SISTE ENDRINGER HER
         # 1. Extract and print route sequence

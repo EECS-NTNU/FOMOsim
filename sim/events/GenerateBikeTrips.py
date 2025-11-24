@@ -75,4 +75,7 @@ class GenerateBikeTrips(Event):
                     )
                     simul.add_event(arrival_event)
 
+        # NEW: Update maintenance for all bikes (idle degradation)
+        #self._update_all_bike_maintenance(simul, ITERATION_LENGTH_MINUTES)
+
         simul.add_event(GenerateBikeTrips(self.time + ITERATION_LENGTH_MINUTES))

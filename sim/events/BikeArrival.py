@@ -39,6 +39,11 @@ class BikeArrival(Event):
         if self.bike is not None:
             self.bike.travel(simul, self.travel_time, self.congested)
 
+            # UPDATE MAINTENANCE CRITICALITY BASED ON TRIP
+            trip_maintenance_increase = self.travel_time * MAINTENANCE_INCREASE_PER_MINUTE
+            self.bike.maintenance_criticality = min(1.0, self.bike.maintenance_criticality + trip_maintenance_increase)
+        
+
             if self.bike.battery < 0:
                 simul.state.metrics.add_aggregate_metric(simul.state, "battery violations", 1)
                 simul.state.metrics.add_aggregate_metric(simul.state, "failed events", 1)

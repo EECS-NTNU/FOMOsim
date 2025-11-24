@@ -216,10 +216,59 @@ def run_subproblem_model(data):
                 print(f"Failed to export objective breakdown: {e}")
  
  
+        # Helper: export objective-term breakdown for analysis / thesis
+        def _export_objective_breakdown(model, data, ts=None):
+            try:
+                if ts is None:
+                    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+                # Aggregate raw sums
+                starv_sum = sum(s_var[i, t].X for i in N for t in Tpos)
+                cong_sum = sum(c_var[i, t].X for i in N for t in Tpos)
+                maint_time = sum(tM[i, v, t].X for i in N for v in Vh for t in Tpos)
+                dev_sum = sum(d_abs[i].X for i in N)
+
+                # Weighted contributions (match objective expression)
+                starv_contrib = data.get('w_S', 1.0) * starv_sum
+                cong_contrib = data.get('w_C', 1.0) * cong_sum
+                dev_contrib = data.get('w_D', 1.0) * dev_sum
+                maint_contrib = - data.get('r_M', 0.0) * maint_time
+
+                obj_calc = starv_contrib + cong_contrib + dev_contrib + maint_contrib
+                model_obj = float(model.ObjVal) if model.Status == GRB.OPTIMAL or model.Status == GRB.SUBOPTIMAL or model.Status == GRB.FEASIBLE else None
+             
+                out = {
+                    'timestamp': ts,
+                    'model_obj': model_obj,
+                    'terms': {
+                        'starvation': {'sum': starv_sum, 'weight': data.get('w_S', 1.0), 'contribution': starv_contrib},
+                        'congestion': {'sum': cong_sum, 'weight': data.get('w_C', 1.0), 'contribution': cong_contrib},
+                        'deviation': {'sum': dev_sum, 'weight': data.get('w_D', 1.0), 'contribution': dev_contrib},
+                        'maintenance_time': {'sum': maint_time, 'rate': data.get('r_M', 0.0), 'contribution': maint_contrib}
+                    },
+                    'computed_obj_from_terms': obj_calc
+                }
+
+                fname = f"subproblem_objective_breakdown_{ts}.json"
+                with open(fname, 'w') as fh:
+                    json.dump(out, fh, indent=2)
+
+                # Print compact summary
+                print('\n=== Objective Breakdown ===')
+                print(f"Model objective: {model_obj}")
+                print(f"Starvation contribution: {starv_contrib} (raw {starv_sum})")
+                print(f"Congestion  contribution: {cong_contrib} (raw {cong_sum})")
+                print(f"Deviation   contribution: {dev_contrib} (raw {dev_sum})")
+                print(f"Maintenance contribution: {maint_contrib} (raw time {maint_time})")
+                print(f"Sum of contributions: {obj_calc}")
+                print(f"Wrote objective breakdown to {fname}\n")
+            except Exception as e:
+                print(f"Failed to export objective breakdown: {e}")
+
         ###########################################################################################################
         # OBJECTIVE
         ###########################################################################################################
-       
+    
         m.setObjective(quicksum(
             quicksum(w_S*s_var[i,t] + w_C*c_var[i,t] - quicksum(r_M * tM[i,v,t] for v in Vh) for t in Tpos)+ w_D * d_abs[i]
             for i in N
@@ -239,8 +288,6 @@ def run_subproblem_model(data):
                 get_x(s, target_station, v, 0) == 1,
                 name=f"dep_source_v{v}_to_eta{target_station}"
             )
-            
-            
  
         # (3) arrival at sink within horizon: ∑_i ∑_t x_{i d v t} = 1
         for v in Vh:
@@ -326,6 +373,9 @@ def run_subproblem_model(data):
         # Vehicle loading, unloading, and capacity constraints
         ############################################################################################################
        
+        # (10) initial vehicle load:
+        """for v in Vh:
+            m.addConstr(quicksum(get_qV(s, j, v, 0) for j in N0) == Q_V0[v], name=f"init_vehicle_load_v{v}")"""
         # (10) initial vehicle load:
         for v in Vh:
             target_station = eta[v]
@@ -421,30 +471,6 @@ def run_subproblem_model(data):
                     completed_travel + partial_travel + service_term >= (t - 1) * tau, 
                     name=f"time_lb_v{v}_t{t}"
                 )
-        """
-        for v in Vh:
-            for t in Tpos:
-                # Upper bound (15) - Build the LHS expression
-                travel_term = quicksum(
-                    #T_D[(i, j)] * x[(i, j, v, t_prime - T_DD[(i, j)])]
-                    T_D[(i, j)] * get_x(i, j, v, t_prime - T_DD[(i, j)])
-                    for t_prime in Tpos if t_prime <= t
-                    for i in (N + [s]) for j in N  # Exclude sink from i - no arcs FROM sink
-                    #if t_prime - T_DD[(i, j)] >= 0
-                    if (i, j) in T_DD and t_prime - T_DD[(i, j)] >= 0
-                )
-                service_term = quicksum(
-                    T_L * (qL[i, v, t_prime] + qU[i, v, t_prime]) + tM[i, v, t_prime]
-                    for t_prime in Tpos if t_prime <= t for i in N
-                )
-                m.addConstr(travel_term + service_term <= t * tau, name=f"time_ub_v{v}_t{t}")
- 
-                # Lower bound (16) - Build the LHS expression
-                m.addConstr(travel_term + service_term >= (t - 2) * tau, name=f"time_lb_v{v}_t{t}")
- 
- 
-        
-        """
         
         # (17) Global maintenance upper bound per station
         for i in N:
@@ -456,7 +482,15 @@ def run_subproblem_model(data):
             for v in Vh:
                 m.addConstr(quicksum(tM[i, v, t] for t in Tpos) >= T_M_min[i] * m_iv[i, v],
                             name=f"maint_min_i{i}_v{v}")
- 
+
+        # (18b) Rolling horizon: Only allow maintenance at current station (where vehicle starts)
+        # This prevents rewarding phantom future maintenance that won't be executed
+        for i in N:
+            for v in Vh:
+                #if i != eta[v]:  # If not the current station for this vehicle
+                    #m.addConstr(m_iv[i, v] == 0, name=f"maint_current_only_i{i}_v{v}")
+                m.addConstr(m_iv[i,v] <= quicksum(get_x(i, j, v, t) for j in N0 for t in Tpos), name=f"maint_current_only_i{i}_v{v}")    
+
         # (19) Link service (loading/unloading/maintenance) to presence in period t
         for i in N:
             for v in Vh:
@@ -487,6 +521,16 @@ def run_subproblem_model(data):
         m.Params.OutputFlag = 1
  
         m.optimize()
+
+        # Export objective-term breakdown when a solution (or incumbent) exists
+        try:
+            if m.Status in (GRB.OPTIMAL, GRB.SUBOPTIMAL, GRB.USER_OBJ_LIMIT):
+                _export_objective_breakdown(m, data)
+        except Exception as e:
+            # Best-effort: don't fail the solver wrapper if export breaks
+            print("Warning: objective breakdown export failed.")
+            print(str(e))
+            print(traceback.format_exc())
 
         if m.Status == GRB.INFEASIBLE:
             print("\nModel is infeasible. Computing IIS...")
