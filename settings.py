@@ -90,7 +90,7 @@ ADJUSTING_CRITICALITY = 1.2 #
 # Vehicle settings
 NUM_VEHICLES = 2
 SERVICE_TIME_FROM = 7   # Service starts at 7 AM
-SERVICE_TIME_TO = 16    # Service ends at 4 PM (16:00)
+SERVICE_TIME_TO = 20 # Service ends at 8 PM (20:00)
 
 BATTERY_LIMIT_TO_SWAP = 80 #
 MAINTENANCE_LIMIT_TO_CHECK = 0.2 #

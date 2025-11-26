@@ -31,6 +31,45 @@ import multiprocessing as mp
 import csv
  
  
+class LoggingSimulator(sim.Simulator):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.last_logged_day = -1
+        self.last_starvations = 0
+        self.last_congestions = 0
+
+    def full_step(self):
+        super().full_step()
+        
+        # Check for 23:00 logging
+        # Time is in minutes. 23:00 is 23*60 = 1380 minutes into the day.
+        current_time = self.state.time
+        day = int(current_time // (24*60))
+        minute_of_day = current_time % (24*60)
+        
+        # We want to log once per day, when we pass 23:00 (1380 minutes)
+        if day > self.last_logged_day and minute_of_day >= 1380:
+            self.log_daily_metrics(day)
+            self.last_logged_day = day
+            
+    def log_daily_metrics(self, day):
+        starvations = self.state.metrics.get_aggregate_value('starvations')
+        congestions = self.state.metrics.get_aggregate_value('long congestions')
+        
+        daily_starvations = starvations - self.last_starvations
+        daily_congestions = congestions - self.last_congestions
+        
+        print(f"\n{'='*40}")
+        print(f"DAY {day} SUMMARY (23:00)")
+        print(f"{'='*40}")
+        print(f"Accumulated Starvations: {starvations} (+{daily_starvations} today)")
+        print(f"Accumulated Congestions: {congestions} (+{daily_congestions} today)")
+        print(f"{'='*40}\n")
+        
+        self.last_starvations = starvations
+        self.last_congestions = congestions
+
+
 def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTANCE=None):
   
     START_TIME = timeInMinutes(hours=7)  # 7 AM
@@ -68,7 +107,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     
 
     d = demand.Demand()
-    simulator = sim.Simulator(
+    simulator = LoggingSimulator(
         initial_state=state,
         target_state=tstate,
         demand=d,
@@ -321,7 +360,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24*5  # hours - (24 * 7) for one week
+    duration = 24*7 # hours - (24 * 7) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
