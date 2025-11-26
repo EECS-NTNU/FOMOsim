@@ -82,6 +82,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
         verbose=True,
     )
     
+    print(f"Running simulation with duration {duration}, vehicles {num_vehicles}, seed {seed}, Instance {INSTANCE} and weights {policy.weights}")
+    
     simulator.run()
     
     # Write vehicle routes to file if using SjovikSundPolicy
@@ -331,13 +333,13 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 48  # hours - SHORT TEST (change to 24 for full day)
-    num_vehicles = 2 # Need at least 1 vehicle to test the policy!
+    duration = 24*5  # hours - (24 * 7) for one week
+    num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
     # Test parameters
-    #list_of_time_horizons = [10, 15, 20, 25, 30]
-    #list_of_tau = [3, 5, 10, 15]
+    #list_of_time_horizons = [5,7,10,12]
+    #list_of_tau = [3, 5, 7, 10]
    
     # Weight combinations: [w_S, w_C, w_D. r_M]
     weights_dict = {
@@ -349,7 +351,7 @@ if __name__ == "__main__":
    
     # Dictionary of policies to test
     policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=5, tau=5, weights=[0.1,0.7,0.1,0.1])
+        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=[0.45,0.45,0.1,0.00])
         # Add more policy variations here
     }
    
@@ -372,4 +374,3 @@ if __name__ == "__main__":
     print(f"\n{'='*80}")
     print(f"Total running time: {total_duration:.2f} seconds ({total_duration/60:.2f} minutes)")
     print(f"{'='*80}\n")
- 

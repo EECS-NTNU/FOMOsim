@@ -280,7 +280,7 @@ class MILP_parameters:
                 
                 # If maintenance is chosen, must service at least 1 bike (no partial servicing)
                 # This ensures either: 0 min (no maintenance) OR at least 3 min (fix 1+ bikes)
-                self.T_M_min[station_idx] = TIME_PER_BIKE_MAINTENANCE if max_time > 0 else 0
+                self.T_M_min[station_idx] = TIME_PER_BIKE_MAINTENANCE if max_time > 0 else 0.0
                 self.T_M_max[station_idx] = max_time if max_time > 0 else 0
                 
                 if max_time > 0:

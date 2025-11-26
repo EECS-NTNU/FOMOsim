@@ -301,9 +301,9 @@ def run_subproblem_model(data):
             for v in Vh:
                 for t in Tpos:
                     incoming = quicksum(
-                        get_qV(j, i, v, t - T_DD[(i, j)])
+                        get_qV(j, i, v, t - T_DD[(j, i)])
                         for j in (N + [s])  # Exclude sink - no arcs FROM sink
-                        if (i, j) in T_DD and t - T_DD[(i, j)] >= 0
+                        if (j, i) in T_DD and t - T_DD[(j, i)] >= 0
                     )
                     outgoing = quicksum(get_qV(i, k, v, t) for k in (N + [d]) if (i, k) in T_DD)  # Exclude source - no arcs TO source
                     m.addConstr(
@@ -316,9 +316,9 @@ def run_subproblem_model(data):
             for v in Vh:
                 for t in Tpos:
                     incoming = quicksum(
-                        get_qV(j, i, v, t - T_DD[(i, j)])
+                        get_qV(j, i, v, t - T_DD[(j, i)])
                         for j in (N + [s])  # Exclude sink - no arcs FROM sink
-                        if (i, j) in T_DD and t - T_DD[(i, j)] >= 0
+                        if (j, i) in T_DD and t - T_DD[(j, i)] >= 0
                     )
                     m.addConstr(qU[i, v, t] <= incoming, name=f"unload_le_incoming_i{i}_v{v}_t{t}")
  
@@ -394,13 +394,10 @@ def run_subproblem_model(data):
                 m.addConstr(quicksum(tM[i, v, t] for t in Tpos) >= T_M_min[i] * m_iv[i, v],
                             name=f"maint_min_i{i}_v{v}")
 
-        # (18b) Rolling horizon: Only allow maintenance at current station (where vehicle starts)
-        # This prevents rewarding phantom future maintenance that won't be executed
-        #for i in N:
-            #for v in Vh:
-                #if i != eta[v]:  # If not the current station for this vehicle
-                    #m.addConstr(m_iv[i, v] == 0, name=f"maint_current_only_i{i}_v{v}")
-                #m.addConstr(m_iv[i,v] <= quicksum(get_x(i, j, v, t) for j in N0 for t in Tpos), name=f"maint_current_only_i{i}_v{v}")    
+        # (18b) Allow maintenance only if vehicle visits station
+        for i in N:
+            for v in Vh:
+                m.addConstr(m_iv[i,v] <= quicksum(get_x(i, j, v, t) for j in N0 for t in Tpos), name=f"maint_current_only_i{i}_v{v}")    
 
         # (19) Link service (loading/unloading/maintenance) to presence in period t
         for i in N:
@@ -434,17 +431,6 @@ def run_subproblem_model(data):
         m.optimize()
 
         # Export objective-term breakdown when a solution (or incumbent) exists
-        """
-        try:
-            if m.Status in (GRB.OPTIMAL, GRB.SUBOPTIMAL, GRB.USER_OBJ_LIMIT):
-                _export_objective_breakdown(m, data)
-        except Exception as e:
-            # Best-effort: don't fail the solver wrapper if export breaks
-            print("Warning: objective breakdown export failed.")
-            print(str(e))
-            print(traceback.format_exc())        
-        """
-
 
         if m.Status == GRB.INFEASIBLE:
             print("\nModel is infeasible. Computing IIS...")
