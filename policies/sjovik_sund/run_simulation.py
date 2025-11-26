@@ -331,10 +331,16 @@ if __name__ == "__main__":
    
     # Weight combinations: [w_S, w_C, w_D. r_M]
     weights_dict = {
-        'balanced': [0.45, 0.45, 0.1, 0.01],
-        'starvation_focus': [0.7, 0.2, 0.1, 0.01],
-        'congestion_focus': [0.2, 0.7, 0.1, 0.01],
-        'deviation_focus': [0.3, 0.3, 0.4, 0.01],
+    'baseline_balanced':    [0.45, 0.45, 0.10, 0.0],
+    'starvation_high':      [0.70, 0.20, 0.10, 0.0],
+    'starvation_medium':    [0.60, 0.30, 0.10, 0.0],
+    'congestion_high':      [0.20, 0.70, 0.10, 0.0],
+    'congestion_medium':    [0.30, 0.60, 0.10, 0.0],
+    'deviation_high':       [0.30, 0.30, 0.40, 0.0],
+    'deviation_medium':     [0.35, 0.35, 0.30, 0.0],
+    'starv_cong_balanced':  [0.475, 0.475, 0.05, 0.0],
+    'starv_cong_60_30':     [0.60, 0.35, 0.05, 0.0],
+    'starv_cong_30_60':     [0.35, 0.60, 0.05, 0.0],
     }
    
     # Dictionary of policies to test
