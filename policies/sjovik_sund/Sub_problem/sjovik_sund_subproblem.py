@@ -249,8 +249,6 @@ def run_subproblem_model(data):
         # (6) single visit per station per vehicle within horizon:
         # Use T0 to include t=0 (initial arrival from source)
 
-        # TEST MED ENTIRE FLEET
-        
         for j in N:
             for v in Vh:
                 m.addConstr(
@@ -292,9 +290,6 @@ def run_subproblem_model(data):
             target_station = eta[v]
             m.addConstr(get_qV(s, target_station, v, 0) == Q_V0[v], name=f"init_vehicle_load_v{v}")
  
-        # Helper: safe lookup of shifted t-index (t - T_DD_ij)
-        #def valid_tshift(t, i, j):
-        #    return t - T_DD[(i, j)] FJERNET PGA UNØDVENDIG
  
         # (11) vehicle inventory balance at nodes/times for usable bikes carried by vehicles:
         for i in N:
@@ -343,7 +338,7 @@ def run_subproblem_model(data):
         #############################################################################################################
         # Timing constraints & maintenance integration (15)–(20)
         ##############################################################################################################
-        # Constraints (15) & (16): Time bounds - CORRECTED VERSION
+        # Constraints (15) & (16): Time bounds 
         for v in Vh:
             for t in Tpos:
                 # Calculate total time spent by vehicle v up to (and including) period t
@@ -394,30 +389,29 @@ def run_subproblem_model(data):
                 m.addConstr(quicksum(tM[i, v, t] for t in Tpos) >= T_M_min[i] * m_iv[i, v],
                             name=f"maint_min_i{i}_v{v}")
 
-        # (18b) Allow maintenance only if vehicle visits station
+        # (19) Allow maintenance only if vehicle visits station
         for i in N:
             for v in Vh:
                 m.addConstr(m_iv[i,v] <= quicksum(get_x(i, j, v, t) for j in N0 for t in Tpos), name=f"maint_current_only_i{i}_v{v}")    
 
-        # (19) Link service (loading/unloading/maintenance) to presence in period t
+        # (20) Link service (loading/unloading/maintenance) to presence in period t
         for i in N:
             for v in Vh:
                 for t in Tpos:
                     m.addConstr(
                         T_L * (qL[i, v, t] + qU[i, v, t]) + tM[i, v, t]
-                        #<= 2* tau * quicksum(x[i, j, v, t] for j in N0),
                         <= 2 * tau * quicksum(get_x(i, j, v, t) for j in N0),
                         name=f"service_presence_i{i}_v{v}_t{t}"
                     )
  
-        # (20) Maintenance time upper bound link
+        # (21) Maintenance time upper bound link
         for i in N:
             for v in Vh:
                 for t in Tpos:
                     m.addConstr(tM[i, v, t] <= 2 * tau * m_iv[i, v], name=f"maint_flag_i{i}_v{v}_t{t}")
  
         #############################################################################################################
-        # Deviation absolute value at horizon (21)–(22)
+        # Deviation absolute value at horizon (22)–(23)
         ##########################################################################################
  
         for i in N:

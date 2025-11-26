@@ -40,11 +40,6 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
     #INSTANCE = "EH_W31"
-
-    start_stations = [0,5,10,15,20,25,30,35,40] #use this for Trondheim
-    # start_stations = [4,5,10,15,20,25,30,35,40] #use this for Oslo
-    # start_stations = [0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2] #use this for Edinburgh
-    
      
     # Load initial state
     state = init_state.read_initial_state("instances/"+INSTANCE)
@@ -85,13 +80,6 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     print(f"Running simulation with duration {duration}, vehicles {num_vehicles}, seed {seed}, Instance {INSTANCE} and weights {policy.weights}")
     
     simulator.run()
-    
-    # Write vehicle routes to file if using SjovikSundPolicy
-    # MOVED TO write_simulation_summary
-    # for vehicle in state.vehicles.values():
-    #     if hasattr(vehicle.policy, 'write_routes_to_file'):
-    #         vehicle.policy.write_routes_to_file(seed)
-    #         break  # Only need to call once since all vehicles share the same policy instance
     
     if queue is not None:
         queue.put(simulator)
@@ -195,8 +183,6 @@ def write_simulation_summary(filename, simulator, duration, policy, seed):
         starvations = simulator.state.metrics.get_aggregate_value('starvations')
         congestions = simulator.state.metrics.get_aggregate_value('long congestions') # + simulator.state.metrics.get_aggregate_value('short congestions')
         maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
-        
-        # USIKKER PÅ OM VI BØR HA MED DEVIATIONS, tatt vekk per nå
         #deviations = simulator.state.metrics.get_aggregate_value('deviation')
         
         # Calculate objective

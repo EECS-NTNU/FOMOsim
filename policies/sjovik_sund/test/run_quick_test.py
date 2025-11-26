@@ -6,7 +6,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if repo_root not in sys.path:
 	sys.path.insert(0, repo_root)
 
-from policies.sjovik_sund import test_subproblem_1 as tst
+from policies.sjovik_sund.test import test_subproblem_1 as tst
 from init_state.wrapper import read_initial_state
 import target_state
 
