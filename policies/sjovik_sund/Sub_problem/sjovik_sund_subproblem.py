@@ -212,29 +212,24 @@ def run_subproblem_model(data):
  
         # (3) arrival at sink within horizon: ∑_i ∑_t x_{i d v t} = 1
         for v in Vh:
-            #m.addConstr(quicksum(x[i, d, v, t] for i in N for t in Tpos) == 1, name=f"arr_sink_v{v}")
             m.addConstr(
-                # quicksum(get_x(i, d, v, t) for i in N for t in Tpos) == 1, FJERNET FOR Å TILLATE SOURCE -> SINK
-                quicksum(get_x(i, d, v, t) for i in (N + [s]) for t in T0) == 1, 
+                quicksum(get_x(i, d, v, t) for i in (N) for t in Tpos) == 1, 
                 name=f"arr_sink_v{v}"
             )
             
         # (4) vehicle flow conservation at stations j∈N with travel time delays
-        #  Time-indexed flow conservation accounting for travel delays
-        # Apply to all time periods including t=0
+        # Time-indexed flow conservation accounting for travel delays
         for v in Vh:
             for j in N:
-                for t in Tpos:  # Changed from Tpos to T0 to include t=0
+                for t in Tpos:  
                     # Inflow: vehicles arriving at j at time t (considering travel time from i to j)
                     inflow = quicksum(
-                        #x[(i, j, v, t) - T_DD[(i, j)]]
                         get_x(i, j, v, t - T_DD[(i, j)]) 
                         for i in (N + [s])  # Only stations and source, not sink
                         if (i, j) in T_DD and t - T_DD[(i, j)] >= 0
                     )
                     # Outflow: vehicles leaving j at time t
                     outflow = quicksum(
-                        #x[(i, j, v, t)]
                         get_x(j, k, v, t) 
                         for k in (N + [d])  # Only stations and sink, not source
                         if (j, k) in T_DD
@@ -245,15 +240,13 @@ def run_subproblem_model(data):
  
         # (5) single trip per period: ∑_{i,j∈N0} x_{i j v t} ≤ 1 for each v, t∈Tpos
         for v in Vh:
-            for t in Tpos:
-                #m.addConstr(quicksum(x[i, j, v, t] for i in N0 for j in N0) <= 1, name=f"one_trip_v{v}_t{t}")
+            for t in T0:
                 m.addConstr(
                     quicksum(get_x(i, j, v, t) for i in N0 for j in N0) <= 1, 
                     name=f"one_trip_v{v}_t{t}"
                 )
  
         # (6) single visit per station per vehicle within horizon:
-        #     ∑_{i∈N\{j}} ∑_{v} ∑_{t} x_{i j v t} ≤ 1  for each j∈N
         # Use T0 to include t=0 (initial arrival from source)
 
         # TEST MED ENTIRE FLEET
@@ -295,25 +288,22 @@ def run_subproblem_model(data):
         ############################################################################################################
        
         # (10) initial vehicle load:
-        """for v in Vh:
-            m.addConstr(quicksum(get_qV(s, j, v, 0) for j in N0) == Q_V0[v], name=f"init_vehicle_load_v{v}")"""
-        # (10) initial vehicle load:
         for v in Vh:
             target_station = eta[v]
             m.addConstr(get_qV(s, target_station, v, 0) == Q_V0[v], name=f"init_vehicle_load_v{v}")
  
         # Helper: safe lookup of shifted t-index (t - T_DD_ij)
-        def valid_tshift(t, i, j):
-            return t - T_DD[(i, j)]
+        #def valid_tshift(t, i, j):
+        #    return t - T_DD[(i, j)] FJERNET PGA UNØDVENDIG
  
         # (11) vehicle inventory balance at nodes/times for usable bikes carried by vehicles:
         for i in N:
             for v in Vh:
                 for t in Tpos:
                     incoming = quicksum(
-                        get_qV(j, i, v, valid_tshift(t, j, i))
+                        get_qV(j, i, v, t - T_DD[(i, j)])
                         for j in (N + [s])  # Exclude sink - no arcs FROM sink
-                        if (j, i) in T_DD and valid_tshift(t, j, i) >= 0
+                        if (i, j) in T_DD and t - T_DD[(i, j)] >= 0
                     )
                     outgoing = quicksum(get_qV(i, k, v, t) for k in (N + [d]) if (i, k) in T_DD)  # Exclude source - no arcs TO source
                     m.addConstr(
@@ -326,9 +316,9 @@ def run_subproblem_model(data):
             for v in Vh:
                 for t in Tpos:
                     incoming = quicksum(
-                        get_qV(j, i, v, valid_tshift(t, j, i))
+                        get_qV(j, i, v, t - T_DD[(i, j)])
                         for j in (N + [s])  # Exclude sink - no arcs FROM sink
-                        if (j, i) in T_DD and valid_tshift(t, j, i) >= 0
+                        if (i, j) in T_DD and t - T_DD[(i, j)] >= 0
                     )
                     m.addConstr(qU[i, v, t] <= incoming, name=f"unload_le_incoming_i{i}_v{v}_t{t}")
  
@@ -406,11 +396,11 @@ def run_subproblem_model(data):
 
         # (18b) Rolling horizon: Only allow maintenance at current station (where vehicle starts)
         # This prevents rewarding phantom future maintenance that won't be executed
-        for i in N:
-            for v in Vh:
+        #for i in N:
+            #for v in Vh:
                 #if i != eta[v]:  # If not the current station for this vehicle
                     #m.addConstr(m_iv[i, v] == 0, name=f"maint_current_only_i{i}_v{v}")
-                m.addConstr(m_iv[i,v] <= quicksum(get_x(i, j, v, t) for j in N0 for t in Tpos), name=f"maint_current_only_i{i}_v{v}")    
+                #m.addConstr(m_iv[i,v] <= quicksum(get_x(i, j, v, t) for j in N0 for t in Tpos), name=f"maint_current_only_i{i}_v{v}")    
 
         # (19) Link service (loading/unloading/maintenance) to presence in period t
         for i in N:
