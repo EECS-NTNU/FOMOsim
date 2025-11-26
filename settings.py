@@ -17,7 +17,7 @@ MINUTES_CONSTANT_PER_ACTION = 3 # Constat time in addition (f.eks park the car a
 BATTERY_LIMIT_TO_USE = 15 # Battery limit for the bike to be up for rental
 BIKE_SPEED = 7 # Average speed of a bike
 ESCOOTER_SPEED = 13.2 # Average speed of a bike
-MAINTENANCE_THRESHOLD_FOR_NO_RENTAL = 0.8 # above this value, bike is not available for rental
+MAINTENANCE_THRESHOLD_FOR_NO_RENTAL = 0.9 # above this value, bike is not available for rental
 
 
 
@@ -41,7 +41,7 @@ DEFAULT_STATION_CAPACITY = 20
 
 # Policy settings
 BATTERY_CHANGE_PER_MINUTE = 0.4 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
-MAINTENANCE_INCREASE_PER_MINUTE = 0.01 # Increase in maintenance criticality for each minute the bike is in use (0.01 = 0.10%, 100 minutes use -> 100%)
+MAINTENANCE_INCREASE_PER_MINUTE = 0.0 # Increase in maintenance criticality for each minute the bike is in use (0.01 = 0.10%, 100 minutes use -> 100%)
 
 # User behaviour
 WALKING_SPEED = 4.8

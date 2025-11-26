@@ -181,21 +181,23 @@ def write_simulation_summary(filename, simulator, duration, policy, seed):
         # Get aggregate metrics 
         # Regner bare med long congestions her
         starvations = simulator.state.metrics.get_aggregate_value('starvations')
-        congestions = simulator.state.metrics.get_aggregate_value('long congestions') # + simulator.state.metrics.get_aggregate_value('short congestions')
+        congestions_long = simulator.state.metrics.get_aggregate_value('long congestions') # + simulator.state.metrics.get_aggregate_value('short congestions')
         maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
+        congestions_short = simulator.state.metrics.get_aggregate_value('short congestions')
         #deviations = simulator.state.metrics.get_aggregate_value('deviation')
         
         # Calculate objective
         w_S, w_C, w_D, r_M = policy.weights if policy.weights else (0.45, 0.45, 0.09, 0.01)
         
-        obj_val = (w_S * starvations) + (w_C * congestions) - (r_M * maintenance_time)
+        obj_val = (w_S * starvations) + (w_C * congestions_long) - (r_M * maintenance_time)
         
         f.write(f"Total Objective Value: {obj_val:.4f}\n")
         f.write(f"Breakdown:\n")
         f.write(f"  Starvations: {starvations} (Contribution: {w_S * starvations:.4f})\n")
-        f.write(f"  Congestions: {congestions} (Contribution: {w_C * congestions:.4f})\n")
+        f.write(f"  Congestions: {congestions_long} (Contribution: {w_C * congestions_long:.4f})\n")
         #f.write(f"  Deviations: {deviations} (Contribution: {w_D * deviations:.4f})\n")
         f.write(f"  Maintenance Time: {maintenance_time:.2f} (Contribution: {-r_M * maintenance_time:.4f})\n")
+        f.write(f"  Short Congestions: {congestions_short} (Contribution: {0})\n")
         
         # 3. Routes
         f.write("\n--- ACTUAL VEHICLE ROUTES ---\n")
