@@ -34,7 +34,7 @@ class MILP_parameters:
         if weights == None:  # default
             self.w_S = 0.45  # Weight for starvation penalty
             self.w_C = 0.45  # Weight for congestion penalty
-            self.w_D = 0.1   # Weight for deviation from target state penalty
+            self.w_D = 0.09   # Weight for deviation from target state penalty
             self.r_M = 0.01   # No maintenance reward by default
         else:
             self.w_S = weights[0]  # Starvation weight

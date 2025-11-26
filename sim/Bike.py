@@ -31,6 +31,8 @@ class Bike(Location):
         maintenance_increase = travel_time * MAINTENANCE_INCREASE_PER_MINUTE
         self.maintenance_criticality = min(1.0, self.maintenance_criticality + maintenance_increase)
 
+        #LEGGE TIL POISSONPROSESS SOM ØDELEGGER
+
     def usable(self):
       return self.maintenance_criticality < MAINTENANCE_THRESHOLD_FOR_NO_RENTAL
 
