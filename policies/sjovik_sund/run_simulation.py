@@ -20,6 +20,8 @@ import output
 from helpers import timeInMinutes
 from settings import *
 
+#python policies/sjovik_sund/run_simulation.py > policies/sjovik_sund/output/output.txt                          
+
 # Import visualization if needed
 try:
     VISUALIZATION_AVAILABLE = True
@@ -238,6 +240,14 @@ def write_simulation_summary(filename, simulator, duration, policy, seed):
         f.write(f"  Maintenance Time: {maintenance_time:.2f} (Contribution: {-r_M * maintenance_time:.4f})\n")
         f.write(f"  Short Congestions: {congestions_short} (Contribution: {0})\n")
         
+        if hasattr(policy, 'optimality_gaps') and policy.optimality_gaps:
+            avg_gap = sum(policy.optimality_gaps) / len(policy.optimality_gaps)
+            max_gap = max(policy.optimality_gaps)
+            f.write(f"\n--- OPTIMIZATION PERFORMANCE ---\n")
+            f.write(f"Average Optimality Gap: {avg_gap:.4%}\n")
+            f.write(f"Maximum Optimality Gap: {max_gap:.4%}\n")
+            f.write(f"Total Optimizations: {len(policy.optimality_gaps)}\n")
+
         # 3. Routes
         f.write("\n--- ACTUAL VEHICLE ROUTES ---\n")
         
@@ -360,7 +370,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24*7 # hours - (24 * 7) for one week
+    duration = 24*5 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     

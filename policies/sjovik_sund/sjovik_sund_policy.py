@@ -27,6 +27,7 @@ class SjovikSundPolicy(Policy):
         self.tau = tau
         self.weights = weights
         self.vehicle_routes = {}  # Track actual routes: {vehicle_id: [(time, station_id), ...]}
+        self.optimality_gaps = []
         super().__init__()
         self.set_time_of_service(hour_from=hour_from, hour_to=hour_to)  # Set working hours (default 7 AM - 4 PM)
  
@@ -105,7 +106,10 @@ class SjovikSundPolicy(Policy):
             print("No vehicles currently in transit.")
 
 
-        gurobi_output = run_subproblem_model(data.to_dict())
+        gurobi_output, gap = run_subproblem_model(data.to_dict())
+        
+        if gap is not None:
+            self.optimality_gaps.append(gap)
         
         # Check if model found a feasible solution
         if gurobi_output.Status in [3, 4] or gurobi_output.SolCount == 0:
@@ -251,6 +255,8 @@ class SjovikSundPolicy(Policy):
                 s_idx, v_idx, period_t = int(indices[0]), int(indices[1]), int(indices[2])
                 
                 if v_idx == vehicle_idx and s_idx == current_station_idx and period_t <= first_move_period:
+                #if v_idx == vehicle_idx and s_idx == current_station_idx:
+                   
                     if name == 'qL':
                         loading_quantity += var.x
                         print(f"  Load: {var.x:.2f} (Period {period_t})")

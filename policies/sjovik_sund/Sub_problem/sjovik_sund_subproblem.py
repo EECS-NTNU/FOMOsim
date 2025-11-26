@@ -13,8 +13,8 @@ def run_subproblem_model(data):
     try:
         m = Model("DSBRP_Subproblem")
         m.setParam('OutputFlag', False)
-        m.setParam('TimeLimit', 300)  # 5 minutes max
-        m.setParam('MIPGap', 0.05)  # Stop at 5% gap (faster, good-enough solutions)
+        m.setParam('TimeLimit', 3600)  # 60 minutes max
+        m.setParam('MIPGap', 0.00)  # Stop at 0% gap (optimal solutions)
         m.setParam('Presolve', 2)  # Aggressive presolve
         m.setParam('MIPFocus', 1)  # Focus on finding good feasible solutions quickly
  
@@ -424,6 +424,11 @@ def run_subproblem_model(data):
  
         m.optimize()
 
+        gap = None
+        if m.status == GRB.OPTIMAL or m.status == GRB.TIME_LIMIT:
+            # Get the gap (MIPGap is a model attribute)
+            gap = m.MIPGap
+
         # Export objective-term breakdown when a solution (or incumbent) exists
 
         if m.Status == GRB.INFEASIBLE:
@@ -444,7 +449,7 @@ def run_subproblem_model(data):
  
         # Return the model object so the policy can extract solution variables
         # obj_val = m.getObjective().getValue()
-        return m
+        return m, gap
  
     except GurobiError as e:
         print("\n=== Gurobi Error ===")
