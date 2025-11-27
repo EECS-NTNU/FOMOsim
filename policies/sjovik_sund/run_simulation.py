@@ -77,7 +77,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
    
-    INSTANCE = "TD_W34"
+    INSTANCE = "TD_W34_old"
+    #INSTANCE = "trondheim"
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
     #INSTANCE = "EH_W31"
@@ -89,8 +90,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
 
     #tstate = target_state.USTargetState()
-    tstate = target_state.EqualProbTargetState()
-    #tstate = target_state.HalfCapacityTargetState()
+    #tstate = target_state.EqualProbTargetState()
+    tstate = target_state.HalfCapacityTargetState()
 
     # Assign vehicles to start stations based on instance
     start_stations = [0]
@@ -370,7 +371,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24*5 # hours - (24 * 5) for one week
+    duration = 24 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -394,7 +395,7 @@ if __name__ == "__main__":
 
     service_weights = [0.45, 0.45, 0.1]
     maintenance_weight = 1.0
-    alpha = 0.1
+    alpha = 0.05
     
     # Calculate combined weights: [(1-alpha)*Service, alpha*Maintenance]
     # Result structure: [w_S, w_C, w_D, r_M]
@@ -402,7 +403,7 @@ if __name__ == "__main__":
     
     # Dictionary of policies to test
     policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=weights)
+        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=5, tau=5, weights=weights)
         # Add more policy variations here
     }
    

@@ -15,15 +15,17 @@ def update_bike_maintenance(bike, travel_time, battery_level=None, congested=Fal
         float: New maintenance criticality (0.0 to 1.0)
     """
     # Base wear from distance/time
+
+    base_criticality = bike.maintenance_criticality
     base_wear = travel_time * MAINTENANCE_INCREASE_PER_MINUTE
     
     # Congestion penalty (rerouting, extra stops)
-    congestion_multiplier = 1.3 if congested else 1.0
+    # congestion_multiplier = 1.3 if congested else 1.0
     
     # Random wear (simulate unexpected damage)
     # Small chance of extra wear (1% chance of 0.1-0.3 extra)
     random_wear = 0.0
-    if random.random() < 0.01:  # 1% chance
+    if random.random() < 0.02:  # 2% chance
         random_wear = random.uniform(0.1, 0.3)
     
     # Accelerated degradation when already high
@@ -35,15 +37,10 @@ def update_bike_maintenance(bike, travel_time, battery_level=None, congested=Fal
         #degradation_multiplier = 1.2  # 20% faster when high
     
     # Calculate total wear
-    total_wear = (
-        base_wear * 
-        congestion_multiplier * 
-        #degradation_multiplier + 
-        random_wear
-    )
+    total_wear = ( base_wear + random_wear)
     
     # Update and cap at 1.0
-    new_criticality = min(1.0, bike.maintenance_criticality + total_wear)
+    new_criticality = min(1.0, base_criticality + total_wear)
     
     return new_criticality
 
@@ -65,3 +62,4 @@ def perform_maintenance(bike, maintenance_time):
         return 0.0
     
     return bike.maintenance_criticality
+
