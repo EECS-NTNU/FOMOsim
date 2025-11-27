@@ -308,8 +308,11 @@ class State(LoadSave):
                     bikes.append(sim.EBike(bike_id= "EB" + str(num_ebikes), battery=100))
                     num_ebikes += 1
                 else:
-                    bikes.append(sim.Bike(bike_id= "B"+str(num_bikes), is_station_based=True))
+                    bike = sim.Bike(bike_id= "B"+str(num_bikes), is_station_based=True)
+                    bike.maintenance_criticality = random.random() # Assign a random maintenance criticality between 0 and 1
+                    print(f"Initialized Bike ID-{bike.bike_id} with maintenance criticality: {bike.maintenance_criticality:.3f}")
                     num_bikes += 1
+                    bikes.append(bike)
 
             stationObj.set_bikes(bikes)
 
