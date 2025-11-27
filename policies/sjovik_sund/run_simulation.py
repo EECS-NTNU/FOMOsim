@@ -161,6 +161,7 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
                 'Bike Deliveries',
                 'Bike Pickups',
                 'Maintenance Time (minutes)',
+                'Maintenance Violations',
             ])
        
         # Write data row
@@ -180,6 +181,7 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
             simulator.state.metrics.get_aggregate_value('num bike deliveries'),
             simulator.state.metrics.get_aggregate_value('num bike pickups'),
             simulator.state.metrics.get_aggregate_value('maintenance time'),
+            simulator.state.metrics.get_aggregate_value('maintenance violations'),
         ])
  
  
