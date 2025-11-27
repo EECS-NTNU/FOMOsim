@@ -391,10 +391,18 @@ if __name__ == "__main__":
     'starv_cong_60_30':     [0.60, 0.35, 0.05, 0.0],
     'starv_cong_30_60':     [0.35, 0.60, 0.05, 0.0],
     }
-   
+
+    service_weights = [0.45, 0.45, 0.1]
+    maintenance_weight = 1.0
+    alpha = 0.1
+    
+    # Calculate combined weights: [(1-alpha)*Service, alpha*Maintenance]
+    # Result structure: [w_S, w_C, w_D, r_M]
+    weights = [w * (1 - alpha) for w in service_weights] + [maintenance_weight * alpha]
+    
     # Dictionary of policies to test
     policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=[0.45,0.45,0.1,0.00])
+        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=weights)
         # Add more policy variations here
     }
    
