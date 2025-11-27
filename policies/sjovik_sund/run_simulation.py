@@ -75,7 +75,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
    
-    INSTANCE = "TD_W34"
+    INSTANCE = "TD_W34_old"
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
     #INSTANCE = "EH_W31"
@@ -87,8 +87,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
 
     #tstate = target_state.USTargetState()
-    tstate = target_state.EqualProbTargetState()
-    #tstate = target_state.HalfCapacityTargetState()
+    #tstate = target_state.EqualProbTargetState()
+    tstate = target_state.HalfCapacityTargetState()
 
     # Assign vehicles to start stations based on instance
     start_stations = [0]
@@ -360,7 +360,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24*7 # hours - (24 * 7) for one week
+    duration = 24*5 # hours - (24 * 5) for five days
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -381,12 +381,25 @@ if __name__ == "__main__":
     'starv_cong_60_30':     [0.60, 0.35, 0.05, 0.0],
     'starv_cong_30_60':     [0.35, 0.60, 0.05, 0.0],
     }
+
+    service_weights = [0.45,0.45,0.1]
+    maintenance_reward = 1
+    alpha = [0.01, 0.03, 0.05, 0.07, 0.1, 0.3, 0.7, 1.0]
+    #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
    
+
+    policy_dict = {}
+    for alpha in alpha:
+        weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
+        policy_name = f'sjovik_sund_alpha_{alpha:.2f}'
+        policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
+            roaming=False, time_horizon=6, tau=5, weights=weights
+    )
     # Dictionary of policies to test
-    policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=[0.45,0.45,0.1,0.00])
+    #policy_dict = {
+        #'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=weights)
         # Add more policy variations here
-    }
+    #}
    
 
     # List of seeds to test

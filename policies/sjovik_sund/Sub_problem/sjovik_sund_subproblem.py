@@ -13,8 +13,8 @@ def run_subproblem_model(data):
     try:
         m = Model("DSBRP_Subproblem")
         m.setParam('OutputFlag', False)
-        m.setParam('TimeLimit', 300)  # 5 minutes max
-        m.setParam('MIPGap', 0.05)  # Stop at 5% gap (faster, good-enough solutions)
+        m.setParam('TimeLimit', 3600)  # 60 minutes max
+        m.setParam('MIPGap', 0.001)  # Stop at 0% gap (optimal solutions)
         m.setParam('Presolve', 2)  # Aggressive presolve
         m.setParam('MIPFocus', 1)  # Focus on finding good feasible solutions quickly
  
