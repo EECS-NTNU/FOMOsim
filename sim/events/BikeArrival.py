@@ -52,7 +52,7 @@ class BikeArrival(Event):
                     simul.state.remove_used_bike(self.bike)
                 
                 if self.bike.usable() == False:
-                    simul.state.metrics.add_aggregate_metric(simul.state, "usable violations", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "Maintenance violations", 1)
                 
                 # CHECKPOINT
                 # Print bike arrival information

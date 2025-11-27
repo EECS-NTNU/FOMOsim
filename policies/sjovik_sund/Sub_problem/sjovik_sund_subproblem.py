@@ -65,7 +65,7 @@ def run_subproblem_model(data):
         # Build list of feasible arcs first
         feasible_arcs = []
 
-        # 1. Explicitly add Source -> Start Station arcs (Crucial!)
+        # 1. Explicitly add Source -> Start Station arcs 
         for v in Vh:
             feasible_arcs.append((s, eta[v], v, 0))
 
@@ -248,14 +248,14 @@ def run_subproblem_model(data):
  
         # (6) single visit per station per vehicle within horizon:
         # Use T0 to include t=0 (initial arrival from source)
-
-        for j in N:
-            for v in Vh:
-                m.addConstr(
+        # RELAXED
+        #for j in N:
+            #for v in Vh:
+                #m.addConstr(
                     #quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
-                    quicksum(get_x(i, j, v, t) for i in N0 if i != j for t in T0) <= 1,
-                    name=f"single_visit_j{j}"
-                )        
+                    #quicksum(get_x(i, j, v, t) for i in N0 if i != j for t in T0) <= 1,
+                    #name=f"single_visit_j{j}"
+                #)        
         
         
 
