@@ -20,6 +20,8 @@ import output
 from helpers import timeInMinutes
 from settings import *
 
+#python policies/sjovik_sund/run_simulation.py > policies/sjovik_sund/output/output.txt                          
+
 # Import visualization if needed
 try:
     VISUALIZATION_AVAILABLE = True
@@ -76,6 +78,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     DURATION = timeInMinutes(hours=duration)
    
     INSTANCE = "TD_W34_old"
+    #INSTANCE = "trondheim"
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
     #INSTANCE = "EH_W31"
@@ -158,6 +161,7 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
                 'Bike Deliveries',
                 'Bike Pickups',
                 'Maintenance Time (minutes)',
+                'Maintenance Violations',
             ])
        
         # Write data row
@@ -177,6 +181,7 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
             simulator.state.metrics.get_aggregate_value('num bike deliveries'),
             simulator.state.metrics.get_aggregate_value('num bike pickups'),
             simulator.state.metrics.get_aggregate_value('maintenance time'),
+            simulator.state.metrics.get_aggregate_value('maintenance violations'),
         ])
  
  
@@ -238,6 +243,14 @@ def write_simulation_summary(filename, simulator, duration, policy, seed):
         f.write(f"  Maintenance Time: {maintenance_time:.2f} (Contribution: {-r_M * maintenance_time:.4f})\n")
         f.write(f"  Short Congestions: {congestions_short} (Contribution: {0})\n")
         
+        if hasattr(policy, 'optimality_gaps') and policy.optimality_gaps:
+            avg_gap = sum(policy.optimality_gaps) / len(policy.optimality_gaps)
+            max_gap = max(policy.optimality_gaps)
+            f.write(f"\n--- OPTIMIZATION PERFORMANCE ---\n")
+            f.write(f"Average Optimality Gap: {avg_gap:.4%}\n")
+            f.write(f"Maximum Optimality Gap: {max_gap:.4%}\n")
+            f.write(f"Total Optimizations: {len(policy.optimality_gaps)}\n")
+
         # 3. Routes
         f.write("\n--- ACTUAL VEHICLE ROUTES ---\n")
         
@@ -360,7 +373,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24*5 # hours - (24 * 5) for five days
+    duration = 24 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -382,6 +395,14 @@ if __name__ == "__main__":
     'starv_cong_30_60':     [0.35, 0.60, 0.05, 0.0],
     }
 
+    service_weights = [0.45, 0.45, 0.1]
+    maintenance_weight = 1.0
+    alpha = 0.05
+    
+    # Calculate combined weights: [(1-alpha)*Service, alpha*Maintenance]
+    # Result structure: [w_S, w_C, w_D, r_M]
+    weights = [w * (1 - alpha) for w in service_weights] + [maintenance_weight * alpha]
+ 
     service_weights = [0.45,0.45,0.1]
     maintenance_reward = 1
     alpha = [0.01, 0.03, 0.05, 0.07, 0.1, 0.3, 0.7, 1.0]

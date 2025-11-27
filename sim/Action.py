@@ -47,16 +47,18 @@ class Action:
         operation_duration = (
             len(self.battery_swaps) + len(self.pick_ups) + len(self.delivery_bikes) + len(self.helping_pickup) + len(self.helping_delivery)
         ) * MINUTES_PER_ACTION
+        maintenance_duration = self.maintenance_time
         travel_duration = (
             travel_time
             + MINUTES_CONSTANT_PER_ACTION
         )
         # Include maintenance time in total action duration
-        return operation_duration + travel_duration + self.maintenance_time
+        return operation_duration + travel_duration + maintenance_duration
 
     def __repr__(self):
         return (
             f"<Action - ({self.battery_swaps} bat. swaps, {self.pick_ups} pickups,"
+            f" {self.maintenance_time} maintenance min, "
             f" {self.delivery_bikes} deliveries), next: {self.next_location} >"
             f" {self.helping_pickup} h_pickups), {self.helping_delivery} h_delivry, {self.helping_cluster} cluster>"
         )

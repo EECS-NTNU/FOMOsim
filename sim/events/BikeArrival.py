@@ -51,6 +51,10 @@ class BikeArrival(Event):
                 if FULL_TRIP:
                     simul.state.remove_used_bike(self.bike)
                 
+                if self.bike.usable() == False:
+                    simul.state.metrics.add_aggregate_metric(simul.state, "usable violations", 1)
+                
+                # CHECKPOINT
                 # Print bike arrival information
                 maint_status = f"maint={self.bike.maintenance_criticality:.3f}" if hasattr(self.bike, 'maintenance_criticality') else ""
                 usable_status = " usable" if self.bike.usable() else " UNUSABLE"

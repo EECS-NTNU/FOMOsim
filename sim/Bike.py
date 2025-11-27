@@ -1,6 +1,7 @@
 from sim.Location import Location
 from sim.Metric import Metric
 from settings import *
+from sim.Maintenance_model import update_bike_maintenance
 
 class Bike(Location):
     """
@@ -28,10 +29,7 @@ class Bike(Location):
             self.metrics.add_metric(simul.state, "travel_time", travel_time)
         
         # Update maintenance criticality based on usage
-        maintenance_increase = travel_time * MAINTENANCE_INCREASE_PER_MINUTE
-        self.maintenance_criticality = min(1.0, self.maintenance_criticality + maintenance_increase)
-
-        #LEGGE TIL POISSONPROSESS SOM ØDELEGGER
+        self.maintenance_criticality = update_bike_maintenance(self, travel_time, congested=congested)
 
     def usable(self):
       return self.maintenance_criticality < MAINTENANCE_THRESHOLD_FOR_NO_RENTAL
