@@ -1,0 +1,64 @@
+================================================================================
+SJOVIK SUND POLICY SIMULATION SUMMARY (Seed 1)
+================================================================================
+
+--- PARAMETERS ---
+Policy Type: MILP-based (Direct Optimization)
+Number of Vehicles: 1
+Simulation Duration: 24.0 hours
+MILP Parameters:
+  Time Horizon (T): 6 periods
+  Period Length (tau): 5 minutes
+  Roaming Enabled: False
+
+Objective Weights:
+  Starvation Weight (w_S): 0.13500000000000004
+  Congestion Weight (w_C): 0.13500000000000004
+  Deviation Weight (w_D): 0.030000000000000006
+  Maintenance reward (r_M): 0.7
+
+--- ACCUMULATED OBJECTIVE FUNCTION ---
+Total Objective Value: -236.0613
+Breakdown:
+  Starvations: 158 (Contribution: 21.3300)
+  Congestions: 113 (Contribution: 15.2550)
+  Maintenance Time: 389.49 (Contribution: -272.6463)
+  Short Congestions: 145 (Contribution: 0)
+
+--- ACTUAL VEHICLE ROUTES ---
+Vehicle V0 Route:
+  Start: S0 at Day 0, Hour 07:00 (t=420.0)
+  Move 1: S35 at Day 0, Hour 07:21 (t=441.4) [+21.4 min]
+  Move 2: S50 at Day 0, Hour 07:37 (t=457.0) [+15.6 min]
+  Move 3: S29 at Day 0, Hour 07:51 (t=471.3) [+14.3 min]
+  Move 4: S50 at Day 0, Hour 08:13 (t=493.6) [+22.3 min]
+  Move 5: S11 at Day 0, Hour 08:32 (t=512.9) [+19.3 min]
+  Move 6: S55 at Day 0, Hour 08:50 (t=530.2) [+17.3 min]
+  Move 7: S29 at Day 0, Hour 09:06 (t=546.0) [+15.8 min]
+  Move 8: S54 at Day 0, Hour 09:25 (t=565.4) [+19.4 min]
+  Move 9: S29 at Day 0, Hour 09:36 (t=576.0) [+10.6 min]
+  Move 10: S37 at Day 0, Hour 09:45 (t=585.2) [+9.2 min]
+  Move 11: S58 at Day 0, Hour 10:09 (t=609.5) [+24.3 min]
+  Move 12: S18 at Day 0, Hour 10:17 (t=617.1) [+7.6 min]
+  Move 13: S4 at Day 0, Hour 10:41 (t=641.9) [+24.8 min]
+  Move 14: S58 at Day 0, Hour 10:55 (t=655.1) [+13.2 min]
+  Move 15: S59 at Day 0, Hour 11:17 (t=677.3) [+22.2 min]
+  Move 16: S49 at Day 0, Hour 11:33 (t=693.0) [+15.7 min]
+  Move 17: S39 at Day 0, Hour 11:51 (t=711.8) [+18.8 min]
+  Move 18: S59 at Day 0, Hour 11:58 (t=718.7) [+6.8 min]
+  Move 19: S38 at Day 0, Hour 12:23 (t=744.0) [+25.3 min]
+  Move 20: S43 at Day 0, Hour 12:37 (t=757.2) [+13.2 min]
+  Move 21: S44 at Day 0, Hour 12:59 (t=779.0) [+21.8 min]
+  Move 22: S62 at Day 0, Hour 13:09 (t=789.9) [+10.9 min]
+  Move 23: S33 at Day 0, Hour 13:34 (t=814.8) [+24.9 min]
+  Move 24: S54 at Day 0, Hour 13:46 (t=826.1) [+11.2 min]
+  Move 25: S10 at Day 0, Hour 14:06 (t=846.5) [+20.5 min]
+  Move 26: S54 at Day 0, Hour 14:22 (t=862.0) [+15.5 min]
+  Move 27: S57 at Day 0, Hour 14:33 (t=873.1) [+11.1 min]
+  Move 28: S1 at Day 0, Hour 14:42 (t=882.7) [+9.7 min]
+  Move 29: S57 at Day 0, Hour 14:46 (t=886.5) [+3.8 min]
+  Move 30: S57 at Day 0, Hour 15:19 (t=919.5) [+33.0 min]
+  Move 31: S54 at Day 0, Hour 15:34 (t=934.1) [+14.6 min]
+  Move 32: S45 at Day 0, Hour 15:54 (t=954.9) [+20.7 min]
+  Summary: 33 stops, 23 unique stations, 534.9 min total
+
