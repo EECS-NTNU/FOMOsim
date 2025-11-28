@@ -1,8 +1,8 @@
 import math
-from settings import VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION
+from settings import VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION, MAINTENANCE_FULL_FIX
 
 # Maintenance constants - shared across MILP and policy
-TIME_PER_BIKE_MAINTENANCE = 3.0  # Minutes to service one bike (matches MINUTES_PER_ACTION)
+#TIME_PER_BIKE_MAINTENANCE = MAINTENANCE_FULL_FIX  # Minutes to service one bike (matches MINUTES_PER_ACTION)
 MAX_BIKES_PER_VISIT = 10  # Maximum bikes that can be serviced at one station visit
  
 class MILP_parameters:
@@ -276,11 +276,11 @@ class MILP_parameters:
                 bikes_to_service = min(bikes_to_service, MAX_BIKES_PER_VISIT)
                 
                 # Time = bikes to service × time per bike
-                max_time = bikes_to_service * TIME_PER_BIKE_MAINTENANCE
+                max_time = bikes_to_service * MAINTENANCE_FULL_FIX
                 
                 # If maintenance is chosen, must service at least 1 bike (no partial servicing)
                 # This ensures either: 0 min (no maintenance) OR at least 3 min (fix 1+ bikes)
-                self.T_M_min[station_idx] = TIME_PER_BIKE_MAINTENANCE if max_time > 0 else 0.0
+                self.T_M_min[station_idx] = 0.01 
                 self.T_M_max[station_idx] = max_time if max_time > 0 else 0
                 
                 if max_time > 0:
