@@ -309,8 +309,8 @@ class State(LoadSave):
                     num_ebikes += 1
                 else:
                     bike = sim.Bike(bike_id= "B"+str(num_bikes), is_station_based=True)
-                    bike.maintenance_criticality = random.random() # Assign a random maintenance criticality between 0 and 1
-                    print(f"Initialized Bike ID-{bike.bike_id} with maintenance criticality: {bike.maintenance_criticality:.3f}")
+                    bike.maintenance_criticality = random.triangular(0, 1, 0) # Triangular distr, mode 0, mean 0.33
+                    #print(f"Initialized Bike ID-{bike.bike_id} with maintenance criticality: {bike.maintenance_criticality:.3f}")
                     num_bikes += 1
                     bikes.append(bike)
 

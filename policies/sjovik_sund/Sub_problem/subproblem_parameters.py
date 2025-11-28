@@ -3,7 +3,7 @@ from settings import VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION, MAINTENANCE_FUL
 
 # Maintenance constants - shared across MILP and policy
 #TIME_PER_BIKE_MAINTENANCE = MAINTENANCE_FULL_FIX  # Minutes to service one bike (matches MINUTES_PER_ACTION)
-MAX_BIKES_PER_VISIT = 10  # Maximum bikes that can be serviced at one station visit
+MAX_BIKES_TO_SERVICE_PER_VISIT = 20  # Maximum bikes that can be serviced at one station visit
  
 class MILP_parameters:
  
@@ -273,7 +273,7 @@ class MILP_parameters:
                     bikes_to_service = max(1, int(stats['count'] * avg_maint * 2))
                 
                 # Cap by MAX_BIKES_PER_VISIT (realistic constraint)
-                bikes_to_service = min(bikes_to_service, MAX_BIKES_PER_VISIT)
+                bikes_to_service = min(bikes_to_service, MAX_BIKES_TO_SERVICE_PER_VISIT)
                 
                 # Time = bikes to service × time per bike
                 max_time = bikes_to_service * MAINTENANCE_FULL_FIX

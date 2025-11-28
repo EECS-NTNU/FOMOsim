@@ -162,6 +162,7 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
                 'Bike Pickups',
                 'Maintenance Time (minutes)',
                 'Maintenance Violations',
+                'Maintenance Starvations',
             ])
        
         # Write data row
@@ -182,6 +183,7 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
             simulator.state.metrics.get_aggregate_value('num bike pickups'),
             simulator.state.metrics.get_aggregate_value('maintenance time'),
             simulator.state.metrics.get_aggregate_value('maintenance violations'),
+            simulator.state.metrics.get_aggregate_value('maintenance_starvation'),
         ])
  
  
@@ -227,6 +229,8 @@ def write_simulation_summary(filename, simulator, duration, policy, seed):
         starvations = simulator.state.metrics.get_aggregate_value('starvations')
         congestions_long = simulator.state.metrics.get_aggregate_value('long congestions') # + simulator.state.metrics.get_aggregate_value('short congestions')
         maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
+        maintenance_violations = simulator.state.metrics.get_aggregate_value('maintenance_violations')
+        maintenance_starvation = simulator.state.metrics.get_aggregate_value('maintenance_starvation')
         congestions_short = simulator.state.metrics.get_aggregate_value('short congestions')
         #deviations = simulator.state.metrics.get_aggregate_value('deviation')
         
@@ -242,6 +246,8 @@ def write_simulation_summary(filename, simulator, duration, policy, seed):
         #f.write(f"  Deviations: {deviations} (Contribution: {w_D * deviations:.4f})\n")
         f.write(f"  Maintenance Time: {maintenance_time:.2f} (Contribution: {-r_M * maintenance_time:.4f})\n")
         f.write(f"  Short Congestions: {congestions_short} (Contribution: {0})\n")
+        f.write(f"  Maintenance Violation Events: {maintenance_violations}\n")
+        f.write(f"  Maintenance Starvations: {maintenance_starvation}\n")
         
         if hasattr(policy, 'optimality_gaps') and policy.optimality_gaps:
             avg_gap = sum(policy.optimality_gaps) / len(policy.optimality_gaps)
@@ -405,14 +411,14 @@ if __name__ == "__main__":
  
     service_weights = [0.45,0.45,0.1]
     maintenance_reward = 1
-    alpha = [0.01, 0.03, 0.05, 0.07, 0.1, 0.3, 0.7, 1.0]
+    alpha = [0.003, 0.005, 0.007]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
    
 
     policy_dict = {}
     for alpha in alpha:
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alpha_{alpha:.2f}'
+        policy_name = f'sjovik_sund_alphas1_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=6, tau=5, weights=weights
     )
