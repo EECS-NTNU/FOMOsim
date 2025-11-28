@@ -77,7 +77,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
    
-    INSTANCE = "TD_W34_old"
+    #INSTANCE = "TD_W34_old"
+    INSTANCE = "TD_W34_testinstans"
     #INSTANCE = "trondheim"
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
@@ -397,7 +398,7 @@ if __name__ == "__main__":
 
     service_weights = [0.45, 0.45, 0.1]
     maintenance_weight = 1.0
-    alpha = 0.05
+    alpha = 0.001
     
     # Calculate combined weights: [(1-alpha)*Service, alpha*Maintenance]
     # Result structure: [w_S, w_C, w_D, r_M]
