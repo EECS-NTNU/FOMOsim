@@ -1,7 +1,7 @@
 from sim.Location import Location
 from sim.Metric import Metric
 from settings import *
-from sim.maintenance_model import update_bike_maintenance
+from sim.Maintenance_model import update_bike_maintenance
 
 class Bike(Location):
     """
