@@ -39,13 +39,32 @@ class LoggingSimulator(sim.Simulator):
         self.last_logged_day = -1
         self.last_starvations = 0
         self.last_congestions = 0
+        
+        # Hourly metric tracking
+        self.hourly_metrics = []  # List of dicts: [{hour, starvations, long_congestions, ...}, ...]
+        self.last_logged_hour = -1
+        self.last_hour_starvations = 0
+        self.last_hour_long_congestions = 0
+        self.last_hour_short_congestions = 0
+        self.last_hour_maintenance_violations = 0
+        self.last_hour_maintenance_starvations = 0
 
     def full_step(self):
         super().full_step()
         
-        # Check for 23:00 logging
-        # Time is in minutes. 23:00 is 23*60 = 1380 minutes into the day.
+        # Check for hourly logging
         current_time = self.state.time
+        hour = int(current_time // 60)  # Hour since simulation start (0-indexed)
+        
+        # Log metrics when we enter a new hour (log the previous hour's data)
+        if hour > self.last_logged_hour:
+            # Log the hour that just completed (previous hour)
+            hour_to_log = self.last_logged_hour if self.last_logged_hour >= 0 else 0
+            if hour_to_log >= 0:
+                self.log_hourly_metrics(hour_to_log, current_time)
+            self.last_logged_hour = hour
+        
+        # Check for 23:00 daily logging
         day = int(current_time // (24*60))
         minute_of_day = current_time % (24*60)
         
@@ -53,6 +72,40 @@ class LoggingSimulator(sim.Simulator):
         if day > self.last_logged_day and minute_of_day >= 1380:
             self.log_daily_metrics(day)
             self.last_logged_day = day
+    
+    def log_hourly_metrics(self, hour, current_time):
+        """Log metrics for the hour that just completed (delta since last hour)"""
+        # Get current aggregate values
+        current_starvations = self.state.metrics.get_aggregate_value('starvations')
+        current_long_congestions = self.state.metrics.get_aggregate_value('long congestions')
+        current_short_congestions = self.state.metrics.get_aggregate_value('short congestions')
+        current_maintenance_violations = self.state.metrics.get_aggregate_value('maintenance violations')
+        current_maintenance_starvations = self.state.metrics.get_aggregate_value('maintenance_starvation')
+        
+        # Calculate deltas (events in the hour that just completed)
+        hourly_starvations = current_starvations - self.last_hour_starvations
+        hourly_long_congestions = current_long_congestions - self.last_hour_long_congestions
+        hourly_short_congestions = current_short_congestions - self.last_hour_short_congestions
+        hourly_maintenance_violations = current_maintenance_violations - self.last_hour_maintenance_violations
+        hourly_maintenance_starvations = current_maintenance_starvations - self.last_hour_maintenance_starvations
+        
+        # Store hourly data (hour is the hour that just completed)
+        self.hourly_metrics.append({
+            'hour': hour,
+            'time_minutes': current_time,
+            'starvations': hourly_starvations,
+            'long_congestions': hourly_long_congestions,
+            'short_congestions': hourly_short_congestions,
+            'maintenance_violations': hourly_maintenance_violations,
+            'maintenance_starvations': hourly_maintenance_starvations,
+        })
+        
+        # Update last hour values for next calculation
+        self.last_hour_starvations = current_starvations
+        self.last_hour_long_congestions = current_long_congestions
+        self.last_hour_short_congestions = current_short_congestions
+        self.last_hour_maintenance_violations = current_maintenance_violations
+        self.last_hour_maintenance_starvations = current_maintenance_starvations
             
     def log_daily_metrics(self, day):
         starvations = self.state.metrics.get_aggregate_value('starvations')
@@ -70,6 +123,18 @@ class LoggingSimulator(sim.Simulator):
         
         self.last_starvations = starvations
         self.last_congestions = congestions
+    
+    def run(self):
+        """Override run to log final hour metrics"""
+        super().run()
+        
+        # Log final hour metrics after simulation ends
+        final_time = self.state.time
+        final_hour = int(final_time // 60)
+        
+        # Log the final hour's data (the hour we're currently in when simulation ends)
+        if final_hour >= 0:
+            self.log_hourly_metrics(final_hour, final_time)
 
 
 def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTANCE=None):
@@ -129,6 +194,43 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
 
 
  
+def write_hourly_metrics_to_file(filename, simulator, seed):
+    """
+    Write hourly metrics to a CSV file (one file per simulation run).
+    """
+    results_dir = './policies/sjovik_sund/simulation_results/'
+    os.makedirs(results_dir, exist_ok=True)
+    filepath = results_dir + filename
+    
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        
+        # Write header
+        writer.writerow([
+            'Seed',
+            'Hour',
+            'Time (minutes)',
+            'Starvations',
+            'Long Congestions',
+            'Short Congestions',
+            'Maintenance Violations',
+            'Maintenance Starvations',
+        ])
+        
+        # Write hourly data rows
+        for hour_data in simulator.hourly_metrics:
+            writer.writerow([
+                seed,
+                hour_data['hour'],
+                round(hour_data['time_minutes'], 2),
+                hour_data['starvations'],
+                hour_data['long_congestions'],
+                hour_data['short_congestions'],
+                hour_data['maintenance_violations'],
+                hour_data['maintenance_starvations'],
+            ])
+
+
 def write_results_to_file(filename, simulator, duration, solve_time, seed, append=False):
     """
     Write simulation results to a CSV file.
@@ -341,11 +443,16 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             solve_time = simulator.state.time  # Total simulation time
             write_results_to_file(results_file, simulator, duration, solve_time, list_of_seeds[i], append=(i > 0))
             
+            # Write hourly metrics for this seed (one file per run)
+            hourly_filename = f"{filename.replace('.csv', '')}_hourly_seed_{list_of_seeds[i]}.csv"
+            write_hourly_metrics_to_file(hourly_filename, simulator, list_of_seeds[i])
+            
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{list_of_seeds[i]}.txt"
             write_simulation_summary(summary_filename, simulator, duration, policy, list_of_seeds[i])
             
             print(f"Seed {list_of_seeds[i]}: Completed in {solve_time:.2f}s")
+            print(f"Hourly metrics written to: policies/sjovik_sund/simulation_results/{hourly_filename}")
     
     else:
         # Run simulations sequentially (easier for debugging)
@@ -356,11 +463,16 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             solve_time = time.time() - start_solve
             write_results_to_file(results_file, simulator, duration, solve_time, seed, append=(i > 0))
             
+            # Write hourly metrics for this seed (one file per run)
+            hourly_filename = f"{filename.replace('.csv', '')}_hourly_seed_{seed}.csv"
+            write_hourly_metrics_to_file(hourly_filename, simulator, seed)
+            
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{seed}.txt"
             write_simulation_summary(summary_filename, simulator, duration, policy, seed)
             
             print(f"Seed {seed}: Completed in {solve_time:.2f}s")
+            print(f"Hourly metrics written to: policies/sjovik_sund/simulation_results/{hourly_filename}")
     
     print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
 
@@ -379,7 +491,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24 # hours - (24 * 5) for one week
+    duration = 2 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -411,14 +523,14 @@ if __name__ == "__main__":
  
     service_weights = [0.45,0.45,0.1]
     maintenance_reward = 1
-    alpha = [0.003, 0.005, 0.007]
+    alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01, 0.015, 0.02, 0.025, 0.03]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
    
 
     policy_dict = {}
     for alpha in alpha:
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas1_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_run2_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=6, tau=5, weights=weights
     )
