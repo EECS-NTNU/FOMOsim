@@ -95,7 +95,7 @@ SERVICE_TIME_TO = 20 # Service ends at 8 PM (20:00)
 BATTERY_LIMIT_TO_SWAP = 80 #
 MAINTENANCE_LIMIT_TO_CHECK = 0.2 #
 
-MINUTES_PER_ACTION = 3 # 1, 3, 6, 9 Minutes to load/unload/battery swaps/maintenance per action
+MINUTES_PER_ACTION = 0.5 # 1, 3, 6, 9 Minutes to load/unload/battery swaps/maintenance per action
 OPERATOR_RADIUS = 1 # 0, 1, 2, 3
 
 TEST_NAME = 'policies' # f'operator_radius_{OPERATOR_RADIUS}' # f'inventory_balance_B{VEHICLE_BATTERY_INVENTORY}_I{VEHICLE_BIKE_INVENTORY}'
