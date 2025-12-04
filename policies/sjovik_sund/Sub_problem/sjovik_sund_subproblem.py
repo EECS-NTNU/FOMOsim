@@ -13,7 +13,7 @@ def run_subproblem_model(data):
     try:
         m = Model("DSBRP_Subproblem")
         m.setParam('OutputFlag', False)
-        m.setParam('TimeLimit', 3600)  # 60 minutes max
+        m.setParam('TimeLimit', 300)  # 60 minutes max
         m.setParam('MIPGap', 0.00)  # Stop at 0% gap (optimal solutions)
         m.setParam('Presolve', 2)  # Aggressive presolve
         m.setParam('MIPFocus', 1)  # Focus on finding good feasible solutions quickly
@@ -249,13 +249,13 @@ def run_subproblem_model(data):
         # (6) single visit per station per vehicle within horizon:
         # Use T0 to include t=0 (initial arrival from source)
 
-        """for j in N:
+        for j in N:
             for v in Vh:
                 m.addConstr(
                     #quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
                     quicksum(get_x(i, j, v, t) for i in N0 if i != j for t in T0) <= 1,
                     name=f"single_visit_j{j}"
-                )        """
+                )        
         
         
 
