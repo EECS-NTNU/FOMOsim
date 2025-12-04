@@ -20,7 +20,7 @@ This is realistic behavior - real-world travel times vary due to traffic, weathe
  
  
 class SjovikSundPolicy(Policy):
-    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None, hour_from=7, hour_to=16):
+    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None, hour_from=7, hour_to=21):
         self.roaming = roaming
         self.time_horizon = time_horizon
         self.tau = tau
