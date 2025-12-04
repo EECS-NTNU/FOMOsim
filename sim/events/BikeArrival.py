@@ -2,7 +2,7 @@ from sim import Event
 import sim
 from settings import *
 from settings import MAINTENANCE_LIMIT_TO_CHECK
-from sim.Maintenance_model import update_bike_maintenance
+from sim.maintenance_model import update_bike_maintenance
 
 class BikeArrival(Event):
     """

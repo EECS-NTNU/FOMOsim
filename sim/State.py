@@ -10,7 +10,7 @@ import random
 import geopy
 # from policies.inngjerdingen_moeller.parameters_MILP import MILP_data 
 from sim import Metric
-from sim.Maintenance_model import process_maintenance_action
+from sim.maintenance_model import process_maintenance_action
 
 class State(LoadSave):
     """

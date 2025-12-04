@@ -492,7 +492,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 2 # hours - (24 * 5) for one week
+    duration = 24 * 3 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -514,17 +514,11 @@ if __name__ == "__main__":
     'starv_cong_30_60':     [0.35, 0.60, 0.05, 0.0],
     }
 
-    service_weights = [0.45, 0.45, 0.1]
-    maintenance_weight = 1.0
-    alpha = 0.001
-    
-    # Calculate combined weights: [(1-alpha)*Service, alpha*Maintenance]
-    # Result structure: [w_S, w_C, w_D, r_M]
-    weights = [w * (1 - alpha) for w in service_weights] + [maintenance_weight * alpha]
- 
+
     service_weights = [0.45,0.45,0.1]
     maintenance_reward = 1
-    alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01, 0.015, 0.02, 0.025, 0.03]
+    alpha = [0.001]
+    #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01, 0.015, 0.02, 0.025, 0.03]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
    
 
@@ -535,6 +529,7 @@ if __name__ == "__main__":
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=6, tau=5, weights=weights
     )
+        
     # Dictionary of policies to test
     #policy_dict = {
         #'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=weights)
@@ -547,7 +542,7 @@ if __name__ == "__main__":
    
     # Instances to test
     #list_of_instances = ['instances/BO_W31', 'instances/TD_W34', 'instances/OS_W34']
-    list_of_instances = ['instances/TD_W34','instances/OS_W34']
+    # list_of_instances = ['instances/TD_W34','instances/OS_W34']
    
     # Start timing
     start_time = time.time()
