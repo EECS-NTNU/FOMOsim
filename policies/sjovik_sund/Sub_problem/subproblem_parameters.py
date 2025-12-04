@@ -97,6 +97,8 @@ class MILP_parameters:
     def _initialize_travel_times(self):
       
         # Calculate inter-station travel times
+        # NOTE: Do NOT add MINUTES_CONSTANT_PER_ACTION here - it's added separately in simulation's get_action_time()
+        # This ensures consistency between MILP model and simulation
         for i in self.stations:
             for j in self.stations:
                 if i == j:
@@ -104,12 +106,21 @@ class MILP_parameters:
                     self.T_D[(i, j)] = 0.0
                     self.T_DD[(i, j)] = 1
                 else:
-                    # Different stations: calculate distance-based travel time
-                    station_i = self.state.stations[self.index_to_station_id[i]]
-                    station_j = self.state.stations[self.index_to_station_id[j]]
+                    # Different stations: use traveltime_vehicle_matrix if available, otherwise calculate
+                    station_i_id = self.index_to_station_id[i]
+                    station_j_id = self.index_to_station_id[j]
                     
-                    distance_km = station_i.distance_to(station_j.get_lat(), station_j.get_lon())
-                    travel_time = (distance_km / VEHICLE_SPEED) * 60 + MINUTES_CONSTANT_PER_ACTION
+                    # Check if traveltime_vehicle_matrix exists and has this pair
+                    if (self.state.traveltime_vehicle_matrix is not None and 
+                        (station_i_id, station_j_id) in self.state.traveltime_vehicle_matrix):
+                        # Use pre-computed travel time from matrix (should NOT include MINUTES_CONSTANT_PER_ACTION)
+                        travel_time = self.state.traveltime_vehicle_matrix[(station_i_id, station_j_id)]
+                    else:
+                        # Calculate from distance (without constant - simulation adds it separately)
+                        station_i = self.state.stations[station_i_id]
+                        station_j = self.state.stations[station_j_id]
+                        distance_km = station_i.distance_to(station_j.get_lat(), station_j.get_lon())
+                        travel_time = (distance_km / VEHICLE_SPEED) * 60
                     
                     self.T_D[(i, j)] = travel_time
                     self.T_DD[(i, j)] = math.ceil(travel_time / self.tau)

@@ -492,7 +492,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24 * 3 # hours - (24 * 5) for one week
+    duration = 24 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
