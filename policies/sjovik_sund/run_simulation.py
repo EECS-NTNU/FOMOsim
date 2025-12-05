@@ -45,8 +45,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
    
-    #INSTANCE = "TD_W34_old"
-    INSTANCE = "TD_W34_testinstans"
+    INSTANCE = "TD_W34_old"
+    #INSTANCE = "TD_W34_testinstans"
     #INSTANCE = "TD_W34_filtered_28_stations"
     #INSTANCE = "trondheim"
     #INSTANCE = "NY_W31"

@@ -55,6 +55,7 @@ class BikeArrival(Event):
                     self.bike.maintenance_criticality = update_bike_maintenance(
                         self.bike,
                         self.travel_time,
+                        simul.state.rng,
                         battery_level=self.bike.battery,
                         congested=self.congested
                     )

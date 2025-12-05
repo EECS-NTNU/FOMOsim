@@ -309,8 +309,8 @@ class State(LoadSave):
                     num_ebikes += 1
                 else:
                     bike = sim.Bike(bike_id= "B"+str(num_bikes), is_station_based=True)
-                    bike.maintenance_criticality = random.triangular(0, 1, 0.33) # Assign a random maintenance criticality with peak 0.33
-                    print(f"Initialized Bike ID-{bike.bike_id} with maintenance criticality: {bike.maintenance_criticality:.3f}")
+                    bike.maintenance_criticality = 0.0  # Will be set after state creation using state.rng
+                    #print(f"Initialized Bike ID-{bike.bike_id} with maintenance criticality: {bike.maintenance_criticality:.3f}")
                     num_bikes += 1
                     bikes.append(bike)
 
@@ -349,6 +349,14 @@ class State(LoadSave):
                       traveltime_matrix_stddev=traveltime_matrix_stddev,
                       traveltime_vehicle_matrix=traveltime_vehicle_matrix,
                       traveltime_vehicle_matrix_stddev=traveltime_vehicle_matrix_stddev)
+        
+        # Now that state exists, update bike maintenance criticality using state's rng
+        # numpy.random.Generator.triangular(left, mode, right) - mode is the peak
+        for location in locations:
+            if hasattr(location, 'bikes'):
+                for bike in location.bikes.values():
+                    if hasattr(bike, 'maintenance_criticality') and bike.maintenance_criticality == 0.0:
+                        bike.maintenance_criticality = state.rng.triangular(0, 0.33, 1)
         
         neighbor_dict = state.read_neighboring_stations_from_file()
         for station in [location for location in locations if isinstance(location, sim.Station) and not isinstance(location, sim.Depot)]:

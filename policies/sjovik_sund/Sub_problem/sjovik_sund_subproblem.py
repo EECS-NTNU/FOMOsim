@@ -14,7 +14,7 @@ def run_subproblem_model(data):
         m = Model("DSBRP_Subproblem")
         m.setParam('OutputFlag', False)
         m.setParam('TimeLimit', 300)  # 60 minutes max
-        m.setParam('MIPGap', 0.00)  # Stop at 0% gap (optimal solutions)
+        m.setParam('MIPGap', 5.00)  # Stop at 0% gap (optimal solutions)
         m.setParam('Presolve', 2)  # Aggressive presolve
         m.setParam('MIPFocus', 1)  # Focus on finding good feasible solutions quickly
  
@@ -64,6 +64,9 @@ def run_subproblem_model(data):
 
         # Build list of feasible arcs first
         feasible_arcs = []
+        
+        # Maximum travel time filter (in minutes)
+        MAX_TRAVEL_TIME = 10.0
 
         # 1. Explicitly add Source -> Start Station arcs (Crucial!)
         for v in Vh:
@@ -74,10 +77,13 @@ def run_subproblem_model(data):
             for j in N:
                 travel_time = T_DD.get((i, j), None)
                 if travel_time is not None:
-                    for v in Vh:
-                        for t in T0:
-                            if t + travel_time <= T:
-                                feasible_arcs.append((i, j, v, t))
+                    # Filter out arcs where actual travel time exceeds MAX_TRAVEL_TIME
+                    actual_travel_time = T_D.get((i, j), float('inf'))
+                    if actual_travel_time <= MAX_TRAVEL_TIME:
+                        for v in Vh:
+                            for t in T0:
+                                if t + travel_time <= T:
+                                    feasible_arcs.append((i, j, v, t))
 
         # 3. Sink Arcs (Station -> Sink)
         # Assuming 0 travel time to sink, allowed only at time T
