@@ -1,38 +1,20 @@
-from settings import MAINTENANCE_INCREASE_PER_MINUTE, MINUTES_PER_ACTION
-import random
+from settings import MAINTENANCE_INCREASE_PER_MINUTE, MAINTENANCE_FULL_FIX
 
-def update_bike_maintenance(bike, travel_time, battery_level=None, congested=False):
-    """
-    Advanced maintenance model considering multiple factors.
-    
-    Args:
-        bike: Bike object
-        travel_time: Minutes of travel
-        battery_level: Current battery (for e-bikes), optional
-        congested: Whether the trip was congested (extra wear)
-    
-    Returns:
-        float: New maintenance criticality (0.0 to 1.0)
-    """
+####################################################################
+# Update bike maintenance criticality after a trip
+####################################################################
+
+def update_bike_maintenance(bike, travel_time, rng, battery_level=None, congested=False):
     # Base wear from distance/time
 
     base_criticality = bike.maintenance_criticality
     base_wear = travel_time * MAINTENANCE_INCREASE_PER_MINUTE
     
     # Random wear (simulate unexpected damage)
-    # Small chance of extra wear (1% chance of 0.1-0.3 extra)
     random_wear = 0.0
-    if random.random() < 0.02:  # 2% chance
-        random_wear = random.uniform(0.1, 0.3)
-    
-    # Accelerated degradation when already high
-    # High maintenance bikes degrade faster (cascading failures)
-    #degradation_multiplier = 1.0
-    #if bike.maintenance_criticality > 0.7:
-        #degradation_multiplier = 1.5  # 50% faster when already critical
-    #elif bike.maintenance_criticality > 0.5:
-        #degradation_multiplier = 1.2  # 20% faster when high
-    
+    if rng.random() < 0.02:  # 2% chance
+        random_wear = rng.uniform(0.1, 0.3)
+
     # Calculate total wear
     total_wear = ( base_wear + random_wear)
     
@@ -41,28 +23,30 @@ def update_bike_maintenance(bike, travel_time, battery_level=None, congested=Fal
     
     return new_criticality
 
+###################################################################
+# Performing maintenance at station
+# Assumes if 3 full minutes is given, the bike is fully repaired to 0.0 criticality
+# Partial maintenance reduces criticality proportionally
+###################################################################
+
 def perform_maintenance_on_bike(bike, maintenance_time):
-    """
-    Reduce maintenance criticality based on time spent servicing.
-    
-    Args:
-        bike: Bike object
-        maintenance_time: Minutes spent on maintenance
-    
-    Returns:
-        float: New maintenance criticality
-    """
-    # Any maintenance performed = complete reset to 0
-    # This assumes that once a bike is checked/serviced, it's fully maintained
     if maintenance_time > 0:
-        return 0.0
+        reduction = maintenance_time / MAINTENANCE_FULL_FIX
+        # Reduce criticality proportionally, but not below 0
+        new_criticality = max(0.0, bike.maintenance_criticality * (1 - reduction))
+        return new_criticality
     
     return bike.maintenance_criticality
 
+####################################################################
+# Process maintenance action for a vehicle at its current location
+# This function gets the bike in need of maintenance at a station and sorts them by criticality
+# It then performs maintenance on as many bikes as possible within the allocated maintenance_time
+
+####################################################################
+
 def process_maintenance_action(vehicle, maintenance_time, time):
-    """
-    Perform maintenance on bikes at the vehicle's current location.
-    """
+
     if maintenance_time <= 0 or vehicle.is_at_depot():
         return
 
@@ -77,41 +61,68 @@ def process_maintenance_action(vehicle, maintenance_time, time):
             key=lambda b: b.maintenance_criticality,
             reverse=True
         )
+
+    # If there are no bikes needing maintenance, exit
+    if not bikes_to_maintain:
+        return
     
     # Calculate time per bike and number of bikes that can be serviced
-    if bikes_to_maintain:
-        time_per_bike = MINUTES_PER_ACTION  # 3 minutes per bike for maintenance
-        num_bikes_to_service = int(maintenance_time / time_per_bike)
-        
-        # Print BEFORE maintenance
-        print(f"\n  MAINTENANCE at {vehicle.location.id} (t={time:.1f}, allocated={maintenance_time:.1f}min)")
-        print(f"     Bikes at station BEFORE maintenance ({len(bikes_to_maintain)} total):")
-        for bike in bikes_to_maintain[:min(10, len(bikes_to_maintain))]:  # Show first 10
+    #time_per_bike = MINUTES_PER_ACTION  # 3 minutes per bike for maintenance
+
+    # How many bikes  can you service in the allocated time
+    full_bikes = int(maintenance_time // MAINTENANCE_FULL_FIX)
+    remaining_time = maintenance_time - (full_bikes * MAINTENANCE_FULL_FIX)
+    
+    # Print BEFORE maintenance
+    print(f"\n  MAINTENANCE at {vehicle.location.id} (t={time:.1f}, allocated={maintenance_time:.1f}min)")
+    print(f"     Bikes at station BEFORE maintenance ({len(bikes_to_maintain)} total):")
+    for bike in bikes_to_maintain[:min(10, len(bikes_to_maintain))]:  # Show first 10
+        usable = "usable" if bike.usable() else "UNUSABLE"
+        print(f"       {bike.bike_id}: maint={bike.maintenance_criticality:.3f} ({usable})")
+    if len(bikes_to_maintain) > 10:
+        print(f"       ... and {len(bikes_to_maintain) - 10} more bikes")
+
+    
+    # Apply maintenance to the bikes with highest criticality
+    serviced_bikes = []
+
+    # Perform full bike repairs
+    if full_bikes > 0:
+        for i, bike in enumerate(bikes_to_maintain[:full_bikes]):
+            old_criticality = bike.maintenance_criticality
+            bike.maintenance_criticality = perform_maintenance_on_bike(bike, MAINTENANCE_FULL_FIX)
+            serviced_bikes.append((bike, old_criticality, remaining_time))
+
+    # Perform fractional repair on the next bike, if any time remains
+    if remaining_time > 0 and full_bikes < len(bikes_to_maintain):
+        bike = bikes_to_maintain[full_bikes]
+        old_criticality = bike.maintenance_criticality
+        bike.maintenance_criticality = perform_maintenance_on_bike(bike, remaining_time)
+        serviced_bikes.append((bike, old_criticality, remaining_time))
+    
+    # Print AFTER maintenance
+    print(f"\n     Serviced {len(serviced_bikes)} bikes:")
+    for bike, old_crit, used_time in serviced_bikes:
+        usable = "usable" if bike.usable() else "UNUSABLE"
+        print(
+            f"       {bike.bike_id}: {old_crit:.3f} -> {bike.maintenance_criticality:.3f} "
+            f"(maintenance {used_time:.1f} min, {usable})"
+        )
+
+    
+    # Show remaining bikes needing maintenance
+    remaining_high = [
+        b for b in bikes_to_maintain 
+        if b.maintenance_criticality >= 0.8
+        ]
+
+
+    if remaining_high:
+        print(f"\n     Remaining bikes still needing maintenance ({len(remaining_high)} with maint>=0.8):")
+        for bike in remaining_high[:5]:  # Show first 5
             usable = "usable" if bike.usable() else "UNUSABLE"
             print(f"       {bike.bike_id}: maint={bike.maintenance_criticality:.3f} ({usable})")
-        if len(bikes_to_maintain) > 10:
-            print(f"       ... and {len(bikes_to_maintain) - 10} more bikes")
-        
-        # Apply maintenance to the bikes with highest criticality
-        serviced_bikes = []
-        for i, bike in enumerate(bikes_to_maintain[:num_bikes_to_service]):
-            old_criticality = bike.maintenance_criticality
-            bike.maintenance_criticality = perform_maintenance_on_bike(bike, time_per_bike)
-            serviced_bikes.append((bike, old_criticality))
-        
-        # Print AFTER maintenance
-        print(f"\n     Serviced {len(serviced_bikes)} bikes ({time_per_bike:.1f} min each):")
-        for bike, old_crit in serviced_bikes:
-            print(f"       {bike.bike_id}: {old_crit:.3f} -> {bike.maintenance_criticality:.3f} (now usable)")
-        
-        # Show remaining bikes needing maintenance
-        remaining_high = [b for b in bikes_to_maintain[num_bikes_to_service:] if b.maintenance_criticality >= 0.5]
-        if remaining_high:
-            print(f"\n     Remaining bikes still needing maintenance ({len(remaining_high)} with maint>=0.5):")
-            for bike in remaining_high[:5]:  # Show first 5
-                usable = "usable" if bike.usable() else "UNUSABLE"
-                print(f"       {bike.bike_id}: maint={bike.maintenance_criticality:.3f} ({usable})")
-            if len(remaining_high) > 5:
-                print(f"       ... and {len(remaining_high) - 5} more")
-        print()
+        if len(remaining_high) > 5:
+            print(f"       ... and {len(remaining_high) - 5} more")
+    print()
 

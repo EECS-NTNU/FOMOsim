@@ -13,7 +13,7 @@ def run_subproblem_model(data):
     try:
         m = Model("DSBRP_Subproblem")
         m.setParam('OutputFlag', False)
-        m.setParam('TimeLimit', 3600)  # 60 minutes max
+        m.setParam('TimeLimit', 300)  # 60 minutes max
         m.setParam('MIPGap', 0.00)  # Stop at 0% gap (optimal solutions)
         m.setParam('Presolve', 2)  # Aggressive presolve
         m.setParam('MIPFocus', 1)  # Focus on finding good feasible solutions quickly
@@ -338,6 +338,35 @@ def run_subproblem_model(data):
         #############################################################################################################
         # Timing constraints & maintenance integration (15)–(20)
         ##############################################################################################################
+
+        for v in Vh:
+            for t in Tpos:
+                
+                # --- Calculate Driving Time (The "Min" Logic) ---
+                # started at t_prime <= t and calculate their elapsed time up to t.
+                # Calculate elapsed time: min(Time elapsed since start, Max trip duration)
+                driving_term = quicksum( min((t - t_prime) * tau, T_D[(i, j)]) * get_x(i, j, v, t_prime) for t_prime in T0 if t_prime <= t for i in (N + [s]) for j in N if (i, j) in T_DD)
+
+                # --- Calculate Service Time (Loading/Unloading + Maintenance) ---
+                # Sum over all activities performed up to time t
+                service_term = quicksum(T_L * (qL[i, v, t_prime] + qU[i, v, t_prime]) + tM[i, v, t_prime] for t_prime in Tpos if t_prime <= t for i in N)
+
+                # Total Time Used (LHS for both constraints)
+                total_time_consumed = driving_term + service_term
+
+                # Constraint (15): Upper Bound (Budget)
+                # Ensure we haven't consumed more time than has physically passed
+                m.addConstr( total_time_consumed <= t * tau, name=f"time_ub_v{v}_t{t}")
+
+                # Constraint (16): Lower Bound (Anti-Idling / Slack)
+                # Ensure the vehicle has been active for at least (t-2) periods.
+                # Add only constraint for t >= 2 to avoid negative time
+                if t >= 2:
+                    m.addConstr(total_time_consumed >= max((t-2)*tau,0), name=f"time_lb_v{v}_t{t}")
+        '''
+        #############################################################################################################
+        # Timing constraints & maintenance integration (15)–(20)
+        ##############################################################################################################
         # Constraints (15) & (16): Time bounds 
         for v in Vh:
             for t in Tpos:
@@ -376,7 +405,7 @@ def run_subproblem_model(data):
                 m.addConstr(
                     completed_travel + partial_travel + service_term >= (t - 1) * tau, 
                     name=f"time_lb_v{v}_t{t}"
-                )
+                )'''
         
         # (17) Global maintenance upper bound per station
         for i in N:

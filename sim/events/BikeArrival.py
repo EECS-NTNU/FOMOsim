@@ -1,6 +1,8 @@
 from sim import Event
 import sim
 from settings import *
+from settings import MAINTENANCE_LIMIT_TO_CHECK
+from sim.maintenance_model import update_bike_maintenance
 
 class BikeArrival(Event):
     """
@@ -50,10 +52,24 @@ class BikeArrival(Event):
             if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:
                     simul.state.remove_used_bike(self.bike)
-                
+                    self.bike.maintenance_criticality = update_bike_maintenance(
+                        self.bike,
+                        self.travel_time,
+                        simul.state.rng,
+                        battery_level=self.bike.battery,
+                        congested=self.congested
+                    )
+
+                #if self.bike.usable() == False:
+                    #simul.state.metrics.add_aggregate_metric(simul.state, "Maintenance violations", 1)
+
+                # Track if this drop-off leaves the bike above the rental threshold
+                #if self.bike.maintenance_criticality >= MAINTENANCE_THRESHOLD_FOR_NO_RENTAL:
+                    #simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_violation", 1)
+
                 if self.bike.usable() == False:
-                    simul.state.metrics.add_aggregate_metric(simul.state, "Maintenance violations", 1)
-                
+                    simul.state.metrics.add_aggregate_metric(simul.state, "maintenance violations", 1)
+
                 # CHECKPOINT
                 # Print bike arrival information
                 maint_status = f"maint={self.bike.maintenance_criticality:.3f}" if hasattr(self.bike, 'maintenance_criticality') else ""
@@ -61,7 +77,7 @@ class BikeArrival(Event):
                 congestion_str = " [CONGESTED]" if self.congested else ""
                 print(f"   ARRIVAL: Bike {self.bike.bike_id} at {arrival_station.id} "
                       f"(t={self.time:.1f}, {maint_status}, {usable_status}){congestion_str}")
-                
+
                 simul.state.metrics.add_aggregate_metric(simul.state, "bike arrival", 1)
 
             else:

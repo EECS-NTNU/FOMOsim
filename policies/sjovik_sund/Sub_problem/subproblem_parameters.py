@@ -1,9 +1,9 @@
 import math
-from settings import VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION
+from settings import VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION, MAINTENANCE_FULL_FIX, MINUTES_PER_ACTION
 
 # Maintenance constants - shared across MILP and policy
-TIME_PER_BIKE_MAINTENANCE = 3.0  # Minutes to service one bike (matches MINUTES_PER_ACTION)
-MAX_BIKES_PER_VISIT = 10  # Maximum bikes that can be serviced at one station visit
+#TIME_PER_BIKE_MAINTENANCE = MAINTENANCE_FULL_FIX  # Minutes to service one bike (matches MINUTES_PER_ACTION)
+MAX_BIKES_TO_SERVICE_PER_VISIT = 20  # Maximum bikes that can be serviced at one station visit
  
 class MILP_parameters:
  
@@ -45,7 +45,7 @@ class MILP_parameters:
         # Travel time parameters
         self.T_D = {}          # {(station_idx_i, station_idx_j): travel_time_minutes} - Travel time from i to j in minutes
         self.T_DD = {}         # {(station_idx_i, station_idx_j): num_periods} - Discretized travel time periods from i to j
-        self.T_L = 3         # Loading/unloading time per bike in minutes (float)
+        self.T_L = MINUTES_PER_ACTION        # Loading/unloading time per bike in minutes (float)
        
         # Maintenance time parameters
         self.T_M_min = {}      # {station_idx: min_time_minutes} - Minimum maintenance time at station i
@@ -97,6 +97,8 @@ class MILP_parameters:
     def _initialize_travel_times(self):
       
         # Calculate inter-station travel times
+        # NOTE: Do NOT add MINUTES_CONSTANT_PER_ACTION here - it's added separately in simulation's get_action_time()
+        # This ensures consistency between MILP model and simulation
         for i in self.stations:
             for j in self.stations:
                 if i == j:
@@ -104,12 +106,21 @@ class MILP_parameters:
                     self.T_D[(i, j)] = 0.0
                     self.T_DD[(i, j)] = 1
                 else:
-                    # Different stations: calculate distance-based travel time
-                    station_i = self.state.stations[self.index_to_station_id[i]]
-                    station_j = self.state.stations[self.index_to_station_id[j]]
+                    # Different stations: use traveltime_vehicle_matrix if available, otherwise calculate
+                    station_i_id = self.index_to_station_id[i]
+                    station_j_id = self.index_to_station_id[j]
                     
-                    distance_km = station_i.distance_to(station_j.get_lat(), station_j.get_lon())
-                    travel_time = (distance_km / VEHICLE_SPEED) * 60 + MINUTES_CONSTANT_PER_ACTION
+                    # Check if traveltime_vehicle_matrix exists and has this pair
+                    if (self.state.traveltime_vehicle_matrix is not None and 
+                        (station_i_id, station_j_id) in self.state.traveltime_vehicle_matrix):
+                        # Use pre-computed travel time from matrix (should NOT include MINUTES_CONSTANT_PER_ACTION)
+                        travel_time = self.state.traveltime_vehicle_matrix[(station_i_id, station_j_id)]
+                    else:
+                        # Calculate from distance (without constant - simulation adds it separately)
+                        station_i = self.state.stations[station_i_id]
+                        station_j = self.state.stations[station_j_id]
+                        distance_km = station_i.distance_to(station_j.get_lat(), station_j.get_lon())
+                        travel_time = (distance_km / VEHICLE_SPEED) * 60
                     
                     self.T_D[(i, j)] = travel_time
                     self.T_DD[(i, j)] = math.ceil(travel_time / self.tau)
@@ -273,14 +284,14 @@ class MILP_parameters:
                     bikes_to_service = max(1, int(stats['count'] * avg_maint * 2))
                 
                 # Cap by MAX_BIKES_PER_VISIT (realistic constraint)
-                bikes_to_service = min(bikes_to_service, MAX_BIKES_PER_VISIT)
+                bikes_to_service = min(bikes_to_service, MAX_BIKES_TO_SERVICE_PER_VISIT)
                 
                 # Time = bikes to service × time per bike
-                max_time = bikes_to_service * TIME_PER_BIKE_MAINTENANCE
+                max_time = bikes_to_service * MAINTENANCE_FULL_FIX
                 
                 # If maintenance is chosen, must service at least 1 bike (no partial servicing)
-                # This ensures either: 0 min (no maintenance) OR at least 3 min (fix 1+ bikes)
-                self.T_M_min[station_idx] = TIME_PER_BIKE_MAINTENANCE if max_time > 0 else 0.0
+                # This ensures either: 0 min (no maintenance) OR at least 0.5 min (fix 1+ bikes)
+                self.T_M_min[station_idx] = 0.5 
                 self.T_M_max[station_idx] = max_time if max_time > 0 else 0
                 
                 if max_time > 0:
