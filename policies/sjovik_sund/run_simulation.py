@@ -47,6 +47,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
    
     #INSTANCE = "TD_W34_old"
     INSTANCE = "TD_W34_testinstans"
+    #INSTANCE = "TD_W34_filtered_28_stations"
     #INSTANCE = "trondheim"
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
