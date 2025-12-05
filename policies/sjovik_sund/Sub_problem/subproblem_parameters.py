@@ -50,7 +50,8 @@ class MILP_parameters:
         # Maintenance time parameters
         self.T_M_min = {}      # {station_idx: min_time_minutes} - Minimum maintenance time at station i
         self.T_M_max = {}      # {station_idx: max_time_minutes} - Maximum maintenance time at station i
-       
+        self.T_M = 1.5  # Average time to maintain one bike (minutes)
+
         # Vehicle capacity parameters
         self.Q_V = {}          # {vehicle_idx: capacity} - Capacity of vehicle v (max bikes it can carry)
         self.Q_V0 = {}         # {vehicle_idx: initial_load} - Initial load of vehicle v (bikes currently on vehicle)

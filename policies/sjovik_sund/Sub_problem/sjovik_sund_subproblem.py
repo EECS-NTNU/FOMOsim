@@ -40,6 +40,7 @@ def run_subproblem_model(data):
         T_L  = float(data["T_L"])
         T_M_min = data["T_M_min"]
         T_M_max = data["T_M_max"]
+        T_M = data.get("T_M") # Average time to maintain one bike
         Q_V  = data["Q_V"]
         Q_V0 = data["Q_V0"]
         Q_S  = data["Q_S"]
@@ -153,7 +154,7 @@ def run_subproblem_model(data):
                 starv_contrib = data.get('w_S', 1.0) * starv_sum
                 cong_contrib = data.get('w_C', 1.0) * cong_sum
                 dev_contrib = data.get('w_D', 1.0) * dev_sum
-                maint_contrib = - data.get('r_M', 0.0) * maint_time
+                maint_contrib = - data.get('r_M', 0.0) * (maint_time / T_M)
 
                 obj_calc = starv_contrib + cong_contrib + dev_contrib + maint_contrib
                 model_obj = float(model.ObjVal) if model.Status == GRB.OPTIMAL or model.Status == GRB.SUBOPTIMAL or model.Status == GRB.FEASIBLE else None
@@ -165,7 +166,7 @@ def run_subproblem_model(data):
                         'starvation': {'sum': starv_sum, 'weight': data.get('w_S', 1.0), 'contribution': starv_contrib},
                         'congestion': {'sum': cong_sum, 'weight': data.get('w_C', 1.0), 'contribution': cong_contrib},
                         'deviation': {'sum': dev_sum, 'weight': data.get('w_D', 1.0), 'contribution': dev_contrib},
-                        'maintenance_time': {'sum': maint_time, 'rate': data.get('r_M', 0.0), 'contribution': maint_contrib}
+                        'maintenance_time': {'sum': maint_time, 'rate': data.get('r_M', 0.0), 'T_M': T_M, 'contribution': maint_contrib}
                     },
                     'computed_obj_from_terms': obj_calc
                 }
@@ -191,7 +192,7 @@ def run_subproblem_model(data):
         ###########################################################################################################
     
         m.setObjective(quicksum(
-            quicksum(w_S*s_var[i,t] + w_C*c_var[i,t] - quicksum(r_M * tM[i,v,t] for v in Vh) for t in Tpos)+ w_D * d_abs[i]
+            quicksum(w_S*s_var[i,t] + w_C*c_var[i,t] - quicksum(r_M * (tM[i,v,t] / T_M) for v in Vh) for t in Tpos)+ w_D * d_abs[i]
             for i in N
         ),
         sense=GRB.MINIMIZE)
