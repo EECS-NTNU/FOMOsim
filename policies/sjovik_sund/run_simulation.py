@@ -47,6 +47,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
    
     #INSTANCE = "TD_W34_old"
     INSTANCE = "TD_W34_testinstans"
+    #INSTANCE = "TD_W34_filtered_28_stations"
     #INSTANCE = "trondheim"
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
@@ -227,6 +228,7 @@ if __name__ == "__main__":
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=20
     )
+        
     # Dictionary of policies to test
     #policy_dict = {
         #'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=weights)
@@ -239,7 +241,7 @@ if __name__ == "__main__":
    
     # Instances to test
     #list_of_instances = ['instances/BO_W31', 'instances/TD_W34', 'instances/OS_W34']
-    list_of_instances = ['instances/TD_W34','instances/OS_W34']
+    # list_of_instances = ['instances/TD_W34','instances/OS_W34']
    
     # Start timing
     start_time = time.time()
