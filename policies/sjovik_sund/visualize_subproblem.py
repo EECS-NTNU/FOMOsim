@@ -1,24 +1,27 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from gurobipy import *
-
+ 
 class Visualizer():
     def __init__(self, gurobi_output, parameters_data):
         self.gurobi_output = gurobi_output
         self.parameters_data = parameters_data
-
+ 
     def visualize_route(self):
-        vehicle_colors = ['red', 'lime', 'pink', 'orange', 'cyan'] 
+        vehicle_colors = ['red', 'lime', 'pink', 'orange', 'cyan']
         time_colors = ['maroon', 'darkgreen', 'deeppink', 'darkorange', 'darkblue']
         x_offset = 0.00175
         y_offset = 0.00125
         filename = self.parameters_data.state.mapdata[0]
         bBox = self.parameters_data.state.mapdata[1]
+        
+        # Increase figure size for better visibility
+        fig, ax = plt.subplots(figsize=(12, 10))
+        
         image = plt.imread(filename)
         aspect_img = len(image[0]) / len(image)
         aspect_geo = (bBox[1] - bBox[0]) / (bBox[3] - bBox[2])
         aspect = aspect_geo / aspect_img
-        fig, ax = plt.subplots()
         
         ax.set_title('Subproblem Solution')
         ax.set_xlim(bBox[0], bBox[1])
@@ -26,7 +29,8 @@ class Visualizer():
         ax.imshow(image, extent=bBox, aspect=aspect, alpha=0.6)
        
         loading_dict = dict()  # stores the quantities loaded on different stations
-        unloading_dict = dict() 
+        unloading_dict = dict()
+        maintenance_dict = dict()
         
         for var in self.gurobi_output.getVars():
             if round(var.x, 2) != 0:
@@ -48,7 +52,7 @@ class Visualizer():
                     lon = station.get_lon()
                     
                     # Draw station ID
-                    ax.text(lon, lat, str(from_station_id), color="blue", 
+                    ax.text(lon, lat, str(from_station_id), color="blue",
                            bbox={'facecolor': 'white', 'edgecolor': 'blue', 'boxstyle':'round'})
                     
                     if to_idx != from_idx and to_idx >= 0:  # Not holding at same station, not depot
@@ -62,9 +66,9 @@ class Visualizer():
                         
                         # Show driving time
                         driving_time = str(round(self.parameters_data.T_D.get((from_idx, to_idx), 0), 1))
-                        ax.text((lon + end_lon)/2, (lat + end_lat)/2, driving_time + " min", 
+                        ax.text((lon + end_lon)/2, (lat + end_lat)/2, driving_time + " min",
                                color=time_colors[vehicle_idx % len(time_colors)], weight='bold')
-
+ 
                 # qL[i,v,t] where i=station, v=vehicle, t=period
                 if name == 'qL':
                     station_idx = int(indices[0])
@@ -75,7 +79,7 @@ class Visualizer():
                         loading_dict[load_station] = round(var.x, 2)
                     else:
                         loading_dict[load_station] += round(var.x, 2)
-
+ 
                 # qU[i,v,t] where i=station, v=vehicle, t=period
                 if name == 'qU':
                     station_idx = int(indices[0])
@@ -86,19 +90,40 @@ class Visualizer():
                         unloading_dict[unload_station] = round(var.x, 2)
                     else:
                         unloading_dict[unload_station] += round(var.x, 2)
+ 
+                # tM[i,v,t] where i=station, v=vehicle, t=period
+                if name == 'tM':
+                    station_idx = int(indices[0])
+                    station_id = self.parameters_data.index_to_station_id[station_idx]
+                    maint_station = self.parameters_data.state.stations[station_id]
+                    
+                    if maintenance_dict.get(maint_station) == None:
+                        maintenance_dict[maint_station] = round(var.x, 2)
+                    else:
+                        maintenance_dict[maint_station] += round(var.x, 2)
         
-        for station in loading_dict:
+        all_stations = set(loading_dict.keys()) | set(unloading_dict.keys()) | set(maintenance_dict.keys())
+        
+        for station in all_stations:
             lat = station.get_lat()
             lon = station.get_lon()
-            ax.text(lon + x_offset, lat, "Load: " + str(loading_dict[station]), weight='bold')
-
-        for station in unloading_dict:
-            lat = station.get_lat()
-            lon = station.get_lon()
-            ax.text(lon + x_offset, lat, "Unload: " + str(unloading_dict[station]), weight='bold')
+            
+            text_parts = []
+            if station in loading_dict:
+                text_parts.append(f"Load: {loading_dict[station]}")
+            if station in unloading_dict:
+                text_parts.append(f"Unload: {unloading_dict[station]}")
+            if station in maintenance_dict:
+                text_parts.append(f"Maint: {maintenance_dict[station]}m")
+            
+            full_text = "\n".join(text_parts)
+            
+            # Add a background box to make text readable
+            ax.text(lon + x_offset * 3.0, lat, full_text, weight='bold', verticalalignment='center',
+                   bbox={'facecolor': 'white', 'alpha': 0.8, 'edgecolor': 'gray', 'boxstyle': 'round,pad=0.5'})
             
         plt.show()
-
+ 
     def visualize_map_and_route(self):
         vehicle_colors = ['red', 'green', 'pink', 'orange', 'cyan']
         time_colors = ['maroon', 'darkgreen', 'deeppink', 'darkorange', 'darkblue']
@@ -118,7 +143,7 @@ class Visualizer():
         ax.imshow(image, extent=bBox, aspect=aspect, alpha=0.6)
        
         loading_dict = dict()
-        unloading_dict = dict() 
+        unloading_dict = dict()
         plotted_stations = []
         
         for var in self.gurobi_output.getVars():
@@ -139,12 +164,12 @@ class Visualizer():
                     lon = station.get_lon()
                     
                     # Show station ID
-                    ax.text(lon, lat, str(from_station_id), color="blue", 
+                    ax.text(lon, lat, str(from_station_id), color="blue",
                            bbox={'facecolor': 'white', 'edgecolor': 'blue', 'boxstyle':'round'})
                     
                     # Show current bike inventory at station
                     station_inventory = self.parameters_data.I_N0[from_idx]
-                    ax.text(lon - x_offset, lat, str(station_inventory), size=10, color="blue", 
+                    ax.text(lon - x_offset, lat, str(station_inventory), size=10, color="blue",
                            bbox={'facecolor': 'white', 'edgecolor': 'blue', 'boxstyle':'circle'})
                     
                     if to_idx != from_idx and to_idx >= 0:
@@ -156,10 +181,10 @@ class Visualizer():
                         yy = [lat, end_lat]
                         ax.plot(xx, yy, linewidth=3, color=vehicle_colors[vehicle_idx % len(vehicle_colors)])
                         driving_time = str(round(self.parameters_data.T_D.get((from_idx, to_idx), 0), 1))
-                        ax.text((lon + end_lon)/2 - x_offset/4, (lat + end_lat)/2 - y_offset/4, 
-                               driving_time + " min", color=time_colors[vehicle_idx % len(time_colors)], 
+                        ax.text((lon + end_lon)/2 - x_offset/4, (lat + end_lat)/2 - y_offset/4,
+                               driving_time + " min", color=time_colors[vehicle_idx % len(time_colors)],
                                weight='bold')
-
+ 
                 if name == 'qL':
                     station_idx = int(indices[0])
                     station_id = self.parameters_data.index_to_station_id[station_idx]
@@ -169,7 +194,7 @@ class Visualizer():
                         loading_dict[load_station] = round(var.x, 2)
                     else:
                         loading_dict[load_station] += round(var.x, 2)
-
+ 
                 if name == 'qU':
                     station_idx = int(indices[0])
                     station_id = self.parameters_data.index_to_station_id[station_idx]
@@ -191,25 +216,25 @@ class Visualizer():
                 
                 # Color code based on inventory
                 if num_bikes == 0:
-                    ax.text(lon, lat, str(num_bikes), size=10, color="black", 
+                    ax.text(lon, lat, str(num_bikes), size=10, color="black",
                            bbox={'facecolor': 'lightcoral', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
                 elif num_bikes >= capacity:
-                    ax.text(lon, lat, str(num_bikes), size=10, color="black", 
+                    ax.text(lon, lat, str(num_bikes), size=10, color="black",
                            bbox={'facecolor': 'yellow', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
                 else:
-                    ax.text(lon, lat, str(num_bikes), size=10, color="black", 
+                    ax.text(lon, lat, str(num_bikes), size=10, color="black",
                            bbox={'facecolor': 'silver', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
             
         for station in loading_dict:
             lat = station.get_lat()
             lon = station.get_lon()
             ax.text(lon - x_offset/2, lat + y_offset/4, "Load: " + str(loading_dict[station]), weight='bold')
-
+ 
         for station in unloading_dict:
             lat = station.get_lat()
             lon = station.get_lon()
             ax.text(lon - x_offset/2, lat + y_offset/4, "Unload: " + str(unloading_dict[station]), weight='bold')
-
+ 
         plt.show()
     
     def visualize_stations(self):
@@ -229,12 +254,12 @@ class Visualizer():
         for station_id, station in self.parameters_data.state.stations.items():
             lat = station.get_lat()
             lon = station.get_lon()
-            ax.text(lon, lat, str(station_id), size=6, color="black", 
+            ax.text(lon, lat, str(station_id), size=6, color="black",
                    bbox={'facecolor': 'lightskyblue', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
             
         plt.show()
-
-
+ 
+ 
 def visualize_stations_from_simulator(simul):
     """Standalone function to visualize current state from simulator."""
     filename = simul.state.mapdata[0]
@@ -256,13 +281,13 @@ def visualize_stations_from_simulator(simul):
         num_bikes = len(station.bikes)
         
         if num_bikes == 0:
-            ax.text(lon, lat, str(0), size=10, color="black", 
+            ax.text(lon, lat, str(0), size=10, color="black",
                    bbox={'facecolor': 'lightcoral', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
         elif num_bikes >= station.capacity:
-            ax.text(lon, lat, str(num_bikes), size=10, color="black", 
+            ax.text(lon, lat, str(num_bikes), size=10, color="black",
                    bbox={'facecolor': 'yellow', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
         else:
-            ax.text(lon, lat, str(num_bikes), size=10, color="black", 
+            ax.text(lon, lat, str(num_bikes), size=10, color="black",
                    bbox={'facecolor': 'silver', 'edgecolor': 'dimgray', 'boxstyle':'circle'})
         
     plt.show()

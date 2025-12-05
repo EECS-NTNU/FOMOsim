@@ -114,6 +114,13 @@ class SjovikSundPolicy(Policy):
         if gurobi_output.Status in [3, 4] or gurobi_output.SolCount == 0:
             return sim.Action([], [], [], vehicle.location.id)
         
+        # Visualize the solution - KOMMENTER UT FOR Å UNNGÅ VISUALISERING
+        """try:
+            vis = Visualizer(gurobi_output, data)
+            vis.visualize_route()
+        except Exception as e:
+            print(f"Visualization failed: {e}")"""
+        
         # --- NEW: Print All Planned Actions ---
         print("\n--- Planned Actions (Subproblem Solution) ---")
         # Collect all variables with non-zero values
