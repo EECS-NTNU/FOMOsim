@@ -4,7 +4,7 @@ from settings import MAINTENANCE_INCREASE_PER_MINUTE, MAINTENANCE_FULL_FIX
 # Update bike maintenance criticality after a trip
 ####################################################################
 
-def update_bike_maintenance(bike, travel_time, rng, battery_level=None, congested=False):
+def update_bike_maintenance(bike, travel_time, rng ,battery_level=None, congested=False):
     # Base wear from distance/time
 
     base_criticality = bike.maintenance_criticality
