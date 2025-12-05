@@ -1,11 +1,10 @@
 from settings import MAINTENANCE_INCREASE_PER_MINUTE, MAINTENANCE_FULL_FIX
-import random
 
 ####################################################################
 # Update bike maintenance criticality after a trip
 ####################################################################
 
-def update_bike_maintenance(bike, travel_time, battery_level=None, congested=False):
+def update_bike_maintenance(bike, travel_time, rng, battery_level=None, congested=False):
     # Base wear from distance/time
 
     base_criticality = bike.maintenance_criticality
@@ -13,8 +12,8 @@ def update_bike_maintenance(bike, travel_time, battery_level=None, congested=Fal
     
     # Random wear (simulate unexpected damage)
     random_wear = 0.0
-    if random.random() < 0.02:  # 2% chance
-        random_wear = random.uniform(0.1, 0.3)
+    if rng.random() < 0.02:  # 2% chance
+        random_wear = rng.uniform(0.1, 0.3)
 
     # Calculate total wear
     total_wear = ( base_wear + random_wear)
