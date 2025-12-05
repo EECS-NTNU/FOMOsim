@@ -30,46 +30,14 @@ except ImportError:
  
 import time
 import multiprocessing as mp
-import csv
- 
- 
-class LoggingSimulator(sim.Simulator):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.last_logged_day = -1
-        self.last_starvations = 0
-        self.last_congestions = 0
 
-    def full_step(self):
-        super().full_step()
-        
-        # Check for 23:00 logging
-        # Time is in minutes. 23:00 is 23*60 = 1380 minutes into the day.
-        current_time = self.state.time
-        day = int(current_time // (24*60))
-        minute_of_day = current_time % (24*60)
-        
-        # We want to log once per day, when we pass 23:00 (1380 minutes)
-        if day > self.last_logged_day and minute_of_day >= 1380:
-            self.log_daily_metrics(day)
-            self.last_logged_day = day
-            
-    def log_daily_metrics(self, day):
-        starvations = self.state.metrics.get_aggregate_value('starvations')
-        congestions = self.state.metrics.get_aggregate_value('long congestions')
-        
-        daily_starvations = starvations - self.last_starvations
-        daily_congestions = congestions - self.last_congestions
-        
-        print(f"\n{'='*40}")
-        print(f"DAY {day} SUMMARY (23:00)")
-        print(f"{'='*40}")
-        print(f"Accumulated Starvations: {starvations} (+{daily_starvations} today)")
-        print(f"Accumulated Congestions: {congestions} (+{daily_congestions} today)")
-        print(f"{'='*40}\n")
-        
-        self.last_starvations = starvations
-        self.last_congestions = congestions
+# Import logging utilities
+from policies.sjovik_sund.simulation_logging import (
+    LoggingSimulator, 
+    write_hourly_metrics_to_file,
+    write_results_to_file,
+    write_simulation_summary
+)
 
 
 def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTANCE=None):
@@ -129,174 +97,6 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     return simulator
 
 
- 
-def write_results_to_file(filename, simulator, duration, solve_time, seed, append=False):
-    """
-    Write simulation results to a CSV file.
-    """
-    results_dir = './policies/sjovik_sund/simulation_results/'
-    os.makedirs(results_dir, exist_ok=True)
-    filepath = results_dir + filename
-   
-    mode = 'a' if append else 'w'
-    file_exists = os.path.isfile(filepath) and append
-   
-    with open(filepath, mode, newline='') as f:
-        writer = csv.writer(f)
-       
-        # Write header if new file
-        if not file_exists:
-            writer.writerow([
-                'Seed',
-                'Duration (hours)',
-                'Total Runtime (s)',
-                'Failed Events',
-                'Starvations',
-                'Bike Starvations',
-                'Long Congestions',
-                'Short Congestions',
-                'Total Trips',
-                'Bike Departures',
-                'Bike Arrivals',
-                'Vehicle Arrivals',
-                'Bike Deliveries',
-                'Bike Pickups',
-                'Maintenance Time (minutes)',
-                'Maintenance Violations',
-            ])
-       
-        # Write data row
-        writer.writerow([
-            seed,
-            duration,
-            round(solve_time, 2),
-            simulator.state.metrics.get_aggregate_value('failed events'),
-            simulator.state.metrics.get_aggregate_value('starvations'),
-            simulator.state.metrics.get_aggregate_value('bike starvations'),
-            simulator.state.metrics.get_aggregate_value('long congestions'),
-            simulator.state.metrics.get_aggregate_value('short congestions'),
-            simulator.state.metrics.get_aggregate_value('trips'),
-            simulator.state.metrics.get_aggregate_value('bike departure'),
-            simulator.state.metrics.get_aggregate_value('bike arrival'),
-            simulator.state.metrics.get_aggregate_value('vehicle arrivals'),
-            simulator.state.metrics.get_aggregate_value('num bike deliveries'),
-            simulator.state.metrics.get_aggregate_value('num bike pickups'),
-            simulator.state.metrics.get_aggregate_value('maintenance time'),
-            simulator.state.metrics.get_aggregate_value('maintenance violations'),
-        ])
- 
- 
-def write_simulation_summary(filename, simulator, duration, policy, seed):
-    """
-    Write simulation summary including parameters, objective function, and routes.
-    """
-    results_dir = './policies/sjovik_sund/simulation_results/'
-    os.makedirs(results_dir, exist_ok=True)
-    filepath = results_dir + filename
-
-    with open(filepath, 'w') as f:
-        f.write("="*80 + "\n")
-        f.write(f"SJOVIK SUND POLICY SIMULATION SUMMARY (Seed {seed})\n")
-        f.write("="*80 + "\n\n")
-        
-        # 1. Parameters
-        f.write("--- PARAMETERS ---\n")
-        f.write(f"Policy Type: MILP-based (Direct Optimization)\n")
-        f.write(f"Number of Vehicles: {num_vehicles}\n")
-        f.write(f"Simulation Duration: {duration:.1f} hours\n")
-       
-        if hasattr(policy, 'time_horizon'):
-            f.write(f"MILP Parameters:\n")
-            f.write(f"  Time Horizon (T): {policy.time_horizon} periods\n")
-            f.write(f"  Period Length (tau): {policy.tau} minutes\n")
-            f.write(f"  Roaming Enabled: {policy.roaming}\n")
-       
-        if policy.weights:
-            f.write(f"\nObjective Weights:\n")
-            f.write(f"  Starvation Weight (w_S): {policy.weights[0]}\n")
-            f.write(f"  Congestion Weight (w_C): {policy.weights[1]}\n")
-            f.write(f"  Deviation Weight (w_D): {policy.weights[2]}\n")
-            f.write(f"  Maintenance reward (r_M): {policy.weights[3]}\n")
-        else:
-            f.write(f"\nObjective Weights: Default (0.45, 0.45, 0.09, 0.01)\n")
-        
-        # 2. Accumulated Objective Function
-        f.write("\n--- ACCUMULATED OBJECTIVE FUNCTION ---\n")
-        
-        # Get aggregate metrics 
-        # Regner bare med long congestions her
-        starvations = simulator.state.metrics.get_aggregate_value('starvations')
-        congestions_long = simulator.state.metrics.get_aggregate_value('long congestions') # + simulator.state.metrics.get_aggregate_value('short congestions')
-        maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
-        congestions_short = simulator.state.metrics.get_aggregate_value('short congestions')
-        #deviations = simulator.state.metrics.get_aggregate_value('deviation')
-        
-        # Calculate objective
-        w_S, w_C, w_D, r_M = policy.weights if policy.weights else (0.45, 0.45, 0.09, 0.01)
-        
-        obj_val = (w_S * starvations) + (w_C * congestions_long) - (r_M * maintenance_time)
-        
-        f.write(f"Total Objective Value: {obj_val:.4f}\n")
-        f.write(f"Breakdown:\n")
-        f.write(f"  Starvations: {starvations} (Contribution: {w_S * starvations:.4f})\n")
-        f.write(f"  Congestions: {congestions_long} (Contribution: {w_C * congestions_long:.4f})\n")
-        #f.write(f"  Deviations: {deviations} (Contribution: {w_D * deviations:.4f})\n")
-        f.write(f"  Maintenance Time: {maintenance_time:.2f} (Contribution: {-r_M * maintenance_time:.4f})\n")
-        f.write(f"  Short Congestions: {congestions_short} (Contribution: {0})\n")
-        
-        if hasattr(policy, 'optimality_gaps') and policy.optimality_gaps:
-            avg_gap = sum(policy.optimality_gaps) / len(policy.optimality_gaps)
-            max_gap = max(policy.optimality_gaps)
-            f.write(f"\n--- OPTIMIZATION PERFORMANCE ---\n")
-            f.write(f"Average Optimality Gap: {avg_gap:.4%}\n")
-            f.write(f"Maximum Optimality Gap: {max_gap:.4%}\n")
-            f.write(f"Total Optimizations: {len(policy.optimality_gaps)}\n")
-
-        # 3. Routes
-        f.write("\n--- ACTUAL VEHICLE ROUTES ---\n")
-        
-        # Extract routes from policy attached to vehicles in the simulator
-        policy_with_routes = None
-        for vehicle in simulator.state.vehicles.values():
-            if hasattr(vehicle.policy, 'vehicle_routes'):
-                policy_with_routes = vehicle.policy
-                break
-        
-        if policy_with_routes and policy_with_routes.vehicle_routes:
-            for vehicle_id, route in policy_with_routes.vehicle_routes.items():
-                f.write(f"Vehicle {vehicle_id} Route:\n")
-                if not route:
-                    f.write("  No route recorded\n\n")
-                    continue
-                
-                # Sort by time to ensure chronological order
-                route.sort(key=lambda x: x[0])
-                
-                # Write route with time information
-                for i, (time_val, station_id) in enumerate(route):
-                    # Convert time to day/hour/minute format
-                    day = int(time_val // (24*60))
-                    hour = int((time_val % (24*60)) // 60)
-                    minute = int(time_val % 60)
-                    
-                    if i == 0:
-                        f.write(f"  Start: {station_id} at Day {day}, Hour {hour:02d}:{minute:02d} (t={time_val:.1f})\n")
-                    else:
-                        # Calculate travel time from previous station
-                        prev_time = route[i-1][0]
-                        travel_duration = time_val - prev_time
-                        f.write(f"  Move {i}: {station_id} at Day {day}, Hour {hour:02d}:{minute:02d} (t={time_val:.1f}) [+{travel_duration:.1f} min]\n")
-                
-                # Summary statistics
-                total_time = route[-1][0] - route[0][0] if len(route) > 1 else 0
-                unique_stations = len(set(station for _, station in route))
-                f.write(f"  Summary: {len(route)} stops, {unique_stations} unique stations, {total_time:.1f} min total\n\n")
-        else:
-             f.write("No route information available.\n")
-       
-
-    print(f"Simulation summary written to: {filepath}")
-
 
 def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True):
     """
@@ -336,11 +136,16 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             solve_time = simulator.state.time  # Total simulation time
             write_results_to_file(results_file, simulator, duration, solve_time, list_of_seeds[i], append=(i > 0))
             
+            # Write hourly metrics for this seed (one file per run)
+            hourly_filename = f"{filename.replace('.csv', '')}_hourly_seed_{list_of_seeds[i]}.csv"
+            write_hourly_metrics_to_file(hourly_filename, simulator, list_of_seeds[i])
+            
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{list_of_seeds[i]}.txt"
-            write_simulation_summary(summary_filename, simulator, duration, policy, list_of_seeds[i])
+            write_simulation_summary(summary_filename, simulator, duration, policy, list_of_seeds[i], num_vehicles)
             
             print(f"Seed {list_of_seeds[i]}: Completed in {solve_time:.2f}s")
+            print(f"Hourly metrics written to: policies/sjovik_sund/simulation_results/{hourly_filename}")
     
     else:
         # Run simulations sequentially (easier for debugging)
@@ -351,11 +156,16 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             solve_time = time.time() - start_solve
             write_results_to_file(results_file, simulator, duration, solve_time, seed, append=(i > 0))
             
+            # Write hourly metrics for this seed (one file per run)
+            hourly_filename = f"{filename.replace('.csv', '')}_hourly_seed_{seed}.csv"
+            write_hourly_metrics_to_file(hourly_filename, simulator, seed)
+            
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{seed}.txt"
-            write_simulation_summary(summary_filename, simulator, duration, policy, seed)
+            write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
             
             print(f"Seed {seed}: Completed in {solve_time:.2f}s")
+            print(f"Hourly metrics written to: policies/sjovik_sund/simulation_results/{hourly_filename}")
     
     print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
 
@@ -396,19 +206,33 @@ if __name__ == "__main__":
     'starv_cong_30_60':     [0.35, 0.60, 0.05, 0.0],
     }
 
-    service_weights = [0.45, 0.45, 0.1]
-    maintenance_weight = 1.0
-    alpha = 0.001
+    #service_weights = [0.45, 0.45, 0.1]
+    #maintenance_weight = 1.0
+    #alpha = 0.001
     
     # Calculate combined weights: [(1-alpha)*Service, alpha*Maintenance]
     # Result structure: [w_S, w_C, w_D, r_M]
-    weights = [w * (1 - alpha) for w in service_weights] + [maintenance_weight * alpha]
-    
+   # weights = [w * (1 - alpha) for w in service_weights] + [maintenance_weight * alpha]
+ 
+    service_weights = [0.45,0.45,0.1]
+    maintenance_reward = 1
+    alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
+    #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
+   
+
+    policy_dict = {}
+    for alpha in alpha:
+        weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
+        policy_name = f'sjovik_sund_alphas_run_TD_test_instance_{alpha:.3f}'
+        policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
+            roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=20
+    )
+        
     # Dictionary of policies to test
-    policy_dict = {
-        'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=5, tau=5, weights=weights)
+    #policy_dict = {
+        #'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=weights)
         # Add more policy variations here
-    }
+    #}
    
 
     # List of seeds to test
@@ -416,7 +240,7 @@ if __name__ == "__main__":
    
     # Instances to test
     #list_of_instances = ['instances/BO_W31', 'instances/TD_W34', 'instances/OS_W34']
-    list_of_instances = ['instances/TD_W34','instances/OS_W34']
+    # list_of_instances = ['instances/TD_W34','instances/OS_W34']
    
     # Start timing
     start_time = time.time()
