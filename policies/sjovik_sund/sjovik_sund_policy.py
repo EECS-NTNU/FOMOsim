@@ -38,6 +38,7 @@ class SjovikSundPolicy(Policy):
         print(f"Current Time: Day {day}, Hour {hour}\n")
         
         # Print stations with maintenance information
+        '''
         print(f"{'Station':<10} {'Arrive':<8} {'Leave':<8} {'Ideal':<8} {'Bikes':<7} {'AvgMaint':<10}")
         print("-" * 65)
         for station in simul.get_stations():
@@ -45,22 +46,21 @@ class SjovikSundPolicy(Policy):
             avg_maint = station.get_average_maintenance_criticality()
             print(f"{station.id:<10} {station.get_arrive_intensity(day, hour):>7.2f} "
                   f"{station.get_leave_intensity(day, hour):>7.2f} {target:>7.1f} "
-                  f"{len(station.bikes):>6} {avg_maint:>9.3f}")
+                  f"{len(station.bikes):>6} {avg_maint:>9.3f}")'''
         
         # Print maintenance summary
         high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
                                for s in simul.get_stations() 
                                if s.get_average_maintenance_criticality() > 0.3 and len(s.bikes) > 0]
-        
+        '''
         if high_maint_stations:
             high_maint_stations.sort(key=lambda x: x[1], reverse=True)
             print(f"\n Stations with elevated maintenance needs (>0.3):")
             for station, maint in high_maint_stations[:5]:  # Top 5
                 stats = station.get_maintenance_criticality_stats()
                 print(f"  {station.id}: Avg={maint:.3f}, Max={stats['max']:.3f}, "
-                      f"High bikes (>0.5): {stats['high_criticality_count']}/{stats['count']}")
+                      f"High bikes (>0.5): {stats['high_criticality_count']}/{stats['count']}")'''
         
-        print()
         # Solve subproblem for ALL vehicles based on current system state
         data = MILP_parameters(simul, self.time_horizon, self.weights, self.tau)
         data.initalize_parameters()
@@ -180,16 +180,15 @@ class SjovikSundPolicy(Policy):
         simul.metrics.add_aggregate_metric(simul, 'maintenance time', maintenance_time)
         
         # --- DEBUG: Print current station status ---
+        '''
         print(f"\n--- STATION STATUS CHECK ---")
         for station_id, station_obj in simul.stations.items():
             bikes_count = station_obj.number_of_bikes()
             capacity = station_obj.capacity
             utilization = bikes_count / capacity if capacity > 0 else 0
             status = "FULL" if bikes_count >= capacity else "EMPTY" if bikes_count == 0 else "OK"
-            print(f"  {station_id}: {bikes_count}/{capacity} bikes ({utilization:.1%}) [{status}]")
+            print(f"  {station_id}: {bikes_count}/{capacity} bikes ({utilization:.1%}) [{status}]")'''
         
-
-
 
         # --- NEW: Adjusted Print Sentences ---
         # 1. Current Actions at Station
@@ -202,7 +201,7 @@ class SjovikSundPolicy(Policy):
         print(f"  Expected travel time: {expected_travel_time:.2f} minutes (policy planning value)")
         print(f"  Expected ETA: minute {simul.time + expected_travel_time:.2f}")
         print(f"  Note: Actual travel time may vary due to stochastic effects in simulation")
-            
+        
         return sim.Action(
             [],               # batteries to swap
             bikes_to_pickup, #list of bike id's

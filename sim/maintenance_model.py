@@ -1,3 +1,4 @@
+import math
 from settings import MAINTENANCE_INCREASE_PER_MINUTE, MAINTENANCE_FULL_FIX
 
 ####################################################################
@@ -69,10 +70,6 @@ def process_maintenance_action(vehicle, maintenance_time, time):
     # Calculate time per bike and number of bikes that can be serviced
     #time_per_bike = MINUTES_PER_ACTION  # 3 minutes per bike for maintenance
 
-    # How many bikes  can you service in the allocated time
-    full_bikes = int(maintenance_time // MAINTENANCE_FULL_FIX)
-    remaining_time = maintenance_time - (full_bikes * MAINTENANCE_FULL_FIX)
-    
     # Print BEFORE maintenance
     print(f"\n  MAINTENANCE at {vehicle.location.id} (t={time:.1f}, allocated={maintenance_time:.1f}min)")
     print(f"     Bikes at station BEFORE maintenance ({len(bikes_to_maintain)} total):")
@@ -85,20 +82,26 @@ def process_maintenance_action(vehicle, maintenance_time, time):
     
     # Apply maintenance to the bikes with highest criticality
     serviced_bikes = []
+    remaining_budget = maintenance_time
+    MAX_TIME_PER_BIKE = 5.0
 
-    # Perform full bike repairs
-    if full_bikes > 0:
-        for i, bike in enumerate(bikes_to_maintain[:full_bikes]):
+    for bike in bikes_to_maintain:
+        if remaining_budget <= 0.001:
+            break
+            
+        # Calculate time needed: 0.8 crit -> 5 min, scaled linearly
+        # Formula: time = (crit / 0.8) * 5.0
+        needed_time = (bike.maintenance_criticality) * MAX_TIME_PER_BIKE
+        needed_time = min(MAX_TIME_PER_BIKE, needed_time)
+        
+        # Allocate what is available or needed
+        time_to_spend = min(remaining_budget, needed_time)
+        
+        if time_to_spend > 0:
             old_criticality = bike.maintenance_criticality
-            bike.maintenance_criticality = perform_maintenance_on_bike(bike, MAINTENANCE_FULL_FIX)
-            serviced_bikes.append((bike, old_criticality, remaining_time))
-
-    # Perform fractional repair on the next bike, if any time remains
-    if remaining_time > 0 and full_bikes < len(bikes_to_maintain):
-        bike = bikes_to_maintain[full_bikes]
-        old_criticality = bike.maintenance_criticality
-        bike.maintenance_criticality = perform_maintenance_on_bike(bike, remaining_time)
-        serviced_bikes.append((bike, old_criticality, remaining_time))
+            bike.maintenance_criticality = perform_maintenance_on_bike(bike, time_to_spend)
+            serviced_bikes.append((bike, old_criticality, time_to_spend))
+            remaining_budget -= time_to_spend
     
     # Print AFTER maintenance
     print(f"\n     Serviced {len(serviced_bikes)} bikes:")
@@ -108,8 +111,7 @@ def process_maintenance_action(vehicle, maintenance_time, time):
             f"       {bike.bike_id}: {old_crit:.3f} -> {bike.maintenance_criticality:.3f} "
             f"(maintenance {used_time:.1f} min, {usable})"
         )
-
-    
+   
     # Show remaining bikes needing maintenance
     remaining_high = [
         b for b in bikes_to_maintain 
