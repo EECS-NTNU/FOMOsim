@@ -77,9 +77,18 @@ class LoggingSimulator(sim.Simulator):
         hourly_bike_deliveries = current_bike_deliveries - self.last_hour_bike_deliveries
         hourly_maintenance_time = current_maintenance_time - self.last_hour_maintenance_time
         
+        # Calculate day and hour in proper format
+        # Day starts at 0, hour_of_day ranges 1-24 (24 = midnight 00:00)
+        day = int(current_time // (24*60))
+        hour_of_day = int((current_time % (24*60)) // 60)
+        # Convert hour: 0 -> 24, 1 -> 1, 2 -> 2, ..., 23 -> 23
+        hour_formatted = 24 if hour_of_day == 0 else hour_of_day
+        
         # Store hourly data (hour is the hour that just completed)
         self.hourly_metrics.append({
-            'hour': hour,
+            'day': day,
+            'hour': hour_formatted,
+            'hour_index': hour,  # Original hour index for reference
             'time_minutes': current_time,
             'starvations': hourly_starvations,
             'long_congestions': hourly_long_congestions,
@@ -324,6 +333,7 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
         # Write header
         writer.writerow([
             'Seed',
+            'Day',
             'Hour',
             'Time (minutes)',
             'Starvations',
@@ -340,6 +350,7 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
         for hour_data in simulator.hourly_metrics:
             writer.writerow([
                 seed,
+                hour_data['day'],
                 hour_data['hour'],
                 round(hour_data['time_minutes'], 2),
                 hour_data['starvations'],
