@@ -13,8 +13,8 @@ def run_subproblem_model(data):
     try:
         m = Model("DSBRP_Subproblem")
         m.setParam('OutputFlag', False)
-        m.setParam('TimeLimit', 300)  # 60 minutes max
-        m.setParam('MIPGap', 5.00)  # Stop at 0% gap (optimal solutions)
+        m.setParam('TimeLimit', 3600)  # 60 minutes max
+        m.setParam('MIPGap', 0.05)  # Stop at 0% gap (optimal solutions)
         m.setParam('Presolve', 2)  # Aggressive presolve
         m.setParam('MIPFocus', 1)  # Focus on finding good feasible solutions quickly
  
@@ -40,6 +40,7 @@ def run_subproblem_model(data):
         T_L  = float(data["T_L"])
         T_M_min = data["T_M_min"]
         T_M_max = data["T_M_max"]
+        T_M = data.get("T_M") # Average time to maintain one bike
         Q_V  = data["Q_V"]
         Q_V0 = data["Q_V0"]
         Q_S  = data["Q_S"]
@@ -49,7 +50,6 @@ def run_subproblem_model(data):
         w_S, w_C, w_D = data["w_S"], data["w_C"], data["w_D"]
         r_M = data["r_M"]
         eta = data["eta"]  # Initial destination station for each vehicle
- 
         ###############################################################################################################
         # Sanity checks and preprocessing -> ensure T_DD[ii]=1 and T_D[ii]=0
         ################################################################################################################
@@ -68,7 +68,7 @@ def run_subproblem_model(data):
         # Maximum travel time filter (in minutes)
         MAX_TRAVEL_TIME = 10.0
 
-        # 1. Explicitly add Source -> Start Station arcs (Crucial!)
+        # 1. Explicitly add Source -> Start Station arcs 
         for v in Vh:
             feasible_arcs.append((s, eta[v], v, 0))
 
@@ -100,14 +100,14 @@ def run_subproblem_model(data):
         sink_arcs = [a for a in feasible_arcs if a[1] == d]
         network_arcs = [a for a in feasible_arcs if a[0] in N and a[1] in N]
         
-        print(f"Source arcs (s->node): {len(source_arcs)}")
-        print(f"Sink arcs (node->d): {len(sink_arcs)}")
-        print(f"Network arcs (node->node): {len(network_arcs)}")
+        #print(f"Source arcs (s->node): {len(source_arcs)}")
+        #print(f"Sink arcs (node->d): {len(sink_arcs)}")
+        #print(f"Network arcs (node->node): {len(network_arcs)}")
         
         # Print specific source arcs to verify initialization
-        print("\nInitialized Source Arcs:")
-        for arc in source_arcs:
-            print(f"  {arc}")
+        # print("\nInitialized Source Arcs:")
+        # for arc in source_arcs:
+            #print(f"  {arc}")
             
         print("=============================\n")
         
@@ -159,7 +159,7 @@ def run_subproblem_model(data):
                 starv_contrib = data.get('w_S', 1.0) * starv_sum
                 cong_contrib = data.get('w_C', 1.0) * cong_sum
                 dev_contrib = data.get('w_D', 1.0) * dev_sum
-                maint_contrib = - data.get('r_M', 0.0) * maint_time
+                maint_contrib = - data.get('r_M', 0.0) * (maint_time / T_M)
 
                 obj_calc = starv_contrib + cong_contrib + dev_contrib + maint_contrib
                 model_obj = float(model.ObjVal) if model.Status == GRB.OPTIMAL or model.Status == GRB.SUBOPTIMAL or model.Status == GRB.FEASIBLE else None
@@ -171,7 +171,7 @@ def run_subproblem_model(data):
                         'starvation': {'sum': starv_sum, 'weight': data.get('w_S', 1.0), 'contribution': starv_contrib},
                         'congestion': {'sum': cong_sum, 'weight': data.get('w_C', 1.0), 'contribution': cong_contrib},
                         'deviation': {'sum': dev_sum, 'weight': data.get('w_D', 1.0), 'contribution': dev_contrib},
-                        'maintenance_time': {'sum': maint_time, 'rate': data.get('r_M', 0.0), 'contribution': maint_contrib}
+                        'maintenance_time': {'sum': maint_time, 'rate': data.get('r_M', 0.0), 'T_M': T_M, 'contribution': maint_contrib}
                     },
                     'computed_obj_from_terms': obj_calc
                 }
@@ -197,7 +197,7 @@ def run_subproblem_model(data):
         ###########################################################################################################
     
         m.setObjective(quicksum(
-            quicksum(w_S*s_var[i,t] + w_C*c_var[i,t] - quicksum(r_M * tM[i,v,t] for v in Vh) for t in Tpos)+ w_D * d_abs[i]
+            quicksum(w_S*s_var[i,t] + w_C*c_var[i,t] - quicksum(r_M * (tM[i,v,t] / T_M) for v in Vh) for t in Tpos)+ w_D * d_abs[i]
             for i in N
         ),
         sense=GRB.MINIMIZE)
@@ -254,14 +254,14 @@ def run_subproblem_model(data):
  
         # (6) single visit per station per vehicle within horizon:
         # Use T0 to include t=0 (initial arrival from source)
-
-        for j in N:
-            for v in Vh:
-                m.addConstr(
+        # RELAXED
+        #for j in N:
+            #for v in Vh:
+                #m.addConstr(
                     #quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
-                    quicksum(get_x(i, j, v, t) for i in N0 if i != j for t in T0) <= 1,
-                    name=f"single_visit_j{j}"
-                )        
+                    #quicksum(get_x(i, j, v, t) for i in N0 if i != j for t in T0) <= 1,
+                    #name=f"single_visit_j{j}"
+                #)        
         
         
 
@@ -281,11 +281,13 @@ def run_subproblem_model(data):
         # (8) initial inventory:
         for i in N:
             m.addConstr(lN[i, 0] == I_N0[i], name=f"init_inv_i{i}")
- 
+
         # (9) capacity
         for i in N:
             for t in T0:
-                m.addConstr(lN[i, t] <= Q_S[i], name=f"cap_i{i}_t{t}")
+                m.addConstr(lN[i, t] <= Q_S[i], name=f"cap_i{i}_t{t}")        
+        
+
  
         #############################################################################################################
         # Vehicle loading, unloading, and capacity constraints
@@ -322,6 +324,7 @@ def run_subproblem_model(data):
                         if (j, i) in T_DD and t - T_DD[(j, i)] >= 0
                     )
                     m.addConstr(qU[i, v, t] <= incoming, name=f"unload_le_incoming_i{i}_v{v}_t{t}")
+ 
  
         # (13) cannot load more than station inventory upon arrival
         for i in N:
@@ -369,50 +372,7 @@ def run_subproblem_model(data):
                 # Add only constraint for t >= 2 to avoid negative time
                 if t >= 2:
                     m.addConstr(total_time_consumed >= max((t-2)*tau,0), name=f"time_lb_v{v}_t{t}")
-        '''
-        #############################################################################################################
-        # Timing constraints & maintenance integration (15)–(20)
-        ##############################################################################################################
-        # Constraints (15) & (16): Time bounds 
-        for v in Vh:
-            for t in Tpos:
-                # Calculate total time spent by vehicle v up to (and including) period t
-                
-                # 1. Completed travel segments (journeys that finished by period t)
-                completed_travel = quicksum(
-                    T_D[(i, j)] * get_x(i, j, v, t_prime - T_DD[(i, j)])
-                    for t_prime in Tpos if t_prime <= t
-                    for i in (N + [s]) for j in N
-                    if (i, j) in T_DD and t_prime - T_DD[(i, j)] >= 0
-                )
-                
-                # 2. Partial travel time (for journeys still in progress at period t)
-                partial_travel = quicksum(
-                    min(t * tau, T_D[(i, j)]) * get_x(i, j, v, start_time)
-                    for start_time in T0 if start_time <= t
-                    for i in (N + [s]) for j in N
-                    if (i, j) in T_DD and start_time + T_DD[(i, j)] > t  # Journey not yet completed
-                )
-                
-                # 3. Service time (loading, unloading, maintenance)
-                service_term = quicksum(
-                    T_L * (qL[i, v, t_prime] + qU[i, v, t_prime]) + tM[i, v, t_prime]
-                    for t_prime in Tpos if t_prime <= t 
-                    for i in N
-                )
-                
-                # Upper bound (15): Total time ≤ available time
-                m.addConstr(
-                    completed_travel + partial_travel + service_term <= t * tau, 
-                    name=f"time_ub_v{v}_t{t}"
-                )
-                
-                # Lower bound (16): Total time ≥ minimum required time
-                m.addConstr(
-                    completed_travel + partial_travel + service_term >= (t - 1) * tau, 
-                    name=f"time_lb_v{v}_t{t}"
-                )'''
-        
+       
         # (17) Global maintenance upper bound per station
         for i in N:
             m.addConstr(quicksum(tM[i, v, t] for v in Vh for t in Tpos) <= T_M_max[i], name=f"maint_max_i{i}")
@@ -465,6 +425,8 @@ def run_subproblem_model(data):
             gap = m.MIPGap
 
         # Export objective-term breakdown when a solution (or incumbent) exists
+        #if m.status == GRB.OPTIMAL or m.status == GRB.TIME_LIMIT or m.status == GRB.SUBOPTIMAL:
+            #_export_objective_breakdown(m, data)
 
         if m.Status == GRB.INFEASIBLE:
             print("\nModel is infeasible. Computing IIS...")
@@ -481,6 +443,28 @@ def run_subproblem_model(data):
             for v in m.getVars():
                  if v.IISLB > 0 or v.IISUB > 0:
                      print(f" Variable bound: {v.VarName}")
+
+        # Print Constraint (7) Analysis for Congestion
+        if m.status == GRB.OPTIMAL or m.status == GRB.TIME_LIMIT or m.status == GRB.SUBOPTIMAL:
+            
+            print("\n=== Constraint (7) Analysis (Congestion > 0) ===")
+            print(f"{'Station':<8} {'Time':<5} {'PrevInv':<8} {'Demand':<8} {'NetLoad':<8} {'Starv':<8} {'Congest':<8} {'CurrInv':<8} {'Cap':<5}")
+            total_congestion = 0
+            for i in N:
+                for t in Tpos:
+                    c_val = c_var[i, t].X
+                    if c_val > 0.001:
+                        total_congestion += c_val
+                        prev_inv = lN[i, t-1].X
+                        dem = D[(i, t)]
+                        net_load = sum(qU[i, v, t].X - qL[i, v, t].X for v in Vh)
+                        s_val = s_var[i, t].X
+                        curr_inv = lN[i, t].X
+                        cap = Q_S[i]
+                        
+                        print(f"{i:<8} {t:<5} {prev_inv:>8.2f} {dem:>8.2f} {net_load:>8.2f} {s_val:>8.2f} {c_val:>8.2f} {curr_inv:>8.2f} {cap:<5}")
+            print(f"Total Congestion in this subproblem: {total_congestion:.2f}")
+            print("==============================================\n")
  
         # Return the model object so the policy can extract solution variables
         # obj_val = m.getObjective().getValue()

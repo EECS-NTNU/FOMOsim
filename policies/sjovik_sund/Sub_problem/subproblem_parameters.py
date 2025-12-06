@@ -50,7 +50,8 @@ class MILP_parameters:
         # Maintenance time parameters
         self.T_M_min = {}      # {station_idx: min_time_minutes} - Minimum maintenance time at station i
         self.T_M_max = {}      # {station_idx: max_time_minutes} - Maximum maintenance time at station i
-       
+        self.T_M = 3           # Average time to maintain one bike (minutes)
+
         # Vehicle capacity parameters
         self.Q_V = {}          # {vehicle_idx: capacity} - Capacity of vehicle v (max bikes it can carry)
         self.Q_V0 = {}         # {vehicle_idx: initial_load} - Initial load of vehicle v (bikes currently on vehicle)
@@ -64,7 +65,7 @@ class MILP_parameters:
         # Demand parameters
         self.D = {}            # {(station_idx, period): net_demand} - Net demand at station i in period t
                                # Positive = net arrivals (more bikes coming in), Negative = net departures (more bikes leaving)
-       
+        #usable_bikes = sum(1 for bike in self.state.get_used_bike() if bike.usable())
  
    
     def _initialize_stations(self):
@@ -172,7 +173,12 @@ class MILP_parameters:
             station_id = self.index_to_station_id[station_idx]
             station = self.state.stations[station_id]
             # Count available bikes at the station
-            self.I_N0[station_idx] = station.number_of_bikes()
+            total_bikes = station.number_of_bikes()
+            #usable_bikes = sum(1 for bike in station.get_bikes() if bike.usable())
+            usable_bikes = len(station.get_available_bikes())
+            #print(f"Station {station_id} initial bikes: {total_bikes}, usable: {usable_bikes}")
+            # Only count usable bikes
+            self.I_N0[station_idx] = usable_bikes
    
     def _initialize_target_inventories(self):
         for station_idx in self.stations:
@@ -186,6 +192,13 @@ class MILP_parameters:
             station_id = self.index_to_station_id[station_idx]
             station = self.state.stations[station_id]
             self.Q_S[station_idx] = station.capacity
+            unusable_bikes = len(station.get_unusable_bikes())
+            
+            # Capacity is reduced by unusable bikes occupying docks
+            effective_capacity = max(0, station.capacity - unusable_bikes)
+            #print(f"Station {station_id} capacity: {station.capacity}, unusable bikes: {unusable_bikes}, effective capacity: {effective_capacity}")
+            
+            self.Q_S[station_idx] = effective_capacity
    
     def _initialize_vehicle_capacities(self):
         for vehicle_idx in self.V:
@@ -298,6 +311,7 @@ class MILP_parameters:
                     stations_with_maintenance.append((station_id, avg_maint, bikes_to_service, max_time))
         
         # Debug output
+        """
         if stations_with_maintenance:
             print(f"\n--- Maintenance Time Allocation ---")
             print(f"Stations with maintenance capacity:")
@@ -307,7 +321,7 @@ class MILP_parameters:
                 print(f"  {sid}: avg={avg:.3f}, bikes={bikes}, T_M=[{t_min:.1f}, {time:.1f}] min")
         else:
             print(f"\n--- Maintenance Time Allocation ---")
-            print(f"No stations allocated maintenance time (all avg_maint < 0.05)")
+            print(f"No stations allocated maintenance time (all avg_maint < 0.05)")"""
     
     def initialize_vehicle_ETAs(self):
         """
@@ -367,6 +381,7 @@ class MILP_parameters:
             "T_L": self.T_L,
             "T_M_min": self.T_M_min,
             "T_M_max": self.T_M_max,
+            "T_M": self.T_M,
             "Q_V": self.Q_V,
             "Q_V0": self.Q_V0,
             "eta": self.eta,
