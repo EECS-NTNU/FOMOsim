@@ -56,6 +56,10 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     # Load initial state
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
+    
+    # Initialize bike maintenance criticality AFTER setting seed for deterministic results
+    state.initialize_bike_maintenance()
+    
     vehicles = [policy for i in range(num_vehicles)]
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
 
@@ -171,7 +175,7 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
     print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
 
  
-def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=True):
+def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False):
     for policy_name, policy in policy_dict.items():
         print(f"\n{'='*80}")
         print(f"Testing Policy: {policy_name}")
@@ -180,12 +184,14 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
         # Test this policy with all seeds
         results_file = f'{policy_name}_results.csv'
         test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing)
+        
+      
 
  
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24 # hours - (24 * 5) for one week
+    duration = 24*2 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -219,22 +225,18 @@ if __name__ == "__main__":
     maintenance_reward = 1
     alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
+    alpha = [0.4,0.4,0.3,0.2,0.1,0.0]
    
 
     policy_dict = {}
     for alpha in alpha:
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_run_EH_test_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_TD_0612251926_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
-            roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=20
+            roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=23
     )
         
-    # Dictionary of policies to test
-    #policy_dict = {
-        #'sjovik_sund_policy': policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(roaming=False, time_horizon=6, tau=5, weights=weights)
-        # Add more policy variations here
-    #}
-   
+  
 
     # List of seeds to test
     list_of_seeds = [1]  # Start with just 1 seed for debugging
@@ -247,7 +249,7 @@ if __name__ == "__main__":
     start_time = time.time()
    
     # Test 1: Test default policy with multiple seeds (no multiprocessing for debugging)
-    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration=duration, use_multiprocessing=True)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration=duration, use_multiprocessing=False)
    
     # End timing
     total_duration = time.time() - start_time

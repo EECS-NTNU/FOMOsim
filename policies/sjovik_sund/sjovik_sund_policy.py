@@ -20,7 +20,7 @@ This is realistic behavior - real-world travel times vary due to traffic, weathe
  
  
 class SjovikSundPolicy(Policy):
-    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None, hour_from=7, hour_to=21):
+    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None, hour_from=7, hour_to=23):
         self.roaming = roaming
         self.time_horizon = time_horizon
         self.tau = tau
@@ -48,9 +48,9 @@ class SjovikSundPolicy(Policy):
                   f"{len(station.bikes):>6} {avg_maint:>9.3f}")
         
         # Print maintenance summary
-        """ high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
+        '''high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
                                for s in simul.get_stations() 
-                               if s.get_average_maintenance_criticality() > 0.3 and len(s.bikes) > 0]
+                               if s.get_average_maintenance_criticality() > 0.3 and len(s.bikes) > 0]'''
         
         if high_maint_stations:
             high_maint_stations.sort(key=lambda x: x[1], reverse=True)
@@ -77,32 +77,6 @@ class SjovikSundPolicy(Policy):
         # Solve subproblem for ALL vehicles based on current system state
         data = MILP_parameters(simul, self.time_horizon, self.weights, self.tau)
         data.initalize_parameters()
-    
-
-        # --- Print Vehicles in Transit ---
-        print("\n--- Vehicles in Transit ---")
-        vehicles_in_transit = False
-        for v_id, v_obj in simul.vehicles.items():
-            if v_obj.eta > simul.time:
-                vehicles_in_transit = True
-                remaining_time = v_obj.eta - simul.time
-                
-                # Get destination from MILP parameters (expected travel time)
-                dest_station_id = v_obj.location.id
-                dest_idx = data.station_id_to_index.get(dest_station_id, -1)
-                
-                expected_time = "N/A"
-                if dest_idx != -1:
-                    expected_time = data.T_D.get((data.source, dest_idx), "Not in T_D")
-                
-                print(f"Vehicle {v_id}: -> To {dest_station_id}")
-                print(f"  Actual remaining: {remaining_time:.2f} min (stochastic sample)")
-                print(f"  Expected: {expected_time} min (policy planning value)")
-                if isinstance(expected_time, (int, float)) and abs(remaining_time - expected_time) > 1.0:
-                    print(f"  Deviation: {remaining_time - expected_time:+.2f} min (due to stochastic travel times)")
-        
-        if not vehicles_in_transit:
-            print("No vehicles currently in transit.")
 
 
         gurobi_output, gap = run_subproblem_model(data.to_dict())
@@ -115,11 +89,11 @@ class SjovikSundPolicy(Policy):
             return sim.Action([], [], [], vehicle.location.id)
         
         # Visualize the solution - KOMMENTER UT FOR Å UNNGÅ VISUALISERING
-        """try:
+        '''try:
             vis = Visualizer(gurobi_output, data)
             vis.visualize_route()
         except Exception as e:
-            print(f"Visualization failed: {e}")"""
+            print(f"Visualization failed: {e}")'''
         
         # --- NEW: Print All Planned Actions ---
         print("\n--- Planned Actions (Subproblem Solution) ---")
