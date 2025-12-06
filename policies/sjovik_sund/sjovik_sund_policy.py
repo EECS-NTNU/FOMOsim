@@ -51,7 +51,7 @@ class SjovikSundPolicy(Policy):
         '''high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
                                for s in simul.get_stations() 
                                if s.get_average_maintenance_criticality() > 0.3 and len(s.bikes) > 0]'''
-        '''
+        
         if high_maint_stations:
             high_maint_stations.sort(key=lambda x: x[1], reverse=True)
             print(f"\n Stations with elevated maintenance needs (>0.3):")
