@@ -14,7 +14,7 @@ def run_subproblem_model(data):
         m = Model("DSBRP_Subproblem")
         m.setParam('OutputFlag', False)
         m.setParam('TimeLimit', 300)  # 60 minutes max
-        m.setParam('MIPGap', 5.00)  # Stop at 0% gap (optimal solutions)
+        m.setParam('MIPGap', 0.05)  # Stop at 0% gap (optimal solutions)
         m.setParam('Presolve', 2)  # Aggressive presolve
         m.setParam('MIPFocus', 1)  # Focus on finding good feasible solutions quickly
  
@@ -92,17 +92,17 @@ def run_subproblem_model(data):
                      feasible_arcs.append((j, d, v, T))
 
         # Debug: Print initialized nodes/arcs summary
-        print("\n=== FEASIBLE ARCS SUMMARY ===")
-        print(f"Total feasible arcs: {len(feasible_arcs)}")
+        #print("\n=== FEASIBLE ARCS SUMMARY ===")
+        #print(f"Total feasible arcs: {len(feasible_arcs)}")
         
         # Count arcs by type
         source_arcs = [a for a in feasible_arcs if a[0] == s]
         sink_arcs = [a for a in feasible_arcs if a[1] == d]
         network_arcs = [a for a in feasible_arcs if a[0] in N and a[1] in N]
         
-        print(f"Source arcs (s->node): {len(source_arcs)}")
-        print(f"Sink arcs (node->d): {len(sink_arcs)}")
-        print(f"Network arcs (node->node): {len(network_arcs)}")
+        #print(f"Source arcs (s->node): {len(source_arcs)}")
+        #print(f"Sink arcs (node->d): {len(sink_arcs)}")
+        #print(f"Network arcs (node->node): {len(network_arcs)}")
         
         # Print specific source arcs to verify initialization
         print("\nInitialized Source Arcs:")
@@ -142,56 +142,8 @@ def run_subproblem_model(data):
         # deviation di ≥ 0 continuous
         d_abs = m.addVars(N, vtype=GRB.CONTINUOUS, lb=0.0, name="dev")
 
- 
-        # Helper: export objective-term breakdown for analysis / thesis
-        def _export_objective_breakdown(model, data, ts=None):
-            try:
-                if ts is None:
-                    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-                # Aggregate raw sums
-                starv_sum = sum(s_var[i, t].X for i in N for t in Tpos)
-                cong_sum = sum(c_var[i, t].X for i in N for t in Tpos)
-                maint_time = sum(tM[i, v, t].X for i in N for v in Vh for t in Tpos)
-                dev_sum = sum(d_abs[i].X for i in N)
-
-                # Weighted contributions (match objective expression)
-                starv_contrib = data.get('w_S', 1.0) * starv_sum
-                cong_contrib = data.get('w_C', 1.0) * cong_sum
-                dev_contrib = data.get('w_D', 1.0) * dev_sum
-                maint_contrib = - data.get('r_M', 0.0) * maint_time
-
-                obj_calc = starv_contrib + cong_contrib + dev_contrib + maint_contrib
-                model_obj = float(model.ObjVal) if model.Status == GRB.OPTIMAL or model.Status == GRB.SUBOPTIMAL or model.Status == GRB.FEASIBLE else None
-             
-                out = {
-                    'timestamp': ts,
-                    'model_obj': model_obj,
-                    'terms': {
-                        'starvation': {'sum': starv_sum, 'weight': data.get('w_S', 1.0), 'contribution': starv_contrib},
-                        'congestion': {'sum': cong_sum, 'weight': data.get('w_C', 1.0), 'contribution': cong_contrib},
-                        'deviation': {'sum': dev_sum, 'weight': data.get('w_D', 1.0), 'contribution': dev_contrib},
-                        'maintenance_time': {'sum': maint_time, 'rate': data.get('r_M', 0.0), 'contribution': maint_contrib}
-                    },
-                    'computed_obj_from_terms': obj_calc
-                }
-
-                fname = f"subproblem_objective_breakdown_{ts}.json"
-                with open(fname, 'w') as fh:
-                    json.dump(out, fh, indent=2)
-
-                # Print compact summary
-                print('\n=== Objective Breakdown ===')
-                print(f"Model objective: {model_obj}")
-                print(f"Starvation contribution: {starv_contrib} (raw {starv_sum})")
-                print(f"Congestion  contribution: {cong_contrib} (raw {cong_sum})")
-                print(f"Deviation   contribution: {dev_contrib} (raw {dev_sum})")
-                print(f"Maintenance contribution: {maint_contrib} (raw time {maint_time})")
-                print(f"Sum of contributions: {obj_calc}")
-                print(f"Wrote objective breakdown to {fname}\n")
-            except Exception as e:
-                print(f"Failed to export objective breakdown: {e}")
-
+    
         ###########################################################################################################
         # OBJECTIVE
         ###########################################################################################################
@@ -269,12 +221,15 @@ def run_subproblem_model(data):
         # Station inventory balance constraints
         ###########################################################################################
  
-        # (7) inventory balance:
+        # (7) inventory balance with congestion/starvation slacks:
+        # s_var: bikes added when demand would make inventory negative (unmet departures)
+        # c_var: bikes removed when arrivals would exceed capacity (rejected arrivals)
         for i in N:
             for t in Tpos:
                 m.addConstr(
                     lN[i, t-1] + D[(i, t)] + quicksum(qU[i, v, t] - qL[i, v, t] for v in Vh) + s_var[i, t] - c_var[i, t]
                     == lN[i, t],
+                    
                     name=f"inv_bal_i{i}_t{t}"
                 )
  
@@ -282,7 +237,7 @@ def run_subproblem_model(data):
         for i in N:
             m.addConstr(lN[i, 0] == I_N0[i], name=f"init_inv_i{i}")
  
-        # (9) capacity
+        # (9) capacity constraints - HARD constraint, cannot be violated
         for i in N:
             for t in T0:
                 m.addConstr(lN[i, t] <= Q_S[i], name=f"cap_i{i}_t{t}")
@@ -369,49 +324,7 @@ def run_subproblem_model(data):
                 # Add only constraint for t >= 2 to avoid negative time
                 if t >= 2:
                     m.addConstr(total_time_consumed >= max((t-2)*tau,0), name=f"time_lb_v{v}_t{t}")
-        '''
-        #############################################################################################################
-        # Timing constraints & maintenance integration (15)–(20)
-        ##############################################################################################################
-        # Constraints (15) & (16): Time bounds 
-        for v in Vh:
-            for t in Tpos:
-                # Calculate total time spent by vehicle v up to (and including) period t
-                
-                # 1. Completed travel segments (journeys that finished by period t)
-                completed_travel = quicksum(
-                    T_D[(i, j)] * get_x(i, j, v, t_prime - T_DD[(i, j)])
-                    for t_prime in Tpos if t_prime <= t
-                    for i in (N + [s]) for j in N
-                    if (i, j) in T_DD and t_prime - T_DD[(i, j)] >= 0
-                )
-                
-                # 2. Partial travel time (for journeys still in progress at period t)
-                partial_travel = quicksum(
-                    min(t * tau, T_D[(i, j)]) * get_x(i, j, v, start_time)
-                    for start_time in T0 if start_time <= t
-                    for i in (N + [s]) for j in N
-                    if (i, j) in T_DD and start_time + T_DD[(i, j)] > t  # Journey not yet completed
-                )
-                
-                # 3. Service time (loading, unloading, maintenance)
-                service_term = quicksum(
-                    T_L * (qL[i, v, t_prime] + qU[i, v, t_prime]) + tM[i, v, t_prime]
-                    for t_prime in Tpos if t_prime <= t 
-                    for i in N
-                )
-                
-                # Upper bound (15): Total time ≤ available time
-                m.addConstr(
-                    completed_travel + partial_travel + service_term <= t * tau, 
-                    name=f"time_ub_v{v}_t{t}"
-                )
-                
-                # Lower bound (16): Total time ≥ minimum required time
-                m.addConstr(
-                    completed_travel + partial_travel + service_term >= (t - 1) * tau, 
-                    name=f"time_lb_v{v}_t{t}"
-                )'''
+       
         
         # (17) Global maintenance upper bound per station
         for i in N:
@@ -465,6 +378,8 @@ def run_subproblem_model(data):
             gap = m.MIPGap
 
         # Export objective-term breakdown when a solution (or incumbent) exists
+        #if m.status == GRB.OPTIMAL or m.status == GRB.TIME_LIMIT or m.status == GRB.SUBOPTIMAL:
+            #_export_objective_breakdown(m, data)
 
         if m.Status == GRB.INFEASIBLE:
             print("\nModel is infeasible. Computing IIS...")

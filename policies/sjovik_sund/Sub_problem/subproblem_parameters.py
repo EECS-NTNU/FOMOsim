@@ -296,18 +296,7 @@ class MILP_parameters:
                 
                 if max_time > 0:
                     stations_with_maintenance.append((station_id, avg_maint, bikes_to_service, max_time))
-        
-        # Debug output
-        if stations_with_maintenance:
-            print(f"\n--- Maintenance Time Allocation ---")
-            print(f"Stations with maintenance capacity:")
-            for sid, avg, bikes, time in sorted(stations_with_maintenance, key=lambda x: x[1], reverse=True):
-                station_idx = self.station_id_to_index[sid]
-                t_min = self.T_M_min[station_idx]
-                print(f"  {sid}: avg={avg:.3f}, bikes={bikes}, T_M=[{t_min:.1f}, {time:.1f}] min")
-        else:
-            print(f"\n--- Maintenance Time Allocation ---")
-            print(f"No stations allocated maintenance time (all avg_maint < 0.05)")
+    
     
     def initialize_vehicle_ETAs(self):
         """
