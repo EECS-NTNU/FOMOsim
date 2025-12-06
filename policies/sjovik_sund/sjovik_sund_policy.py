@@ -48,7 +48,7 @@ class SjovikSundPolicy(Policy):
                   f"{len(station.bikes):>6} {avg_maint:>9.3f}")
         
         # Print maintenance summary
-        high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
+        """ high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
                                for s in simul.get_stations() 
                                if s.get_average_maintenance_criticality() > 0.3 and len(s.bikes) > 0]
         
