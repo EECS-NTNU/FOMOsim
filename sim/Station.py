@@ -96,36 +96,7 @@ class Station(Location):
         return self.neighbours
     
     def get_target_state(self, day, hour):
-        #return self.target_state[day % 7][hour % 24]
-        ts = self.target_state
-        #print("TARGET STATE:", ts)
-        # Support multiple possible formats for target_state that can appear in instances:
-        # - 7x24 list: ts[day][hour]
-        # - 7-length list of ints: ts[day]
-        # - 24-length list of ints: ts[hour]
-        # - scalar int/float: uniform target
-        if isinstance(ts, (int, float)):
-            #print("YOOOOOOOOOO")
-            return int(ts)
-        try:
-            #print("HHHEHCGHROCGRGCR#CGR#HCH#RLHCI#RHCH#RIC")
-            # Preferred: 7x24
-            return ts[day % 7][hour % 24]
-        except Exception:
-            #print("EHHEHEHE")
-            try:
-                # 7-length (per day)
-                if len(ts) == 7:
-                    val = ts[day % 7]
-                    return int(val) if isinstance(val, (int, float)) else val
-                # 24-length (per hour)
-                if len(ts) == 24:
-                    val = ts[hour % 24]
-                    return int(val) if isinstance(val, (int, float)) else val
-            except Exception:
-                pass
-        # Fallback
-        return 0
+        return self.target_state[day % 7][hour % 24]
 
     def get_move_probabilities(self, state, day, hour):
         """
@@ -168,9 +139,22 @@ class Station(Location):
         self.bikes[bike.bike_id] = bike
         #bike.set_location(self.get_lat(), self.get_lon(), self.location_id)
         bike.set_location(self.get_lat(), self.get_lon())
+        
+        # Log for S51
+        if self.id == "S51":
+            maint = getattr(bike, 'maintenance_criticality', 0.0)
+            usable = bike.usable() if hasattr(bike, 'usable') else True
+            print(f"  [S51 +BIKE] {bike.bike_id} added | Inventory now: {len(self.bikes)} | maint={maint:.3f} | usable={usable}")
+        
         return True
 
     def remove_bike(self, bike):
+        # Log for S51 before removal
+        if self.id == "S51":
+            maint = getattr(bike, 'maintenance_criticality', 0.0)
+            usable = bike.usable() if hasattr(bike, 'usable') else True
+            print(f"  [S51 -BIKE] {bike.bike_id} removed | Inventory was: {len(self.bikes)} | maint={maint:.3f} | usable={usable}")
+        
         del self.bikes[bike.bike_id]
         # bike.set_location(None, None, None)
 
