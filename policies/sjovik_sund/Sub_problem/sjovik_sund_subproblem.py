@@ -92,8 +92,8 @@ def run_subproblem_model(data):
                      feasible_arcs.append((j, d, v, T))
 
         # Debug: Print initialized nodes/arcs summary
-        print("\n=== FEASIBLE ARCS SUMMARY ===")
-        print(f"Total feasible arcs: {len(feasible_arcs)}")
+        #print("\n=== FEASIBLE ARCS SUMMARY ===")
+        #print(f"Total feasible arcs: {len(feasible_arcs)}")
         
         # Count arcs by type
         source_arcs = [a for a in feasible_arcs if a[0] == s]
@@ -269,12 +269,15 @@ def run_subproblem_model(data):
         # Station inventory balance constraints
         ###########################################################################################
  
-        # (7) inventory balance:
+        # (7) inventory balance with congestion/starvation slacks:
+        # s_var: bikes added when demand would make inventory negative (unmet departures)
+        # c_var: bikes removed when arrivals would exceed capacity (rejected arrivals)
         for i in N:
             for t in Tpos:
                 m.addConstr(
                     lN[i, t-1] + D[(i, t)] + quicksum(qU[i, v, t] - qL[i, v, t] for v in Vh) + s_var[i, t] - c_var[i, t]
                     == lN[i, t],
+                    
                     name=f"inv_bal_i{i}_t{t}"
                 )
  

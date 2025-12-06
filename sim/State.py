@@ -315,6 +315,18 @@ class State(LoadSave):
                     bikes.append(bike)
 
             stationObj.set_bikes(bikes)
+            
+            # Log initial inventory for S51
+            if stationObj.id == "S51":
+                print(f"\n=== STATION S51 INITIALIZATION ===")
+                print(f"Station: {stationObj.id}")
+                print(f"Initial Bikes: {len(bikes)}")
+                print(f"Capacity: {stationObj.capacity}")
+                print(f"Bikes:")
+                for bike in bikes:
+                    maint = getattr(bike, 'maintenance_criticality', 0.0)
+                    print(f"  - {bike.bike_id}: maintenance={maint:.3f}")
+                print(f"==================================\n")
 
             if isinstance(stationObj, sim.Depot):
                 num_depots += 1
@@ -350,13 +362,8 @@ class State(LoadSave):
                       traveltime_vehicle_matrix=traveltime_vehicle_matrix,
                       traveltime_vehicle_matrix_stddev=traveltime_vehicle_matrix_stddev)
         
-        # Now that state exists, update bike maintenance criticality using state's rng
-        # numpy.random.Generator.triangular(left, mode, right) - mode is the peak
-        for location in locations:
-            if hasattr(location, 'bikes'):
-                for bike in location.bikes.values():
-                    if hasattr(bike, 'maintenance_criticality') and bike.maintenance_criticality == 0.0:
-                        bike.maintenance_criticality = state.rng.triangular(0, 0.33, 1)
+        # NOTE: Bike maintenance criticality initialization moved to initialize_bike_maintenance()
+        # This must be called AFTER set_seed() to ensure deterministic initialization
         
         neighbor_dict = state.read_neighboring_stations_from_file()
         for station in [location for location in locations if isinstance(location, sim.Station) and not isinstance(location, sim.Depot)]:
@@ -364,6 +371,19 @@ class State(LoadSave):
             station.set_move_probabilities(locations)
         return state
 
+    def initialize_bike_maintenance(self):
+        """
+        Initialize bike maintenance criticality using the state's RNG.
+        MUST be called AFTER set_seed() to ensure deterministic initialization.
+        Uses triangular distribution with mode=0.33 (peak at low criticality).
+        """
+        for location in self.get_locations():
+            if hasattr(location, 'bikes'):
+                for bike in location.bikes.values():
+                    if hasattr(bike, 'maintenance_criticality') and bike.maintenance_criticality == 0.0:
+                        bike.maintenance_criticality = self.rng.triangular(0, 0.33, 1)
+                        print(f"Initialized Bike ID-{bike.bike_id} with maintenance criticality: {bike.maintenance_criticality:.3f}")
+    
     def calculate_traveltime(self, speed):
         locations = [(loc, loc.get_location()) for loc in self.get_locations()]
         traveltime_matrix = {}
