@@ -21,6 +21,7 @@ class LoggingSimulator(sim.Simulator):
         
         # Hourly metric tracking
         self.hourly_metrics = []  # List of dicts: [{hour, starvations, long_congestions, ...}, ...]
+        self.hourly_station_metrics = []  # List of dicts per hour with station-level data
         self.last_logged_hour = -1
         self.last_hour_starvations = 0
         self.last_hour_long_congestions = 0
@@ -59,6 +60,7 @@ class LoggingSimulator(sim.Simulator):
         """Log metrics for the hour that just completed (delta since last hour)"""
         # Get current aggregate values
         current_starvations = self.state.metrics.get_aggregate_value('starvations')
+        current_bike_starvations = self.state.metrics.get_aggregate_value('bike starvations')
         current_long_congestions = self.state.metrics.get_aggregate_value('long congestions')
         current_short_congestions = self.state.metrics.get_aggregate_value('short congestions')
         current_maintenance_violations = self.state.metrics.get_aggregate_value('maintenance violations')
@@ -67,8 +69,19 @@ class LoggingSimulator(sim.Simulator):
         current_bike_deliveries = self.state.metrics.get_aggregate_value('num bike deliveries')
         current_maintenance_time = self.state.metrics.get_aggregate_value('maintenance time')
         
+        # Calculate average bike criticality for entire fleet
+        all_bikes = self.state.get_all_bikes()
+        if all_bikes:
+            avg_bike_criticality = sum(bike.maintenance_criticality for bike in all_bikes) / len(all_bikes)
+        else:
+            avg_bike_criticality = 0.0
+        
+        # Calculate station-level metrics
+        self.log_station_metrics(hour, current_time)
+        
         # Calculate deltas (events in the hour that just completed)
         hourly_starvations = current_starvations - self.last_hour_starvations
+        hourly_bike_starvations = current_bike_starvations - getattr(self, 'last_hour_bike_starvations', 0)
         hourly_long_congestions = current_long_congestions - self.last_hour_long_congestions
         hourly_short_congestions = current_short_congestions - self.last_hour_short_congestions
         hourly_maintenance_violations = current_maintenance_violations - self.last_hour_maintenance_violations
@@ -91,6 +104,7 @@ class LoggingSimulator(sim.Simulator):
             'hour_index': hour,  # Original hour index for reference
             'time_minutes': current_time,
             'starvations': hourly_starvations,
+            'bike_starvations': hourly_bike_starvations,
             'long_congestions': hourly_long_congestions,
             'short_congestions': hourly_short_congestions,
             'maintenance_violations': hourly_maintenance_violations,
@@ -98,10 +112,12 @@ class LoggingSimulator(sim.Simulator):
             'bike_pickups': hourly_bike_pickups,
             'bike_deliveries': hourly_bike_deliveries,
             'maintenance_time': hourly_maintenance_time,
+            'avg_bike_criticality': avg_bike_criticality,
         })
         
         # Update last hour values for next calculation
         self.last_hour_starvations = current_starvations
+        self.last_hour_bike_starvations = current_bike_starvations
         self.last_hour_long_congestions = current_long_congestions
         self.last_hour_short_congestions = current_short_congestions
         self.last_hour_maintenance_violations = current_maintenance_violations
@@ -109,6 +125,28 @@ class LoggingSimulator(sim.Simulator):
         self.last_hour_bike_pickups = current_bike_pickups
         self.last_hour_bike_deliveries = current_bike_deliveries
         self.last_hour_maintenance_time = current_maintenance_time
+    
+    def log_station_metrics(self, hour, current_time):
+        """Log per-station metrics for the current hour"""
+        day = int(current_time // (24*60))
+        hour_of_day = int((current_time % (24*60)) // 60)
+        hour_formatted = 24 if hour_of_day == 0 else hour_of_day
+        
+        # Collect metrics for each station
+        for station in self.state.get_stations():
+            station_data = {
+                'day': day,
+                'hour': hour_formatted,
+                'hour_index': hour,
+                'time_minutes': current_time,
+                'station_id': station.id,
+                'num_bikes': station.number_of_bikes(),
+                'num_usable_bikes': len(station.get_available_bikes()),
+                'num_unusable_bikes': len(station.get_unusable_bikes()),
+                'avg_criticality': station.get_average_maintenance_criticality(),
+                'capacity': station.capacity,
+            }
+            self.hourly_station_metrics.append(station_data)
             
     def log_daily_metrics(self, day):
         starvations = self.state.metrics.get_aggregate_value('starvations')
@@ -337,6 +375,7 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
             'Hour',
             'Time (minutes)',
             'Starvations',
+            'Bike Starvations',
             'Long Congestions',
             'Short Congestions',
             'Maintenance Violations',
@@ -344,6 +383,7 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
             'Bike Pickups',
             'Bike Deliveries',
             'Maintenance Time (minutes)',
+            'Avg Bike Criticality',
         ])
         
         # Write hourly data rows
@@ -354,6 +394,7 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
                 hour_data['hour'],
                 round(hour_data['time_minutes'], 2),
                 hour_data['starvations'],
+                hour_data.get('bike_starvations', 0),
                 hour_data['long_congestions'],
                 hour_data['short_congestions'],
                 hour_data['maintenance_violations'],
@@ -361,5 +402,142 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
                 hour_data.get('bike_pickups', 0),
                 hour_data.get('bike_deliveries', 0),
                 round(hour_data.get('maintenance_time', 0.0), 2),
+                round(hour_data.get('avg_bike_criticality', 0.0), 4),
             ])
+
+
+def write_vehicle_visits_to_file(filename, simulator, seed):
+    """
+    Write vehicle visit logs to a CSV file, showing where and when each vehicle visited stations.
+    
+    Args:
+        filename: Name of the CSV file to write
+        simulator: Simulator instance with vehicle policy containing route information
+        seed: Random seed used for the simulation
+    """
+    results_dir = './policies/sjovik_sund/simulation_results/'
+    os.makedirs(results_dir, exist_ok=True)
+    filepath = results_dir + filename
+    
+    # Extract routes from policy attached to vehicles
+    policy_with_routes = None
+    for vehicle in simulator.state.vehicles.values():
+        if hasattr(vehicle.policy, 'vehicle_routes'):
+            policy_with_routes = vehicle.policy
+            break
+    
+    if not policy_with_routes or not policy_with_routes.vehicle_routes:
+        # No route data available - create empty file with header
+        with open(filepath, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                'Seed',
+                'Vehicle ID',
+                'Visit Number',
+                'Station ID',
+                'Time (minutes)',
+                'Day',
+                'Hour',
+                'Minute',
+                'Time Since Previous Visit (minutes)',
+            ])
+        print(f"Warning: No vehicle route data available for seed {seed}")
+        return
+    
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        
+        # Write header
+        writer.writerow([
+            'Seed',
+            'Vehicle ID',
+            'Visit Number',
+            'Station ID',
+            'Time (minutes)',
+            'Day',
+            'Hour',
+            'Minute',
+            'Time Since Previous Visit (minutes)',
+        ])
+        
+        # Write visit data for each vehicle
+        for vehicle_id, route in sorted(policy_with_routes.vehicle_routes.items()):
+            if not route:
+                continue
+            
+            # Sort by time to ensure chronological order
+            route_sorted = sorted(route, key=lambda x: x[0])
+            
+            for visit_num, (time_val, station_id) in enumerate(route_sorted, start=1):
+                # Convert time to day/hour/minute format
+                day = int(time_val // (24*60))
+                hour = int((time_val % (24*60)) // 60)
+                minute = int(time_val % 60)
+                
+                # Calculate time since previous visit
+                if visit_num == 1:
+                    time_since_prev = 0.0
+                else:
+                    prev_time = route_sorted[visit_num - 2][0]
+                    time_since_prev = time_val - prev_time
+                
+                writer.writerow([
+                    seed,
+                    vehicle_id,
+                    visit_num,
+                    station_id,
+                    round(time_val, 2),
+                    day,
+                    hour,
+                    minute,
+                    round(time_since_prev, 2),
+                ])
+
+
+def write_station_hourly_metrics_to_file(filename, simulator, seed):
+    """
+    Write per-station hourly metrics to a CSV file, showing bike counts and average criticality
+    for each station at each hour.
+    
+    Args:
+        filename: Name of the CSV file to write
+        simulator: LoggingSimulator instance with hourly_station_metrics populated
+        seed: Random seed used for the simulation
+    """
+    results_dir = './policies/sjovik_sund/simulation_results/'
+    os.makedirs(results_dir, exist_ok=True)
+    filepath = results_dir + filename
+    
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        
+        # Write header
+        writer.writerow([
+            'Seed',
+            'Day',
+            'Hour',
+            'Time (minutes)',
+            'Station ID',
+            'Total Bikes',
+            'Usable Bikes',
+            'Unusable Bikes',
+            'Avg Maintenance Criticality',
+            'Capacity',
+        ])
+        
+        # Write station data rows
+        for station_data in simulator.hourly_station_metrics:
+            writer.writerow([
+                seed,
+                station_data['day'],
+                station_data['hour'],
+                round(station_data['time_minutes'], 2),
+                station_data['station_id'],
+                station_data['num_bikes'],
+                station_data['num_usable_bikes'],
+                station_data['num_unusable_bikes'],
+                round(station_data['avg_criticality'], 4),
+                station_data['capacity'],
+            ])
+
 

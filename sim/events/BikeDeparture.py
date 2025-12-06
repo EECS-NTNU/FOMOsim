@@ -78,6 +78,11 @@ class BikeDeparture(Event):
 
             # Print bike departure information
             maint_status = f"maint={bike.maintenance_criticality:.3f}" if hasattr(bike, 'maintenance_criticality') else ""
+            
+            # Extra logging for S51
+            if departure_station.id == "S51":
+                print(f"  [S51 DEPARTURE] Bike {bike.bike_id} -> {arrival_station_id} (t={self.time:.1f}, {maint_status}, travel={travel_time:.1f}min)")
+            
             #print(f"  DEPARTURE: Bike {bike.bike_id} from {departure_station.id} -> to {arrival_station_id} "
                   #f"(t={self.time:.1f}, {maint_status}, travel={travel_time:.1f}min)")
 
@@ -163,6 +168,40 @@ class BikeDeparture(Event):
                         if unusable_count == total_bikes_at_station:
                             print(f"  LOST TRIP: All bikes at {departure_station.id} require maintenance "
                                   f"(maintenance starvation, t={self.time:.1f})")
+                            
+                            # Print comprehensive overview of all stations
+                            print(f"\n=== MAINTENANCE STARVATION OVERVIEW (t={self.time:.1f}) ===")
+                            all_stations = simul.state.get_stations()
+                            print(f"{'Station':<10} {'Total':<7} {'Usable':<8} {'Unusable':<10} {'Demand':<8} {'Criticalities (Unusable Bikes)'}")
+                            print("=" * 100)
+                            
+                            for station in sorted(all_stations, key=lambda s: s.id):
+                                total = station.number_of_bikes()
+                                usable_bikes = station.get_available_bikes()
+                                unusable_bikes = station.get_unusable_bikes()
+                                num_usable = len(usable_bikes)
+                                num_unusable = len(unusable_bikes)
+                                
+                                # Get demand for this station at current time
+                                demand = 0
+                                if hasattr(station, 'get_demand'):
+                                    demand = station.get_demand(simul.state.day(), simul.state.hour())
+                                
+                                # Get criticalities of unusable bikes
+                                criticalities = []
+                                for bike in unusable_bikes:
+                                    if hasattr(bike, 'maintenance_criticality'):
+                                        criticalities.append(f"{bike.maintenance_criticality:.3f}")
+                                
+                                crit_str = ", ".join(criticalities) if criticalities else "N/A"
+                                if len(crit_str) > 50:
+                                    crit_str = crit_str[:47] + "..."
+                                
+                                print(f"{station.id:<10} {total:<7} {num_usable:<8} {num_unusable:<10} {demand:<8.2f} {crit_str}")
+                            
+                            print("=" * 100)
+                            print()
+                            
                             simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
                             simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_starvation", 1)
                         else:

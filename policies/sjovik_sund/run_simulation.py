@@ -36,7 +36,9 @@ from policies.sjovik_sund.simulation_logging import (
     LoggingSimulator, 
     write_hourly_metrics_to_file,
     write_results_to_file,
-    write_simulation_summary
+    write_simulation_summary,
+    write_vehicle_visits_to_file,
+    write_station_hourly_metrics_to_file
 )
 
 
@@ -145,12 +147,21 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             hourly_filename = f"{filename.replace('.csv', '')}_hourly_seed_{list_of_seeds[i]}.csv"
             write_hourly_metrics_to_file(hourly_filename, simulator, list_of_seeds[i])
             
+            # Write vehicle visits for this seed
+            visits_filename = f"{filename.replace('.csv', '')}_vehicle_visits_seed_{list_of_seeds[i]}.csv"
+            write_vehicle_visits_to_file(visits_filename, simulator, list_of_seeds[i])
+            
+            # Write station hourly metrics for this seed
+            station_hourly_filename = f"{filename.replace('.csv', '')}_station_hourly_seed_{list_of_seeds[i]}.csv"
+            write_station_hourly_metrics_to_file(station_hourly_filename, simulator, list_of_seeds[i])
+            
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{list_of_seeds[i]}.txt"
             write_simulation_summary(summary_filename, simulator, duration, policy, list_of_seeds[i], num_vehicles)
             
             print(f"Seed {list_of_seeds[i]}: Completed in {solve_time:.2f}s")
             print(f"Hourly metrics written to: policies/sjovik_sund/simulation_results/{hourly_filename}")
+            print(f"Vehicle visits written to: policies/sjovik_sund/simulation_results/{visits_filename}")
     
     else:
         # Run simulations sequentially (easier for debugging)
@@ -165,12 +176,21 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             hourly_filename = f"{filename.replace('.csv', '')}_hourly_seed_{seed}.csv"
             write_hourly_metrics_to_file(hourly_filename, simulator, seed)
             
+            # Write vehicle visits for this seed
+            visits_filename = f"{filename.replace('.csv', '')}_vehicle_visits_seed_{seed}.csv"
+            write_vehicle_visits_to_file(visits_filename, simulator, seed)
+            
+            # Write station hourly metrics for this seed
+            station_hourly_filename = f"{filename.replace('.csv', '')}_station_hourly_seed_{seed}.csv"
+            write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
+            
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{seed}.txt"
             write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
             
             print(f"Seed {seed}: Completed in {solve_time:.2f}s")
             print(f"Hourly metrics written to: policies/sjovik_sund/simulation_results/{hourly_filename}")
+            print(f"Vehicle visits written to: policies/sjovik_sund/simulation_results/{visits_filename}")
     
     print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
 
@@ -225,13 +245,13 @@ if __name__ == "__main__":
     maintenance_reward = 1
     #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-    alpha = [0.4,0.4,0.3,0.2,0.1,0.0]
+    alpha = [0.5,0.4,0.3]
    
 
     policy_dict = {}
     for alpha in alpha:
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_TD_0612251926_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_TD_0612252103_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=23
     )
