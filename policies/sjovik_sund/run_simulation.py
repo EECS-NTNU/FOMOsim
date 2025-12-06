@@ -217,14 +217,15 @@ if __name__ == "__main__":
  
     service_weights = [0.45,0.45,0.1]
     maintenance_reward = 1
-    alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
+    #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
+    alpha = [0.5,0.4,0.3,0.2,0.1,0.0]
    
 
     policy_dict = {}
     for alpha in alpha:
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_run_EH_test_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_run_TD_test_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=20
     )

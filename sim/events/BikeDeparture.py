@@ -78,8 +78,8 @@ class BikeDeparture(Event):
 
             # Print bike departure information
             maint_status = f"maint={bike.maintenance_criticality:.3f}" if hasattr(bike, 'maintenance_criticality') else ""
-            print(f"  DEPARTURE: Bike {bike.bike_id} from {departure_station.id} -> to {arrival_station_id} "
-                  f"(t={self.time:.1f}, {maint_status}, travel={travel_time:.1f}min)")
+            #print(f"  DEPARTURE: Bike {bike.bike_id} from {departure_station.id} -> to {arrival_station_id} "
+                  #f"(t={self.time:.1f}, {maint_status}, travel={travel_time:.1f}min)")
 
             simul.state.metrics.add_aggregate_metric(simul.state, "bike departure", 1)
             simul.state.metrics.add_aggregate_metric(simul.state, "events", 2)
