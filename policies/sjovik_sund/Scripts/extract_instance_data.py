@@ -153,7 +153,7 @@ def main():
         print("Usage: python extract_instance_data.py <instance1> <instance2> ...")
         print("Example: python extract_instance_data.py OS_W34 OS_W31 TD_W34\n")
         
-        default_instances = ['OS_W34', 'OS_W31', 'TD_W34']
+        default_instances = ['TD_W34_old']
         compare_instances(default_instances)
 
 

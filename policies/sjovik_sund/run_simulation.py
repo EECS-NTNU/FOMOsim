@@ -211,7 +211,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24*2 # hours - (24 * 5) for one week
+    duration = 24*5 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -251,7 +251,7 @@ if __name__ == "__main__":
     policy_dict = {}
     for alpha in alpha:
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_TD_0612252103_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_TD_0612252103_seed_1_full_week_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=23
     )
