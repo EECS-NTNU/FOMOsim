@@ -51,6 +51,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     DURATION = timeInMinutes(hours=duration)
    
     INSTANCE = "TD_W34_old"
+    INSTANCE = "TD_W34_37"
     #INSTANCE = "TD_W34_testinstans"
     #INSTANCE = "TD_W34_filtered_28_stations"
     #INSTANCE = "trondheim"
@@ -58,7 +59,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     #INSTANCE = "OS_W31"
     #INSTANCE = "EH_W31"
     
-    MAINTENANCE_ENABLED = True
+    MAINTENANCE_ENABLED = False
      
     # Load initial state using workspace-relative path
     instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
@@ -102,6 +103,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
         verbose=True,
     )
     
+    print(f"DEBUG: Simulator type: {type(simulator)}")
+    print(f"DEBUG: Has log_bike_movement: {hasattr(simulator, 'log_bike_movement')}")
+    print(f"DEBUG: Has log_trip_request: {hasattr(simulator, 'log_trip_request')}")
     print(f"Running simulation with duration {duration}, vehicles {num_vehicles}, seed {seed}, Instance {INSTANCE} and weights {policy.weights}")
     
     policy.maintenance_enabled = MAINTENANCE_ENABLED
@@ -138,6 +142,7 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         
         # Write all results
         for i, simulator in enumerate(returned_simulators):
+            print(f"DEBUG: Seed {list_of_seeds[i]} - Bike movements: {len(simulator.bike_movements)}, Trip requests: {len(simulator.trip_requests)}")
             solve_time = simulator.state.time  # Total simulation time
             write_results_to_file(results_file, simulator, duration, solve_time, list_of_seeds[i], append=(i > 0))
             
@@ -229,7 +234,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 3 # hours - (24 * 5) for one week
+    duration = 3# hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -263,16 +268,16 @@ if __name__ == "__main__":
     maintenance_reward = 1
     #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-    alpha = [0.2]
+    alpha = [0.0]
    
 
     policy_dict = {}
     for alpha in alpha:
 
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_0812250757_TD_seed_1_0.2alpha_3hour_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_081225_TD_alpha00_3h{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
-            roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=23
+            roaming=False, time_horizon=5, tau=5, weights=weights, hour_from=7, hour_to=23
     )
         
   
@@ -288,7 +293,7 @@ if __name__ == "__main__":
     start_time = time.time()
    
     # Test 1: Test default policy with multiple seeds (no multiprocessing for debugging)
-    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration=duration, use_multiprocessing=True)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration=duration, use_multiprocessing=False)
    
     # End timing
     total_duration = time.time() - start_time
