@@ -52,13 +52,22 @@ class BikeArrival(Event):
             if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:
                     simul.state.remove_used_bike(self.bike)
-                    self.bike.maintenance_criticality = update_bike_maintenance(
-                        self.bike,
-                        self.travel_time,
-                        simul.state.rng,
-                        battery_level=self.bike.battery,
-                        congested=self.congested
-                    )
+
+                    # Check if maintenance is enabled in the policy (assuming uniform policy)
+                    maintenance_enabled = True
+                    if len(simul.state.vehicles) > 0:
+                        # Get the first vehicle's policy
+                        first_vehicle = next(iter(simul.state.vehicles.values()))
+                        maintenance_enabled = first_vehicle.policy.maintenance_enabled
+
+                    if maintenance_enabled:
+                        self.bike.maintenance_criticality = update_bike_maintenance(
+                            self.bike,
+                            self.travel_time,
+                            simul.state.rng,
+                            battery_level=self.bike.battery,
+                            congested=self.congested
+                        )
 
                 #if self.bike.usable() == False:
                     #simul.state.metrics.add_aggregate_metric(simul.state, "Maintenance violations", 1)

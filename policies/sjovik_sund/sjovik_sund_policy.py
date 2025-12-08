@@ -20,14 +20,14 @@ This is realistic behavior - real-world travel times vary due to traffic, weathe
  
  
 class SjovikSundPolicy(Policy):
-    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None, hour_from=7, hour_to=23):
+    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None, hour_from=7, hour_to=23, maintenance_enabled=True):
         self.roaming = roaming
         self.time_horizon = time_horizon
         self.tau = tau
         self.weights = weights
         self.vehicle_routes = {}  # Track actual routes: {vehicle_id: [(time, station_id), ...]}
         self.optimality_gaps = []
-        super().__init__()
+        super().__init__(maintenance_enabled=maintenance_enabled)
         self.set_time_of_service(hour_from=hour_from, hour_to=hour_to)  # Set working hours (default 7 AM - 4 PM)
  
     def get_best_action(self, simul, vehicle):

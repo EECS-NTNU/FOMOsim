@@ -57,6 +57,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
     #INSTANCE = "EH_W31"
+    
+    MAINTENANCE_ENABLED = True
      
     # Load initial state using workspace-relative path
     instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
@@ -64,7 +66,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     state.set_seed(seed)
     
     # Initialize bike maintenance criticality AFTER setting seed for deterministic results
-    state.initialize_bike_maintenance()
+    if MAINTENANCE_ENABLED:
+        state.initialize_bike_maintenance()
     
     vehicles = [policy for i in range(num_vehicles)]
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
@@ -101,6 +104,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     
     print(f"Running simulation with duration {duration}, vehicles {num_vehicles}, seed {seed}, Instance {INSTANCE} and weights {policy.weights}")
     
+    policy.maintenance_enabled = MAINTENANCE_ENABLED
+
     simulator.run()
     
     if queue is not None:
@@ -110,17 +115,6 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
 
 
 def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True):
-    """
-    Test a single policy with multiple seeds and write results to CSV file.
-    
-    Args:
-        list_of_seeds: List of random seeds to test
-        policy: The policy instance to test
-        filename: Name of the results CSV file (without path)
-        num_vehicles: Number of vehicles to use
-        duration: Simulation duration in hours
-        use_multiprocessing: If True, run seeds in parallel; if False, run sequentially
-    """
     results_file = filename
     
     if use_multiprocessing:
@@ -244,7 +238,7 @@ if __name__ == "__main__":
     #list_of_tau = [3, 5, 7, 10]
    
     # Weight combinations: [w_S, w_C, w_D. r_M]
-    weights_dict = {
+    """weights_dict = {
     'baseline_balanced':    [0.45, 0.45, 0.10, 0.0],
     'starvation_high':      [0.70, 0.20, 0.10, 0.0],
     'starvation_medium':    [0.60, 0.30, 0.10, 0.0],
@@ -255,7 +249,7 @@ if __name__ == "__main__":
     'starv_cong_balanced':  [0.475, 0.475, 0.05, 0.0],
     'starv_cong_60_30':     [0.60, 0.35, 0.05, 0.0],
     'starv_cong_30_60':     [0.35, 0.60, 0.05, 0.0],
-    }
+    }"""
 
     #service_weights = [0.45, 0.45, 0.1]
     #maintenance_weight = 1.0
