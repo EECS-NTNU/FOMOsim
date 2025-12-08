@@ -54,13 +54,16 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
     #INSTANCE = "EH_W31"
+    
+    MAINTENANCE_ENABLED = True
      
     # Load initial state
     state = init_state.read_initial_state("instances/"+INSTANCE)
     state.set_seed(seed)
     
     # Initialize bike maintenance criticality AFTER setting seed for deterministic results
-    state.initialize_bike_maintenance()
+    if MAINTENANCE_ENABLED:
+        state.initialize_bike_maintenance()
     
     vehicles = [policy for i in range(num_vehicles)]
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
@@ -97,6 +100,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     
     print(f"Running simulation with duration {duration}, vehicles {num_vehicles}, seed {seed}, Instance {INSTANCE} and weights {policy.weights}")
     
+    policy.maintenance_enabled = MAINTENANCE_ENABLED
+
     simulator.run()
     
     if queue is not None:
@@ -200,7 +205,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24*5 # hours - (24 * 5) for one week
+    duration = 1 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -234,7 +239,7 @@ if __name__ == "__main__":
     maintenance_reward = 1
     #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-    alpha = [0.2]
+    alpha = [0.0]
    
 
     policy_dict = {}
