@@ -301,6 +301,7 @@ class MILP_parameters:
                 
                 # Time = bikes to service × time per bike
                 max_time = bikes_to_service * MAINTENANCE_FULL_FIX
+                print(f"Station {station_id} maintenance: avg_maint={avg_maint:.3f}, bikes_to_service={bikes_to_service}, T_M_max={max_time:.1f} min")
                 
                 # If maintenance is chosen, must service at least 1 bike (no partial servicing)
                 # This ensures either: 0 min (no maintenance) OR at least 0.5 min (fix 1+ bikes)

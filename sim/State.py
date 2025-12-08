@@ -678,7 +678,9 @@ class State(LoadSave):
                             break
 
         # Perform maintenance on bikes at current location
-        process_maintenance_action(vehicle, action.maintenance_time, time)
+        if vehicle.policy.maintenance_enabled:
+            print(f"Processing maintenance for vehicle {vehicle.id} at location {vehicle.location.id} at time {time}")
+            process_maintenance_action(vehicle, action.maintenance_time, time)
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)
