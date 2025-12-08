@@ -5,8 +5,9 @@ import os
 import sys
 from pathlib import Path
  
-path = Path(__file__).parents[2]       
-os.chdir(path)
+# Get workspace root (2 levels up from this file)
+WORKSPACE_ROOT = Path(__file__).parents[2]       
+os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, '') 
 ################################################################
  
@@ -49,16 +50,17 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
    
-    #INSTANCE = "TD_W34_old"
+    INSTANCE = "TD_W34_old"
     #INSTANCE = "TD_W34_testinstans"
     #INSTANCE = "TD_W34_filtered_28_stations"
     #INSTANCE = "trondheim"
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
-    INSTANCE = "EH_W31"
+    #INSTANCE = "EH_W31"
      
-    # Load initial state
-    state = init_state.read_initial_state("instances/"+INSTANCE)
+    # Load initial state using workspace-relative path
+    instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
+    state = init_state.read_initial_state(str(instance_path))
     state.set_seed(seed)
     
     # Initialize bike maintenance criticality AFTER setting seed for deterministic results
@@ -233,7 +235,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24 # hours - (24 * 5) for one week
+    duration = 3 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -272,8 +274,9 @@ if __name__ == "__main__":
 
     policy_dict = {}
     for alpha in alpha:
+
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_0812250757_EH_seed_1_6_hour_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_0812250757_TD_seed_1_0.2alpha_3hour_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=23
     )

@@ -100,12 +100,17 @@ class BikeDeparture(Event):
             
             # Log successful trip request
             if hasattr(simul, 'log_trip_request'):
+                bike_crit = getattr(bike, 'maintenance_criticality', 0.0)
                 simul.log_trip_request(
                     time=self.time,
                     station_id=departure_station.id,
                     success=True,
                     failure_reason=None,
-                    did_roam=False
+                    did_roam=False,
+                    arrival_station_id=arrival_station_id,
+                    travel_time=travel_time,
+                    bike_id=bike.bike_id,
+                    bike_criticality=bike_crit
                 )
 
             simul.state.metrics.add_aggregate_metric(simul.state, "bike departure", 1)
@@ -183,12 +188,17 @@ class BikeDeparture(Event):
                     
                     # Log successful roaming trip request
                     if hasattr(simul, 'log_trip_request'):
+                        bike_crit = getattr(bike, 'maintenance_criticality', 0.0)
                         simul.log_trip_request(
                             time=self.time,
                             station_id=departure_station.id,
                             success=True,
                             failure_reason=None,
-                            did_roam=True
+                            did_roam=True,
+                            arrival_station_id=arrival_station_id,
+                            travel_time=travel_time,
+                            bike_id=bike.bike_id,
+                            bike_criticality=bike_crit
                         )
 
                     simul.state.metrics.add_aggregate_metric(simul.state, "bike departure", 1)
