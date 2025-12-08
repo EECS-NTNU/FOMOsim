@@ -38,7 +38,9 @@ from policies.sjovik_sund.simulation_logging import (
     write_results_to_file,
     write_simulation_summary,
     write_vehicle_visits_to_file,
-    write_station_hourly_metrics_to_file
+    write_station_hourly_metrics_to_file,
+    write_bike_movements_to_file,
+    write_trip_requests_to_file
 )
 
 
@@ -47,13 +49,13 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
    
-    INSTANCE = "TD_W34_old"
+    #INSTANCE = "TD_W34_old"
     #INSTANCE = "TD_W34_testinstans"
     #INSTANCE = "TD_W34_filtered_28_stations"
     #INSTANCE = "trondheim"
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
-    #INSTANCE = "EH_W31"
+    INSTANCE = "EH_W31"
      
     # Load initial state
     state = init_state.read_initial_state("instances/"+INSTANCE)
@@ -155,6 +157,16 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             station_hourly_filename = f"{filename.replace('.csv', '')}_station_hourly_seed_{list_of_seeds[i]}.csv"
             write_station_hourly_metrics_to_file(station_hourly_filename, simulator, list_of_seeds[i])
             
+            # Write bike movements for this seed
+            # Extract alpha from policy weights if available
+            alpha_value = policy.weights[3] if policy.weights and len(policy.weights) > 3 else None
+            bike_movements_filename = f"{filename.replace('.csv', '')}_bike_movements_seed_{list_of_seeds[i]}.csv"
+            write_bike_movements_to_file(bike_movements_filename, simulator, list_of_seeds[i], alpha_value)
+            
+            # Write trip requests for this seed
+            trip_requests_filename = f"{filename.replace('.csv', '')}_trip_requests_seed_{list_of_seeds[i]}.csv"
+            write_trip_requests_to_file(trip_requests_filename, simulator, list_of_seeds[i], alpha_value)
+            
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{list_of_seeds[i]}.txt"
             write_simulation_summary(summary_filename, simulator, duration, policy, list_of_seeds[i], num_vehicles)
@@ -184,6 +196,16 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             station_hourly_filename = f"{filename.replace('.csv', '')}_station_hourly_seed_{seed}.csv"
             write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
             
+            # Write bike movements for this seed
+            # Extract alpha from policy weights if available
+            alpha_value = policy.weights[3] if policy.weights and len(policy.weights) > 3 else None
+            bike_movements_filename = f"{filename.replace('.csv', '')}_bike_movements_seed_{seed}.csv"
+            write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
+            
+            # Write trip requests for this seed
+            trip_requests_filename = f"{filename.replace('.csv', '')}_trip_requests_seed_{seed}.csv"
+            write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
+            
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{seed}.txt"
             write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
@@ -211,7 +233,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24*5 # hours - (24 * 5) for one week
+    duration = 24 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -245,13 +267,13 @@ if __name__ == "__main__":
     maintenance_reward = 1
     #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-    alpha = [0.5,0.4,0.3]
+    alpha = [0.2]
    
 
     policy_dict = {}
     for alpha in alpha:
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_TD_0612252103_seed_1_full_week_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_0812250757_EH_seed_1_6_hour_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=23
     )
@@ -269,7 +291,7 @@ if __name__ == "__main__":
     start_time = time.time()
    
     # Test 1: Test default policy with multiple seeds (no multiprocessing for debugging)
-    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration=duration, use_multiprocessing=False)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration=duration, use_multiprocessing=True)
    
     # End timing
     total_duration = time.time() - start_time
