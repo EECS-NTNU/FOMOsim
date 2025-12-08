@@ -47,13 +47,14 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
    
-    INSTANCE = "TD_W34_old"
+    #INSTANCE = "TD_W34_old"
     #INSTANCE = "TD_W34_testinstans"
     #INSTANCE = "TD_W34_filtered_28_stations"
     #INSTANCE = "trondheim"
     #INSTANCE = "NY_W31"
     #INSTANCE = "OS_W31"
     #INSTANCE = "EH_W31"
+    INSTANCE = "TD_W34_37"
      
     # Load initial state
     state = init_state.read_initial_state("instances/"+INSTANCE)
@@ -211,7 +212,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24*5 # hours - (24 * 5) for one week
+    duration = 24*2 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -246,20 +247,20 @@ if __name__ == "__main__":
     #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
     alpha = [0.2]
-   
+
+    # List of seeds to test
+    list_of_seeds = [1]  # Start with just 1 seed for debugging
 
     policy_dict = {}
     for alpha in alpha:
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_TD_0612252103_seed_1_full_week_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_TD_08121610_seed_1_{duration}_hours_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
-            roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=23
+            roaming=False, time_horizon=5, tau=5, weights=weights, hour_from=7, hour_to=23
     )
         
-  
 
-    # List of seeds to test
-    list_of_seeds = [1]  # Start with just 1 seed for debugging
+    
    
     # Instances to test
     #list_of_instances = ['instances/BO_W31', 'instances/TD_W34', 'instances/OS_W34']
