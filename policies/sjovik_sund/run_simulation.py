@@ -106,17 +106,6 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
 
 
 def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True):
-    """
-    Test a single policy with multiple seeds and write results to CSV file.
-    
-    Args:
-        list_of_seeds: List of random seeds to test
-        policy: The policy instance to test
-        filename: Name of the results CSV file (without path)
-        num_vehicles: Number of vehicles to use
-        duration: Simulation duration in hours
-        use_multiprocessing: If True, run seeds in parallel; if False, run sequentially
-    """
     results_file = filename
     
     if use_multiprocessing:
@@ -220,7 +209,7 @@ if __name__ == "__main__":
     #list_of_tau = [3, 5, 7, 10]
    
     # Weight combinations: [w_S, w_C, w_D. r_M]
-    weights_dict = {
+    """weights_dict = {
     'baseline_balanced':    [0.45, 0.45, 0.10, 0.0],
     'starvation_high':      [0.70, 0.20, 0.10, 0.0],
     'starvation_medium':    [0.60, 0.30, 0.10, 0.0],
@@ -231,7 +220,7 @@ if __name__ == "__main__":
     'starv_cong_balanced':  [0.475, 0.475, 0.05, 0.0],
     'starv_cong_60_30':     [0.60, 0.35, 0.05, 0.0],
     'starv_cong_30_60':     [0.35, 0.60, 0.05, 0.0],
-    }
+    }"""
 
     #service_weights = [0.45, 0.45, 0.1]
     #maintenance_weight = 1.0
@@ -245,13 +234,13 @@ if __name__ == "__main__":
     maintenance_reward = 1
     #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-    alpha = [0.5,0.4,0.3]
+    alpha = [0.3,0.2,0.1]
    
 
     policy_dict = {}
     for alpha in alpha:
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_TD_0612252103_seed_1_full_week_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_TD_0812250815_seed_1_full_week_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=6, tau=5, weights=weights, hour_from=7, hour_to=23
     )
