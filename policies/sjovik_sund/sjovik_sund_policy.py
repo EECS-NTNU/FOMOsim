@@ -31,6 +31,9 @@ class SjovikSundPolicy(Policy):
         self.set_time_of_service(hour_from=hour_from, hour_to=hour_to)  # Set working hours (default 7 AM - 4 PM)
  
     def get_best_action(self, simul, vehicle):
+        import time as time_module
+        t_action_start = time_module.time()
+        
         # Print state with current time's target states
         day = simul.day()
         hour = simul.hour()
@@ -62,8 +65,28 @@ class SjovikSundPolicy(Policy):
                       f"High bikes (>0.5): {stats['high_criticality_count']}/{stats['count']}")'''
         
         # Solve subproblem for ALL vehicles based on current system state
+        print(f"\n{'='*70}")
+        print(f"STARTING OPTIMIZATION - Simulation time: {simul.time:.1f} min")
+        print(f"{'='*70}")
+        
+        # Calculate inventory imbalance diagnostics
+        total_imbalance = 0
+        max_imbalance = 0
+        for station in simul.get_stations():
+            target = station.get_target_state(day, hour)
+            current = len(station.bikes)
+            imbalance = abs(current - target)
+            total_imbalance += imbalance
+            max_imbalance = max(max_imbalance, imbalance)
+        avg_imbalance = total_imbalance / len(simul.get_stations())
+        print(f"[DIAGNOSTICS] Inventory imbalance: avg={avg_imbalance:.2f}, max={max_imbalance}, total={total_imbalance}")
+        
+        t_params_start = time_module.time()
         data = MILP_parameters(simul, self.time_horizon, self.weights, self.tau)
         data.initalize_parameters()
+        t_params_end = time_module.time()
+        
+        print(f"[TIMING] Parameter initialization: {t_params_end - t_params_start:.3f}s")
         
         # --- Print Simulation Clock ---
         time = simul.time
@@ -117,7 +140,7 @@ class SjovikSundPolicy(Policy):
                     to_idx = int(indices[1])
                     if from_idx >= 0: visited_stations.add(from_idx)
                     if to_idx >= 0: visited_stations.add(to_idx)
-                elif name in ['qL', 'qU', 'lN', 'starv', 'cong', 'dev']:
+                elif name in ['qL', 'qU', 'qL_curr', 'qL_other', 'qU_curr', 'qU_other', 'lN', 'starv', 'cong', 'dev']:
                     # These usually start with station index i
                     s_idx = int(indices[0])
                     if s_idx >= 0: visited_stations.add(s_idx)
@@ -130,7 +153,7 @@ class SjovikSundPolicy(Policy):
         print("Decisions:")
         for name, val in solution_vars:
             var_type = name.split("[")[0]
-            if var_type in ['x', 'qL', 'qU', 'qV', 'tM', "m_iv"]:
+            if var_type in ['x', 'qL', 'qU', 'qL_curr', 'qL_other', 'qU_curr', 'qU_other', 'qV', 'tM', "m_iv"]:
                 print(f"  {name} = {val:.2f}")
 
 
@@ -230,16 +253,18 @@ class SjovikSundPolicy(Policy):
             variable = var.varName.strip("]").split("[")
             name, indices = variable[0], variable[1].split(',')
             
-            if name in ['qL', 'qU', 'tM'] and var.x > 0.01:
+            # Handle all variable naming schemes: qL/qU (old), qL_curr/qL_other/qU_curr/qU_other (new)
+            if name in ['qL', 'qU', 'qL_curr', 'qL_other', 'qU_curr', 'qU_other', 'tM'] and var.x > 0.01:
+                # All current naming schemes use [i,v,t] with 3 indices
                 s_idx, v_idx, period_t = int(indices[0]), int(indices[1]), int(indices[2])
                 
                 if v_idx == vehicle_idx and s_idx == current_station_idx and period_t <= first_move_period:
                 #if v_idx == vehicle_idx and s_idx == current_station_idx:
                    
-                    if name == 'qL':
+                    if name in ['qL', 'qL_curr', 'qL_other']:
                         loading_quantity += var.x
                         print(f"  Load: {var.x:.2f} (Period {period_t})")
-                    elif name == 'qU':
+                    elif name in ['qU', 'qU_curr', 'qU_other']:
                         unloading_quantity += var.x
                         print(f"  Unload: {var.x:.2f} (Period {period_t})")
                     elif name == 'tM':
