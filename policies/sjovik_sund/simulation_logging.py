@@ -6,6 +6,12 @@ Simulation logging utilities for tracking hourly and daily metrics.
 import os
 import csv
 import sim
+from pathlib import Path
+
+
+# Determine output directory relative to this file's location
+_LOGGING_FILE_DIR = Path(__file__).parent
+RESULTS_DIR = _LOGGING_FILE_DIR / 'simulation_results'
 
 
 class LoggingSimulator(sim.Simulator):
@@ -22,6 +28,8 @@ class LoggingSimulator(sim.Simulator):
         # Hourly metric tracking
         self.hourly_metrics = []  # List of dicts: [{hour, starvations, long_congestions, ...}, ...]
         self.hourly_station_metrics = []  # List of dicts per hour with station-level data
+        self.bike_movements = []  # List of all bike movements: [{time, bike_id, from_station, to_station, roamed}, ...]
+        self.trip_requests = []  # List of all trip requests: [{time, station_id, success, failure_reason}, ...]
         self.last_logged_hour = -1
         self.last_hour_starvations = 0
         self.last_hour_long_congestions = 0
@@ -31,6 +39,46 @@ class LoggingSimulator(sim.Simulator):
         self.last_hour_bike_pickups = 0
         self.last_hour_bike_deliveries = 0
         self.last_hour_maintenance_time = 0.0
+    
+    def log_bike_movement(self, time, bike_id, departure_station_id, arrival_station_id, did_roam=False, bike_criticality=0.0):
+        """Log a bike movement for later export to CSV"""
+        day = int(time // (24*60))
+        hour = int((time % (24*60)) // 60)
+        minute = int(time % 60)
+        
+        self.bike_movements.append({
+            'time_minutes': time,
+            'day': day,
+            'hour': hour,
+            'minute': minute,
+            'bike_id': bike_id,
+            'departure_station': departure_station_id,
+            'arrival_station': arrival_station_id,
+            'did_roam': did_roam,
+            'bike_criticality': bike_criticality
+        })
+    
+    def log_trip_request(self, time, station_id, success=True, failure_reason=None, did_roam=False,
+                        arrival_station_id=None, travel_time=None, bike_id=None, bike_criticality=None):
+        """Log a trip request (successful or failed)"""
+        day = int(time // (24*60))
+        hour = int((time % (24*60)) // 60)
+        minute = int(time % 60)
+        
+        self.trip_requests.append({
+            'time_minutes': time,
+            'day': day,
+            'hour': hour,
+            'minute': minute,
+            'station_id': station_id,
+            'success': success,
+            'failure_reason': failure_reason if not success else None,
+            'did_roam': did_roam,
+            'arrival_station_id': arrival_station_id if success else None,
+            'travel_time': travel_time if success else None,
+            'bike_id': bike_id if success else None,
+            'bike_criticality': bike_criticality if success else None
+        })
 
     def full_step(self):
         super().full_step()
@@ -182,9 +230,8 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
     """
     Write simulation results to a CSV file.
     """
-    results_dir = './policies/sjovik_sund/simulation_results/'
-    os.makedirs(results_dir, exist_ok=True)
-    filepath = results_dir + filename
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    filepath = RESULTS_DIR / filename
    
     mode = 'a' if append else 'w'
     file_exists = os.path.isfile(filepath) and append
@@ -240,9 +287,8 @@ def write_simulation_summary(filename, simulator, duration, policy, seed, num_ve
     """
     Write simulation summary including parameters, objective function, and routes.
     """
-    results_dir = './policies/sjovik_sund/simulation_results/'
-    os.makedirs(results_dir, exist_ok=True)
-    filepath = results_dir + filename
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    filepath = RESULTS_DIR / filename
 
     with open(filepath, 'w') as f:
         f.write("="*80 + "\n")
@@ -276,11 +322,14 @@ def write_simulation_summary(filename, simulator, duration, policy, seed, num_ve
         # Get aggregate metrics 
         # Regner bare med long congestions her
         starvations = simulator.state.metrics.get_aggregate_value('starvations')
+        bike_starvations = simulator.state.metrics.get_aggregate_value('bike starvations')
         congestions_long = simulator.state.metrics.get_aggregate_value('long congestions') # + simulator.state.metrics.get_aggregate_value('short congestions')
         maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
         maintenance_violations = simulator.state.metrics.get_aggregate_value('maintenance_violations')
         maintenance_starvation = simulator.state.metrics.get_aggregate_value('maintenance_starvation')
         congestions_short = simulator.state.metrics.get_aggregate_value('short congestions')
+        bike_departures = simulator.state.metrics.get_aggregate_value('bike departure')
+        trips = simulator.state.metrics.get_aggregate_value('trips')
         #deviations = simulator.state.metrics.get_aggregate_value('deviation')
         
         # Calculate objective
@@ -297,6 +346,18 @@ def write_simulation_summary(filename, simulator, duration, policy, seed, num_ve
         f.write(f"  Short Congestions: {congestions_short} (Contribution: {0})\n")
         f.write(f"  Maintenance Violation Events: {maintenance_violations}\n")
         f.write(f"  Maintenance Starvations: {maintenance_starvation}\n")
+        
+        # Verification of trip accounting
+        f.write(f"\n--- TRIP ACCOUNTING VERIFICATION ---\n")
+        f.write(f"Attempted Bike Departures (trips metric): {trips}\n")
+        f.write(f"Successful Bike Departures: {bike_departures}\n")
+        f.write(f"Bike Starvations: {bike_starvations}\n")
+        f.write(f"Maintenance Starvations: {maintenance_starvation}\n")
+        f.write(f"\nVerification: {bike_departures} + {bike_starvations} + {maintenance_starvation} = {bike_departures + bike_starvations + maintenance_starvation}\n")
+        if trips == bike_departures + bike_starvations + maintenance_starvation:
+            f.write(f"[OK] VERIFIED: All attempted departures accounted for\n")
+        else:
+            f.write(f"[ERROR] MISMATCH: Expected {trips}, got {bike_departures + bike_starvations + maintenance_starvation}\n")
         
         if hasattr(policy, 'optimality_gaps') and policy.optimality_gaps:
             avg_gap = sum(policy.optimality_gaps) / len(policy.optimality_gaps)
@@ -361,9 +422,8 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
         simulator: LoggingSimulator instance with hourly_metrics populated
         seed: Random seed used for the simulation
     """
-    results_dir = './policies/sjovik_sund/simulation_results/'
-    os.makedirs(results_dir, exist_ok=True)
-    filepath = results_dir + filename
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    filepath = RESULTS_DIR / filename
     
     with open(filepath, 'w', newline='') as f:
         writer = csv.writer(f)
@@ -415,9 +475,8 @@ def write_vehicle_visits_to_file(filename, simulator, seed):
         simulator: Simulator instance with vehicle policy containing route information
         seed: Random seed used for the simulation
     """
-    results_dir = './policies/sjovik_sund/simulation_results/'
-    os.makedirs(results_dir, exist_ok=True)
-    filepath = results_dir + filename
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    filepath = RESULTS_DIR / filename
     
     # Extract routes from policy attached to vehicles
     policy_with_routes = None
@@ -504,9 +563,8 @@ def write_station_hourly_metrics_to_file(filename, simulator, seed):
         simulator: LoggingSimulator instance with hourly_station_metrics populated
         seed: Random seed used for the simulation
     """
-    results_dir = './policies/sjovik_sund/simulation_results/'
-    os.makedirs(results_dir, exist_ok=True)
-    filepath = results_dir + filename
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    filepath = RESULTS_DIR / filename
     
     with open(filepath, 'w', newline='') as f:
         writer = csv.writer(f)
@@ -539,5 +597,108 @@ def write_station_hourly_metrics_to_file(filename, simulator, seed):
                 round(station_data['avg_criticality'], 4),
                 station_data['capacity'],
             ])
+
+
+def write_bike_movements_to_file(filename, simulator, seed, alpha=None):
+    """
+    Write all bike movements to a CSV file.
+    
+    Args:
+        filename: Name of the CSV file to write
+        simulator: LoggingSimulator instance with bike_movements populated
+        seed: Random seed used for the simulation
+        alpha: Alpha parameter value (optional)
+    """
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    filepath = RESULTS_DIR / filename
+    
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        
+        # Write header
+        writer.writerow([
+            'Seed',
+            'Alpha',
+            'Day',
+            'Hour',
+            'Minute',
+            'Time (minutes)',
+            'Bike ID',
+            'Departure Station',
+            'Arrival Station',
+            'Did Roam',
+            'Bike Criticality',
+        ])
+        
+        # Write bike movement data rows
+        for movement in simulator.bike_movements:
+            writer.writerow([
+                seed,
+                alpha if alpha is not None else '',
+                movement['day'],
+                movement['hour'],
+                movement['minute'],
+                round(movement['time_minutes'], 2),
+                movement['bike_id'],
+                movement['departure_station'],
+                movement['arrival_station'],
+                movement['did_roam'],
+                round(movement.get('bike_criticality', 0.0), 4),
+            ])
+
+
+def write_trip_requests_to_file(filename, simulator, seed, alpha=None):
+    """
+    Write all trip requests (successful and failed) to a CSV file.
+    
+    Args:
+        filename: Name of the CSV file to write
+        simulator: LoggingSimulator instance with trip_requests populated
+        seed: Random seed used for the simulation
+        alpha: Alpha parameter value (optional)
+    """
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    filepath = RESULTS_DIR / filename
+    
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        
+        # Write header
+        writer.writerow([
+            'Seed',
+            'Alpha',
+            'Day',
+            'Hour',
+            'Minute',
+            'Time (minutes)',
+            'Station ID',
+            'Success',
+            'Failure Reason',
+            'Did Roam',
+            'Arrival Station ID',
+            'Travel Time (minutes)',
+            'Bike ID',
+            'Bike Criticality',
+        ])
+        
+        # Write trip request data rows
+        for request in simulator.trip_requests:
+            writer.writerow([
+                seed,
+                alpha if alpha is not None else '',
+                request['day'],
+                request['hour'],
+                request['minute'],
+                round(request['time_minutes'], 2),
+                request['station_id'],
+                request['success'],
+                request['failure_reason'] if not request['success'] else '',
+                request['did_roam'],
+                request.get('arrival_station_id', ''),
+                round(request['travel_time'], 2) if request.get('travel_time') is not None else '',
+                request.get('bike_id', ''),
+                round(request['bike_criticality'], 4) if request.get('bike_criticality') is not None else '',
+            ])
+
 
 
