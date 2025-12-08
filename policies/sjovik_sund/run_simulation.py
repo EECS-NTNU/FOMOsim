@@ -245,7 +245,7 @@ if __name__ == "__main__":
     maintenance_reward = 1
     #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-    alpha = [0.5,0.4,0.3]
+    alpha = [0.2]
    
 
     policy_dict = {}
