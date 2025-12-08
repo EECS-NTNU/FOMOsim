@@ -52,8 +52,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
    
-    #INSTANCE = "TD_W34_old"
-    INSTANCE = "TD_W34_37"
+    INSTANCE = "TD_W34_old"
+    #INSTANCE = "TD_W34_37"
     #INSTANCE = "TD_W34_testinstans"
     #INSTANCE = "TD_W34_filtered_28_stations"
     #INSTANCE = "trondheim"
@@ -64,9 +64,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     
      
     # Load initial state using workspace-relative path
-    #instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
-    #state = init_state.read_initial_state(str(instance_path))
-    state = init_state.read_initial_state(f"policies/sjovik_sund/generated_instances/{INSTANCE}")
+    instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
+    state = init_state.read_initial_state(str(instance_path))
+    #state = init_state.read_initial_state(f"policies/sjovik_sund/generated_instances/{INSTANCE}")
     state.set_seed(seed)
     
     # Initialize bike maintenance criticality AFTER setting seed for deterministic results
@@ -268,7 +268,7 @@ if __name__ == "__main__":
     #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
     if MAINTENANCE_ENABLED:
-        alpha = [0.3]
+        alpha = [0.3,0.2,0.1,0.4,0.5]
     else:
         alpha = [0.0]
    
@@ -277,7 +277,7 @@ if __name__ == "__main__":
     for alpha in alpha:
 
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_0812250757_TD_seed_1_0.3alpha_1hour_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_0812252309_TD_seed_1_alpha01-05_fullweek_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=5, tau=5, weights=weights, hour_from=7, hour_to=23
     )
