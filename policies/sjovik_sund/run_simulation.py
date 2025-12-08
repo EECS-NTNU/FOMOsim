@@ -64,9 +64,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     
      
     # Load initial state using workspace-relative path
-    #instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
-    #state = init_state.read_initial_state(str(instance_path))
-    state = init_state.read_initial_state(f"policies/sjovik_sund/generated_instances/{INSTANCE}")
+    instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
+    state = init_state.read_initial_state(str(instance_path))
+    #state = init_state.read_initial_state(f"policies/sjovik_sund/generated_instances/{INSTANCE}")
     state.set_seed(seed)
     
     # Initialize bike maintenance criticality AFTER setting seed for deterministic results
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
     if MAINTENANCE_ENABLED:
-        alpha = [0.3]
+        alpha = [0.3, 0.2, 0.1, 0.4, 0.5]
     else:
         alpha = [0.0]
    
