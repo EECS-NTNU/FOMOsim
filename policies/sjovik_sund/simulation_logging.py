@@ -20,16 +20,16 @@ class LoggingSimulator(sim.Simulator):
     """
     
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        # Initialize tracking lists BEFORE calling super().__init__
+        # This ensures they exist before any events are processed
+        self.bike_movements = []  # List of all bike movements
+        self.trip_requests = []  # List of all trip requests
+        self.hourly_metrics = []  # List of hourly metrics
+        self.hourly_station_metrics = []  # List of per-station hourly data
+        
         self.last_logged_day = -1
         self.last_starvations = 0
         self.last_congestions = 0
-        
-        # Hourly metric tracking
-        self.hourly_metrics = []  # List of dicts: [{hour, starvations, long_congestions, ...}, ...]
-        self.hourly_station_metrics = []  # List of dicts per hour with station-level data
-        self.bike_movements = []  # List of all bike movements: [{time, bike_id, from_station, to_station, roamed}, ...]
-        self.trip_requests = []  # List of all trip requests: [{time, station_id, success, failure_reason}, ...]
         self.last_logged_hour = -1
         self.last_hour_starvations = 0
         self.last_hour_long_congestions = 0
@@ -39,9 +39,17 @@ class LoggingSimulator(sim.Simulator):
         self.last_hour_bike_pickups = 0
         self.last_hour_bike_deliveries = 0
         self.last_hour_maintenance_time = 0.0
+        
+        # Now call parent __init__
+        super().__init__(*args, **kwargs)
+        
+        # Verify lists still exist after parent init
+        print(f"DEBUG LoggingSimulator.__init__: ID={id(self)}, bike_movements ID={id(self.bike_movements)}, len={len(self.bike_movements)}")
+        print(f"DEBUG LoggingSimulator.__init__: ID={id(self)}, trip_requests ID={id(self.trip_requests)}, len={len(self.trip_requests)}")
     
     def log_bike_movement(self, time, bike_id, departure_station_id, arrival_station_id, did_roam=False, bike_criticality=0.0):
         """Log a bike movement for later export to CSV"""
+        print(f"DEBUG log_bike_movement: simulator_id={id(self)}, list_id={id(self.bike_movements)}, bike={bike_id}, time={time:.1f}")
         day = int(time // (24*60))
         hour = int((time % (24*60)) // 60)
         minute = int(time % 60)
@@ -57,6 +65,8 @@ class LoggingSimulator(sim.Simulator):
             'did_roam': did_roam,
             'bike_criticality': bike_criticality
         })
+        if len(self.bike_movements) % 100 == 0:
+             print(f"DEBUG: Logged {len(self.bike_movements)} bike movements")
     
     def log_trip_request(self, time, station_id, success=True, failure_reason=None, did_roam=False,
                         arrival_station_id=None, travel_time=None, bike_id=None, bike_criticality=None):
@@ -79,6 +89,8 @@ class LoggingSimulator(sim.Simulator):
             'bike_id': bike_id if success else None,
             'bike_criticality': bike_criticality if success else None
         })
+        if len(self.trip_requests) % 100 == 0:
+             print(f"DEBUG: Logged {len(self.trip_requests)} trip requests")
 
     def full_step(self):
         super().full_step()
@@ -609,42 +621,59 @@ def write_bike_movements_to_file(filename, simulator, seed, alpha=None):
         seed: Random seed used for the simulation
         alpha: Alpha parameter value (optional)
     """
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-    filepath = RESULTS_DIR / filename
-    
-    with open(filepath, 'w', newline='') as f:
-        writer = csv.writer(f)
+    print(f"DEBUG write_bike_movements: simulator_id={id(simulator)}, list_id={id(simulator.bike_movements)}, len={len(simulator.bike_movements)}")
+    try:
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+        filepath = RESULTS_DIR / filename
+        print(f"DEBUG: Opening file for writing: {filepath}")
+        print(f"DEBUG: RESULTS_DIR = {RESULTS_DIR}")
+        print(f"DEBUG: First movement = {simulator.bike_movements[0] if simulator.bike_movements else 'EMPTY LIST'}")
         
-        # Write header
-        writer.writerow([
-            'Seed',
-            'Alpha',
-            'Day',
-            'Hour',
-            'Minute',
-            'Time (minutes)',
-            'Bike ID',
-            'Departure Station',
-            'Arrival Station',
-            'Did Roam',
-            'Bike Criticality',
-        ])
-        
-        # Write bike movement data rows
-        for movement in simulator.bike_movements:
+        with open(filepath, 'w', newline='') as f:
+            print(f"DEBUG: File opened, writing header...")
+            writer = csv.writer(f)
+            
+            # Write header
             writer.writerow([
-                seed,
-                alpha if alpha is not None else '',
-                movement['day'],
-                movement['hour'],
-                movement['minute'],
-                round(movement['time_minutes'], 2),
-                movement['bike_id'],
-                movement['departure_station'],
-                movement['arrival_station'],
-                movement['did_roam'],
-                round(movement.get('bike_criticality', 0.0), 4),
+                'Seed',
+                'Alpha',
+                'Day',
+                'Hour',
+                'Minute',
+                'Time (minutes)',
+                'Bike ID',
+                'Departure Station',
+                'Arrival Station',
+                'Did Roam',
+                'Bike Criticality',
             ])
+            print(f"DEBUG: Header written, writing {len(simulator.bike_movements)} rows...")
+            
+            # Write bike movement data rows
+            count = 0
+            for movement in simulator.bike_movements:
+                writer.writerow([
+                    seed,
+                    alpha if alpha is not None else '',
+                    movement['day'],
+                    movement['hour'],
+                    movement['minute'],
+                    round(movement['time_minutes'], 2),
+                    movement['bike_id'],
+                    movement['departure_station'],
+                    movement['arrival_station'],
+                    movement['did_roam'],
+                    round(movement.get('bike_criticality', 0.0), 4),
+                ])
+                count += 1
+            
+            print(f"DEBUG: Wrote {count} rows, closing file...")
+        
+        print(f"DEBUG: Successfully wrote {len(simulator.bike_movements)} bike movements to {filename}")
+    except Exception as e:
+        print(f"ERROR writing bike movements: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def write_trip_requests_to_file(filename, simulator, seed, alpha=None):
@@ -657,6 +686,7 @@ def write_trip_requests_to_file(filename, simulator, seed, alpha=None):
         seed: Random seed used for the simulation
         alpha: Alpha parameter value (optional)
     """
+    print(f"DEBUG: Writing {len(simulator.trip_requests)} trip requests to {filename}")
     os.makedirs(RESULTS_DIR, exist_ok=True)
     filepath = RESULTS_DIR / filename
     

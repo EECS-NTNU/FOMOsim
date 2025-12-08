@@ -61,6 +61,7 @@ class BikeArrival(Event):
                         maintenance_enabled = first_vehicle.policy.maintenance_enabled
 
                     if maintenance_enabled:
+                        print("Updating maintenance criticality for bike arrival...")
                         self.bike.maintenance_criticality = update_bike_maintenance(
                             self.bike,
                             self.travel_time,

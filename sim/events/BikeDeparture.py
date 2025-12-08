@@ -86,9 +86,10 @@ class BikeDeparture(Event):
             #print(f"  DEPARTURE: Bike {bike.bike_id} from {departure_station.id} -> to {arrival_station_id} "
                   #f"(t={self.time:.1f}, {maint_status}, travel={travel_time:.1f}min)")
             
-            # Log bike movement if simulator supports it
-            if hasattr(simul, 'log_bike_movement'):
+            # Log bike movement - direct call without hasattr check first for debugging
+            try:
                 bike_crit = getattr(bike, 'maintenance_criticality', 0.0)
+                print(f"DEBUG BikeDeparture: About to call log_bike_movement, simul_id={id(simul)}, type={type(simul).__name__}")
                 simul.log_bike_movement(
                     time=self.time,
                     bike_id=bike.bike_id,
@@ -97,9 +98,11 @@ class BikeDeparture(Event):
                     did_roam=False,
                     bike_criticality=bike_crit
                 )
+            except AttributeError as e:
+                print(f"ERROR: Cannot log bike movement: {e}, simul type: {type(simul)}")
             
             # Log successful trip request
-            if hasattr(simul, 'log_trip_request'):
+            try:
                 bike_crit = getattr(bike, 'maintenance_criticality', 0.0)
                 simul.log_trip_request(
                     time=self.time,
@@ -112,6 +115,8 @@ class BikeDeparture(Event):
                     bike_id=bike.bike_id,
                     bike_criticality=bike_crit
                 )
+            except AttributeError as e:
+                print(f"ERROR: Cannot log trip request: {e}, simul type: {type(simul)}")
 
             simul.state.metrics.add_aggregate_metric(simul.state, "bike departure", 1)
             simul.state.metrics.add_aggregate_metric(simul.state, "events", 2)
@@ -308,4 +313,4 @@ class BikeDeparture(Event):
         if random_roaming_limit <= prob_acceptance:
             return True
         else:
-            return False 
+            return False

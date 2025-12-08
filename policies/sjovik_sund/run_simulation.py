@@ -106,6 +106,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
         verbose=True,
     )
     
+    print(f"DEBUG: Simulator type: {type(simulator)}")
+    print(f"DEBUG: Has log_bike_movement: {hasattr(simulator, 'log_bike_movement')}")
+    print(f"DEBUG: Has log_trip_request: {hasattr(simulator, 'log_trip_request')}")
     print(f"Running simulation with duration {duration}, vehicles {num_vehicles}, seed {seed}, Instance {INSTANCE} and weights {policy.weights}")
     
     policy.maintenance_enabled = MAINTENANCE_ENABLED
@@ -142,6 +145,7 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         
         # Write all results
         for i, simulator in enumerate(returned_simulators):
+            print(f"DEBUG: Seed {list_of_seeds[i]} - Bike movements: {len(simulator.bike_movements)}, Trip requests: {len(simulator.trip_requests)}")
             solve_time = simulator.state.time  # Total simulation time
             write_results_to_file(results_file, simulator, duration, solve_time, list_of_seeds[i], append=(i > 0))
             
@@ -295,7 +299,7 @@ if __name__ == "__main__":
     start_time = time.time()
    
     # Test 1: Test default policy with multiple seeds (no multiprocessing for debugging)
-    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration=duration, use_multiprocessing=True)
+    test_policies(list_of_seeds=list_of_seeds, policy_dict=policy_dict, num_vehicles=num_vehicles, duration=duration, use_multiprocessing=False)
    
     # End timing
     total_duration = time.time() - start_time
