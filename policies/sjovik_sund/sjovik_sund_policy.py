@@ -280,9 +280,13 @@ class SjovikSundPolicy(Policy):
 
         bikes_at_station = list(vehicle.location.bikes.values())
         bikes_at_vehicle = vehicle.get_bike_inventory()
+        
+        # Calculate vehicle's remaining capacity
+        vehicle_remaining_capacity = vehicle.bike_inventory_capacity - len(bikes_at_vehicle)
 
         if net_transfer > 0: #net pickup
-            num_to_pickup = min(len(bikes_at_station), math.ceil(net_transfer))
+            # Must respect both station availability AND vehicle capacity
+            num_to_pickup = min(len(bikes_at_station), math.ceil(net_transfer), vehicle_remaining_capacity)
             num_to_deliver = 0
             loading_ids = [bikes_at_station[i].bike_id for i in range(num_to_pickup)]
             unloading_ids = []
