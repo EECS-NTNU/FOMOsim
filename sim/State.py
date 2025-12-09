@@ -467,7 +467,10 @@ class State(LoadSave):
         self.bikes_in_use[bike.bike_id] = bike
 
     def remove_used_bike(self, bike):
-        del self.bikes_in_use[bike.bike_id]
+        if bike.bike_id in self.bikes_in_use:
+            del self.bikes_in_use[bike.bike_id]
+        else:
+            print(f"Bike ID-{bike.bike_id} not found in bikes_in_use.")
 
     def get_sb_bikes_in_use(self):
         return [bike for bike in self.bikes_in_use.values() if bike.is_station_based]
