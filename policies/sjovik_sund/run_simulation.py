@@ -4,6 +4,8 @@
 import os
 import sys
 from pathlib import Path
+import argparse
+
  
 # Get workspace root (2 levels up from this file)
 WORKSPACE_ROOT = Path(__file__).parents[2]       
@@ -64,9 +66,6 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     
      
     # Load initial state using workspace-relative path
-    instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
-    state = init_state.read_initial_state(str(instance_path))
-    #state = init_state.read_initial_state(f"policies/sjovik_sund/generated_instances/{INSTANCE}")
     instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
     state = init_state.read_initial_state(str(instance_path))
     #state = init_state.read_initial_state(f"policies/sjovik_sund/generated_instances/{INSTANCE}")
@@ -234,10 +233,76 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
         results_file = f'{policy_name}_results.csv'
         test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing)
         
-      
+if __name__ == "__main__":
+    # ---- argument parsing for CLI ----
+    parser = argparse.ArgumentParser(
+        description="Run Sjovik & Sund simulation with different alpha values."
+    )
+    parser.add_argument(
+        "--alphas",
+        type=float,
+        nargs="+",
+        help=(
+            "List of alpha values to test. "
+            "If omitted, uses built-in defaults depending on MAINTENANCE_ENABLED."
+        ),
+    )
+    args = parser.parse_args()
+
+    # Simulation settings
+    duration = 24*5  # hours - (24 * 5) for one week
+    num_vehicles = 1  # Need at least 1 vehicle to test the policy!
+
+    service_weights = [0.45, 0.45, 0.1]
+    maintenance_reward = 1
+
+    # Determine alpha values: from CLI if provided, otherwise defaults
+    if args.alphas is not None:
+        alpha_values = args.alphas
+    else:
+        if MAINTENANCE_ENABLED:
+            alpha_values = [0.3, 0.2, 0.1, 0.4, 0.5]
+        else:
+            alpha_values = [0.0]
+
+    policy_dict = {}
+    for alpha in alpha_values:
+        weights = [w * (1 - alpha) for w in service_weights] + [maintenance_reward * alpha]
+        policy_name = (
+            f"sjovik_sund_alphas_0812252309_TD_seed_1_alpha01-05_fullweek_{alpha:.3f}"
+        )
+        policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
+            roaming=False,
+            time_horizon=5,
+            tau=5,
+            weights=weights,
+            hour_from=7,
+            hour_to=23,
+        )
+
+    # List of seeds to test
+    list_of_seeds = [1]  # Start with just 1 seed for debugging
+
+    # Start timing
+    start_time = time.time()
+
+    # Test policies (no multiprocessing for debugging)
+    test_policies(
+        list_of_seeds=list_of_seeds,
+        policy_dict=policy_dict,
+        num_vehicles=num_vehicles,
+        duration=duration,
+        use_multiprocessing=False,
+    )
+
+    # End timing
+    total_duration = time.time() - start_time
+    print(f"\n{'='*80}")
+    print(f"Total running time: {total_duration:.2f} seconds ({total_duration/60:.2f} minutes)")
+    print(f"{'='*80}\n")
 
  
-if __name__ == "__main__":
+'''if __name__ == "__main__":
    
     # Simulation settings
     duration = 24*5 # hours - (24 * 5) for one week
@@ -308,4 +373,4 @@ if __name__ == "__main__":
     total_duration = time.time() - start_time
     print(f"\n{'='*80}")
     print(f"Total running time: {total_duration:.2f} seconds ({total_duration/60:.2f} minutes)")
-    print(f"{'='*80}\n")
+    print(f"{'='*80}\n")'''
