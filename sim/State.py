@@ -470,7 +470,7 @@ class State(LoadSave):
         if bike.bike_id in self.bikes_in_use:
             del self.bikes_in_use[bike.bike_id]
         else:
-            print(f"Warning: Attempted to remove bike {bike.bike_id} from bikes_in_use, but it was not found.")
+            print(f"Bike ID-{bike.bike_id} not found in bikes_in_use.")
 
     def get_sb_bikes_in_use(self):
         return [bike for bike in self.bikes_in_use.values() if bike.is_station_based]
