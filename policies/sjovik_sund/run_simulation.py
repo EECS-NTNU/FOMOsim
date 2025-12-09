@@ -237,7 +237,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
 if __name__ == "__main__":
    
     # Simulation settings
-    duration = 24*2 # hours - (24 * 5) for one week
+    duration = 24*5 # hours - (24 * 5) for one week
     num_vehicles = 1 # Need at least 1 vehicle to test the policy! 
     
     
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     #alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
     #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
     if MAINTENANCE_ENABLED:
-        alpha = [0.3,0.2,0.1,0.4,0.5]
+        alpha = [0.3]
     else:
         alpha = [0.0]
    
@@ -281,13 +281,13 @@ if __name__ == "__main__":
     for alpha in alpha:
 
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
-        policy_name = f'sjovik_sund_alphas_0812252309_TD_seed_1_alpha01-05_fullweek_{alpha:.3f}'
-        policy_name = f'sjovik_sund_alphas_TD_08121610_seed_1_{duration}_hours_{alpha:.3f}'
+        #policy_name = f'sjovik_sund_alphas_0812252309_TD_seed_1_alpha01-05_fullweek_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_TD_0812300_seed_1_{duration}_hours_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=5, tau=5, weights=weights, hour_from=7, hour_to=23
     )
         
-
+    list_of_seeds = [1]
     
    
     # Instances to test
