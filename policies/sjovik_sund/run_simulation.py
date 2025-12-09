@@ -282,7 +282,7 @@ if __name__ == "__main__":
 
         weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
         #policy_name = f'sjovik_sund_alphas_0812252309_TD_seed_1_alpha01-05_fullweek_{alpha:.3f}'
-        policy_name = f'sjovik_sund_alphas_TD_09120900_seed_1_{duration}_hours_{alpha:.3f}'
+        policy_name = f'sjovik_sund_alphas_TD_09121045_seed_1_{duration}_hours_{alpha:.3f}'
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False, time_horizon=5, tau=5, weights=weights, hour_from=7, hour_to=23
     )

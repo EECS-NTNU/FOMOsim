@@ -13,8 +13,8 @@ def update_bike_maintenance(bike, travel_time, rng ,battery_level=None, congeste
     
     # Random wear (simulate unexpected damage)
     random_wear = 0.0
-    if rng.random() < 0.005:  # 0.5% chance
-        random_wear = rng.uniform(0.0, 0.1)
+    if rng.random() < 0.001:  # 1% chance
+        random_wear = rng.uniform(0.0, 0.2)
 
     # Calculate total wear
     total_wear = ( base_wear + random_wear)
