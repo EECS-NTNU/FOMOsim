@@ -20,17 +20,20 @@ This is realistic behavior - real-world travel times vary due to traffic, weathe
  
  
 class SjovikSundPolicy(Policy):
-    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None, hour_from=7, hour_to=21):
+    def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None, hour_from=7, hour_to=23, maintenance_enabled=True):
         self.roaming = roaming
         self.time_horizon = time_horizon
         self.tau = tau
         self.weights = weights
         self.vehicle_routes = {}  # Track actual routes: {vehicle_id: [(time, station_id), ...]}
         self.optimality_gaps = []
-        super().__init__()
+        super().__init__(maintenance_enabled=maintenance_enabled)
         self.set_time_of_service(hour_from=hour_from, hour_to=hour_to)  # Set working hours (default 7 AM - 4 PM)
  
     def get_best_action(self, simul, vehicle):
+        import time as time_module
+        t_action_start = time_module.time()
+        
         # Print state with current time's target states
         day = simul.day()
         hour = simul.hour()
@@ -49,9 +52,9 @@ class SjovikSundPolicy(Policy):
                   f"{len(station.bikes):>6} {avg_maint:>9.3f}")'''
         
         # Print maintenance summary
-        high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
+        '''high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
                                for s in simul.get_stations() 
-                               if s.get_average_maintenance_criticality() > 0.3 and len(s.bikes) > 0]
+                               if s.get_average_maintenance_criticality() > 0.3 and len(s.bikes) > 0]'''
         '''
         if high_maint_stations:
             high_maint_stations.sort(key=lambda x: x[1], reverse=True)
@@ -62,8 +65,28 @@ class SjovikSundPolicy(Policy):
                       f"High bikes (>0.5): {stats['high_criticality_count']}/{stats['count']}")'''
         
         # Solve subproblem for ALL vehicles based on current system state
+        print(f"\n{'='*70}")
+        print(f"STARTING OPTIMIZATION - Simulation time: {simul.time:.1f} min")
+        print(f"{'='*70}")
+        
+        # Calculate inventory imbalance diagnostics
+        total_imbalance = 0
+        max_imbalance = 0
+        for station in simul.get_stations():
+            target = station.get_target_state(day, hour)
+            current = len(station.bikes)
+            imbalance = abs(current - target)
+            total_imbalance += imbalance
+            max_imbalance = max(max_imbalance, imbalance)
+        avg_imbalance = total_imbalance / len(simul.get_stations())
+        print(f"[DIAGNOSTICS] Inventory imbalance: avg={avg_imbalance:.2f}, max={max_imbalance}, total={total_imbalance}")
+        
+        t_params_start = time_module.time()
         data = MILP_parameters(simul, self.time_horizon, self.weights, self.tau)
         data.initalize_parameters()
+        t_params_end = time_module.time()
+        
+        print(f"[TIMING] Parameter initialization: {t_params_end - t_params_start:.3f}s")
         
         # --- Print Simulation Clock ---
         time = simul.time
@@ -77,32 +100,6 @@ class SjovikSundPolicy(Policy):
         # Solve subproblem for ALL vehicles based on current system state
         data = MILP_parameters(simul, self.time_horizon, self.weights, self.tau)
         data.initalize_parameters()
-    
-
-        # --- Print Vehicles in Transit ---
-        print("\n--- Vehicles in Transit ---")
-        vehicles_in_transit = False
-        for v_id, v_obj in simul.vehicles.items():
-            if v_obj.eta > simul.time:
-                vehicles_in_transit = True
-                remaining_time = v_obj.eta - simul.time
-                
-                # Get destination from MILP parameters (expected travel time)
-                dest_station_id = v_obj.location.id
-                dest_idx = data.station_id_to_index.get(dest_station_id, -1)
-                
-                expected_time = "N/A"
-                if dest_idx != -1:
-                    expected_time = data.T_D.get((data.source, dest_idx), "Not in T_D")
-                
-                print(f"Vehicle {v_id}: -> To {dest_station_id}")
-                print(f"  Actual remaining: {remaining_time:.2f} min (stochastic sample)")
-                print(f"  Expected: {expected_time} min (policy planning value)")
-                if isinstance(expected_time, (int, float)) and abs(remaining_time - expected_time) > 1.0:
-                    print(f"  Deviation: {remaining_time - expected_time:+.2f} min (due to stochastic travel times)")
-        
-        if not vehicles_in_transit:
-            print("No vehicles currently in transit.")
 
 
         gurobi_output, gap = run_subproblem_model(data.to_dict())
@@ -115,11 +112,11 @@ class SjovikSundPolicy(Policy):
             return sim.Action([], [], [], vehicle.location.id)
         
         # Visualize the solution - KOMMENTER UT FOR Å UNNGÅ VISUALISERING
-        """try:
+        '''try:
             vis = Visualizer(gurobi_output, data)
             vis.visualize_route()
         except Exception as e:
-            print(f"Visualization failed: {e}")"""
+            print(f"Visualization failed: {e}")'''
         
         # --- NEW: Print All Planned Actions ---
         print("\n--- Planned Actions (Subproblem Solution) ---")
@@ -143,7 +140,7 @@ class SjovikSundPolicy(Policy):
                     to_idx = int(indices[1])
                     if from_idx >= 0: visited_stations.add(from_idx)
                     if to_idx >= 0: visited_stations.add(to_idx)
-                elif name in ['qL', 'qU', 'lN', 'starv', 'cong', 'dev']:
+                elif name in ['qL', 'qU', 'qL_curr', 'qL_other', 'qU_curr', 'qU_other', 'lN', 'starv', 'cong', 'dev']:
                     # These usually start with station index i
                     s_idx = int(indices[0])
                     if s_idx >= 0: visited_stations.add(s_idx)
@@ -156,7 +153,7 @@ class SjovikSundPolicy(Policy):
         print("Decisions:")
         for name, val in solution_vars:
             var_type = name.split("[")[0]
-            if var_type in ['x', 'qL', 'qU', 'qV', 'tM', "m_iv"]:
+            if var_type in ['x', 'qL', 'qU', 'qL_curr', 'qL_other', 'qU_curr', 'qU_other', 'qV', 'tM', "m_iv"]:
                 print(f"  {name} = {val:.2f}")
 
 
@@ -256,16 +253,18 @@ class SjovikSundPolicy(Policy):
             variable = var.varName.strip("]").split("[")
             name, indices = variable[0], variable[1].split(',')
             
-            if name in ['qL', 'qU', 'tM'] and var.x > 0.01:
+            # Handle all variable naming schemes: qL/qU (old), qL_curr/qL_other/qU_curr/qU_other (new)
+            if name in ['qL', 'qU', 'qL_curr', 'qL_other', 'qU_curr', 'qU_other', 'tM'] and var.x > 0.01:
+                # All current naming schemes use [i,v,t] with 3 indices
                 s_idx, v_idx, period_t = int(indices[0]), int(indices[1]), int(indices[2])
                 
                 if v_idx == vehicle_idx and s_idx == current_station_idx and period_t <= first_move_period:
                 #if v_idx == vehicle_idx and s_idx == current_station_idx:
                    
-                    if name == 'qL':
+                    if name in ['qL', 'qL_curr', 'qL_other']:
                         loading_quantity += var.x
                         print(f"  Load: {var.x:.2f} (Period {period_t})")
-                    elif name == 'qU':
+                    elif name in ['qU', 'qU_curr', 'qU_other']:
                         unloading_quantity += var.x
                         print(f"  Unload: {var.x:.2f} (Period {period_t})")
                     elif name == 'tM':
@@ -281,9 +280,13 @@ class SjovikSundPolicy(Policy):
 
         bikes_at_station = list(vehicle.location.bikes.values())
         bikes_at_vehicle = vehicle.get_bike_inventory()
+        
+        # Calculate vehicle's remaining capacity
+        vehicle_remaining_capacity = vehicle.bike_inventory_capacity - len(bikes_at_vehicle)
 
         if net_transfer > 0: #net pickup
-            num_to_pickup = min(len(bikes_at_station), math.ceil(net_transfer))
+            # Must respect both station availability AND vehicle capacity
+            num_to_pickup = min(len(bikes_at_station), math.ceil(net_transfer), vehicle_remaining_capacity)
             num_to_deliver = 0
             loading_ids = [bikes_at_station[i].bike_id for i in range(num_to_pickup)]
             unloading_ids = []

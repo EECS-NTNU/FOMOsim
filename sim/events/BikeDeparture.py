@@ -81,9 +81,46 @@ class BikeDeparture(Event):
             simul.state.set_bike_in_use(bike)
 
             # Print bike departure information
-            #maint_status = f"maint={bike.maintenance_criticality:.3f}" if hasattr(bike, 'maintenance_criticality') else ""
+            maint_status = f"maint={bike.maintenance_criticality:.3f}" if hasattr(bike, 'maintenance_criticality') else ""
+            
+            # Extra logging for S51
+            if departure_station.id == "S51":
+                print(f"  [S51 DEPARTURE] Bike {bike.bike_id} -> {arrival_station_id} (t={self.time:.1f}, {maint_status}, travel={travel_time:.1f}min)")
+            
             #print(f"  DEPARTURE: Bike {bike.bike_id} from {departure_station.id} -> to {arrival_station_id} "
                   #f"(t={self.time:.1f}, {maint_status}, travel={travel_time:.1f}min)")
+            
+            # Log bike movement - direct call without hasattr check first for debugging
+            try:
+                bike_crit = getattr(bike, 'maintenance_criticality', 0.0)
+                print(f"DEBUG BikeDeparture: About to call log_bike_movement, simul_id={id(simul)}, type={type(simul).__name__}")
+                simul.log_bike_movement(
+                    time=self.time,
+                    bike_id=bike.bike_id,
+                    departure_station_id=departure_station.id,
+                    arrival_station_id=arrival_station_id,
+                    did_roam=False,
+                    bike_criticality=bike_crit
+                )
+            except AttributeError as e:
+                print(f"ERROR: Cannot log bike movement: {e}, simul type: {type(simul)}")
+            
+            # Log successful trip request
+            try:
+                bike_crit = getattr(bike, 'maintenance_criticality', 0.0)
+                simul.log_trip_request(
+                    time=self.time,
+                    station_id=departure_station.id,
+                    success=True,
+                    failure_reason=None,
+                    did_roam=False,
+                    arrival_station_id=arrival_station_id,
+                    travel_time=travel_time,
+                    bike_id=bike.bike_id,
+                    bike_criticality=bike_crit
+                )
+            except AttributeError as e:
+                print(f"ERROR: Cannot log trip request: {e}, simul type: {type(simul)}")
 
             simul.state.metrics.add_aggregate_metric(simul.state, "bike departure", 1)
             simul.state.metrics.add_aggregate_metric(simul.state, "events", 2)
@@ -141,9 +178,37 @@ class BikeDeparture(Event):
                     simul.state.set_bike_in_use(bike)
                     
                     # Print roaming for bike
-                    #print(f"   ROAMING DEP: User walks from {departure_station.id} to {closest_neighbour_with_bikes.id} "
-                          #f"(dist={distance:.2f}km)  bike {bike.bike_id} -> {arrival_station_id} "
-                          #f"(t={self.time:.1f}, {maint_status})")
+                    maint_status = f"maint={bike.maintenance_criticality:.3f}" if hasattr(bike, 'maintenance_criticality') else ""
+                    print(f"   ROAMING DEP: User walks from {departure_station.id} to {closest_neighbour_with_bikes.id} "
+                          f"(dist={distance:.2f}km)  bike {bike.bike_id} -> {arrival_station_id} "
+                          f"(t={self.time:.1f}, {maint_status})")
+                    
+                    # Log bike movement if simulator supports it
+                    if hasattr(simul, 'log_bike_movement'):
+                        bike_crit = getattr(bike, 'maintenance_criticality', 0.0)
+                        simul.log_bike_movement(
+                            time=self.time,
+                            bike_id=bike.bike_id,
+                            departure_station_id=closest_neighbour_with_bikes.id,
+                            arrival_station_id=arrival_station_id,
+                            did_roam=True,
+                            bike_criticality=bike_crit
+                        )
+                    
+                    # Log successful roaming trip request
+                    if hasattr(simul, 'log_trip_request'):
+                        bike_crit = getattr(bike, 'maintenance_criticality', 0.0)
+                        simul.log_trip_request(
+                            time=self.time,
+                            station_id=departure_station.id,
+                            success=True,
+                            failure_reason=None,
+                            did_roam=True,
+                            arrival_station_id=arrival_station_id,
+                            travel_time=travel_time,
+                            bike_id=bike.bike_id,
+                            bike_criticality=bike_crit
+                        )
 
                     simul.state.metrics.add_aggregate_metric(simul.state, "bike departure", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "events", 2)
@@ -158,11 +223,16 @@ class BikeDeparture(Event):
                     if total_bikes_at_station <= 0:
                         print(f"  LOST TRIP: No bikes at {departure_station.id} (bike starvation, t={self.time:.1f})")
                         simul.state.metrics.add_aggregate_metric(simul.state, "bike starvations", 1)
-                    if total_bikes_at_station > 0 and unusable_bikes == total_bikes_at_station:
-                        print(f"  LOST TRIP: All bikes at {departure_station.id} require maintenance "
-                              f"(maintenance starvation, t={self.time:.1f})")
-                        simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_starvation", 1)
-                    '''
+                        
+                        # Log failed trip - bike starvation
+                        if hasattr(simul, 'log_trip_request'):
+                            simul.log_trip_request(
+                                time=self.time,
+                                station_id=departure_station.id,
+                                success=False,
+                                failure_reason='bike_starvation',
+                                did_roam=False
+                            )
                     else:
                         unusable_count = len(departure_station.get_unusable_bikes())
                         """print(f"  LOST TRIP: No usable bikes at {departure_station.id} "
@@ -171,14 +241,66 @@ class BikeDeparture(Event):
                         if unusable_count == total_bikes_at_station:
                             print(f"  LOST TRIP: All bikes at {departure_station.id} require maintenance "
                                   f"(maintenance starvation, t={self.time:.1f})")
-                            #simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
+                            
+                            # Log failed trip - maintenance starvation
+                            if hasattr(simul, 'log_trip_request'):
+                                simul.log_trip_request(
+                                    time=self.time,
+                                    station_id=departure_station.id,
+                                    success=False,
+                                    failure_reason='maintenance_starvation',
+                                    did_roam=False
+                                )
+                            
+                            # Print comprehensive overview of all stations
+                            print(f"\n=== MAINTENANCE STARVATION OVERVIEW (t={self.time:.1f}) ===")
+                            all_stations = simul.state.get_stations()
+                            print(f"{'Station':<10} {'Total':<7} {'Usable':<8} {'Unusable':<10} {'Demand':<8} {'Criticalities (Unusable Bikes)'}")
+                            print("=" * 100)
+                            
+                            for station in sorted(all_stations, key=lambda s: s.id):
+                                total = station.number_of_bikes()
+                                usable_bikes = station.get_available_bikes()
+                                unusable_bikes = station.get_unusable_bikes()
+                                num_usable = len(usable_bikes)
+                                num_unusable = len(unusable_bikes)
+                                
+                                # Get demand for this station at current time
+                                demand = 0
+                                if hasattr(station, 'get_demand'):
+                                    demand = station.get_demand(simul.state.day(), simul.state.hour())
+                                
+                                # Get criticalities of unusable bikes
+                                criticalities = []
+                                for bike in unusable_bikes:
+                                    if hasattr(bike, 'maintenance_criticality'):
+                                        criticalities.append(f"{bike.maintenance_criticality:.3f}")
+                                
+                                crit_str = ", ".join(criticalities) if criticalities else "N/A"
+                                if len(crit_str) > 50:
+                                    crit_str = crit_str[:47] + "..."
+                                
+                                print(f"{station.id:<10} {total:<7} {num_usable:<8} {num_unusable:<10} {demand:<8.2f} {crit_str}")
+                            
+                            print("=" * 100)
+                            print()
+                            
+                            simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
                             simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_starvation", 1)
                         else:
                             print(f"  LOST TRIP: No usable bikes at {departure_station.id} "
                                   f"({unusable_count} unusable, t={self.time:.1f})")
                             simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
-                    '''
-                    
+                            
+                            # Log failed trip - maintenance starvation (partial)
+                            """if hasattr(simul, 'log_trip_request'):
+                                simul.log_trip_request(
+                                    time=self.time,
+                                    station_id=departure_station.id,
+                                    success=False,
+                                    failure_reason='maintenance_starvation',
+                                    did_roam=False
+                                )"""
 
                     simul.state.metrics.add_aggregate_metric(simul.state, "events", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "starvations", 1)
@@ -195,4 +317,4 @@ class BikeDeparture(Event):
         if random_roaming_limit <= prob_acceptance:
             return True
         else:
-            return False 
+            return False

@@ -52,13 +52,23 @@ class BikeArrival(Event):
             if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:
                     simul.state.remove_used_bike(self.bike)
-                    self.bike.maintenance_criticality = update_bike_maintenance(
-                        self.bike,
-                        self.travel_time,
-                        simul.state.rng,
-                        battery_level=self.bike.battery,
-                        congested=self.congested
-                    )
+
+                    # Check if maintenance is enabled in the policy (assuming uniform policy)
+                    maintenance_enabled = True
+                    if len(simul.state.vehicles) > 0:
+                        # Get the first vehicle's policy
+                        first_vehicle = next(iter(simul.state.vehicles.values()))
+                        maintenance_enabled = first_vehicle.policy.maintenance_enabled
+
+                    if maintenance_enabled:
+                        print("Updating maintenance criticality for bike arrival...")
+                        self.bike.maintenance_criticality = update_bike_maintenance(
+                            self.bike,
+                            self.travel_time,
+                            simul.state.rng,
+                            battery_level=self.bike.battery,
+                            congested=self.congested
+                        )
 
                 #if self.bike.usable() == False:
                     #simul.state.metrics.add_aggregate_metric(simul.state, "Maintenance violations", 1)
@@ -75,8 +85,13 @@ class BikeArrival(Event):
                 #maint_status = f"maint={self.bike.maintenance_criticality:.3f}" if hasattr(self.bike, 'maintenance_criticality') else ""
                 usable_status = " usable" if self.bike.usable() else " UNUSABLE"
                 congestion_str = " [CONGESTED]" if self.congested else ""
+                
+                # Extra logging for S51
+                if arrival_station.id == "S51":
+                    print(f"  [S51 ARRIVAL] Bike {self.bike.bike_id} from {self.departure_station_id} (t={self.time:.1f}, {maint_status}, {usable_status}){congestion_str}")
+                
                 '''print(f"   ARRIVAL: Bike {self.bike.bike_id} at {arrival_station.id} "
-                      f"(t={self.time:.1f}, {maint_status}, {usable_status}){congestion_str}")'''
+                      f"(t={self.time:.1f}, {maint_status}, {usable_status}){congestion_str}'''
 
                 simul.state.metrics.add_aggregate_metric(simul.state, "bike arrival", 1)
 

@@ -12,7 +12,8 @@ class Policy(abc.ABC):
     Base Policy class
     """
 
-    def __init__(self):
+    def __init__(self, maintenance_enabled=True):
+        self.maintenance_enabled = maintenance_enabled
         self.set_time_of_service()
 
     @abc.abstractmethod

@@ -11,17 +11,25 @@ import datetime
 def run_subproblem_model(data):
  
     try:
+        import time as time_module
+        t_model_start = time_module.time()
+        
+        print(f"\n[MODEL BUILD START]")
         m = Model("DSBRP_Subproblem")
         m.setParam('OutputFlag', False)
         m.setParam('TimeLimit', 3600)  # 60 minutes max
-        m.setParam('MIPGap', 0.05)  # Stop at 0% gap (optimal solutions)
+        m.setParam('MIPGap', 0.05)  # Stop at 5% gap
         m.setParam('Presolve', 2)  # Aggressive presolve
         m.setParam('MIPFocus', 1)  # Focus on finding good feasible solutions quickly
+        
+        t_model_created = time_module.time()
+        print(f"[TIMING] Gurobi model object creation: {t_model_created - t_model_start:.4f}s")
  
         ###########################################################################################################
         # SETS
         ############################################################################################################
  
+        t_extract_start = time_module.time()
         T = data["T"]
         tau = data["tau"]
         N = list(data["N"])
@@ -57,11 +65,16 @@ def run_subproblem_model(data):
         for i in N0:
             if (i,i) not in T_DD: T_DD[(i,i)] = 1
             if (i,i) not in T_D:  T_D[(i,i)]  = 0.0
+        
+        t_extract_end = time_module.time()
+        print(f"[TIMING] Parameter extraction: {t_extract_end - t_extract_start:.4f}s")
+        print(f"[MODEL INFO] Stations: {len(N)}, Vehicles: {len(Vh)}, Time horizon: {T} periods ({T*tau} min)")
  
         ###################################################################################################
         # Decision variables
         ###################################################################################################
 
+        t_arcs_start = time_module.time()
         # Build list of feasible arcs first
         feasible_arcs = []
         
@@ -92,8 +105,8 @@ def run_subproblem_model(data):
                      feasible_arcs.append((j, d, v, T))
 
         # Debug: Print initialized nodes/arcs summary
-        print("\n=== FEASIBLE ARCS SUMMARY ===")
-        print(f"Total feasible arcs: {len(feasible_arcs)}")
+        #print("\n=== FEASIBLE ARCS SUMMARY ===")
+        #print(f"Total feasible arcs: {len(feasible_arcs)}")
         
         # Count arcs by type
         source_arcs = [a for a in feasible_arcs if a[0] == s]
@@ -109,8 +122,12 @@ def run_subproblem_model(data):
         # for arc in source_arcs:
             #print(f"  {arc}")
             
+        t_arcs_end = time_module.time()
+        print(f"[TIMING] Arc generation: {t_arcs_end - t_arcs_start:.4f}s")
+        print(f"[MODEL INFO] Total arcs: {len(feasible_arcs)} (source: {len(source_arcs)}, network: {len(network_arcs)}, sink: {len(sink_arcs)})")
         print("=============================\n")
         
+        t_vars_start = time_module.time()
         # Batch create x and qV variables using tupledict (much faster!)
         x = m.addVars(feasible_arcs, vtype=GRB.BINARY, name="x")
         qV = m.addVars(feasible_arcs, vtype = GRB.INTEGER, lb=0.0, name="qV")
@@ -125,9 +142,43 @@ def run_subproblem_model(data):
         # Maintenance selection m_iv ∈ {0,1}
         m_iv = m.addVars(N, Vh, vtype=GRB.BINARY, name="m_iv")
 
-        # qL, qU ≥ 0 (integer unless relaxed), defined for i in N (stations only), v in V, t in Tpos
-        qL = m.addVars(N, Vh, Tpos, lb=0.0, vtype=GRB.INTEGER, name="qL")
-        qU = m.addVars(N, Vh, Tpos, lb=0.0, vtype=GRB.INTEGER, name="qU")        
+        # qL, qU ≥ 0: INTEGER for current station (across all periods), CONTINUOUS for other stations
+        # This ensures any decisions executed at the current station are integer, while future planning
+        # at stations not yet visited can be fractional (significantly reducing integer variables)
+        
+        # For each vehicle, identify its current station (where it starts)
+        current_stations = {v: eta[v] for v in Vh}
+        
+        # Create separate variables for current vs future stations
+        qL_current = {}  # Integer variables for current station
+        qU_current = {}  # Integer variables for current station
+        qL_other = {}    # Continuous variables for other stations
+        qU_other = {}    # Continuous variables for other stations
+        
+        for i in N:
+            for v in Vh:
+                for t in Tpos:
+                    if i == current_stations[v]:
+                        # Current station: must be integer (may execute these decisions)
+                        qL_current[(i, v, t)] = m.addVar(lb=0.0, vtype=GRB.INTEGER, name=f"qL_curr[{i},{v},{t}]")
+                        qU_current[(i, v, t)] = m.addVar(lb=0.0, vtype=GRB.INTEGER, name=f"qU_curr[{i},{v},{t}]")
+                    else:
+                        # Other stations: continuous (future planning only)
+                        qL_other[(i, v, t)] = m.addVar(lb=0.0, vtype=GRB.CONTINUOUS, name=f"qL_other[{i},{v},{t}]")
+                        qU_other[(i, v, t)] = m.addVar(lb=0.0, vtype=GRB.CONTINUOUS, name=f"qU_other[{i},{v},{t}]")
+        
+        # Helper functions to access qL/qU transparently
+        def get_qL(i, v, t):
+            if i == current_stations[v]:
+                return qL_current.get((i, v, t), 0)
+            else:
+                return qL_other.get((i, v, t), 0)
+        
+        def get_qU(i, v, t):
+            if i == current_stations[v]:
+                return qU_current.get((i, v, t), 0)
+            else:
+                return qU_other.get((i, v, t), 0)
 
         # lN_it ≥ 0 for i in N, t in T0
         lN = m.addVars(N, T0, vtype=GRB.CONTINUOUS, lb=0.0, name="lN")
@@ -141,6 +192,14 @@ def run_subproblem_model(data):
  
         # deviation di ≥ 0 continuous
         d_abs = m.addVars(N, vtype=GRB.CONTINUOUS, lb=0.0, name="dev")
+        
+        t_vars_end = time_module.time()
+        print(f"[TIMING] Variable creation: {t_vars_end - t_vars_start:.4f}s")
+        # Updated count: qL/qU split by current station (integer) vs other stations (continuous)
+        num_qL_qU_integer = 2 * len(Vh) * len(Tpos)  # Current station only: 2 * |V| * |T|
+        num_qL_qU_continuous = 2 * (len(N) - 1) * len(Vh) * len(Tpos)  # Other stations: 2 * (|N|-1) * |V| * |T|
+        num_other_vars = len(feasible_arcs)*2 + len(N)*len(Vh)*(1+len(Tpos)) + len(N)*(len(T0)+len(Tpos)*2+1)
+        print(f"[MODEL SIZE] Integer qL/qU: {num_qL_qU_integer} (current station), Continuous qL/qU: {num_qL_qU_continuous} (other stations)")
 
  
         # Helper: export objective-term breakdown for analysis / thesis
@@ -196,16 +255,20 @@ def run_subproblem_model(data):
         # OBJECTIVE
         ###########################################################################################################
     
+        t_obj_start = time_module.time()
         m.setObjective(quicksum(
             quicksum(w_S*s_var[i,t] + w_C*c_var[i,t] - quicksum(r_M * (tM[i,v,t] / T_M) for v in Vh) for t in Tpos)+ w_D * d_abs[i]
             for i in N
         ),
         sense=GRB.MINIMIZE)
+        t_obj_end = time_module.time()
+        print(f"[TIMING] Objective function setup: {t_obj_end - t_obj_start:.4f}s")
  
         ##########################################################################################
         # Routing constraints
         ############################################################################################
         
+        t_constr_start = time_module.time()
         
         # (2) Each vehicle departs from source at t=0 to its designated station eta^v
         # Ensures vehicle v goes from source s to station eta[v] at time 0: x_{s,eta^v,v,0} = 1
@@ -269,12 +332,15 @@ def run_subproblem_model(data):
         # Station inventory balance constraints
         ###########################################################################################
  
-        # (7) inventory balance:
+        # (7) inventory balance with congestion/starvation slacks:
+        # s_var: bikes added when demand would make inventory negative (unmet departures)
+        # c_var: bikes removed when arrivals would exceed capacity (rejected arrivals)
         for i in N:
             for t in Tpos:
                 m.addConstr(
-                    lN[i, t-1] + D[(i, t)] + quicksum(qU[i, v, t] - qL[i, v, t] for v in Vh) + s_var[i, t] - c_var[i, t]
+                    lN[i, t-1] + D[(i, t)] + quicksum(get_qU(i, v, t) - get_qL(i, v, t) for v in Vh) + s_var[i, t] - c_var[i, t]
                     == lN[i, t],
+                    
                     name=f"inv_bal_i{i}_t{t}"
                 )
  
@@ -287,6 +353,8 @@ def run_subproblem_model(data):
             for t in T0:
                 m.addConstr(lN[i, t] <= Q_S[i], name=f"cap_i{i}_t{t}")        
         
+        t_inventory_end = time_module.time()
+        print(f"[TIMING] Inventory constraints: {t_inventory_end - t_constr_start:.4f}s")
 
  
         #############################################################################################################
@@ -310,7 +378,7 @@ def run_subproblem_model(data):
                     )
                     outgoing = quicksum(get_qV(i, k, v, t) for k in (N + [d]) if (i, k) in T_DD)  # Exclude source - no arcs TO source
                     m.addConstr(
-                        incoming - qU[i, v, t] + qL[i, v, t] == outgoing,
+                        incoming - get_qU(i, v, t) + get_qL(i, v, t) == outgoing,
                         name=f"veh_load_bal_i{i}_v{v}_t{t}"
                     )
  
@@ -323,14 +391,14 @@ def run_subproblem_model(data):
                         for j in (N + [s])  # Exclude sink - no arcs FROM sink
                         if (j, i) in T_DD and t - T_DD[(j, i)] >= 0
                     )
-                    m.addConstr(qU[i, v, t] <= incoming, name=f"unload_le_incoming_i{i}_v{v}_t{t}")
+                    m.addConstr(get_qU(i, v, t) <= incoming, name=f"unload_le_incoming_i{i}_v{v}_t{t}")
  
  
         # (13) cannot load more than station inventory upon arrival
         for i in N:
             for v in Vh:
                 for t in Tpos:
-                    m.addConstr(qL[i, v, t] <= lN[i, t-1], name=f"load_le_inv_i{i}_v{v}_t{t}")
+                    m.addConstr(get_qL(i, v, t) <= lN[i, t-1], name=f"load_le_inv_i{i}_v{v}_t{t}")
  
         # (14) vehicle capacity link
         for i in N0:
@@ -358,7 +426,7 @@ def run_subproblem_model(data):
 
                 # --- Calculate Service Time (Loading/Unloading + Maintenance) ---
                 # Sum over all activities performed up to time t
-                service_term = quicksum(T_L * (qL[i, v, t_prime] + qU[i, v, t_prime]) + tM[i, v, t_prime] for t_prime in Tpos if t_prime <= t for i in N)
+                service_term = quicksum(T_L * (get_qL(i, v, t_prime) + get_qU(i, v, t_prime)) + tM[i, v, t_prime] for t_prime in Tpos if t_prime <= t for i in N)
 
                 # Total Time Used (LHS for both constraints)
                 total_time_consumed = driving_term + service_term
@@ -394,7 +462,7 @@ def run_subproblem_model(data):
             for v in Vh:
                 for t in Tpos:
                     m.addConstr(
-                        T_L * (qL[i, v, t] + qU[i, v, t]) + tM[i, v, t]
+                        T_L * (get_qL(i, v, t) + get_qU(i, v, t)) + tM[i, v, t]
                         <= 2 * tau * quicksum(get_x(i, j, v, t) for j in N0),
                         name=f"service_presence_i{i}_v{v}_t{t}"
                     )
@@ -412,12 +480,28 @@ def run_subproblem_model(data):
         for i in N:
             m.addConstr(d_abs[i] >= I_T[i] - lN[i, T], name=f"dev_pos_i{i}")
             m.addConstr(d_abs[i] >= lN[i, T] - I_T[i], name=f"dev_neg_i{i}")
+        
+        t_constr_end = time_module.time()
+        print(f"[TIMING] Maintenance & deviation constraints (10-23): {t_constr_end - t_inventory_end:.4f}s")
+        print(f"[TIMING] Total constraint creation: {t_constr_end - t_constr_start:.4f}s")
+        print(f"[TIMING] Total model build: {t_constr_end - t_model_start:.4f}s")
  
         ##########################################################################################
         # set some Gurobi parameters for speed/stability
         m.Params.OutputFlag = 1
- 
+        
+        print(f"\n[OPTIMIZATION START]")
+        t_optimize_start = time_module.time()
         m.optimize()
+        t_optimize_end = time_module.time()
+        
+        print(f"[OPTIMIZATION END]")
+        print(f"[TIMING] Gurobi optimize: {t_optimize_end - t_optimize_start:.3f}s")
+        print(f"[TIMING] Total subproblem: {t_optimize_end - t_model_start:.3f}s")
+        print(f"[MODEL STATS] Status: {m.Status}, Variables: {m.NumVars}, Constraints: {m.NumConstrs}")
+        print(f"[MODEL STATS] Binaries: {m.NumBinVars}, Integers: {m.NumIntVars}, Continuous: {m.NumVars - m.NumBinVars - m.NumIntVars}")
+        if m.Status in [GRB.OPTIMAL, GRB.TIME_LIMIT, GRB.SUBOPTIMAL]:
+            print(f"[SOLUTION] Objective: {m.ObjVal:.4f}, MIPGap: {m.MIPGap:.4%}, Nodes explored: {m.NodeCount}")
 
         gap = None
         if m.status == GRB.OPTIMAL or m.status == GRB.TIME_LIMIT:
@@ -457,7 +541,8 @@ def run_subproblem_model(data):
                         total_congestion += c_val
                         prev_inv = lN[i, t-1].X
                         dem = D[(i, t)]
-                        net_load = sum(qU[i, v, t].X - qL[i, v, t].X for v in Vh)
+                        # Access solution values using helper functions
+                        net_load = sum(get_qU(i, v, t).X - get_qL(i, v, t).X for v in Vh)
                         s_val = s_var[i, t].X
                         curr_inv = lN[i, t].X
                         cap = Q_S[i]
