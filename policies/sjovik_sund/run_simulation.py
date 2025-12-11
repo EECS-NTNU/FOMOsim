@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 import argparse
+from datetime import datetime
 
 # Get workspace root (2 levels up from this file)
 WORKSPACE_ROOT = Path(__file__).parents[2]
@@ -26,9 +27,11 @@ from settings import *
 
 # Import visualization if needed
 try:
+    from policies.sjovik_sund.visualize_subproblem import Visualizer
     VISUALIZATION_AVAILABLE = True
 except ImportError:
     VISUALIZATION_AVAILABLE = False
+    print("Warning: Visualization not available")
 
 MAINTENANCE_ENABLED = True
 
@@ -162,25 +165,25 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
 
             # Write vehicle visits for this seed
             visits_filename = f"{filename.replace('.csv', '')}_vehicle_visits_seed_{list_of_seeds[i]}.csv"
-            write_vehicle_visits_to_file(visits_filename, simulator, list_of_seeds[i])
+            #write_vehicle_visits_to_file(visits_filename, simulator, list_of_seeds[i])
 
             # Write station hourly metrics for this seed
             station_hourly_filename = f"{filename.replace('.csv', '')}_station_hourly_seed_{list_of_seeds[i]}.csv"
-            write_station_hourly_metrics_to_file(station_hourly_filename, simulator, list_of_seeds[i])
+            #write_station_hourly_metrics_to_file(station_hourly_filename, simulator, list_of_seeds[i])
 
             # Write bike movements for this seed
             # Extract alpha from policy weights if available
             alpha_value = policy.weights[3] if policy.weights and len(policy.weights) > 3 else None
             bike_movements_filename = f"{filename.replace('.csv', '')}_bike_movements_seed_{list_of_seeds[i]}.csv"
-            write_bike_movements_to_file(bike_movements_filename, simulator, list_of_seeds[i], alpha_value)
+            #write_bike_movements_to_file(bike_movements_filename, simulator, list_of_seeds[i], alpha_value)
 
             # Write trip requests for this seed
             trip_requests_filename = f"{filename.replace('.csv', '')}_trip_requests_seed_{list_of_seeds[i]}.csv"
-            write_trip_requests_to_file(trip_requests_filename, simulator, list_of_seeds[i], alpha_value)
+            #write_trip_requests_to_file(trip_requests_filename, simulator, list_of_seeds[i], alpha_value)
 
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{list_of_seeds[i]}.txt"
-            write_simulation_summary(summary_filename, simulator, duration, policy, list_of_seeds[i], num_vehicles)
+            #write_simulation_summary(summary_filename, simulator, duration, policy, list_of_seeds[i], num_vehicles)
 
             print(f"Seed {list_of_seeds[i]}: Completed in {solve_time:.2f}s")
             print(f"Hourly metrics written to: policies/sjovik_sund/simulation_results/{hourly_filename}")
@@ -201,25 +204,25 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
 
             # Write vehicle visits for this seed
             visits_filename = f"{filename.replace('.csv', '')}_vehicle_visits_seed_{seed}.csv"
-            write_vehicle_visits_to_file(visits_filename, simulator, seed)
+            #write_vehicle_visits_to_file(visits_filename, simulator, seed)
 
             # Write station hourly metrics for this seed
             station_hourly_filename = f"{filename.replace('.csv', '')}_station_hourly_seed_{seed}.csv"
-            write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
+            #write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
 
             # Write bike movements for this seed
             # Extract alpha from policy weights if available
             alpha_value = policy.weights[3] if policy.weights and len(policy.weights) > 3 else None
             bike_movements_filename = f"{filename.replace('.csv', '')}_bike_movements_seed_{seed}.csv"
-            write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
+            #write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
 
             # Write trip requests for this seed
             trip_requests_filename = f"{filename.replace('.csv', '')}_trip_requests_seed_{seed}.csv"
-            write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
+            #write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
 
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{seed}.txt"
-            write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
+            #write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
 
             print(f"Seed {seed}: Completed in {solve_time:.2f}s")
             print(f"Hourly metrics written to: policies/sjovik_sund/simulation_results/{hourly_filename}")
@@ -269,7 +272,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Simulation settings
-    duration = 24*5  # hours - (24 * 5) for one week
+    duration = 24*5 # hours - (24 * 5) for one week
     num_vehicles = 1  # Need at least 1 vehicle to test the policy!
 
     service_weights = [0.45, 0.45, 0.1]
@@ -288,11 +291,13 @@ if __name__ == "__main__":
     start_seed = args.seed
     list_of_seeds = list(range(start_seed, start_seed + args.nsims))
 
+    timestamp = datetime.now().strftime("%m%d%H%M")
+
     policy_dict = {}
     for alpha in alpha_values:
         weights = [w * (1 - alpha) for w in service_weights] + [maintenance_reward * alpha]
         policy_name = (
-            f"sjovik_sund_alphas_0812252309_TD_seed_{start_seed}_alpha01-05_fullweek_{alpha:.3f}"
+            f"sjovik_sund_{timestamp}_TD_duration_{duration}_seed_{start_seed}_alpha_{alpha:.3f}"
         )
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False,
