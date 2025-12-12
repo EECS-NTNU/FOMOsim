@@ -133,8 +133,25 @@ class LoggingSimulator(sim.Simulator):
         all_bikes = self.state.get_all_bikes()
         if all_bikes:
             avg_bike_criticality = sum(bike.maintenance_criticality for bike in all_bikes) / len(all_bikes)
+            # Count bikes in different criticality ranges
+            bikes_critical = sum(1 for bike in all_bikes if bike.maintenance_criticality > 0.83)
+            bikes_high = sum(1 for bike in all_bikes if 0.6 < bike.maintenance_criticality <= 0.83)
+            bikes_medium = sum(1 for bike in all_bikes if 0.3 < bike.maintenance_criticality <= 0.6)
+            bikes_low = sum(1 for bike in all_bikes if bike.maintenance_criticality <= 0.3)
+            
+            # Log bike criticality distribution
+            print(f"\n--- HOURLY BIKE CRITICALITY (Hour {hour}, t={current_time:.1f}) ---")
+            print(f"Average Criticality: {avg_bike_criticality:.4f}")
+            print(f"Distribution:")
+            print(f"  Critical (>0.83):     {bikes_critical:>4} bikes ({bikes_critical/len(all_bikes)*100:.1f}%)")
+            print(f"  High (0.60-0.83):     {bikes_high:>4} bikes ({bikes_high/len(all_bikes)*100:.1f}%)")
+            print(f"  Medium (0.30-0.60):   {bikes_medium:>4} bikes ({bikes_medium/len(all_bikes)*100:.1f}%)")
+            print(f"  Low (<=0.30):         {bikes_low:>4} bikes ({bikes_low/len(all_bikes)*100:.1f}%)")
+            print(f"  Total Fleet:          {len(all_bikes):>4} bikes")
+            print(f"-------------------------------------------------------\n")
         else:
             avg_bike_criticality = 0.0
+            bikes_critical = bikes_high = bikes_medium = bikes_low = 0
         
         # Calculate station-level metrics
         self.log_station_metrics(hour, current_time)
@@ -173,6 +190,10 @@ class LoggingSimulator(sim.Simulator):
             'bike_deliveries': hourly_bike_deliveries,
             'maintenance_time': hourly_maintenance_time,
             'avg_bike_criticality': avg_bike_criticality,
+            'bikes_critical': bikes_critical,
+            'bikes_high': bikes_high,
+            'bikes_medium': bikes_medium,
+            'bikes_low': bikes_low,
         })
         
         # Update last hour values for next calculation
@@ -215,6 +236,46 @@ class LoggingSimulator(sim.Simulator):
         daily_starvations = starvations - self.last_starvations
         daily_congestions = congestions - self.last_congestions
         
+        # Get bikes that have criticality above 0.83
+        critical_bikes = [bike for bike in self.state.get_all_bikes() if bike.maintenance_criticality > 0.83]
+        print(f"DAY {day} END: Bikes with criticality > 0.83: {len(critical_bikes)}")
+        
+        # Print details of critical bikes BEFORE resetting
+        if critical_bikes:
+            print(f"\n{'='*60}")
+            print(f"CRITICAL BIKES BEFORE OVERNIGHT MAINTENANCE (Day {day} End)")
+            print(f"{'='*60}")
+            print(f"{'Bike ID':<15} {'Criticality Before':<20} {'Location':<20}")
+            print("-" * 60)
+            
+            for bike in critical_bikes:
+                location = "In Transit"
+                if hasattr(bike, 'location') and bike.location:
+                    location = bike.location.id
+                else:
+                    # Check if bike is at any station
+                    for station in self.state.get_stations():
+                        if bike in station.get_bikes():
+                            location = station.id
+                            break
+                
+                print(f"{bike.bike_id:<15} {bike.maintenance_criticality:<20.4f} {location:<20}")
+            
+            print("-" * 60)
+            print(f"Total: {len(critical_bikes)} bikes will be reset to 0.0 criticality")
+            print(f"{'='*60}\n")
+            
+            # Reset criticality to 0.0 (simulating overnight maintenance)
+            for bike in critical_bikes:
+                bike.maintenance_criticality = 0.0
+            
+            # Print confirmation AFTER resetting
+            print(f"{'='*60}")
+            print(f"CRITICAL BIKES AFTER OVERNIGHT MAINTENANCE (Day {day} End)")
+            print(f"{'='*60}")
+            print(f"All {len(critical_bikes)} bikes have been reset to 0.0 criticality")
+            print(f"{'='*60}\n")
+
         print(f"\n{'='*40}")
         print(f"DAY {day} SUMMARY (23:00)")
         print(f"{'='*40}")
@@ -456,6 +517,10 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
             'Bike Deliveries',
             'Maintenance Time (minutes)',
             'Avg Bike Criticality',
+            'Bikes Critical (>0.83)',
+            'Bikes High (0.60-0.83)',
+            'Bikes Medium (0.30-0.60)',
+            'Bikes Low (<=0.30)',
         ])
         
         # Write hourly data rows
@@ -475,6 +540,10 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
                 hour_data.get('bike_deliveries', 0),
                 round(hour_data.get('maintenance_time', 0.0), 2),
                 round(hour_data.get('avg_bike_criticality', 0.0), 4),
+                hour_data.get('bikes_critical', 0),
+                hour_data.get('bikes_high', 0),
+                hour_data.get('bikes_medium', 0),
+                hour_data.get('bikes_low', 0),
             ])
 
 
