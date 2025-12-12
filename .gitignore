@@ -164,6 +164,10 @@ policies/sjovik_sund/simulation_results/History
 policies/sjovik_sund/simulation_results/No_maintenance
 policies/sjovik_sund/simulation_results/TD full week
 policies/sjovik_sund/output/
+policies/sjovik_sund/Scripts/Maintenance_reward_analysis/Plots
+policies/sjovik_sund/simulation_results/Hourly_violation_plots
+policies/sjovik_sund/simulation_results/raw output files
+policies/sjovik_sund/simulation_results/TD
 
 output_TD_test_instans_0412251339.txt
 output_EH_0412251324.txt
