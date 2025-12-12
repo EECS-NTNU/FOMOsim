@@ -10,6 +10,13 @@ import argparse
 WORKSPACE_ROOT = Path(__file__).parents[2]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, '')
+
+# Force Python to not use cached bytecode - critical for cluster environments
+sys.dont_write_bytecode = True
+# Clear any existing __pycache__ to ensure fresh imports
+import importlib
+if hasattr(importlib, 'invalidate_caches'):
+    importlib.invalidate_caches()
 ################################################################
 
 import init_state
@@ -60,7 +67,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     # INSTANCE = "trondheim"
     # INSTANCE = "NY_W31"
     # INSTANCE = "OS_W31"
-    # INSTANCE = "EH_W31"
+    #INSTANCE = "EH_W31"
 
     # Load initial state using workspace-relative path
     instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
@@ -269,7 +276,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Simulation settings
-    duration = 24*5  # hours - (24 * 5) for one week
+    duration = 24*5 # hours - (24 * 5) for one week
     num_vehicles = 1  # Need at least 1 vehicle to test the policy!
 
     service_weights = [0.45, 0.45, 0.1]
@@ -292,7 +299,7 @@ if __name__ == "__main__":
     for alpha in alpha_values:
         weights = [w * (1 - alpha) for w in service_weights] + [maintenance_reward * alpha]
         policy_name = (
-            f"sjovik_sund_alphas_0812252309_TD_seed_{start_seed}_alpha01-05_fullweek_{alpha:.3f}"
+            f"sjovik_sund_alphas_1112251951_TD_000125_TEST03_seed_{start_seed}_alpha01-05_fullweek_{alpha:.3f}"
         )
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False,

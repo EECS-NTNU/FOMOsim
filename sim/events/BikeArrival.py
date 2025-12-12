@@ -51,24 +51,41 @@ class BikeArrival(Event):
             # add bike to the arrived station (location is changed in add_bike method)
             if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:
+                    print(f"   DROP-OFF: Bike {self.bike.bike_id} at {arrival_station.id} from {self.departure_station_id} "
+                          f"(t={self.time:.1f}, +{self.travel_time:.1f}min)")
                     simul.state.remove_used_bike(self.bike)
 
                     # Check if maintenance is enabled in the policy (assuming uniform policy)
                     maintenance_enabled = True
                     if len(simul.state.vehicles) > 0:
+                        print("DEBUG: Checking maintenance policy from vehicles...")
                         # Get the first vehicle's policy
                         first_vehicle = next(iter(simul.state.vehicles.values()))
                         maintenance_enabled = first_vehicle.policy.maintenance_enabled
-
+                    print(f"DEBUG: Maintenance enabled: {maintenance_enabled}")
                     if maintenance_enabled:
-                        print("Updating maintenance criticality for bike arrival...")
-                        self.bike.maintenance_criticality = update_bike_maintenance(
-                            self.bike,
-                            self.travel_time,
-                            simul.state.rng,
-                            battery_level=self.bike.battery,
-                            congested=self.congested
-                        )
+                        try:
+                            old_crit = self.bike.maintenance_criticality
+                            print("HEEEEEEI",old_crit)
+                            new_crit = update_bike_maintenance(
+                                self.bike,
+                                self.travel_time,
+                                simul.state.rng,
+                                battery_level=self.bike.battery,
+                                congested=self.congested
+                            )
+                            print("HAAAAALLLAAA",new_crit)
+                            self.bike.maintenance_criticality = new_crit
+                            # Debug: print first few updates to verify it's working
+                            if simul.state.time < 500:  # Only print early in simulation
+                                expected_increase = self.travel_time * 0.0025
+                                actual_increase = new_crit - old_crit
+                                print(f"DEBUG MAINT UPDATE: Bike {self.bike.bike_id} travel={self.travel_time:.1f}min, "
+                                      f"crit: {old_crit:.4f} -> {new_crit:.4f} (expected +{expected_increase:.6f}, actual +{actual_increase:.6f})")
+                        except Exception as e:
+                            print(f"ERROR updating bike maintenance for {self.bike.bike_id}: {e}")
+                            import traceback
+                            traceback.print_exc()
 
                 #if self.bike.usable() == False:
                     #simul.state.metrics.add_aggregate_metric(simul.state, "Maintenance violations", 1)
