@@ -274,19 +274,10 @@ if __name__ == "__main__":
 
     service_weights = [0.45, 0.45, 0.1]
     maintenance_reward = 1
-
-    # Determine alpha values: from CLI if provided, otherwise defaults
-    if args.alphas is not None:
-        alpha_values = args.alphas
-    else:
-        if MAINTENANCE_ENABLED:
-            alpha_values = [0.3, 0.2, 0.1, 0.4, 0.5]
-        else:
-            alpha_values = [0.0]
-
-    # Determine seeds: start at args.seed, run nsims seeds
-    start_seed = args.seed
-    list_of_seeds = list(range(start_seed, start_seed + args.nsims))
+    alpha = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01]
+    #weights = [w*(1-alpha) for w in service_weights] + [maintenance_reward*alpha]
+    alpha = [0.4,0.4,0.3,0.2,0.1,0.0]
+   
 
     policy_dict = {}
     for alpha in alpha_values:

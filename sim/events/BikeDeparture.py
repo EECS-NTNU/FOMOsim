@@ -3,35 +3,35 @@ from sim import Event
 from settings import *
 import numpy as np
 import random
-
+ 
 class BikeDeparture(Event):
     """
     Event fired when a customer requests a trip from a given departure station. Creates a Lost Trip or Bike Arrival
     event based on the availability of the station
     """
-
+ 
     def __init__(self, departure_time, departure_station_id):
         super().__init__(departure_time)
         self.departure_station_id = departure_station_id
-
+ 
     def perform(self, simul) -> None:
         """
         :param simul: Simulation object
         """
-
+ 
         super().perform(simul)
-
+ 
         # get departure station
         departure_station = simul.state.get_location_by_id(self.departure_station_id)
-
+ 
         # get all available bike in the station
         available_bikes = departure_station.get_available_bikes()
         total_bikes_at_station = departure_station.number_of_bikes()
-
+ 
         # if there are no more available bikes -> make a LostTrip event for that departure time
         if len(available_bikes) > 0:
             bike = available_bikes.pop(0)
-
+ 
             if FULL_TRIP:
                 if simul.state.rng.random() < RANDOM_DESTINATION_PROB:
                     # Exclude the current area from the random selection
@@ -51,15 +51,15 @@ class BikeDeparture(Event):
                         else:
                             p_normalized.append(1/len(p))
                     arrival_station_id = simul.state.rng.choice(list(mp.keys()), p = p_normalized)
-
+ 
                 arrival_station = simul.state.get_location_by_id(arrival_station_id)
-
+ 
                 travel_time = simul.state.get_travel_time(
                     departure_station.id,
                     arrival_station.id,
                 )
-
-
+ 
+ 
                 # create an arrival event for the departed bike
                 simul.add_event(
                     sim.BikeArrival(
@@ -70,12 +70,12 @@ class BikeDeparture(Event):
                         departure_station.id,
                     )
                 )
-
+ 
             # remove bike from the departure station
             departure_station.remove_bike(bike)
-
+ 
             simul.state.set_bike_in_use(bike)
-
+ 
             # Print bike departure information
             maint_status = f"maint={bike.maintenance_criticality:.3f}" if hasattr(bike, 'maintenance_criticality') else ""
             
@@ -117,10 +117,10 @@ class BikeDeparture(Event):
                 )
             except AttributeError as e:
                 print(f"ERROR: Cannot log trip request: {e}, simul type: {type(simul)}")
-
+ 
             simul.state.metrics.add_aggregate_metric(simul.state, "bike departure", 1)
             simul.state.metrics.add_aggregate_metric(simul.state, "events", 2)
-
+ 
         else:
             if FULL_TRIP:
                 closest_neighbour_with_bikes = simul.state.get_neighbouring_stations(departure_station,1,not_empty=True)[0]
@@ -148,15 +148,15 @@ class BikeDeparture(Event):
                         arrival_station_id = simul.state.rng.choice(list(mp.keys()), p = p_normalized)
                     
                     arrival_station = simul.state.get_location_by_id(arrival_station_id)
-
+ 
                     travel_time = simul.state.get_travel_time(
                         closest_neighbour_with_bikes.id,
                         arrival_station.id,) + simul.state.get_travel_time(departure_station.id,
-                        closest_neighbour_with_bikes.id)*(BIKE_SPEED/WALKING_SPEED) 
+                        closest_neighbour_with_bikes.id)*(BIKE_SPEED/WALKING_SPEED)
                     #total travel time, roaming for bike from departure station to neighbour + cycling to arrival station
-
-                    # calculate arrival time 
-
+ 
+                    # calculate arrival time
+ 
                     # create an arrival event for the roaming user from the new departure station
                     simul.add_event(
                         sim.BikeArrival(
@@ -167,10 +167,10 @@ class BikeDeparture(Event):
                             closest_neighbour_with_bikes.id,
                         )
                     )
-
+ 
                     # remove bike from the new departure station
                     closest_neighbour_with_bikes.remove_bike(bike)
-
+ 
                     simul.state.set_bike_in_use(bike)
                     
                     # Print roaming for bike
@@ -205,13 +205,13 @@ class BikeDeparture(Event):
                             bike_id=bike.bike_id,
                             bike_criticality=bike_crit
                         )
-
+ 
                     simul.state.metrics.add_aggregate_metric(simul.state, "bike departure", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "events", 2)
-
+ 
                     simul.state.metrics.add_aggregate_metric(simul.state, "roaming for bikes", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "roaming distance for bikes", distance)
-
+ 
                 else:
                     # Print lost trip information
                     # checkpoint
@@ -297,13 +297,13 @@ class BikeDeparture(Event):
                                     failure_reason='maintenance_starvation',
                                     did_roam=False
                                 )"""
-
+ 
                     simul.state.metrics.add_aggregate_metric(simul.state, "events", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "starvations", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "failed events", 1)
                     
         simul.state.metrics.add_aggregate_metric(simul.state, "trips", 1)
-
+ 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, departing from station {self.departure_station_id}>"
     
