@@ -93,9 +93,9 @@ class BikeArrival(Event):
                     )
                     
                     # Print roaming information
-                    #maint_status = f"maint={self.bike.maintenance_criticality:.3f}" if hasattr(self.bike, 'maintenance_criticality') else ""
-                    #print(f"   ROAMING: Bike {self.bike.bike_id} - {arrival_station.id} FULL -> routing to {next_station.id} from {arrival_station.id} "
-                          #f"(t={self.time:.1f}, {}, +{travel_time:.1f}min)")
+                    maint_status = f"maint={self.bike.maintenance_criticality:.3f}" if hasattr(self.bike, 'maintenance_criticality') else ""
+                    print(f"   ROAMING: Bike {self.bike.bike_id} - {arrival_station.id} FULL -> routing to {next_station.id} from {arrival_station.id} "
+                          f"(t={self.time:.1f}, {maint_status}, +{travel_time:.1f}min)")
 
                     # create an arrival event for the departed bike
                     simul.add_event(
