@@ -287,7 +287,8 @@ if __name__ == "__main__":
         alpha_values = args.alphas
     else:
         if MAINTENANCE_ENABLED:
-            alpha_values = [0.0]
+            alpha_values = [0.0] # ta vekk etter sjekk for nightly vedlikehold
+            #alpha_values = [0.3, 0.2, 0.1, 0.4, 0.5]
         else:
             alpha_values = [0.0]
  
