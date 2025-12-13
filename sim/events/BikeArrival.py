@@ -78,7 +78,7 @@ class BikeArrival(Event):
                             self.bike.maintenance_criticality = new_crit
                             # Debug: print first few updates to verify it's working
                             if simul.state.time < 500:  # Only print early in simulation
-                                expected_increase = self.travel_time * 0.0025
+                                expected_increase = self.travel_time * 0.00125
                                 actual_increase = new_crit - old_crit
                                 print(f"DEBUG MAINT UPDATE: Bike {self.bike.bike_id} travel={self.travel_time:.1f}min, "
                                       f"crit: {old_crit:.4f} -> {new_crit:.4f} (expected +{expected_increase:.6f}, actual +{actual_increase:.6f})")
