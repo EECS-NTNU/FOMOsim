@@ -12,6 +12,8 @@ WORKSPACE_ROOT = Path(__file__).parents[2]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, '')
 
+
+
 # Force Python to not use cached bytecode - critical for cluster environments
 sys.dont_write_bytecode = True
 # Clear any existing __pycache__ to ensure fresh imports
@@ -174,7 +176,8 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         for i, simulator in enumerate(returned_simulators):
             print(
                 f"DEBUG: Seed {list_of_seeds[i]} - Bike movements: {len(simulator.bike_movements)}, "
-                f"Trip requests: {len(simulator.trip_requests)}"
+                f"Trip requests: {len(simulator.trip_requests)}, "
+                f"Vehicle decisions: {len(simulator.vehicle_decisions) if hasattr(simulator, 'vehicle_decisions') else 'MISSING'}"
             )
             solve_time = simulator.state.time  # Total simulation time
             write_results_to_file(results_file, simulator, duration, solve_time, list_of_seeds[i], append=(i > 0))
@@ -200,7 +203,13 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             # Write trip requests for this seed
             trip_requests_filename = f"{filename.replace('.csv', '')}_trip_requests_seed_{list_of_seeds[i]}.csv"
             write_trip_requests_to_file(trip_requests_filename, simulator, list_of_seeds[i], alpha_value)
-  
+
+            # --- NEW: Write Vehicle Decisions ---
+            '''decisions_filename = f"{filename.replace('.csv', '')}_vehicle_decisions_seed_{list_of_seeds[i]}.csv"
+            write_vehicle_decisions_to_file(decisions_filename, simulator, list_of_seeds[i])
+            print(f"Vehicle decisions written to: policies/sjovik_sund/simulation_results/{decisions_filename}")'''
+            # ------------------------------------
+ 
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{list_of_seeds[i]}.txt"
             write_simulation_summary(summary_filename, simulator, duration, policy, list_of_seeds[i], num_vehicles)
@@ -239,7 +248,13 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             # Write trip requests for this seed
             trip_requests_filename = f"{filename.replace('.csv', '')}_trip_requests_seed_{seed}.csv"
             write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
-  
+
+            # --- NEW: Write Vehicle Decisions ---
+            '''decisions_filename = f"{filename.replace('.csv', '')}_vehicle_decisions_seed_{seed}.csv"
+            write_vehicle_decisions_to_file(decisions_filename, simulator, seed)
+            print(f"Vehicle decisions written to: policies/sjovik_sund/simulation_results/{decisions_filename}")'''
+            # ------------------------------------
+ 
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{seed}.txt"
             write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
@@ -288,7 +303,14 @@ if __name__ == "__main__":
         default=1,
         help="Number of simulations (different seeds) per policy (default: 1).",
     )
-  
+    # --- NEW ARGUMENT ---
+    parser.add_argument(
+        "--time_horizon",
+        type=int,
+        default=5,
+        help="Time horizon (T) for the MILP look-ahead policy (default: 5).",
+    )
+
     args = parser.parse_args()
   
     # Simulation settings
@@ -303,8 +325,8 @@ if __name__ == "__main__":
         alpha_values = args.alphas
     else:
         if MAINTENANCE_ENABLED:
-            alpha_values = [0.0] # ta vekk etter sjekk for nightly vedlikehold
-            #alpha_values = [0.3, 0.2, 0.1, 0.4, 0.5]
+            #alpha_values = [0.0] # ta vekk etter sjekk for nightly vedlikehold
+            alpha_values = [0.25]
         else:
             alpha_values = [0.0]
  
@@ -317,12 +339,15 @@ if __name__ == "__main__":
     policy_dict = {}
     for alpha in alpha_values:
         weights = [w * (1 - alpha) for w in service_weights] + [maintenance_reward * alpha]
+        
+        # Updated name to include Time Horizon (T) for file clarity
         policy_name = (
-            f"sjovik_sund_{timestamp}_TD_duration_{duration}_seed_{start_seed}_alpha_{alpha:.3f}"
+            f"sjovik_sund_alphas_1112251951_TD_000125_seed_{start_seed}_alpha01-05_fullweek_{alpha:.3f}"
         )
+        
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False,
-            time_horizon=5,
+            time_horizon=args.time_horizon,  # <--- Using the argument here
             tau=5,
             weights=weights,
             hour_from=7,
