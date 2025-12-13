@@ -11,7 +11,7 @@ from datetime import datetime
 WORKSPACE_ROOT = Path(__file__).parents[2]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, '')
- 
+
 # Force Python to not use cached bytecode - critical for cluster environments
 sys.dont_write_bytecode = True
 # Clear any existing __pycache__ to ensure fresh imports
@@ -42,8 +42,10 @@ except ImportError:
 
 MAINTENANCE_ENABLED = True
  
+ 
 import time
 import multiprocessing as mp
+ 
  
 # Import logging utilities
 from policies.sjovik_sund.simulation_logging import (
@@ -58,13 +60,17 @@ from policies.sjovik_sund.simulation_logging import (
 )
  
  
+ 
+ 
 def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTANCE=None):
+ 
  
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
  
+ 
     INSTANCE = "TD_W34_old"
-    # INSTANCE = "TD_W34_37"
+    #INSTANCE = "TD_W34_37"
     # INSTANCE = "TD_W34_testinstans"
     # INSTANCE = "TD_W34_filtered_28_stations"
     # INSTANCE = "trondheim"
@@ -78,16 +84,20 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     # state = init_state.read_initial_state(f"policies/sjovik_sund/generated_instances/{INSTANCE}")
     state.set_seed(seed)
  
+ 
     # Initialize bike maintenance criticality AFTER setting seed for deterministic results
     if MAINTENANCE_ENABLED:
         state.initialize_bike_maintenance()
  
+ 
     vehicles = [policy for i in range(num_vehicles)]
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
+ 
  
     # tstate = target_state.USTargetState()
     # tstate = target_state.EqualProbTargetState()
     tstate = target_state.HalfCapacityTargetState()
+ 
  
     # Assign vehicles to start stations based on instance
     start_stations = [0]
@@ -99,6 +109,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
         start_stations = [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7,
                           0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2]
  
+ 
     # Distribute vehicles to start stations
     for i in range(num_vehicles):
         vehicle_id = f"V{i}"
@@ -107,6 +118,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
             if station_id in state.locations:
                 state.vehicles[vehicle_id].location = state.locations[station_id]
                 print(f"Vehicle {vehicle_id} assigned to {station_id}")
+ 
  
     d = demand.Demand()
     simulator = LoggingSimulator(
@@ -118,6 +130,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
         verbose=True,
     )
  
+ 
     print(f"DEBUG: Simulator type: {type(simulator)}")
     print(f"DEBUG: Has log_bike_movement: {hasattr(simulator, 'log_bike_movement')}")
     print(f"DEBUG: Has log_trip_request: {hasattr(simulator, 'log_trip_request')}")
@@ -125,38 +138,38 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
         f"Running simulation with duration {duration}, vehicles {num_vehicles}, "
         f"seed {seed}, Instance {INSTANCE} and weights {policy.weights}"
     )
- 
+  
     policy.maintenance_enabled = MAINTENANCE_ENABLED
- 
+  
     simulator.run()
- 
+  
     if queue is not None:
         queue.put(simulator)
     return simulator
- 
- 
+  
+  
 def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True):
     results_file = filename
- 
+  
     if use_multiprocessing:
         # Run simulations in parallel
         queue = mp.Queue()
         processes = []
- 
+  
         for seed in list_of_seeds:
             p = mp.Process(target=run_simulation, args=(seed, policy, duration, num_vehicles, queue))
             processes.append(p)
             p.start()
- 
+  
         # Wait for all processes to complete and collect results
         returned_simulators = []
         for process in processes:
             simulator = queue.get()  # Will block until result available
             returned_simulators.append(simulator)
- 
+  
         for process in processes:
             process.join()
- 
+  
         # Write all results
         for i, simulator in enumerate(returned_simulators):
             print(
@@ -165,37 +178,37 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             )
             solve_time = simulator.state.time  # Total simulation time
             write_results_to_file(results_file, simulator, duration, solve_time, list_of_seeds[i], append=(i > 0))
- 
+  
             # Write hourly metrics for this seed (one file per run)
             hourly_filename = f"{filename.replace('.csv', '')}_hourly_seed_{list_of_seeds[i]}.csv"
             write_hourly_metrics_to_file(hourly_filename, simulator, list_of_seeds[i])
- 
+  
             # Write vehicle visits for this seed
             visits_filename = f"{filename.replace('.csv', '')}_vehicle_visits_seed_{list_of_seeds[i]}.csv"
             write_vehicle_visits_to_file(visits_filename, simulator, list_of_seeds[i])
- 
+  
             # Write station hourly metrics for this seed
             station_hourly_filename = f"{filename.replace('.csv', '')}_station_hourly_seed_{list_of_seeds[i]}.csv"
             write_station_hourly_metrics_to_file(station_hourly_filename, simulator, list_of_seeds[i])
- 
+  
             # Write bike movements for this seed
             # Extract alpha from policy weights if available
             alpha_value = policy.weights[3] if policy.weights and len(policy.weights) > 3 else None
             bike_movements_filename = f"{filename.replace('.csv', '')}_bike_movements_seed_{list_of_seeds[i]}.csv"
             write_bike_movements_to_file(bike_movements_filename, simulator, list_of_seeds[i], alpha_value)
- 
+  
             # Write trip requests for this seed
             trip_requests_filename = f"{filename.replace('.csv', '')}_trip_requests_seed_{list_of_seeds[i]}.csv"
             write_trip_requests_to_file(trip_requests_filename, simulator, list_of_seeds[i], alpha_value)
- 
+  
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{list_of_seeds[i]}.txt"
             write_simulation_summary(summary_filename, simulator, duration, policy, list_of_seeds[i], num_vehicles)
- 
+  
             print(f"Seed {list_of_seeds[i]}: Completed in {solve_time:.2f}s")
             print(f"Hourly metrics written to: policies/sjovik_sund/simulation_results/{hourly_filename}")
             print(f"Vehicle visits written to: policies/sjovik_sund/simulation_results/{visits_filename}")
- 
+  
     else:
         # Run simulations sequentially (easier for debugging)
         for i, seed in enumerate(list_of_seeds):
@@ -204,51 +217,51 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             simulator = run_simulation(seed, policy, duration, num_vehicles)
             solve_time = time.time() - start_solve
             write_results_to_file(results_file, simulator, duration, solve_time, seed, append=(i > 0))
- 
+  
             # Write hourly metrics for this seed (one file per run)
             hourly_filename = f"{filename.replace('.csv', '')}_hourly_seed_{seed}.csv"
             write_hourly_metrics_to_file(hourly_filename, simulator, seed)
- 
+  
             # Write vehicle visits for this seed
             visits_filename = f"{filename.replace('.csv', '')}_vehicle_visits_seed_{seed}.csv"
             write_vehicle_visits_to_file(visits_filename, simulator, seed)
- 
+  
             # Write station hourly metrics for this seed
             station_hourly_filename = f"{filename.replace('.csv', '')}_station_hourly_seed_{seed}.csv"
             write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
- 
+  
             # Write bike movements for this seed
             # Extract alpha from policy weights if available
             alpha_value = policy.weights[3] if policy.weights and len(policy.weights) > 3 else None
             bike_movements_filename = f"{filename.replace('.csv', '')}_bike_movements_seed_{seed}.csv"
             write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
- 
+  
             # Write trip requests for this seed
             trip_requests_filename = f"{filename.replace('.csv', '')}_trip_requests_seed_{seed}.csv"
             write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
- 
+  
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{seed}.txt"
             write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
- 
+  
             print(f"Seed {seed}: Completed in {solve_time:.2f}s")
             print(f"Hourly metrics written to: policies/sjovik_sund/simulation_results/{hourly_filename}")
             print(f"Vehicle visits written to: policies/sjovik_sund/simulation_results/{visits_filename}")
- 
+  
     print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
- 
- 
+  
+  
 def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False):
     for policy_name, policy in policy_dict.items():
         print(f"\n{'='*80}")
         print(f"Testing Policy: {policy_name}")
         print(f"{'='*80}\n")
- 
+  
         # Test this policy with all seeds
         results_file = f'{policy_name}_results.csv'
         test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing)
- 
- 
+  
+  
 if __name__ == "__main__":
     # ---- argument parsing for CLI ----
     parser = argparse.ArgumentParser(
@@ -275,23 +288,23 @@ if __name__ == "__main__":
         default=1,
         help="Number of simulations (different seeds) per policy (default: 1).",
     )
- 
+  
     args = parser.parse_args()
- 
+  
     # Simulation settings
-    duration = 24*5 # hours - (24 * 5) for one week
     duration = 24*5 # hours - (24 * 5) for one week
     num_vehicles = 1  # Need at least 1 vehicle to test the policy!
  
     service_weights = [0.45, 0.45, 0.1]
     maintenance_reward = 1
-
+ 
     # Determine alpha values: from CLI if provided, otherwise defaults
     if args.alphas is not None:
         alpha_values = args.alphas
     else:
         if MAINTENANCE_ENABLED:
-            alpha_values = [0.3, 0.2, 0.1, 0.4, 0.5]
+            alpha_values = [0.0] # ta vekk etter sjekk for nightly vedlikehold
+            #alpha_values = [0.3, 0.2, 0.1, 0.4, 0.5]
         else:
             alpha_values = [0.0]
  

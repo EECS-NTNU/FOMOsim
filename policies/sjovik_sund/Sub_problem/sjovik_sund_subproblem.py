@@ -48,8 +48,9 @@ def run_subproblem_model(data):
         T_L  = float(data["T_L"])
         T_M_min = data["T_M_min"]
         T_M_max = data["T_M_max"]
-        #T_M_min = np.array([0 for i in N])
-        #T_M_max = np.array([0 for i in N])
+        #T_M_min = np.array([0 for i in N])  # Brukes til å teste nightly maintenance
+        #T_M_max = np.array([0 for i in N])  # Brukes til å teste nightly maintenance
+ 
         T_M = data.get("T_M") # Average time to maintain one bike
         Q_V  = data["Q_V"]
         Q_V0 = data["Q_V0"]
