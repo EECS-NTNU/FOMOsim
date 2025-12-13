@@ -324,7 +324,7 @@ if __name__ == "__main__":
         
         # Updated name to include Time Horizon (T) for file clarity
         policy_name = (
-            f"sjovik_sund_alphas_TD_final_seed_{start_seed}_T{args.time_horizon}_alpha_{alpha:.3f}"
+            f"sjovik_sund_alphas_1112251951_TD_000125_seed_{start_seed}_alpha01-05_fullweek_{alpha:.3f}"
         )
         
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
