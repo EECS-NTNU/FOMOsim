@@ -1,0 +1,56 @@
+================================================================================
+SJOVIK SUND POLICY SIMULATION SUMMARY (Seed 1)
+================================================================================
+
+--- PARAMETERS ---
+Policy Type: MILP-based (Direct Optimization)
+Number of Vehicles: 1
+Simulation Duration: 24.0 hours
+MILP Parameters:
+  Time Horizon (T): 5 periods
+  Period Length (tau): 5 minutes
+  Roaming Enabled: False
+
+Objective Weights:
+  Starvation Weight (w_S): 0.3375
+  Congestion Weight (w_C): 0.3375
+  Deviation Weight (w_D): 0.07500000000000001
+  Maintenance reward (r_M): 0.25
+
+--- ACCUMULATED OBJECTIVE FUNCTION ---
+Total Objective Value: 179.6625
+Breakdown:
+  Starvations: 345 (Contribution: 116.4375)
+  Congestions: 194 (Contribution: 65.4750)
+  Maintenance Time: 9.00 (Contribution: -2.2500)
+  Short Congestions: 112 (Contribution: 0)
+  Maintenance Violation Events: 0
+  Maintenance Starvations: 160
+
+--- TRIP ACCOUNTING VERIFICATION ---
+Attempted Bike Departures (trips metric): 3160
+Successful Bike Departures: 2815
+Bike Starvations: 185
+Maintenance Starvations: 160
+
+Verification: 2815 + 185 + 160 = 3160
+[OK] VERIFIED: All attempted departures accounted for
+
+--- OPTIMIZATION PERFORMANCE ---
+Average Optimality Gap: 4.8327%
+Maximum Optimality Gap: 4.9998%
+Total Optimizations: 9
+
+--- ACTUAL VEHICLE ROUTES ---
+Vehicle V0 Route:
+  Start: S37 at Day 0, Hour 11:00 (t=660.0)
+  Move 1: S4 at Day 0, Hour 11:08 (t=668.2) [+8.2 min]
+  Move 2: S58 at Day 0, Hour 11:12 (t=672.5) [+4.2 min]
+  Move 3: S59 at Day 0, Hour 11:21 (t=681.2) [+8.7 min]
+  Move 4: S18 at Day 0, Hour 11:30 (t=690.1) [+8.9 min]
+  Move 5: S64 at Day 0, Hour 11:38 (t=698.6) [+8.5 min]
+  Move 6: S60 at Day 0, Hour 11:44 (t=704.6) [+6.0 min]
+  Move 7: S31 at Day 0, Hour 11:53 (t=713.4) [+8.9 min]
+  Move 8: S61 at Day 0, Hour 11:57 (t=718.0) [+4.5 min]
+  Summary: 9 stops, 9 unique stations, 58.0 min total
+
