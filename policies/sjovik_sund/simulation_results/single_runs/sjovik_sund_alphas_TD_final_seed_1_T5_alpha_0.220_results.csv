@@ -1,2 +1,0 @@
-Seed,Duration (hours),Total Runtime (s),Failed Events,Starvations,Bike Starvations,Long Congestions,Short Congestions,Total Trips,Bike Departures,Bike Arrivals,Vehicle Arrivals,Bike Deliveries,Bike Pickups,Maintenance Time (minutes),Maintenance Violations,Maintenance Starvations
-1,120,11459.32,1509,1012,921,497,695,15492,14480,14472,465,1390,1404,1190.6560106155125,38,91
