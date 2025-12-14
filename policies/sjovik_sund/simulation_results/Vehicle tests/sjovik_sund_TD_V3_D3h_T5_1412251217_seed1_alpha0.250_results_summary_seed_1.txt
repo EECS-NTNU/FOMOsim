@@ -1,0 +1,92 @@
+================================================================================
+SJOVIK SUND POLICY SIMULATION SUMMARY (Seed 1)
+================================================================================
+
+--- PARAMETERS ---
+Policy Type: MILP-based (Direct Optimization)
+Number of Vehicles: 3
+Simulation Duration: 3.0 hours
+MILP Parameters:
+  Time Horizon (T): 5 periods
+  Period Length (tau): 5 minutes
+  Roaming Enabled: False
+
+Objective Weights:
+  Starvation Weight (w_S): 0.3375
+  Congestion Weight (w_C): 0.3375
+  Deviation Weight (w_D): 0.07500000000000001
+  Maintenance reward (r_M): 0.25
+
+--- ACCUMULATED OBJECTIVE FUNCTION ---
+Total Objective Value: -90.4174
+Breakdown:
+  Starvations: 1 (Contribution: 0.3375)
+  Congestions: 0 (Contribution: 0.0000)
+  Maintenance Time: 363.02 (Contribution: -90.7549)
+  Short Congestions: 0 (Contribution: 0)
+  Maintenance Violation Events: 0
+  Maintenance Starvations: 0
+
+--- TRIP ACCOUNTING VERIFICATION ---
+Attempted Bike Departures (trips metric): 268
+Successful Bike Departures: 267
+Bike Starvations: 1
+Maintenance Starvations: 0
+
+Verification: 267 + 1 + 0 = 268
+[OK] VERIFIED: All attempted departures accounted for
+
+--- OPTIMIZATION PERFORMANCE ---
+Average Optimality Gap: 3.5597%
+Maximum Optimality Gap: 4.9976%
+Total Optimizations: 39
+
+--- ACTUAL VEHICLE ROUTES ---
+Vehicle V0 Route:
+  Start: S0 at Day 0, Hour 07:00 (t=420.0)
+  Move 1: S11 at Day 0, Hour 07:08 (t=428.5) [+8.5 min]
+  Move 2: S0 at Day 0, Hour 07:32 (t=452.1) [+23.5 min]
+  Move 3: S11 at Day 0, Hour 07:35 (t=455.6) [+3.5 min]
+  Move 4: S11 at Day 0, Hour 08:03 (t=483.6) [+28.0 min]
+  Move 5: S16 at Day 0, Hour 08:11 (t=491.1) [+7.5 min]
+  Move 6: S0 at Day 0, Hour 08:35 (t=515.3) [+24.2 min]
+  Move 7: S11 at Day 0, Hour 08:39 (t=519.3) [+4.0 min]
+  Move 8: S2 at Day 0, Hour 08:46 (t=526.4) [+7.1 min]
+  Move 9: S25 at Day 0, Hour 08:52 (t=532.6) [+6.2 min]
+  Move 10: S26 at Day 0, Hour 08:59 (t=539.6) [+6.9 min]
+  Move 11: S27 at Day 0, Hour 09:07 (t=547.1) [+7.5 min]
+  Move 12: S26 at Day 0, Hour 09:12 (t=552.6) [+5.5 min]
+  Move 13: S26 at Day 0, Hour 09:40 (t=580.6) [+28.0 min]
+  Move 14: S25 at Day 0, Hour 09:45 (t=585.1) [+4.4 min]
+  Move 15: S19 at Day 0, Hour 09:56 (t=596.4) [+11.3 min]
+  Summary: 16 stops, 8 unique stations, 176.4 min total
+
+Vehicle V1 Route:
+  Start: S5 at Day 0, Hour 07:00 (t=420.0)
+  Move 1: S22 at Day 0, Hour 07:04 (t=424.7) [+4.7 min]
+  Move 2: S22 at Day 0, Hour 07:32 (t=452.7) [+28.0 min]
+  Move 3: S21 at Day 0, Hour 07:55 (t=475.7) [+23.0 min]
+  Move 4: S5 at Day 0, Hour 07:59 (t=479.7) [+4.0 min]
+  Move 5: S22 at Day 0, Hour 08:15 (t=495.7) [+16.0 min]
+  Move 6: S21 at Day 0, Hour 08:23 (t=503.7) [+8.0 min]
+  Move 7: S5 at Day 0, Hour 08:32 (t=512.3) [+8.5 min]
+  Move 8: S21 at Day 0, Hour 08:45 (t=525.8) [+13.5 min]
+  Move 9: S5 at Day 0, Hour 08:59 (t=539.3) [+13.5 min]
+  Move 10: S21 at Day 0, Hour 09:18 (t=558.3) [+19.0 min]
+  Move 11: S22 at Day 0, Hour 09:27 (t=567.2) [+8.8 min]
+  Move 12: S21 at Day 0, Hour 09:50 (t=591.0) [+23.8 min]
+  Summary: 13 stops, 3 unique stations, 171.0 min total
+
+Vehicle V2 Route:
+  Start: S10 at Day 0, Hour 07:00 (t=420.0)
+  Move 1: S10 at Day 0, Hour 07:28 (t=448.0) [+28.0 min]
+  Move 2: S23 at Day 0, Hour 07:39 (t=459.3) [+11.3 min]
+  Move 3: S17 at Day 0, Hour 07:44 (t=464.7) [+5.3 min]
+  Move 4: S19 at Day 0, Hour 07:54 (t=474.1) [+9.4 min]
+  Move 5: S24 at Day 0, Hour 08:12 (t=492.1) [+18.0 min]
+  Move 6: S24 at Day 0, Hour 08:40 (t=520.1) [+28.0 min]
+  Move 7: S24 at Day 0, Hour 09:08 (t=548.1) [+28.0 min]
+  Move 8: S18 at Day 0, Hour 09:22 (t=562.1) [+14.1 min]
+  Move 9: S24 at Day 0, Hour 09:32 (t=572.2) [+10.1 min]
+  Summary: 10 stops, 6 unique stations, 152.2 min total
+
