@@ -325,14 +325,15 @@ if __name__ == "__main__":
         alpha_values = args.alphas
     else:
         if MAINTENANCE_ENABLED:
-            #alpha_values = [0.0] # ta vekk etter sjekk for nightly vedlikehold
-            alpha_values = [0.25]
+            alpha_values = [0.0] # ta vekk etter sjekk for nightly vedlikehold
+            #alpha_values = [0.25]
         else:
             alpha_values = [0.0]
  
     # Determine seeds: start at args.seed, run nsims seeds
     start_seed = args.seed
-    list_of_seeds = list(range(start_seed, start_seed + args.nsims))
+    #list_of_seeds = list(range(start_seed, start_seed + args.nsims))
+    list_of_seeds = [4]  # Spaced by 10 for diversity
 
     timestamp = datetime.now().strftime("%m%d%H%M")
 
