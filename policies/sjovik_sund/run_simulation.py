@@ -314,11 +314,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
   
     # Simulation settings
-    duration = 24*5 # hours - (24 * 5) for one week
+    duration = 24*10 # hours - (24 * 10) for two weeks
     num_vehicles = 1  # Need at least 1 vehicle to test the policy!
  
     service_weights = [0.45, 0.45, 0.1]
-    maintenance_reward = 1
+    maintenance_reward = 0.25
  
     # Determine alpha values: from CLI if provided, otherwise defaults
     if args.alphas is not None:
@@ -333,7 +333,7 @@ if __name__ == "__main__":
     # Determine seeds: start at args.seed, run nsims seeds
     start_seed = args.seed
     #list_of_seeds = list(range(start_seed, start_seed + args.nsims))
-    list_of_seeds = [4]  # Spaced by 10 for diversity
+    list_of_seeds = [1]  # Spaced by 10 for diversity
 
     timestamp = datetime.now().strftime("%m%d%H%M")
 
