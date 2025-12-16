@@ -294,8 +294,8 @@ class LoggingSimulator(sim.Simulator):
             print(f"{'='*60}\n")
             
             # Reset criticality to 0.0 (simulating overnight maintenance)
-            for bike in critical_bikes:
-                bike.maintenance_criticality = 0.0
+            #for bike in critical_bikes:
+                #bike.maintenance_criticality = 0.0
             
             # Print confirmation AFTER resetting
             print(f"{'='*60}")
