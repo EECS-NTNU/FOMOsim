@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:policies/sjovik_sund/simulation_results/Div instanser/sjovik_sund_alphas_1112251951_TD_000125_seed_2_alpha01-05_fullweek_0.220_results.csv
-Seed,Duration (hours),Total Runtime (s),Failed Events,Starvations,Bike Starvations,Long Congestions,Short Congestions,Total Trips,Bike Departures,Bike Arrivals,Vehicle Arrivals,Bike Deliveries,Bike Pickups,Maintenance Time (minutes),Maintenance Violations,Maintenance Starvations
-2,3,1461.65,4,4,4,0,1,438,434,404,22,44,52,35.169325817101644,2,0
-========
-Seed,Duration (hours),Total Runtime (s),Failed Events,Starvations,Bike Starvations,Long Congestions,Short Congestions,Total Trips,Bike Departures,Bike Arrivals,Vehicle Arrivals,Bike Deliveries,Bike Pickups,Maintenance Time (minutes),Maintenance Violations,Maintenance Starvations
-2,120,9793.8,1760,1201,971,559,588,15532,14331,14326,422,1186,1203,1700.6783614092874,52,230
->>>>>>>> 65799b464d83377db1e5345f5b6a36828c33eda8:policies/sjovik_sund/simulation_results/FINAL/sjovik_sund_alphas_NEW_TD_000125_seed_2_alpha01-05_fullweek_0.260_results.csv

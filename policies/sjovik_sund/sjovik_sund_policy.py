@@ -1,11 +1,11 @@
 from policies import Policy
 import sim
 import math
-from policies.sjovik_sund.Sub_problem.subproblem_parameters import (
+from policies.sjovik_sund.sub_problem.subproblem_parameters import (
     MILP_parameters
 )
-from policies.sjovik_sund.Sub_problem.sjovik_sund_subproblem import run_subproblem_model
-from policies.sjovik_sund.visualize_subproblem import Visualizer
+from policies.sjovik_sund.sub_problem.sjovik_sund_subproblem import run_subproblem_model
+from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
 
 """
 IMPORTANT NOTE ON TRAVEL TIMES:

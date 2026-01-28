@@ -6,16 +6,16 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
 
-from Sub_problem import subproblem_parameters as MILP_data
+from sub_problem import subproblem_parameters as MILP_data
 from sjovik_sund_policy import SjovikSundPolicy
-from Sub_problem.sjovik_sund_subproblem import run_subproblem_model
+from sub_problem.sjovik_sund_subproblem import run_subproblem_model
 
 import sim
 import demand
 from init_state.wrapper import read_initial_state
 import target_state
 from helpers import timeInMinutes
-from visualize_subproblem import Visualizer
+from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
 import time
 
 

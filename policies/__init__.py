@@ -6,3 +6,4 @@ from .do_nothing_policy import DoNothing
 from policies.inngjerdingen_moeller import PILOT
 from policies.inngjerdingen_moeller import InngjerdingenMoellerPolicy
 from policies.hlv_master import *
+from policies.sjovik_sund import *

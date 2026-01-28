@@ -37,7 +37,7 @@ from settings import *
  
 # Import visualization if needed
 try:
-    from policies.sjovik_sund.visualize_subproblem import Visualizer
+    from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
     VISUALIZATION_AVAILABLE = True
 except ImportError:
     VISUALIZATION_AVAILABLE = False

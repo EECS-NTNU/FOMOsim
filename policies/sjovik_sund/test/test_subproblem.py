@@ -7,10 +7,10 @@ path = Path(__file__).parents[2]
 os.chdir(path)
 sys.path.insert(0, '')
 
-from policies.sjovik_sund.Sub_problem.subproblem_parameters import MILP_parameters
-from policies.sjovik_sund.Sub_problem.sjovik_sund_subproblem import run_subproblem_model
+from policies.sjovik_sund.sub_problem.subproblem_parameters import MILP_parameters
+from policies.sjovik_sund.sub_problem.sjovik_sund_subproblem import run_subproblem_model
 from policies.sjovik_sund.sjovik_sund_policy import SjovikSundPolicy
-from policies.sjovik_sund.visualize_subproblem import Visualizer
+from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
 
 import sim
 import demand
