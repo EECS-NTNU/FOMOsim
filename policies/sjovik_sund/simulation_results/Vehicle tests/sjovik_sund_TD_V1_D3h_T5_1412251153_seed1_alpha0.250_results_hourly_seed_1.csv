@@ -1,6 +1,0 @@
-Seed,Day,Hour,Time (minutes),Starvations,Bike Starvations,Long Congestions,Short Congestions,Maintenance Violations,Maintenance Starvations,Bike Pickups,Bike Deliveries,Maintenance Time (minutes),Avg Bike Criticality,Bikes Critical (>0.83),Bikes High (0.60-0.83),Bikes Medium (0.30-0.60),Bikes Low (<=0.30)
-1,0,7,420,0,0,0,0,0,0,0,0,0.0,0.4443,35,153,376,204
-1,0,8,480,0,0,0,0,0,0,13,0,25.5,0.4421,36,151,371,210
-1,0,9,540,0,0,0,0,2,0,26,22,3.0,0.4433,35,154,370,209
-1,0,10,600,0,0,0,2,0,0,20,26,15.68,0.4428,35,152,370,211
-1,0,10,600,0,0,0,0,0,0,0,0,0.0,0.4428,35,152,370,211
