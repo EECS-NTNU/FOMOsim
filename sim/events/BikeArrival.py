@@ -97,14 +97,6 @@ class BikeArrival(Event):
                 if self.bike.usable() == False:
                     simul.state.metrics.add_aggregate_metric(simul.state, "maintenance violations", 1)
 
-                # CHECKPOINT
-                # Print bike arrival information
-                maint_status = f"maint={self.bike.maintenance_criticality:.3f}" if hasattr(self.bike, 'maintenance_criticality') else ""
-                usable_status = " usable" if self.bike.usable() else " UNUSABLE"
-                congestion_str = " [CONGESTED]" if self.congested else ""
-                print(f"   ARRIVAL: Bike {self.bike.bike_id} at {arrival_station.id} "
-                      f"(t={self.time:.1f}, {maint_status}, {usable_status}){congestion_str}")
-
                 simul.state.metrics.add_aggregate_metric(simul.state, "bike arrival", 1)
 
             else:

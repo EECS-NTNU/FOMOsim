@@ -205,7 +205,7 @@ class BikeDeparture(Event):
                             bike_id=bike.bike_id,
                             bike_criticality=bike_crit
                         )
- 
+
                     simul.state.metrics.add_aggregate_metric(simul.state, "bike departure", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "events", 2)
  
@@ -297,7 +297,7 @@ class BikeDeparture(Event):
                                     failure_reason='maintenance_starvation',
                                     did_roam=False
                                 )"""
- 
+
                     simul.state.metrics.add_aggregate_metric(simul.state, "events", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "starvations", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "failed events", 1)

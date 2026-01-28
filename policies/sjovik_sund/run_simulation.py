@@ -6,8 +6,8 @@ import os
 import sys
 from pathlib import Path
 import argparse
- 
- 
+from datetime import datetime
+
 # Get workspace root (2 levels up from this file)
 WORKSPACE_ROOT = Path(__file__).parents[2]
 os.chdir(WORKSPACE_ROOT)
@@ -37,10 +37,12 @@ from settings import *
  
 # Import visualization if needed
 try:
+    from policies.sjovik_sund.visualize_subproblem import Visualizer
     VISUALIZATION_AVAILABLE = True
 except ImportError:
     VISUALIZATION_AVAILABLE = False
- 
+    print("Warning: Visualization not available")
+
 MAINTENANCE_ENABLED = True
  
 import time
@@ -332,7 +334,7 @@ if __name__ == "__main__":
  
     service_weights = [0.45, 0.45, 0.1]
     maintenance_reward = 1
- 
+
     # Determine alpha values: from CLI if provided, otherwise defaults
     if args.alphas is not None:
         alpha_values = args.alphas
@@ -346,21 +348,16 @@ if __name__ == "__main__":
     # Determine seeds: start at args.seed, run nsims seeds
     start_seed = args.seed
     list_of_seeds = list(range(start_seed, start_seed + args.nsims))
- 
-    # Get timestamp for unique run identification
-    from datetime import datetime
-    timestamp = datetime.now().strftime("%d%m%y%H%M")
-    
-    # Extract short instance name (e.g., "TD" from "TD_W34_old", "OS" from "OS_W31")
-    instance_short = args.instance.split('_')[0]
-    
+
+    timestamp = datetime.now().strftime("%m%d%H%M")
+
     policy_dict = {}
     for alpha in alpha_values:
         weights = [w * (1 - alpha) for w in service_weights] + [maintenance_reward * alpha]
         
         # Include instance, vehicles, duration, time horizon, timestamp, and seed in filename
         policy_name = (
-            f"sjovik_sund_{instance_short}_V{num_vehicles}_D{duration}h_T{args.time_horizon}_"
+            f"sjovik_sund_{args.instance}_V{num_vehicles}_D{duration}h_T{args.time_horizon}_"
             f"{timestamp}_seed{start_seed}_alpha{alpha:.3f}"
         )
         
