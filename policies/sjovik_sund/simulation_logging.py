@@ -7,6 +7,7 @@ import os
 import csv
 import sim
 from pathlib import Path
+from settings import MAINTENANCE_INCREASE_PER_MINUTE
 
 
 # Determine output directory relative to this file's location
@@ -21,7 +22,6 @@ class LoggingSimulator(sim.Simulator):
     
     def __init__(self, *args, **kwargs):
         # Initialize tracking lists BEFORE calling super().__init__
-        # This ensures they exist before any events are processed
         self.bike_movements = []  # List of all bike movements
         self.trip_requests = []  # List of all trip requests
         self.hourly_metrics = []  # List of hourly metrics
@@ -42,14 +42,30 @@ class LoggingSimulator(sim.Simulator):
         
         # Now call parent __init__
         super().__init__(*args, **kwargs)
-        
-        # Verify lists still exist after parent init
-        print(f"DEBUG LoggingSimulator.__init__: ID={id(self)}, bike_movements ID={id(self.bike_movements)}, len={len(self.bike_movements)}")
-        print(f"DEBUG LoggingSimulator.__init__: ID={id(self)}, trip_requests ID={id(self.trip_requests)}, len={len(self.trip_requests)}")
     
+    def _estimate_post_trip_criticality(self, pre_criticality, travel_time):
+        """
+        Calculates the expected criticality after the trip.
+        Since the bike object hasn't physically moved yet (we are logging at request time),
+        we must calculate this mathematically rather than fetching the object state.
+        """
+        if pre_criticality is None or travel_time is None:
+            return pre_criticality
+            
+        rate = MAINTENANCE_INCREASE_PER_MINUTE
+        if hasattr(self.state, 'parameters') and 'degradation_rate' in self.state.parameters:
+            rate = self.state.parameters['degradation_rate']
+            
+        # DEBUG PRINT
+        print(f"DEBUG CRITICALITY: Pre={pre_criticality}, Time={travel_time}, Rate={rate}, Added={travel_time * rate}")
+
+        estimated = pre_criticality + (travel_time * rate)
+        return min(estimated, 1.0)
+
     def log_bike_movement(self, time, bike_id, departure_station_id, arrival_station_id, did_roam=False, bike_criticality=0.0):
         """Log a bike movement for later export to CSV"""
-        print(f"DEBUG log_bike_movement: simulator_id={id(self)}, list_id={id(self.bike_movements)}, bike={bike_id}, time={time:.1f}")
+        # For bike movements (which usually happen upon arrival), we can trust the passed value
+        # or fetch it if needed. Assuming passed value is correct here.
         day = int(time // (24*60))
         hour = int((time % (24*60)) // 60)
         minute = int(time % 60)
@@ -75,6 +91,15 @@ class LoggingSimulator(sim.Simulator):
         hour = int((time % (24*60)) // 60)
         minute = int(time % 60)
         
+        # 1. Previous Criticality
+        prev_criticality = bike_criticality if bike_criticality is not None else 0.0
+
+        # 2. Post-Trip Criticality (Calculated)
+        # We cannot fetch this from the bike object because the bike hasn't arrived yet.
+        post_criticality = prev_criticality
+        if success and travel_time is not None:
+             post_criticality = self._estimate_post_trip_criticality(prev_criticality, travel_time)
+
         self.trip_requests.append({
             'time_minutes': time,
             'day': day,
@@ -87,7 +112,8 @@ class LoggingSimulator(sim.Simulator):
             'arrival_station_id': arrival_station_id if success else None,
             'travel_time': travel_time if success else None,
             'bike_id': bike_id if success else None,
-            'bike_criticality': bike_criticality if success else None
+            'previous_bike_criticality': prev_criticality if success else None,
+            'post_trip_bike_criticality': post_criticality if success else None
         })
         if len(self.trip_requests) % 100 == 0:
              print(f"DEBUG: Logged {len(self.trip_requests)} trip requests")
@@ -131,10 +157,31 @@ class LoggingSimulator(sim.Simulator):
         
         # Calculate average bike criticality for entire fleet
         all_bikes = self.state.get_all_bikes()
+        print(f"DEBUG: Calculating average bike criticality for {len(all_bikes)} bikes")
+        #print criticalities for all bikes along the bike id
+        for bike in all_bikes:
+            print(f"  Bike ID: {bike.bike_id}, Criticality: {bike.maintenance_criticality:.6f}")
         if all_bikes:
             avg_bike_criticality = sum(bike.maintenance_criticality for bike in all_bikes) / len(all_bikes)
+            # Count bikes in different criticality ranges
+            bikes_critical = sum(1 for bike in all_bikes if bike.maintenance_criticality > 0.83)
+            bikes_high = sum(1 for bike in all_bikes if 0.6 < bike.maintenance_criticality <= 0.83)
+            bikes_medium = sum(1 for bike in all_bikes if 0.3 < bike.maintenance_criticality <= 0.6)
+            bikes_low = sum(1 for bike in all_bikes if bike.maintenance_criticality <= 0.3)
+            
+            # Log bike criticality distribution
+            print(f"\n--- HOURLY BIKE CRITICALITY (Hour {hour}, t={current_time:.1f}) ---")
+            print(f"Average Criticality: {avg_bike_criticality:.4f}")
+            print(f"Distribution:")
+            print(f"  Critical (>0.83):     {bikes_critical:>4} bikes ({bikes_critical/len(all_bikes)*100:.1f}%)")
+            print(f"  High (0.60-0.83):     {bikes_high:>4} bikes ({bikes_high/len(all_bikes)*100:.1f}%)")
+            print(f"  Medium (0.30-0.60):   {bikes_medium:>4} bikes ({bikes_medium/len(all_bikes)*100:.1f}%)")
+            print(f"  Low (<=0.30):         {bikes_low:>4} bikes ({bikes_low/len(all_bikes)*100:.1f}%)")
+            print(f"  Total Fleet:          {len(all_bikes):>4} bikes")
+            print(f"-------------------------------------------------------\n")
         else:
             avg_bike_criticality = 0.0
+            bikes_critical = bikes_high = bikes_medium = bikes_low = 0
         
         # Calculate station-level metrics
         self.log_station_metrics(hour, current_time)
@@ -151,10 +198,8 @@ class LoggingSimulator(sim.Simulator):
         hourly_maintenance_time = current_maintenance_time - self.last_hour_maintenance_time
         
         # Calculate day and hour in proper format
-        # Day starts at 0, hour_of_day ranges 1-24 (24 = midnight 00:00)
         day = int(current_time // (24*60))
         hour_of_day = int((current_time % (24*60)) // 60)
-        # Convert hour: 0 -> 24, 1 -> 1, 2 -> 2, ..., 23 -> 23
         hour_formatted = 24 if hour_of_day == 0 else hour_of_day
         
         # Store hourly data (hour is the hour that just completed)
@@ -173,6 +218,10 @@ class LoggingSimulator(sim.Simulator):
             'bike_deliveries': hourly_bike_deliveries,
             'maintenance_time': hourly_maintenance_time,
             'avg_bike_criticality': avg_bike_criticality,
+            'bikes_critical': bikes_critical,
+            'bikes_high': bikes_high,
+            'bikes_medium': bikes_medium,
+            'bikes_low': bikes_low,
         })
         
         # Update last hour values for next calculation
@@ -215,6 +264,46 @@ class LoggingSimulator(sim.Simulator):
         daily_starvations = starvations - self.last_starvations
         daily_congestions = congestions - self.last_congestions
         
+        # Get bikes that have criticality above 0.83
+        critical_bikes = [bike for bike in self.state.get_all_bikes() if bike.maintenance_criticality > 0.83]
+        print(f"DAY {day} END: Bikes with criticality > 0.83: {len(critical_bikes)}")
+        
+        # Print details of critical bikes BEFORE resetting
+        if critical_bikes:
+            print(f"\n{'='*60}")
+            print(f"CRITICAL BIKES BEFORE OVERNIGHT MAINTENANCE (Day {day} End)")
+            print(f"{'='*60}")
+            print(f"{'Bike ID':<15} {'Criticality Before':<20} {'Location':<20}")
+            print("-" * 60)
+            
+            for bike in critical_bikes:
+                location = "In Transit"
+                if hasattr(bike, 'location') and bike.location:
+                    location = bike.location.id
+                else:
+                    # Check if bike is at any station
+                    for station in self.state.get_stations():
+                        if bike in station.get_bikes():
+                            location = station.id
+                            break
+                
+                print(f"{bike.bike_id:<15} {bike.maintenance_criticality:<20.4f} {location:<20}")
+            
+            print("-" * 60)
+            print(f"Total: {len(critical_bikes)} bikes will be reset to 0.0 criticality")
+            print(f"{'='*60}\n")
+            
+            # Reset criticality to 0.0 (simulating overnight maintenance)
+            for bike in critical_bikes:
+                bike.maintenance_criticality = 0.0
+            
+            # Print confirmation AFTER resetting
+            print(f"{'='*60}")
+            print(f"CRITICAL BIKES AFTER OVERNIGHT MAINTENANCE (Day {day} End)")
+            print(f"{'='*60}")
+            print(f"All {len(critical_bikes)} bikes have been reset to 0.0 criticality")
+            print(f"{'='*60}\n")
+
         print(f"\n{'='*40}")
         print(f"DAY {day} SUMMARY (23:00)")
         print(f"{'='*40}")
@@ -456,6 +545,10 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
             'Bike Deliveries',
             'Maintenance Time (minutes)',
             'Avg Bike Criticality',
+            'Bikes Critical (>0.83)',
+            'Bikes High (0.60-0.83)',
+            'Bikes Medium (0.30-0.60)',
+            'Bikes Low (<=0.30)',
         ])
         
         # Write hourly data rows
@@ -475,6 +568,10 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
                 hour_data.get('bike_deliveries', 0),
                 round(hour_data.get('maintenance_time', 0.0), 2),
                 round(hour_data.get('avg_bike_criticality', 0.0), 4),
+                hour_data.get('bikes_critical', 0),
+                hour_data.get('bikes_high', 0),
+                hour_data.get('bikes_medium', 0),
+                hour_data.get('bikes_low', 0),
             ])
 
 
@@ -708,7 +805,8 @@ def write_trip_requests_to_file(filename, simulator, seed, alpha=None):
             'Arrival Station ID',
             'Travel Time (minutes)',
             'Bike ID',
-            'Bike Criticality',
+            'Previous Bike Criticality',
+            'Post-Trip Bike Criticality',
         ])
         
         # Write trip request data rows
@@ -727,8 +825,6 @@ def write_trip_requests_to_file(filename, simulator, seed, alpha=None):
                 request.get('arrival_station_id', ''),
                 round(request['travel_time'], 2) if request.get('travel_time') is not None else '',
                 request.get('bike_id', ''),
-                round(request['bike_criticality'], 4) if request.get('bike_criticality') is not None else '',
+                round(request['previous_bike_criticality'], 4) if request.get('previous_bike_criticality') is not None else '',
+                round(request['post_trip_bike_criticality'], 4) if request.get('post_trip_bike_criticality') is not None else '',
             ])
-
-
-

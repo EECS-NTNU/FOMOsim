@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
  
+ 
 ######################################################
 import os
 import sys
 from pathlib import Path
 import argparse
  
+ 
 # Get workspace root (2 levels up from this file)
 WORKSPACE_ROOT = Path(__file__).parents[2]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, '')
- 
+
+
+
 # Force Python to not use cached bytecode - critical for cluster environments
 sys.dont_write_bytecode = True
 # Clear any existing __pycache__ to ensure fresh imports
@@ -55,20 +59,17 @@ from policies.sjovik_sund.simulation_logging import (
 )
  
  
-def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTANCE=None):
+def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instance_name=None):
  
     START_TIME = timeInMinutes(hours=7)  # 7 AM
     DURATION = timeInMinutes(hours=duration)
  
-    INSTANCE = "TD_W34_old"
-    # INSTANCE = "TD_W34_37"
-    # INSTANCE = "TD_W34_testinstans"
-    # INSTANCE = "TD_W34_filtered_28_stations"
-    # INSTANCE = "trondheim"
-    # INSTANCE = "NY_W31"
-    # INSTANCE = "OS_W31"
-    #INSTANCE = "EH_W31"
- 
+    # Use the instance passed as argument, or default to TD_W34_old
+    if instance_name is None:
+        instance_name = "TD_W34_old"
+    
+    INSTANCE = instance_name
+
     # Load initial state using workspace-relative path
     instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
     state = init_state.read_initial_state(str(instance_path))
@@ -132,7 +133,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, INSTAN
     return simulator
  
  
-def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True):
+def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True, instance_name=None):
     results_file = filename
  
     if use_multiprocessing:
@@ -141,7 +142,7 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         processes = []
  
         for seed in list_of_seeds:
-            p = mp.Process(target=run_simulation, args=(seed, policy, duration, num_vehicles, queue))
+            p = mp.Process(target=run_simulation, args=(seed, policy, duration, num_vehicles, queue, instance_name))
             processes.append(p)
             p.start()
  
@@ -158,7 +159,8 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         for i, simulator in enumerate(returned_simulators):
             print(
                 f"DEBUG: Seed {list_of_seeds[i]} - Bike movements: {len(simulator.bike_movements)}, "
-                f"Trip requests: {len(simulator.trip_requests)}"
+                f"Trip requests: {len(simulator.trip_requests)}, "
+                f"Vehicle decisions: {len(simulator.vehicle_decisions) if hasattr(simulator, 'vehicle_decisions') else 'MISSING'}"
             )
             solve_time = simulator.state.time  # Total simulation time
             write_results_to_file(results_file, simulator, duration, solve_time, list_of_seeds[i], append=(i > 0))
@@ -184,6 +186,12 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             # Write trip requests for this seed
             trip_requests_filename = f"{filename.replace('.csv', '')}_trip_requests_seed_{list_of_seeds[i]}.csv"
             write_trip_requests_to_file(trip_requests_filename, simulator, list_of_seeds[i], alpha_value)
+
+            # --- NEW: Write Vehicle Decisions ---
+            '''decisions_filename = f"{filename.replace('.csv', '')}_vehicle_decisions_seed_{list_of_seeds[i]}.csv"
+            write_vehicle_decisions_to_file(decisions_filename, simulator, list_of_seeds[i])
+            print(f"Vehicle decisions written to: policies/sjovik_sund/simulation_results/{decisions_filename}")'''
+            # ------------------------------------
  
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{list_of_seeds[i]}.txt"
@@ -198,7 +206,7 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         for i, seed in enumerate(list_of_seeds):
             print(f"\nRunning seed {seed}...")
             start_solve = time.time()
-            simulator = run_simulation(seed, policy, duration, num_vehicles)
+            simulator = run_simulation(seed, policy, duration, num_vehicles, instance_name=instance_name)
             solve_time = time.time() - start_solve
             write_results_to_file(results_file, simulator, duration, solve_time, seed, append=(i > 0))
  
@@ -223,6 +231,12 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             # Write trip requests for this seed
             trip_requests_filename = f"{filename.replace('.csv', '')}_trip_requests_seed_{seed}.csv"
             write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
+
+            # --- NEW: Write Vehicle Decisions ---
+            '''decisions_filename = f"{filename.replace('.csv', '')}_vehicle_decisions_seed_{seed}.csv"
+            write_vehicle_decisions_to_file(decisions_filename, simulator, seed)
+            print(f"Vehicle decisions written to: policies/sjovik_sund/simulation_results/{decisions_filename}")'''
+            # ------------------------------------
  
             # Write summary for this seed
             summary_filename = f"{filename.replace('.csv', '')}_summary_seed_{seed}.txt"
@@ -235,7 +249,7 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
     print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
  
  
-def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False):
+def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False, instance_name=None):
     for policy_name, policy in policy_dict.items():
         print(f"\n{'='*80}")
         print(f"Testing Policy: {policy_name}")
@@ -243,7 +257,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
  
         # Test this policy with all seeds
         results_file = f'{policy_name}_results.csv'
-        test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing)
+        test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing, instance_name)
  
  
 if __name__ == "__main__":
@@ -272,12 +286,49 @@ if __name__ == "__main__":
         default=1,
         help="Number of simulations (different seeds) per policy (default: 1).",
     )
- 
+    # --- NEW ARGUMENT ---
+    parser.add_argument(
+        "--time_horizon",
+        type=int,
+        default=5,
+        help="Time horizon (T) for the MILP look-ahead policy (default: 5).",
+    )
+    parser.add_argument(
+        "--instance",
+        type=str,
+        default="TD_W34_old",
+        choices=["TD_W34_old", "TD_W34_37", "OS_W31"],
+        help="Instance to use for simulation (default: TD_W34_old).",
+    )
+    parser.add_argument(
+        "--vehicles",
+        type=int,
+        default=1,
+        help="Number of vehicles to use in the simulation (default: 1).",
+    )
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=120,
+        help="Simulation duration in hours (default: 120 hours = 5 days).",
+    )
+    parser.add_argument(
+        "--maintenance_limit",
+        type=float,
+        default=0.2,
+        help="Maintenance criticality limit to check for maintenance actions (default: 0.2).",
+    )
+
     args = parser.parse_args()
  
+    # Override global settings with command line arguments
+    import settings
+    settings.MAINTENANCE_LIMIT_TO_CHECK = args.maintenance_limit
+    print(f"Using MAINTENANCE_LIMIT_TO_CHECK = {settings.MAINTENANCE_LIMIT_TO_CHECK}")
+    
     # Simulation settings
-    duration = 24*5 # hours - (24 * 5) for one week
-    num_vehicles = 1  # Need at least 1 vehicle to test the policy!
+    duration = args.duration  # Get from command line argument
+    num_vehicles = args.vehicles  # Get from command line argument
  
     service_weights = [0.45, 0.45, 0.1]
     maintenance_reward = 1
@@ -287,7 +338,8 @@ if __name__ == "__main__":
         alpha_values = args.alphas
     else:
         if MAINTENANCE_ENABLED:
-            alpha_values = [0.3, 0.2, 0.1, 0.4, 0.5]
+            #alpha_values = [0.0] # ta vekk etter sjekk for nightly vedlikehold
+            alpha_values = [0.25]
         else:
             alpha_values = [0.0]
  
@@ -295,15 +347,26 @@ if __name__ == "__main__":
     start_seed = args.seed
     list_of_seeds = list(range(start_seed, start_seed + args.nsims))
  
+    # Get timestamp for unique run identification
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%d%m%y%H%M")
+    
+    # Extract short instance name (e.g., "TD" from "TD_W34_old", "OS" from "OS_W31")
+    instance_short = args.instance.split('_')[0]
+    
     policy_dict = {}
     for alpha in alpha_values:
         weights = [w * (1 - alpha) for w in service_weights] + [maintenance_reward * alpha]
+        
+        # Include instance, vehicles, duration, time horizon, timestamp, and seed in filename
         policy_name = (
-            f"sjovik_sund_alphas_1112251951_TD_000125_TEST03_seed_{start_seed}_alpha01-05_fullweek_{alpha:.3f}"
+            f"sjovik_sund_{instance_short}_V{num_vehicles}_D{duration}h_T{args.time_horizon}_"
+            f"{timestamp}_seed{start_seed}_alpha{alpha:.3f}"
         )
+        
         policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
             roaming=False,
-            time_horizon=5,
+            time_horizon=args.time_horizon,  # <--- Using the argument here
             tau=5,
             weights=weights,
             hour_from=7,
@@ -320,6 +383,7 @@ if __name__ == "__main__":
         num_vehicles=num_vehicles,
         duration=duration,
         use_multiprocessing=False,
+        instance_name=args.instance,
     )
  
     # End timing
