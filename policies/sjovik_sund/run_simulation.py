@@ -70,14 +70,11 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instan
     DURATION = timeInMinutes(hours=duration)
  
  
-    INSTANCE = "TD_W34_old"
-    #INSTANCE = "TD_W34_37"
-    # INSTANCE = "TD_W34_testinstans"
-    # INSTANCE = "TD_W34_filtered_28_stations"
-    # INSTANCE = "trondheim"
-    # INSTANCE = "NY_W31"
-    # INSTANCE = "OS_W31"
-    #INSTANCE = "EH_W31"
+    # Use the instance passed as argument, or default to TD_W34_old
+    if instance_name is None:
+        instance_name = "TD_W34_old"
+    
+    INSTANCE = instance_name
 
     # Load initial state using workspace-relative path
     instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
@@ -149,7 +146,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instan
     return simulator
  
  
-def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True):
+def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True, instance_name=None):
     results_file = filename
   
     if use_multiprocessing:
@@ -265,7 +262,7 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
     print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
  
  
-def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False):
+def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False, instance_name=None):
     for policy_name, policy in policy_dict.items():
         print(f"\n{'='*80}")
         print(f"Testing Policy: {policy_name}")
@@ -273,7 +270,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
   
         # Test this policy with all seeds
         results_file = f'{policy_name}_results.csv'
-        test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing)
+        test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing, instance_name)
  
  
 if __name__ == "__main__":
@@ -337,9 +334,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
  
+    # Override global settings with command line arguments
+    import settings
+    settings.MAINTENANCE_LIMIT_TO_CHECK = args.maintenance_limit
+    print(f"Using MAINTENANCE_LIMIT_TO_CHECK = {settings.MAINTENANCE_LIMIT_TO_CHECK}")
+    
     # Simulation settings
-    duration = 24*5 # hours - (24 * 5) for one week
-    num_vehicles = 1  # Need at least 1 vehicle to test the policy!
+    duration = args.duration  # Get from command line argument
+    num_vehicles = args.vehicles  # Get from command line argument
  
     service_weights = [0.45, 0.45, 0.1]
     maintenance_reward = 0.25
@@ -358,6 +360,13 @@ if __name__ == "__main__":
     start_seed = args.seed
     list_of_seeds = list(range(start_seed, start_seed + args.nsims))
  
+    # Get timestamp for unique run identification
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%d%m%y%H%M")
+    
+    # Extract short instance name (e.g., "TD" from "TD_W34_old", "OS" from "OS_W31")
+    instance_short = args.instance.split('_')[0]
+    
     policy_dict = {}
     for alpha in alpha_values:
         weights = [w * (1 - alpha) for w in service_weights] + [maintenance_reward * alpha]
