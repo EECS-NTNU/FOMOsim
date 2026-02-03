@@ -1,0 +1,565 @@
+from gurobipy import *
+import time
+import numpy as np
+import json
+import datetime
+ 
+#######################################################################################################
+# This is the DSBRP subproblem for the Sjovik Sund policy
+#######################################################################################################
+ 
+def run_subproblem_model(data):
+ 
+    try:
+        import time as time_module
+        t_model_start = time_module.time()
+        
+        print(f"\n[MODEL BUILD START]")
+        m = Model("DSBRP_Subproblem")
+        m.setParam('OutputFlag', False)
+        m.setParam('TimeLimit', 3600)  # 60 minutes max
+        m.setParam('MIPGap', 0.05)  # Stop at 5% gap
+        m.setParam('Presolve', 2)  # Aggressive presolve
+        m.setParam('MIPFocus', 1)  # Focus on finding good feasible solutions quickly
+        
+        t_model_created = time_module.time()
+        print(f"[TIMING] Gurobi model object creation: {t_model_created - t_model_start:.4f}s")
+ 
+        ###########################################################################################################
+        # SETS
+        ############################################################################################################
+ 
+        t_extract_start = time_module.time()
+        T = data["T"]
+        tau = data["tau"]
+        N = list(data["N"])
+        s = data["s"]; d = data["d"]
+        Vh = list(data["V"])
+        N0 = N + [s, d]
+        Tpos = list(range(1, T+1))   # {1,...,T}
+        T0 = list(range(0, T+1))     # {0,...,T}
+ 
+        ###########################################################################################################
+        # PARAMETERS
+        ############################################################################################################
+ 
+        T_D  = data["T_D"]
+        T_DD = data["T_DD"]
+        T_L  = float(data["T_L"])
+        T_M_min = data["T_M_min"]
+        T_M_max = data["T_M_max"]
+        #T_M_min = np.array([0 for i in N])
+        #T_M_max = np.array([0 for i in N])
+        T_M = data.get("T_M") # Average time to maintain one bike
+        Q_V  = data["Q_V"]
+        Q_V0 = data["Q_V0"]
+        Q_S  = data["Q_S"]
+        I_N0 = data["I_N0"]
+        I_T  = data["I_T"]
+        D    = data["D"]
+        w_S, w_C, w_D = data["w_S"], data["w_C"], data["w_D"]
+        r_M = data["r_M"]
+        eta = data["eta"]  # Initial destination station for each vehicle
+        ###############################################################################################################
+        # Sanity checks and preprocessing -> ensure T_DD[ii]=1 and T_D[ii]=0
+        ################################################################################################################
+     
+        for i in N0:
+            if (i,i) not in T_DD: T_DD[(i,i)] = 1
+            if (i,i) not in T_D:  T_D[(i,i)]  = 0.0
+        
+        t_extract_end = time_module.time()
+        print(f"[TIMING] Parameter extraction: {t_extract_end - t_extract_start:.4f}s")
+        print(f"[MODEL INFO] Stations: {len(N)}, Vehicles: {len(Vh)}, Time horizon: {T} periods ({T*tau} min)")
+ 
+        ###################################################################################################
+        # Decision variables
+        ###################################################################################################
+
+        t_arcs_start = time_module.time()
+        # Build list of feasible arcs first
+        feasible_arcs = []
+        
+        # Maximum travel time filter (in minutes)
+        MAX_TRAVEL_TIME = 10.0
+
+        # 1. Explicitly add Source -> Start Station arcs 
+        for v in Vh:
+            feasible_arcs.append((s, eta[v], v, 0))
+
+        # 2. General Network Arcs (Station -> Station)
+        for i in N:
+            for j in N:
+                travel_time = T_DD.get((i, j), None)
+                if travel_time is not None:
+                    # Filter out arcs where actual travel time exceeds MAX_TRAVEL_TIME
+                    actual_travel_time = T_D.get((i, j), float('inf'))
+                    if actual_travel_time <= MAX_TRAVEL_TIME:
+                        for v in Vh:
+                            for t in T0:
+                                if t + travel_time <= T:
+                                    feasible_arcs.append((i, j, v, t))
+
+        # 3. Sink Arcs (Station -> Sink)
+        # Assuming 0 travel time to sink, allowed only at time T
+        for j in N:
+            for v in Vh:
+                     feasible_arcs.append((j, d, v, T))
+
+        # Debug: Print initialized nodes/arcs summary
+        #print("\n=== FEASIBLE ARCS SUMMARY ===")
+        #print(f"Total feasible arcs: {len(feasible_arcs)}")
+        
+        # Count arcs by type
+        source_arcs = [a for a in feasible_arcs if a[0] == s]
+        sink_arcs = [a for a in feasible_arcs if a[1] == d]
+        network_arcs = [a for a in feasible_arcs if a[0] in N and a[1] in N]
+        
+        #print(f"Source arcs (s->node): {len(source_arcs)}")
+        #print(f"Sink arcs (node->d): {len(sink_arcs)}")
+        #print(f"Network arcs (node->node): {len(network_arcs)}")
+        
+        # Print specific source arcs to verify initialization
+        # print("\nInitialized Source Arcs:")
+        # for arc in source_arcs:
+            #print(f"  {arc}")
+            
+        t_arcs_end = time_module.time()
+        print(f"[TIMING] Arc generation: {t_arcs_end - t_arcs_start:.4f}s")
+        print(f"[MODEL INFO] Total arcs: {len(feasible_arcs)} (source: {len(source_arcs)}, network: {len(network_arcs)}, sink: {len(sink_arcs)})")
+        print("=============================\n")
+        
+        t_vars_start = time_module.time()
+        # Batch create x and qV variables using tupledict (much faster!)
+        x = m.addVars(feasible_arcs, vtype=GRB.BINARY, name="x")
+        qV = m.addVars(feasible_arcs, vtype = GRB.INTEGER, lb=0.0, name="qV")
+        
+        # Helper functions to safely access variables (returns 0 if variable doesn't exist)
+        def get_x(i, j, v, t):
+            return x.get((i, j, v, t), 0)
+        
+        def get_qV(i, j, v, t):
+            return qV.get((i, j, v, t), 0)
+        
+        # Maintenance selection m_iv ∈ {0,1}
+        m_iv = m.addVars(N, Vh, vtype=GRB.BINARY, name="m_iv")
+
+        # qL, qU ≥ 0: INTEGER for current station (across all periods), CONTINUOUS for other stations
+        # This ensures any decisions executed at the current station are integer, while future planning
+        # at stations not yet visited can be fractional (significantly reducing integer variables)
+        
+        # For each vehicle, identify its current station (where it starts)
+        current_stations = {v: eta[v] for v in Vh}
+        
+        # Create separate variables for current vs future stations
+        qL_current = {}  # Integer variables for current station
+        qU_current = {}  # Integer variables for current station
+        qL_other = {}    # Continuous variables for other stations
+        qU_other = {}    # Continuous variables for other stations
+        
+        for i in N:
+            for v in Vh:
+                for t in Tpos:
+                    if i == current_stations[v]:
+                        # Current station: must be integer (may execute these decisions)
+                        qL_current[(i, v, t)] = m.addVar(lb=0.0, vtype=GRB.INTEGER, name=f"qL_curr[{i},{v},{t}]")
+                        qU_current[(i, v, t)] = m.addVar(lb=0.0, vtype=GRB.INTEGER, name=f"qU_curr[{i},{v},{t}]")
+                    else:
+                        # Other stations: continuous (future planning only)
+                        qL_other[(i, v, t)] = m.addVar(lb=0.0, vtype=GRB.CONTINUOUS, name=f"qL_other[{i},{v},{t}]")
+                        qU_other[(i, v, t)] = m.addVar(lb=0.0, vtype=GRB.CONTINUOUS, name=f"qU_other[{i},{v},{t}]")
+        
+        # Helper functions to access qL/qU transparently
+        def get_qL(i, v, t):
+            if i == current_stations[v]:
+                return qL_current.get((i, v, t), 0)
+            else:
+                return qL_other.get((i, v, t), 0)
+        
+        def get_qU(i, v, t):
+            if i == current_stations[v]:
+                return qU_current.get((i, v, t), 0)
+            else:
+                return qU_other.get((i, v, t), 0)
+
+        # lN_it ≥ 0 for i in N, t in T0
+        lN = m.addVars(N, T0, vtype=GRB.CONTINUOUS, lb=0.0, name="lN")
+ 
+        # tM_ivt ≥ 0 continuous, for i in N, v in V, t in Tpos
+        tM = m.addVars(N, Vh, Tpos, vtype=GRB.CONTINUOUS, lb=0.0, name="tM")
+ 
+        # starvations / congestions ≥ 0 continuous
+        s_var = m.addVars(N, Tpos, vtype=GRB.CONTINUOUS, lb=0.0, name="starv")
+        c_var = m.addVars(N, Tpos, vtype=GRB.CONTINUOUS, lb=0.0, name="cong")
+ 
+        # deviation di ≥ 0 continuous
+        d_abs = m.addVars(N, vtype=GRB.CONTINUOUS, lb=0.0, name="dev")
+        
+        t_vars_end = time_module.time()
+        print(f"[TIMING] Variable creation: {t_vars_end - t_vars_start:.4f}s")
+        # Updated count: qL/qU split by current station (integer) vs other stations (continuous)
+        num_qL_qU_integer = 2 * len(Vh) * len(Tpos)  # Current station only: 2 * |V| * |T|
+        num_qL_qU_continuous = 2 * (len(N) - 1) * len(Vh) * len(Tpos)  # Other stations: 2 * (|N|-1) * |V| * |T|
+        num_other_vars = len(feasible_arcs)*2 + len(N)*len(Vh)*(1+len(Tpos)) + len(N)*(len(T0)+len(Tpos)*2+1)
+        print(f"[MODEL SIZE] Integer qL/qU: {num_qL_qU_integer} (current station), Continuous qL/qU: {num_qL_qU_continuous} (other stations)")
+
+ 
+        # Helper: export objective-term breakdown for analysis / thesis
+        def _export_objective_breakdown(model, data, ts=None):
+            try:
+                if ts is None:
+                    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+                # Aggregate raw sums
+                starv_sum = sum(s_var[i, t].X for i in N for t in Tpos)
+                cong_sum = sum(c_var[i, t].X for i in N for t in Tpos)
+                maint_time = sum(tM[i, v, t].X for i in N for v in Vh for t in Tpos)
+                dev_sum = sum(d_abs[i].X for i in N)
+
+                # Weighted contributions (match objective expression)
+                starv_contrib = data.get('w_S', 1.0) * starv_sum
+                cong_contrib = data.get('w_C', 1.0) * cong_sum
+                dev_contrib = data.get('w_D', 1.0) * dev_sum
+                maint_contrib = - data.get('r_M', 0.0) * (maint_time / T_M)
+
+                obj_calc = starv_contrib + cong_contrib + dev_contrib + maint_contrib
+                model_obj = float(model.ObjVal) if model.Status == GRB.OPTIMAL or model.Status == GRB.SUBOPTIMAL or model.Status == GRB.FEASIBLE else None
+             
+                out = {
+                    'timestamp': ts,
+                    'model_obj': model_obj,
+                    'terms': {
+                        'starvation': {'sum': starv_sum, 'weight': data.get('w_S', 1.0), 'contribution': starv_contrib},
+                        'congestion': {'sum': cong_sum, 'weight': data.get('w_C', 1.0), 'contribution': cong_contrib},
+                        'deviation': {'sum': dev_sum, 'weight': data.get('w_D', 1.0), 'contribution': dev_contrib},
+                        'maintenance_time': {'sum': maint_time, 'rate': data.get('r_M', 0.0), 'T_M': T_M, 'contribution': maint_contrib}
+                    },
+                    'computed_obj_from_terms': obj_calc
+                }
+
+                fname = f"subproblem_objective_breakdown_{ts}.json"
+                with open(fname, 'w') as fh:
+                    json.dump(out, fh, indent=2)
+
+                # Print compact summary
+                print('\n=== Objective Breakdown ===')
+                print(f"Model objective: {model_obj}")
+                print(f"Starvation contribution: {starv_contrib} (raw {starv_sum})")
+                print(f"Congestion  contribution: {cong_contrib} (raw {cong_sum})")
+                print(f"Deviation   contribution: {dev_contrib} (raw {dev_sum})")
+                print(f"Maintenance contribution: {maint_contrib} (raw time {maint_time})")
+                print(f"Sum of contributions: {obj_calc}")
+                print(f"Wrote objective breakdown to {fname}\n")
+            except Exception as e:
+                print(f"Failed to export objective breakdown: {e}")
+
+        ###########################################################################################################
+        # OBJECTIVE
+        ###########################################################################################################
+    
+        t_obj_start = time_module.time()
+        m.setObjective(quicksum(
+            quicksum(w_S*s_var[i,t] + w_C*c_var[i,t] - quicksum(r_M * (tM[i,v,t] / T_M) for v in Vh) for t in Tpos)+ w_D * d_abs[i]
+            for i in N
+        ),
+        sense=GRB.MINIMIZE)
+        t_obj_end = time_module.time()
+        print(f"[TIMING] Objective function setup: {t_obj_end - t_obj_start:.4f}s")
+ 
+        ##########################################################################################
+        # Routing constraints
+        ############################################################################################
+        
+        t_constr_start = time_module.time()
+        
+        # (2) Each vehicle departs from source at t=0 to its designated station eta^v
+        # Ensures vehicle v goes from source s to station eta[v] at time 0: x_{s,eta^v,v,0} = 1
+        for v in Vh:
+            target_station = eta[v]
+            m.addConstr(
+                get_x(s, target_station, v, 0) == 1,
+                name=f"dep_source_v{v}_to_eta{target_station}"
+            )
+ 
+        # (3) arrival at sink within horizon: ∑_i ∑_t x_{i d v t} = 1
+        for v in Vh:
+            m.addConstr(
+                quicksum(get_x(i, d, v, t) for i in (N) for t in Tpos) == 1, 
+                name=f"arr_sink_v{v}"
+            )
+            
+        # (4) vehicle flow conservation at stations j∈N with travel time delays
+        # Time-indexed flow conservation accounting for travel delays
+        for v in Vh:
+            for j in N:
+                for t in Tpos:  
+                    # Inflow: vehicles arriving at j at time t (considering travel time from i to j)
+                    inflow = quicksum(
+                        get_x(i, j, v, t - T_DD[(i, j)]) 
+                        for i in (N + [s])  # Only stations and source, not sink
+                        if (i, j) in T_DD and t - T_DD[(i, j)] >= 0
+                    )
+                    # Outflow: vehicles leaving j at time t
+                    outflow = quicksum(
+                        get_x(j, k, v, t) 
+                        for k in (N + [d])  # Only stations and sink, not source
+                        if (j, k) in T_DD
+                    )
+                    
+                    m.addConstr(inflow == outflow, name=f"flow_v{v}_j{j}_t{t}")
+ 
+ 
+        # (5) single trip per period: ∑_{i,j∈N0} x_{i j v t} ≤ 1 for each v, t∈Tpos
+        for v in Vh:
+            for t in T0:
+                m.addConstr(
+                    quicksum(get_x(i, j, v, t) for i in N0 for j in N0) <= 1, 
+                    name=f"one_trip_v{v}_t{t}"
+                )
+ 
+        # (6) single visit per station per vehicle within horizon:
+        # Use T0 to include t=0 (initial arrival from source)
+        # RELAXED
+        #for j in N:
+            #for v in Vh:
+                #m.addConstr(
+                    #quicksum(x[i, j, v, t] for i in N if i != j for v in Vh for t in Tpos) <= 1,
+                    #quicksum(get_x(i, j, v, t) for i in N0 if i != j for t in T0) <= 1,
+                    #name=f"single_visit_j{j}"
+                #)        
+        
+        
+
+        ##########################################################################################
+        # Station inventory balance constraints
+        ###########################################################################################
+ 
+        # (7) inventory balance with congestion/starvation slacks:
+        # s_var: bikes added when demand would make inventory negative (unmet departures)
+        # c_var: bikes removed when arrivals would exceed capacity (rejected arrivals)
+        for i in N:
+            for t in Tpos:
+                m.addConstr(
+                    lN[i, t-1] + D[(i, t)] + quicksum(get_qU(i, v, t) - get_qL(i, v, t) for v in Vh) + s_var[i, t] - c_var[i, t]
+                    == lN[i, t],
+                    
+                    name=f"inv_bal_i{i}_t{t}"
+                )
+ 
+        # (8) initial inventory:
+        for i in N:
+            m.addConstr(lN[i, 0] == I_N0[i], name=f"init_inv_i{i}")
+
+        # (9) capacity
+        for i in N:
+            for t in T0:
+                m.addConstr(lN[i, t] <= Q_S[i], name=f"cap_i{i}_t{t}")        
+        
+        t_inventory_end = time_module.time()
+        print(f"[TIMING] Inventory constraints: {t_inventory_end - t_constr_start:.4f}s")
+
+ 
+        #############################################################################################################
+        # Vehicle loading, unloading, and capacity constraints
+        ############################################################################################################
+       
+        # (10) initial vehicle load:
+        for v in Vh:
+            target_station = eta[v]
+            m.addConstr(get_qV(s, target_station, v, 0) == Q_V0[v], name=f"init_vehicle_load_v{v}")
+ 
+ 
+        # (11) vehicle inventory balance at nodes/times for usable bikes carried by vehicles:
+        for i in N:
+            for v in Vh:
+                for t in Tpos:
+                    incoming = quicksum(
+                        get_qV(j, i, v, t - T_DD[(j, i)])
+                        for j in (N + [s])  # Exclude sink - no arcs FROM sink
+                        if (j, i) in T_DD and t - T_DD[(j, i)] >= 0
+                    )
+                    outgoing = quicksum(get_qV(i, k, v, t) for k in (N + [d]) if (i, k) in T_DD)  # Exclude source - no arcs TO source
+                    m.addConstr(
+                        incoming - get_qU(i, v, t) + get_qL(i, v, t) == outgoing,
+                        name=f"veh_load_bal_i{i}_v{v}_t{t}"
+                    )
+ 
+        # (12) cannot unload more than carried upon arrival:
+        for i in N:
+            for v in Vh:
+                for t in Tpos:
+                    incoming = quicksum(
+                        get_qV(j, i, v, t - T_DD[(j, i)])
+                        for j in (N + [s])  # Exclude sink - no arcs FROM sink
+                        if (j, i) in T_DD and t - T_DD[(j, i)] >= 0
+                    )
+                    m.addConstr(get_qU(i, v, t) <= incoming, name=f"unload_le_incoming_i{i}_v{v}_t{t}")
+ 
+ 
+        # (13) cannot load more than station inventory upon arrival
+        for i in N:
+            for v in Vh:
+                for t in Tpos:
+                    m.addConstr(get_qL(i, v, t) <= lN[i, t-1], name=f"load_le_inv_i{i}_v{v}_t{t}")
+ 
+        # (14) vehicle capacity link
+        for i in N0:
+            for j in N0:
+                for v in Vh:
+                    for t in T0:
+                        if (i, j, v, t) in feasible_arcs:  # Only add constraint if variable exists
+                            m.addConstr(get_qV(i, j, v, t) <= Q_V[v] * get_x(i, j, v, t),
+                                        name=f"cap_link_i{i}_j{j}_v{v}_t{t}")
+    
+
+
+
+        #############################################################################################################
+        # Timing constraints & maintenance integration (15)–(20)
+        ##############################################################################################################
+
+        for v in Vh:
+            for t in Tpos:
+                
+                # --- Calculate Driving Time (The "Min" Logic) ---
+                # started at t_prime <= t and calculate their elapsed time up to t.
+                # Calculate elapsed time: min(Time elapsed since start, Max trip duration)
+                driving_term = quicksum( min((t - t_prime) * tau, T_D[(i, j)]) * get_x(i, j, v, t_prime) for t_prime in T0 if t_prime <= t for i in (N + [s]) for j in N if (i, j) in T_DD)
+
+                # --- Calculate Service Time (Loading/Unloading + Maintenance) ---
+                # Sum over all activities performed up to time t
+                service_term = quicksum(T_L * (get_qL(i, v, t_prime) + get_qU(i, v, t_prime)) + tM[i, v, t_prime] for t_prime in Tpos if t_prime <= t for i in N)
+
+                # Total Time Used (LHS for both constraints)
+                total_time_consumed = driving_term + service_term
+
+                # Constraint (15): Upper Bound (Budget)
+                # Ensure we haven't consumed more time than has physically passed
+                m.addConstr( total_time_consumed <= t * tau, name=f"time_ub_v{v}_t{t}")
+
+                # Constraint (16): Lower Bound (Anti-Idling / Slack)
+                # Ensure the vehicle has been active for at least (t-2) periods.
+                # Add only constraint for t >= 2 to avoid negative time
+                if t >= 2:
+                    m.addConstr(total_time_consumed >= max((t-2)*tau,0), name=f"time_lb_v{v}_t{t}")
+       
+        # (17) Global maintenance upper bound per station
+        for i in N:
+            m.addConstr(quicksum(tM[i, v, t] for v in Vh for t in Tpos) <= T_M_max[i], name=f"maint_max_i{i}")
+ 
+ 
+        # (18) Per vehicle/station minimum if maintenance chosen
+        for i in N:
+            for v in Vh:
+                m.addConstr(quicksum(tM[i, v, t] for t in Tpos) >= T_M_min[i] * m_iv[i, v],
+                            name=f"maint_min_i{i}_v{v}")
+
+        # (19) Allow maintenance only if vehicle visits station
+        for i in N:
+            for v in Vh:
+                m.addConstr(m_iv[i,v] <= quicksum(get_x(i, j, v, t) for j in N0 for t in Tpos), name=f"maint_current_only_i{i}_v{v}")    
+
+        # (20) Link service (loading/unloading/maintenance) to presence in period t
+        for i in N:
+            for v in Vh:
+                for t in Tpos:
+                    m.addConstr(
+                        T_L * (get_qL(i, v, t) + get_qU(i, v, t)) + tM[i, v, t]
+                        <= 2 * tau * quicksum(get_x(i, j, v, t) for j in N0),
+                        name=f"service_presence_i{i}_v{v}_t{t}"
+                    )
+ 
+        # (21) Maintenance time upper bound link
+        for i in N:
+            for v in Vh:
+                for t in Tpos:
+                    m.addConstr(tM[i, v, t] <= 2 * tau * m_iv[i, v], name=f"maint_flag_i{i}_v{v}_t{t}")
+ 
+        #############################################################################################################
+        # Deviation absolute value at horizon (22)–(23)
+        ##########################################################################################
+ 
+        for i in N:
+            m.addConstr(d_abs[i] >= I_T[i] - lN[i, T], name=f"dev_pos_i{i}")
+            m.addConstr(d_abs[i] >= lN[i, T] - I_T[i], name=f"dev_neg_i{i}")
+        
+        t_constr_end = time_module.time()
+        print(f"[TIMING] Maintenance & deviation constraints (10-23): {t_constr_end - t_inventory_end:.4f}s")
+        print(f"[TIMING] Total constraint creation: {t_constr_end - t_constr_start:.4f}s")
+        print(f"[TIMING] Total model build: {t_constr_end - t_model_start:.4f}s")
+ 
+        ##########################################################################################
+        # set some Gurobi parameters for speed/stability
+        m.Params.OutputFlag = 1
+        
+        print(f"\n[OPTIMIZATION START]")
+        t_optimize_start = time_module.time()
+        m.optimize()
+        t_optimize_end = time_module.time()
+        
+        print(f"[OPTIMIZATION END]")
+        print(f"[TIMING] Gurobi optimize: {t_optimize_end - t_optimize_start:.3f}s")
+        print(f"[TIMING] Total subproblem: {t_optimize_end - t_model_start:.3f}s")
+        print(f"[MODEL STATS] Status: {m.Status}, Variables: {m.NumVars}, Constraints: {m.NumConstrs}")
+        print(f"[MODEL STATS] Binaries: {m.NumBinVars}, Integers: {m.NumIntVars}, Continuous: {m.NumVars - m.NumBinVars - m.NumIntVars}")
+        if m.Status in [GRB.OPTIMAL, GRB.TIME_LIMIT, GRB.SUBOPTIMAL]:
+            print(f"[SOLUTION] Objective: {m.ObjVal:.4f}, MIPGap: {m.MIPGap:.4%}, Nodes explored: {m.NodeCount}")
+
+        gap = None
+        if m.status == GRB.OPTIMAL or m.status == GRB.TIME_LIMIT:
+            # Get the gap (MIPGap is a model attribute)
+            gap = m.MIPGap
+
+        # Export objective-term breakdown when a solution (or incumbent) exists
+        #if m.status == GRB.OPTIMAL or m.status == GRB.TIME_LIMIT or m.status == GRB.SUBOPTIMAL:
+            #_export_objective_breakdown(m, data)
+
+        if m.Status == GRB.INFEASIBLE:
+            print("\nModel is infeasible. Computing IIS...")
+            m.computeIIS()
+            m.write("model_iis.ilp")
+            print("IIS written to model_iis.ilp")
+            
+            # Optional: Print the constraints in the IIS
+            print("\nConstraints in IIS:")
+            for c in m.getConstrs():
+                if c.IISConstr:
+                    print(f"  {c.ConstrName}")
+            # Check bounds
+            for v in m.getVars():
+                 if v.IISLB > 0 or v.IISUB > 0:
+                     print(f" Variable bound: {v.VarName}")
+
+        # Print Constraint (7) Analysis for Congestion
+        if m.status == GRB.OPTIMAL or m.status == GRB.TIME_LIMIT or m.status == GRB.SUBOPTIMAL:
+            
+            print("\n=== Constraint (7) Analysis (Congestion > 0) ===")
+            print(f"{'Station':<8} {'Time':<5} {'PrevInv':<8} {'Demand':<8} {'NetLoad':<8} {'Starv':<8} {'Congest':<8} {'CurrInv':<8} {'Cap':<5}")
+            total_congestion = 0
+            for i in N:
+                for t in Tpos:
+                    c_val = c_var[i, t].X
+                    if c_val > 0.001:
+                        total_congestion += c_val
+                        prev_inv = lN[i, t-1].X
+                        dem = D[(i, t)]
+                        # Access solution values using helper functions
+                        net_load = sum(get_qU(i, v, t).X - get_qL(i, v, t).X for v in Vh)
+                        s_val = s_var[i, t].X
+                        curr_inv = lN[i, t].X
+                        cap = Q_S[i]
+                        
+                        print(f"{i:<8} {t:<5} {prev_inv:>8.2f} {dem:>8.2f} {net_load:>8.2f} {s_val:>8.2f} {c_val:>8.2f} {curr_inv:>8.2f} {cap:<5}")
+            print(f"Total Congestion in this subproblem: {total_congestion:.2f}")
+            print("==============================================\n")
+ 
+        # Return the model object so the policy can extract solution variables
+        # obj_val = m.getObjective().getValue()
+        return m, gap
+ 
+    except GurobiError as e:
+        print("\n=== Gurobi Error ===")
+        print(f"Error message: {e.message}")
+        print(f"Error code: {e.errno if hasattr(e, 'errno') else 'N/A'}")
+        print("="*50)
+        raise  # Re-raise the error so we can see the full traceback
