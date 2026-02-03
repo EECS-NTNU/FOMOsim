@@ -7,18 +7,7 @@ from policies.sjovik_sund.sub_problem.subproblem_parameters import (
 from policies.sjovik_sund.sub_problem.sjovik_sund_subproblem import run_subproblem_model
 from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
 
-"""
-IMPORTANT NOTE ON TRAVEL TIMES:
-The simulator uses stochastic travel times (lognormal distribution) when traveltime_vehicle_matrix_stddev
-is available. This means:
-- Policy planning uses EXPECTED travel times (mean of distribution)
-- Actual simulation samples from the distribution, causing variation
-- Displayed "Expected ETA" is the policy's prediction
-- Actual vehicle ETA will differ due to random sampling
-This is realistic behavior - real-world travel times vary due to traffic, weather, etc.
-"""
- 
- 
+
 class SjovikSundPolicy(Policy):
     def __init__(self, roaming = False, time_horizon=12, tau=5, weights=None, hour_from=7, hour_to=23, maintenance_enabled=True):
         self.roaming = roaming
@@ -33,14 +22,11 @@ class SjovikSundPolicy(Policy):
     def get_best_action(self, simul, vehicle):
         import time as time_module
         t_action_start = time_module.time()
-        
-        # Print state with current time's target states
-        day = simul.day()
-        hour = simul.hour()
-        print(f"\n<State: {len(simul.get_parked_bikes())} bikes in {len(simul.stations)} stations with {len(simul.vehicles)} vehicles>")
-        print(f"Current Time: Day {day}, Hour {hour}\n")
+
+        # NB! Print below will reflect the state before optimization
         
         # Print stations with maintenance information
+        '''
         print(f"{'Station':<10} {'Arrive':<8} {'Leave':<8} {'Ideal':<8} {'Bikes':<7} {'AvgMaint':<10}")
         print("-" * 65)
         for station in simul.get_stations():
@@ -48,7 +34,8 @@ class SjovikSundPolicy(Policy):
             avg_maint = station.get_average_maintenance_criticality()
             print(f"{station.id:<10} {station.get_arrive_intensity(day, hour):>7.2f} "
                   f"{station.get_leave_intensity(day, hour):>7.2f} {target:>7.1f} "
-                  f"{len(station.bikes):>6} {avg_maint:>9.3f}")
+                  f"{len(station.bikes):>6} {avg_maint:>9.3f}")        
+        '''
         
         # Print maintenance summary
         '''high_maint_stations = [(s, s.get_average_maintenance_criticality()) 
@@ -63,12 +50,8 @@ class SjovikSundPolicy(Policy):
                 print(f"  {station.id}: Avg={maint:.3f}, Max={stats['max']:.3f}, "
                       f"High bikes (>0.5): {stats['high_criticality_count']}/{stats['count']}")'''
         
-        # Solve subproblem for ALL vehicles based on current system state
-        print(f"\n{'='*70}")
-        print(f"STARTING OPTIMIZATION - Simulation time: {simul.time:.1f} min")
-        print(f"{'='*70}")
-        
-        # Calculate inventory imbalance diagnostics
+        # [DIAGNOSTICS] Calculate inventory imbalance diagnostics
+        '''
         total_imbalance = 0
         max_imbalance = 0
         for station in simul.get_stations():
@@ -79,21 +62,17 @@ class SjovikSundPolicy(Policy):
             max_imbalance = max(max_imbalance, imbalance)
         avg_imbalance = total_imbalance / len(simul.get_stations())
         print(f"[DIAGNOSTICS] Inventory imbalance: avg={avg_imbalance:.2f}, max={max_imbalance}, total={total_imbalance}")
-        
-        t_params_start = time_module.time()
-        data = MILP_parameters(simul, self.time_horizon, self.weights, self.tau)
-        data.initalize_parameters()
-        t_params_end = time_module.time()
-        
-        print(f"[TIMING] Parameter initialization: {t_params_end - t_params_start:.3f}s")
-        
+        '''
+
         # --- Print Simulation Clock ---
-        time = simul.time
-        day = time // (24*60)
-        hour = (time % (24*60)) // 60           
+        # Print state with current time's target states
+
+        time = simul.time        
+        day = simul.day()
+        hour = simul.hour()
         minute = time % 60
         print(f"\n{'='*60}")
-        print(f"SIMULATION CLOCK: {time:.1f} minutes | Day {day}, Time {hour}, minute {minute}")
+        print(f"STARTING OPTIMIZATION - SIMULATION CLOCK: {time:.1f} minutes | Day {day}, Hour {hour}, Minute {minute}")
         print(f"{'='*60}")
         
         # Solve subproblem for ALL vehicles based on current system state
@@ -156,10 +135,8 @@ class SjovikSundPolicy(Policy):
                 print(f"  {name} = {val:.2f}")
 
 
-        print("---------------------------------------------")
-
         # Extract this vehicle's action from the multi-vehicle solution
-        next_station, bikes_to_pickup, bikes_to_deliver, maintenance_time = self.return_solution(gurobi_output, vehicle, data)
+        next_station, bikes_to_pickup, bikes_to_deliver, maintenance_time, route_sequence = self.return_solution(gurobi_output, vehicle, data)
         
         # Track actual route - record current position before moving
         if vehicle.id not in self.vehicle_routes:
@@ -175,29 +152,28 @@ class SjovikSundPolicy(Policy):
         simul.metrics.add_aggregate_metric(simul, 'vehicle arrivals', 1)
         simul.metrics.add_aggregate_metric(simul, 'maintenance time', maintenance_time)
         
-        # --- DEBUG: Print current station status ---
-        print(f"\n--- STATION STATUS CHECK ---")
-        for station_id, station_obj in simul.stations.items():
-            bikes_count = station_obj.number_of_bikes()
-            capacity = station_obj.capacity
-            utilization = bikes_count / capacity if capacity > 0 else 0
-            status = "FULL" if bikes_count >= capacity else "EMPTY" if bikes_count == 0 else "OK"
-            print(f"  {station_id}: {bikes_count}/{capacity} bikes ({utilization:.1%}) [{status}]")
+        # Print comprehensive action summary
+        print(f"\n=== ACTION SUMMARY for Vehicle {vehicle.id} ===")
+        print(f"Current Station: {vehicle.location.id}")
         
-
-
-
-        # --- NEW: Adjusted Print Sentences ---
-        # 1. Current Actions at Station
-        maint_str = f", Maintenance: {maintenance_time:.2f} min" if maintenance_time > 0 else ", No maintenance"
-        print(f"\nVehicle {vehicle.id} at {vehicle.location.id}: Picking up {len(bikes_to_pickup)} bikes, Delivering {len(bikes_to_deliver)} bikes{maint_str}.")
+        # Print route sequence
+        print(f"\nRoute Sequence:")
+        if route_sequence:
+            for period, from_name, to_name, _, _ in sorted(route_sequence, key=lambda x: x[0]):
+                print(f"  Period {period}: {from_name} -> {to_name}")
+        else:
+            print("  (No movement from current station found in solution)")
         
-        # 2. Next Movement
+        print(f"\nActions: Pickup {len(bikes_to_pickup)} bikes, Deliver {len(bikes_to_deliver)} bikes" + 
+              (f", Maintenance: {maintenance_time:.2f} min" if maintenance_time > 0 else ""))
+        if bikes_to_pickup:
+            print(f"  Pickup IDs: {bikes_to_pickup}")
+        if bikes_to_deliver:
+            print(f"  Deliver IDs: {bikes_to_deliver}")
+        
         expected_travel_time = data.T_D.get((data.station_id_to_index[vehicle.location.id], data.station_id_to_index[next_station]), 0.0)
-        print(f"Vehicle {vehicle.id} is going to station {next_station} next.")
-        print(f"  Expected travel time: {expected_travel_time:.2f} minutes (policy planning value)")
-        print(f"  Expected ETA: minute {simul.time + expected_travel_time:.2f}")
-        print(f"  Note: Actual travel time may vary due to stochastic effects in simulation")
+        print(f"Next Station: {next_station} (Expected travel time: {expected_travel_time:.2f} min, ETA: {simul.time + expected_travel_time:.2f})")
+        print(f"{'='*50}\n")
             
         return sim.Action(
             [],               # batteries to swap
@@ -217,10 +193,7 @@ class SjovikSundPolicy(Policy):
         vehicle_idx = data.vehicle_id_to_index[vehicle.id]
         current_station_idx = data.station_id_to_index[vehicle.location.id]
 
-        print(f"\n=== ROUTING ANALYSIS for Vehicle {vehicle.id} at station {vehicle.location.id} ===")
-        #SISTE ENDRINGER HER
-        # 1. Extract and print route sequence
-        print(f"Route Sequence:")
+        # Extract route sequence
         route_sequence = []
         
         for var in gurobi_output.getVars():
@@ -240,14 +213,7 @@ class SjovikSundPolicy(Policy):
                     first_move_period = period
                     next_station_id = data.index_to_station_id[to_idx]
 
-        # Print route sequence
-        for period, from_name, to_name, _, _ in sorted(route_sequence, key=lambda x: x[0]):
-            print(f"  Period {period}: {from_name} -> {to_name}")
-        if not route_sequence:
-            print("  (No movement from current station found in solution)")
-
-        # 2. Extract actions at current station
-        print(f"\nDecision actions at Current Station ({vehicle.location.id}):")
+        # Extract actions at current station
         
         for var in gurobi_output.getVars():
             variable = var.varName.strip("]").split("[")
@@ -259,22 +225,12 @@ class SjovikSundPolicy(Policy):
                 s_idx, v_idx, period_t = int(indices[0]), int(indices[1]), int(indices[2])
                 
                 if v_idx == vehicle_idx and s_idx == current_station_idx and period_t <= first_move_period:
-                #if v_idx == vehicle_idx and s_idx == current_station_idx:
-                   
                     if name in ['qL', 'qL_curr', 'qL_other']:
                         loading_quantity += var.x
-                        print(f"  Load: {var.x:.2f} (Period {period_t})")
                     elif name in ['qU', 'qU_curr', 'qU_other']:
                         unloading_quantity += var.x
-                        print(f"  Unload: {var.x:.2f} (Period {period_t})")
                     elif name == 'tM':
-                        maintenance_time += var.x
-                        print(f"  Maintenance: {var.x:.2f} minutes (Period {period_t})")
-        
-        if loading_quantity == 0 and unloading_quantity == 0 and maintenance_time == 0:
-            print("  (No loading/unloading/maintenance actions)")
-
-        #VEHICLE ACTIONS FIX 
+                        maintenance_time += var.x 
         # 3. Select bikes to pickup/deliver
         net_transfer = loading_quantity - unloading_quantity
 
@@ -300,18 +256,5 @@ class SjovikSundPolicy(Policy):
             loading_ids = []
             unloading_ids = []
         
-        
-        print(f"\nBike Transfer Summary:")
-        print(f"  Target: Load {loading_quantity:.2f}, Unload {unloading_quantity:.2f}")
-        #print(f"  Net: {net_transfer:+.2f} → Executing: Pickup {num_to_pickup}, Deliver {num_to_deliver}")
-        print(f"\n Net Transfer at Station: {net_transfer:.2f} bikes (Loading: {loading_quantity:.2f}, Unloading: {unloading_quantity:.2f})")
-    
-
-        print(f"  Pickup: {num_to_pickup} bikes (Target: {loading_quantity:.2f})")
-        print(f"  {loading_ids}")
-        print(f"  Deliver: {num_to_deliver} bikes (Target: {unloading_quantity:.2f})")
-        print(f"  {unloading_ids}")
-        #print(f"  Maintenance: {maintenance_time:.2f} minutes")
-        
-        return next_station_id, loading_ids, unloading_ids, maintenance_time
+        return next_station_id, loading_ids, unloading_ids, maintenance_time, route_sequence
     

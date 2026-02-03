@@ -139,22 +139,9 @@ class Station(Location):
         self.bikes[bike.bike_id] = bike
         #bike.set_location(self.get_lat(), self.get_lon(), self.location_id)
         bike.set_location(self.get_lat(), self.get_lon())
-        
-        # Log for S51
-        if self.id == "S51":
-            maint = getattr(bike, 'maintenance_criticality', 0.0)
-            usable = bike.usable() if hasattr(bike, 'usable') else True
-            print(f"  [S51 +BIKE] {bike.bike_id} added | Inventory now: {len(self.bikes)} | maint={maint:.3f} | usable={usable}")
-        
         return True
 
     def remove_bike(self, bike):
-        # Log for S51 before removal
-        if self.id == "S51":
-            maint = getattr(bike, 'maintenance_criticality', 0.0)
-            usable = bike.usable() if hasattr(bike, 'usable') else True
-            print(f"  [S51 -BIKE] {bike.bike_id} removed | Inventory was: {len(self.bikes)} | maint={maint:.3f} | usable={usable}")
-        
         del self.bikes[bike.bike_id]
         # bike.set_location(None, None, None)
 

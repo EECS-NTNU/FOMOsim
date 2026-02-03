@@ -310,24 +310,11 @@ class State(LoadSave):
                 else:
                     bike = sim.Bike(bike_id= "B"+str(num_bikes), is_station_based=True)
                     bike.maintenance_criticality = 0.0  # Will be set after state creation using state.rng
-                    #print(f"Initialized Bike ID-{bike.bike_id} with maintenance criticality: {bike.maintenance_criticality:.3f}")
                     num_bikes += 1
                     bikes.append(bike)
 
             stationObj.set_bikes(bikes)
             
-            # Log initial inventory for S51
-            if stationObj.id == "S51":
-                print(f"\n=== STATION S51 INITIALIZATION ===")
-                print(f"Station: {stationObj.id}")
-                print(f"Initial Bikes: {len(bikes)}")
-                print(f"Capacity: {stationObj.capacity}")
-                print(f"Bikes:")
-                for bike in bikes:
-                    maint = getattr(bike, 'maintenance_criticality', 0.0)
-                    print(f"  - {bike.bike_id}: maintenance={maint:.3f}")
-                print(f"==================================\n")
-
             if isinstance(stationObj, sim.Depot):
                 num_depots += 1
             else:
@@ -382,7 +369,7 @@ class State(LoadSave):
                 for bike in location.bikes.values():
                     if hasattr(bike, 'maintenance_criticality') and bike.maintenance_criticality == 0.0:
                         bike.maintenance_criticality = self.rng.triangular(0, 0.33, 1)
-                        print(f"Initialized Bike ID-{bike.bike_id} with maintenance criticality: {bike.maintenance_criticality:.3f}")
+                        #print(f"Initialized Bike ID-{bike.bike_id} with maintenance criticality: {bike.maintenance_criticality:.3f}")
     
     def calculate_traveltime(self, speed):
         locations = [(loc, loc.get_location()) for loc in self.get_locations()]

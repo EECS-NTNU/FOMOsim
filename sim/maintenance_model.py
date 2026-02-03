@@ -7,14 +7,8 @@ from settings import MAINTENANCE_INCREASE_PER_MINUTE, MAINTENANCE_FULL_FIX
 
 def update_bike_maintenance(bike, travel_time, rng ,battery_level=None, congested=False):
     # Base wear from distance/time
-    
-    # CRITICAL DEBUG: Print input values
-    print(f"  FUNC CALLED: update_bike_maintenance(bike={bike.bike_id}, travel_time={travel_time:.2f}, bike.maintenance_criticality={bike.maintenance_criticality:.6f})")
-
     base_criticality = bike.maintenance_criticality
     base_wear = travel_time * MAINTENANCE_INCREASE_PER_MINUTE
-    
-    print(f"  FUNC CALC: MAINTENANCE_INCREASE_PER_MINUTE={MAINTENANCE_INCREASE_PER_MINUTE}, base_wear={base_wear:.6f}")
     
     # Random wear (simulate unexpected damage)
     random_wear = 0.0
@@ -26,8 +20,6 @@ def update_bike_maintenance(bike, travel_time, rng ,battery_level=None, congeste
     
     # Update and cap at 1.0
     new_criticality = min(1.0, base_criticality + total_wear)
-    
-    print(f"  FUNC RETURN: {base_criticality:.6f} + {total_wear:.6f} = {new_criticality:.6f}")
     
     return new_criticality
 

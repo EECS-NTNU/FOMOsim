@@ -2,7 +2,6 @@ import math
 from settings import VEHICLE_SPEED, MINUTES_CONSTANT_PER_ACTION, MAINTENANCE_FULL_FIX, MINUTES_PER_ACTION
 
 # Maintenance constants - shared across MILP and policy
-#TIME_PER_BIKE_MAINTENANCE = MAINTENANCE_FULL_FIX  # Minutes to service one bike (matches MINUTES_PER_ACTION)
 MAX_BIKES_TO_SERVICE_PER_VISIT = 20  # Maximum bikes that can be serviced at one station visit
  
 class MILP_parameters:
@@ -65,9 +64,7 @@ class MILP_parameters:
         # Demand parameters
         self.D = {}            # {(station_idx, period): net_demand} - Net demand at station i in period t
                                # Positive = net arrivals (more bikes coming in), Negative = net departures (more bikes leaving)
-        #usable_bikes = sum(1 for bike in self.state.get_used_bike() if bike.usable())
- 
-   
+
     def _initialize_stations(self):
         # Get original station IDs (strings like 'S0', 'S1', etc.)
         original_station_ids = [station.id for station in self.state.stations.values()]
@@ -174,9 +171,7 @@ class MILP_parameters:
             station = self.state.stations[station_id]
             # Count available bikes at the station
             total_bikes = station.number_of_bikes()
-            #usable_bikes = sum(1 for bike in station.get_bikes() if bike.usable())
             usable_bikes = len(station.get_available_bikes())
-            #print(f"Station {station_id} initial bikes: {total_bikes}, usable: {usable_bikes}")
             # Only count usable bikes
             self.I_N0[station_idx] = usable_bikes
    
@@ -196,8 +191,6 @@ class MILP_parameters:
             
             # Capacity is reduced by unusable bikes occupying docks
             effective_capacity = max(0, station.capacity - unusable_bikes)
-            #print(f"Station {station_id} capacity: {station.capacity}, unusable bikes: {unusable_bikes}, effective capacity: {effective_capacity}")
-            
             self.Q_S[station_idx] = effective_capacity
    
     def _initialize_vehicle_capacities(self):
@@ -241,7 +234,6 @@ class MILP_parameters:
         
         Note: Includes period 0 (initial time period) through T
         """
-        print(self.to_dict().keys())
         for station_idx in self.stations:
             station_id = self.index_to_station_id[station_idx]
             station = self.state.stations[station_id]
@@ -301,7 +293,7 @@ class MILP_parameters:
                 
                 # Time = bikes to service × time per bike
                 max_time = bikes_to_service * MAINTENANCE_FULL_FIX
-                print(f"Station {station_id} maintenance: avg_maint={avg_maint:.3f}, bikes_to_service={bikes_to_service}, T_M_max={max_time:.1f} min")
+                #print(f"Station {station_id} maintenance: avg_maint={avg_maint:.3f}, bikes_to_service={bikes_to_service}, T_M_max={max_time:.1f} min")
                 
                 # If maintenance is chosen, must service at least 1 bike (no partial servicing)
                 # This ensures either: 0 min (no maintenance) OR at least 0.5 min (fix 1+ bikes)
@@ -310,19 +302,6 @@ class MILP_parameters:
                 
                 if max_time > 0:
                     stations_with_maintenance.append((station_id, avg_maint, bikes_to_service, max_time))
-        
-        # Debug output
-        """
-        if stations_with_maintenance:
-            print(f"\n--- Maintenance Time Allocation ---")
-            print(f"Stations with maintenance capacity:")
-            for sid, avg, bikes, time in sorted(stations_with_maintenance, key=lambda x: x[1], reverse=True):
-                station_idx = self.station_id_to_index[sid]
-                t_min = self.T_M_min[station_idx]
-                print(f"  {sid}: avg={avg:.3f}, bikes={bikes}, T_M=[{t_min:.1f}, {time:.1f}] min")
-        else:
-            print(f"\n--- Maintenance Time Allocation ---")
-            print(f"No stations allocated maintenance time (all avg_maint < 0.05)")"""
     
     def initialize_vehicle_ETAs(self):
         """
@@ -334,9 +313,7 @@ class MILP_parameters:
         for vehicle_idx in self.V:
             vehicle_id = self.index_to_vehicle_id[vehicle_idx]
             vehicle = self.state.vehicles[vehicle_id]
-            #print(vehicle.eta)
             if vehicle.eta > 0:
-                #print("HEI")
                 # Vehicle is in transit - get its destination station
                 destination_station_id = vehicle.location.id
                 

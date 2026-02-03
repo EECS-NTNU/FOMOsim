@@ -18,7 +18,7 @@ class GenerateEScooterTrips(Event):
 
         super().perform(simul)
 
-        print("Time:", simul.state.time)
+        #print("Time:", simul.state.time)
 
         for departure_area in simul.state.get_areas():
             # poisson process to select number of trips in a iteration

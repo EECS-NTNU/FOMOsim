@@ -86,10 +86,9 @@ class BikeDeparture(Event):
             #print(f"  DEPARTURE: Bike {bike.bike_id} from {departure_station.id} -> to {arrival_station_id} "
                   #f"(t={self.time:.1f}, {maint_status}, travel={travel_time:.1f}min)")
             
-            # Log bike movement - direct call without hasattr check first for debugging
+            # Log bike movement
             try:
                 bike_crit = getattr(bike, 'maintenance_criticality', 0.0)
-                print(f"DEBUG BikeDeparture: About to call log_bike_movement, simul_id={id(simul)}, type={type(simul).__name__}")
                 simul.log_bike_movement(
                     time=self.time,
                     bike_id=bike.bike_id,
@@ -175,9 +174,14 @@ class BikeDeparture(Event):
                     
                     # Print roaming for bike
                     maint_status = f"maint={bike.maintenance_criticality:.3f}" if hasattr(bike, 'maintenance_criticality') else ""
+
+                    '''
                     print(f"   ROAMING DEP: User walks from {departure_station.id} to {closest_neighbour_with_bikes.id} "
                           f"(dist={distance:.2f}km)  bike {bike.bike_id} -> {arrival_station_id} "
-                          f"(t={self.time:.1f}, {maint_status})")
+                          f"(t={self.time:.1f}, {maint_status})")                    
+                    
+                    '''
+
                     
                     # Log bike movement if simulator supports it
                     if hasattr(simul, 'log_bike_movement'):
@@ -231,9 +235,6 @@ class BikeDeparture(Event):
                             )
                     else:
                         unusable_count = len(departure_station.get_unusable_bikes())
-                        """print(f"  LOST TRIP: No usable bikes at {departure_station.id} "
-                              f"({unusable_count} unusable, battery starvation, t={self.time:.1f})")
-                        simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)"""
                         if unusable_count == total_bikes_at_station:
                             print(f"  LOST TRIP: All bikes at {departure_station.id} require maintenance "
                                   f"(maintenance starvation, t={self.time:.1f})")
@@ -248,12 +249,8 @@ class BikeDeparture(Event):
                                     did_roam=False
                                 )
                             
-                            # Print comprehensive overview of all stations
-                            print(f"\n=== MAINTENANCE STARVATION OVERVIEW (t={self.time:.1f}) ===")
                             all_stations = simul.state.get_stations()
-                            print(f"{'Station':<10} {'Total':<7} {'Usable':<8} {'Unusable':<10} {'Demand':<8} {'Criticalities (Unusable Bikes)'}")
-                            print("=" * 100)
-                            
+
                             for station in sorted(all_stations, key=lambda s: s.id):
                                 total = station.number_of_bikes()
                                 usable_bikes = station.get_available_bikes()

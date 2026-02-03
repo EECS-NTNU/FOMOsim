@@ -56,9 +56,6 @@ class LoggingSimulator(sim.Simulator):
         if hasattr(self.state, 'parameters') and 'degradation_rate' in self.state.parameters:
             rate = self.state.parameters['degradation_rate']
            
-        # DEBUG PRINT
-        print(f"DEBUG CRITICALITY: Pre={pre_criticality}, Time={travel_time}, Rate={rate}, Added={travel_time * rate}")
- 
         estimated = pre_criticality + (travel_time * rate)
         return min(estimated, 1.0)
  
@@ -81,9 +78,7 @@ class LoggingSimulator(sim.Simulator):
             'did_roam': did_roam,
             'bike_criticality': bike_criticality
         })
-        if len(self.bike_movements) % 100 == 0:
-             print(f"DEBUG: Logged {len(self.bike_movements)} bike movements")
-   
+    
     def log_trip_request(self, time, station_id, success=True, failure_reason=None, did_roam=False,
                         arrival_station_id=None, travel_time=None, bike_id=None, bike_criticality=None):
         """Log a trip request (successful or failed)"""
@@ -115,9 +110,7 @@ class LoggingSimulator(sim.Simulator):
             'previous_bike_criticality': prev_criticality if success else None,
             'post_trip_bike_criticality': post_criticality if success else None
         })
-        if len(self.trip_requests) % 100 == 0:
-             print(f"DEBUG: Logged {len(self.trip_requests)} trip requests")
- 
+        
     def full_step(self):
         super().full_step()
        
@@ -157,10 +150,11 @@ class LoggingSimulator(sim.Simulator):
        
         # Calculate average bike criticality for entire fleet
         all_bikes = self.state.get_all_bikes()
-        print(f"DEBUG: Calculating average bike criticality for {len(all_bikes)} bikes")
+        #print(f"DEBUG: Calculating average bike criticality for {len(all_bikes)} bikes")
         #print criticalities for all bikes along the bike id
-        for bike in all_bikes:
-            print(f"  Bike ID: {bike.bike_id}, Criticality: {bike.maintenance_criticality:.6f}")
+        #for bike in all_bikes:
+            #print(f"  Bike ID: {bike.bike_id}, Criticality: {bike.maintenance_criticality:.6f}")
+            
         if all_bikes:
             avg_bike_criticality = sum(bike.maintenance_criticality for bike in all_bikes) / len(all_bikes)
             # Count bikes in different criticality ranges
