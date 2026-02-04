@@ -236,9 +236,12 @@ class Station(Location):
         Defines the list neighboring_stations consisting of Station-objects
         """
         self_index = location_list.index(self)
-        neighboring_stations_list = neighboring_stations_dict[self_index]
+        neighboring_stations_list = neighboring_stations_dict.get(self_index, [])
         for index in neighboring_stations_list:
-            self.neighbours.append(location_list[index])
+            if index < len(location_list):
+                self.neighbours.append(location_list[index])
+            else:
+                print(f"Warning: Neighbor index {index} out of range for location_list of size {len(location_list)} (station {self.id} at index {self_index})")
     
     def set_move_probabilities(self, station_list):
         move_probabilities = [[{} for _ in range(24)] for _ in range(7)]

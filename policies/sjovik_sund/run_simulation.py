@@ -77,6 +77,7 @@ class SimulationConfig:
     # === Instance-Specific Start Stations ===
     instance_start_stations: Dict[str, List[int]] = field(default_factory=lambda: {
         "TD": [0, 5, 10, 15, 20, 25, 30, 35, 40],
+        # "TD": [0, 5, 10, 15, 20, 25], # for clustered instance of TD
         "OS": [4, 5, 10, 15, 20, 25, 30, 35, 40],
         "EH": [0, 1, 2, 3, 4, 5, 6, 7] * 3 + [0, 1, 2]
     })
