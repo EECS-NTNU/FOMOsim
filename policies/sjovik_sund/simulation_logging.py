@@ -8,6 +8,8 @@ import csv
 import sim
 from pathlib import Path
 from settings import MAINTENANCE_INCREASE_PER_MINUTE
+from sim.bike_degradation_modeling import damage_configuration
+#from sim.bike_degradation_modeling.utils import haversine_distance
  
  
 # Determine output directory relative to this file's location
@@ -61,12 +63,19 @@ class LoggingSimulator(sim.Simulator):
  
     def log_bike_movement(self, time, bike_id, departure_station_id, arrival_station_id, did_roam=False, bike_criticality=0.0):
         """Log a bike movement for later export to CSV"""
-        # For bike movements (which usually happen upon arrival), we can trust the passed value
-        # or fetch it if needed. Assuming passed value is correct here.
         day = int(time // (24*60))
         hour = int((time % (24*60)) // 60)
         minute = int(time % 60)
-       
+        
+        # Calculate distance traveled
+        distance_km = 0.0
+        if departure_station_id and arrival_station_id:
+            dep_station = self.state.locations.get(departure_station_id)
+            arr_station = self.state.locations.get(arrival_station_id)
+            if dep_station and arr_station:
+            # Use the existing geopy-based distance calculation
+                distance_km = dep_station.distance_to(arr_station.lat, arr_station.lon)
+        
         self.bike_movements.append({
             'time_minutes': time,
             'day': day,
@@ -76,7 +85,8 @@ class LoggingSimulator(sim.Simulator):
             'departure_station': departure_station_id,
             'arrival_station': arrival_station_id,
             'did_roam': did_roam,
-            'bike_criticality': bike_criticality
+            'bike_criticality': bike_criticality,
+            'distance_km': distance_km
         })
     
     def log_trip_request(self, time, station_id, success=True, failure_reason=None, did_roam=False,
@@ -137,70 +147,63 @@ class LoggingSimulator(sim.Simulator):
    
     def log_hourly_metrics(self, hour, current_time):
         """Log metrics for the hour that just completed (delta since last hour)"""
-        # Get current aggregate values
-        current_starvations = self.state.metrics.get_aggregate_value('starvations')
-        current_bike_starvations = self.state.metrics.get_aggregate_value('bike starvations')
-        current_long_congestions = self.state.metrics.get_aggregate_value('long congestions')
-        current_short_congestions = self.state.metrics.get_aggregate_value('short congestions')
-        current_maintenance_violations = self.state.metrics.get_aggregate_value('maintenance violations')
-        current_maintenance_starvations = self.state.metrics.get_aggregate_value('maintenance_starvation')
-        current_bike_pickups = self.state.metrics.get_aggregate_value('num bike pickups')
-        current_bike_deliveries = self.state.metrics.get_aggregate_value('num bike deliveries')
-        current_maintenance_time = self.state.metrics.get_aggregate_value('maintenance time')
-       
-        # Calculate average bike criticality for entire fleet
-        all_bikes = self.state.get_all_bikes()
-        #print(f"DEBUG: Calculating average bike criticality for {len(all_bikes)} bikes")
-        #print criticalities for all bikes along the bike id
-        #for bike in all_bikes:
-            #print(f"  Bike ID: {bike.bike_id}, Criticality: {bike.maintenance_criticality:.6f}")
-            
-        if all_bikes:
-            avg_bike_criticality = sum(bike.maintenance_criticality for bike in all_bikes) / len(all_bikes)
-            # Count bikes in different criticality ranges
-            bikes_critical = sum(1 for bike in all_bikes if bike.maintenance_criticality > 0.83)
-            bikes_high = sum(1 for bike in all_bikes if 0.6 < bike.maintenance_criticality <= 0.83)
-            bikes_medium = sum(1 for bike in all_bikes if 0.3 < bike.maintenance_criticality <= 0.6)
-            bikes_low = sum(1 for bike in all_bikes if bike.maintenance_criticality <= 0.3)
-           
-            # Log bike criticality distribution
-            print(f"\n--- HOURLY BIKE CRITICALITY (Hour {hour}, t={current_time:.1f}) ---")
-            print(f"Average Criticality: {avg_bike_criticality:.4f}")
-            print(f"Distribution:")
-            print(f"  Critical (>0.83):     {bikes_critical:>4} bikes ({bikes_critical/len(all_bikes)*100:.1f}%)")
-            print(f"  High (0.60-0.83):     {bikes_high:>4} bikes ({bikes_high/len(all_bikes)*100:.1f}%)")
-            print(f"  Medium (0.30-0.60):   {bikes_medium:>4} bikes ({bikes_medium/len(all_bikes)*100:.1f}%)")
-            print(f"  Low (<=0.30):         {bikes_low:>4} bikes ({bikes_low/len(all_bikes)*100:.1f}%)")
-            print(f"  Total Fleet:          {len(all_bikes):>4} bikes")
-            print(f"-------------------------------------------------------\n")
-        else:
-            avg_bike_criticality = 0.0
-            bikes_critical = bikes_high = bikes_medium = bikes_low = 0
-       
-        # Calculate station-level metrics
-        self.log_station_metrics(hour, current_time)
-       
-        # Calculate deltas (events in the hour that just completed)
-        hourly_starvations = current_starvations - self.last_hour_starvations
-        hourly_bike_starvations = current_bike_starvations - getattr(self, 'last_hour_bike_starvations', 0)
-        hourly_long_congestions = current_long_congestions - self.last_hour_long_congestions
-        hourly_short_congestions = current_short_congestions - self.last_hour_short_congestions
-        hourly_maintenance_violations = current_maintenance_violations - self.last_hour_maintenance_violations
-        hourly_maintenance_starvations = current_maintenance_starvations - self.last_hour_maintenance_starvations
-        hourly_bike_pickups = current_bike_pickups - self.last_hour_bike_pickups
-        hourly_bike_deliveries = current_bike_deliveries - self.last_hour_bike_deliveries
-        hourly_maintenance_time = current_maintenance_time - self.last_hour_maintenance_time
-       
-        # Calculate day and hour in proper format
         day = int(current_time // (24*60))
-        hour_of_day = int((current_time % (24*60)) // 60)
-        hour_formatted = 24 if hour_of_day == 0 else hour_of_day
-       
-        # Store hourly data (hour is the hour that just completed)
-        self.hourly_metrics.append({
+        hour_formatted = f"{hour:02d}:00"
+        
+        # Get current cumulative values
+        current_starvations = self.state.metrics.get_aggregate_value("starvation")
+        current_bike_starvations = self.state.metrics.get_aggregate_value("bike_starvation")
+        current_long_congestions = self.state.metrics.get_aggregate_value("long_congestion")
+        current_short_congestions = self.state.metrics.get_aggregate_value("short_congestion")
+        current_maintenance_violations = self.state.metrics.get_aggregate_value("maintenance_violations")
+        current_maintenance_starvations = self.state.metrics.get_aggregate_value("maintenance_starvations")
+        current_bike_pickups = self.state.metrics.get_aggregate_value("bike_pickups")
+        current_bike_deliveries = self.state.metrics.get_aggregate_value("bike_deliveries")
+        current_maintenance_time = self.state.metrics.get_aggregate_value("maintenance_time")
+        
+        # NEW: Track component failures
+        current_total_failures = self.state.metrics.get_aggregate_value("total_failures")
+        
+        # Calculate hourly deltas (difference from last hour)
+        hourly_starvations = current_starvations - getattr(self, 'last_hour_starvations', 0)
+        hourly_bike_starvations = current_bike_starvations - getattr(self, 'last_hour_bike_starvations', 0)
+        hourly_long_congestions = current_long_congestions - getattr(self, 'last_hour_long_congestions', 0)
+        hourly_short_congestions = current_short_congestions - getattr(self, 'last_hour_short_congestions', 0)
+        hourly_maintenance_violations = current_maintenance_violations - getattr(self, 'last_hour_maintenance_violations', 0)
+        hourly_maintenance_starvations = current_maintenance_starvations - getattr(self, 'last_hour_maintenance_starvations', 0)
+        hourly_bike_pickups = current_bike_pickups - getattr(self, 'last_hour_bike_pickups', 0)
+        hourly_bike_deliveries = current_bike_deliveries - getattr(self, 'last_hour_bike_deliveries', 0)
+        hourly_maintenance_time = current_maintenance_time - getattr(self, 'last_hour_maintenance_time', 0.0)
+        hourly_total_failures = current_total_failures - getattr(self, 'last_hour_total_failures', 0)
+        
+        # Track individual component failures
+        component_failure_counts = {}
+        for category in damage_configuration.DAMAGE_CATEGORIES.keys():
+            current_cat_failures = self.state.metrics.get_aggregate_value(f"failure_{category}")
+            last_cat_failures = getattr(self, f'last_hour_failure_{category}', 0)
+            component_failure_counts[category] = current_cat_failures - last_cat_failures
+            setattr(self, f'last_hour_failure_{category}', current_cat_failures)
+        
+        # Calculate maintenance criticality statistics for all bikes in the system
+        all_bikes = self.state.get_all_bikes()
+        if all_bikes:
+            bike_criticalities = [bike.maintenance_criticality for bike in all_bikes]
+            avg_criticality = sum(bike_criticalities) / len(bike_criticalities)
+            
+            # Count bikes in different criticality ranges
+            bikes_critical = sum(1 for c in bike_criticalities if c > 0.83)
+            bikes_high = sum(1 for c in bike_criticalities if 0.60 < c <= 0.83)
+            bikes_medium = sum(1 for c in bike_criticalities if 0.30 < c <= 0.60)
+            bikes_low = sum(1 for c in bike_criticalities if c <= 0.30)
+        else:
+            avg_criticality = 0.0
+            bikes_critical = bikes_high = bikes_medium = bikes_low = 0
+        
+        # Store hourly data
+        hourly_data = {
             'day': day,
             'hour': hour_formatted,
-            'hour_index': hour,  # Original hour index for reference
+            'hour_index': hour,
             'time_minutes': current_time,
             'starvations': hourly_starvations,
             'bike_starvations': hourly_bike_starvations,
@@ -211,13 +214,22 @@ class LoggingSimulator(sim.Simulator):
             'bike_pickups': hourly_bike_pickups,
             'bike_deliveries': hourly_bike_deliveries,
             'maintenance_time': hourly_maintenance_time,
-            'avg_bike_criticality': avg_bike_criticality,
+            'avg_bike_criticality': avg_criticality,
             'bikes_critical': bikes_critical,
             'bikes_high': bikes_high,
             'bikes_medium': bikes_medium,
             'bikes_low': bikes_low,
-        })
-       
+            'total_failures': hourly_total_failures,
+        }
+        
+        # Add individual component failure counts
+        for category, count in component_failure_counts.items():
+            # Convert category name to valid dictionary key (e.g., "Body & Accessories" -> "body_accessories")
+            key = f'failures_{category.lower().replace(" & ", "_").replace(" ", "_")}'
+            hourly_data[key] = count
+        
+        self.hourly_metrics.append(hourly_data)
+        
         # Update last hour values for next calculation
         self.last_hour_starvations = current_starvations
         self.last_hour_bike_starvations = current_bike_starvations
@@ -228,7 +240,40 @@ class LoggingSimulator(sim.Simulator):
         self.last_hour_bike_pickups = current_bike_pickups
         self.last_hour_bike_deliveries = current_bike_deliveries
         self.last_hour_maintenance_time = current_maintenance_time
-   
+        self.last_hour_total_failures = current_total_failures
+        
+        # Print summary for this hour
+        print(f"\n{'='*70}")
+        print(f"HOUR {hour_formatted} SUMMARY (Day {day})")
+        print(f"{'='*70}")
+        print(f"{'Metric':<35} {'This Hour':>12}")
+        print(f"{'-'*70}")
+        print(f"{'Starvations':<35} {hourly_starvations:>12}")
+        print(f"{'Bike Starvations':<35} {hourly_bike_starvations:>12}")
+        print(f"{'Long Congestions':<35} {hourly_long_congestions:>12}")
+        print(f"{'Short Congestions':<35} {hourly_short_congestions:>12}")
+        print(f"{'Maintenance Violations':<35} {hourly_maintenance_violations:>12}")
+        print(f"{'Maintenance Starvations':<35} {hourly_maintenance_starvations:>12}")
+        print(f"{'Bike Pickups':<35} {hourly_bike_pickups:>12}")
+        print(f"{'Bike Deliveries':<35} {hourly_bike_deliveries:>12}")
+        print(f"{'Maintenance Time (min)':<35} {hourly_maintenance_time:>12.2f}")
+        print(f"{'Avg Bike Criticality':<35} {avg_criticality:>12.4f}")
+        print(f"{'Bikes Critical (>0.83)':<35} {bikes_critical:>12}")
+        print(f"{'Bikes High (0.60-0.83)':<35} {bikes_high:>12}")
+        print(f"{'Bikes Medium (0.30-0.60)':<35} {bikes_medium:>12}")
+        print(f"{'Bikes Low (<=0.30)':<35} {bikes_low:>12}")
+        print(f"{'Total Component Failures':<35} {hourly_total_failures:>12}")
+        
+        # Print individual component failures if any occurred
+        if hourly_total_failures > 0:
+            print(f"\n{'Component Breakdown:':^70}")
+            print(f"{'-'*70}")
+            for category, count in component_failure_counts.items():
+                if count > 0:
+                    print(f"  {category:<45} {count:>5} failures")
+        
+        print(f"{'='*70}\n")
+    
     def log_station_metrics(self, hour, current_time):
         """Log per-station metrics for the current hour"""
         day = int(current_time // (24*60))
@@ -524,7 +569,7 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
         writer = csv.writer(f)
        
         # Write header
-        writer.writerow([
+        header = [
             'Seed',
             'Day',
             'Hour',
@@ -543,11 +588,18 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
             'Bikes High (0.60-0.83)',
             'Bikes Medium (0.30-0.60)',
             'Bikes Low (<=0.30)',
-        ])
+            'Total Component Failures',
+        ]
        
+        # Add columns for each component category
+        for category in damage_configuration.DAMAGE_CATEGORIES.keys():
+            header.append(f'Failures: {category}')
+        
+        writer.writerow(header)
+
         # Write hourly data rows
         for hour_data in simulator.hourly_metrics:
-            writer.writerow([
+            row = [
                 seed,
                 hour_data['day'],
                 hour_data['hour'],
@@ -566,7 +618,14 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
                 hour_data.get('bikes_high', 0),
                 hour_data.get('bikes_medium', 0),
                 hour_data.get('bikes_low', 0),
-            ])
+            ]
+
+            # Add component-specific failure counts
+            for category in damage_configuration.DAMAGE_CATEGORIES.keys():
+                key = f'failures_{category.lower().replace(" & ", "_").replace(" ", "_")}'
+                row.append(hour_data.get(key, 0))
+            
+            writer.writerow(row)
  
  
 def write_vehicle_visits_to_file(filename, simulator, seed):
