@@ -266,7 +266,7 @@ class LoggingSimulator(sim.Simulator):
         if hourly_total_failures > 0:
             print(f"\n{'DETAILED COMPONENT BREAKDOWN (FAILURES THIS HOUR)':^70}")
             print(f"{'-'*95}")
-            print(f"{'Bike ID':<10} {'Category':<25} {'Scale (λ)':<10} {'Shape (k)':<10} {'P(fail)':<10} {'Odo (km)':<10}")
+            print(f"{'Bike ID':<10} {'Category':<25} {'Scale (lambda)':<10} {'Shape (k)':<10} {'P(fail)':<10} {'Odo (km)':<10}")
             print(f"{'-'*95}")
             
             last_hour_start = current_time - 60
