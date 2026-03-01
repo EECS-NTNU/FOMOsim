@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 import argparse
 from datetime import datetime
+#from sim.Bike import Bike
 
 # Get workspace root (2 levels up from this file)
 WORKSPACE_ROOT = Path(__file__).parents[2]
@@ -43,7 +44,7 @@ except ImportError:
     VISUALIZATION_AVAILABLE = False
     print("Warning: Visualization not available")
 
-MAINTENANCE_ENABLED = True
+MAINTENANCE_ENABLED = False
  
 
 # Import logging utilities
@@ -172,13 +173,18 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instan
     if MAINTENANCE_ENABLED:
         state.initialize_bike_maintenance()
 
+    # In the initialization section:
+    """if ENABLE_COMPONENT_FAILURES:
+        all_bikes = state.get_all_bikes()
+        print(f"\nInitializing component failure tracking for {len(all_bikes)} bikes...")
+        
+        print("Component failure tracking initialized.\n")"""
+
     vehicles = [policy for i in range(num_vehicles)]
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
  
     # Use config for target state
     tstate = config.get_target_state_instance()
-
-    # Get start stations from config
     start_stations = config.get_start_stations(INSTANCE)
  
     # Distribute vehicles to start stations
@@ -205,6 +211,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instan
         f"Running simulation with duration {duration}, vehicles {num_vehicles}, "
         f"seed {seed}, Instance {INSTANCE} and weights {policy.weights}"
     )
+
+    if ENABLE_COMPONENT_FAILURES:
+        print("Component failure simulation: ENABLED")
   
     policy.maintenance_enabled = MAINTENANCE_ENABLED
   

@@ -147,8 +147,8 @@ class LoggingSimulator(sim.Simulator):
    
     def log_hourly_metrics(self, hour, current_time):
         """Log metrics for the hour that just completed (delta since last hour)"""
-        day = int(current_time // (24*60))
-        hour_formatted = f"{hour:02d}:00"
+        day = int(hour // 24)
+        clock_hour = int(hour % 24)
         
         # Get current cumulative values
         current_starvations = self.state.metrics.get_aggregate_value("starvation")
@@ -160,9 +160,7 @@ class LoggingSimulator(sim.Simulator):
         current_bike_pickups = self.state.metrics.get_aggregate_value("bike_pickups")
         current_bike_deliveries = self.state.metrics.get_aggregate_value("bike_deliveries")
         current_maintenance_time = self.state.metrics.get_aggregate_value("maintenance_time")
-        
-        # NEW: Track component failures
-        current_total_failures = self.state.metrics.get_aggregate_value("total_failures")
+        current_total_failures = self.state.metrics.get_aggregate_value("total_failures") # new metric that sums all component failures
         
         # Calculate hourly deltas (difference from last hour)
         hourly_starvations = current_starvations - getattr(self, 'last_hour_starvations', 0)
@@ -174,7 +172,7 @@ class LoggingSimulator(sim.Simulator):
         hourly_bike_pickups = current_bike_pickups - getattr(self, 'last_hour_bike_pickups', 0)
         hourly_bike_deliveries = current_bike_deliveries - getattr(self, 'last_hour_bike_deliveries', 0)
         hourly_maintenance_time = current_maintenance_time - getattr(self, 'last_hour_maintenance_time', 0.0)
-        hourly_total_failures = current_total_failures - getattr(self, 'last_hour_total_failures', 0)
+        hourly_total_failures = current_total_failures - getattr(self, 'last_hour_total_failures', 0) # delta for total failures
         
         # Track individual component failures
         component_failure_counts = {}
@@ -202,7 +200,7 @@ class LoggingSimulator(sim.Simulator):
         # Store hourly data
         hourly_data = {
             'day': day,
-            'hour': hour_formatted,
+            'hour': f"{clock_hour:02d}:00",
             'hour_index': hour,
             'time_minutes': current_time,
             'starvations': hourly_starvations,
@@ -242,9 +240,9 @@ class LoggingSimulator(sim.Simulator):
         self.last_hour_maintenance_time = current_maintenance_time
         self.last_hour_total_failures = current_total_failures
         
-        # Print summary for this hour
+       # Print summary for this hour
         print(f"\n{'='*70}")
-        print(f"HOUR {hour_formatted} SUMMARY (Day {day})")
+        print(f"HOUR {f'{clock_hour:02d}:00'} SUMMARY (Day {day})")
         print(f"{'='*70}")
         print(f"{'Metric':<35} {'This Hour':>12}")
         print(f"{'-'*70}")
@@ -264,13 +262,28 @@ class LoggingSimulator(sim.Simulator):
         print(f"{'Bikes Low (<=0.30)':<35} {bikes_low:>12}")
         print(f"{'Total Component Failures':<35} {hourly_total_failures:>12}")
         
-        # Print individual component failures if any occurred
+        # Print individual component failures with bike and parameter details
         if hourly_total_failures > 0:
-            print(f"\n{'Component Breakdown:':^70}")
-            print(f"{'-'*70}")
-            for category, count in component_failure_counts.items():
-                if count > 0:
-                    print(f"  {category:<45} {count:>5} failures")
+            print(f"\n{'DETAILED COMPONENT BREAKDOWN (FAILURES THIS HOUR)':^70}")
+            print(f"{'-'*95}")
+            print(f"{'Bike ID':<10} {'Category':<25} {'Scale (λ)':<10} {'Shape (k)':<10} {'P(fail)':<10} {'Odo (km)':<10}")
+            print(f"{'-'*95}")
+            
+            last_hour_start = current_time - 60
+            for bike in all_bikes:
+                # Iterate through bike logs to find failure events within the last hour
+                hour_failures = [entry for entry in bike.log 
+                                 if entry.get('event') == 'component_failure' 
+                                 and entry.get('time') > last_hour_start]
+                
+                for fail in hour_failures:
+                    print(f"{bike.bike_id:<10} "
+                          f"{fail['category']:<25} "
+                          f"{fail.get('scale_lambda', 0.0):<10.1f} "
+                          f"{fail.get('shape_k', 0.0):<10.2f} "
+                          f"{fail['failure_probability']:<10.4f} "
+                          f"{fail['odometer_km']:<10.1f}")
+            print(f"{'-'*95}")
         
         print(f"{'='*70}\n")
     

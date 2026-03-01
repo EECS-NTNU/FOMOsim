@@ -399,41 +399,51 @@ class BikeDeparture(Event):
             print(f"{'='*100}\n")
 
     def _trigger_component_failure(self, simul, bike, category, probability, hazard_rate, 
-                                   departure_id, arrival_id):
-        """
-        NEW METHOD: Record component failure when it occurs during a trip.
-        """
-        # Update bike's failure tracking
-        bike.component_failures[category]['total_failures'] += 1
-        bike.component_failures[category]['last_failure_km'] = bike.total_distance_km
-        
-        # Record in simulation metrics
-        simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}", 1)
-        simul.state.metrics.add_aggregate_metric(simul.state, "total_failures", 1)
-        
-        # Log the failure
-        bike.log.append({
-            'time': self.time,
-            'event': 'component_failure',
-            'category': category,
-            'odometer_km': bike.total_distance_km,
-            'trip_distance_km': self.distance_km,
-            'failure_probability': probability,
-            'hazard_rate': hazard_rate,
-            'departure_station': departure_id,
-            'arrival_station': arrival_id
-        })
-        
-        # Print notification
-        print(f"\n COMPONENT FAILURE DETECTED")
-        print(f"      Bike: {bike.bike_id}")
-        print(f"      Component: {category}")
-        print(f"      Odometer: {bike.total_distance_km:.1f}km")
-        print(f"      Hazard rate z(t): {hazard_rate:.6f}")
-        print(f"      Failure probability: {probability:.6f} ({probability*100:.4f}%)")
-        print(f"      Time: {self.time:.1f}min")
-        print(f"      Trip: {departure_id} -> {arrival_id}\n")
- 
+                                    departure_id, arrival_id):
+            """
+            Record component failure when it occurs during a trip.
+            Captures specific Weibull parameters to facilitate detailed state-space analysis.
+            """
+            # Retrieve specific Weibull parameters used in the calculation
+            params = bike.component_failures.get(category, {})
+            scale_lambda = params.get('scale', 0.0)
+            shape_k = params.get('shape', 0.0)
+
+            # Update bike's internal failure tracking
+            bike.component_failures[category]['total_failures'] += 1
+            bike.component_failures[category]['last_failure_km'] = bike.total_distance_km
+            
+            # Record in global simulation metrics
+            simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}", 1)
+            simul.state.metrics.add_aggregate_metric(simul.state, "total_failures", 1)
+            
+            # Log the failure with high-fidelity data for thesis analysis
+            bike.log.append({
+                'time': self.time,
+                'event': 'component_failure',
+                'category': category,
+                'odometer_km': bike.total_distance_km,
+                'trip_distance_km': self.distance_km,
+                'failure_probability': probability,
+                'hazard_rate': hazard_rate,
+                'scale_lambda': scale_lambda, # Captured for parameter trace
+                'shape_k': shape_k,           # Captured for parameter trace
+                'departure_station': departure_id,
+                'arrival_station': arrival_id
+            })
+            
+            # Enhanced terminal notification for debugging and verification
+            print(f"\n{'!'*30} COMPONENT FAILURE DETECTED {'!'*30}")
+            print(f"      Bike: {bike.bike_id}")
+            print(f"      Component: {category:<25} | Params: lambda={scale_lambda:.1f}, k={shape_k:.2f}")
+            print(f"      Odometer: {bike.total_distance_km:.1f} km")
+            print(f"      Hazard rate z(t): {hazard_rate:.6f}")
+            print(f"      Failure probability: {probability:.6f} ({probability*100:.4f}%)")
+            print(f"      Time: {self.time:.1f} min")
+            print(f"      Trip: {departure_id} -> {arrival_id}")
+            print(f"{'!'*88}\n")
+
+
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, departing from station {self.departure_station_id}>"
     
