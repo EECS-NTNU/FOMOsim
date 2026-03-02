@@ -94,7 +94,7 @@ class SimulationConfig:
     tau: int = 5  # Time discretization in minutes
     default_time_horizon: int = 5  # Number of periods to look ahead
     policy_hour_from: int = 7  # Policy active from 7 AM
-    policy_hour_to: int = 23  # Policy active until 11 PM
+    policy_hour_to: int = 7  # Policy active until 11 PM
     roaming: bool = False
     
     # === Maintenance Settings ===
@@ -104,7 +104,7 @@ class SimulationConfig:
     default_seed: int = 1
     default_nsims: int = 1
     default_vehicles: int = 1
-    default_duration_hours: int = 120  # 5 days
+    default_duration_hours: int = 4320 # 5 days (3mnd)
     
     # === Target State ===
     # Options: "half_capacity", "equal_prob", "us"

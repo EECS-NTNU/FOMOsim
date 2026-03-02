@@ -160,7 +160,15 @@ class LoggingSimulator(sim.Simulator):
         current_bike_pickups = self.state.metrics.get_aggregate_value("bike_pickups")
         current_bike_deliveries = self.state.metrics.get_aggregate_value("bike_deliveries")
         current_maintenance_time = self.state.metrics.get_aggregate_value("maintenance_time")
-        current_total_failures = self.state.metrics.get_aggregate_value("total_failures") # new metric that sums all component failures
+        # DEBUGGING: Print what metrics exist
+        print("\n[DEBUG] All metrics in state.metrics:")
+        for key in self.state.metrics.metrics.keys():
+            if 'fail' in key.lower():
+                value = self.state.metrics.get_aggregate_value(key)
+                print(f"  {key}: {value}")
+        current_total_failures = self.state.metrics.get_aggregate_value("component_failures")
+
+        print(f"[DEBUG] Calculated total failures: {current_total_failures}")
         
         # Calculate hourly deltas (difference from last hour)
         hourly_starvations = current_starvations - getattr(self, 'last_hour_starvations', 0)
@@ -632,11 +640,20 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
                 hour_data.get('bikes_medium', 0),
                 hour_data.get('bikes_low', 0),
             ]
+            print(f"DEBUG: Hourly data for seed {seed}, day {hour_data['day']}, hour {hour_data['hour']}: Total Failures = {hour_data.get('total_failures', 0)}")
+            # ADD THIS LINE - write the total_failures that was calculated
+            row.append(hour_data.get('total_failures', 0))
 
             # Add component-specific failure counts
             for category in damage_configuration.DAMAGE_CATEGORIES.keys():
                 key = f'failures_{category.lower().replace(" & ", "_").replace(" ", "_")}'
                 row.append(hour_data.get(key, 0))
+
+            # DEBUG: Print row length vs header length
+            print(f"DEBUG: Row length = {len(row)}, Expected = {len(header)}")
+            if len(row) != len(header):
+                print(f"ERROR: Row length mismatch! Row has {len(row)} elements, header has {len(header)}")
+                print(f"Row data: {row}")
             
             writer.writerow(row)
  

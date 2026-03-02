@@ -49,7 +49,13 @@ class Bike(Location):
                 'shape': params['shape'],      # k - wear rate (>1 means wear-out)
                 'mttf_km': params['mttf_km'],  # mean time to failure
                 'total_failures': 0,
-                'last_failure_km': 0.0
+                'last_failure_km': 0.0,
+            # ADD THIS:
+            'severity_counts': {
+                'critical': 0,
+                'moderate': 0,
+                'minor': 0
+            }
             }
             
             if verbose:
@@ -76,22 +82,8 @@ class Bike(Location):
             print(f"    2. Draw random u ~ Uniform(0,1)")
             print(f"    3. If u < P(fail), component fails on this trip")
             print(f"{'='*100}\n")
-
-    def calculate_reliability(self, distance_km, scale, shape):
-        """
-        Calculate Weibull reliability function R(t) = exp(-(t/λ)^k)
-        
-        Args:
-            distance_km: Current lifetime mileage
-            scale: λ (lambda) - characteristic life
-            shape: k - shape parameter (wear rate)
-        
-        Returns:
-            Probability of surviving until distance_km
-        """
-        return np.exp(-((distance_km / scale) ** shape))
     
-    def calculate_trip_failure_probability(self, current_km, trip_distance_km, scale, shape):
+    '''def calculate_trip_failure_probability(self, current_km, trip_distance_km, scale, shape):
         """
         Calculate probability of failure during a specific trip using conditional reliability.
         
@@ -122,7 +114,7 @@ class Bike(Location):
         # P = 1 - exp[exponent_diff]
         probability = 1.0 - np.exp(exponent_diff)
         
-        return probability
+        return probability'''
     
     def calculate_reliability(self, distance_km, scale, shape):
         """
@@ -178,78 +170,7 @@ class Bike(Location):
         else:
             self.metrics.add_metric(simul.state, "travel_time", travel_time)
         
-        # Check for component failures BEFORE updating distance
-        """if ENABLE_COMPONENT_FAILURES and distance_km > 0:
-            verbose = VERBOSE_FAILURE_TRACKING or (self.bike_id in SAMPLE_BIKES_TO_TRACK)
-            if self.bike_id in ['B572', 'B573', 'B2']:
-                print(f"DEBUG: Bike {self.bike_id} traveling, verbose={verbose}, bike_id type={type(self.bike_id)}")
-
-            else:
-                print('DID NOT WORK')
-            self._check_component_failures(simul, distance_km, verbose=verbose)"""
-
-        # Update total distance AFTER checking failures
         self.total_distance_km += distance_km
-
-    """def _check_component_failures(self, simul, trip_distance_km, verbose = False):
-        '''Check if any components have failed based on distance traveled'''
-
-        current_km = self.total_distance_km
-
-        if verbose:
-            print(f"\n  [TRIP CHECK] Bike {self.bike_id}: {current_km:.1f}km -> {current_km + trip_distance_km:.1f}km (+{trip_distance_km:.2f}km)")
-
-        for category, failure_data in self.component_failures.items():
-            # Calculate probability of failure on THIS trip
-            prob_failure = self.calculate_trip_failure_probability(
-                current_km=current_km,
-                trip_distance_km=trip_distance_km,
-                scale=failure_data['scale'],
-                shape=failure_data['shape']
-            )
-            
-            # Draw random number to determine if failure occurs
-            u = np.random.random()
-            
-            if verbose:
-                print(f"    {category}: P(fail) = {prob_failure:.4f}, u = {u:.4f}", end="")
-            
-            # Component fails if random draw is less than failure probability
-            if u < prob_failure:
-                self._trigger_component_failure(simul, category, prob_failure)
-                if verbose:
-                    print(" -> FAILURE!")
-            else:
-                if verbose:
-                    print(" -> OK")"""
-
-    """def _trigger_component_failure(self, simul, category, probability):
-        '''Record the component failure in metrics'''
-        # Increment failure counters
-        self.component_failures[category]['total_failures'] += 1
-        self.component_failures[category]['last_failure_km'] = self.total_distance_km
-
-        simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}", 1)
-        simul.state.metrics.add_aggregate_metric(simul.state, "total_failures", 1)
-
-        # Get current time safely
-        if hasattr(simul, 'time'):
-            current_time = simul.time
-        else:
-            current_time = 0.0
-        
-        # Log the failure with odometer reading
-        self.log.append({
-            'time': current_time,
-            'event': 'component_failure',
-            'category': category,
-            'odometer_km': self.total_distance_km,
-            'failure_probability': probability
-        })
-
-        # Print notification
-        print(f"FAILURE: Bike {self.bike_id} - {category} @ {self.total_distance_km:.1f}km "
-              f"(P={probability:.4f}, t={current_time:.1f}min)")"""
         
     def get_failure_probabilities_for_occured_trip(self, trip_distance_km):
         """
