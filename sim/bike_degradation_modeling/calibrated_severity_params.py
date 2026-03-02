@@ -1,3 +1,28 @@
+
+
+
+# === SIMPLIFIED 50/50 MODE ===
+def assign_damage_severity(rng, component_category=None):
+    """
+    Simple 50/50 assignment for damage severity.
+    
+    Args:
+        component_category: Component type (not used in simple mode)
+    
+    Returns:
+        str: "depot" or "onsite"
+    """
+    if rng.random() < 0.5:
+        return "depot"
+    else:
+        return "onsite"
+
+
+
+
+
+############################################# old code with more granular distintion #######################################################################
+
 """
 Calibrated Severity Parameters from Urban Sharing Real Data
 
@@ -16,7 +41,7 @@ THRESHOLD JUSTIFICATION (5 minutes):
 - Median minor repair: 2.3 min | Median moderate repair: 12.8 min
 """
 
-CALIBRATED_SEVERITY_PARAMS = {
+'''CALIBRATED_SEVERITY_PARAMS = {
     "frame": {
         # Steering & Chassis: 99.7% unavailable, 0.024% moderate of available
         "critical_prob": 0.996951,
@@ -70,9 +95,9 @@ CALIBRATED_SEVERITY_PARAMS = {
         "data_source": "Drivetrain (n=289)",
         "interpretation": "Chain/gear issues often allow continued riding with adjustments"
     },
-}
+}'''
 
-def get_severity_params(component_category):
+'''def get_severity_params(component_category):
     """
     Get calibrated severity parameters for a component.
     
@@ -87,4 +112,4 @@ def get_severity_params(component_category):
         "moderate_prob": 0.40,
         "minor_prob": 0.10,
         "data_source": "Fallback (component not in calibration data)"
-    })
+    })'''

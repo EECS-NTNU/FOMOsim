@@ -35,7 +35,6 @@ import time
 import multiprocessing as mp
  
 # python policies/sjovik_sund/run_simulation.py > policies/sjovik_sund/output/output.txt
- 
 # Import visualization if needed
 try:
     from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
@@ -56,7 +55,8 @@ from policies.sjovik_sund.simulation_logging import (
     write_vehicle_visits_to_file,
     write_station_hourly_metrics_to_file,
     write_bike_movements_to_file,
-    write_trip_requests_to_file
+    write_trip_requests_to_file,
+    write_component_failures_to_file
 )
 
 from dataclasses import dataclass, field
@@ -104,7 +104,7 @@ class SimulationConfig:
     default_seed: int = 1
     default_nsims: int = 1
     default_vehicles: int = 1
-    default_duration_hours: int = 4320 # 5 days (3mnd)
+    default_duration_hours: int = 24*60 # 5 days (3mnd)
     
     # === Target State ===
     # Options: "half_capacity", "equal_prob", "us"
@@ -271,6 +271,11 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
     # Write Vehicle Decisions (currently commented out)
     # decisions_filename = f"{base_filename}_vehicle_decisions_seed_{seed}.csv"
     # write_vehicle_decisions_to_file(decisions_filename, simulator, seed)
+
+    # write component failures for this seed
+    if ENABLE_COMPONENT_FAILURES:
+        component_failures_filename = f"{base_filename}_component_failures_seed_{seed}.csv"
+        write_component_failures_to_file(component_failures_filename, simulator, seed, alpha_value)
 
     # Write summary for this seed
     summary_filename = f"{base_filename}_summary_seed_{seed}.txt"
