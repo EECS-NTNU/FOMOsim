@@ -51,11 +51,11 @@ from policies.sjovik_sund.simulation_logging import (
     LoggingSimulator,
     write_hourly_metrics_to_file,
     write_results_to_file,
-    write_simulation_summary,
-    write_vehicle_visits_to_file,
-    write_station_hourly_metrics_to_file,
-    write_bike_movements_to_file,
-    write_trip_requests_to_file,
+    #write_simulation_summary,
+    #write_vehicle_visits_to_file,
+    #write_station_hourly_metrics_to_file,
+    #write_bike_movements_to_file,
+    #write_trip_requests_to_file,
     write_component_failures_to_file
 )
 
@@ -104,7 +104,7 @@ class SimulationConfig:
     default_seed: int = 1
     default_nsims: int = 1
     default_vehicles: int = 1
-    default_duration_hours: int = 24*60 # 5 days (3mnd)
+    default_duration_hours: int = 24*365*2 # 5 days (3mnd)
     
     # === Target State ===
     # Options: "half_capacity", "equal_prob", "us"
@@ -254,19 +254,19 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
     
     # Write vehicle visits for this seed
     visits_filename = f"{base_filename}_vehicle_visits_seed_{seed}.csv"
-    write_vehicle_visits_to_file(visits_filename, simulator, seed)
+    #write_vehicle_visits_to_file(visits_filename, simulator, seed)
     
     # Write station hourly metrics for this seed
     station_hourly_filename = f"{base_filename}_station_hourly_seed_{seed}.csv"
-    write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
+    #write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
     
     # Write bike movements for this seed
     bike_movements_filename = f"{base_filename}_bike_movements_seed_{seed}.csv"
-    write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
+    #write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
     
     # Write trip requests for this seed
     trip_requests_filename = f"{base_filename}_trip_requests_seed_{seed}.csv"
-    write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
+    #write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
     
     # Write Vehicle Decisions (currently commented out)
     # decisions_filename = f"{base_filename}_vehicle_decisions_seed_{seed}.csv"
@@ -279,7 +279,7 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
 
     # Write summary for this seed
     summary_filename = f"{base_filename}_summary_seed_{seed}.txt"
-    write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
+    #write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
     
     # Print completion info
     print(f"Seed {seed}: Completed in {solve_time:.2f}s")
