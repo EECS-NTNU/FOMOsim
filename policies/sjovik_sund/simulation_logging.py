@@ -48,7 +48,7 @@ class LoggingSimulator(sim.Simulator):
 
     def log_component_failure(self, time, bike_id, component_category, damage_severity, 
                               odometer_km, failure_probability, departure_station=None, 
-                              arrival_station=None):
+                              arrival_station=None, component_odometer_km=None):
         """
         Log a component failure event.
         
@@ -83,6 +83,7 @@ class LoggingSimulator(sim.Simulator):
             'failure_probability': failure_probability,
             'departure_station': departure_station,
             'arrival_station': arrival_station,
+            'component_odometer_km': component_odometer_km
         })
     
     def _estimate_post_trip_criticality(self, pre_criticality, travel_time):
@@ -351,38 +352,41 @@ class LoggingSimulator(sim.Simulator):
             print(f"{'-'*70}")
             print(f"{'Component':<25} {'Total':>10} {'Depot':>10} {'On-Site':>10}")
             print(f"{'-'*70}")
+
+            # Calculate time range for this hour
+            last_hour_start = (hour * 60)  # Start of the hour we're logging
+            last_hour_end = last_hour_start + 60  # End of the hour
             
-            for category in damage_configuration.DAMAGE_CATEGORIES.keys():
-                total = component_failure_counts[category]
-                depot = component_depot_counts[category]
-                onsite = component_onsite_counts[category]
-                if total > 0:
-                    print(f"{category:<25} {total:>10} {depot:>10} {onsite:>10}")
-            print(f"{'-'*70}")
-        
-        print(f"{'='*70}\n")
-        
-        # Print individual component failures with bike and parameter details
-        if hourly_total_failures > 0:
-            print(f"\n{'DETAILED COMPONENT BREAKDOWN (FAILURES THIS HOUR)':^70}")
-            print(f"{'-'*95}")
-            print(f"{'Bike ID':<10} {'Category':<25} {'Scale (lambda)':<10} {'Shape (k)':<10} {'P(fail)':<10} {'Odo (km)':<10}")
-            print(f"{'-'*95}")
+            # Filter failures that occurred in this hour from simulator.component_failures
+            hour_failures = [
+                failure for failure in self.component_failures
+                if last_hour_start <= failure['time_minutes'] < last_hour_end
+            ]
             
-            last_hour_start = current_time - 60
-            for bike in all_bikes:
-                # Iterate through bike logs to find failure events within the last hour
-                hour_failures = [entry for entry in bike.log 
-                                 if entry.get('event') == 'component_failure' 
-                                 and entry.get('time') > last_hour_start]
+            # Print each failure with its parameters
+            for failure in hour_failures:
+                bike_id = failure['bike_id']
+                category = failure['component_category']
                 
-                for fail in hour_failures:
-                    print(f"{bike.bike_id:<10} "
-                          f"{fail['category']:<25} "
-                          f"{fail.get('scale_lambda', 0.0):<10.1f} "
-                          f"{fail.get('shape_k', 0.0):<10.2f} "
-                          f"{fail['failure_probability']:<10.4f} "
-                          f"{fail['odometer_km']:<10.1f}")
+                # Get Weibull parameters from damage_configuration
+                params = damage_configuration.DAMAGE_CATEGORIES.get(category, {})
+                scale = params.get('scale', 0.0)
+                shape = params.get('shape', 0.0)
+                
+                # Get failure details
+                failure_prob = failure.get('failure_probability', 0.0)
+                component_odo = failure.get('component_odometer_km')
+                
+                # Use component odometer if available, otherwise use bike odometer
+                odometer = component_odo if component_odo is not None else failure.get('odometer_km', 0.0)
+                
+                print(f"{bike_id:<10} "
+                    f"{category:<25} "
+                    f"{scale:<15.1f} "
+                    f"{shape:<12.2f} "
+                    f"{failure_prob:<12.6f} "
+                    f"{odometer:<10.1f}")
+            
             print(f"{'-'*95}")
         
         print(f"{'='*70}\n")
@@ -1032,14 +1036,23 @@ def write_component_failures_to_file(filename, simulator, seed, alpha=None):
             'Damage Severity',
             'Needs Depot Fix',
             'Needs On-Site Fix',
-            'Odometer (km)',
+            'Total Bike Odometer (km)',    
+            'Component Odometer (km)', 
             'Failure Probability',
             'Departure Station',
             'Arrival Station',
         ])
        
-        # Write component failure data rows
+         # Write component failure data rows - UPDATED
         for failure in simulator.component_failures:
+            # Get component odometer (if available)
+            component_odo = failure.get('component_odometer_km')
+            
+            # If component odometer is None, use total bike odometer as fallback
+            # (shouldn't happen with new system, but safe default)
+            if component_odo is None:
+                component_odo = failure['odometer_km']
+            
             writer.writerow([
                 seed,
                 failure['day'],
@@ -1051,7 +1064,8 @@ def write_component_failures_to_file(filename, simulator, seed, alpha=None):
                 failure['damage_severity'],
                 failure['needs_depot_fix'],
                 failure['needs_onsite_fix'],
-                round(failure['odometer_km'], 2),
+                round(failure['odometer_km'], 2),           # Total bike odometer
+                round(component_odo, 2),                     # Component-specific odometer
                 round(failure['failure_probability'], 6),
                 failure.get('departure_station', ''),
                 failure.get('arrival_station', ''),

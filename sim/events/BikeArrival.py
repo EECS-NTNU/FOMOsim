@@ -1,9 +1,12 @@
-from sim import Event
 import sim
+from sim import Event
 from settings import *
 from settings import MAINTENANCE_LIMIT_TO_CHECK
 from sim.bike_degradation_modeling.maintenance_model import update_bike_maintenance
+from sim.bike_degradation_modeling.bike_component_maintenance_model import ComponentMaintenanceManager
+from sim.bike_degradation_modeling.repair_policy import BaselineRepairPolicy
 from settings import ENABLE_COMPONENT_FAILURES, VERBOSE_FAILURE_TRACKING, SAMPLE_BIKES_TO_TRACK
+
 
 class BikeArrival(Event):
     """
@@ -28,13 +31,16 @@ class BikeArrival(Event):
         self.congested = congested
         self.distance_km = distance_km
 
+    
+    
     def perform(self, simul) -> None:
         """
+        Enhanced to track trip outcomes and generate HMM observations.
+        
         :param simul: Simulation object
         """
 
         super().perform(simul)
-
 
         # get arrival station 
         arrival_station = simul.state.get_location_by_id(self.arrival_station_id)
@@ -43,26 +49,53 @@ class BikeArrival(Event):
             self.bike = simul.state.get_used_bike()
 
         if self.bike is not None:
-            """verbose_tracking = VERBOSE_FAILURE_TRACKING or (self.bike.bike_id in SAMPLE_BIKES_TO_TRACK)
-            
-            # Update bike state based on trip (includes failure probability checking)
-            if ENABLE_COMPONENT_FAILURES and self.distance_km > 0 and verbose_tracking:
-                # Manual call with verbose for tracked bikes
-                self.bike._check_component_failures(simul, self.distance_km)
-                self.bike.total_distance_km += self.distance_km
-            else:
-                # Normal travel call
-                self.bike.travel(simul, self.travel_time, distance_km=self.distance_km, congested=self.congested)"""
-            #
+            # === UPDATE BIKE STATE (travel consumes battery, checks for failures) ===
             self.bike.travel(simul, self.travel_time, distance_km=self.distance_km, congested=self.congested)
-            #self.bike.total_distance_km += self.distance_km
-            #
 
+            # === PROCESS PENDING COMPONENT FAILURES ===
+            #self._process_pending_failures(simul)
+            self._process_component_failures(simul)
+            
+            # === DETERMINE TRIP OUTCOME FOR HMM ===
+            #trip_result = 'completed'  # Default
+            
+            # Check for battery violation
             if self.bike.battery < 0:
+                trip_result = 'failed_battery'
                 simul.state.metrics.add_aggregate_metric(simul.state, "battery violations", 1)
                 simul.state.metrics.add_aggregate_metric(simul.state, "failed events", 1)
                 self.bike.battery = 0
+            
+            # Check if trip was degraded (moderate failure flag from BikeDeparture)
+            elif hasattr(self.bike, 'failure_severity') and self.bike.failure_severity == 'moderate':
+                trip_result = 'completed_degraded'
+                if VERBOSE_FAILURE_TRACKING or (self.bike.bike_id in SAMPLE_BIKES_TO_TRACK):
+                    print(f"[DEGRADED TRIP] Bike {self.bike.bike_id} completed with degraded performance")
+            
+            # Check for congestion
+            elif self.congested:
+                trip_result = 'completed_congested'
+            
+            # === GENERATE HMM OBSERVATION ===
+            '''if hasattr(simul, 'observation_generator') and self.distance_km > 0:
+                observation = simul.observation_generator.generate_trip_observation(
+                    bike=self.bike,
+                    trip_distance_km=self.distance_km,
+                    travel_time=self.travel_time,
+                    simul_time=self.time,
+                    trip_result=trip_result
+                )
+                
+                # Log for tracked bikes
+                if self.bike.bike_id in SAMPLE_BIKES_TO_TRACK:
+                    print(f"\n[HMM OBSERVATION GENERATED] Bike {self.bike.bike_id}")
+                    print(f"  Trip result: {trip_result}")
+                    print(f"  Distance: {self.distance_km:.2f} km")
+                    print(f"  Critical failures: {observation.get('critical_failures', 0)}")
+                    print(f"  Moderate failures: {observation.get('moderate_failures', 0)}")
+                    print(f"  Speed deviation: {observation.get('speed_deviation', 0):.2%}")'''
 
+            # === PROCESS ARRIVAL ===
             # add bike to the arrived station (location is changed in add_bike method)
             if arrival_station.add_bike(self.bike):
                 if FULL_TRIP:
@@ -74,9 +107,9 @@ class BikeArrival(Event):
                         # Get the first vehicle's policy
                         first_vehicle = next(iter(simul.state.vehicles.values()))
                         maintenance_enabled = first_vehicle.policy.maintenance_enabled
+                    
                     if maintenance_enabled:
                         try:
-                            #old_crit = self.bike.maintenance_criticality
                             new_crit = update_bike_maintenance(
                                 self.bike,
                                 self.travel_time,
@@ -90,13 +123,7 @@ class BikeArrival(Event):
                             import traceback
                             traceback.print_exc()
 
-                #if self.bike.usable() == False:
-                    #simul.state.metrics.add_aggregate_metric(simul.state, "Maintenance violations", 1)
-
-                # Track if this drop-off leaves the bike above the rental threshold
-                #if self.bike.maintenance_criticality >= MAINTENANCE_THRESHOLD_FOR_NO_RENTAL:
-                    #simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_violation", 1)
-
+                # Track maintenance violations
                 if self.bike.usable() == False:
                     simul.state.metrics.add_aggregate_metric(simul.state, "maintenance violations", 1)
 
@@ -114,6 +141,7 @@ class BikeArrival(Event):
                     )
 
             else:
+                # === STATION FULL - BIKE MUST ROAM ===
                 if FULL_TRIP:
                     # go to another station
                     next_station = simul.state.get_neighbouring_stations(arrival_station, 1, not_full=True)[0]
@@ -130,13 +158,13 @@ class BikeArrival(Event):
                     )
 
                     # Print roaming information
-                    maint_status = f"maint={self.bike.maintenance_criticality:.3f}" if hasattr(self.bike, 'maintenance_criticality') else ""
-                    print(f"   ROAMING: Bike {self.bike.bike_id} - {arrival_station.id} FULL -> routing to {next_station.id} from {arrival_station.id} "
-                          f"(t={self.time:.1f}, {maint_status}, +{travel_time:.1f}min, +{roaming_distance_km:.2f}km)")
+                    #maint_status = f"maint={self.bike.maintenance_criticality:.3f}" if hasattr(self.bike, 'maintenance_criticality') else ""
+                    #print(f"   ROAMING: Bike {self.bike.bike_id} - {arrival_station.id} FULL -> routing to {next_station.id} from {arrival_station.id} "
+                         # f"(t={self.time:.1f}, {maint_status}, +{travel_time:.1f}min, +{roaming_distance_km:.2f}km)")
 
                     # create an arrival event for the departed bike
                     simul.add_event(
-                        sim.BikeArrival(
+                        BikeArrival(
                             self.time,
                             travel_time,
                             self.bike,
@@ -148,7 +176,6 @@ class BikeArrival(Event):
                     )
 
                     simul.state.metrics.add_aggregate_metric(simul.state, "events", 1)
-
 
                 else:
                     simul.state.set_bike_in_use(self.bike)
@@ -162,6 +189,103 @@ class BikeArrival(Event):
                 
                 simul.state.metrics.add_aggregate_metric(simul.state, "roaming for locks", 1)
                 simul.state.metrics.add_aggregate_metric(simul.state, "roaming distance for locks", distance)
+
+    def _process_component_failures(self, simul):
+        """
+        Process pending component failures using the configured repair policy.
+        
+        All policies call the SAME ComponentMaintenanceManager functions.
+        They just differ in WHEN and under WHAT CONDITIONS they call them.
+        """
+        verbose = VERBOSE_FAILURE_TRACKING or (self.bike.bike_id in SAMPLE_BIKES_TO_TRACK)
+        
+        # Check if bike has any pending failures
+        has_pending = (
+            (hasattr(self.bike, 'pending_depot_fix') and self.bike.pending_depot_fix) or
+            (hasattr(self.bike, 'pending_onsite_fix') and self.bike.pending_onsite_fix)
+        )
+        
+        if not has_pending:
+            return
+        
+        # Get the configured policy (baseline for now, vFA later)
+        repair_policy = self._get_repair_policy(simul)
+        
+        # Delegate decision and execution to policy
+        repair_policy.decide_and_execute(
+            bike=self.bike,
+            simul=simul,
+            arrival_station_id=self.arrival_station_id,
+            arrival_time=self.time,
+            verbose=verbose
+        )
+
+    def _get_repair_policy(self, simul):
+        """
+        Get the repair policy to use.
+        Easy to switch between policies here.
+        """
+        # Option 1: Baseline (current)
+        return BaselineRepairPolicy()
+
+        # Option 2: vFA (future)
+        # if hasattr(simul, 'vfa_agent'):
+        #     return VFARepairPolicy(simul.vfa_agent)
+        # else:
+        #     return BaselineRepairPolicy()
+
+    def _process_pending_failures(self, simul):
+        """
+        NEW METHOD: Process component failures that were predicted during the trip.
+        Upon arrival, transition bike state based on failure severity.
+        """
+        
+        # Check for pending depot fix
+        if hasattr(self.bike, 'pending_depot_fix') and self.bike.pending_depot_fix:
+            category = self.bike.pending_failure_category
+            
+            print(f"\n{'='*80}")
+            print(f"[BIKE ARRIVAL - DEPOT FIX TRIGGERED]")
+            print(f"  Bike {self.bike.bike_id} arrived at {self.arrival_station_id}")
+            print(f"  Component failed during trip: {category}")
+            print(f"  Total bike odometer: {self.bike.total_distance_km:.1f} km")
+            print(f"  Component odometer: {self.bike.component_odometers[category]:.1f} km")
+            print(f"  ACTION: Bike REMOVED FROM SERVICE")
+            print(f"{'='*80}\n")
+            
+            # REMOVE BIKE FROM SERVICE
+            self.bike.is_available = False
+            print(f" !!!!!!!!!!!!!!!!!!! Bike {self.bike.bike_id} flagged and set as {self.bike.is_available} due to {category} failure")
+            self.bike.needs_maintenance = True
+            self.bike.damage_status = "depot"
+            self.bike.last_failure_category = category
+            
+            # Clear pending flags
+            self.bike.pending_depot_fix = False
+            self.bike.pending_failure_category = None
+        
+        # Check for pending on-site fix
+        elif hasattr(self.bike, 'pending_onsite_fix') and self.bike.pending_onsite_fix:
+            category = self.bike.pending_failure_category
+            
+            print(f"\n{'='*80}")
+            print(f"[BIKE ARRIVAL - ON-SITE FIX TRIGGERED]")
+            print(f"  Bike {self.bike.bike_id} arrived at {self.arrival_station_id}")
+            print(f"  Component failed during trip: {category}")
+            print(f"  Total bike odometer: {self.bike.total_distance_km:.1f} km")
+            print(f"  Component odometer: {self.bike.component_odometers[category]:.1f} km")
+            print(f"  ACTION: Bike FLAGGED for inspection (still rentable)")
+            print(f"{'='*80}\n")
+            
+            # FLAG FOR INSPECTION (bike stays available)
+            self.bike.is_available = True  # Still rentable
+            self.bike.needs_inspection = True
+            self.bike.damage_status = "onsite"
+            self.bike.last_failure_category = category
+            
+            # Clear pending flags
+            self.bike.pending_onsite_fix = False
+            self.bike.pending_failure_category = None
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_station_id}>"

@@ -3,6 +3,10 @@ from sim import Event
 from settings import *
 import numpy as np
 import random
+#from sim.bike_degradation_modeling.calibrated_severity_params import get_severity_params
+from sim.bike_degradation_modeling.calibrated_severity_params import assign_damage_severity  # Changed import
+from sim.bike_degradation_modeling import ComponentFailureModel
+from settings import SAMPLE_BIKES_TO_TRACK
  
 class BikeDeparture(Event):
     """
@@ -256,7 +260,7 @@ class BikeDeparture(Event):
                     # checkpoint
                     #if departure_station.number_of_bikes() <= 0:
                     if total_bikes_at_station <= 0:
-                        print(f"  LOST TRIP: No bikes at {departure_station.id} (bike starvation, t={self.time:.1f})")
+                        #print(f"  LOST TRIP: No bikes at {departure_station.id} (bike starvation, t={self.time:.1f})")
                         simul.state.metrics.add_aggregate_metric(simul.state, "bike starvations", 1)
                         
                         # Log failed trip - bike starvation
@@ -270,9 +274,11 @@ class BikeDeparture(Event):
                             )
                     else:
                         unusable_count = len(departure_station.get_unusable_bikes())
+                        #print(f"  LOST TRIP: No usable bikes at {departure_station.id}, unusabe bikes are {departure_station.get_unusable_bikes()}, total_bikes_at_station are {departure_station.number_of_bikes()} (t={self.time:.1f})")
+
                         if unusable_count == total_bikes_at_station:
-                            print(f"  LOST TRIP: All bikes at {departure_station.id} require maintenance "
-                                  f"(maintenance starvation, t={self.time:.1f})")
+                            #print(f"  LOST TRIP: All bikes at {departure_station.id} require maintenance "
+                            #      f"(maintenance starvation, t={self.time:.1f})")
                             
                             # Log failed trip - maintenance starvation
                             if hasattr(simul, 'log_trip_request'):
@@ -308,7 +314,7 @@ class BikeDeparture(Event):
                                 if len(crit_str) > 50:
                                     crit_str = crit_str[:47] + "..."
                                 
-                                print(f"{station.id:<10} {total:<7} {num_usable:<8} {num_unusable:<10} {demand:<8.2f} {crit_str}")
+                                #print(f"{station.id:<10} {total:<7} {num_usable:<8} {num_unusable:<10} {demand:<8.2f} {crit_str}")
                             
                             print("=" * 100)
                             print()
@@ -316,8 +322,8 @@ class BikeDeparture(Event):
                             simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
                             simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_starvation", 1)
                         else:
-                            print(f"  LOST TRIP: No usable bikes at {departure_station.id} "
-                                  f"({unusable_count} unusable, t={self.time:.1f})")
+                            #print(f"  LOST TRIP: No usable bikes at {departure_station.id} "
+                                 # f"({unusable_count} unusable, t={self.time:.1f})")
                             simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
                             
                             # Log failed trip - maintenance starvation (partial)
@@ -336,112 +342,97 @@ class BikeDeparture(Event):
                     
         simul.state.metrics.add_aggregate_metric(simul.state, "trips", 1)
 
-
+ 
+    
     def _evaluate_trip_failure_risk(self, simul, bike, trip_distance_km, departure_id, arrival_id):
         """
-        NEW METHOD: Evaluate component failure risk for this specific trip using:
-        1. Hazard rate z(t) = (k/λ) * (t/λ)^(k-1)
-        2. Conditional reliability R(t+Δt|t)
-        3. Trip failure probability P = 1 - R(t+Δt|t)
+        Evaluate component failure risk using ComponentFailureModel.
         """
-        # Check if this bike should be tracked verbosely
-        from settings import SAMPLE_BIKES_TO_TRACK, VERBOSE_FAILURE_TRACKING
         verbose = VERBOSE_FAILURE_TRACKING or (bike.bike_id in SAMPLE_BIKES_TO_TRACK)
         
-        if not hasattr(bike, 'component_failures') or trip_distance_km <= 0:
-            return
+        failed_components = ComponentFailureModel.check_component_failures_on_trip(
+            bike, trip_distance_km, simul.state.rng, verbose=verbose
+        )
         
-        current_km = bike.total_distance_km
-        
-        if verbose:
-            print(f"\n{'='*100}")
-            print(f"[FAILURE RISK EVALUATION] Bike {bike.bike_id}: {departure_id} -> {arrival_id}")
-            print(f"  Current odometer: {current_km:.2f}km | Trip distance: {trip_distance_km:.2f}km")
-            print(f"{'='*100}")
-            print(f"  {'Component':<30} {'Hazard z(t)':<15} {'P(fail)':<12} {'u-U(0,1)':<12} {'Result':<15}")
-            print(f"  {'-'*90}")
-        
-        for category, failure_data in bike.component_failures.items():
-            scale = failure_data['scale']  # λ
-            shape = failure_data['shape']  # k
-            
-            # Calculate hazard rate: z(t) = (k/λ) * (t/λ)^(k-1)
-            if current_km > 0:
-                hazard_rate = (shape / scale) * ((current_km / scale) ** (shape - 1))
-            else:
-                hazard_rate = (shape / scale)
-            
-            # Calculate conditional reliability: R(t+Δt|t) = R(t+Δt) / R(t)
-            R_current = np.exp(-((current_km / scale) ** shape))
-            R_after = np.exp(-((current_km + trip_distance_km) / scale) ** shape)
-            
-            conditional_reliability = R_after / R_current if R_current > 0 else 0.0
-            
-            # Failure probability for this trip
-            prob_failure = 1.0 - conditional_reliability
-            
-            # Draw random number
-            u = np.random.random()
-            
-            # Check if failure occurs
-            failed = (u < prob_failure)
-            
-            if verbose:
-                result = "FAILURE!" if failed else "OK "
-                print(f"  {category:<30} {hazard_rate:<15.6f} {prob_failure:<12.6f} {u:<12.4f} {result:<15}")
-            
-            if failed:
-                self._trigger_component_failure(simul, bike, category, prob_failure, hazard_rate, 
-                                               departure_id, arrival_id)
-        
-        if verbose:
-            print(f"  {'-'*90}")
-            print(f"{'='*100}\n")
+        # Process any failures
+        for category, failure_info in failed_components.items():
+            self._trigger_component_failure(
+                simul, bike, category, 
+                failure_info['failure_probability'],
+                failure_info['hazard_rate'],
+                departure_id, arrival_id,
+                failure_info['component_odometer']
+            )
+
+
 
     def _trigger_component_failure(self, simul, bike, category, probability, hazard_rate, 
-                                    departure_id, arrival_id):
-            """
-            Record component failure when it occurs during a trip.
-            Captures specific Weibull parameters to facilitate detailed state-space analysis.
-            """
-            # Retrieve specific Weibull parameters used in the calculation
-            params = bike.component_failures.get(category, {})
-            scale_lambda = params.get('scale', 0.0)
-            shape_k = params.get('shape', 0.0)
-
-            # Update bike's internal failure tracking
-            bike.component_failures[category]['total_failures'] += 1
-            bike.component_failures[category]['last_failure_km'] = bike.total_distance_km
+                                    departure_id, arrival_id, component_km):
+        """
+        Trigger component failure with SIMPLE 50/50 severity classification.
+        """
+        
+        # === SIMPLIFIED: 50/50 DEPOT vs ON-SITE ===
+        damage_label = assign_damage_severity(simul.state.rng, category)
+        
+        # Increment failure counter
+        if 'total_failures' not in bike.component_failures[category]:
+            bike.component_failures[category]['total_failures'] = 0
+        bike.component_failures[category]['total_failures'] += 1
+        
+        # === LOG FAILURE ===
+        print("\n" + "!"*80)
+        print(f"COMPONENT FAILURE - SEVERITY: {damage_label}")
+        print(f"  Bike: {bike.bike_id}")
+        print(f"  Component: {category}")
+        print(f"  Odometer: {bike.total_distance_km:.1f} km")
+        print(f"  Weibull failure probability: {probability:.6f}")
+        print("!"*80 + "\n")
+        
+        # === LOG TO SIMULATOR ===
+        if hasattr(simul, 'log_component_failure'):
+            simul.log_component_failure(
+                time=self.time,
+                bike_id=bike.bike_id,
+                component_category=category,
+                damage_severity=damage_label,
+                odometer_km=bike.total_distance_km,
+                component_odometer_km=component_km,
+                failure_probability=probability,
+                departure_station=departure_id,
+                arrival_station=arrival_id
+            )
+        
+        # === HANDLE BASED ON DAMAGE LABEL ===
+        if damage_label == "depot":
+            # DEPOT FIX: Will be removed from service upon arrival
+            bike.pending_depot_fix = True  # NEW FLAG
+            bike.pending_failure_category = category
+            bike.last_failure_time = self.time
             
-            # Record in global simulation metrics
+            # Update metrics
+            simul.state.metrics.add_aggregate_metric(simul.state, "depot_failures", 1)
+            simul.state.metrics.add_aggregate_metric(simul.state, "component_failures", 1)
             simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}", 1)
-            simul.state.metrics.add_aggregate_metric(simul.state, "total_failures", 1)
+            simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}_depot", 1)
             
-            # Log the failure with high-fidelity data for thesis analysis
-            bike.log.append({
-                'time': self.time,
-                'event': 'component_failure',
-                'category': category,
-                'odometer_km': bike.total_distance_km,
-                'trip_distance_km': self.distance_km,
-                'failure_probability': probability,
-                'hazard_rate': hazard_rate,
-                'scale_lambda': scale_lambda, # Captured for parameter trace
-                'shape_k': shape_k,           # Captured for parameter trace
-                'departure_station': departure_id,
-                'arrival_station': arrival_id
-            })
+            print(f"[DEPOT FIX PENDING] Bike {bike.bike_id} will be REMOVED FROM SERVICE upon arrival\n")
+            return 'trip_completes_then_unavailable'
+        
+        else:  # "damaged: on-site fix"
+            # ON-SITE FIX: Will be flagged for inspection upon arrival
+            bike.pending_onsite_fix = True  # NEW FLAG
+            bike.pending_failure_category = category
             
-            # Enhanced terminal notification for debugging and verification
-            print(f"\n{'!'*30} COMPONENT FAILURE DETECTED {'!'*30}")
-            print(f"      Bike: {bike.bike_id}")
-            print(f"      Component: {category:<25} | Params: lambda={scale_lambda:.1f}, k={shape_k:.2f}")
-            print(f"      Odometer: {bike.total_distance_km:.1f} km")
-            print(f"      Hazard rate z(t): {hazard_rate:.6f}")
-            print(f"      Failure probability: {probability:.6f} ({probability*100:.4f}%)")
-            print(f"      Time: {self.time:.1f} min")
-            print(f"      Trip: {departure_id} -> {arrival_id}")
-            print(f"{'!'*88}\n")
+            # Update metrics
+            simul.state.metrics.add_aggregate_metric(simul.state, "onsite_failures", 1)
+            simul.state.metrics.add_aggregate_metric(simul.state, "component_failures", 1)
+            simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}", 1)
+            simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}_onsite", 1)
+            
+            print(f"[ON-SITE FIX PENDING] Bike {bike.bike_id} will be FLAGGED upon arrival (still rentable)\n")
+            return 'trip_completes_normally'
+
 
 
     def __repr__(self):
@@ -455,13 +446,4 @@ class BikeDeparture(Event):
         else:
             return False
  
-    def __repr__(self):
-        return f"<{self.__class__.__name__} at time {self.time}, departing from station {self.departure_station_id}>"
-    
-    def acceptance_rejection(self,distance, simul):
-        prob_acceptance = -1.6548*distance**2-0.7036*distance+1.0133
-        random_roaming_limit = simul.state.rng.uniform(0,1)
-        if random_roaming_limit <= prob_acceptance:
-            return True
-        else:
-            return False
+
