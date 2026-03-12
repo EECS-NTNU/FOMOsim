@@ -1,262 +1,211 @@
 """
-Quick Start Guide - VFA for DSJBRMP
+Quick Start Guide – VFA for DSJBRMP
 
-This guide shows the minimal steps to get started with the VFA system.
+New Architecture (March 2026)
+──────────────────────────────
+• LinearVFAPolicy   – time-indexed linear VFA + TD(0) + Boltzmann selection
+• EpisodeTrainingPolicy – episodic warm-up/learning phase router
+• train_vfa.py      – offline episodic training loop (200 episodes × 14 days)
+
+After offline training the frozen θ vector is used as a tail-value estimator
+inside a separate Rollout Algorithm (not implemented here).
 """
 
 # =============================================================================
-# EXAMPLE 1: Train VFA Agent on Single Seed
+# EXAMPLE 1: Full Offline Training (recommended entry point)
+# =============================================================================
+# Run the training loop from the terminal:
+#   python policies/sjovik_sund/vfa/train_vfa.py
+#   python policies/sjovik_sund/vfa/train_vfa.py --episodes 200 --save models/my_vfa.pkl
+#   python policies/sjovik_sund/vfa/train_vfa.py --episodes 50 --seed 100 --instance TD_W34_37
+#
+# This runs 200 episodes of 14 days each:
+#   Days 1-4  : GreedyPolicy warm-up  (no TD updates)
+#   Days 5-14 : VFA + Boltzmann exploration + TD(0) updates
+#   τ decays exponentially from 5.0 → 0.1 over the 200 episodes
+#
+# Outputs:
+#   models/vfa_trained_<timestamp>.pkl     – frozen θ vector
+#   models/vfa_trained_<timestamp>_learning_curve.npy
+#   models/vfa_checkpoint_ep0050.pkl  (every 50 episodes)
+
+
+# =============================================================================
+# EXAMPLE 2: Train Programmatically (single call)
 # =============================================================================
 
-from policies.sjovik_sund.vfa import VFAPolicy
-from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig
+from policies.sjovik_sund.vfa.train_vfa import train
+from pathlib import Path
 
-# Create VFA policy with learning enabled
-policy = VFAPolicy(
-    learning_mode=True,        # Enable learning
-    maintenance_enabled=True,  # Enable maintenance actions
-    seed=42
+# Run the full 200-episode training loop and get back the frozen policy
+vfa = train(
+    num_episodes  = 200,
+    save_path     = Path('models/my_vfa.pkl'),
+    seed_offset   = 0,
+    instance_name = 'TD_W34_old',
 )
 
-# Run simulation
+# vfa.theta is now frozen; use it as a tail-value estimator
+print(f'θ = {vfa.theta}')
+
+
+# =============================================================================
+# EXAMPLE 3: Use a Pre-trained Frozen Model
+# =============================================================================
+
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig
+from pathlib import Path
+
+# Load frozen model (learning_mode=False is the default when using .load())
+vfa = LinearVFAPolicy.load(Path('models/my_vfa.pkl'))
+print(f'Loaded θ: {vfa.theta}')
+
+# Run simulation in pure exploitation mode (no exploration, no TD updates)
 config = SimulationConfig()
 simulator = run_simulation(
-    seed=42,
-    policy=policy,
-    duration=24*5,            # 5 days
-    num_vehicles=1,
-    instance_name="TD_W34_old",
-    config=config
-)
-
-# Save trained model
-policy.save_agent('models/my_vfa_model.pkl')
-
-# Print statistics
-stats = policy.vfa_agent.get_statistics_summary()
-print(f"Training completed: {stats['iteration']} iterations")
-print(f"Final cost: {stats['mean_cost']:.2f}")
-
-
-# =============================================================================
-# EXAMPLE 2: Use Pre-trained Model
-# =============================================================================
-
-from policies.sjovik_sund.vfa import VFAPolicy
-
-# Load trained model
-policy = VFAPolicy(learning_mode=False)  # No learning
-policy.load_agent('models/my_vfa_model.pkl')
-
-# Run simulation in test mode
-simulator = run_simulation(
     seed=100,
-    policy=policy,
-    duration=24*7,  # 1 week
-    num_vehicles=2
+    policy=vfa,
+    duration=24*7,          # 1 week test run
+    num_vehicles=1,
+    instance_name='TD_W34_old',
+    config=config,
 )
 
 
 # =============================================================================
-# EXAMPLE 3: Custom Learning Parameters
+# EXAMPLE 4: Custom Hyperparameters
 # =============================================================================
 
-from policies.sjovik_sund.vfa import (
-    VFAPolicy, VFAAgent, LearningParameters,
-    VFAFeatures, DemandForecaster
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+
+# All hyperparameters are constructor arguments – easy to change
+policy = LinearVFAPolicy(
+    n_features    = 5,      # φ vector length (change if you add/remove features)
+    alpha         = 0.005,  # smaller α → slower but more stable learning
+    gamma         = 0.99,   # discount factor
+    tau           = 5.0,    # initial Boltzmann temperature (overridden by training loop)
+    learning_mode = True,
+    seed          = 42,
 )
 
-# Configure custom learning parameters
-learning_params = LearningParameters(
-    initial_learning_rate=0.02,      # Higher learning rate
-    initial_epsilon=0.5,             # More exploration
-    epsilon_decay=0.999,             # Slower decay
-    failed_rental_cost=15.0,         # Higher penalty for stockouts
-    discount_factor=0.98             # More weight on future
+# Run a single episode manually
+from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig
+from helpers import timeInMinutes
+
+WARMUP_END = timeInMinutes(hours=7) + 4 * 24 * 60  # 4-day warm-up
+
+from policies.sjovik_sund.vfa.LinearVFAPolicy import EpisodeTrainingPolicy
+from policies.greedy_policy import GreedyPolicy
+
+episode_policy = EpisodeTrainingPolicy(
+    vfa_policy      = policy,
+    greedy_policy   = GreedyPolicy(),
+    warmup_end_time = WARMUP_END,
 )
 
-# Create components
-forecaster = DemandForecaster()
-features = VFAFeatures(forecaster)
-agent = VFAAgent(features, learning_params, seed=42)
-
-# Create policy
-policy = VFAPolicy(vfa_agent=agent, learning_mode=True)
-
-# Train
 simulator = run_simulation(
-    seed=42,
-    policy=policy,
-    duration=24*10  # Longer training
+    seed          = 42,
+    policy        = episode_policy,
+    duration      = 24 * 14,   # 14-day episode
+    num_vehicles  = 1,
+    instance_name = 'TD_W34_old',
+    config        = SimulationConfig(),
 )
+print(f'θ after episode: {policy.theta}')
 
 
 # =============================================================================
-# EXAMPLE 4: Multi-Seed Training with CLI
+# EXAMPLE 5: Plot the Learning Curve After Training
 # =============================================================================
 
-# From terminal:
-# python policies/sjovik_sund/vfa/train_vfa.py --mode train --seeds 42 43 44 45 46 --duration 120
-
-# This will:
-# - Train on seeds 42-46
-# - Each seed runs 120 hours (5 days)
-# - Save checkpoints after each seed
-# - Save final trained model
-
-
-# =============================================================================
-# EXAMPLE 5: Test Trained Model on New Seeds
-# =============================================================================
-
-# From terminal:
-# python policies/sjovik_sund/vfa/train_vfa.py --mode test \
-#   --model models/vfa_trained_20260311_143022.pkl \
-#   --seeds 100 101 102 103 104 \
-#   --duration 168
-
-# This will:
-# - Load trained model
-# - Test on seeds 100-104
-# - Each seed runs 168 hours (1 week)
-# - Write results to CSV
-
-
-# =============================================================================
-# EXAMPLE 6: Analyze Learned Feature Weights
-# =============================================================================
-
-# From terminal:
-# python policies/sjovik_sund/vfa/train_vfa.py --mode analyze \
-#   --model models/vfa_trained_20260311_143022.pkl
-
-# This will print feature weights and their interpretation
-
-
-# =============================================================================
-# EXAMPLE 7: Monitor Learning Progress Programmatically
-# =============================================================================
-
-from policies.sjovik_sund.vfa import VFAPolicy
+import numpy as np
 import matplotlib.pyplot as plt
 
-# Create and train policy
-policy = VFAPolicy(learning_mode=True, seed=42)
+# train_vfa.py saves the per-episode service level array alongside the model
+sl = np.load('models/my_vfa_learning_curve.npy')
 
-# ... run simulation ...
-
-# Extract learning curves
-td_errors = policy.vfa_agent.stats['td_errors']
-costs = policy.vfa_agent.stats['costs']
-theta_norms = policy.vfa_agent.stats['theta_norms']
-
-# Plot
-fig, axes = plt.subplots(3, 1, figsize=(10, 8))
-
-axes[0].plot(td_errors)
-axes[0].set_ylabel('TD Error')
-axes[0].set_title('Learning Convergence')
-
-axes[1].plot(costs)
-axes[1].set_ylabel('Immediate Cost')
-
-axes[2].plot(theta_norms)
-axes[2].set_ylabel('||θ||')
-axes[2].set_xlabel('Iteration')
-
+plt.figure(figsize=(10, 4))
+plt.plot(sl, linewidth=1, label='Service level')
+plt.plot(np.convolve(sl, np.ones(10)/10, mode='valid'), linewidth=2, label='10-ep MA')
+plt.xlabel('Episode')
+plt.ylabel('Service level  (1 − starvations / trips)')
+plt.title('VFA Training Convergence')
+plt.legend()
 plt.tight_layout()
-plt.savefig('learning_curves.png')
+plt.savefig('learning_curve.png')
+print(f'Best SL = {sl.max():.4f}  (episode {sl.argmax() + 1})')
 
 
 # =============================================================================
-# EXAMPLE 8: Custom Demand Forecaster
+# EXAMPLE 6: Inspect / Override the Feature Vector
 # =============================================================================
+# The five features are extracted in LinearVFAPolicy.extract_features().
+# To experiment with an alternative feature set, subclass and override:
 
-from policies.sjovik_sund.vfa import DemandForecaster, DemandForecast
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+import numpy as np
 
-class MyForecaster(DemandForecaster):
-    """Custom forecaster using external model."""
-    
-    def forecast(self, station_id, time, horizon=1.0):
-        # Get day/hour
-        day_of_week = int(time // (24 * 60)) % 7
-        hour_of_day = int((time // 60) % 24)
-        
-        # Custom logic
-        if hour_of_day >= 7 and hour_of_day <= 9:
-            # Morning rush
-            rental_rate = 3.0 * horizon
-            return_rate = 0.5 * horizon
-        elif hour_of_day >= 17 and hour_of_day <= 19:
-            # Evening rush
-            rental_rate = 0.5 * horizon
-            return_rate = 3.0 * horizon
-        else:
-            rental_rate = 1.0 * horizon
-            return_rate = 1.0 * horizon
-        
-        return DemandForecast(
-            station_id=station_id,
-            time=time,
-            expected_rentals=rental_rate,
-            expected_returns=return_rate,
-            rental_variance=rental_rate,
-            return_variance=return_rate
-        )
+class MyVFAPolicy(LinearVFAPolicy):
+    """Adds a 6th feature: total system functional bikes (global fill level)."""
 
-# Use custom forecaster
-from policies.sjovik_sund.vfa import VFAFeatures, VFAAgent, LearningParameters
+    def __init__(self, **kwargs):
+        kwargs.setdefault('n_features', 6)
+        super().__init__(**kwargs)
 
-forecaster = MyForecaster()
-features = VFAFeatures(forecaster)
-agent = VFAAgent(features, LearningParameters(), seed=42)
-policy = VFAPolicy(vfa_agent=agent, learning_mode=True)
+    def extract_features(self, state, vehicle, delta_func=0, delta_depot_cargo=0):
+        phi5 = super().extract_features(state, vehicle, delta_func, delta_depot_cargo)
+        func, _, _ = self._extract_inventories(state)
+        phi6 = float(np.sum(func))           # global functional count
+        return np.append(phi5, phi6)
+
+policy = MyVFAPolicy(alpha=0.01, gamma=0.99, tau=5.0, learning_mode=True)
 
 
 # =============================================================================
-# EXAMPLE 9: Warm Start from Pre-trained Model
+# EXAMPLE 7: Warm-Start / Fine-Tune on a New Instance
 # =============================================================================
 
-from policies.sjovik_sund.vfa import VFAPolicy
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+from policies.sjovik_sund.vfa.train_vfa import train
+from pathlib import Path
 
-# Load pre-trained model
-policy = VFAPolicy(learning_mode=True)  # Still learning
-policy.load_agent('models/vfa_base.pkl')
+# Load a previously trained θ and continue training on a different instance.
+# Because .load() sets learning_mode=False by default, flip it back.
+vfa = LinearVFAPolicy.load(Path('models/my_vfa.pkl'))
+vfa.learning_mode = True
+vfa.tau = 1.0       # start with low temperature (already partially trained)
+vfa.alpha = 0.005   # smaller step size for fine-tuning
 
-# Continue training on new instance
-simulator = run_simulation(
-    seed=42,
-    policy=policy,
-    instance_name="OS_W31",  # Different instance
-    duration=24*5
+# Fine-tune for 50 episodes on a different city
+train(
+    num_episodes  = 50,
+    save_path     = Path('models/my_vfa_finetuned.pkl'),
+    seed_offset   = 200,
+    instance_name = 'OS_W31',
 )
 
-# Save updated model
-policy.save_agent('models/vfa_base_finetuned.pkl')
-
 
 # =============================================================================
-# EXAMPLE 10: Integration with Existing Simulation Pipeline
+# EXAMPLE 8: Evaluate Frozen Model Across Multiple Test Seeds
 # =============================================================================
 
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.sjovik_sund.run_simulation import test_seeds
-from policies.sjovik_sund.vfa import VFAPolicy
+from pathlib import Path
 
-# Create VFA policy
-vfa_policy = VFAPolicy(learning_mode=True, seed=42)
+# Load the frozen, trained policy
+vfa = LinearVFAPolicy.load(Path('models/my_vfa.pkl'))  # learning_mode=False
 
-# Test on multiple seeds (uses existing infrastructure)
+# test_seeds uses multiprocessing internally – safe because θ is not modified
 test_seeds(
-    list_of_seeds=[42, 43, 44],
-    policy=vfa_policy,
-    filename='vfa_results.csv',
-    num_vehicles=1,
-    duration=24*5,
-    use_multiprocessing=False  # Keep False for learning
+    list_of_seeds = [100, 101, 102, 103, 104],
+    policy        = vfa,
+    filename      = 'vfa_test_results.csv',
+    num_vehicles  = 1,
+    duration      = 24 * 7,            # 1-week test horizon
+    use_multiprocessing = True,
 )
-
-# Model is trained across all seeds
-vfa_policy.save_agent('models/vfa_multiseed.pkl')
 
 
 # =============================================================================
@@ -264,42 +213,46 @@ vfa_policy.save_agent('models/vfa_multiseed.pkl')
 # =============================================================================
 
 """
-Issue: TD error not decreasing
-Solution: Reduce learning rate or increase regularization
+Issue: θ norm grows without bound during training
+Solution: Reduce alpha (e.g. 0.001) or shorten the episode duration.
 
-Issue: Agent not exploring enough
-Solution: Increase initial_epsilon or slow epsilon_decay
+Issue: Boltzmann always picks the same action (no exploration)
+Solution: TAU_START is too small.  Increase it in train_vfa.py (default 5.0).
 
-Issue: Value estimates exploding
-Solution: Increase l2_regularization or add feature normalization
+Issue: Service level doesn't improve over episodes
+Solution: Check that WARMUP_DAYS < EPISODE_DAYS.  Try more episodes or a
+          higher learning rate.  Inspect the learning curve .npy file.
 
-Issue: Actions always the same
-Solution: Check epsilon value (if 0, no exploration)
+Issue: Policy is too greedy even during warm-up
+Solution: Check that warmup_end_time is passed correctly to
+          EpisodeTrainingPolicy.  The simulator clock starts at
+          timeInMinutes(hours=START_HOUR), not at 0.
 
-Issue: Slow training
-Solution: Reduce number of candidate actions in action space splitting
+Issue: _lazy_init() called on every episode after domain change
+Solution: This is expected when switching instances.  Set
+          policy._initialized = False explicitly before the first episode
+          on the new instance.
+
+Issue: run_simulation complains about policy.weights
+Solution: LinearVFAPolicy keeps self.weights = list(self.theta)
+          in sync automatically after every td_update().
 """
 
 
 # =============================================================================
-# PERFORMANCE BENCHMARKS
+# EXPECTED TRAINING TIMELINE  (TD_W34_old, 1 vehicle)
 # =============================================================================
 
 """
-Expected performance on TD_W34_old (1 vehicle, 5 days):
+Episodes 1–50   (τ: 5.0 → 1.2)  – heavy exploration;
+                                   θ moves a lot, SL may be noisy.
+Episodes 51–150 (τ: 1.2 → 0.3)  – exploitation increasing;
+                                   SL trend should become visible.
+Episodes 151–200 (τ: 0.3 → 0.1) – near-greedy; θ should stabilise.
 
-Untrained agent (ε=0.3):
-- Failed rentals: ~50-100
-- Failed returns: ~20-50
-- Training time: ~5-10 min per seed
+Full 200-episode run:  ~2–4 hours on a laptop (CPU only).
+Checkpoints every 50 episodes let you resume or evaluate earlier.
 
-After 5 seeds (ε→0.05):
-- Failed rentals: ~20-40
-- Failed returns: ~10-20
-- Training time: Same
-
-After 10+ seeds:
-- Failed rentals: ~10-25
-- Failed returns: ~5-15
-- Converged policy
+Baseline comparison (GreedyPolicy, same seeds):
+  Run train_vfa.py with --episodes 1 to get a 1-episode greedy reference.
 """

@@ -1,79 +1,36 @@
 """
-VFA Package for Dynamic Stochastic Joint Bike Rebalancing and Maintenance Problem
-
-This package implements Approximate Dynamic Programming (ADP) with Value Function 
-Approximation (VFA) for solving the DSJBRMP.
+VFA Package for DSJBRMP  –  Time-Indexed Linear VFA + Offline Episodic Training
 
 Main Components:
-- vfa_state: State space representation (stations, vehicles, actions)
-- vfa_features: Basis functions for value function approximation
-- vfa_agent: Core learning algorithm (temporal difference learning)
-- vfa_policy: Policy interface for integration with simulator
+    LinearVFAPolicy       – feature extraction, VFA scoring, Boltzmann selection,
+                            TD(0) updates, save/load
+    EpisodeTrainingPolicy – episodic warm-up / learning phase router
+    train_vfa.py          – offline training loop (run directly or call train())
 
-Usage:
-    from policies.sjovik_sund.vfa import VFAPolicy, VFAAgent, LearningParameters
-    
-    # Create policy with learning enabled
-    policy = VFAPolicy(learning_mode=True, maintenance_enabled=True)
-    
-    # Or create with pre-trained agent
-    agent = VFAAgent.load_model('path/to/model.pkl')
-    policy = VFAPolicy(vfa_agent=agent, learning_mode=False)
+MDP formulation (state, actions, post-decision state) lives in:
+    policies/sjovik_sund/mdp/mdp_formulation.py
+
+Quickstart:
+    # Offline training (recommended)
+    from policies.sjovik_sund.vfa.train_vfa import train
+    vfa = train(num_episodes=200, save_path=Path('models/my_vfa.pkl'))
+
+    # Load frozen model for deployment / rollout
+    from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+    vfa = LinearVFAPolicy.load(Path('models/my_vfa.pkl'))
 """
 
-from .vfa_state import (
-    MDPState,
-    StationInventory,
-    VehicleStatus,
-    Action,
-    PostDecisionState,
-    StateObservationWrapper,
-    StochasticTransition
-)
-
-from .vfa_features import (
-    VFAFeatures,
-    DemandForecaster,
-    DemandForecast,
-    FeatureNormalizer
-)
-
-from .vfa_agent import (
-    VFAAgent,
-    LearningParameters,
-    Experience,
-    ExperienceReplayBuffer
-)
-
-from .vfa_policy import VFAPolicy
-
+from .LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy
+from .vfa_features import FEATURE_NAMES, N_FEATURES, extract as extract_features, as_dict as features_as_dict
 
 __all__ = [
-    # State representation
-    'MDPState',
-    'StationInventory',
-    'VehicleStatus',
-    'Action',
-    'PostDecisionState',
-    'StateObservationWrapper',
-    'StochasticTransition',
-    
-    # Features
-    'VFAFeatures',
-    'DemandForecaster',
-    'DemandForecast',
-    'FeatureNormalizer',
-    
-    # Agent
-    'VFAAgent',
-    'LearningParameters',
-    'Experience',
-    'ExperienceReplayBuffer',
-    
-    # Policy
-    'VFAPolicy',
+    'LinearVFAPolicy',
+    'EpisodeTrainingPolicy',
+    'FEATURE_NAMES',
+    'N_FEATURES',
+    'extract_features',
+    'features_as_dict',
 ]
 
-
-__version__ = '1.0.0'
+__version__ = '2.0.0'
 __author__ = 'DSJBRMP Research Team'

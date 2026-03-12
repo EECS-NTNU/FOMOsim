@@ -49,241 +49,221 @@ where:
 
 ### 1. State Representation (`vfa_state.py`)
 
-```python
-from policies.sjovik_sund.vfa import MDPState, StationInventory, VehicleStatus
+Unchanged — provides helper dataclasses used internally by `LinearVFAPolicy`.
+`LinearVFAPolicy` works directly with the live `sim.State` object that the
+simulator passes to `get_best_action()`; no manual extraction is required.
 
-# Extract state from simulator
-state = StateObservationWrapper.extract_mdp_state(simul, vehicle_id)
-
-# Access station inventory
-station = state.get_station("S01")
-print(f"Functional: {station.functional}, Onsite: {station.onsite}, Depot: {station.depot}")
-```
-
-**Key Classes**:
+**Key Classes** (for reference / rollout integration):
 - `StationInventory`: $(f^{\text{func}}, f^{\text{onsite}}, f^{\text{depot}}, \text{capacity})$
-- `VehicleStatus`: Location, cargo, capacity
-- `MDPState`: Complete network state
-- `Action`: $(ι, m_{\text{rep}}, m_{\text{rem}}, ρ)$
-- `PostDecisionState`: Apply actions deterministically
+- `VehicleStatus`: Location, cargo, capacity  
+- `MDPState`: Complete network state snapshot
+- `PostDecisionState`: Deterministic state after an action
 
-### 2. Basis Functions (`vfa_features.py`)
+### 2. Feature Vector `φ(S^x)` — five network-level scalars
 
-Implements **separable value function**:
-$$\bar{V}(S^x) \approx \sum_{n \in \mathcal{N}} \bar{v}_n(f_n^x) = \sum_n \sum_f \theta_f \phi_f(f_n^x)$$
+`LinearVFAPolicy.extract_features()` builds the feature vector from the
+**post-decision state** using fully vectorised numpy operations (no Python
+for-loops over stations after the initial inventory read).
 
-**Features**:
-1. **Functional Shortage**: $(E[\text{rentals}] - f^{\text{func}})^2$
-2. **Return Rejection**: $(f^{\text{total}} + E[\text{returns}] - c)^2$
-3. **Unattended Depot**: $f^{\text{depot}}$ (bikes needing removal)
-4. **Unattended Onsite**: $f^{\text{onsite}}$ (bikes needing repair)
-5. **Spatial Synergy**: Discounted functional cargo of inbound vehicles
-6. **Utilization Deviation**: $(f^{\text{total}}/c - 0.5)^2$
+| # | Name | Formula |
+|---|------|---------|
+| φ₁ | Rebalancing imbalance | $\sum_i \lvert I_i^{\text{func}} - \hat{I}_i^{\text{func}} \rvert$ |
+| φ₂ | Trailer cannibalization | $q_v^{\text{depot}} / K$ |
+| φ₃ | Global onsite backlog | $\sum_i I_i^{\text{onsite}}$ |
+| φ₄ | Demand-weighted depot backlog | $\sum_i I_i^{\text{depot}} \times \lambda_i$ |
+| φ₅ | Depot pull | $\phi_2 \times \text{dist}(v, \text{depot})$ |
+
+where $\hat{I}_i^{\text{func}}$ is the time-indexed target state and
+$\lambda_i$ is the time-averaged arrival rate at station $i$.
 
 ```python
-from policies.sjovik_sund.vfa import VFAFeatures, DemandForecaster
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 
-forecaster = DemandForecaster()
-features = VFAFeatures(forecaster)
-
-# Compute features for a state
-feature_vector = features.feature_vector(post_decision_state)
+policy = LinearVFAPolicy()
+# phi is a numpy array of shape (5,)
+phi = policy.extract_features(state, vehicle, delta_func=2)
+print(f'V(S^x) = {policy.value(phi):.4f}')
 ```
 
-### 3. VFA Agent (`vfa_agent.py`)
+### 3. `LinearVFAPolicy` (`LinearVFAPolicy.py`)
 
-Implements **Temporal Difference (TD) Learning**:
-
-$$\theta_{k+1} = \theta_k - \alpha_k \nabla_\theta [\theta^T \phi(S_k^x) - \hat{v}_k]$$
-
-where:
-$$\hat{v}_k = C_k + \gamma \bar{V}(S_{k+1})$$
+Single class that combines feature extraction, VFA scoring, Boltzmann
+selection, and TD(0) updates.  Integrates directly with the simulator via
+the `Policy` base-class interface.
 
 ```python
-from policies.sjovik_sund.vfa import VFAAgent, LearningParameters
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 
-# Configure learning
-params = LearningParameters(
-    initial_learning_rate=0.01,
-    initial_epsilon=0.3,  # Exploration rate
-    discount_factor=0.95
+# Exploitation (frozen θ after training)
+policy = LinearVFAPolicy.load('models/my_vfa.pkl')  # learning_mode=False
+
+# Training (Boltzmann + TD updates)
+policy = LinearVFAPolicy(
+    n_features    = 5,
+    alpha         = 0.01,
+    gamma         = 0.99,
+    tau           = 5.0,    # Boltzmann temperature
+    learning_mode = True,
+    seed          = 42,
 )
-
-# Create agent
-agent = VFAAgent(features, params, seed=42)
-
-# Evaluate state value
-value = agent.evaluate_value(post_state)
-
-# Update from transition
-agent.update_theta(post_state, observed_cost, next_state)
 ```
 
-**Learning Features**:
-- **ε-greedy exploration**: Balance exploration vs. exploitation
-- **Learning rate decay**: Converge to optimal policy
-- **Feature normalization**: Improve numerical stability
-- **L2 regularization**: Prevent overfitting
-- **Experience replay** (optional): Batch updates
+**TD(0) update rule** applied at every vehicle-decision during the learning phase:
 
-### 4. VFA Policy (`vfa_policy.py`)
+$$\theta \leftarrow \theta + \alpha \bigl( r + \gamma V(S^x_{\text{next}}) - V(S^x_{\text{cur}}) \bigr) \phi(S^x_{\text{cur}})$$
 
-Integrates VFA agent with the simulator's policy interface.
+**Action generation** uses action-space splitting:
+1. **Micro-step** (inventory): push current station toward its target state (greedy, fixed)
+2. **Macro-step** (routing): evaluate the `N_CANDIDATES = 8` nearest next stations with VFA
+
+### 4. `EpisodeTrainingPolicy` (`LinearVFAPolicy.py`)
+
+Episodic wrapper created fresh each episode; routes decisions to the correct
+phase while sharing a single persistent `LinearVFAPolicy` (θ persists).
 
 ```python
-from policies.sjovik_sund.vfa import VFAPolicy
+from policies.sjovik_sund.vfa.LinearVFAPolicy import EpisodeTrainingPolicy
+from policies.greedy_policy import GreedyPolicy
+from helpers import timeInMinutes
 
-# Training mode (learning enabled)
-policy = VFAPolicy(learning_mode=True, maintenance_enabled=True, seed=42)
+WARMUP_END = timeInMinutes(hours=7) + 4 * 24 * 60   # 07:00 + 4 days
 
-# Or load pre-trained agent
-policy = VFAPolicy(learning_mode=False)
-policy.load_agent('models/vfa_trained.pkl')
+episode_policy = EpisodeTrainingPolicy(
+    vfa_policy      = vfa,           # shared LinearVFAPolicy
+    greedy_policy   = GreedyPolicy(),
+    warmup_end_time = WARMUP_END,
+)
+# state.time < WARMUP_END  → GreedyPolicy  (no TD updates)
+# state.time >= WARMUP_END → LinearVFAPolicy (Boltzmann + TD)
 ```
-
-**Action Space Splitting** (for computational efficiency):
-1. **Micro-step**: Optimize $(ι, m_{\text{rep}}, m_{\text{rem}})$ at current station
-2. **Macro-step**: Evaluate routing $\rho$ using VFA
 
 ## Usage Examples
 
-### Training a New Agent
+### Full Offline Training (recommended)
 
-```python
-from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig
-from policies.sjovik_sund.vfa import VFAPolicy
+```bash
+# Default: 200 episodes × 14 days, saves to models/vfa_trained_<ts>.pkl
+python policies/sjovik_sund/vfa/train_vfa.py
 
-# Create VFA policy with learning enabled
-policy = VFAPolicy(learning_mode=True, maintenance_enabled=True)
-
-# Run simulation (agent learns during execution)
-config = SimulationConfig()
-simulator = run_simulation(
-    seed=42,
-    policy=policy,
-    duration=24*5,  # 5 days
-    num_vehicles=1,
-    instance_name="TD_W34_old",
-    config=config
-)
-
-# Save learned model
-policy.save_agent('models/vfa_seed42.pkl')
-
-# Print learning statistics
-policy.vfa_agent.print_learning_status()
+# Custom options
+python policies/sjovik_sund/vfa/train_vfa.py \
+    --episodes 200 \
+    --save models/my_vfa.pkl \
+    --seed 0 \
+    --instance TD_W34_37
 ```
 
-### Using a Pre-trained Agent
+### Training Programmatically
 
 ```python
-# Load trained agent
-policy = VFAPolicy(learning_mode=False)
-policy.load_agent('models/vfa_trained.pkl')
+from policies.sjovik_sund.vfa.train_vfa import train
+from pathlib import Path
 
-# Run simulation in exploitation mode
+vfa = train(
+    num_episodes  = 200,
+    save_path     = Path('models/my_vfa.pkl'),
+    seed_offset   = 0,
+    instance_name = 'TD_W34_old',
+)
+print(f'Final θ: {vfa.theta}')
+```
+
+### Using a Frozen Pre-trained Model
+
+```python
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig
+from pathlib import Path
+
+# load() always sets learning_mode=False
+vfa = LinearVFAPolicy.load(Path('models/my_vfa.pkl'))
+
 simulator = run_simulation(
     seed=100,
-    policy=policy,
-    duration=24*7,  # 1 week
-    num_vehicles=2
+    policy=vfa,
+    duration=24*7,
+    num_vehicles=1,
+    instance_name='TD_W34_old',
+    config=SimulationConfig(),
 )
 ```
 
-### Multi-Seed Training
+### Evaluating on Multiple Test Seeds
 
 ```python
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.sjovik_sund.run_simulation import test_seeds
+from pathlib import Path
 
-seeds = range(42, 52)  # 10 different seeds
-policy = VFAPolicy(learning_mode=True)
+vfa = LinearVFAPolicy.load(Path('models/my_vfa.pkl'))  # frozen
 
 test_seeds(
-    list_of_seeds=seeds,
-    policy=policy,
-    filename='vfa_results.csv',
-    duration=24*5
+    list_of_seeds = list(range(100, 110)),
+    policy        = vfa,
+    filename      = 'vfa_test_results.csv',
+    duration      = 24 * 7,
+    use_multiprocessing = True,
 )
 ```
 
 ## Hyperparameter Tuning
 
-Key parameters in `LearningParameters`:
+All hyperparameters are constructor arguments of `LinearVFAPolicy` and
+constants at the top of `train_vfa.py`:
 
-```python
-params = LearningParameters(
-    # Learning rate schedule
-    initial_learning_rate=0.01,      # α₀
-    learning_rate_decay=0.9999,      # Multiplicative decay
-    min_learning_rate=0.001,         # Floor
-    
-    # Exploration
-    initial_epsilon=0.3,             # ε₀ (30% random actions)
-    epsilon_decay=0.9995,            # Decay toward exploitation
-    min_epsilon=0.05,                # Minimum exploration
-    
-    # Regularization
-    l2_regularization=0.001,         # λ for ||θ||²
-    
-    # Costs
-    failed_rental_cost=10.0,         # Penalty for stockout
-    failed_return_cost=5.0,          # Penalty for full station
-    
-    # Discount
-    discount_factor=0.95             # γ (future value weight)
-)
-```
+| Parameter | Location | Default | Effect |
+|-----------|----------|---------|--------|
+| `alpha` | `LinearVFAPolicy` | `0.01` | TD step size |
+| `gamma` | `LinearVFAPolicy` | `0.99` | Discount factor |
+| `n_features` | `LinearVFAPolicy` | `5` | φ vector length |
+| `N_CANDIDATES` | `LinearVFAPolicy` (class attr) | `8` | Routing candidates per decision |
+| `TAU_START` | `train_vfa.py` | `5.0` | Initial Boltzmann temperature |
+| `TAU_END` | `train_vfa.py` | `0.1` | Final Boltzmann temperature |
+| `NUM_EPISODES` | `train_vfa.py` | `200` | Training episodes |
+| `EPISODE_DAYS` | `train_vfa.py` | `14` | Days per episode |
+| `WARMUP_DAYS` | `train_vfa.py` | `4` | Greedy warm-up days (no TD) |
 
 ### Recommended Tuning Process
 
-1. **Start with high exploration** (`initial_epsilon=0.5`) for diverse experiences
-2. **Monitor TD error** convergence:
-   ```python
-   agent.vfa_agent.print_learning_status()  # Every 50 decisions
-   ```
-3. **Adjust learning rate** if TD error oscillates
-4. **Decay epsilon** faster if agent converges slowly
-5. **Increase regularization** if θ norm grows unbounded
+1. **Start with default τ schedule** (5.0 → 0.1 over 200 episodes) — well-calibrated for `TD_W34_old`.
+2. **Plot the learning curve** (`_learning_curve.npy`) to diagnose:
+   - Flat curve → increase `TAU_START` or `alpha`.
+   - Oscillating curve → decrease `alpha`.
+   - θ norm explodes → decrease `alpha`.
+3. **Adjust `WARMUP_DAYS`** if the system needs more (complex degradation) or less warm-up time.
+4. **Reduce `N_CANDIDATES`** if training is too slow (fewer routing options to evaluate per decision).
 
 ## Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       SIMULATION                            │
-│  (High-fidelity: Weibull failures, exact bike tracking)    │
-└──────────────────┬──────────────────────────────────────────┘
-                   │ Event: Vehicle arrives
-                   ▼
-┌─────────────────────────────────────────────────────────────┐
-│            StateObservationWrapper                          │
-│  Aggregate: Bike objects → (f^func, f^onsite, f^depot)     │
-└──────────────────┬──────────────────────────────────────────┘
-                   │ MDPState
-                   ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    VFAPolicy                                │
-│  1. Generate feasible actions (micro + macro splitting)    │
-│  2. Select action (ε-greedy or greedy)                     │
-│  3. Convert to simulator Action                            │
-└──────────────────┬──────────────────────────────────────────┘
-                   │ Action
-                   ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    VFAAgent                                 │
-│  • Evaluate: V̄(S^x) = θᵀφ(S^x)                            │
-│  • Select: arg min_x [C(S^x) + V̄(S^x)]                    │
-│  • Learn: θ ← θ - α∇[V̄(S^x) - v̂]                         │
-└──────────────────┬──────────────────────────────────────────┘
-                   │
-         ┌─────────┴──────────┐
-         ▼                    ▼
-┌──────────────────┐  ┌──────────────────┐
-│  VFAFeatures     │  │ DemandForecaster │
-│  • Shortage      │  │ • Historical     │
-│  • Rejection     │  │ • Time patterns  │
-│  • Damage        │  │ • Online update  │
-│  • Synergy       │  └──────────────────┘
-└──────────────────┘
+ OFFLINE TRAINING  (train_vfa.py)
+ ─────────────────────────────────────────────────────────────────
+ for episode in range(200):
+   ┌──── Days 1-4: GreedyPolicy warm-up ─── no θ update ────────┐
+   │  τ decays exponentially   5.0 → 0.1 over 200 episodes      │
+   ├──── Days 5-14: LinearVFAPolicy ────── TD(0) updates ────────┤
+   │                                                              │
+   │  Each vehicle decision:                                      │
+   │  1. Extract inventories from sim.State (one loop/station)   │
+   │  2. Build φ(S^x) with numpy ops  → shape (5,)              │
+   │  3. Boltzmann-select next station via  P∝exp(−V/τ)         │
+   │  4. TD update:  θ += α(r + γV_next − V_cur) φ_cur          │
+   └──────────────────────────────────────────────────────────────┘
+   θ persists; only per-episode tracking state is reset
+
+ Save frozen model  →  models/vfa_trained_<ts>.pkl
+ ─────────────────────────────────────────────────────────────────
+
+ ONLINE DEPLOYMENT  (future Rollout Algorithm)
+ ─────────────────────────────────────────────────────────────────
+ For each vehicle decision:
+   ┌── Generate candidate actions (action-space splitting) ──────┐
+   │   Micro: greedy inventory push toward target state          │
+   │   Macro: N_CANDIDATES nearest next stations                 │
+   ├── For each candidate action a: ────────────────────────────┤
+   │   Rollout H decisions with default policy                   │
+   │   Q(s,a) ≈ Σ γ^h c_h  +  γ^H V̄(S_H)   ← frozen VFA      │
+   └── Select a* = argmin Q(s, a) ─────────────────────────────┘
 ```
 
 ## Key Design Decisions
@@ -312,74 +292,86 @@ params = LearningParameters(
 
 ### During Training
 
-```python
-# Automatic status every 50 decisions
-VFA Learning Status (Iteration 1000)
-================================================================================
-  Learning rate: 0.005123
-  Epsilon: 0.182341
-  θ norm: 2.3451
-  Mean TD error (last 100): 0.0234
-  Mean cost (last 100): 5.23
-  Mean value estimate: -12.45
-================================================================================
+`train_vfa.py` prints one line per episode:
+
 ```
+Episode  42/200 | τ = 1.843 | ‖θ‖ = 3.2041 | θ̄  = -0.1203 | SL = 0.8712 | t = 324s
+```
+
+Checkpoints are saved every 50 episodes to `models/vfa_checkpoint_ep<N>.pkl`.
 
 ### Post-Training Analysis
 
 ```python
-# Extract statistics
-stats = policy.vfa_agent.get_statistics_summary()
-print(f"Total iterations: {stats['iteration']}")
-print(f"Final θ: {policy.vfa_agent.theta}")
-
-# Plot learning curves
+import numpy as np
 import matplotlib.pyplot as plt
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+from pathlib import Path
 
-td_errors = policy.vfa_agent.stats['td_errors']
-plt.plot(td_errors)
-plt.xlabel('Iteration')
-plt.ylabel('TD Error')
-plt.title('Learning Convergence')
-plt.show()
+# Inspect learned weights
+vfa = LinearVFAPolicy.load(Path('models/my_vfa.pkl'))
+feature_names = ['φ₁ rebalancing', 'φ₂ trailer', 'φ₃ onsite', 'φ₄ depot-demand', 'φ₅ depot-pull']
+for name, w in zip(feature_names, vfa.theta):
+    print(f'  {name:25s} {w:+.6f}')
+
+# Plot service-level learning curve
+sl = np.load('models/my_vfa_learning_curve.npy')
+plt.plot(sl, alpha=0.4, label='per-episode SL')
+plt.plot(np.convolve(sl, np.ones(10)/10, mode='valid'), label='10-ep MA')
+plt.xlabel('Episode')
+plt.ylabel('Service level')
+plt.title('VFA Training Convergence')
+plt.legend()
+plt.tight_layout()
+plt.savefig('learning_curve.png')
 ```
 
 ## Extending the System
 
-### Custom Features
+### Adding or Changing Features
+
+Subclass `LinearVFAPolicy` and override `extract_features()`.
+Remember to also update `n_features`:
 
 ```python
-class CustomFeatures(VFAFeatures):
-    def compute_station_features(self, station, state, forecast_horizon=2.0):
-        features = super().compute_station_features(station, state, forecast_horizon)
-        
-        # Add custom feature
-        features['custom_metric'] = my_custom_function(station, state)
-        
-        return features
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+import numpy as np
+
+class ExtendedVFA(LinearVFAPolicy):
+    """Adds φ₆: global functional fill level."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('n_features', 6)
+        super().__init__(**kwargs)
+
+    def extract_features(self, state, vehicle, delta_func=0, delta_depot_cargo=0):
+        phi5 = super().extract_features(state, vehicle, delta_func, delta_depot_cargo)
+        func, _, _ = self._extract_inventories(state)
+        return np.append(phi5, float(np.sum(func)))
 ```
 
-### Custom Demand Forecasts
+### Changing the Reward Signal
+
+Override `_get_reward()` in `LinearVFAPolicy`.
+The default penalises starvations and long-congestions:
 
 ```python
-class MLDemandForecaster(DemandForecaster):
-    def __init__(self, model_path):
-        super().__init__()
-        self.ml_model = load_model(model_path)
-    
-    def forecast(self, station_id, time, horizon=1.0):
-        # Use ML model for forecasting
-        prediction = self.ml_model.predict(station_id, time, horizon)
-        return DemandForecast(...)
+def _get_reward(self, state) -> float:
+    cur_s = state.metrics.get_aggregate_value('starvation') or 0
+    cur_c = state.metrics.get_aggregate_value('long_congestion') or 0
+    reward = -(1.0 * (cur_s - self._prev_starvations) +
+               0.5 * (cur_c - self._prev_congestions))
+    self._prev_starvations = cur_s
+    self._prev_congestions = cur_c
+    return reward
 ```
 
 ## Performance Tips
 
-1. **Feature Scaling**: Features are automatically normalized (Welford's algorithm)
-2. **Parallel Training**: Run multiple seeds in parallel, then ensemble
-3. **Warm Start**: Load pre-trained θ for new scenarios
-4. **Curriculum Learning**: Start with short horizons, gradually increase
-5. **Batch Updates**: Enable experience replay for smoother learning
+1. **`N_CANDIDATES`**: Reduce from 8 to 4-5 to halve decision time with minimal quality loss.
+2. **Warm Start**: `LinearVFAPolicy.load()` then set `learning_mode=True` and `tau` low for fine-tuning.
+3. **Parallel evaluation**: `test_seeds(..., use_multiprocessing=True)` is safe because the frozen policy does not mutate state.
+4. **Longer episodes**: Increasing `EPISODE_DAYS` from 14 to 28 captures stronger day-of-week patterns at the cost of slower training.
 
 ## References
 

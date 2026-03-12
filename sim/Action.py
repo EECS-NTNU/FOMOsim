@@ -1,5 +1,7 @@
 from settings import *
 
+#TODO: Update to include more complex actions: unload/load both functional and depot-bound bikes, perform on-site maintenance. 
+# Depot bound bikes can only be unloaded at depot. Not sure if that logic should be implemented in the action or somewhere else.
 
 class Action:
     """
