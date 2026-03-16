@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 import argparse
 from datetime import datetime
+#from sim.Bike import Bike
 
 # Get workspace root (2 levels up from this file)
 WORKSPACE_ROOT = Path(__file__).parents[2]
@@ -34,7 +35,6 @@ import time
 import multiprocessing as mp
  
 # python policies/sjovik_sund/run_simulation.py > policies/sjovik_sund/output/output.txt
- 
 # Import visualization if needed
 try:
     from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
@@ -43,7 +43,7 @@ except ImportError:
     VISUALIZATION_AVAILABLE = False
     print("Warning: Visualization not available")
 
-MAINTENANCE_ENABLED = True
+MAINTENANCE_ENABLED = False
  
 
 # Import logging utilities
@@ -51,11 +51,12 @@ from policies.sjovik_sund.simulation_logging import (
     LoggingSimulator,
     write_hourly_metrics_to_file,
     write_results_to_file,
-    write_simulation_summary,
-    write_vehicle_visits_to_file,
-    write_station_hourly_metrics_to_file,
-    write_bike_movements_to_file,
-    write_trip_requests_to_file
+    #write_simulation_summary,
+    #write_vehicle_visits_to_file,
+    #write_station_hourly_metrics_to_file,
+    #write_bike_movements_to_file,
+    #write_trip_requests_to_file,
+    write_component_failures_to_file
 )
 
 from dataclasses import dataclass, field
@@ -93,7 +94,7 @@ class SimulationConfig:
     tau: int = 5  # Time discretization in minutes
     default_time_horizon: int = 5  # Number of periods to look ahead
     policy_hour_from: int = 7  # Policy active from 7 AM
-    policy_hour_to: int = 23  # Policy active until 11 PM
+    policy_hour_to: int = 7  # Policy active until 11 PM
     roaming: bool = False
     
     # === Maintenance Settings ===
@@ -103,7 +104,7 @@ class SimulationConfig:
     default_seed: int = 1
     default_nsims: int = 1
     default_vehicles: int = 1
-    default_duration_hours: int = 120  # 5 days
+    default_duration_hours: int = 24*365*2 # 5 days (3mnd)
     
     # === Target State ===
     # Options: "half_capacity", "equal_prob", "us"
@@ -172,13 +173,18 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instan
     if MAINTENANCE_ENABLED:
         state.initialize_bike_maintenance()
 
+    # In the initialization section:
+    """if ENABLE_COMPONENT_FAILURES:
+        all_bikes = state.get_all_bikes()
+        print(f"\nInitializing component failure tracking for {len(all_bikes)} bikes...")
+        
+        print("Component failure tracking initialized.\n")"""
+
     vehicles = [policy for i in range(num_vehicles)]
     state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
  
     # Use config for target state
     tstate = config.get_target_state_instance()
-
-    # Get start stations from config
     start_stations = config.get_start_stations(INSTANCE)
  
     # Distribute vehicles to start stations
@@ -205,6 +211,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instan
         f"Running simulation with duration {duration}, vehicles {num_vehicles}, "
         f"seed {seed}, Instance {INSTANCE} and weights {policy.weights}"
     )
+
+    if ENABLE_COMPONENT_FAILURES:
+        print("Component failure simulation: ENABLED")
   
     policy.maintenance_enabled = MAINTENANCE_ENABLED
   
@@ -245,27 +254,32 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
     
     # Write vehicle visits for this seed
     visits_filename = f"{base_filename}_vehicle_visits_seed_{seed}.csv"
-    write_vehicle_visits_to_file(visits_filename, simulator, seed)
+    #write_vehicle_visits_to_file(visits_filename, simulator, seed)
     
     # Write station hourly metrics for this seed
     station_hourly_filename = f"{base_filename}_station_hourly_seed_{seed}.csv"
-    write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
+    #write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
     
     # Write bike movements for this seed
     bike_movements_filename = f"{base_filename}_bike_movements_seed_{seed}.csv"
-    write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
+    #write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
     
     # Write trip requests for this seed
     trip_requests_filename = f"{base_filename}_trip_requests_seed_{seed}.csv"
-    write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
+    #write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
     
     # Write Vehicle Decisions (currently commented out)
     # decisions_filename = f"{base_filename}_vehicle_decisions_seed_{seed}.csv"
     # write_vehicle_decisions_to_file(decisions_filename, simulator, seed)
 
+    # write component failures for this seed
+    if ENABLE_COMPONENT_FAILURES:
+        component_failures_filename = f"{base_filename}_component_failures_seed_{seed}.csv"
+        write_component_failures_to_file(component_failures_filename, simulator, seed, alpha_value)
+
     # Write summary for this seed
     summary_filename = f"{base_filename}_summary_seed_{seed}.txt"
-    write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
+    #write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
     
     # Print completion info
     print(f"Seed {seed}: Completed in {solve_time:.2f}s")

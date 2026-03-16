@@ -3,6 +3,8 @@ from sim.Depot import Depot
 from sim.Station import Station
 from settings import *
 
+#TODO: Update to multi-state inventory of bikes "func, depot-bound"
+
 class Vehicle:
     """
     Class for vehicle state. Keeps track of current location and inventory including a service route log.

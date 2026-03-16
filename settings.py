@@ -17,9 +17,14 @@ MINUTES_CONSTANT_PER_ACTION = 3 # Constant time in addition (f.eks park the car 
 BATTERY_LIMIT_TO_USE = 15 # Battery limit for the bike to be up for rental
 BIKE_SPEED = 7 # Average speed of a bike
 ESCOOTER_SPEED = 13.2 # Average speed of a bike
-MAINTENANCE_THRESHOLD_FOR_NO_RENTAL = 0.9 # above this value, bike is not available for rental
+#MAINTENANCE_THRESHOLD_FOR_NO_RENTAL = 0.9 # above this value, bike is not available for rental
 
-
+# Damage simulation settings
+ENABLE_COMPONENT_FAILURES = True # Toggle failure simulation on/off
+BURN_IN_KM = 10.0
+VERBOSE_FAILURE_TRACKING = False  # Print probability calculations for every trip
+SAMPLE_BIKES_TO_TRACK = ['B572', 'B573', 'B2', 'B4', 'B5']  # Print detailed info for these bikes
+#MIN_DISTANCE_FOR_FAILURE_KM = 10.0  # Minimum distance before first possible failure
 
 # Depot settings
 DEFAULT_DEPOT_CAPACITY = 1000 # How many bikes can be parked at depot?

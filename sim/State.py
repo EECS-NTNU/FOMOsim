@@ -10,7 +10,9 @@ import random
 import geopy
 # from policies.inngjerdingen_moeller.parameters_MILP import MILP_data 
 from sim import Metric
-from sim.maintenance_model import process_maintenance_action
+from sim.bike_degradation_modeling.maintenance_model import process_maintenance_action
+
+#TODO: Update to multi-state inventory of bikes "func, depot, on-site"
 
 class State(LoadSave):
     """
@@ -358,6 +360,7 @@ class State(LoadSave):
             station.set_move_probabilities(locations)
         return state
 
+    '''
     def initialize_bike_maintenance(self):
         """
         Initialize bike maintenance criticality using the state's RNG.
@@ -370,6 +373,7 @@ class State(LoadSave):
                     if hasattr(bike, 'maintenance_criticality') and bike.maintenance_criticality == 0.0:
                         bike.maintenance_criticality = self.rng.triangular(0, 0.33, 1)
                         #print(f"Initialized Bike ID-{bike.bike_id} with maintenance criticality: {bike.maintenance_criticality:.3f}")
+    '''
     
     def calculate_traveltime(self, speed):
         locations = [(loc, loc.get_location()) for loc in self.get_locations()]
