@@ -58,6 +58,7 @@ from policies.sjovik_sund.simulation_logging import (
     #write_trip_requests_to_file,
     write_component_failures_to_file
 )
+from policies.sjovik_sund.operational_logging import OperationalLogger
 
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -105,6 +106,10 @@ class SimulationConfig:
     default_nsims: int = 1
     default_vehicles: int = 1
     default_duration_hours: int = 24*365*2 # 5 days (3mnd)
+
+    # === Operational Debug Logging ===
+    operation_logging_enabled: bool = True
+    operation_logging_include_bike_ids: bool = True
     
     # === Target State ===
     # Options: "half_capacity", "equal_prob", "us"
@@ -197,6 +202,14 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instan
  
  
     d = demand.Demand()
+
+    # Optional step-by-step operational logger (vehicle movement + actions)
+    operation_logger = OperationalLogger(
+        enabled=config.operation_logging_enabled,
+        include_bike_ids=config.operation_logging_include_bike_ids,
+    )
+    state.operation_logger = operation_logger
+
     simulator = LoggingSimulator(
         initial_state=state,
         target_state=tstate,
@@ -205,6 +218,10 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instan
         duration=DURATION,
         verbose=True,
     )
+    simulator.operation_logger = operation_logger
+
+    if operation_logger.enabled:
+        print("[OPS] Operational logging enabled (step-by-step vehicle/action trace)")
  
 
     print(
