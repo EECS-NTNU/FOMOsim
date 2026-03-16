@@ -44,26 +44,45 @@ $$V(S_k) = \min_{x \in \mathcal{X}_{S_k}} \big[ C(S_k^x) + \bar{V}(S_k^x) \big]$
 where:
 - $C(S_k^x)$: Immediate cost
 - $\bar{V}(S_k^x) \approx \theta^T \phi(S_k^x)$: Approximate value function
-
 ## Implementation
 
-### 1. State Representation (`vfa_state.py`)
+### 1. Canonical MDP Formulation (`mdp_formulation.py`)
 
-Unchanged — provides helper dataclasses used internally by `LinearVFAPolicy`.
-`LinearVFAPolicy` works directly with the live `sim.State` object that the
-simulator passes to `get_best_action()`; no manual extraction is required.
+The VFA policy does not maintain a separate internal state schema. It references
+the shared MDP formulation in `policies/sjovik_sund/mdp/mdp_formulation.py` and
+extracts a canonical MDP snapshot from the live `sim.State`.
 
-**Key Classes** (for reference / rollout integration):
-- `StationInventory`: $(f^{\text{func}}, f^{\text{onsite}}, f^{\text{depot}}, \text{capacity})$
-- `VehicleStatus`: Location, cargo, capacity  
-- `MDPState`: Complete network state snapshot
-- `PostDecisionState`: Deterministic state after an action
+**Key dataclasses / helpers**
+- `StationInventory`
+- `VehicleStatus`
+- `MDPState`
+- `MdpAction`
+- `extract_mdp_state(sim_state, active_vehicle_id, config, depot_id)`
+- `extract_vehicle_status(vehicle, time, config)`
 
-### 2. Feature Vector `φ(S^x)` — five network-level scalars
+`LinearVFAPolicy` uses these helpers so its feature inputs stay consistent with
+the project-wide MDP formulation.
 
-`LinearVFAPolicy.extract_features()` builds the feature vector from the
-**post-decision state** using fully vectorised numpy operations (no Python
-for-loops over stations after the initial inventory read).
+### 2. Feature Vector `φ(S^x)` — canonical definitions in `vfa_features.py`
+
+The feature set is defined in exactly one place:
+
+- `policies/sjovik_sund/vfa/vfa_features.py`
+
+That module is the single source of truth for:
+- `FEATURE_NAMES`
+- `N_FEATURES`
+- `extract(...)`
+- `as_dict(...)`
+
+`LinearVFAPolicy.extract_features()` does **not** define features itself. It only:
+1. extracts station inventories from `extract_mdp_state(...)`
+2. applies post-decision deltas at the active station
+3. retrieves vehicle cargo from `extract_vehicle_status(...)`
+4. passes prepared numpy inputs to `vfa_features.extract(...)`
+
+This makes feature changes isolated to `vfa_features.py`; after changing the
+feature set, retrain the model.
 
 | # | Name | Formula |
 |---|------|---------|
@@ -80,16 +99,22 @@ $\lambda_i$ is the time-averaged arrival rate at station $i$.
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 
 policy = LinearVFAPolicy()
-# phi is a numpy array of shape (5,)
 phi = policy.extract_features(state, vehicle, delta_func=2)
 print(f'V(S^x) = {policy.value(phi):.4f}')
 ```
 
 ### 3. `LinearVFAPolicy` (`LinearVFAPolicy.py`)
 
-Single class that combines feature extraction, VFA scoring, Boltzmann
-selection, and TD(0) updates.  Integrates directly with the simulator via
-the `Policy` base-class interface.
+Single class that combines:
+- MDP-consistent state extraction
+- post-decision feature preparation
+- VFA scoring
+- Boltzmann action selection
+- TD(0) updates
+
+It integrates directly with the simulator via the `Policy` base-class
+interface and defaults to `MDPConfig.full_maintenance()` unless a different
+MDP configuration is provided.
 
 ```python
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
@@ -244,10 +269,10 @@ constants at the top of `train_vfa.py`:
    ├──── Days 5-14: LinearVFAPolicy ────── TD(0) updates ────────┤
    │                                                              │
    │  Each vehicle decision:                                      │
-   │  1. Extract inventories from sim.State (one loop/station)   │
-   │  2. Build φ(S^x) with numpy ops  → shape (5,)              │
-   │  3. Boltzmann-select next station via  P∝exp(−V/τ)         │
-   │  4. TD update:  θ += α(r + γV_next − V_cur) φ_cur          │
+   │  1. Extract canonical MDP snapshot via extract_mdp_state()   │
+   │  2. Build φ(S^x) via vfa_features.extract() → shape (5,)     │
+   │  3. Boltzmann-select next station via  P∝exp(−V/τ)           │
+   │  4. TD update:  θ += α(r + γV_next − V_cur) φ_cur            │
    └──────────────────────────────────────────────────────────────┘
    θ persists; only per-episode tracking state is reset
 
@@ -262,9 +287,10 @@ constants at the top of `train_vfa.py`:
    │   Macro: N_CANDIDATES nearest next stations                 │
    ├── For each candidate action a: ────────────────────────────┤
    │   Rollout H decisions with default policy                   │
-   │   Q(s,a) ≈ Σ γ^h c_h  +  γ^H V̄(S_H)   ← frozen VFA      │
+   │   Q(s,a) ≈ Σ γ^h c_h  +  γ^H V̄(S_H)   ← frozen VFA         │
    └── Select a* = argmin Q(s, a) ─────────────────────────────┘
 ```
+
 
 ## Key Design Decisions
 
@@ -330,24 +356,37 @@ plt.savefig('learning_curve.png')
 
 ### Adding or Changing Features
 
-Subclass `LinearVFAPolicy` and override `extract_features()`.
-Remember to also update `n_features`:
+Permanent feature changes should be made in
+`policies/sjovik_sund/vfa/vfa_features.py`, not in `LinearVFAPolicy.py`.
+
+Update:
+1. `FEATURE_NAMES`
+2. the corresponding computation in `extract(...)`
+3. the returned numpy array shape/order
+4. retrain
 
 ```python
-from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
-import numpy as np
+from policies.sjovik_sund.vfa.vfa_features import FEATURE_NAMES, N_FEATURES
 
-class ExtendedVFA(LinearVFAPolicy):
-    """Adds φ₆: global functional fill level."""
+print(FEATURE_NAMES)
+print(N_FEATURES)
+```
 
-    def __init__(self, **kwargs):
-        kwargs.setdefault('n_features', 6)
-        super().__init__(**kwargs)
+For temporary experiments, `LinearVFAPolicy.extract_features()` can still be
+overridden, but the preferred architecture is to keep canonical feature
+definitions in `vfa_features.py`.
 
-    def extract_features(self, state, vehicle, delta_func=0, delta_depot_cargo=0):
-        phi5 = super().extract_features(state, vehicle, delta_func, delta_depot_cargo)
-        func, _, _ = self._extract_inventories(state)
-        return np.append(phi5, float(np.sum(func)))
+```python
+from policies.sjovik_sund.vfa.vfa_features import FEATURE_NAMES, N_FEATURES
+
+print(FEATURE_NAMES)
+print(N_FEATURES)
+
+# If you temporarily override extract_features() for an experiment,
+# note that canonical inventory extraction now uses:
+#     func, onsite, depot = self._extract_inventories(state, vehicle)
+# and permanent feature changes should still be moved back into
+# vfa_features.py before retraining.
 ```
 
 ### Changing the Reward Signal

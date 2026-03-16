@@ -8,6 +8,11 @@ To change the feature set:
   3. Update the return array in extract() to match.
   4. Retrain – nothing else needs touching.
 
+LinearVFAPolicy imports this module as the single source of truth via:
+    - FEATURE_NAMES / N_FEATURES
+    - extract(...)
+    - as_dict(...)
+
 This module is pure numpy with no simulator dependencies.
 All simulator-specific preparation (inventory arrays, caches) is done by
 LinearVFAPolicy before calling extract().
@@ -26,11 +31,11 @@ Notation
 
 Features
 ────────
-  φ_1  rebalancing_imbalance   Σ_i |I_i^func − Î_i^func|
+  φ_1  rebalancing_imbalance   Σ_i |I_i^func − Î_i^func| / N
   φ_2  trailer_cannibalization q_v^depot / K
-  φ_3  onsite_backlog          Σ_i I_i^onsite
-  φ_4  demand_weighted_depot   Σ_i (I_i^depot × λ_i)
-  φ_5  depot_pull              φ_2 × dist(v, depot)
+  φ_3  onsite_backlog          Σ_i I_i^onsite / N
+  φ_4  demand_weighted_depot   Σ_i (I_i^depot × λ_i) / N
+  φ_5  depot_pull              φ_2 × dist(v, depot) / 30
 ──────────────────────────────────────────────────────────────────────────────
 """
 
@@ -81,21 +86,23 @@ def extract(
         φ  np.ndarray of shape (N_FEATURES,)  dtype float64
     """
     K = max(vehicle_capacity, 1)
+    N = max(len(func), 1)   # number of stations – used to normalise sum-over-stations features
 
-    # ── φ_1  Rebalancing imbalance:   Σ_i |I_i^func − Î_i^func| ───────────────
-    phi_1 = float(np.sum(np.abs(func - target)))
+    # ── φ_1  Rebalancing imbalance:   Σ_i |I_i^func − Î_i^func| / N ─────────
+    phi_1 = float(np.sum(np.abs(func - target))) / N
 
     # ── φ_2  Trailer cannibalization: q_v^depot / K ────────────────────────
     phi_2 = depot_cargo_veh / K
 
-    # ── φ_3  Global onsite backlog:   Σ_i I_i^onsite ──────────────────────
-    phi_3 = float(np.sum(onsite))
+    # ── φ_3  Global onsite backlog:   Σ_i I_i^onsite / N ──────────────────
+    phi_3 = float(np.sum(onsite)) / N
 
-    # ── φ_4  Demand-weighted depot backlog: Σ_i (I_i^depot × λ_i) ────────
-    phi_4 = float(np.dot(depot, activity))
+    # ── φ_4  Demand-weighted depot backlog: Σ_i (I_i^depot × λ_i) / N ────
+    phi_4 = float(np.dot(depot, activity)) / N
 
-    # ── φ_5  Depot pull: φ_2 × dist(v, depot) ───────────────────────────
-    phi_5 = phi_2 * dist_to_depot
+    # ── φ_5  Depot pull: φ_2 × dist(v, depot) / 30 ──────────────────────
+    # Divide by 30 min ≈ typical cross-city travel time to keep O(1).
+    phi_5 = phi_2 * dist_to_depot / 30.0
 
     # ── Assemble & validate ───────────────────────────────────────────────
     phi = np.array([phi_1, phi_2, phi_3, phi_4, phi_5], dtype=np.float64)

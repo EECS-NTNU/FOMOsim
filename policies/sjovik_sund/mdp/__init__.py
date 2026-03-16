@@ -22,6 +22,7 @@ from .mdp_formulation import (
     extract_vehicle_status,
     extract_mdp_state,
 )
+from .action_bridge import mdp_action_to_sim_action
 
 __all__ = [
     "StationInventory",
@@ -34,4 +35,5 @@ __all__ = [
     "extract_station_inventory",
     "extract_vehicle_status",
     "extract_mdp_state",
+    "mdp_action_to_sim_action",
 ]

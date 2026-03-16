@@ -3,9 +3,12 @@ Quick Start Guide – VFA for DSJBRMP
 
 New Architecture (March 2026)
 ──────────────────────────────
-• LinearVFAPolicy   – time-indexed linear VFA + TD(0) + Boltzmann selection
+• mdp_formulation.py – canonical MDP dataclasses + extraction helpers
+• mdp_config.py      – orthogonal scenario configuration switches
+• vfa_features.py    – canonical feature registry and feature computation
+• LinearVFAPolicy    – MDP-backed feature preparation + TD(0) + Boltzmann selection
 • EpisodeTrainingPolicy – episodic warm-up/learning phase router
-• train_vfa.py      – offline episodic training loop (200 episodes × 14 days)
+• train_vfa.py       – offline episodic training loop (200 episodes × 14 days)
 
 After offline training the frozen θ vector is used as a tail-value estimator
 inside a separate Rollout Algorithm (not implemented here).
@@ -80,12 +83,15 @@ simulator = run_simulation(
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 
 # All hyperparameters are constructor arguments – easy to change
+from policies.sjovik_sund.mdp.mdp_config import MDPConfig
+
 policy = LinearVFAPolicy(
     n_features    = 5,      # φ vector length (change if you add/remove features)
     alpha         = 0.005,  # smaller α → slower but more stable learning
     gamma         = 0.99,   # discount factor
     tau           = 5.0,    # initial Boltzmann temperature (overridden by training loop)
     learning_mode = True,
+    config        = MDPConfig.full_maintenance(),
     seed          = 42,
 )
 
@@ -138,28 +144,28 @@ print(f'Best SL = {sl.max():.4f}  (episode {sl.argmax() + 1})')
 
 
 # =============================================================================
-# EXAMPLE 6: Inspect / Override the Feature Vector
+# EXAMPLE 6: Inspect / Change the Canonical Feature Set
 # =============================================================================
-# The five features are extracted in LinearVFAPolicy.extract_features().
-# To experiment with an alternative feature set, subclass and override:
+# The canonical feature registry lives in vfa_features.py.
+# Permanent feature changes should be made there, then the VFA should be retrained.
 
+from policies.sjovik_sund.vfa.vfa_features import FEATURE_NAMES, N_FEATURES, as_dict
+
+print('Feature names:', FEATURE_NAMES)
+print('Number of features:', N_FEATURES)
+
+# Example: inspect a computed feature vector from the policy
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
-import numpy as np
 
-class MyVFAPolicy(LinearVFAPolicy):
-    """Adds a 6th feature: total system functional bikes (global fill level)."""
+policy = LinearVFAPolicy()
+phi = policy.extract_features(state, vehicle, delta_func=0, delta_depot_cargo=0)
+print(as_dict(phi))
 
-    def __init__(self, **kwargs):
-        kwargs.setdefault('n_features', 6)
-        super().__init__(**kwargs)
-
-    def extract_features(self, state, vehicle, delta_func=0, delta_depot_cargo=0):
-        phi5 = super().extract_features(state, vehicle, delta_func, delta_depot_cargo)
-        func, _, _ = self._extract_inventories(state)
-        phi6 = float(np.sum(func))           # global functional count
-        return np.append(phi5, phi6)
-
-policy = MyVFAPolicy(alpha=0.01, gamma=0.99, tau=5.0, learning_mode=True)
+# If a temporary experiment still overrides extract_features(), note that
+# inventory extraction now uses the canonical MDP snapshot and the helper
+# signature is:
+#
+#   func, onsite, depot = self._extract_inventories(state, vehicle)
 
 
 # =============================================================================

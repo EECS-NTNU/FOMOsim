@@ -113,7 +113,7 @@ def train(
     """
     # ── Header ────────────────────────────────────────────────────────────────
     print("=" * 72)
-    print("  OFFLINE VFA TRAINING  –  Time-Indexed Linear VFA")
+    print("  OFFLINE VFA TRAINING  -  Time-Indexed Linear VFA")
     print("=" * 72)
     print(f"  Episodes          : {num_episodes}")
     print(
@@ -121,10 +121,10 @@ def train(
         f"(warm-up = {WARMUP_DAYS}d,  learning = {LEARNING_DAYS}d)"
     )
     print(
-        f"  τ schedule        : {TAU_START:.2f}  →  {TAU_END:.2f}  "
+        f"  tau schedule        : {TAU_START:.2f}  ->  {TAU_END:.2f}  "
         f"(decay per episode = {TAU_DECAY:.6f})"
     )
-    print(f"  α / γ             : {ALPHA} / {GAMMA}")
+    print(f"  alpha / gamma       : {ALPHA} / {GAMMA}")
     print(f"  Instance          : {instance_name}")
     print("=" * 72 + "\n")
 
@@ -184,9 +184,9 @@ def train(
 
         print(
             f"  Episode {ep + 1:3d}/{num_episodes} | "
-            f"τ = {tau:5.3f} | "
-            f"‖θ‖ = {np.linalg.norm(vfa_policy.theta):.4f} | "
-            f"θ̄  = {vfa_policy.theta.mean():+.4f} | "
+            f"tau = {tau:5.3f} | "
+            f"|theta| = {np.linalg.norm(vfa_policy.theta):.4f} | "
+            f"theta_mean = {vfa_policy.theta.mean():+.4f} | "
             f"SL = {sl:.4f} | "
             f"t = {time.time() - t0:.0f}s"
         )
@@ -213,8 +213,8 @@ def train(
     print("\n" + "=" * 72)
     print("  TRAINING COMPLETE")
     print("=" * 72)
-    print(f"  Final θ           : {np.array2string(vfa_policy.theta, precision=4)}")
-    print(f"  ‖θ‖               : {np.linalg.norm(vfa_policy.theta):.6f}")
+    print(f"  Final theta       : {np.array2string(vfa_policy.theta, precision=4)}")
+    print(f"  |theta|           : {np.linalg.norm(vfa_policy.theta):.6f}")
     print(
         f"  Service level     : final = {service_levels[-1]:.4f}  |  "
         f"best = {max(service_levels):.4f}  (episode {best_ep})"
