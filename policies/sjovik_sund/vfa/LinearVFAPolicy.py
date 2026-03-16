@@ -27,8 +27,7 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 from policies.policy import Policy
 import sim
 from policies.sjovik_sund.vfa.vfa_features import (
-    FEATURE_NAMES as _FEATURE_NAMES,
-    N_FEATURES    as _N_FEATURES,
+    get_feature_names as _get_feature_names,
     extract       as _extract_phi,
     as_dict       as _phi_as_dict,
 )
@@ -39,6 +38,7 @@ from policies.sjovik_sund.mdp.mdp_formulation import (
     extract_vehicle_status,
 )
 from policies.sjovik_sund.mdp.action_bridge import mdp_action_to_sim_action
+from settings import ENABLE_COMPONENT_FAILURES
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LinearVFAPolicy
@@ -60,11 +60,6 @@ class LinearVFAPolicy(Policy):
     be updated externally between episodes by the training loop.
     """
 
-    # ── Feature registry ─────────────────────────────────────────────────
-    # Sourced from vfa_features.py – that is the single place to edit features.
-    FEATURE_NAMES: List[str] = _FEATURE_NAMES
-    N_FEATURES:    int        = _N_FEATURES
-
     # Number of next-station candidates evaluated per decision
     N_CANDIDATES: int = 8
 
@@ -77,16 +72,21 @@ class LinearVFAPolicy(Policy):
         learning_mode: bool = True,
         config: Optional[MDPConfig] = None,
         seed: int = 42,
+        maintenance_enabled: bool = ENABLE_COMPONENT_FAILURES,
     ) -> None:
-        super().__init__(maintenance_enabled=True)
+        super().__init__(maintenance_enabled=maintenance_enabled)
+        
+        self.maintenance_enabled = maintenance_enabled
+        self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled)
+        self.N_FEATURES = len(self.FEATURE_NAMES)
 
         if n_features is None:
-            n_features = len(self.FEATURE_NAMES)
+            n_features = self.N_FEATURES
 
-        if n_features != len(self.FEATURE_NAMES):
+        if n_features != self.N_FEATURES:
             raise ValueError(
                 f"n_features={n_features} but FEATURE_NAMES has "
-                f"{len(self.FEATURE_NAMES)} entries. "
+                f"{self.N_FEATURES} entries. "
                 f"Update FEATURE_NAMES when adding or removing features."
             )
 
@@ -95,7 +95,7 @@ class LinearVFAPolicy(Policy):
         self.gamma         = gamma
         self.tau           = tau            # Boltzmann temperature – set by training loop
         self.learning_mode = learning_mode
-        default_config = MDPConfig.full_maintenance()
+        default_config = MDPConfig.full_maintenance() if maintenance_enabled else MDPConfig.no_maintenance()
         self.config        = config or default_config  # defaults to full maintenance
         self._rng          = np.random.default_rng(seed)
 
@@ -237,6 +237,7 @@ class LinearVFAPolicy(Policy):
         # ── Vehicle depot cargo in post-decision state ─────────────────────
         # Use canonical MDP extraction helper to keep policy/MDP semantics aligned.
         vehicle_status = extract_vehicle_status(vehicle, state.time, self.config)
+        func_cargo_veh = vehicle_status.functional_cargo + delta_func
         depot_cargo_veh = vehicle_status.depot_cargo + delta_depot_cargo
         K = max(int(vehicle_status.capacity), 1)
 
@@ -258,9 +259,11 @@ class LinearVFAPolicy(Policy):
             depot=depot.astype(np.float64),
             target=target.astype(np.float64),
             activity=self._activity.astype(np.float64),
+            func_cargo_veh=float(func_cargo_veh),
             depot_cargo_veh=float(depot_cargo_veh),
             vehicle_capacity=K,
             dist_to_depot=dist_to_depot,
+            maintenance_enabled=self.maintenance_enabled,
         )
 
         assert len(phi) == len(self.FEATURE_NAMES), (

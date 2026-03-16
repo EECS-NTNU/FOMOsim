@@ -46,7 +46,7 @@ DEFAULT_STATION_CAPACITY = 20
 
 # Policy settings
 BATTERY_CHANGE_PER_MINUTE = 0.4 # Decrease in battery for each minute the bike is in use (1 = 1%, deflate after 100 minutes use)
-MAINTENANCE_INCREASE_PER_MINUTE = 0.00125 # Increase in maintenance criticality for each minute the bike is in use
+#MAINTENANCE_INCREASE_PER_MINUTE = 0.00125 # Increase in maintenance criticality for each minute the bike is in use
 
 # User behaviour
 WALKING_SPEED = 4.8
@@ -98,7 +98,7 @@ SERVICE_TIME_FROM = 7   # Service starts at 7 AM
 SERVICE_TIME_TO = 20 # Service ends at 8 PM (20:00)
 
 BATTERY_LIMIT_TO_SWAP = 80 #
-MAINTENANCE_LIMIT_TO_CHECK = 0.2 #
+#MAINTENANCE_LIMIT_TO_CHECK = 0.2 #
 
 MINUTES_PER_ACTION = 0.5 # 1, 3, 6, 9 Minutes to load/unload/battery swaps/maintenance per action
 MAINTENANCE_FULL_FIX = 5 # Maintenance time for full fix per bike
