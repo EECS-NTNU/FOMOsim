@@ -5,7 +5,7 @@ from policies.sjovik_sund.sub_problem.subproblem_parameters import (
     MILP_parameters
 )
 from policies.sjovik_sund.sub_problem.sjovik_sund_subproblem import run_subproblem_model
-from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
+#from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
 
 
 class SjovikSundPolicy(Policy):

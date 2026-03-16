@@ -41,7 +41,9 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 from helpers import timeInMinutes
 from policies.greedy_policy import GreedyPolicy
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy
+from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_feature_names
 from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig
+from settings import ENABLE_COMPONENT_FAILURES
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -61,7 +63,7 @@ TAU_DECAY     : float = (TAU_END / TAU_START) ** (1.0 / max(NUM_EPISODES - 1, 1)
 
 ALPHA         : float = 0.01      # TD learning rate
 GAMMA         : float = 0.99      # discount factor
-N_FEATURES    : int   = LinearVFAPolicy.N_FEATURES  # auto-synced with FEATURE_NAMES
+N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES))  # auto-synced with vfa_features.py
 
 INSTANCE_NAME : str   = "TD_W34_old"
 NUM_VEHICLES  : int   = 1
@@ -77,7 +79,7 @@ SAVE_DIR = Path(__file__).parent / "models"
 
 def _service_level(simulator) -> float:
     """
-    Service level = 1 – starvations / total_trip_requests.
+    Service level = 1 - starvations / total_trip_requests.
 
     Returns 0.0 if no trips were generated (e.g. very short test run).
     """

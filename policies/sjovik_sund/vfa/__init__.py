@@ -21,13 +21,12 @@ Quickstart:
 """
 
 from .LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy
-from .vfa_features import FEATURE_NAMES, N_FEATURES, extract as extract_features, as_dict as features_as_dict
+from .vfa_features import get_feature_names, extract as extract_features, as_dict as features_as_dict
 
 __all__ = [
     'LinearVFAPolicy',
     'EpisodeTrainingPolicy',
-    'FEATURE_NAMES',
-    'N_FEATURES',
+    'get_feature_names',
     'extract_features',
     'features_as_dict',
 ]

@@ -36,12 +36,15 @@ import multiprocessing as mp
  
 # python policies/sjovik_sund/run_simulation.py > policies/sjovik_sund/output/output.txt
 # Import visualization if needed
+'''
 try:
     from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
     VISUALIZATION_AVAILABLE = True
-except ImportError:
+except ModuleNotFoundError as e:
     VISUALIZATION_AVAILABLE = False
-    print("Warning: Visualization not available")
+    print(f"Warning: Visualization not available ({e})")
+'''
+
 
 MAINTENANCE_ENABLED = False
  
