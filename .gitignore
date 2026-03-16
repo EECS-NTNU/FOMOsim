@@ -187,4 +187,4 @@ policies/sjovik_sund/sjovik_sund_alphas_1112251922_TD_seed_1_alpha01-05_fullweek
 policies/sjovik_sund/sjovik_sund_alphas_1112251922_TD_seed_1_alpha01-05_fullweek_0.280_results_trip_requests_seed_1.csv
 policies/sjovik_sund/Scripts/Maintenance_reward_analysis/bike_maintenance_plot.ipynb
 policies/sjovik_sund/simulation_results/History
-policies\sjovik_sund\vfa\models
+policies/sjovik_sund/vfa/models
