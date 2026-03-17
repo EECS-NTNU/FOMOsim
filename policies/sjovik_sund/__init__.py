@@ -1,5 +1,6 @@
 from .sjovik_sund_policy import SjovikSundPolicy
 #from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer, visualize_stations_from_simulator
 from .sub_problem.sjovik_sund_subproblem import run_subproblem_model
+from .XPILOT_policy import XPILOTPolicy
 
 

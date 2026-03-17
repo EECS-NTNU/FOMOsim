@@ -26,6 +26,7 @@ import init_state
 import target_state
 import policies
 import policies.sjovik_sund.sjovik_sund_policy
+import policies.sjovik_sund.XPILOT_policy
 import sim
 import demand
 import output
@@ -72,7 +73,7 @@ class SimulationConfig:
     """Centralized configuration for simulation runs."""
     
     # === Time Settings ===
-    start_hour: int = 7  # 7 AM start time
+    start_hour: int = 5  # 5 AM start time
     
     # === Instance Settings ===
     default_instance: str = "TD_W34_old"
@@ -97,8 +98,8 @@ class SimulationConfig:
     # === MILP Policy Parameters ===
     tau: int = 5  # Time discretization in minutes
     default_time_horizon: int = 5  # Number of periods to look ahead
-    policy_hour_from: int = 7  # Policy active from 7 AM
-    policy_hour_to: int = 7  # Policy active until 11 PM
+    policy_hour_from: int = 6  # Policy active from 6 AM
+    policy_hour_to: int = 20  # Policy active until 8 PM
     roaming: bool = False
     
     # === Maintenance Settings ===
@@ -148,7 +149,7 @@ class SimulationConfig:
                 [self.maintenance_reward * alpha])
 
 
-def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instance_name=None, config=None):
+def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instance_name=None, config=None):
     """Run a single simulation with given parameters.
     
     Args:
@@ -486,6 +487,7 @@ if __name__ == "__main__":
     policy_dict = {}
     for alpha in alpha_values:
         weights = config.calculate_weights(alpha)
+        '''
         
         # Include instance, vehicles, duration, time horizon, timestamp, and seed in filename
         policy_name = (
@@ -500,6 +502,18 @@ if __name__ == "__main__":
             weights=weights,
             hour_from=config.policy_hour_from,
             hour_to=config.policy_hour_to,
+        )
+        '''
+        # 2. Add the clean PILOT Benchmark (No Neighborhoods)
+        policy_name_pilot = (
+            f"XPILOT_benchmark_{args.instance}_V{num_vehicles}_D{duration}h_"
+            f"{timestamp}_seed{start_seed}"
+        )
+        policy_dict[policy_name_pilot] = policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
+            time_horizon=40, # Usually 40 or 60 min lookup
+            max_depth=2,     # Keep low to avoid massive execution time
+            num_successors=5, # Keep low for quick testing, can increase for final runs
+            number_of_scenarios=100 # Restore to 100 for final runs, but keep lower for quick testing
         )
  
     # Start timing

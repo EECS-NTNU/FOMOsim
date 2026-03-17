@@ -192,15 +192,18 @@ class LoggingSimulator(sim.Simulator):
         clock_hour = int(hour % 24)
         
         # Get current cumulative values
-        current_starvations = self.state.metrics.get_aggregate_value("starvation")
-        current_bike_starvations = self.state.metrics.get_aggregate_value("bike_starvation")
-        current_long_congestions = self.state.metrics.get_aggregate_value("long_congestion")
-        current_short_congestions = self.state.metrics.get_aggregate_value("short_congestion")
-        current_maintenance_violations = self.state.metrics.get_aggregate_value("maintenance_violations")
-        current_maintenance_starvations = self.state.metrics.get_aggregate_value("maintenance_starvations")
+        current_starvations = self.state.metrics.get_aggregate_value("starvations")
+        current_bike_starvations = self.state.metrics.get_aggregate_value("bike starvations")
+        current_long_congestions = self.state.metrics.get_aggregate_value("long congestions")
+        current_short_congestions = self.state.metrics.get_aggregate_value("short congestions")
+        current_failed_events = self.state.metrics.get_aggregate_value("failed events")
+        #current_maintenance_violations = self.state.metrics.get_aggregate_value("maintenance_violations")
+        #current_maintenance_starvations = self.state.metrics.get_aggregate_value("maintenance_starvations")
+        current_depot_failures = self.state.metrics.get_aggregate_value("depot_failures")
+        current_onsite_failures = self.state.metrics.get_aggregate_value("onsite_failures")
         current_bike_pickups = self.state.metrics.get_aggregate_value("num bike pickups")
         current_bike_deliveries = self.state.metrics.get_aggregate_value("num bike deliveries")
-        current_maintenance_time = self.state.metrics.get_aggregate_value("maintenance_time")
+        #current_maintenance_time = self.state.metrics.get_aggregate_value("maintenance_time")
         # DEBUGGING: Print what metrics exist
         '''print("\n[DEBUG] All metrics in state.metrics:")
         for key in self.state.metrics.metrics.keys():
@@ -220,11 +223,11 @@ class LoggingSimulator(sim.Simulator):
         hourly_bike_starvations = current_bike_starvations - getattr(self, 'last_hour_bike_starvations', 0)
         hourly_long_congestions = current_long_congestions - getattr(self, 'last_hour_long_congestions', 0)
         hourly_short_congestions = current_short_congestions - getattr(self, 'last_hour_short_congestions', 0)
-        hourly_maintenance_violations = current_maintenance_violations - getattr(self, 'last_hour_maintenance_violations', 0)
-        hourly_maintenance_starvations = current_maintenance_starvations - getattr(self, 'last_hour_maintenance_starvations', 0)
+        # hourly_maintenance_violations = current_maintenance_violations - getattr(self, 'last_hour_maintenance_violations', 0)
+        # hourly_maintenance_starvations = current_maintenance_starvations - getattr(self, 'last_hour_maintenance_starvations', 0)
         hourly_bike_pickups = current_bike_pickups - getattr(self, 'last_hour_bike_pickups', 0)
         hourly_bike_deliveries = current_bike_deliveries - getattr(self, 'last_hour_bike_deliveries', 0)
-        hourly_maintenance_time = current_maintenance_time - getattr(self, 'last_hour_maintenance_time', 0.0)
+        # hourly_maintenance_time = current_maintenance_time - getattr(self, 'last_hour_maintenance_time', 0.0)
         hourly_total_failures = current_total_failures - getattr(self, 'last_hour_total_failures', 0) # delta for total failures
         hourly_depot_failures = current_depot_failures - getattr(self, 'last_hour_depot_failures', 0)
         hourly_onsite_failures = current_onsite_failures - getattr(self, 'last_hour_onsite_failures', 0)
@@ -284,11 +287,11 @@ class LoggingSimulator(sim.Simulator):
             'bike_starvations': hourly_bike_starvations,
             'long_congestions': hourly_long_congestions,
             'short_congestions': hourly_short_congestions,
-            'maintenance_violations': hourly_maintenance_violations,
-            'maintenance_starvations': hourly_maintenance_starvations,
+            # 'maintenance_violations': hourly_maintenance_violations,
+            # 'maintenance_starvations': hourly_maintenance_starvations,
             'bike_pickups': hourly_bike_pickups,
             'bike_deliveries': hourly_bike_deliveries,
-            'maintenance_time': hourly_maintenance_time,
+            # 'maintenance_time': hourly_maintenance_time,
             'avg_bike_criticality': avg_criticality,
             'bikes_critical': bikes_critical,
             'bikes_high': bikes_high,
@@ -313,11 +316,11 @@ class LoggingSimulator(sim.Simulator):
         self.last_hour_bike_starvations = current_bike_starvations
         self.last_hour_long_congestions = current_long_congestions
         self.last_hour_short_congestions = current_short_congestions
-        self.last_hour_maintenance_violations = current_maintenance_violations
-        self.last_hour_maintenance_starvations = current_maintenance_starvations
+        # self.last_hour_maintenance_violations = current_maintenance_violations
+        # self.last_hour_maintenance_starvations = current_maintenance_starvations
         self.last_hour_bike_pickups = current_bike_pickups
         self.last_hour_bike_deliveries = current_bike_deliveries
-        self.last_hour_maintenance_time = current_maintenance_time
+        # self.last_hour_maintenance_time = current_maintenance_time
         self.last_hour_total_failures = current_total_failures
         self.last_hour_depot_failures = current_depot_failures
         self.last_hour_onsite_failures = current_onsite_failures
@@ -332,8 +335,8 @@ class LoggingSimulator(sim.Simulator):
         print(f"{'Bike Starvations':<35} {hourly_bike_starvations:>12}")
         print(f"{'Long Congestions':<35} {hourly_long_congestions:>12}")
         print(f"{'Short Congestions':<35} {hourly_short_congestions:>12}")
-        print(f"{'Maintenance Violations':<35} {hourly_maintenance_violations:>12}")
-        print(f"{'Maintenance Starvations':<35} {hourly_maintenance_starvations:>12}")
+        # print(f"{'Maintenance Violations':<35} {hourly_maintenance_violations:>12}")
+        # print(f"{'Maintenance Starvations':<35} {hourly_maintenance_starvations:>12}")
         print(f"{'Bike Pickups':<35} {hourly_bike_pickups:>12}")
         print(f"{'Bike Deliveries':<35} {hourly_bike_deliveries:>12}")
         print(f"{'Avg Bike Criticality':<35} {avg_criticality:>12.4f}")
@@ -508,9 +511,9 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
                 'Vehicle Arrivals',
                 'Bike Deliveries',
                 'Bike Pickups',
-                'Maintenance Time (minutes)',
-                'Maintenance Violations',
-                'Maintenance Starvations',
+                # 'Maintenance Time (minutes)',
+                # 'Maintenance Violations',
+                # 'Maintenance Starvations',
             ])
        
         # Write data row
@@ -529,9 +532,9 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
             simulator.state.metrics.get_aggregate_value('vehicle arrivals'),
             simulator.state.metrics.get_aggregate_value('num bike deliveries'),
             simulator.state.metrics.get_aggregate_value('num bike pickups'),
-            simulator.state.metrics.get_aggregate_value('maintenance time'),
-            simulator.state.metrics.get_aggregate_value('maintenance violations'),
-            simulator.state.metrics.get_aggregate_value('maintenance_starvation'),
+            # simulator.state.metrics.get_aggregate_value('maintenance time'),
+            # simulator.state.metrics.get_aggregate_value('maintenance violations'),
+            # simulator.state.metrics.get_aggregate_value('maintenance_starvation'),
         ])
  
  
@@ -576,9 +579,9 @@ def write_simulation_summary(filename, simulator, duration, policy, seed, num_ve
         starvations = simulator.state.metrics.get_aggregate_value('starvations')
         bike_starvations = simulator.state.metrics.get_aggregate_value('bike starvations')
         congestions_long = simulator.state.metrics.get_aggregate_value('long congestions') # + simulator.state.metrics.get_aggregate_value('short congestions')
-        maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
-        maintenance_violations = simulator.state.metrics.get_aggregate_value('maintenance_violations')
-        maintenance_starvation = simulator.state.metrics.get_aggregate_value('maintenance_starvation')
+        # maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
+        # maintenance_violations = simulator.state.metrics.get_aggregate_value('maintenance_violations')
+        # maintenance_starvation = simulator.state.metrics.get_aggregate_value('maintenance_starvation')
         congestions_short = simulator.state.metrics.get_aggregate_value('short congestions')
         bike_departures = simulator.state.metrics.get_aggregate_value('bike departure')
         trips = simulator.state.metrics.get_aggregate_value('trips')
@@ -587,30 +590,28 @@ def write_simulation_summary(filename, simulator, duration, policy, seed, num_ve
         # Calculate objective
         w_S, w_C, w_D, r_M = policy.weights if policy.weights else (0.45, 0.45, 0.09, 0.01)
        
-        obj_val = (w_S * starvations) + (w_C * congestions_long) - (r_M * maintenance_time)
+        # obj_val = (w_S * starvations) + (w_C * congestions_long) - (r_M * maintenance_time)
+        obj_val = (w_S * starvations) + (w_C * congestions_long)
        
         f.write(f"Total Objective Value: {obj_val:.4f}\n")
         f.write(f"Breakdown:\n")
         f.write(f"  Starvations: {starvations} (Contribution: {w_S * starvations:.4f})\n")
         f.write(f"  Congestions: {congestions_long} (Contribution: {w_C * congestions_long:.4f})\n")
         #f.write(f"  Deviations: {deviations} (Contribution: {w_D * deviations:.4f})\n")
-        f.write(f"  Maintenance Time: {maintenance_time:.2f} (Contribution: {-r_M * maintenance_time:.4f})\n")
+        # f.write(f"  Maintenance Time: {maintenance_time:.2f} (Contribution: {-r_M * maintenance_time:.4f})\n")
         f.write(f"  Short Congestions: {congestions_short} (Contribution: {0})\n")
-        f.write(f"  Maintenance Violation Events: {maintenance_violations}\n")
-        f.write(f"  Maintenance Starvations: {maintenance_starvation}\n")
+        # f.write(f"  Maintenance Violation Events: {maintenance_violations}\n")
+        # f.write(f"  Maintenance Starvations: {maintenance_starvation}\n")
        
         # Verification of trip accounting
         f.write(f"\n--- TRIP ACCOUNTING VERIFICATION ---\n")
         f.write(f"Attempted Bike Departures (trips metric): {trips}\n")
         f.write(f"Successful Bike Departures: {bike_departures}\n")
         f.write(f"Bike Starvations: {bike_starvations}\n")
-        f.write(f"Maintenance Starvations: {maintenance_starvation}\n")
-        f.write(f"\nVerification: {bike_departures} + {bike_starvations} + {maintenance_starvation} = {bike_departures + bike_starvations + maintenance_starvation}\n")
-        if trips == bike_departures + bike_starvations + maintenance_starvation:
-            f.write(f"[OK] VERIFIED: All attempted departures accounted for\n")
-        else:
-            f.write(f"[ERROR] MISMATCH: Expected {trips}, got {bike_departures + bike_starvations + maintenance_starvation}\n")
-       
+        # f.write(f"Maintenance Starvations: {maintenance_starvation}\n")
+        # f.write(f"\nVerification: {bike_departures} + {bike_starvations} + {maintenance_starvation} = {bike_departures + bike_starvations + maintenance_starvation}\n")
+        # if trips == bike_departures + bike_starvations + maintenance_starvation:
+
         if hasattr(policy, 'optimality_gaps') and policy.optimality_gaps:
             avg_gap = sum(policy.optimality_gaps) / len(policy.optimality_gaps)
             max_gap = max(policy.optimality_gaps)
@@ -690,11 +691,11 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
             'Bike Starvations',
             'Long Congestions',
             'Short Congestions',
-            'Maintenance Violations',
-            'Maintenance Starvations',
+            # 'Maintenance Violations',
+            # 'Maintenance Starvations',
             'Bike Pickups',
             'Bike Deliveries',
-            'Maintenance Time (minutes)',
+            # 'Maintenance Time (minutes)',
             'Avg Bike Criticality',
             'Bikes Critical (>0.83)',
             'Bikes High (0.60-0.83)',
@@ -723,11 +724,11 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
                 hour_data.get('bike_starvations', 0),
                 hour_data['long_congestions'],
                 hour_data['short_congestions'],
-                hour_data['maintenance_violations'],
-                hour_data['maintenance_starvations'],
+                # hour_data['maintenance_violations'],
+                # hour_data['maintenance_starvations'],
                 hour_data.get('bike_pickups', 0),
                 hour_data.get('bike_deliveries', 0),
-                round(hour_data.get('maintenance_time', 0.0), 2),
+                # round(hour_data.get('maintenance_time', 0.0), 2),
                 round(hour_data.get('avg_bike_criticality', 0.0), 4),
                 hour_data.get('bikes_critical', 0),
                 hour_data.get('bikes_high', 0),

@@ -347,8 +347,11 @@ class LinearVFAPolicy(Policy):
         if self._prev_phi is None:
             return
 
+        # Compute TD error based on the reward since last decision and the next post-decision value as the bootstrap target.
         td_error = reward + self.gamma * self.value(phi_next) - self.value(self._prev_phi)
+
         # Clip TD error to prevent weight explosion (numerical safety net).
+        # NOTE: Remove later maybe, or tune the clipping threshold, if we see learning instability.
         td_error = float(np.clip(td_error, -50.0, 50.0))
         self.theta   += self.alpha * td_error * self._prev_phi
         self.weights  = list(self.theta)   # keep the logging attribute in sync
@@ -361,9 +364,9 @@ class LinearVFAPolicy(Policy):
         """
         Generate a tractable set of candidate actions using action-space splitting:
 
-          Micro (inventory) – push current station toward its target state.
+          Micro (inventory) - push current station toward its target state.
                               This is fixed greedily; only the routing varies.
-          Macro (routing)   – enumerate the N_CANDIDATES nearest next stations
+          Macro (routing)   - enumerate the N_CANDIDATES nearest next stations
                               sorted by travel time from the current location.
 
         This avoids enumerating the full exponential joint action space.
@@ -372,6 +375,7 @@ class LinearVFAPolicy(Policy):
         # Convert to simulator Action at the boundary via action_bridge.
         if vehicle.is_at_depot():
             rebalancing = 0
+
         else:
             target    = round(vehicle.location.get_target_state(state.day(), state.hour()))
             n_station = len(vehicle.location.bikes)
@@ -389,6 +393,8 @@ class LinearVFAPolicy(Policy):
                 rebalancing = -n
             else:
                 rebalancing = 0
+        
+        #TODO: Handle maintenance actions here as well when we add maintenance features and train the VFA with maintenance-enabled.
 
         # ── Macro: nearest N_CANDIDATES next stations (by travel time) ────
         cur_id = vehicle.location.id
