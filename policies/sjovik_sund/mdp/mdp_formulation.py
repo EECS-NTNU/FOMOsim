@@ -169,6 +169,7 @@ class MDPState:
     depot             : DepotInventory or None (if depot exists)
     vehicles          : vehicle_id → VehicleStatus  (all vehicles in fleet)
     config            : MDPConfig – scenario mode (damage tracking, maintenance control)
+    shift_end_time    : end of shift (minutes); used to compute time_remaining for end-of-day planning
     """
     time:               float
     active_vehicle_id:  int
@@ -176,6 +177,7 @@ class MDPState:
     depot:              Optional[DepotInventory]
     vehicles:           Dict[int,  VehicleStatus]
     config:             MDPConfig = field(default_factory=MDPConfig.full_maintenance)
+    shift_end_time:     Optional[float] = None  # end of shift for the active vehicle (minutes)
 
     def get_station(self, station_id: str) -> StationInventory:
         """Get a normal station (not depot)."""
@@ -190,6 +192,35 @@ class MDPState:
     def is_at_depot(self, station_id: str) -> bool:
         """Check if station_id is the depot."""
         return self.depot is not None and self.depot.station_id == station_id
+    
+    def time_remaining_in_shift(self) -> float:
+        """
+        Compute remaining time in shift (minutes).
+        
+        Returns:
+            time_remaining : float
+                max(0, shift_end_time - current_time)
+                If shift_end_time is None, returns a large value (shift is effectively infinite).
+        """
+        if self.shift_end_time is None:
+            return float(1e9)  # no hard end-of-shift
+        return max(0.0, self.shift_end_time - self.time)
+    
+    def shift_time_fraction_remaining(self) -> float:
+        """
+        Normalized time remaining as a fraction of shift length.
+        
+        Returns:
+            frac : float in [0, 1]
+                0 = shift over, 1.0 = shift all ahead
+                If shift_end_time is None, returns 1.0.
+        """
+        if self.shift_end_time is None:
+            return 1.0
+        shift_length = self.shift_end_time - self.time  # rough approximation
+        if shift_length <= 0:
+            return 0.0
+        return min(1.0, self.time_remaining_in_shift() / max(shift_length, 1.0))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -691,6 +722,7 @@ def extract_mdp_state(
     active_vehicle_id: int,
     config: Optional[MDPConfig] = None,
     depot_id: Optional[str] = None,
+    shift_end_time: Optional[float] = None,
 ) -> MDPState:
     """
     Build a full MDPState snapshot from the live sim.State.
@@ -702,6 +734,8 @@ def extract_mdp_state(
         active_vehicle_id  : ID of the vehicle currently making a decision
         config             : MDPConfig (defaults to full maintenance)
         depot_id           : ID of the depot station (e.g. "n_0"), if any
+        shift_end_time     : end-of-shift time (minutes); if provided, enables
+                             end-of-day anticipatory behavior in the VFA
     """
     cfg = config or MDPConfig.full_maintenance()
 
@@ -725,4 +759,5 @@ def extract_mdp_state(
         depot=depot,
         vehicles=vehicles,
         config=cfg,
+        shift_end_time=shift_end_time,
     )

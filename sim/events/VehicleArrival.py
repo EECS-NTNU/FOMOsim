@@ -46,6 +46,16 @@ class VehicleArrival(Event):
                 battery_swaps=action.battery_swaps,
                 maintenance_time=float(getattr(action, "maintenance_time", 0.0)),
             )
+            
+            # Log depot dropoff if destination is a depot
+            if action.next_location.startswith('D') and action.delivery_bikes:
+                operation_logger.log_depot_dropoff(
+                    time=self.time,
+                    vehicle_id=self.vehicle.id,
+                    depot_id=action.next_location,
+                    num_bikes=len(action.delivery_bikes),
+                    bike_ids=action.delivery_bikes,
+                )
 
         # Record current location of vehicle to compute action time
         arrival_station_id = self.vehicle.location.id

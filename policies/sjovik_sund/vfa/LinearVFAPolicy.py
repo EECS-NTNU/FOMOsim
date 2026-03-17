@@ -73,11 +73,17 @@ class LinearVFAPolicy(Policy):
         config: Optional[MDPConfig] = None,
         seed: int = 42,
         maintenance_enabled: bool = ENABLE_COMPONENT_FAILURES,
+        shift_timing_enabled: bool = False,
+        log_depot_visits: bool = False,
+        depot_log_file: Optional[str] = None,
     ) -> None:
         super().__init__(maintenance_enabled=maintenance_enabled)
         
         self.maintenance_enabled = maintenance_enabled
-        self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled)
+        self.shift_timing_enabled = shift_timing_enabled
+        self.log_depot_visits = log_depot_visits
+        self.depot_log_file = depot_log_file
+        self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled)
         self.N_FEATURES = len(self.FEATURE_NAMES)
 
         if n_features is None:
@@ -231,8 +237,10 @@ class LinearVFAPolicy(Policy):
         func, onsite, depot = self._extract_inventories(state, vehicle)
 
         # ── Apply post-decision delta at the vehicle's current station ─────
-        cur_idx = self._sid_to_idx[vehicle.location.id]
-        func[cur_idx] = max(0, func[cur_idx] + delta_func)
+        # (skip if at depot; depot inventory handled separately in MDP)
+        if vehicle.location.id in self._sid_to_idx:
+            cur_idx = self._sid_to_idx[vehicle.location.id]
+            func[cur_idx] = max(0, func[cur_idx] + delta_func)
 
         # ── Vehicle depot cargo in post-decision state ─────────────────────
         # Use canonical MDP extraction helper to keep policy/MDP semantics aligned.
@@ -264,6 +272,9 @@ class LinearVFAPolicy(Policy):
             vehicle_capacity=K,
             dist_to_depot=dist_to_depot,
             maintenance_enabled=self.maintenance_enabled,
+            shift_timing_enabled=self.shift_timing_enabled,
+            time_remaining=self._get_time_remaining(state, vehicle),
+            shift_length=self._get_shift_length(state, vehicle),
         )
 
         assert len(phi) == len(self.FEATURE_NAMES), (
@@ -295,11 +306,40 @@ class LinearVFAPolicy(Policy):
             # {'rebalancing_imbalance': 12.0, 'trailer_cannibalization': 0.4, ...}
         """
         phi = self.extract_features(state, vehicle, delta_func, delta_depot_cargo)
-        return _phi_as_dict(phi)
+        return _phi_as_dict(phi, self.maintenance_enabled, self.shift_timing_enabled)
 
     def value(self, phi: np.ndarray) -> float:
         """V(S^x) = θᵀ φ(S^x)."""
         return float(np.dot(self.theta, phi))
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Shift timing helpers
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _get_time_remaining(self, state, vehicle) -> Optional[float]:
+        """
+        Get time remaining in vehicle's shift (minutes).
+        
+        Returns:
+            time_remaining : float (minutes) or None if shift_timing not enabled
+        """
+        if not self.shift_timing_enabled:
+            return None
+        
+        if hasattr(vehicle, "shift_end_time") and vehicle.shift_end_time is not None:
+            return max(0.0, vehicle.shift_end_time - state.time)
+        
+        return None
+    
+    def _get_shift_length(self, state, vehicle) -> float:
+        """
+        Get reference shift length for normalization (minutes).
+        
+        Default: 1440 minutes (24 hours).
+        Can be customized per vehicle if needed.
+        """
+        # Default 24-hour shift
+        return 1440.0
 
     # ─────────────────────────────────────────────────────────────────────────
     # Reward signal
@@ -391,10 +431,21 @@ class LinearVFAPolicy(Policy):
                 rebalancing = 0
 
         # ── Macro: nearest N_CANDIDATES next stations (by travel time) ────
+        # Include depot as a candidate destination for end-of-day planning
         cur_id = vehicle.location.id
         pool   = [s for s in state.get_stations() if s.id != cur_id]
+        
+        # Add depot to candidate pool if it exists and is not current location
+        # (depot is excluded from get_stations(), so we add it explicitly)
+        depot_stations = state.get_depots()
+        if depot_stations:
+            depot = depot_stations[0]  # use first/closest depot
+            if depot.id != cur_id:
+                pool.append(depot)
+        
+        # Sort by travel time and keep top N_CANDIDATES
         pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
-        pool   = pool[: self.N_CANDIDATES]
+        pool = pool[: self.N_CANDIDATES]
 
         candidates = []
         for s in pool:
@@ -448,6 +499,71 @@ class LinearVFAPolicy(Policy):
 
         idx = int(self._rng.choice(len(actions), p=probs))
         return actions[idx], idx
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Logging
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _log_depot_decision(self, state, vehicle, selected_action, phi, value) -> None:
+        """
+        Log when vehicle decides to go to the depot.
+        
+        Tracks:
+          - Current location, inventory, time
+          - Destination (depot or station)
+          - Value function and key feature values
+          - Time remaining in shift (if applicable)
+        
+        Outputs to:
+          1. Console (always, if log_depot_visits=True)
+          2. File (if depot_log_file is set)
+        """
+        if not self.log_depot_visits or self._depot_id is None:
+            return
+        
+        # Check if selected action is going to depot
+        destination_id = getattr(selected_action, "destination_station", None) \
+                      or getattr(selected_action, "next_station", None)
+        
+        if destination_id != self._depot_id:
+            return  # Not going to depot, no log needed
+        
+        # Construct log entry
+        time_rem = self._get_time_remaining(state, vehicle)
+        time_frac = time_rem / 1440.0 if time_rem is not None else None
+        
+        log_entry = (
+            f"[DEPOT] t={state.time:7.1f}min | "
+            f"vehicle={vehicle.id} | "
+            f"from={vehicle.location.id} → to={destination_id} | "
+            f"cargo_func={len(vehicle.get_bike_inventory())} | "
+            f"V(S^x)={value:8.4f} | "
+        )
+        
+        if self.shift_timing_enabled:
+            log_entry += f"t_rem={time_rem:.1f}min ({time_frac:.2%}) | "
+        
+        log_entry += f"φ_1={phi[0]:.4f} "  # rebalancing_imbalance
+        
+        if self.maintenance_enabled:
+            log_entry += f"φ_4={phi[3]:.4f} "  # trailer_cannibalization
+            idx_time = 7  # after maintenance features
+        else:
+            idx_time = 3
+
+        if self.shift_timing_enabled and len(phi) > idx_time:
+            log_entry += f"φ_time={phi[idx_time]:.4f} φ_penalty={phi[idx_time+1]:.4f}"
+        
+        # Print to console
+        print(log_entry)
+        
+        # Write to file if specified
+        if self.depot_log_file:
+            try:
+                with open(self.depot_log_file, "a") as f:
+                    f.write(log_entry + "\n")
+            except IOError as e:
+                print(f"Warning: could not write to depot log file {self.depot_log_file}: {e}")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Main decision entry point
@@ -507,7 +623,10 @@ class LinearVFAPolicy(Policy):
             sel_idx  = int(np.argmin(values))
             selected = candidates[sel_idx]
 
-        # ── Step 6: cache post-decision features for next TD update ───────
+        # ── Step 6: Log depot decisions (optional) ────────────────────────
+        self._log_depot_decision(state, vehicle, selected, phis[sel_idx], values[sel_idx])
+
+        # ── Step 7: cache post-decision features for next TD update ───────
         self._prev_phi = phis[sel_idx]
 
         return selected

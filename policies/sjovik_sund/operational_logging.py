@@ -78,6 +78,13 @@ class OperationalLogger:
             f"DROPOFF {self._fmt_time(time)} vehicle={vehicle_id} station={station_id} bike={bike_id}"
         )
 
+    def log_depot_dropoff(self, time: float, vehicle_id: str, depot_id: str, num_bikes: int, bike_ids=None) -> None:
+        """Log bikes dropped off at depot for repair."""
+        bikes_str = self._fmt_ids(bike_ids) if bike_ids else f"count={num_bikes}"
+        self._emit(
+            f"DEPOT_DROPOFF [REPAIR] {self._fmt_time(time)} vehicle={vehicle_id} depot={depot_id} bikes={bikes_str}"
+        )
+
     def log_battery_swap(self, time: float, vehicle_id: str, station_id: str, bike_id: str) -> None:
         self._emit(
             f"BATTERY_SWAP {self._fmt_time(time)} vehicle={vehicle_id} station={station_id} bike={bike_id}"

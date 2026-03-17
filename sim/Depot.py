@@ -38,6 +38,13 @@ class Depot(Station):
         self.battery_inventory = depot_capacity
         self.time = 0
         self.charging = []
+        
+        # ── Repair queue management ────────────────────────────────────────
+        # fixed_queue: bikes finished repair, ready to be picked up by vehicles
+        self.fixed_queue = 0
+        # in_repair: list of (ready_timestamp, num_bikes) tuples
+        # Bikes enter in_repair immediately, exit to fixed_queue when ready_timestamp <= current_time
+        self.in_repair = []
 
     def sloppycopy(self, *args):
         return Depot(
@@ -112,6 +119,75 @@ class Depot(Station):
                 if not time_filter(time, charging_start_time)
             ]
         return delta_capacity
+    
+    # ── Repair queue management ────────────────────────────────────────────
+    
+    def receive_bikes_for_repair(self, num_bikes: int, current_time: float, repair_duration_minutes: float = 1440.0) -> None:
+        """
+        Receive broken bikes at the depot for off-site repair.
+        
+        When a vehicle drops off broken bikes (depot_cargo), they are added
+        to the in_repair queue and will become available for pickup after
+        repair_duration_minutes.
+        
+        Args:
+            num_bikes                : number of bikes being dropped off for repair
+            current_time             : current simulation time (minutes)
+            repair_duration_minutes  : how long repair takes (default 24h = 1440 min)
+        """
+        if num_bikes <= 0:
+            return
+        
+        ready_time = current_time + repair_duration_minutes
+        self.in_repair.append((ready_time, num_bikes))
+    
+    def tick_repair_queue(self, current_time: float) -> int:
+        """
+        Process the repair queue: move finished bikes from in_repair to fixed_queue.
+        
+        Call this at each simulator tick to progress repairs across time.
+        
+        Args:
+            current_time : current simulation time (minutes)
+        
+        Returns:
+            bikes_completed : number of bikes that completed repair this tick
+        """
+        bikes_completed = 0
+        remaining_in_repair = []
+        
+        for ready_time, num_bikes in self.in_repair:
+            if current_time >= ready_time:
+                # These bikes are done repairing
+                bikes_completed += num_bikes
+                self.fixed_queue += num_bikes
+            else:
+                # Still repairing
+                remaining_in_repair.append((ready_time, num_bikes))
+        
+        self.in_repair = remaining_in_repair
+        return bikes_completed
+    
+    def remove_bikes_from_queue(self, num_bikes: int) -> int:
+        """
+        Vehicle picks up repaired bikes from fixed_queue.
+        
+        Args:
+            num_bikes : how many bikes the vehicle wants to pick up
+        
+        Returns:
+            bikes_loaded : actual number loaded (≤ num_bikes, ≤ fixed_queue)
+        """
+        bikes_loaded = min(num_bikes, self.fixed_queue)
+        self.fixed_queue -= bikes_loaded
+        return bikes_loaded
+    
+    def get_repair_queue_status(self) -> tuple:
+        """
+        Returns (num_in_repair, num_in_fixed_queue).
+        """
+        total_in_repair = sum(count for _, count in self.in_repair)
+        return total_in_repair, self.fixed_queue
 
     def __str__(self):
         return f"Depot   {self.id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8)} Bikes {len(self.bikes):3d} Cap {self.depot_capacity} Inv {self.battery_inventory}"
