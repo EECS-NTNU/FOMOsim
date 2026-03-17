@@ -67,7 +67,7 @@ N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES))  # au
 
 INSTANCE_NAME : str   = "TD_W34_old"
 NUM_VEHICLES  : int   = 1
-START_HOUR    : int   = 7         # simulation clock starts at 07:00
+START_HOUR    : int   = 0         # simulation clock starts at 00:00
 
 # Where to save checkpoints and the final model
 SAVE_DIR = Path(__file__).parent / "models"
@@ -79,14 +79,15 @@ SAVE_DIR = Path(__file__).parent / "models"
 
 def _service_level(simulator) -> float:
     """
-    Service level = 1 - starvations / total_trip_requests.
+    Service level = 1 - (starvations + congestion) / total_trip_requests.
 
     Returns 0.0 if no trips were generated (e.g. very short test run).
     """
     m      = simulator.state.metrics
     trips  = m.get_aggregate_value("total_trips")   or 1
     starv  = m.get_aggregate_value("starvation")    or 0
-    return 1.0 - starv / max(trips, 1)
+    cong  = m.get_aggregate_value("congestion")      or 0
+    return 1.0 - (starv + cong) / max(trips, 1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
