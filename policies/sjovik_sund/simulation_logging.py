@@ -511,27 +511,35 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
                 'Vehicle Arrivals',
                 'Bike Deliveries',
                 'Bike Pickups',
+                'Service Level',
                 # 'Maintenance Time (minutes)',
                 # 'Maintenance Violations',
                 # 'Maintenance Starvations',
             ])
        
+        # Calculate metrics needed for service level
+        # NOTE: We define service level as 1 - (failed events / total trips), which represents the percentage of trips that were successful. This assumes failed events are derived from starvations and LONG congestions.
+        total_trips = simulator.state.metrics.get_aggregate_value('trips')
+        failed_events = simulator.state.metrics.get_aggregate_value('failed events')
+        service_level = 1 - (failed_events / total_trips) if total_trips > 0 else 0.0
+        
         # Write data row
         writer.writerow([
             seed,
             duration,
             round(solve_time, 2),
-            simulator.state.metrics.get_aggregate_value('failed events'),
+            failed_events,
             simulator.state.metrics.get_aggregate_value('starvations'),
             simulator.state.metrics.get_aggregate_value('bike starvations'),
             simulator.state.metrics.get_aggregate_value('long congestions'),
             simulator.state.metrics.get_aggregate_value('short congestions'),
-            simulator.state.metrics.get_aggregate_value('trips'),
+            total_trips,
             simulator.state.metrics.get_aggregate_value('bike departure'),
             simulator.state.metrics.get_aggregate_value('bike arrival'),
             simulator.state.metrics.get_aggregate_value('vehicle arrivals'),
             simulator.state.metrics.get_aggregate_value('num bike deliveries'),
             simulator.state.metrics.get_aggregate_value('num bike pickups'),
+            round(service_level, 4),
             # simulator.state.metrics.get_aggregate_value('maintenance time'),
             # simulator.state.metrics.get_aggregate_value('maintenance violations'),
             # simulator.state.metrics.get_aggregate_value('maintenance_starvation'),

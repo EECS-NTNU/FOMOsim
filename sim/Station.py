@@ -89,6 +89,10 @@ class Station(Location):
             #bike.set_location(self.lat, self.lon, self.location_id)
             bike.set_location(self.lat, self.lon)
 
+    @property
+    def neighboring_stations(self):
+        return self.neighbours
+
     def spare_capacity(self):
         return self.capacity - len(self.bikes)
     

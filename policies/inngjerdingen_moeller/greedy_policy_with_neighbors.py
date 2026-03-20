@@ -21,6 +21,7 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         self.cutoff_vehicle = cutoff_vehicle       # to decide when to go the pickup or delivery station next
         self.cutoff_station = cutoff_station
 
+    # NOTE: "simul" here is actually a sim.State instance (new API)
     def get_best_action(self, simul, vehicle):
         
         batteries_to_swap = []
@@ -41,7 +42,8 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         ##########################################
         #               WHERE TO GO              #
         ##########################################
-        tabu_list = [vehicle2.location.location_id for vehicle2 in simul.state.get_vehicles()] #do not go where other vehicles are (going)
+        # simul is a State here
+        tabu_list = [vehicle2.location.id for vehicle2 in simul.get_vehicles()] #do not go where other vehicles are (going)
         potential_stations = find_potential_stations(simul, self.cutoff_vehicle, self.cutoff_station, vehicle, bikes_at_vehicle_after_rebalancing, tabu_list)
 
         #calculate criticalities for potential stations, sorted by criticality
@@ -49,8 +51,8 @@ class GreedyPolicyNeighborhoodInteraction(Policy):
         
         #pick the best
         if len(criticalities)==0:
-            potential_stations2 = [station for station in simul.state.locations if station.location_id not in tabu_list]
-            
+            potential_stations2 = [station for station in simul.get_locations() if station.id not in tabu_list]
+
             rng_greedy = np.random.default_rng(None)
             next_location_id = rng_greedy.choice(potential_stations2).id
         else: 
@@ -79,7 +81,7 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
     starved_neighbors = 0
     for neighbor in station.neighboring_stations:
         num_bikes_neighbor = neighbor.number_of_bikes()
-        if num_bikes_neighbor < 0.1*neighbor.get_target_state():
+        if num_bikes_neighbor < 0.1*neighbor.get_target_state(simul.day(), simul.hour()):
             starved_neighbors += 1
 
     if num_bikes_station < target_state: #deliver bikes
@@ -100,24 +102,40 @@ def calculate_loading_quantities_greedy(vehicle, simul, station):
     return bikes_to_pickup, bikes_to_deliver
 
 
-def find_potential_stations(simul, cutoff_vehicle, cutoff_station, vehicle, bikes_at_vehicle, tabu_list):
-    potential_stations = [station for station in simul.state.locations if station.location_id not in tabu_list]
-    
-    net_demands = {station.location_id:calculate_net_demand(station,simul.time,simul.day(),simul.hour(),planning_horizon=60) 
-                    for station in potential_stations}
-    target_states = {station.location_id:station.get_target_state(simul.day(), simul.hour()) 
-                        for station in potential_stations}
-    
-    potential_pickup_stations = [station for station in potential_stations if 
-                                    station.number_of_bikes() + net_demands[station.location_id] > (1+cutoff_station)*target_states[station.location_id]]
-    potential_delivery_stations = [station for station in potential_stations if 
-                                    station.number_of_bikes() + net_demands[station.location_id] < (1-cutoff_station)*target_states[station.location_id]]
-    
-    if cutoff_vehicle*vehicle.bike_inventory_capacity <= bikes_at_vehicle  <= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity:
+def find_potential_stations(state, cutoff_vehicle, cutoff_station, vehicle, bikes_at_vehicle, tabu_list):
+    """Return stations (Location objects) not in tabu_list that are pickup/delivery candidates.
+
+    state: sim.State (new API)
+    """
+    # All locations that are not tabu
+    potential_stations = [station for station in state.get_locations() if station.id not in tabu_list]
+
+    # Net demand and target state per station
+    net_demands = {
+        station.id: calculate_net_demand(station, state.time, state.day(), state.hour(), planning_horizon=60)
+        for station in potential_stations
+    }
+    target_states = {
+        station.id: station.get_target_state(state.day(), state.hour())
+        for station in potential_stations
+    }
+
+    # Classify by pickup / delivery need
+    potential_pickup_stations = [
+        station for station in potential_stations
+        if station.number_of_bikes() + net_demands[station.id] > (1 + cutoff_station) * target_states[station.id]
+    ]
+    potential_delivery_stations = [
+        station for station in potential_stations
+        if station.number_of_bikes() + net_demands[station.id] < (1 - cutoff_station) * target_states[station.id]
+    ]
+
+    if cutoff_vehicle * vehicle.bike_inventory_capacity <= bikes_at_vehicle <= (1 - cutoff_vehicle) * vehicle.bike_inventory_capacity:
         potential_stations = potential_pickup_stations + potential_delivery_stations
     else:
-        if bikes_at_vehicle <= cutoff_vehicle*vehicle.bike_inventory_capacity:  #few bikes, so want to pickup
+        if bikes_at_vehicle <= cutoff_vehicle * vehicle.bike_inventory_capacity:  # few bikes, so want to pickup
             potential_stations = potential_pickup_stations
-        elif bikes_at_vehicle >= (1-cutoff_vehicle)*vehicle.bike_inventory_capacity: #want do deliver
+        elif bikes_at_vehicle >= (1 - cutoff_vehicle) * vehicle.bike_inventory_capacity:  # want to deliver
             potential_stations = potential_delivery_stations
+
     return potential_stations

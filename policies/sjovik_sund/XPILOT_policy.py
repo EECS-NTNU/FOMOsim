@@ -4,15 +4,15 @@ import os
 import sim
 from policies import Policy
 
-# Import the existing non-collaborative PILOT baseline for Swappable Battery e-bikes
-from policies.hlv_master.SB_BS_PILOT_policy import BS_PILOT
+# Import the existing X- PILOT based on the PILOT implementation from inngjerdingen_moeller, which is designed with neighborhood interaction for normal bikes.
+from policies.inngjerdingen_moeller.PILOT_policy import PILOT
 
 class XPILOTPolicy(Policy):
     """
     A wrapper to run the established X-PILOT (or base PILOT) method 
     *WITHOUT* neighborhood interaction. 
     
-    This wraps the BS_PILOT (Swappable Battery Station-Based PILOT) from hlv_master, 
+    This wraps the BS_PILOT (Station-Based PILOT) from inngjerdingen_moeller, which is designed for e-bike fleet management with swappable batteries.
     making it plug-and-play for benchmarking against the VFA/MDP implementations 
     in sjovik_sund.
     """
@@ -31,7 +31,7 @@ class XPILOTPolicy(Policy):
         self.maintenance_enabled = maintenance_enabled
         
         # Instantiate the pure PILOT without collaborative neighbour filtering
-        self.pilot_backend = BS_PILOT(
+        self.pilot_backend = PILOT(
             time_horizon=time_horizon,
             max_depth=max_depth,
             number_of_successors=num_successors,

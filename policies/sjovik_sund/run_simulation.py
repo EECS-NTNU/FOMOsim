@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
  
+#mkdir -p policies/sjovik_sund/output && python policies/sjovik_sund/run_simulation.py --duration 24 > policies/sjovik_sund/output/output.txt
  
 ######################################################
 import os
@@ -53,7 +54,7 @@ MAINTENANCE_ENABLED = False
 # Import logging utilities
 from policies.sjovik_sund.simulation_logging import (
     LoggingSimulator,
-    write_hourly_metrics_to_file,
+    #write_hourly_metrics_to_file,
     write_results_to_file,
     #write_simulation_summary,
     #write_vehicle_visits_to_file,
@@ -271,7 +272,7 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
     
     # Write hourly metrics for this seed
     hourly_filename = f"{base_filename}_hourly_seed_{seed}.csv"
-    write_hourly_metrics_to_file(hourly_filename, simulator, seed)
+    #write_hourly_metrics_to_file(hourly_filename, simulator, seed)
     
     # Write vehicle visits for this seed
     visits_filename = f"{base_filename}_vehicle_visits_seed_{seed}.csv"
