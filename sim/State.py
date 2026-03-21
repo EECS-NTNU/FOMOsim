@@ -70,6 +70,7 @@ class State(LoadSave):
             traveltime_vehicle_matrix = self.traveltime_vehicle_matrix,
             traveltime_vehicle_matrix_stddev = self.traveltime_vehicle_matrix_stddev,
             rng = self.rng,
+            rng2 = self.rng2,
         )
 
         for vehicle in new_state.get_vehicles():
@@ -402,6 +403,7 @@ class State(LoadSave):
 
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
+        self.rng2 = np.random.default_rng(seed)
         self.seed = seed
 
     def set_vehicles(self, policies):

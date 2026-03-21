@@ -9,10 +9,22 @@ import numpy as np
 import time 
 
 class PILOT(Policy):
-    def __init__(self, max_depth=2, number_of_successors=5, time_horizon=40, criticality_weights_sets=[[0.3, 0.15, 0.25, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0.05, 0.2, 0.05]], evaluation_weights=[0.85, 0.1, 0.05], number_of_scenarios=100, discounting_factor=0.1): #change deafult values after parameter tuning!
+    def __init__(self, max_depth=2, number_of_successors=5, time_horizon=40, criticality_weights_sets=[[0.3, 0.15, 0.25, 0.2, 0.1], [0.3, 0.5, 0, 0, 0.2], [0.6, 0.1, 0.05, 0.2, 0.05]], evaluation_weights=[0.85, 0.1, 0.05], number_of_scenarios=100, discounting_factor=0.1, enable_neighborhood_interactions=True): #change deafult values after parameter tuning!
         self.max_depth = max_depth
         self.number_of_successors = number_of_successors
         self.time_horizon = time_horizon
+        self.enable_neighborhood_interactions = enable_neighborhood_interactions
+        
+        # If neighborhood interactions disabled, set neighborhood criticality weight (index 2) to zero
+        if not enable_neighborhood_interactions:
+            print("[PILOT] Neighborhood interactions DISABLED")
+            criticality_weights_sets = [list(weights) for weights in criticality_weights_sets]
+            for weight_set in criticality_weights_sets:
+                weight_set[2] = 0
+            print(f"[PILOT] Neighborhood criticality weights set to 0: {criticality_weights_sets}")
+        else:
+            print("[PILOT] Neighborhood interactions ENABLED")
+        
         self.crit_weights_sets = criticality_weights_sets
         self.evaluation_weights = evaluation_weights
         self.number_of_scenarios = number_of_scenarios
@@ -269,70 +281,78 @@ class PILOT(Policy):
             improved_deviation = deviation_no_visit - deviation_visit
 
             #neighbor roamings: 
-            excess_bikes = ending_inventory
-            excess_locks = station_capacity-ending_inventory
-            if net_demand > 0:
-                excess_bikes_no_visit = min(station_capacity,initial_inventory+((end_time-current_time)/60)*net_demand)
-                excess_locks_no_visit = max(0,station_capacity-(initial_inventory+((end_time-current_time)/60)*net_demand))
-            elif net_demand <= 0:
-                excess_bikes_no_visit = max(0,initial_inventory+((end_time-current_time)/60)*net_demand)
-                excess_locks_no_visit = min(station_capacity,station_capacity-(initial_inventory+((end_time-current_time)/60)*net_demand))
-            
+            if self.enable_neighborhood_interactions:
+                excess_bikes = ending_inventory
+                excess_locks = station_capacity-ending_inventory
+                if net_demand > 0:
+                    excess_bikes_no_visit = min(station_capacity,initial_inventory+((end_time-current_time)/60)*net_demand)
+                    excess_locks_no_visit = max(0,station_capacity-(initial_inventory+((end_time-current_time)/60)*net_demand))
+                elif net_demand <= 0:
+                    excess_bikes_no_visit = max(0,initial_inventory+((end_time-current_time)/60)*net_demand)
+                    excess_locks_no_visit = min(station_capacity,station_capacity-(initial_inventory+((end_time-current_time)/60)*net_demand))
                 
-            station_type, exp_num_bikes = calculate_station_type(station, net_demand, target_state)
-            
-            for neighbor in neighbors:
-                roamings= 0
-                roamings_no_visit = 0
-                net_demand_neighbor = scenario_dict[neighbor.id]
-                neighbor_type, exp_num_bikes_neighbor = calculate_station_type(neighbor, net_demand_neighbor, neighbor.get_target_state(state.day(), state.hour()))    
-                if neighbor_type == station_type:
-                    if net_demand_neighbor>0:
-                        time_first_violation = current_time+((neighbor.capacity - neighbor.number_of_bikes())/net_demand_neighbor)*60
-                    elif net_demand_neighbor<0:
-                        time_first_violation = current_time+(neighbor.number_of_bikes()/(-net_demand_neighbor))*60
-                    else:
-                        time_first_violation = end_time
                     
-                    if time_first_violation < end_time:
-                        convertable_violations = (min(end_time-time_first_violation, end_time-time)/60)*net_demand_neighbor
-                        if neighbor_type == 'p':
-                            if abs(convertable_violations) <= excess_locks:
-                                roamings+=abs(convertable_violations)
-                                excess_locks-= abs(convertable_violations)
-                            else:
-                                roamings+=excess_locks
-                                excess_locks-=excess_locks
-                            
-                            if abs(convertable_violations) <= excess_locks_no_visit:
-                                roamings_no_visit+=abs(convertable_violations) 
-                                excess_locks_no_visit-= abs(convertable_violations)
-                            else:
-                                roamings_no_visit+=excess_locks_no_visit
-                                excess_locks_no_visit-=excess_locks_no_visit
-                        
-                                
-                        if neighbor_type == 'd':
-                            if abs(convertable_violations) <= excess_bikes:
-                                roamings+=abs(convertable_violations)
-                                excess_bikes-= abs(convertable_violations)
-                            else:
-                                roamings+=excess_bikes
-                                excess_bikes-=excess_bikes
-
-                            if abs(convertable_violations) <= excess_bikes_no_visit:
-                                roamings_no_visit+=abs(convertable_violations)
-                                excess_bikes_no_visit-= abs(convertable_violations)
-                            else:
-                                roamings_no_visit+=excess_bikes_no_visit
-                                excess_bikes_no_visit-=excess_bikes_no_visit
+                station_type, exp_num_bikes = calculate_station_type(station, net_demand, target_state)
                 
-                distance_scaling = ((state.get_vehicle_travel_time(station.id, neighbor.id)/60)*VEHICLE_SPEED)/MAX_ROAMING_DISTANCE_SOLUTIONS
+                for neighbor in neighbors:
+                    roamings= 0
+                    roamings_no_visit = 0
+                    net_demand_neighbor = scenario_dict[neighbor.id]
+                    neighbor_type, exp_num_bikes_neighbor = calculate_station_type(neighbor, net_demand_neighbor, neighbor.get_target_state(state.day(), state.hour()))    
+                    if neighbor_type == station_type:
+                        if net_demand_neighbor>0:
+                            time_first_violation = current_time+((neighbor.capacity - neighbor.number_of_bikes())/net_demand_neighbor)*60
+                        elif net_demand_neighbor<0:
+                            time_first_violation = current_time+(neighbor.number_of_bikes()/(-net_demand_neighbor))*60
+                        else:
+                            time_first_violation = end_time
+                        
+                        if time_first_violation < end_time:
+                            convertable_violations = (min(end_time-time_first_violation, end_time-time)/60)*net_demand_neighbor
+                            if neighbor_type == 'p':
+                                if abs(convertable_violations) <= excess_locks:
+                                    roamings+=abs(convertable_violations)
+                                    excess_locks-= abs(convertable_violations)
+                                else:
+                                    roamings+=excess_locks
+                                    excess_locks-=excess_locks
+                                
+                                if abs(convertable_violations) <= excess_locks_no_visit:
+                                    roamings_no_visit+=abs(convertable_violations) 
+                                    excess_locks_no_visit-= abs(convertable_violations)
+                                else:
+                                    roamings_no_visit+=excess_locks_no_visit
+                                    excess_locks_no_visit-=excess_locks_no_visit
+                            
+                                    
+                            if neighbor_type == 'd':
+                                if abs(convertable_violations) <= excess_bikes:
+                                    roamings+=abs(convertable_violations)
+                                    excess_bikes-= abs(convertable_violations)
+                                else:
+                                    roamings+=excess_bikes
+                                    excess_bikes-=excess_bikes
 
-                neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
+                                if abs(convertable_violations) <= excess_bikes_no_visit:
+                                    roamings_no_visit+=abs(convertable_violations)
+                                    excess_bikes_no_visit-= abs(convertable_violations)
+                                else:
+                                    roamings_no_visit+=excess_bikes_no_visit
+                                    excess_bikes_no_visit-=excess_bikes_no_visit
+                    
+                    distance_scaling = ((state.get_vehicle_travel_time(station.id, neighbor.id)/60)*VEHICLE_SPEED)/MAX_ROAMING_DISTANCE_SOLUTIONS
 
+                    neighbor_roamings += (1-distance_scaling)*(roamings-roamings_no_visit)
+            else:
+                # Roaming component skipped when neighborhood interactions disabled
+                neighbor_roamings = 0
+                #print(f"[PILOT-VERIFY] Roaming calculation SKIPPED for station {station.id} - neighborhood interactions disabled")
                    
-            avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
+            if self.enable_neighborhood_interactions:
+                avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[1]*neighbor_roamings + weights[2]*improved_deviation)
+            else:
+                # Exclude roaming component (weights[1]*neighbor_roamings) when neighborhood interactions are disabled
+                avoided_disutility += discounting_factors[counter]*(weights[0]*avoided_violations + weights[2]*improved_deviation)
         
             counter+=1
         
@@ -401,9 +421,7 @@ class PILOT(Policy):
             if best_plan == None:
                 tabu_list = [vehicle2.location.id for vehicle2 in state.get_vehicles()]
                 potential_stations2 = [station for station in state.get_locations() if station.id not in tabu_list]    
-                rng_balanced = np.random.default_rng(None)
-                print("lunsj!")
-                return rng_balanced.choice(potential_stations2).id 
+                return state.rng.choice(potential_stations2).id 
 
             best_first_move = best_plan.plan[vehicle.id][1].station.id
             if best_first_move in score_board:
@@ -435,14 +453,23 @@ class PILOT(Policy):
         if list(score_board_sorted.keys())[0] != None:
             best_plan = list(score_board_sorted.keys())[0]
             branch = best_plan.branch_number
-            state.metrics.add_aggregate_metric(state, "branch"+str(branch+1), 1)
-            first_move = best_plan.plan[vehicle.id][1].station.id
-            return first_move
+            if branch is not None:
+                state.metrics.add_aggregate_metric(state, "branch"+str(branch+1), 1)
+            
+            # Check if plan has at least 2 visits
+            if len(best_plan.plan[vehicle.id]) >= 2:
+                first_move = best_plan.plan[vehicle.id][1].station.id
+                return first_move    
+            else:
+            # Fallback: pick random station if plan has no second visit
+                tabu_list = [vehicle2.location.id for vehicle2 in state.get_vehicles()]
+                potential_stations2 = [station for station in state.get_locations() if station.id not in tabu_list]    
+                return state.rng.choice(potential_stations2).id
+        
         else: 
             tabu_list = [vehicle2.location.id for vehicle2 in state.get_vehicles()]
             potential_stations2 = [station for station in state.get_locations() if station.id not in tabu_list]    
-            rng_balanced = np.random.default_rng(None)
-            return rng_balanced.choice(potential_stations2).id
+            return state.rng.choice(potential_stations2).id
             
     def calculate_loading_quantities_pilot(self, vehicle, vehicle_inventory, state, station, current_time):
         number_of_bikes_to_pick_up = 0
@@ -453,21 +480,43 @@ class PILOT(Policy):
         
         starved_neighbors = 0
         congested_neighbors = 0
-        for neighbor in station.neighboring_stations:
-            net_demand_neighbor =  calculate_net_demand(neighbor, state.time, state.day(), state.hour(), 60)
-            num_bikes_neighbor = neighbor.number_of_bikes() + ((current_time-state.time)/60)*net_demand_neighbor
-            if num_bikes_neighbor < 0.1*neighbor.capacity:
-                starved_neighbors += 1
-            elif num_bikes_neighbor > 0.9*neighbor.capacity:
-                congested_neighbors += 1
+        if self.enable_neighborhood_interactions:
+            for neighbor in station.neighboring_stations:
+                net_demand_neighbor =  calculate_net_demand(neighbor, state.time, state.day(), state.hour(), 60)
+                num_bikes_neighbor = neighbor.number_of_bikes() + ((current_time-state.time)/60)*net_demand_neighbor
+                if num_bikes_neighbor < 0.1*neighbor.capacity:
+                    starved_neighbors += 1
+                elif num_bikes_neighbor > 0.9*neighbor.capacity:
+                    congested_neighbors += 1
 
         if num_bikes_station < target_state: #deliver bikes
             #deliver bikes, max to the target state
-            number_of_bikes_to_deliver = min(vehicle_inventory, target_state - num_bikes_station + 2*starved_neighbors)
+            if self.enable_neighborhood_interactions:
+                number_of_bikes_to_deliver = min(vehicle_inventory, target_state - num_bikes_station + 2*starved_neighbors)
+            else:
+                number_of_bikes_to_deliver = min(vehicle_inventory, target_state - num_bikes_station)
+                
+                # Verify: neighbor adjustment excluded
+                if starved_neighbors > 0:
+                    print(f"[PILOT-VERIFY] Neighbor adjustment SKIPPED (deliver): station {station.id} had {starved_neighbors} starved neighbors, adjustment not applied")
+                # Verify: neighbor adjustment excluded
+                if starved_neighbors > 0:
+                    print(f"[PILOT-VERIFY] Neighbor adjustment SKIPPED at station {station.id}: had {starved_neighbors} starved neighbors")
             
+                
         elif num_bikes_station > target_state: #pick-up bikes
             remaining_vehicle_capacity = vehicle.bike_inventory_capacity - vehicle_inventory
-            number_of_bikes_to_pick_up = min(num_bikes_station - target_state + 2*congested_neighbors, remaining_vehicle_capacity)
+            if self.enable_neighborhood_interactions:
+                number_of_bikes_to_pick_up = min(num_bikes_station - target_state + 2*congested_neighbors, remaining_vehicle_capacity)
+            else:
+                number_of_bikes_to_pick_up = min(num_bikes_station - target_state, remaining_vehicle_capacity)
+                
+                # Verify: neighbor adjustment excluded
+                if congested_neighbors > 0:
+                    print(f"[PILOT-VERIFY] Neighbor adjustment SKIPPED (pickup): station {station.id} had {congested_neighbors} congested neighbors, adjustment not applied")
+                # Verify: neighbor adjustment excluded
+                if congested_neighbors > 0:
+                    print(f"[PILOT-VERIFY] Neighbor adjustment SKIPPED at station {station.id}: had {congested_neighbors} congested neighbors")
 
         return number_of_bikes_to_pick_up, number_of_bikes_to_deliver
 

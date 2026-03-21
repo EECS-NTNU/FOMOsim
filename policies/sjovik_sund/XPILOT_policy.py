@@ -35,7 +35,8 @@ class XPILOTPolicy(Policy):
             time_horizon=time_horizon,
             max_depth=max_depth,
             number_of_successors=num_successors,
-            number_of_scenarios= number_of_scenarios
+            number_of_scenarios= number_of_scenarios,
+            enable_neighborhood_interactions=False,  # Disable neighborhood interactions for pure PILOT behavior
         )
 
     def get_best_action(self, state: sim.State, vehicle: sim.Vehicle) -> sim.Action:
