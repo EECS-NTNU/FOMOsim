@@ -681,13 +681,13 @@ class State(LoadSave):
 
                     self.metrics.add_aggregate_metric(self, "bike_pickups", 1)
 
-                    if logger_enabled:
+                    '''if logger_enabled:
                         operation_logger.log_bike_pickup(
                             time=time,
                             vehicle_id=vehicle.id,
                             station_id=origin_station_id,
                             bike_id=pick_up_bike.bike_id,
-                        )
+                        )'''
                 
                             
                 # Perform all battery swaps
@@ -716,13 +716,13 @@ class State(LoadSave):
 
                     self.metrics.add_aggregate_metric(self, "bike_deliveries", 1)
 
-                    if logger_enabled:
+                    '''if logger_enabled:
                         operation_logger.log_bike_dropoff(
                             time=time,
                             vehicle_id=vehicle.id,
                             station_id=origin_station_id,
                             bike_id=delivery_bike.bike_id,
-                        )
+                        )'''
 
                 for helping_pickup_id in action.helping_pickup:
                     helping_pickup_bike = action.helping_cluster.get_bike_from_id(
@@ -734,26 +734,26 @@ class State(LoadSave):
                     # Picking up bike and adding to vehicle inventory and swapping battery
                     vehicle.pick_up(helping_pickup_bike)
 
-                    if logger_enabled:
+                    '''if logger_enabled:
                         operation_logger.log_bike_pickup(
                             time=time,
                             vehicle_id=vehicle.id,
                             station_id=origin_station_id,
                             bike_id=helping_pickup_bike.bike_id,
-                        )
+                        )'''
 
                 for helping_delivery_id in action.helping_delivery:
                     helping_delivery_bike = vehicle.drop_off(helping_delivery_id)
 
                     self.get_location_by_id(vehicle.location.area).add_bike(helping_delivery_bike)
 
-                    if logger_enabled:
+                    '''if logger_enabled:
                         operation_logger.log_bike_dropoff(
                             time=time,
                             vehicle_id=vehicle.id,
                             station_id=origin_station_id,
                             bike_id=helping_delivery_bike.bike_id,
-                        )
+                        )'''
 
             else: 
 
@@ -805,13 +805,13 @@ class State(LoadSave):
                     # Picking up bike and adding to vehicle inventory and swapping battery
                     vehicle.pick_up(pick_up_bike)
 
-                    if logger_enabled:
+                    '''if logger_enabled:
                         operation_logger.log_bike_pickup(
                             time=time,
                             vehicle_id=vehicle.id,
                             station_id=origin_station_id,
                             bike_id=pick_up_bike.bike_id,
-                        )
+                        )'''
                 
                 # Perform all battery swaps
                 for battery_swap_bike_id in action.battery_swaps:
@@ -839,13 +839,13 @@ class State(LoadSave):
 
                     self.metrics.add_aggregate_metric(self, "bike_deliveries", 1)
 
-                    if logger_enabled:
+                    '''if logger_enabled:
                         operation_logger.log_bike_dropoff(
                             time=time,
                             vehicle_id=vehicle.id,
                             station_id=origin_station_id,
                             bike_id=delivery_bike.bike_id,
-                        )
+                        )'''
 
                 for helping_pickup_id in action.helping_pickup:
                     helping_pickup_bike = action.helping_cluster.get_bike_from_id(
@@ -857,13 +857,13 @@ class State(LoadSave):
                     # Picking up bike and adding to vehicle inventory and swapping battery
                     vehicle.pick_up(helping_pickup_bike)
 
-                    if logger_enabled:
+                    '''if logger_enabled:
                         operation_logger.log_bike_pickup(
                             time=time,
                             vehicle_id=vehicle.id,
                             station_id=origin_station_id,
                             bike_id=helping_pickup_bike.bike_id,
-                        )
+                        )'''
 
                 for helping_delivery_id in action.helping_delivery:
                     day = int((time // (60*24)) % 7)
@@ -872,13 +872,13 @@ class State(LoadSave):
                         if station.number_of_bikes() < station.get_target_state(day, hour) and len(vehicle.get_sb_bike_inventory()) > 0:
                             helping_delivery_bike = vehicle.drop_off(helping_delivery_id)
                             station.add_bike(helping_delivery_bike)
-                            if logger_enabled:
+                            '''if logger_enabled:
                                 operation_logger.log_bike_dropoff(
                                     time=time,
                                     vehicle_id=vehicle.id,
                                     station_id=station.id,
                                     bike_id=helping_delivery_bike.bike_id,
-                                )
+                                )'''
                             break
 
         # Perform maintenance on bikes at current location
@@ -895,7 +895,7 @@ class State(LoadSave):
         station_after = len(vehicle.location.bikes) if hasattr(vehicle.location, "bikes") else 0
         vehicle_load_after = len(vehicle.get_bike_inventory())
 
-        if logger_enabled:
+        '''if logger_enabled:
             operation_logger.log_inventory_update(
                 time=time,
                 station_id=origin_station_id,
@@ -904,7 +904,7 @@ class State(LoadSave):
                 vehicle_id=vehicle.id,
                 vehicle_load_before=vehicle_load_before,
                 vehicle_load_after=vehicle_load_after,
-            )
+            )'''
 
         # Moving the state/vehicle from this to next station
         vehicle.location = self.get_location_by_id(action.next_location)

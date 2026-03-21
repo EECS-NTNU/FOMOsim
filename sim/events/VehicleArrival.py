@@ -33,7 +33,7 @@ class VehicleArrival(Event):
         # 2. find the best action from the current simul state
         action = self.vehicle.policy.get_action(simul.state, self.vehicle)
         # print the policy it is using
-        print(f"Vehicle {self.vehicle.id} using policy {self.vehicle.policy} at station {arrival_station_id} at time {simul_time}")
+        #print(f"Vehicle {self.vehicle.id} using policy {self.vehicle.policy} at station {arrival_station_id} at time {simul_time}")
         if isinstance(action, tuple):
             action, _ = action
 
@@ -42,8 +42,8 @@ class VehicleArrival(Event):
 
         # 4. Only log if NOT idle
         if operation_logger and operation_logger.enabled and not is_idle_at_depot:
-            operation_logger.log_arrival(self.time, self.vehicle.id, arrival_station_id)
-            operation_logger.log_decision_trigger(self.time, self.vehicle.id, arrival_station_id)
+            #operation_logger.log_arrival(self.time, self.vehicle.id, arrival_station_id)
+            #operation_logger.log_decision_trigger(self.time, self.vehicle.id, arrival_station_id)
             
             operation_logger.log_action_selected(
                 time=self.time,
@@ -110,7 +110,7 @@ class VehicleArrival(Event):
         if arrival_station_id.startswith('D') and not is_idle_at_depot:
             func_cargo = sum(1 for b in self.vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])
             broken_cargo = sum(1 for b in self.vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) == 'depot')
-            print(f"[VEHICLE DEPARTURE] t={simul_time:.1f} | Vehicle {self.vehicle.id} leaving {arrival_station_id} -> routing to {action.next_location} | Cargo: {func_cargo} functional, {broken_cargo} broken")
+            #print(f"[VEHICLE DEPARTURE] t={simul_time:.1f} | Vehicle {self.vehicle.id} leaving {arrival_station_id} -> routing to {action.next_location} | Cargo: {func_cargo} functional, {broken_cargo} broken")
 
         # 5. Also suppress the departure log if idle
         if operation_logger and operation_logger.enabled and not is_idle_at_depot:

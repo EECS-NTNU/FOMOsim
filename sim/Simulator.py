@@ -80,8 +80,8 @@ class Simulator(LoadSave):
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
 
-        # for vehicle in self.state.get_vehicles():
-        #     vehicle.policy.init_sim(self)
+        for vehicle in self.state.get_vehicles():
+            vehicle.policy.init_sim(self)
 
     def __repr__(self):
         string = f"<Sim with {self.state.time} of {self.end_time} elapsed. {len(self.event_queue)} events in event_queue>"

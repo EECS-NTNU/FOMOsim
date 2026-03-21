@@ -6,6 +6,7 @@ Simulation logging utilities for tracking hourly and daily metrics.
 import os
 import csv
 import sim
+import pandas as pd
 from pathlib import Path
 from settings import MAINTENANCE_INCREASE_PER_MINUTE
 from sim.bike_degradation_modeling import damage_configuration
@@ -14,7 +15,9 @@ from sim.bike_degradation_modeling import damage_configuration
  
 # Determine output directory relative to this file's location
 _LOGGING_FILE_DIR = Path(__file__).parent
-RESULTS_DIR = _LOGGING_FILE_DIR / 'simulation_results'
+print(f"Logging output directory: {_LOGGING_FILE_DIR}")
+RESULTS_DIR = _LOGGING_FILE_DIR / 'simulation_results' / 'csv'
+print(f"Full results directory: {RESULTS_DIR}")
  
  
 class LoggingSimulator(sim.Simulator):
@@ -29,19 +32,23 @@ class LoggingSimulator(sim.Simulator):
         self.hourly_metrics = []  # List of hourly metrics
         self.hourly_station_metrics = []  # List of per-station hourly data
         self.component_failures = []  # List of component failure events with details
+        self.hourly_vehicle_metrics = [] # List of per-vehicle hourly data
+        self.daily_health_metrics = [] # List of daily health metrics (e.g., critical bikes)
        
         self.last_logged_day = -1
         self.last_starvations = 0
         self.last_congestions = 0
+        self.last_pickups = 0
+        self.last_deliveries = 0
         self.last_logged_hour = -1
         self.last_hour_starvations = 0
         self.last_hour_long_congestions = 0
         self.last_hour_short_congestions = 0
-        self.last_hour_maintenance_violations = 0
-        self.last_hour_maintenance_starvations = 0
+        #self.last_hour_maintenance_violations = 0
+        #self.last_hour_maintenance_starvations = 0
         self.last_hour_bike_pickups = 0
         self.last_hour_bike_deliveries = 0
-        self.last_hour_maintenance_time = 0.0
+        #self.last_hour_maintenance_time = 0.0
        
         # Now call parent __init__
         super().__init__(*args, **kwargs)
@@ -126,7 +133,7 @@ class LoggingSimulator(sim.Simulator):
             'departure_station': departure_station_id,
             'arrival_station': arrival_station_id,
             'did_roam': did_roam,
-            'bike_criticality': bike_criticality,
+            #'bike_criticality': bike_criticality,
             'distance_km': distance_km
         })
     
@@ -138,13 +145,13 @@ class LoggingSimulator(sim.Simulator):
         minute = int(time % 60)
        
         # 1. Previous Criticality
-        prev_criticality = bike_criticality if bike_criticality is not None else 0.0
+        #prev_criticality = bike_criticality if bike_criticality is not None else 0.0
  
         # 2. Post-Trip Criticality (Calculated)
         # We cannot fetch this from the bike object because the bike hasn't arrived yet.
-        post_criticality = prev_criticality
-        if success and travel_time is not None:
-             post_criticality = self._estimate_post_trip_criticality(prev_criticality, travel_time)
+        #post_criticality = prev_criticality
+        #if success and travel_time is not None:
+             #post_criticality = self._estimate_post_trip_criticality(prev_criticality, travel_time)
  
         self.trip_requests.append({
             'time_minutes': time,
@@ -158,8 +165,8 @@ class LoggingSimulator(sim.Simulator):
             'arrival_station_id': arrival_station_id if success else None,
             'travel_time': travel_time if success else None,
             'bike_id': bike_id if success else None,
-            'previous_bike_criticality': prev_criticality if success else None,
-            'post_trip_bike_criticality': post_criticality if success else None
+            #'previous_bike_criticality': prev_criticality if success else None,
+            #'post_trip_bike_criticality': post_criticality if success else None
         })
         
     def full_step(self):
@@ -192,15 +199,15 @@ class LoggingSimulator(sim.Simulator):
         clock_hour = int(hour % 24)
         
         # Get current cumulative values
-        current_starvations = self.state.metrics.get_aggregate_value("starvation")
-        current_bike_starvations = self.state.metrics.get_aggregate_value("bike_starvation")
-        current_long_congestions = self.state.metrics.get_aggregate_value("long_congestion")
-        current_short_congestions = self.state.metrics.get_aggregate_value("short_congestion")
-        current_maintenance_violations = self.state.metrics.get_aggregate_value("maintenance_violations")
-        current_maintenance_starvations = self.state.metrics.get_aggregate_value("maintenance_starvations")
+        current_starvations = self.state.metrics.get_aggregate_value("starvations")
+        current_bike_starvations = self.state.metrics.get_aggregate_value("bike starvations")
+        current_long_congestions = self.state.metrics.get_aggregate_value("long congestions")
+        current_short_congestions = self.state.metrics.get_aggregate_value("short congestions")
+        #current_maintenance_violations = self.state.metrics.get_aggregate_value("maintenance_violations")
+        #current_maintenance_starvations = self.state.metrics.get_aggregate_value("maintenance_starvations")
         current_bike_pickups = self.state.metrics.get_aggregate_value("bike_pickups")
         current_bike_deliveries = self.state.metrics.get_aggregate_value("bike_deliveries")
-        current_maintenance_time = self.state.metrics.get_aggregate_value("maintenance_time")
+        #current_maintenance_time = self.state.metrics.get_aggregate_value("maintenance_time")
         # DEBUGGING: Print what metrics exist
         '''print("\n[DEBUG] All metrics in state.metrics:")
         for key in self.state.metrics.metrics.keys():
@@ -220,11 +227,11 @@ class LoggingSimulator(sim.Simulator):
         hourly_bike_starvations = current_bike_starvations - getattr(self, 'last_hour_bike_starvations', 0)
         hourly_long_congestions = current_long_congestions - getattr(self, 'last_hour_long_congestions', 0)
         hourly_short_congestions = current_short_congestions - getattr(self, 'last_hour_short_congestions', 0)
-        hourly_maintenance_violations = current_maintenance_violations - getattr(self, 'last_hour_maintenance_violations', 0)
-        hourly_maintenance_starvations = current_maintenance_starvations - getattr(self, 'last_hour_maintenance_starvations', 0)
+        #hourly_maintenance_violations = current_maintenance_violations - getattr(self, 'last_hour_maintenance_violations', 0)
+        #hourly_maintenance_starvations = current_maintenance_starvations - getattr(self, 'last_hour_maintenance_starvations', 0)
         hourly_bike_pickups = current_bike_pickups - getattr(self, 'last_hour_bike_pickups', 0)
         hourly_bike_deliveries = current_bike_deliveries - getattr(self, 'last_hour_bike_deliveries', 0)
-        hourly_maintenance_time = current_maintenance_time - getattr(self, 'last_hour_maintenance_time', 0.0)
+        #hourly_maintenance_time = current_maintenance_time - getattr(self, 'last_hour_maintenance_time', 0.0)
         hourly_total_failures = current_total_failures - getattr(self, 'last_hour_total_failures', 0) # delta for total failures
         hourly_depot_failures = current_depot_failures - getattr(self, 'last_hour_depot_failures', 0)
         hourly_onsite_failures = current_onsite_failures - getattr(self, 'last_hour_onsite_failures', 0)
@@ -260,7 +267,7 @@ class LoggingSimulator(sim.Simulator):
             setattr(self, f'last_hour_failure_{category}_onsite', current_cat_onsite)
         
         # Calculate maintenance criticality statistics for all bikes in the system
-        all_bikes = self.state.get_all_bikes()
+        '''all_bikes = self.state.get_all_bikes()
         if all_bikes:
             bike_criticalities = [bike.maintenance_criticality for bike in all_bikes]
             avg_criticality = sum(bike_criticalities) / len(bike_criticalities)
@@ -272,7 +279,7 @@ class LoggingSimulator(sim.Simulator):
             bikes_low = sum(1 for c in bike_criticalities if c <= 0.30)
         else:
             avg_criticality = 0.0
-            bikes_critical = bikes_high = bikes_medium = bikes_low = 0
+            bikes_critical = bikes_high = bikes_medium = bikes_low = 0'''
         
         # Store hourly data
         hourly_data = {
@@ -284,16 +291,16 @@ class LoggingSimulator(sim.Simulator):
             'bike_starvations': hourly_bike_starvations,
             'long_congestions': hourly_long_congestions,
             'short_congestions': hourly_short_congestions,
-            'maintenance_violations': hourly_maintenance_violations,
-            'maintenance_starvations': hourly_maintenance_starvations,
+            #'maintenance_violations': hourly_maintenance_violations,
+            #'maintenance_starvations': hourly_maintenance_starvations,
             'bike_pickups': hourly_bike_pickups,
             'bike_deliveries': hourly_bike_deliveries,
-            'maintenance_time': hourly_maintenance_time,
-            'avg_bike_criticality': avg_criticality,
-            'bikes_critical': bikes_critical,
-            'bikes_high': bikes_high,
-            'bikes_medium': bikes_medium,
-            'bikes_low': bikes_low,
+            #'maintenance_time': hourly_maintenance_time,
+            #'avg_bike_criticality': avg_criticality,
+            #'bikes_critical': bikes_critical,
+            #'bikes_high': bikes_high,
+            #'bikes_medium': bikes_medium,
+            #'bikes_low': bikes_low,
             'total_failures': hourly_total_failures,
             'depot_failures': hourly_depot_failures,
             'onsite_failures': hourly_onsite_failures,
@@ -305,6 +312,21 @@ class LoggingSimulator(sim.Simulator):
             hourly_data[f'failures_{key_base}'] = component_failure_counts[category]
             hourly_data[f'failures_{key_base}_depot'] = component_depot_counts[category]
             hourly_data[f'failures_{key_base}_onsite'] = component_onsite_counts[category]
+
+
+        # --- Track Vehicle Cargo ---
+        for v in self.state.get_vehicles():
+            inv = v.get_bike_inventory()
+            func_cargo = sum(1 for b in inv if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])
+            depot_cargo = sum(1 for b in inv if getattr(b, 'damage_status', None) == 'depot')
+            self.hourly_vehicle_metrics.append({
+                'day': day,
+                'hour': clock_hour,
+                'time_minutes': current_time,
+                'vehicle_id': v.id,
+                'functional_cargo': func_cargo,
+                'depot_cargo': depot_cargo
+            })
         
         self.hourly_metrics.append(hourly_data)
         
@@ -313,11 +335,11 @@ class LoggingSimulator(sim.Simulator):
         self.last_hour_bike_starvations = current_bike_starvations
         self.last_hour_long_congestions = current_long_congestions
         self.last_hour_short_congestions = current_short_congestions
-        self.last_hour_maintenance_violations = current_maintenance_violations
-        self.last_hour_maintenance_starvations = current_maintenance_starvations
+        #self.last_hour_maintenance_violations = current_maintenance_violations
+        #self.last_hour_maintenance_starvations = current_maintenance_starvations
         self.last_hour_bike_pickups = current_bike_pickups
         self.last_hour_bike_deliveries = current_bike_deliveries
-        self.last_hour_maintenance_time = current_maintenance_time
+        #self.last_hour_maintenance_time = current_maintenance_time
         self.last_hour_total_failures = current_total_failures
         self.last_hour_depot_failures = current_depot_failures
         self.last_hour_onsite_failures = current_onsite_failures
@@ -332,16 +354,16 @@ class LoggingSimulator(sim.Simulator):
         print(f"{'Bike Starvations':<35} {hourly_bike_starvations:>12}")
         print(f"{'Long Congestions':<35} {hourly_long_congestions:>12}")
         print(f"{'Short Congestions':<35} {hourly_short_congestions:>12}")
-        print(f"{'Maintenance Violations':<35} {hourly_maintenance_violations:>12}")
-        print(f"{'Maintenance Starvations':<35} {hourly_maintenance_starvations:>12}")
+       # print(f"{'Maintenance Violations':<35} {hourly_maintenance_violations:>12}")
+        #print(f"{'Maintenance Starvations':<35} {hourly_maintenance_starvations:>12}")
         print(f"{'Bike Pickups':<35} {hourly_bike_pickups:>12}")
         print(f"{'Bike Deliveries':<35} {hourly_bike_deliveries:>12}")
-        print(f"{'Maintenance Time (min)':<35} {hourly_maintenance_time:>12.2f}")
-        print(f"{'Avg Bike Criticality':<35} {avg_criticality:>12.4f}")
-        print(f"{'Bikes Critical (>0.83)':<35} {bikes_critical:>12}")
-        print(f"{'Bikes High (0.60-0.83)':<35} {bikes_high:>12}")
-        print(f"{'Bikes Medium (0.30-0.60)':<35} {bikes_medium:>12}")
-        print(f"{'Bikes Low (<=0.30)':<35} {bikes_low:>12}")
+        #print(f"{'Maintenance Time (min)':<35} {hourly_maintenance_time:>12.2f}")
+        #print(f"{'Avg Bike Criticality':<35} {avg_criticality:>12.4f}")
+        #print(f"{'Bikes Critical (>0.83)':<35} {bikes_critical:>12}")
+        #print(f"{'Bikes High (0.60-0.83)':<35} {bikes_high:>12}")
+        #print(f"{'Bikes Medium (0.30-0.60)':<35} {bikes_medium:>12}")
+        #print(f"{'Bikes Low (<=0.30)':<35} {bikes_low:>12}")
         print(f"{'Total Component Failures':<35} {hourly_total_failures:>12}")
         print(f"{'  - Depot Fixes':<35} {hourly_depot_failures:>12}")
         print(f"{'  - On-site Fixes':<35} {hourly_onsite_failures:>12}")
@@ -408,7 +430,7 @@ class LoggingSimulator(sim.Simulator):
                 'num_bikes': station.number_of_bikes(),
                 'num_usable_bikes': len(station.get_available_bikes()),
                 'num_unusable_bikes': len(station.get_unusable_bikes()),
-                'avg_criticality': station.get_average_maintenance_criticality(),
+                #'avg_criticality': station.get_average_maintenance_criticality(),
                 'capacity': station.capacity,
             }
             self.hourly_station_metrics.append(station_data)
@@ -416,16 +438,20 @@ class LoggingSimulator(sim.Simulator):
     def log_daily_metrics(self, day):
         starvations = self.state.metrics.get_aggregate_value('starvations')
         congestions = self.state.metrics.get_aggregate_value('long congestions')
-       
+        pickups = self.state.metrics.get_aggregate_value('bike_pickups') or 0
+        deliveries = self.state.metrics.get_aggregate_value('bike_deliveries') or 0
+
         daily_starvations = starvations - self.last_starvations
         daily_congestions = congestions - self.last_congestions
+        daily_pickups = pickups - self.last_pickups
+        daily_deliveries = deliveries - self.last_deliveries
        
         # Get bikes that have criticality above 0.83
-        critical_bikes = [bike for bike in self.state.get_all_bikes() if bike.maintenance_criticality > 0.83]
-        print(f"DAY {day} END: Bikes with criticality > 0.83: {len(critical_bikes)}")
+        #critical_bikes = [bike for bike in self.state.get_all_bikes() if bike.maintenance_criticality > 0.83]
+        ##print(f"DAY {day} END: Bikes with criticality > 0.83: {len(critical_bikes)}")
        
         # Print details of critical bikes BEFORE resetting
-        if critical_bikes:
+        '''if critical_bikes:
             print(f"\n{'='*60}")
             print(f"CRITICAL BIKES BEFORE OVERNIGHT MAINTENANCE (Day {day} End)")
             print(f"{'='*60}")
@@ -458,17 +484,44 @@ class LoggingSimulator(sim.Simulator):
             print(f"CRITICAL BIKES AFTER OVERNIGHT MAINTENANCE (Day {day} End)")
             print(f"{'='*60}")
             print(f"All {len(critical_bikes)} bikes have been reset to 0.0 criticality")
-            print(f"{'='*60}\n")
+            print(f"{'='*60}\n")'''
  
         print(f"\n{'='*40}")
         print(f"DAY {day} SUMMARY (23:00)")
         print(f"{'='*40}")
         print(f"Accumulated Starvations: {starvations} (+{daily_starvations} today)")
         print(f"Accumulated Congestions: {congestions} (+{daily_congestions} today)")
+        print(f"Bike Pickups:            {pickups} (+{daily_pickups} today)")
+        print(f"Bike Deliveries:         {deliveries} (+{daily_deliveries} today)")
         print(f"{'='*40}\n")
-       
+
+        # --- Calculate Total City Health ---
+        total_func = total_onsite = total_depot = 0
+        for b in self.state.get_all_bikes(): # This helper checks stations, vehicles, and in-use
+            st = getattr(b, 'damage_status', None)
+            if st == 'depot': total_depot += 1
+            elif st == 'onsite': total_onsite += 1
+            else: total_func += 1
+            
+        # Add bikes sitting in depot repair queues (not caught by get_all_bikes sometimes)
+        for d in self.state.get_depots():
+            for _, bikes_list in d.in_repair:
+                total_depot += len(bikes_list)
+
+        self.daily_health_metrics.append({
+            'day': day,
+            'time_minutes': self.state.time,
+            'total_functional': total_func,
+            'total_onsite': total_onsite,
+            'total_depot': total_depot
+        })
+        
+        self.last_starvations = starvations
+
         self.last_starvations = starvations
         self.last_congestions = congestions
+        self.last_pickups = pickups
+        self.last_deliveries = deliveries
    
     def run(self):
         """Override run to log final hour metrics"""
@@ -513,9 +566,9 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
                 'Vehicle Arrivals',
                 'Bike Deliveries',
                 'Bike Pickups',
-                'Maintenance Time (minutes)',
-                'Maintenance Violations',
-                'Maintenance Starvations',
+                #'Maintenance Time (minutes)',
+                #'Maintenance Violations',
+                #'Maintenance Starvations',
             ])
        
         # Write data row
@@ -532,11 +585,11 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
             simulator.state.metrics.get_aggregate_value('bike departure'),
             simulator.state.metrics.get_aggregate_value('bike arrival'),
             simulator.state.metrics.get_aggregate_value('vehicle arrivals'),
-            simulator.state.metrics.get_aggregate_value('num bike deliveries'),
-            simulator.state.metrics.get_aggregate_value('num bike pickups'),
-            simulator.state.metrics.get_aggregate_value('maintenance time'),
-            simulator.state.metrics.get_aggregate_value('maintenance violations'),
-            simulator.state.metrics.get_aggregate_value('maintenance_starvation'),
+            simulator.state.metrics.get_aggregate_value('bike_deliveries'),
+            simulator.state.metrics.get_aggregate_value('bike_pickups'),
+           # simulator.state.metrics.get_aggregate_value('maintenance time'),
+            #simulator.state.metrics.get_aggregate_value('maintenance violations'),
+           # simulator.state.metrics.get_aggregate_value('maintenance_starvation'),
         ])
  
  
@@ -581,9 +634,9 @@ def write_simulation_summary(filename, simulator, duration, policy, seed, num_ve
         starvations = simulator.state.metrics.get_aggregate_value('starvations')
         bike_starvations = simulator.state.metrics.get_aggregate_value('bike starvations')
         congestions_long = simulator.state.metrics.get_aggregate_value('long congestions') # + simulator.state.metrics.get_aggregate_value('short congestions')
-        maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
-        maintenance_violations = simulator.state.metrics.get_aggregate_value('maintenance_violations')
-        maintenance_starvation = simulator.state.metrics.get_aggregate_value('maintenance_starvation')
+        #maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
+        #maintenance_violations = simulator.state.metrics.get_aggregate_value('maintenance_violations')
+        #maintenance_starvation = simulator.state.metrics.get_aggregate_value('maintenance_starvation')
         congestions_short = simulator.state.metrics.get_aggregate_value('short congestions')
         bike_departures = simulator.state.metrics.get_aggregate_value('bike departure')
         trips = simulator.state.metrics.get_aggregate_value('trips')
@@ -592,29 +645,29 @@ def write_simulation_summary(filename, simulator, duration, policy, seed, num_ve
         # Calculate objective
         w_S, w_C, w_D, r_M = policy.weights if policy.weights else (0.45, 0.45, 0.09, 0.01)
        
-        obj_val = (w_S * starvations) + (w_C * congestions_long) - (r_M * maintenance_time)
+        #obj_val = (w_S * starvations) + (w_C * congestions_long) - (r_M * maintenance_time)
        
-        f.write(f"Total Objective Value: {obj_val:.4f}\n")
+        #f.write(f"Total Objective Value: {obj_val:.4f}\n")
         f.write(f"Breakdown:\n")
         f.write(f"  Starvations: {starvations} (Contribution: {w_S * starvations:.4f})\n")
         f.write(f"  Congestions: {congestions_long} (Contribution: {w_C * congestions_long:.4f})\n")
         #f.write(f"  Deviations: {deviations} (Contribution: {w_D * deviations:.4f})\n")
-        f.write(f"  Maintenance Time: {maintenance_time:.2f} (Contribution: {-r_M * maintenance_time:.4f})\n")
+        #f.write(f"  Maintenance Time: {maintenance_time:.2f} (Contribution: {-r_M * maintenance_time:.4f})\n")
         f.write(f"  Short Congestions: {congestions_short} (Contribution: {0})\n")
-        f.write(f"  Maintenance Violation Events: {maintenance_violations}\n")
-        f.write(f"  Maintenance Starvations: {maintenance_starvation}\n")
+        #f.write(f"  Maintenance Violation Events: {maintenance_violations}\n")
+        #f.write(f"  Maintenance Starvations: {maintenance_starvation}\n")
        
         # Verification of trip accounting
         f.write(f"\n--- TRIP ACCOUNTING VERIFICATION ---\n")
         f.write(f"Attempted Bike Departures (trips metric): {trips}\n")
         f.write(f"Successful Bike Departures: {bike_departures}\n")
         f.write(f"Bike Starvations: {bike_starvations}\n")
-        f.write(f"Maintenance Starvations: {maintenance_starvation}\n")
-        f.write(f"\nVerification: {bike_departures} + {bike_starvations} + {maintenance_starvation} = {bike_departures + bike_starvations + maintenance_starvation}\n")
-        if trips == bike_departures + bike_starvations + maintenance_starvation:
-            f.write(f"[OK] VERIFIED: All attempted departures accounted for\n")
-        else:
-            f.write(f"[ERROR] MISMATCH: Expected {trips}, got {bike_departures + bike_starvations + maintenance_starvation}\n")
+        #f.write(f"Maintenance Starvations: {maintenance_starvation}\n")
+        #f.write(f"\nVerification: {bike_departures} + {bike_starvations} + {maintenance_starvation} = {bike_departures + bike_starvations + maintenance_starvation}\n")
+        #if trips == bike_departures + bike_starvations + maintenance_starvation:
+            #f.write(f"[OK] VERIFIED: All attempted departures accounted for\n")
+       # else:
+            #f.write(f"[ERROR] MISMATCH: Expected {trips}, got {bike_departures + bike_starvations + maintenance_starvation}\n")
        
         if hasattr(policy, 'optimality_gaps') and policy.optimality_gaps:
             avg_gap = sum(policy.optimality_gaps) / len(policy.optimality_gaps)
@@ -695,16 +748,16 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
             'Bike Starvations',
             'Long Congestions',
             'Short Congestions',
-            'Maintenance Violations',
-            'Maintenance Starvations',
+            #'Maintenance Violations',
+            #'Maintenance Starvations',
             'Bike Pickups',
             'Bike Deliveries',
-            'Maintenance Time (minutes)',
-            'Avg Bike Criticality',
-            'Bikes Critical (>0.83)',
-            'Bikes High (0.60-0.83)',
-            'Bikes Medium (0.30-0.60)',
-            'Bikes Low (<=0.30)',
+            #'Maintenance Time (minutes)',
+            #'Avg Bike Criticality',
+            #'Bikes Critical (>0.83)',
+            #'Bikes High (0.60-0.83)',
+            #'Bikes Medium (0.30-0.60)',
+            #'Bikes Low (<=0.30)',
             'Total Component Failures',
             'Depot Failures',
             'On-Site Failures'
@@ -728,16 +781,16 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
                 hour_data.get('bike_starvations', 0),
                 hour_data['long_congestions'],
                 hour_data['short_congestions'],
-                hour_data['maintenance_violations'],
-                hour_data['maintenance_starvations'],
+               # hour_data['maintenance_violations'],
+                #hour_data['maintenance_starvations'],
                 hour_data.get('bike_pickups', 0),
                 hour_data.get('bike_deliveries', 0),
-                round(hour_data.get('maintenance_time', 0.0), 2),
-                round(hour_data.get('avg_bike_criticality', 0.0), 4),
-                hour_data.get('bikes_critical', 0),
-                hour_data.get('bikes_high', 0),
-                hour_data.get('bikes_medium', 0),
-                hour_data.get('bikes_low', 0),
+               # round(hour_data.get('maintenance_time', 0.0), 2),
+               # round(hour_data.get('avg_bike_criticality', 0.0), 4),
+               # hour_data.get('bikes_critical', 0),
+               # hour_data.get('bikes_high', 0),
+               # hour_data.get('bikes_medium', 0),
+               # hour_data.get('bikes_low', 0),
                 hour_data.get('total_failures', 0),
                 hour_data.get('depot_failures', 0),
                 hour_data.get('onsite_failures', 0),
@@ -753,7 +806,7 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
             writer.writerow(row)
  
  
-def write_vehicle_visits_to_file(filename, simulator, seed):
+'''def write_vehicle_visits_to_file(filename, simulator, seed):
     """
     Write vehicle visit logs to a CSV file, showing where and when each vehicle visited stations.
    
@@ -837,7 +890,7 @@ def write_vehicle_visits_to_file(filename, simulator, seed):
                     hour,
                     minute,
                     round(time_since_prev, 2),
-                ])
+                ])'''
  
  
 def write_station_hourly_metrics_to_file(filename, simulator, seed):
@@ -866,7 +919,7 @@ def write_station_hourly_metrics_to_file(filename, simulator, seed):
             'Total Bikes',
             'Usable Bikes',
             'Unusable Bikes',
-            'Avg Maintenance Criticality',
+            #'Avg Maintenance Criticality',
             'Capacity',
         ])
        
@@ -881,7 +934,7 @@ def write_station_hourly_metrics_to_file(filename, simulator, seed):
                 station_data['num_bikes'],
                 station_data['num_usable_bikes'],
                 station_data['num_unusable_bikes'],
-                round(station_data['avg_criticality'], 4),
+               # round(station_data['avg_criticality'], 4),
                 station_data['capacity'],
             ])
  
@@ -920,7 +973,7 @@ def write_bike_movements_to_file(filename, simulator, seed, alpha=None):
                 'Departure Station',
                 'Arrival Station',
                 'Did Roam',
-                'Bike Criticality',
+               # 'Bike Criticality',
             ])
             print(f"DEBUG: Header written, writing {len(simulator.bike_movements)} rows...")
            
@@ -938,7 +991,7 @@ def write_bike_movements_to_file(filename, simulator, seed, alpha=None):
                     movement['departure_station'],
                     movement['arrival_station'],
                     movement['did_roam'],
-                    round(movement.get('bike_criticality', 0.0), 4),
+                   # round(movement.get('bike_criticality', 0.0), 4),
                 ])
                 count += 1
            
@@ -983,8 +1036,8 @@ def write_trip_requests_to_file(filename, simulator, seed, alpha=None):
             'Arrival Station ID',
             'Travel Time (minutes)',
             'Bike ID',
-            'Previous Bike Criticality',
-            'Post-Trip Bike Criticality',
+           # 'Previous Bike Criticality',
+            #'Post-Trip Bike Criticality',
         ])
        
         # Write trip request data rows
@@ -1003,8 +1056,8 @@ def write_trip_requests_to_file(filename, simulator, seed, alpha=None):
                 request.get('arrival_station_id', ''),
                 round(request['travel_time'], 2) if request.get('travel_time') is not None else '',
                 request.get('bike_id', ''),
-                round(request['previous_bike_criticality'], 4) if request.get('previous_bike_criticality') is not None else '',
-                round(request['post_trip_bike_criticality'], 4) if request.get('post_trip_bike_criticality') is not None else '',
+              #  round(request['previous_bike_criticality'], 4) if request.get('previous_bike_criticality') is not None else '',
+               # round(request['post_trip_bike_criticality'], 4) if request.get('post_trip_bike_criticality') is not None else '',
             ])
 
 
@@ -1070,3 +1123,41 @@ def write_component_failures_to_file(filename, simulator, seed, alpha=None):
                 failure.get('departure_station', ''),
                 failure.get('arrival_station', ''),
             ])
+
+def write_vehicle_and_health_logs(filename_prefix, simulator, seed):
+    """Writes the new Vehicle Cargo and Daily Health CSVs."""
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    
+    # 1. Vehicle Cargo
+    if simulator.hourly_vehicle_metrics:
+        df_veh = pd.DataFrame(simulator.hourly_vehicle_metrics)
+        df_veh.insert(0, 'Seed', seed)
+        df_veh.to_csv(RESULTS_DIR / f"{filename_prefix}_vehicle_cargo_seed_{seed}.csv", index=False)
+        
+    # 2. Daily Health
+    if simulator.daily_health_metrics:
+        df_health = pd.DataFrame(simulator.daily_health_metrics)
+        df_health.insert(0, 'Seed', seed)
+        df_health.to_csv(RESULTS_DIR / f"{filename_prefix}_daily_health_seed_{seed}.csv", index=False)
+
+def write_rl_decisions_to_file(filename_prefix, simulator, seed):
+    """Extracts the RL logs from the policy and writes them to CSV."""
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    
+    # Find the VFA policy inside the vehicles
+    vfa_policy = None
+    for v in simulator.state.get_vehicles():
+        # Handle EpisodeTrainingPolicy wrapper
+        if hasattr(v.policy, 'vfa_policy'):
+            vfa_policy = v.policy.vfa_policy
+            break
+        elif hasattr(v.policy, 'rl_logs'):
+            vfa_policy = v.policy
+            break
+            
+    if vfa_policy and hasattr(vfa_policy, 'rl_logs') and vfa_policy.rl_logs:
+        df_rl = pd.DataFrame(vfa_policy.rl_logs)
+        df_rl.insert(0, 'Seed', seed)
+        df_rl.to_csv(RESULTS_DIR / f"{filename_prefix}_rl_decisions_seed_{seed}.csv", index=False)
+        # Clear the log to save memory for the next run
+        vfa_policy.rl_logs = []

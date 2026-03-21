@@ -234,7 +234,7 @@ class BikeArrival(Event):
             
             # REMOVE BIKE FROM SERVICE
             self.bike.is_available = False
-            print(f" !!!!!!!!!!!!!!!!!!! Bike {self.bike.bike_id} flagged and set as {self.bike.is_available} due to {category} failure")
+            #print(f" !!!!!!!!!!!!!!!!!!! Bike {self.bike.bike_id} flagged and set as {self.bike.is_available} due to {category} failure")
             self.bike.needs_maintenance = True
             self.bike.damage_status = "depot"
             self.bike.last_failure_category = category
