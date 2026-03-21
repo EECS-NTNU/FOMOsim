@@ -2,6 +2,7 @@ import copy
 
 from sim.Station import Station
 from settings import *
+from sim.bike_degradation_modeling.bike_component_maintenance_model import ComponentMaintenanceManager
 
 
 class Depot(Station):
@@ -38,12 +39,20 @@ class Depot(Station):
         self.battery_inventory = depot_capacity
         self.time = 0
         self.charging = []
+        
+        # ── Repair queue management ────────────────────────────────────────
+        # fixed_queue: bikes finished repair, ready to be picked up by vehicles
+        #              keyed by bike_id, same layout as self.bikes
+        self.fixed_queue = {}
+        # in_repair: list of (ready_timestamp, bikes_list) tuples
+        # Bikes enter in_repair immediately, exit to fixed_queue when ready_timestamp <= current_time
+        self.in_repair = []
 
     def sloppycopy(self, *args):
         return Depot(
             self.id,
-            self.depot_capacity,
             self.is_station_based,
+            self.depot_capacity,
             list(copy.deepcopy(self.bikes).values()),
             leave_intensities=self.leave_intensities,
             arrive_intensities=self.arrive_intensities,
@@ -112,6 +121,81 @@ class Depot(Station):
                 if not time_filter(time, charging_start_time)
             ]
         return delta_capacity
+    
+    # ── Repair queue management ────────────────────────────────────────────
+    
+    def receive_bikes_for_repair(self, bikes: list, current_time: float, repair_duration_minutes: float = 1440.0) -> None:
+        """
+        Receive broken bikes at the depot for off-site repair.
+        
+        Args:
+            bikes                    : list of bike objects being dropped off for repair
+            current_time             : current simulation time (minutes)
+            repair_duration_minutes  : how long repair takes (default 24h = 1440 min)
+        """
+        if not bikes:
+            return
+        
+        ready_time = current_time + repair_duration_minutes
+        self.in_repair.append((ready_time, bikes))
+
+        for b in bikes:
+            print(f"[DEPOT REPAIR QUEUED] t={current_time:.1f} | Bike {b.bike_id} will be ready for pickup at t={ready_time:.1f}")
+    
+    
+    def tick_repair_queue(self, current_time: float) -> int:
+        bikes_completed = 0
+        remaining_in_repair = []
+        
+        for ready_time, bikes_list in self.in_repair:
+            if current_time >= ready_time:
+
+                # These bikes are done repairing. 
+                for bike in bikes_list:
+                    category_to_fix = getattr(bike, 'pending_failure_category', None) or getattr(bike, 'last_failure_category', None)
+                    
+                    if category_to_fix:
+                        ComponentMaintenanceManager.repair_component(
+                            bike, 
+                            category_to_fix, 
+                            repair_type="depot", 
+                            verbose=True
+                        )
+                    
+                    # Clear all flags so it is fully functional
+                    ComponentMaintenanceManager.clear_damage_status(bike)
+                    
+                    # Move to fixed_queue, ready for vehicle pickup
+                    self.fixed_queue[bike.bike_id] = bike
+
+                    print(f"[DEPOT REPAIR DONE] t={current_time:.1f} | Bike {bike.bike_id} finished 24h repair for '{category_to_fix}'. Moved to fixed_queue. (Status: {bike.damage_status})")
+
+                bikes_completed += len(bikes_list)
+            else:
+                remaining_in_repair.append((ready_time, bikes_list))
+        
+        self.in_repair = remaining_in_repair
+        return bikes_completed
+    
+    def remove_bikes_from_queue(self, num_bikes: int) -> list:
+        """
+        Vehicle picks up repaired bikes from fixed_queue.
+        
+        Returns:
+            bikes_loaded : list of bike objects loaded onto the vehicle
+        """
+        bikes_loaded = []
+        keys = list(self.fixed_queue.keys())[:num_bikes]
+        for key in keys:
+            bikes_loaded.append(self.fixed_queue.pop(key))
+        return bikes_loaded
+    
+    def get_repair_queue_status(self) -> tuple:
+        """
+        Returns (num_in_repair, num_in_fixed_queue).
+        """
+        total_in_repair = sum(len(bikes) for _, bikes in self.in_repair)
+        return total_in_repair, len(self.fixed_queue)
 
     def __str__(self):
         return f"Depot   {self.id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8)} Bikes {len(self.bikes):3d} Cap {self.depot_capacity} Inv {self.battery_inventory}"

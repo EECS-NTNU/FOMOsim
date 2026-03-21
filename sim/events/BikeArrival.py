@@ -2,9 +2,9 @@ import sim
 from sim import Event
 from settings import *
 from settings import MAINTENANCE_LIMIT_TO_CHECK
-from sim.bike_degradation_modeling.maintenance_model import update_bike_maintenance
+#from sim.bike_degradation_modeling.maintenance_model import update_bike_maintenance
 from sim.bike_degradation_modeling.bike_component_maintenance_model import ComponentMaintenanceManager
-from sim.bike_degradation_modeling.repair_policy import BaselineRepairPolicy
+#from sim.bike_degradation_modeling.repair_policy import BaselineRepairPolicy
 from settings import ENABLE_COMPONENT_FAILURES, VERBOSE_FAILURE_TRACKING, SAMPLE_BIKES_TO_TRACK
 
 
@@ -53,8 +53,8 @@ class BikeArrival(Event):
             self.bike.travel(simul, self.travel_time, distance_km=self.distance_km, congested=self.congested)
 
             # === PROCESS PENDING COMPONENT FAILURES ===
-            #self._process_pending_failures(simul)
-            self._process_component_failures(simul)
+            self._process_pending_failures(simul)
+            #self._process_component_failures(simul)
             
             # === DETERMINE TRIP OUTCOME FOR HMM ===
             #trip_result = 'completed'  # Default
@@ -76,24 +76,6 @@ class BikeArrival(Event):
             elif self.congested:
                 trip_result = 'completed_congested'
             
-            # === GENERATE HMM OBSERVATION ===
-            '''if hasattr(simul, 'observation_generator') and self.distance_km > 0:
-                observation = simul.observation_generator.generate_trip_observation(
-                    bike=self.bike,
-                    trip_distance_km=self.distance_km,
-                    travel_time=self.travel_time,
-                    simul_time=self.time,
-                    trip_result=trip_result
-                )
-                
-                # Log for tracked bikes
-                if self.bike.bike_id in SAMPLE_BIKES_TO_TRACK:
-                    print(f"\n[HMM OBSERVATION GENERATED] Bike {self.bike.bike_id}")
-                    print(f"  Trip result: {trip_result}")
-                    print(f"  Distance: {self.distance_km:.2f} km")
-                    print(f"  Critical failures: {observation.get('critical_failures', 0)}")
-                    print(f"  Moderate failures: {observation.get('moderate_failures', 0)}")
-                    print(f"  Speed deviation: {observation.get('speed_deviation', 0):.2%}")'''
 
             # === PROCESS ARRIVAL ===
             # add bike to the arrived station (location is changed in add_bike method)
@@ -108,7 +90,7 @@ class BikeArrival(Event):
                         first_vehicle = next(iter(simul.state.vehicles.values()))
                         maintenance_enabled = first_vehicle.policy.maintenance_enabled
                     
-                    if maintenance_enabled:
+                    '''if maintenance_enabled:
                         try:
                             new_crit = update_bike_maintenance(
                                 self.bike,
@@ -121,7 +103,7 @@ class BikeArrival(Event):
                         except Exception as e:
                             print(f"ERROR updating bike maintenance for {self.bike.bike_id}: {e}")
                             import traceback
-                            traceback.print_exc()
+                            traceback.print_exc()'''
 
                 # Track maintenance violations
                 if self.bike.usable() == False:
@@ -190,12 +172,10 @@ class BikeArrival(Event):
                 simul.state.metrics.add_aggregate_metric(simul.state, "roaming for locks", 1)
                 simul.state.metrics.add_aggregate_metric(simul.state, "roaming distance for locks", distance)
 
-    def _process_component_failures(self, simul):
+    '''def _process_component_failures(self, simul):
         """
         Process pending component failures using the configured repair policy.
-        
-        All policies call the SAME ComponentMaintenanceManager functions.
-        They just differ in WHEN and under WHAT CONDITIONS they call them.
+        For bikes that have pending failures, we will flag them for repair and potentially remove them from service.
         """
         verbose = VERBOSE_FAILURE_TRACKING or (self.bike.bike_id in SAMPLE_BIKES_TO_TRACK)
         
@@ -218,26 +198,25 @@ class BikeArrival(Event):
             arrival_station_id=self.arrival_station_id,
             arrival_time=self.time,
             verbose=verbose
-        )
+        )'''
 
-    def _get_repair_policy(self, simul):
+    '''def _get_repair_policy(self, simul):
         """
         Get the repair policy to use.
-        Easy to switch between policies here.
+        Uses VFA agent if available, otherwise falls back to BaselineRepairPolicy.
         """
-        # Option 1: Baseline (current)
-        return BaselineRepairPolicy()
-
-        # Option 2: vFA (future)
-        # if hasattr(simul, 'vfa_agent'):
-        #     return VFARepairPolicy(simul.vfa_agent)
-        # else:
-        #     return BaselineRepairPolicy()
+        if hasattr(simul, 'vfa_agent') and simul.vfa_agent is not None:
+            print("Using VFA agent for component failure processing.")
+            return simul.vfa_agent
+        else:
+            print("No VFA agent found in simulation, using BaselineRepairPolicy for component failure processing.")
+            return BaselineRepairPolicy()'''
 
     def _process_pending_failures(self, simul):
         """
-        NEW METHOD: Process component failures that were predicted during the trip.
-        Upon arrival, transition bike state based on failure severity.
+        Process component failures that were predicted during the trip (BikeDeparture logic) and update bike state accordingly.
+        This is separate from the actual repair decision logic
+        
         """
         
         # Check for pending depot fix
@@ -255,14 +234,14 @@ class BikeArrival(Event):
             
             # REMOVE BIKE FROM SERVICE
             self.bike.is_available = False
-            print(f" !!!!!!!!!!!!!!!!!!! Bike {self.bike.bike_id} flagged and set as {self.bike.is_available} due to {category} failure")
+            #print(f" !!!!!!!!!!!!!!!!!!! Bike {self.bike.bike_id} flagged and set as {self.bike.is_available} due to {category} failure")
             self.bike.needs_maintenance = True
             self.bike.damage_status = "depot"
             self.bike.last_failure_category = category
             
             # Clear pending flags
             self.bike.pending_depot_fix = False
-            self.bike.pending_failure_category = None
+            #self.bike.pending_failure_category = None
         
         # Check for pending on-site fix
         elif hasattr(self.bike, 'pending_onsite_fix') and self.bike.pending_onsite_fix:
@@ -274,18 +253,18 @@ class BikeArrival(Event):
             print(f"  Component failed during trip: {category}")
             print(f"  Total bike odometer: {self.bike.total_distance_km:.1f} km")
             print(f"  Component odometer: {self.bike.component_odometers[category]:.1f} km")
-            print(f"  ACTION: Bike FLAGGED for inspection (still rentable)")
+            print(f"  ACTION: Bike FLAGGED for on-site repair (REMOVED FROM SERVICE)")
             print(f"{'='*80}\n")
             
-            # FLAG FOR INSPECTION (bike stays available)
-            self.bike.is_available = True  # Still rentable
+            # REMOVE BIKE FROM SERVICE UNTIL REPAIRED
+            self.bike.is_available = False
             self.bike.needs_inspection = True
             self.bike.damage_status = "onsite"
             self.bike.last_failure_category = category
             
             # Clear pending flags
             self.bike.pending_onsite_fix = False
-            self.bike.pending_failure_category = None
+            #self.bike.pending_failure_category = None
 
     def __repr__(self):
         return f"<{self.__class__.__name__} at time {self.time}, arriving at station {self.arrival_station_id}>"

@@ -33,6 +33,9 @@ class Vehicle:
         self.parking_time = MINUTES_CONSTANT_PER_ACTION
         self.cluster = None
         self.NUMBER = 77
+        
+        # ── Shift timing for end-of-day planning ───────────────────────────
+        self.shift_end_time = None  # End time of this vehicle's shift (minutes)
 
 
     def change_battery(self, bike):

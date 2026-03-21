@@ -80,8 +80,8 @@ class Simulator(LoadSave):
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )
 
-        # for vehicle in self.state.get_vehicles():
-        #     vehicle.policy.init_sim(self)
+        for vehicle in self.state.get_vehicles():
+            vehicle.policy.init_sim(self)
 
     def __repr__(self):
         string = f"<Sim with {self.state.time} of {self.end_time} elapsed. {len(self.event_queue)} events in event_queue>"
@@ -101,6 +101,9 @@ class Simulator(LoadSave):
 
         #self.metrics.add_analysis_metrics(self)
         self.state.metrics.add_analysis_metrics(self.state)
+        
+        # ── Tick repair queues at depot ────────────────────────────────────
+        self._tick_depot_repair_queues()
 
         monotonic = time.monotonic()
         if self.cluster:
@@ -134,12 +137,32 @@ class Simulator(LoadSave):
         The sim object uses a queue initialized with vehicle arrival events and a GenerateBikeTrips event.
         It then pops events from this queue. The queue is always sorted in by the time of the events.
         """
+        # Print all stations and depots for verification
+        print("\n=== Stations and Depots ===")
+        for station in self.state.get_stations():
+            is_depot = isinstance(station, sim.Depot)
+            marker = "[DEPOT]" if is_depot else "[STATION]"
+            print(f"{marker} {station.id:4s} | capacity={station.capacity:3d} | bikes_available={station.number_of_bikes():3d}")
+        for depot in self.state.get_depots():
+            print(f"[DEPOT] {depot.id:4s} | capacity={depot.capacity:3d} | bikes_available={depot.number_of_bikes():3d}")
+        print()
+        
         while self.state.time < self.end_time:
             self.full_step()
             if self.verbose:
                 self.progress_bar.next()
         if self.verbose:
             self.progress_bar.finish()
+
+    def _tick_depot_repair_queues(self) -> None:
+        """
+        Process repair queues at all depots.
+        
+        Called after each event to move bikes from in_repair → fixed_queue
+        as their 24-hour repair period completes.
+        """
+        for depot in self.state.get_depots():
+            depot.tick_repair_queue(self.state.time)
 
     def add_event(self, event: sim.Event) -> None:
         """

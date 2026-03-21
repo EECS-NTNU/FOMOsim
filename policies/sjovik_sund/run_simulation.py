@@ -190,8 +190,14 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
         
         print("Component failure tracking initialized.\n")"""
 
-    vehicles = [policy for i in range(num_vehicles)]
-    state.set_sb_vehicles(vehicles)  # this creates one vehicle for each policy in the list
+    # Ensure the simulator state clears any existing vehicles first
+    if hasattr(state, 'vehicles'):
+        state.vehicles = {} 
+
+    # Create the list of policies for the vehicles
+    # If the simulator creates a NEW Vehicle object for each entry in this list:
+    vehicle_policies = [policy for _ in range(num_vehicles)]
+    state.set_sb_vehicles(vehicle_policies)
  
     # Use config for target state
     tstate = config.get_target_state_instance()

@@ -25,6 +25,7 @@ Notation
   q_v^depot  depot-damaged bikes on the vehicle (post-decision)
   K          vehicle capacity
   dist(v,d)  travel time from vehicle location to nearest depot (minutes)
+  t_rem      time remaining in shift (minutes)
 
 Features (Category A - Rebalancing)
 ────────
@@ -38,6 +39,11 @@ Features (Category B - Maintenance, appended if enabled)
   φ_5  onsite_backlog             Σ_i I_i^onsite / N
   φ_6  demand_weighted_depot      Σ_i (I_i^depot × λ_i) / N
   φ_7  depot_pull                 φ_4 × dist(v, depot) / 30
+
+Features (Category C - End-of-Day Anticipatory, appended if shift timing enabled)
+────────
+  φ_8  time_remaining_fraction    t_rem / shift_length  ∈ [0, 1]
+  φ_9  functional_bikes_time_penalty  q_v^func × (1 - t_rem/shift_length)
 ──────────────────────────────────────────────────────────────────────────────
 """
 
@@ -48,9 +54,9 @@ from typing import List
 
 
 # ── Feature registry ───────────────────────────────────────────────────────────────
-def get_feature_names(maintenance_enabled: bool = True) -> List[str]:
+def get_feature_names(maintenance_enabled: bool = True, shift_timing_enabled: bool = False) -> List[str]:
     """
-    Returns the appropriate feature names based on whether maintenance is enabled.
+    Returns the appropriate feature names based on enabled feature categories.
     Category A (Rebalancing):
       - rebalancing_imbalance
       - vehicle_functional_load
@@ -60,6 +66,9 @@ def get_feature_names(maintenance_enabled: bool = True) -> List[str]:
       - onsite_backlog
       - demand_weighted_depot
       - depot_pull
+    Category C (End-of-Day Timing):
+      - time_remaining_fraction
+      - functional_bikes_time_penalty
     """
     features = [
         "rebalancing_imbalance",
@@ -73,20 +82,28 @@ def get_feature_names(maintenance_enabled: bool = True) -> List[str]:
             "demand_weighted_depot",
             "depot_pull",
         ])
+    if shift_timing_enabled:
+        features.extend([
+            "time_remaining_fraction",
+            "functional_bikes_time_penalty",
+        ])
     return features
 
 
 def extract(
-    func:             np.ndarray,   # (N,) functional bikes post-decision
-    onsite:           np.ndarray,   # (N,) onsite-repairable bikes
-    depot:            np.ndarray,   # (N,) depot-level damaged bikes
-    target:           np.ndarray,   # (N,) time-indexed target Î_i^func
-    activity:         np.ndarray,   # (N,) time-averaged arrival rate λ_i
-    func_cargo_veh:   float,        # q_v^func (post-decision)
-    depot_cargo_veh:  float,        # q_v^depot  (post-decision)
-    vehicle_capacity: int,          # K
-    dist_to_depot:    float,        # dist(v, depot) in simulation minutes
-    maintenance_enabled: bool = True,
+    func:                  np.ndarray,   # (N,) functional bikes post-decision
+    onsite:                np.ndarray,   # (N,) onsite-repairable bikes
+    depot:                 np.ndarray,   # (N,) depot-level damaged bikes
+    target:                np.ndarray,   # (N,) time-indexed target Î_i^func
+    activity:              np.ndarray,   # (N,) time-averaged arrival rate λ_i
+    func_cargo_veh:        float,        # q_v^func (post-decision)
+    depot_cargo_veh:       float,        # q_v^depot  (post-decision)
+    vehicle_capacity:      int,          # K
+    dist_to_depot:         float,        # dist(v, depot) in simulation minutes
+    maintenance_enabled:   bool = True,
+    shift_timing_enabled:  bool = False,
+    time_remaining:        float = None, # t_rem – remaining shift time (minutes)
+    shift_length:          float = 1440.0,  # reference shift length (minutes); default 24h
 ) -> np.ndarray:
     """
     Compute φ(S^x) from pre-resolved inventory arrays.
@@ -95,16 +112,19 @@ def extract(
     All inputs are prepared by LinearVFAPolicy before calling this function.
 
     Args:
-        func                : (N,) functional bike counts (post-decision)
-        onsite              : (N,) onsite-repairable bike counts
-        depot               : (N,) depot-level damaged bike counts
-        target              : (N,) time-indexed target inventory Î_i^func
-        activity            : (N,) time-averaged arrival rate λ_i per station
-        func_cargo_veh      : vehicle functional-bike cargo after action (q_v^func)
-        depot_cargo_veh     : vehicle depot-bike cargo after action (q_v^depot)
-        vehicle_capacity    : vehicle capacity K (> 0)
-        dist_to_depot       : travel time from vehicle to nearest depot (minutes)
-        maintenance_enabled : whether to include maintenance features
+        func                 : (N,) functional bike counts (post-decision)
+        onsite               : (N,) onsite-repairable bike counts
+        depot                : (N,) depot-level damaged bike counts
+        target               : (N,) time-indexed target inventory Î_i^func
+        activity             : (N,) time-averaged arrival rate λ_i per station
+        func_cargo_veh       : vehicle functional-bike cargo after action (q_v^func)
+        depot_cargo_veh      : vehicle depot-bike cargo after action (q_v^depot)
+        vehicle_capacity     : vehicle capacity K (> 0)
+        dist_to_depot        : travel time from vehicle to nearest depot (minutes)
+        maintenance_enabled  : whether to include maintenance features
+        shift_timing_enabled : whether to include end-of-day timing features
+        time_remaining       : time remaining in shift (minutes); if None, defaults to shift_length
+        shift_length         : reference shift length for normalization (minutes)
 
     Returns:
         φ  np.ndarray of shape (N_FEATURES,)  dtype float64
@@ -122,30 +142,51 @@ def extract(
     # ── demand_weighted_imbalance: Σ_i (|I_i^func - Î_i^func| × λ_i) / N
     phi_dwi = float(np.dot(np.abs(func - target), activity)) / N
 
+    features = [phi_1, phi_func_load, phi_dwi]
+
     if not maintenance_enabled:
-        return np.array([phi_1, phi_func_load, phi_dwi], dtype=np.float64)
+        if not shift_timing_enabled:
+            return np.array(features, dtype=np.float64)
+        # else fall through to add shift timing features
+    else:
+        # ── Category B (Maintenance) ──────────────────────────────────────────
+        # ── trailer_cannibalization: q_v^depot / K
+        phi_2 = depot_cargo_veh / K
 
-    # ── Category B (Maintenance) ──────────────────────────────────────────
-    # ── trailer_cannibalization: q_v^depot / K
-    phi_2 = depot_cargo_veh / K
+        # ──  Global onsite backlog:   Σ_i I_i^onsite / N
+        phi_3 = float(np.sum(onsite)) / N
 
-    # ──  Global onsite backlog:   Σ_i I_i^onsite / N
-    phi_3 = float(np.sum(onsite)) / N
+        # ──  Demand-weighted depot backlog: Σ_i (I_i^depot × λ_i) / N
+        phi_4 = float(np.dot(depot, activity)) / N
 
-    # ──  Demand-weighted depot backlog: Σ_i (I_i^depot × λ_i) / N
-    phi_4 = float(np.dot(depot, activity)) / N
+        # ──  Depot pull: φ_2 × dist(v, depot) / 30
+        # Divide by 30 min ≈ typical cross-city travel time to keep O(1).
+        phi_5 = phi_2 * dist_to_depot / 30.0
 
-    # ──  Depot pull: φ_2 × dist(v, depot) / 30
-    # Divide by 30 min ≈ typical cross-city travel time to keep O(1).
-    phi_5 = phi_2 * dist_to_depot / 30.0
+        features.extend([phi_2, phi_3, phi_4, phi_5])
 
-    return np.array([
-        phi_1, phi_func_load, phi_dwi,
-        phi_2, phi_3, phi_4, phi_5
-    ], dtype=np.float64)
+    if shift_timing_enabled:
+        # ── Category C (End-of-Day Timing) ────────────────────────────────
+        if time_remaining is None:
+            time_remaining = shift_length
+
+        # ── time_remaining_fraction: t_rem / shift_length  ∈ [0, 1]
+        shift_length = max(shift_length, 1.0)
+        time_frac = float(time_remaining) / shift_length
+        phi_time_frac = np.clip(time_frac, 0.0, 1.0)
+
+        # ── functional_bikes_time_penalty: q_v^func × (1 − t_rem / shift_length)
+        # When shift is ending (t_rem small), this grows large, creating a penalty
+        # for holding functional bikes when there's no time left.
+        urgency = 1.0 - phi_time_frac  # 0 = plenty of time, 1 = shift ending
+        phi_bikes_penalty = float(func_cargo_veh) * urgency
+
+        features.extend([phi_time_frac, phi_bikes_penalty])
+
+    return np.array(features, dtype=np.float64)
 
 
-def as_dict(phi: np.ndarray, maintenance_enabled: bool = True) -> dict:
+def as_dict(phi: np.ndarray, maintenance_enabled: bool = True, shift_timing_enabled: bool = False) -> dict:
     """
     Return a labelled dict of a computed feature vector — useful for
     debugging and logging individual feature values.
@@ -153,11 +194,12 @@ def as_dict(phi: np.ndarray, maintenance_enabled: bool = True) -> dict:
     Example::
 
         phi = extract(...)
-        print(as_dict(phi))
-        # {'rebalancing_imbalance': 12.0, ...}
+        print(as_dict(phi, maintenance_enabled=True, shift_timing_enabled=True))
+        # {'rebalancing_imbalance': 12.0, ..., 'time_remaining_fraction': 0.75, ...}
     """
-    features = get_feature_names(maintenance_enabled)
+    features = get_feature_names(maintenance_enabled, shift_timing_enabled)
     assert len(phi) == len(features), (
-        f"phi has {len(phi)} elements but {len(features)} names are registered."
+        f"phi has {len(phi)} elements but {len(features)} names are registered. "
+        f"Check maintenance_enabled={maintenance_enabled}, shift_timing_enabled={shift_timing_enabled}."
     )
     return dict(zip(features, phi.tolist()))

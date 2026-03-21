@@ -57,7 +57,10 @@ class GreedyPolicy(Policy):
         #########################################
         
         
-        num_bikes_vehicle = len(vehicle.get_bike_inventory())
+        # Categorize bikes on vehicle
+        functional_vehicle_bikes = [b for b in vehicle.get_bike_inventory() if getattr(b, "damage_status", None) not in ("onsite", "depot")]
+        depot_vehicle_bikes = [b for b in vehicle.get_bike_inventory() if getattr(b, "damage_status", None) == "depot"]
+        num_bikes_vehicle = len(functional_vehicle_bikes)  # Only count useable bikes for delivering
         
         number_of_bikes_to_pick_up = 0
         number_of_bikes_to_deliver = 0
@@ -65,43 +68,51 @@ class GreedyPolicy(Policy):
 
         if not vehicle.is_at_depot():
             target_state = round(vehicle.location.get_target_state(state.day(), state.hour()))
-            num_bikes_station = len(vehicle.location.bikes)
-            if num_bikes_station < target_state: #deliver bikes
-                
-                #deliver bikes, max to the target state
-                number_of_bikes_to_deliver = min(num_bikes_vehicle,target_state-num_bikes_station)
-                #bikes_to_deliver = [bike.id for bike in vehicle.get_bike_inventory()[:number_of_bikes_to_deliver]]
-                bikes_to_deliver = [bike.bike_id for bike in vehicle.get_bike_inventory()[:number_of_bikes_to_deliver]]
-                bikes_to_pickup = []
-                number_of_bikes_to_pick_up = 0
+            
+            # Categorize bikes at station
+            functional_station_bikes = [b for b in vehicle.location.bikes.values() if getattr(b, "damage_status", None) not in ("onsite", "depot")]
+            depot_station_bikes = [b for b in vehicle.location.bikes.values() if getattr(b, "damage_status", None) == "depot"]
+            num_bikes_station = len(functional_station_bikes)
+            
+            # 1. ALWAYS pick up broken bikes first if we have room
+            remaining_vehicle_capacity = vehicle.bike_inventory_capacity - len(vehicle.get_bike_inventory())
+            broken_pickups = min(len(depot_station_bikes), remaining_vehicle_capacity)
+            bikes_to_pickup = [bike.bike_id for bike in depot_station_bikes][:broken_pickups]
+            number_of_bikes_to_pick_up += broken_pickups
+            remaining_vehicle_capacity -= broken_pickups
+            
+            # 2. Regular rebalancing based on functional count
+            if num_bikes_station < target_state: # deliver bikes
+                number_of_bikes_to_deliver = min(num_bikes_vehicle, target_state - num_bikes_station)
+                bikes_to_deliver = [bike.bike_id for bike in functional_vehicle_bikes[:number_of_bikes_to_deliver]]
                 
                 # Swap as many bikes (or batteries!) as possible as this station most likely needs it
-                # TO DO: MAKE SURE THIS MAKES SENSE!!!!
                 swappable_bikes = vehicle.location.get_swappable_bikes()
                 number_of_batteries_to_swap = min(vehicle.battery_inventory, len(swappable_bikes))
-                #batteries_to_swap = [bike.id for bike in swappable_bikes][:number_of_batteries_to_swap]
                 batteries_to_swap = [bike.bike_id for bike in swappable_bikes][:number_of_batteries_to_swap]
                 
-            elif num_bikes_station > target_state: #pick-up bikes
-            
+            elif num_bikes_station > target_state: # pick-up functional bikes
                 number_of_bikes_to_deliver = 0
                 bikes_to_deliver = []
-                remaining_vehicle_capacity = vehicle.bike_inventory_capacity - len(vehicle.bike_inventory)
-                number_of_bikes_to_pick_up = min(num_bikes_station-target_state,remaining_vehicle_capacity)
-                #print(vehicle.location.bikes.values())
-                #bikes_to_pickup = [bike.id for bike in vehicle.location.bikes.values()][:number_of_bikes_to_pick_up]
-                bikes_to_pickup = [bike.bike_id for bike in vehicle.location.bikes.values()][:number_of_bikes_to_pick_up]
+                
+                functional_pickups = min(num_bikes_station - target_state, remaining_vehicle_capacity)
+                bikes_to_pickup.extend([bike.bike_id for bike in functional_station_bikes[:functional_pickups]])
+                number_of_bikes_to_pick_up += functional_pickups
 
-                # UPDATE/ TODO Do not swap any bikes/batteries in a station with a lot of bikes
                 batteries_to_swap = []
                 number_of_batteries_to_swap = 0
             
-            else: #num bikes is exactly at target state
+            else: # num bikes is exactly at target state
                 bikes_to_deliver = []
-                bikes_to_pickup = []
-                number_of_bikes_to_pick_up = 0
                 number_of_batteries_to_swap = 0
                 batteries_to_swap = []
+
+        else:
+            # NEW: AT THE DEPOT - Unload all broken bikes!
+            bikes_to_deliver = [bike.bike_id for bike in depot_vehicle_bikes]
+            bikes_to_pickup = []       
+            batteries_to_swap = []
+            number_of_batteries_to_swap = 0
 
         ##########################################
         #               WHERE TO GO              #

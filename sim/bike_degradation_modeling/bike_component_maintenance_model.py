@@ -61,6 +61,8 @@ class ComponentMaintenanceManager:
                 print(f"   Odometer reset: {old_value:.2f} km -> 0.0 km")
                 print(f"   Total bike odometer: {bike.total_distance_km:.2f} km (unchanged)")
                 print(f"   Other components continue accumulating usage\n")
+            # Always print for debug
+            print(f"[DEBUG] After odometer reset: Bike {bike.bike_id} {category} odometer = {bike.component_odometers[category]:.2f} km (was {old_value:.2f} km)")
     
     @staticmethod
     def perform_depot_repair(bike, verbose=False):
@@ -114,23 +116,20 @@ class ComponentMaintenanceManager:
         
         # Perform the inspection/minor repair
         ComponentMaintenanceManager.repair_component(bike, category, repair_type="onsite", verbose=verbose)
+        ComponentMaintenanceManager.clear_damage_status(bike)
         
         # Clear inspection flag
-        bike.damage_status = None
-        bike.needs_inspection = False
-        bike.pending_failure_category = None
-        bike.pending_onsite_fix = False
-        
-        if verbose and (bike.bike_id in SAMPLE_BIKES_TO_TRACK):
-            print(f"[ON-SITE INSPECTION COMPLETE] Bike {bike.bike_id} - {category} inspected/repaired")
-            print(f"  Bike continues in service\n")
-        
+       # bike.damage_status = None
+        #bike.needs_inspection = False
+       # bike.pending_failure_category = None
+       # bike.pending_onsite_fix = False
+      
         return category
     
     @staticmethod
     def clear_damage_status(bike):
         """
-        Clear all damage-related status flags.
+        Clear all damage-related status flags on the bike after repair.
         
         Args:
             bike: Bike object
