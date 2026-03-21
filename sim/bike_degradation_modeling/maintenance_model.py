@@ -1,4 +1,4 @@
-import math
+'''import math
 from settings import MAINTENANCE_INCREASE_PER_MINUTE, MAINTENANCE_FULL_FIX
 
 ####################################################################
@@ -126,4 +126,4 @@ def process_maintenance_action(vehicle, maintenance_time, time):
         if len(remaining_high) > 5:
             print(f"       ... and {len(remaining_high) - 5} more")
     print()
-
+'''

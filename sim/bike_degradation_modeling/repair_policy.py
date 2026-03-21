@@ -1,7 +1,7 @@
 from .bike_component_maintenance_model import ComponentMaintenanceManager
 from settings import SAMPLE_BIKES_TO_TRACK
 
-class BaselineRepairPolicy:
+'''class BaselineRepairPolicy:
     """
     Baseline repair policy: Repairs all component failures immediately upon arrival.
     
@@ -63,10 +63,10 @@ class BaselineRepairPolicy:
                 print(f"    {comp_cat}: {odometer:.2f} km")
             
             # Track as baseline decision
-            simul.state.metrics.add_aggregate_metric(simul.state, "baseline_onsite_repairs", 1)
+            simul.state.metrics.add_aggregate_metric(simul.state, "baseline_onsite_repairs", 1)'''
 
 
-class VFARepairPolicy:
+'''class VFARepairPolicy:
     """
     vFA-based repair policy (FUTURE)
     
@@ -142,4 +142,4 @@ class VFARepairPolicy:
         # Could be based on: repair cost, downtime, future failure probability, etc.
         return 0.0
 
-
+'''

@@ -657,8 +657,9 @@ def extract_depot_inventory(
     """
     cfg = config or MDPConfig.full_maintenance()
     # Extract fixed_queue and in_repair from depot station attributes
-    fixed_queue = getattr(depot_station, "fixed_queue", 0)
-    in_repair = getattr(depot_station, "in_repair", 0)
+    fixed_queue = len(getattr(depot_station, "fixed_queue", []))
+    in_repair   = sum(len(bikes) for _, bikes in getattr(depot_station, "in_repair", []))
+    
     return DepotInventory(
         station_id=depot_station.id,
         fixed_queue=fixed_queue,

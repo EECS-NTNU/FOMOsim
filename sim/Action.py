@@ -18,8 +18,12 @@ class Action:
         helping_pickup = [],
         helping_delivery = [],
         helping_cluster = None,
-        maintenance_time = 0.0
+        maintenance_time = 0.0,
+        onsite_repairs = None 
     ):
+        
+        if onsite_repairs is None:
+            onsite_repairs = []
         """
         Object to represent an action
         :param battery_swaps: ids of bikes to swap batteries on
@@ -29,6 +33,7 @@ class Action:
         :param maintenance_time: time in minutes spent on bike maintenance at current station
         """
         self.battery_swaps = battery_swaps
+        self.onsite_repairs = onsite_repairs
         self.pick_ups = pick_ups
         self.delivery_bikes = delivery_bikes
         self.next_location = next_location
@@ -47,7 +52,7 @@ class Action:
         """
 
         operation_duration = (
-            len(self.battery_swaps) + len(self.pick_ups) + len(self.delivery_bikes) + len(self.helping_pickup) + len(self.helping_delivery)
+            len(self.battery_swaps) + len(self.pick_ups) + len(self.delivery_bikes) + len(self.onsite_repairs) + len(self.helping_pickup) + len(self.helping_delivery)
         ) * MINUTES_PER_ACTION
         maintenance_duration = self.maintenance_time
         travel_duration = (
@@ -61,6 +66,6 @@ class Action:
         return (
             f"<Action - ({self.battery_swaps} bat. swaps, {self.pick_ups} pickups,"
             f" {self.maintenance_time} maintenance min, "
-            f" {self.delivery_bikes} deliveries), next: {self.next_location} >"
+            f" {self.onsite_repairs} onsite repairs, {self.delivery_bikes} deliveries), next: {self.next_location} >"
             f" {self.helping_pickup} h_pickups), {self.helping_delivery} h_delivry, {self.helping_cluster} cluster>"
         )

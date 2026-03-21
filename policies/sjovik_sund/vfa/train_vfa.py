@@ -42,7 +42,7 @@ from helpers import timeInMinutes
 from policies.greedy_policy import GreedyPolicy
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy
 from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_feature_names
-from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig
+from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig, write_simulation_outputs
 from settings import ENABLE_COMPONENT_FAILURES
 
 
@@ -143,7 +143,7 @@ def train(
     )
 
     greedy_policy = GreedyPolicy()
-    config        = SimulationConfig()
+    #config        = SimulationConfig()
 
     # Warm-up ends at this absolute simulation-time (minutes).
     # The simulator clock starts at START_HOUR × 60 (e.g. 420 min = 07:00).
@@ -153,9 +153,12 @@ def train(
     service_levels: list = []
     t0 = time.time()
 
+    run_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+
     # ── Episode loop ──────────────────────────────────────────────────────────
     for ep in range(num_episodes):
-
+        config        = SimulationConfig()
+        
         # ── Boltzmann temperature for this episode ─────────────────────────
         tau = TAU_START * (TAU_DECAY ** ep)
         vfa_policy.set_temperature(tau)
@@ -180,6 +183,21 @@ def train(
             instance_name = instance_name,
             config        = config,
         )
+
+        # --- NEW: WRITE CSV FILES INTO FOLDERS ---
+        # Notice the forward slashes (/)! This tells the system to make folders.
+        filename = f"run_{run_timestamp}/ep_{ep:03d}/vfa_training_{instance_name}.csv"
+        
+        write_simulation_outputs(
+            simulator=simulator,
+            filename=filename,
+            seed=seed_offset + ep,
+            policy=episode_policy,
+            duration=24 * EPISODE_DAYS,
+            num_vehicles=NUM_VEHICLES,
+            append_to_results=False
+        )
+        # ----------------------------
 
         sl = _service_level(simulator)
         service_levels.append(sl)

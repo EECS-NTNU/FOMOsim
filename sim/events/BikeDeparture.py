@@ -103,14 +103,18 @@ class BikeDeparture(Event):
             simul.state.set_bike_in_use(bike)
  
             # Print bike departure information
-            maint_status = f"maint={bike.maintenance_criticality:.3f}" if hasattr(bike, 'maintenance_criticality') else ""
+            #maint_status = f"maint={bike.maintenance_criticality:.3f}" if hasattr(bike, 'maintenance_criticality') else ""
             
             # Extra logging for S51
 
-            if departure_station.id == "S51":
+            '''if departure_station.id == "S51":
                 print(bike.bike_id)
-                print(f"  [S51 DEPARTURE] Bike {bike.bike_id} -> {arrival_station_id} (t={self.time:.1f}, {maint_status}, travel={travel_time:.1f}min)")
+                print(f"  [S51 DEPARTURE] Bike {bike.bike_id} -> {arrival_station_id} (t={self.time:.1f}, travel={travel_time:.1f}min)")'''
+
+            # print all bike departures for debugging
+            #print(f"  DEPARTURE:  Bike {bike.bike_id} from {departure_station.id} -> to {arrival_station_id} (t={self.time:.1f}, travel={travel_time:.1f}min)")
             
+
             #print(f"  DEPARTURE: Bike {bike.bike_id} from {departure_station.id} -> to {arrival_station_id} "
                   #f"(t={self.time:.1f}, {maint_status}, travel={travel_time:.1f}min)")
             

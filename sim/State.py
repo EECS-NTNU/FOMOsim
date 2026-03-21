@@ -10,7 +10,8 @@ import random
 import geopy
 # from policies.inngjerdingen_moeller.parameters_MILP import MILP_data 
 from sim import Metric
-from sim.bike_degradation_modeling.maintenance_model import process_maintenance_action
+#from sim.bike_degradation_modeling.maintenance_model import process_maintenance_action
+from sim.bike_degradation_modeling.bike_component_maintenance_model import ComponentMaintenanceManager
 
 #TODO: Update to multi-state inventory of bikes "func, depot, on-site"
 
@@ -402,6 +403,7 @@ class State(LoadSave):
 
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
+        self.rng2 = np.random.default_rng(seed + 9999)
         self.seed = seed
 
     def set_vehicles(self, policies):
@@ -416,6 +418,7 @@ class State(LoadSave):
                                                 is_station_based = None)
 
     def set_sb_vehicles(self, policies):
+        self.vehicles = {}  # Clear existing vehicles before setting new ones
         for policy in policies:
             num_vehicles = len(self.vehicles)
             if num_vehicles >= 0:
@@ -572,6 +575,41 @@ class State(LoadSave):
 
         refill_time = 0
         if vehicle.is_at_depot():
+            
+            # --------------- Depot drop-offs ---------------
+            for delivery_bike_id in action.delivery_bikes:
+                delivery_bike = vehicle.drop_off(delivery_bike_id)
+                status = getattr(delivery_bike, 'damage_status', None)
+
+                #  Intercept depot-damaged bikes at the Depot
+                if status == 'depot':
+                    print(f"[DEPOT DROP-OFF] t={time:.1f} | Vehicle {vehicle.id} dropped BROKEN bike {delivery_bike.bike_id} (status: {status}) at {origin_station_id} -> ENTERING 24H REPAIR")
+                    # Pass to the 24-hour repair queue
+                    vehicle.location.receive_bikes_for_repair(bikes=[delivery_bike], current_time=time, repair_duration_minutes=1440.0)
+                else:
+                    # Standard delivery (e.g. returning functional bikes to depot)
+                    print(f"[DEPOT DROP-OFF] t={time:.1f} | Vehicle {vehicle.id} dropped FUNCTIONAL bike {delivery_bike.bike_id} at {origin_station_id} -> STANDARD INVENTORY")
+                    vehicle.location.add_bike(delivery_bike)
+                    self.metrics.add_aggregate_metric(self, "bike_deliveries", 1)
+
+            # --------------- Depot pick-ups ---------------
+            for pick_up_bike_id in action.pick_ups:
+                fq = vehicle.location.fixed_queue
+
+                # Try to pick up from the repaired fixed_queue first
+                if pick_up_bike_id in fq:
+                    pick_up_bike = fq.pop(pick_up_bike_id)
+                    print(f"[DEPOT PICK-UP] t={time:.1f} | Vehicle {vehicle.id} loaded REPAIRED bike {pick_up_bike.bike_id} from fixed_queue at {origin_station_id} (damage_status: {getattr(pick_up_bike, 'damage_status', None)})")
+                    
+                else:
+                    # Fallback: bike already moved to standard inventory
+                    print(f"[DEPOT PICK-UP] t={time:.1f} | Vehicle {vehicle.id} loaded FUNCTIONAL bike {pick_up_bike.bike_id} from standard inventory at {origin_station_id}")
+                    pick_up_bike = vehicle.location.get_bike_from_id(pick_up_bike_id)
+                    vehicle.location.remove_bike(pick_up_bike)
+
+                vehicle.pick_up(pick_up_bike)
+                self.metrics.add_aggregate_metric(self, "bike_pickups", 1)
+
             batteries_to_swap = min(
                 vehicle.get_flat_batteries(),
                 vehicle.location.get_available_battery_swaps(time),
@@ -597,6 +635,39 @@ class State(LoadSave):
                 
         else:
             if vehicle.cluster is None:
+                # Perform onsite repairs
+                for onsite_repair_id in action.onsite_repairs:
+                    repair_bike = vehicle.location.get_bike_from_id(onsite_repair_id)
+
+                    if getattr(repair_bike, 'damage_status', None) == 'onsite':
+                        # Capture component info BEFORE perform_onsite_inspection clears the flags
+                        component = getattr(repair_bike, 'pending_failure_category', None)
+                        odometers = dict(getattr(repair_bike, 'component_odometers', {}))
+
+                        print(f"[DEBUG] BEFORE repair: Bike {repair_bike.bike_id} pending_failure_category = {component}")
+                        print(f"\n[ONSITE REPAIR] Bike {repair_bike.bike_id} - Repairing {component} (on-site) at {origin_station_id} (t={time:.1f})")
+                        if odometers:
+                            print(f"  Component odometers for Bike {repair_bike.bike_id}:")
+                            for cat, odo in odometers.items():
+                                print(f"    {cat}: {odo:.2f} km")
+
+                        if logger_enabled:
+                            operation_logger.log_onsite_repair(
+                                time=time,
+                                vehicle_id=vehicle.id,
+                                station_id=origin_station_id,
+                                bike_id=repair_bike.bike_id,
+                                component=component,
+                                component_odometers=odometers,
+                            )
+
+                        # Apply the fix (this cleans the flags and resets component odometers)
+                        ComponentMaintenanceManager.perform_onsite_inspection(repair_bike)
+
+                        # Make the bike available again
+                        repair_bike.is_available = True
+                        repair_bike.damage_status = None
+
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.location.get_bike_from_id(
                         pick_up_bike_id
@@ -608,6 +679,8 @@ class State(LoadSave):
                     # Remove bike from current station
                     vehicle.location.remove_bike(pick_up_bike)
 
+                    self.metrics.add_aggregate_metric(self, "bike_pickups", 1)
+
                     if logger_enabled:
                         operation_logger.log_bike_pickup(
                             time=time,
@@ -615,7 +688,8 @@ class State(LoadSave):
                             station_id=origin_station_id,
                             bike_id=pick_up_bike.bike_id,
                         )
-                    
+                
+                            
                 # Perform all battery swaps
                 for battery_swap_bike_id in action.battery_swaps:
                     battery_swap_bike = vehicle.location.get_bike_from_id(
@@ -639,6 +713,8 @@ class State(LoadSave):
 
                     # Adding bike to current station and changing coordinates of bike
                     vehicle.location.add_bike(delivery_bike)
+
+                    self.metrics.add_aggregate_metric(self, "bike_deliveries", 1)
 
                     if logger_enabled:
                         operation_logger.log_bike_dropoff(
@@ -680,6 +756,45 @@ class State(LoadSave):
                         )
 
             else: 
+
+                # Perform onsite repairs
+                for onsite_repair_id in action.onsite_repairs:
+                    repair_bike = vehicle.location.get_bike_from_id(onsite_repair_id)
+
+                    if getattr(repair_bike, 'damage_status', None) == 'onsite':
+                        # Capture component info BEFORE perform_onsite_inspection clears the flags
+                        component = getattr(repair_bike, 'pending_failure_category', None)
+                        odometers = dict(getattr(repair_bike, 'component_odometers', {}))
+
+                        '''print(f"\n[ONSITE REPAIR] Bike {repair_bike.bike_id} - Repairing {component} (on-site) at {origin_station_id} (t={time:.1f})")
+                        if odometers:
+                            print(f"  Component odometers for Bike {repair_bike.bike_id}:")
+                            for cat, odo in odometers.items():
+                                print(f"    {cat}: {odo:.2f} km")'''
+
+                        if logger_enabled:
+                            operation_logger.log_onsite_repair(
+                                time=time,
+                                vehicle_id=vehicle.id,
+                                station_id=origin_station_id,
+                                bike_id=repair_bike.bike_id,
+                                component=component,
+                                component_odometers=odometers,
+                            )
+
+                        print(f"[ONSITE REPAIR - START] t={time:.1f} | Vehicle {vehicle.id} fixing {component} on Bike {repair_bike.bike_id} at {origin_station_id}")
+
+                        # Apply the fix (this cleans the flags and resets component odometers)
+                        ComponentMaintenanceManager.perform_onsite_inspection(repair_bike)
+
+                        # Make the bike available again
+                        #repair_bike.is_available = True
+                        #repair_bike.damage_status = None
+                        # Verify the fix worked!
+                        status_after = getattr(repair_bike, 'damage_status', None)
+                        avail_after = getattr(repair_bike, 'is_available', False)
+                        print(f"[ONSITE REPAIR - DONE]  t={time:.1f} | Bike {repair_bike.bike_id} status is now '{status_after}', available={avail_after}")
+
                 for pick_up_bike_id in action.pick_ups:
                     pick_up_bike = vehicle.cluster.get_bike_from_id(pick_up_bike_id)
 
@@ -697,7 +812,7 @@ class State(LoadSave):
                             station_id=origin_station_id,
                             bike_id=pick_up_bike.bike_id,
                         )
-                    
+                
                 # Perform all battery swaps
                 for battery_swap_bike_id in action.battery_swaps:
                     battery_swap_bike = vehicle.cluster.get_bike_from_id(
@@ -721,6 +836,8 @@ class State(LoadSave):
 
                     # Adding bike to current station and changing coordinates of bike
                     vehicle.location.add_bike(delivery_bike)
+
+                    self.metrics.add_aggregate_metric(self, "bike_deliveries", 1)
 
                     if logger_enabled:
                         operation_logger.log_bike_dropoff(
@@ -765,7 +882,7 @@ class State(LoadSave):
                             break
 
         # Perform maintenance on bikes at current location
-        if vehicle.policy.maintenance_enabled:
+        '''if vehicle.policy.maintenance_enabled:
             if logger_enabled:
                 operation_logger.log_maintenance(
                     time=time,
@@ -773,7 +890,7 @@ class State(LoadSave):
                     station_id=origin_station_id,
                     maintenance_time=float(getattr(action, "maintenance_time", 0.0)),
                 )
-            process_maintenance_action(vehicle, action.maintenance_time, time)
+            process_maintenance_action(vehicle, action.maintenance_time, time)'''
 
         station_after = len(vehicle.location.bikes) if hasattr(vehicle.location, "bikes") else 0
         vehicle_load_after = len(vehicle.get_bike_inventory())

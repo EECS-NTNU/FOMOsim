@@ -77,23 +77,46 @@ def mdp_action_to_sim_action(
         b for b in vehicle_bikes if getattr(b, "damage_status", None) not in ("onsite", "depot")
     ]
 
-    if getattr(vehicle, "is_at_depot")() and mdp_action.load_from_queue > 0:
-        depot_pickups = _take_bike_ids(station_functional, mdp_action.load_from_queue)
+    # Track broken bikes in cargo
+    vehicle_depot = [
+        b for b in vehicle_bikes if getattr(b, "damage_status", None) == "depot"
+    ]
+
+    if getattr(vehicle, "is_at_depot")():
+        if hasattr(mdp_action, "load_from_queue") and mdp_action.load_from_queue > 0:
+            fixed_queue_bikes = list(getattr(station, "fixed_queue", {}).values())
+            depot_pickups = _take_bike_ids(fixed_queue_bikes, mdp_action.load_from_queue)
+        else:
+            depot_pickups = []
+        # NEW: Automatically unload ALL broken bikes at depot
+        depot_dropoffs = _take_bike_ids(vehicle_depot, len(vehicle_depot))
     else:
         depot_pickups = []
+        depot_dropoffs = []
 
     deliver_count = max(int(mdp_action.rebalancing), 0)
     pickup_functional_count = max(-int(mdp_action.rebalancing), 0)
     pickup_depot_count = max(int(mdp_action.depot_removals), 0)
     onsite_repair_count = max(int(mdp_action.onsite_repairs), 0)
 
-    delivery_bikes = _take_bike_ids(vehicle_functional, deliver_count)
+    delivery_bikes = _take_bike_ids(vehicle_functional, deliver_count) + depot_dropoffs
     pick_up_functional = _take_bike_ids(station_functional, pickup_functional_count)
     pick_up_depot = _take_bike_ids(station_depot, pickup_depot_count)
-    battery_swaps = _take_bike_ids(station_onsite, onsite_repair_count)
+    onsite_repairs = _take_bike_ids(station_onsite, onsite_repair_count)
+
+    # --- NEW: Catch Silent Truncations ---
+    if deliver_count > len(vehicle_functional):
+        print(f"[WARNING - BRIDGE] MDP wanted to deliver {deliver_count} bikes, but vehicle only has {len(vehicle_functional)} functional. Truncating!")
+    if pickup_functional_count > len(station_functional):
+        print(f"[WARNING - BRIDGE] MDP wanted to pick up {pickup_functional_count} functional bikes, but station only has {len(station_functional)}. Truncating!")
+    if pickup_depot_count > len(station_depot):
+        print(f"[WARNING - BRIDGE] MDP wanted to pick up {pickup_depot_count} broken bikes, but station only has {len(station_depot)}. Truncating!")
+    if onsite_repair_count > len(station_onsite):
+        print(f"[WARNING - BRIDGE] MDP wanted to repair {onsite_repair_count} bikes onsite, but station only has {len(station_onsite)}. Truncating!")
 
     return Action(
-        battery_swaps=battery_swaps,
+        battery_swaps=[], # Add empty list as we do not consider battery swaps in this policy
+        onsite_repairs=onsite_repairs,
         pick_ups=pick_up_functional + pick_up_depot + depot_pickups,
         delivery_bikes=delivery_bikes,
         next_location=mdp_action.next_station,
