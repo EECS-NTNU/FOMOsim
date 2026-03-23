@@ -31,6 +31,7 @@ import sys
 import argparse
 import time
 import numpy as np
+import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
@@ -155,6 +156,7 @@ def train(
     warmup_end_time = sim_start_min + WARMUP_DAYS * 24 * 60   # e.g. 420 + 5760
 
     service_levels: list = []
+    weights_history: list = []  # Collect θ vectors per episode
     t0 = time.time()
 
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
@@ -205,14 +207,17 @@ def train(
 
         sl = _service_level(simulator)
         service_levels.append(sl)
+        weights_history.append(vfa_policy.theta.copy())  # Store θ vector for this episode
 
+    
+        formatted_theta = np.array2string(vfa_policy.theta, formatter={'float_kind':lambda x: f"{x:+.3f}"})
+        
         print(
-            f"  Episode {ep + 1:3d}/{num_episodes} | "
-            f"tau = {tau:5.3f} | "
-            f"|theta| = {np.linalg.norm(vfa_policy.theta):.4f} | "
-            f"theta_mean = {vfa_policy.theta.mean():+.4f} | "
-            f"SL = {sl:.4f} | "
-            f"t = {time.time() - t0:.0f}s"
+            f"  Ep {ep + 1:3d}/{num_episodes} | "
+            f"tau={tau:4.2f} | "
+            f"SL={sl:.4f} | "
+            f"Weights: {formatted_theta} | "
+            f"t={time.time() - t0:.0f}s"
         )
 
         # ── Periodic checkpoint every 50 episodes ─────────────────────────
@@ -230,6 +235,18 @@ def train(
     curve_path = Path(str(save_path).replace(".pkl", "_learning_curve.npy"))
     np.save(curve_path, np.array(service_levels))
 
+    # ── Save weight evolution as CSV ────────────────────────────────────────────
+    feature_names = _get_feature_names(ENABLE_COMPONENT_FAILURES, shift_timing_enabled=SHIFT_TIMING_ENABLED)
+    weights_df = pd.DataFrame(
+        weights_history,
+        columns=feature_names,
+    )
+    weights_df.insert(0, 'episode', range(num_episodes))
+    weights_df.insert(1, 'service_level', service_levels)
+    
+    weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
+    weights_df.to_csv(weights_csv_path, index=False)
+
     # ── Summary ───────────────────────────────────────────────────────────────
     elapsed = time.time() - t0
     best_ep = int(np.argmax(service_levels)) + 1
@@ -246,6 +263,7 @@ def train(
     print(f"  Total time        : {elapsed / 60:.1f} min")
     print(f"  Model saved       : {save_path}")
     print(f"  Learning curve    : {curve_path}")
+    print(f"  Weight evolution  : {weights_csv_path}")
     print("=" * 72 + "\n")
 
     return vfa_policy

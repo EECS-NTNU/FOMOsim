@@ -469,15 +469,16 @@ class LinearVFAPolicy(Policy):
         if self._prev_phi is None:
             return 0.0
 
-        # Compute TD error based on the reward since last decision and the next post-decision value as the bootstrap target.
-        td_error = reward + self.gamma * self.value(phi_next) - self.value(self._prev_phi)
+        # Compute pre-update values for logging
+        v_cur = self.value(self._prev_phi)
+        v_next = self.value(phi_next)
+        td_error = reward + self.gamma * v_next - v_cur
 
-        td_error = float(np.clip(td_error, -50.0, 50.0)) # Clip TD error to prevent weight explosion (numerical safety net).
-
-        # --- Learning Log ---
-        # NOTE: Remove later maybe, or tune the clipping threshold, if we see learning instability.
-        if reward != 0 or abs(td_error) > 0.1:
-            print(f"[RL UPDATE] Reward: {reward:5.1f} | TD Error: {td_error:7.3f} | Max |theta|: {np.max(np.abs(self.theta)):.4f}")
+        # --- SMART LOGGING ---
+        # Only print if a physical penalty occurred OR if the VFA was highly surprised
+        if reward < -0.01 or abs(td_error) > 1.0:
+            target_value = reward + self.gamma * v_next
+            print(f"    [TD Alert] Reward: {reward:6.3f} | V(S): {v_cur:6.3f} | Target: {target_value:6.3f} | TD Err: {td_error:6.3f}")
 
         self.theta   += self.alpha * td_error * self._prev_phi
         self.weights  = list(self.theta)   # keep the logging attribute in sync
