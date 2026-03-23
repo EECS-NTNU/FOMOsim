@@ -25,12 +25,12 @@ def run_simulation(seed, policy, duration=24*5, num_vehicles=2, queue=None, INST
     START_TIME = timeInMinutes(hours=7)
     DURATION = timeInMinutes(hours=duration)
     
-    # INSTANCE = 'TD_W34_old'
+    INSTANCE = 'TD_W34_old'
     # INSTANCE = 'OS_W31' 
     # INSTANCE = 'OS_W34'   #more demand 
     # INSTANCE = 'BG_W35'
     # INSTANCE = 'BG_W25'   #more demand
-    INSTANCE = "NY_W31"
+    # INSTANCE = "NY_W31"
     # INSTANCE = "BO_W31"
     ###############################################################
     

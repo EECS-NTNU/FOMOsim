@@ -71,6 +71,7 @@ class State(LoadSave):
             traveltime_vehicle_matrix = self.traveltime_vehicle_matrix,
             traveltime_vehicle_matrix_stddev = self.traveltime_vehicle_matrix_stddev,
             rng = self.rng,
+            rng2 = self.rng2,
         )
 
         for vehicle in new_state.get_vehicles():
@@ -690,6 +691,9 @@ class State(LoadSave):
                         )'''
                 
                             
+                    # Log aggregate metric for pickup (consistent across all policies)
+                    self.metrics.add_aggregate_metric(self, 'num bike pickups', 1)
+                    
                 # Perform all battery swaps
                 for battery_swap_bike_id in action.battery_swaps:
                     battery_swap_bike = vehicle.location.get_bike_from_id(
@@ -723,6 +727,11 @@ class State(LoadSave):
                             station_id=origin_station_id,
                             bike_id=delivery_bike.bike_id,
                         )'''
+                    # Log aggregate metric for delivery (consistent across all policies)
+                    self.metrics.add_aggregate_metric(self, 'num bike deliveries', 1)
+
+                    # Log aggregate metric for delivery (consistent across all policies)
+                    self.metrics.add_aggregate_metric(self, 'num bike deliveries', 1)
 
                 for helping_pickup_id in action.helping_pickup:
                     helping_pickup_bike = action.helping_cluster.get_bike_from_id(
@@ -813,6 +822,9 @@ class State(LoadSave):
                             bike_id=pick_up_bike.bike_id,
                         )'''
                 
+                    # Log aggregate metric for pickup (consistent across all policies)
+                    self.metrics.add_aggregate_metric(self, 'num bike pickups', 1)
+                    
                 # Perform all battery swaps
                 for battery_swap_bike_id in action.battery_swaps:
                     battery_swap_bike = vehicle.cluster.get_bike_from_id(
@@ -846,6 +858,9 @@ class State(LoadSave):
                             station_id=origin_station_id,
                             bike_id=delivery_bike.bike_id,
                         )'''
+                    
+                    # Log aggregate metric for delivery (consistent across all policies)
+                    self.metrics.add_aggregate_metric(self, 'num bike deliveries', 1)
 
                 for helping_pickup_id in action.helping_pickup:
                     helping_pickup_bike = action.helping_cluster.get_bike_from_id(

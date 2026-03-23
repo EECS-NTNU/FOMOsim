@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-train_vfa.py  –  Offline Episodic Training of Time-Indexed Linear VFA
+train_vfa.py  -  Offline Episodic Training of Time-Indexed Linear VFA
 
 Architecture
 ─────────────
@@ -11,14 +11,14 @@ Hybrid "Horizontal" ADP (Ulmer 2020 / Brinkmann 2019-2020):
 
 Episode structure  (14-day simulation per episode)
 ──────────────────────────────────────────────────
-  Days 1 – 4   Warm-up   : GreedyPolicy drives the system.
+  Days 1 - 4   Warm-up   : GreedyPolicy drives the system.
                             No TD updates → builds up a realistic
                             "messy" state without biasing θ.
-  Days 5 – 14  Learning  : LinearVFAPolicy with Boltzmann exploration.
+  Days 5 - 14  Learning  : LinearVFAPolicy with Boltzmann exploration.
                             TD(0) updates occur at every vehicle decision.
 
 Boltzmann temperature τ decays exponentially over NUM_EPISODES episodes:
-    τ_ep = TAU_START × (TAU_END / TAU_START)^(ep / (NUM_EPISODES − 1))
+    τ_ep = TAU_START x (TAU_END / TAU_START)^(ep / (NUM_EPISODES - 1))
 
 Usage
 ─────
@@ -63,11 +63,14 @@ TAU_DECAY     : float = (TAU_END / TAU_START) ** (1.0 / max(NUM_EPISODES - 1, 1)
 
 ALPHA         : float = 0.01      # TD learning rate
 GAMMA         : float = 0.99      # discount factor
-N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES))  # auto-synced with vfa_features.py
+
+# ── Feature configuration ──────────────────────────────────────────────────────
+SHIFT_TIMING_ENABLED : bool = True  # Enable end-of-shift anticipatory features
+N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, shift_timing_enabled=SHIFT_TIMING_ENABLED))  # auto-synced with vfa_features.py
 
 INSTANCE_NAME : str   = "TD_W34_old"
 NUM_VEHICLES  : int   = 1
-START_HOUR    : int   = 7         # simulation clock starts at 07:00
+START_HOUR    : int   = 5         # simulation clock starts at 00:00
 
 # Where to save checkpoints and the final model
 SAVE_DIR = Path(__file__).parent / "models"
@@ -79,14 +82,15 @@ SAVE_DIR = Path(__file__).parent / "models"
 
 def _service_level(simulator) -> float:
     """
-    Service level = 1 - starvations / total_trip_requests.
+    Service level = 1 - (starvations + congestion) / total_trip_requests.
 
     Returns 0.0 if no trips were generated (e.g. very short test run).
     """
     m      = simulator.state.metrics
     trips  = m.get_aggregate_value("total_trips")   or 1
     starv  = m.get_aggregate_value("starvation")    or 0
-    return 1.0 - starv / max(trips, 1)
+    cong  = m.get_aggregate_value("congestion")      or 0
+    return 1.0 - (starv + cong) / max(trips, 1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -139,7 +143,7 @@ def train(
         gamma         = GAMMA,
         tau           = TAU_START,
         learning_mode = True,
-        seed          = 42,
+        seed          = 42
     )
 
     greedy_policy = GreedyPolicy()

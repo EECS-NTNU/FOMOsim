@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
  
+#mkdir -p policies/sjovik_sund/output && python policies/sjovik_sund/run_simulation.py --duration 24 > policies/sjovik_sund/output/output.txt
  
 ######################################################
 import os
@@ -26,6 +27,8 @@ import init_state
 import target_state
 import policies
 import policies.sjovik_sund.sjovik_sund_policy
+import policies.sjovik_sund.XPILOT_policy
+from policies.do_nothing_policy import DoNothing
 import sim
 import demand
 import output
@@ -52,14 +55,16 @@ MAINTENANCE_ENABLED = False
 # Import logging utilities
 from policies.sjovik_sund.simulation_logging import (
     LoggingSimulator,
-    write_hourly_metrics_to_file,
+    #write_hourly_metrics_to_file,
     write_results_to_file,
     #write_simulation_summary,
     #write_vehicle_visits_to_file,
     #write_station_hourly_metrics_to_file,
     #write_bike_movements_to_file,
     #write_trip_requests_to_file,
-    write_component_failures_to_file
+    write_component_failures_to_file,
+    write_rl_decisions_to_file,
+    write_vehicle_and_health_logs
 )
 from policies.sjovik_sund.operational_logging import OperationalLogger
 
@@ -72,7 +77,7 @@ class SimulationConfig:
     """Centralized configuration for simulation runs."""
     
     # === Time Settings ===
-    start_hour: int = 7  # 7 AM start time
+    start_hour: int = 5  # 5 AM start time
     
     # === Instance Settings ===
     default_instance: str = "TD_W34_old"
@@ -97,8 +102,8 @@ class SimulationConfig:
     # === MILP Policy Parameters ===
     tau: int = 5  # Time discretization in minutes
     default_time_horizon: int = 5  # Number of periods to look ahead
-    policy_hour_from: int = 7  # Policy active from 7 AM
-    policy_hour_to: int = 7  # Policy active until 11 PM
+    policy_hour_from: int = 6  # Policy active from 6 AM
+    policy_hour_to: int = 20  # Policy active until 8 PM
     roaming: bool = False
     
     # === Maintenance Settings ===
@@ -148,7 +153,7 @@ class SimulationConfig:
                 [self.maintenance_reward * alpha])
 
 
-def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instance_name=None, config=None):
+def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instance_name=None, config=None):
     """Run a single simulation with given parameters.
     
     Args:
@@ -235,7 +240,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=1, queue=None, instan
 
     print(
         f"Running simulation with duration {duration}, vehicles {num_vehicles}, "
-        f"seed {seed}, Instance {INSTANCE} and weights {policy.weights}"
+        f"seed {seed}, Instance {INSTANCE}"
     )
 
     if ENABLE_COMPONENT_FAILURES:
@@ -276,7 +281,7 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
     
     # Write hourly metrics for this seed
     hourly_filename = f"{base_filename}_hourly_seed_{seed}.csv"
-    write_hourly_metrics_to_file(hourly_filename, simulator, seed)
+    #write_hourly_metrics_to_file(hourly_filename, simulator, seed)
     
     # Write vehicle visits for this seed
     visits_filename = f"{base_filename}_vehicle_visits_seed_{seed}.csv"
@@ -302,7 +307,15 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
     if ENABLE_COMPONENT_FAILURES:
         component_failures_filename = f"{base_filename}_component_failures_seed_{seed}.csv"
         write_component_failures_to_file(component_failures_filename, simulator, seed, alpha_value)
-
+    
+    # 5. Vehicle Cargo & EOD Health
+    vehicle_health_log_filename = f"{base_filename}_vehicle_health_seed_{seed}.csv"
+    write_vehicle_and_health_logs(vehicle_health_log_filename, simulator, seed)
+ 
+    # 6. RL Agent Brain Decisions
+    rl_decisions_filename = f"{base_filename}_rl_decisions_seed_{seed}.csv"
+    write_rl_decisions_to_file(rl_decisions_filename, simulator, seed)
+ 
     # Write summary for this seed
     summary_filename = f"{base_filename}_summary_seed_{seed}.txt"
     #write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
@@ -490,6 +503,15 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%m%d%H%M")
 
     policy_dict = {}
+    
+    # Add DoNothing baseline policy
+    policy_name_baseline = (
+        f"DoNothing_baseline_{args.instance}_V{num_vehicles}_D{duration}h_"
+        f"{timestamp}_seed{start_seed}"
+    )
+    policy_dict[policy_name_baseline] = DoNothing()
+    
+    '''
     for alpha in alpha_values:
         weights = config.calculate_weights(alpha)
         
@@ -507,6 +529,19 @@ if __name__ == "__main__":
             hour_from=config.policy_hour_from,
             hour_to=config.policy_hour_to,
         )
+        
+        # 2. Add the clean PILOT Benchmark (No Neighborhoods)
+        policy_name_pilot = (
+            f"XPILOT_benchmark_{args.instance}_V{num_vehicles}_D{duration}h_"
+            f"{timestamp}_seed{start_seed}"
+        )
+        policy_dict[policy_name_pilot] = policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
+            time_horizon=40, # Usually 40 or 60 min lookup
+            max_depth=2,     # Keep low to avoid massive execution time
+            num_successors=5, # Keep low for quick testing, can increase for final runs
+            number_of_scenarios=100 # Restore to 100 for final runs, but keep lower for quick testing
+        )
+    '''
  
     # Start timing
     start_time = time.time()

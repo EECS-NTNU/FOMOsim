@@ -145,10 +145,8 @@ class SjovikSundPolicy(Policy):
         # Record current position and time
         self.vehicle_routes[vehicle.id].append((simul.time, vehicle.location.id))
         
-        # SISTE ENDRINGER HER 
-        # Record metrics for deliveries, pickups and maintenance
-        simul.metrics.add_aggregate_metric(simul, 'num bike pickups', len(bikes_to_pickup))
-        simul.metrics.add_aggregate_metric(simul, 'num bike deliveries', len(bikes_to_deliver))
+        # NOTE: Metrics for pickups/deliveries are now logged in State.do_action()
+        # for consistency across all policies
         simul.metrics.add_aggregate_metric(simul, 'vehicle arrivals', 1)
         simul.metrics.add_aggregate_metric(simul, 'maintenance time', maintenance_time)
         

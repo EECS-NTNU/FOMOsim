@@ -29,14 +29,17 @@ class DoNothing(Policy):
         self.congestion_criteria = congestion_criteria
         self.starvation_criteria = starvation_criteria
         self.swap_threshold = swap_threshold
+        self.weights = [0.0, 0.0, 0.0, 0.0]  # DoNothing baseline has no strategic weights
         super().__init__()
 
-    def get_best_action(self, simul, vehicle):
+    def get_best_action(self, state, vehicle):
         bikes_to_swap = []
         bikes_to_pickup = []
         bikes_to_deliver = []
 
-        next_location_id = simul.state.rng.choice([loc.location_id for loc in simul.state.get_locations() if loc != vehicle.location])
+        # Get available locations (excluding current location)
+        available_location_ids = [loc.id for loc in state.get_locations() if loc != vehicle.location]
+        next_location_id = state.rng.choice(available_location_ids) if available_location_ids else vehicle.location.id
 
         action = sim.Action(
             bikes_to_swap,

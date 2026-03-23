@@ -22,7 +22,7 @@ def filtering_neighbours(
             and cluster.location_id not in exclude
             and len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour) > 0
         ],
-        key=lambda cluster: len(cluster.get_available_bikes()) - cluster.get_target_state(),
+        key=lambda cluster: len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour),
         reverse=True,
     )
 
@@ -34,7 +34,7 @@ def filtering_neighbours(
             and cluster.location_id not in exclude
             and len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour) < 0
         ],
-        key=lambda cluster: len(cluster.get_available_bikes()) - cluster.get_target_state(),
+        key=lambda cluster: len(cluster.get_available_bikes()) - cluster.get_target_state(day, hour),
     )
 
     has_more_capacity = (

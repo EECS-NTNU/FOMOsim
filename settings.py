@@ -20,7 +20,7 @@ ESCOOTER_SPEED = 13.2 # Average speed of a bike
 MAINTENANCE_THRESHOLD_FOR_NO_RENTAL = 0.9 # above this value, bike is not available for rental
 
 # Damage simulation settings
-ENABLE_COMPONENT_FAILURES = True # Toggle failure simulation on/off
+ENABLE_COMPONENT_FAILURES = False # Toggle failure simulation on/off
 BURN_IN_KM = 10.0
 VERBOSE_FAILURE_TRACKING = False  # Print probability calculations for every trip
 SAMPLE_BIKES_TO_TRACK = ['B572', 'B573', 'B2', 'B4', 'B5']  # Print detailed info for these bikes
@@ -38,7 +38,7 @@ SIM_CACHE_DIR = "sim_cache"
 TRAFFIC_LOGGING = False
 RANDOM_DESTINATION_PROB = 0.02 # 2% probability of going to a random destination
 FULL_TRIP = True
-START_TIME = 7 # hour of day the simulation starts at
+START_TIME = 5 # hour of day the simulation starts at
 DURATION = 24*60*7
 
 # Station settings

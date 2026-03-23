@@ -45,6 +45,7 @@ class BS_PILOT(Policy):
         - state = State
         - vehicle = Vehicle-object that is doing the action
         """
+        print(f"\n--- Starter get_best_action for vehicle {vehicle.id} på lokasjon {vehicle.location.id} ---")
         start_logging_time = time.time() 
         next_location = None
         bikes_to_pickup = []
@@ -56,10 +57,12 @@ class BS_PILOT(Policy):
 
         # Loading and swap strategy at current location is always chosen greedily
         if isinstance(vehicle.location, sim.Depot): # No action needed if at depot
+            print("Kjøretøy er på depot, gjør ingen endringer på batterier/sykler.")
             bikes_to_pickup = []
             bikes_to_deliver = []
             batteries_to_swap = []
         else:
+            print("Kjøretøy er på stasjon, beregner grådig antall for opplasting/swaps.")
             bikes_to_pickup, bikes_to_deliver, batteries_to_swap = calculate_loading_quantities_and_swaps_greedy(vehicle, state, vehicle.location, self.congestion_criteria, self.starvation_criteria, self.swap_threshold)
             number_of_bikes_pickup = len(bikes_to_pickup)
             number_of_bikes_deliver = len(bikes_to_deliver)
@@ -67,6 +70,7 @@ class BS_PILOT(Policy):
         
         # Goes to depot if the vehicle's battery inventory is empty on arrival, and picks up all bikes at station that is unusable
         if vehicle.battery_inventory <= 0 and len(state.get_depots()) > 0 and number_of_bikes_pickup + number_of_batteries_to_swap > 0:
+            print("Kjøretøyet har tomt batterilager! Drar til depot.")
             next_location = state.get_closest_depot(vehicle)
             # If no depot, just stay and do nothing
             if next_location == vehicle.location.id:
@@ -124,6 +128,8 @@ class BS_PILOT(Policy):
         state.metrics.add_aggregate_metric(state, 'num bike pickups', len(bikes_to_pickup))
         state.metrics.add_aggregate_metric(state, 'num bike deliveries', len(bikes_to_deliver))
 
+        print(f"--- AVSLUTTER get_best_action for vehicle {vehicle.id}: Neste destinasjon er lokasjon {next_location}. Handling her: plukker opp {len(bikes_to_pickup)} sykler, leverer {len(bikes_to_deliver)} sykler, bytter {len(batteries_to_swap)} batterier. ---")
+
         return sim.Action(
             batteries_to_swap,
             bikes_to_pickup,
@@ -133,6 +139,9 @@ class BS_PILOT(Policy):
 
 
     def PILOT_function(self, state, vehicle, initial_plan, max_depth, number_of_successors, end_time, total_num_bikes_in_system):
+        print("HEI, jeg er i PILOT_function, og skal finne neste location for vehicle", vehicle.id)
+        print(f"-> Starter tre-søk. Max dybde (max_depth): {max_depth}, Start-bredde (number_of_successors): {number_of_successors}")
+
         """
         Returns an id of the next location the vehicle should drive to next, based on possible future scenarios and the outcome that happens if this location is visited.
 
@@ -156,6 +165,8 @@ class BS_PILOT(Policy):
                 # Halve the branching width for each depth 
                 if depth > 1:
                     number_of_successors = max(1, round(number_of_successors/2))
+                
+                print(f"   * Utforsker dybde {depth}/{max_depth} med forgreiningsbredde (branch width) = {number_of_successors}")
 
                 # Explore as long as there are plans at the current depth
                 while plans[depth-1] != []:
@@ -214,9 +225,16 @@ class BS_PILOT(Policy):
                         temp_plan.find_next_visit()
                     else:
                         break
-                
                 completed_plans.append(temp_plan)
         
+        print("FERDIG MED PLANLEGGING, skal evaluere planer nå")
+        print("Antall fullførte planer: ", len(completed_plans))
+        #Print alle fullførte sekvenser fra current station til siste stasjon i planen
+        for plan in completed_plans:
+            # Extract the sequence of station IDs for this vehicle
+            route_sequence = [visit.station.id for visit in plan.plan[vehicle.id]]
+            print(f"Plan for vehicle {vehicle.id}: {route_sequence}")
+              
         # Give a score for each plan, based on different demand scenarios
         plan_scores = dict()
         scenarios = self.generate_scenarioes(state, self.number_of_scenarios, poisson = True)
@@ -227,7 +245,7 @@ class BS_PILOT(Policy):
                 for v in plan.plan:
                     score += self.evaluate_route(plan.plan[v], scenario_dict, end_time, state, self.evaluation_weights, total_num_bikes_in_system)
                 plan_scores[plan].append(score)
-        
+       
         # Returns the location with the best average score over all scenarios
         return self.return_best_move_average(vehicle, state, plan_scores)
 
@@ -359,6 +377,7 @@ class BS_PILOT(Policy):
         return visits
     
     def generate_scenarioes(self, state, number_of_scenarios, poisson = True):
+        print(f"Genererer {number_of_scenarios} scenarioer for fremtidig etterspørsel...")
         """
         Returns a list of generated scenarios.
         
@@ -611,6 +630,7 @@ class BS_PILOT(Policy):
         return avoided_disutility
 
     def return_best_move_average(self, vehicle, state, plan_scores):
+        print(f"Velger beste move basert på gjennomsnittlig score over alle scenarioer for vehicle {vehicle.id}...")
         """
         Returns the ID of the Station with performing best on average over all the scenarios.
 

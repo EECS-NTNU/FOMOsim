@@ -75,7 +75,8 @@ def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, s
 
     for neighbor in neighbors:
         station_crit = 0
-        if visited_stations != None and neighbor.location_id in visited_stations:
+        # visited_stations contains location ids; Station now uses .id
+        if visited_stations is not None and neighbor.id in visited_stations:
             station_crit -= 3
         else:
             neighbor_demand = (TIME_HORIZON/60)*(neighbor.get_arrive_intensity(simul.day(), simul.hour()) - neighbor.get_leave_intensity(simul.day(), simul.hour()))
@@ -98,9 +99,9 @@ def calculate_neighborhood_criticality(simul, potential_station, TIME_HORIZON, s
             # Neighbor demand (higher+)
             if station_type == neighbor_type:
                 station_crit += calculate_demand_criticality(neighbor_type, neighbor_demand)
-        
-        # Distance scaling (closer+, further-)
-        distance = (simul.state.get_vehicle_travel_time(potential_station.location_id, neighbor.location_id)/60)*VEHICLE_SPEED
+
+        # Distance scaling (closer+, further-). simul is a State object.
+        distance = (simul.get_vehicle_travel_time(potential_station.id, neighbor.id)/60)*VEHICLE_SPEED
         station_crit *= (1-(distance/MAX_ROAMING_DISTANCE_SOLUTIONS))
 
         neighborhood_crit += station_crit
@@ -170,4 +171,9 @@ def calculate_time_to_violation_IM(net_demand,station):
     return time_to_violation
 
 def calculate_driving_time_crit(simul, current_station, potential_station):
-    return simul.state.get_vehicle_travel_time(current_station.location_id, potential_station.location_id)
+    """Driving time between stations using new State/Station API.
+
+    simul: sim.State
+    current_station, potential_station: Station (with .id)
+    """
+    return simul.get_vehicle_travel_time(current_station.id, potential_station.id)
