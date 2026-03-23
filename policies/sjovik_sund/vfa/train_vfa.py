@@ -65,7 +65,7 @@ ALPHA         : float = 0.01      # TD learning rate
 GAMMA         : float = 0.99      # discount factor
 
 # ── Feature configuration ──────────────────────────────────────────────────────
-SHIFT_TIMING_ENABLED : bool = True  # Enable end-of-shift anticipatory features
+SHIFT_TIMING_ENABLED : bool = False  # Enable end-of-shift anticipatory features
 N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, shift_timing_enabled=SHIFT_TIMING_ENABLED))  # auto-synced with vfa_features.py
 
 INSTANCE_NAME : str   = "TD_W34_old"
