@@ -449,8 +449,6 @@ class LinearVFAPolicy(Policy):
         # Compute TD error based on the reward since last decision and the next post-decision value as the bootstrap target.
         td_error = reward + self.gamma * self.value(phi_next) - self.value(self._prev_phi)
 
-        td_error = float(np.clip(td_error, -50.0, 50.0)) # Clip TD error to prevent weight explosion (numerical safety net).
-
         # --- Learning Log ---
         # NOTE: Remove later maybe, or tune the clipping threshold, if we see learning instability.
         if reward != 0 or abs(td_error) > 0.1:
@@ -836,10 +834,7 @@ class LinearVFAPolicy(Policy):
                 base_func, base_onsite, base_depot, 
                 delta_func, delta_depot_cargo,
                 delta_onsite_repairs,
-                next_station_id=dest_id,
-                #net_flow_3hr=net_flow_3hr,                # <-- PASS IT HERE
-                #expected_rent_3hr=expected_rent_3hr,      # <-- PASS IT HERE
-                #expected_return_3hr=expected_return_3hr   # <-- PASS IT HERE
+                next_station_id=dest_id
             )
             phis.append(phi)
             values[k] = self.value(phi)
