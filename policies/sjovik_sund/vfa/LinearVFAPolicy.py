@@ -158,6 +158,41 @@ class LinearVFAPolicy(Policy):
 
         self._station_ids = [s.id for s in stations]
         self._sid_to_idx  = {sid: k for k, sid in enumerate(self._station_ids)}
+        # --- NEW: Cache arrays for advanced features ---
+        self._station_coords = np.zeros((N, 2))
+        self._station_dist_to_depot = np.zeros(N)
+        self._station_capacities = np.zeros(N)
+        self._station_zones = np.zeros(N, dtype=np.int32)
+        
+        zone_map = {}
+        zone_counter = 0
+
+        for i, s_id in enumerate(self._station_ids):
+            station = state.stations[s_id]
+            
+            # Robust coordinate extraction
+            lat, lon = 0.0, 0.0
+            if hasattr(station, 'latitude'):
+                lat, lon = station.latitude, station.longitude
+            elif hasattr(station, 'location') and hasattr(station.location, 'latitude'):
+                lat, lon = station.location.latitude, station.location.longitude
+            elif hasattr(station, 'location') and isinstance(station.location, (list, tuple, np.ndarray)):
+                lat, lon = station.location[0], station.location[1]
+                
+            self._station_coords[i] = [lat, lon]
+            self._station_capacities[i] = getattr(station, 'capacity', 20)
+            
+            # --- NEW: Extract Zones mapping from Station.area ---
+            area = getattr(station, 'area', None)
+            if area not in zone_map:
+                zone_map[area] = zone_counter
+                zone_counter += 1
+            self._station_zones[i] = zone_map[area]
+            
+            if self._depot_id:
+                self._station_dist_to_depot[i] = state.get_travel_time(s_id, self._depot_id)
+
+        #########
 
         # Target inventory matrix  (7 days × 24 hours × N stations)
         self._target_matrix = np.array(
@@ -194,30 +229,30 @@ class LinearVFAPolicy(Policy):
         self, state, vehicle
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        
-        As the raw Simulator state is a complex object this function uses 'extract_mdp_state' to snapshot the city and converts 
-        it into three simple integer arrays (functional, onsite, depot).
-        This is the expensive 'city-scan' we call only once per 
-        decision epoch.
-
+        Takes a snapshot of the city directly from the true simulator state,
+        bypassing the MDP extraction layer to ensure broken bikes are 
+        accurately mapped.
         """
         N = len(self._station_ids)
         func = np.zeros(N, dtype=np.int32)
         onsite = np.zeros(N, dtype=np.int32)
         depot = np.zeros(N, dtype=np.int32)
 
-        mdp_state = extract_mdp_state(
-            sim_state=state,
-            active_vehicle_id=vehicle.id,
-            config=self.config,
-            depot_id=self._depot_id,
-        )
-
-        for sid, inv in mdp_state.stations.items():
+        for sid, station in state.stations.items():
+            if sid not in self._sid_to_idx:
+                continue
             k = self._sid_to_idx[sid]
-            func[k] = inv.functional
-            onsite[k] = inv.onsite
-            depot[k] = inv.depot
+            
+            # Extract true physical inventory directly from the station objects
+            station_bikes = station.bikes if isinstance(station.bikes, dict) else {}
+            for bike in station_bikes.values():
+                status = getattr(bike, 'damage_status', None)
+                if status == 'onsite':
+                    onsite[k] += 1
+                elif status == 'depot':
+                    depot[k] += 1
+                else:
+                    func[k] += 1
 
         return func, onsite, depot
 
@@ -234,7 +269,11 @@ class LinearVFAPolicy(Policy):
         depot: np.ndarray,     # <-- ADDED
         delta_func: int = 0,
         delta_depot_cargo: int = 0,
+        delta_onsite_repairs: int = 0,
         next_station_id: str = None,
+        net_flow_3hr: np.ndarray = None,          # <-- ADDED
+        expected_rent_3hr: np.ndarray = None,     # <-- ADDED
+        expected_return_3hr: np.ndarray = None,   # <-- ADDED
     ) -> np.ndarray:
         """
         Compute φ(S^x) for the post-decision state resulting from applying a
@@ -262,13 +301,18 @@ class LinearVFAPolicy(Policy):
         """
         #func, onsite, depot = self._extract_inventories(state, vehicle)
         func_post = func.copy()
+        onsite_post = onsite.copy()
 
         # ── Apply post-decision delta at the vehicle's current station ─────
         # (skip if at depot; depot inventory handled separately in MDP)
         if vehicle.location.id in self._sid_to_idx:
             cur_idx = self._sid_to_idx[vehicle.location.id]
-            #func[cur_idx] = max(0, func[cur_idx] + delta_func)
             func_post[cur_idx] = max(0, func_post[cur_idx] + delta_func)
+            if delta_onsite_repairs:
+                repairs = max(0, int(delta_onsite_repairs))
+                applied_repairs = min(repairs, int(onsite_post[cur_idx]))
+                onsite_post[cur_idx] = max(0, onsite_post[cur_idx] - applied_repairs)
+                func_post[cur_idx] += applied_repairs
 
         # ── Vehicle depot cargo in post-decision state ─────────────────────
         # Use canonical MDP extraction helper to keep policy/MDP semantics aligned.
@@ -310,9 +354,8 @@ class LinearVFAPolicy(Policy):
 
         # ── Delegate to vfa_features.extract() – the canonical feature source
         phi = _extract_phi(
-            #func=func.astype(np.float64),
-            func=func_post.astype(np.float64),  # <-- Use func_post here!
-            onsite=onsite.astype(np.float64),
+            func=func_post.astype(np.float64),
+            onsite=onsite_post.astype(np.float64),
             depot=depot.astype(np.float64),
             target=target.astype(np.float64),
             activity=self._activity.astype(np.float64),
@@ -324,8 +367,16 @@ class LinearVFAPolicy(Policy):
             shift_timing_enabled=self.shift_timing_enabled,
             time_remaining=self._get_time_remaining(state, vehicle),
             shift_length=self._get_shift_length(state, vehicle),
+            # --- ADVANCED & CANDIDATE ARRAYS ---
+            station_coords=getattr(self, '_station_coords', None),
+            station_dist_to_depot=getattr(self, '_station_dist_to_depot', None),
+            station_capacities=getattr(self, '_station_capacities', None),
+            net_flow_3hr=net_flow_3hr,
+            expected_rent_3hr=expected_rent_3hr,          # <-- NEW
+            expected_return_3hr=expected_return_3hr,      # <-- NEW
+            station_zones=getattr(self, '_station_zones', None), # <-- NEW
+            D_max=30.0  # Max travel time normalizer
         )
-
         assert len(phi) == len(self.FEATURE_NAMES), (
             f"extract_features() returned {len(phi)} values but "
             f"FEATURE_NAMES has {len(self.FEATURE_NAMES)} entries. "
@@ -538,9 +589,26 @@ class LinearVFAPolicy(Policy):
         candidates = []
         for s in pool:
             for onsite_repairs in onsite_repairs_options:
+                # --- NEW: Dynamic Rebalancing Math ---
+                # Adjust pickups/drop-offs based on the repairs we are doing right now!
+                if vehicle.is_at_depot():
+                    current_rebalancing = 0
+                else:
+                    new_n_station = n_station + onsite_repairs
+                    delta = target - new_n_station
+                    
+                    if delta > 0:
+                        current_rebalancing = min(n_vehicle_func, delta)
+                    elif delta < 0:
+                        n = min(new_n_station, -delta, max(free_cap - depot_removals, 0))
+                        current_rebalancing = -n
+                    else:
+                        current_rebalancing = 0
+                # -------------------------------------
+
                 mdp_action = MdpAction(
                     current_station=cur_id,
-                    rebalancing=int(rebalancing),
+                    rebalancing=int(current_rebalancing),
                     onsite_repairs=int(onsite_repairs),
                     depot_removals=int(depot_removals),
                     load_from_queue=int(load_from_queue),
@@ -551,9 +619,24 @@ class LinearVFAPolicy(Policy):
         if not candidates:
             depot_id   = state.get_closest_depot(vehicle)
             for onsite_repairs in onsite_repairs_options:
+
+                # --- Fallback Dynamic Rebalancing ---
+                if vehicle.is_at_depot():
+                    current_rebalancing = 0
+                else:
+                    new_n_station = n_station + onsite_repairs
+                    delta = target - new_n_station
+                    if delta > 0:
+                        current_rebalancing = min(n_vehicle_func, delta)
+                    elif delta < 0:
+                        n = min(new_n_station, -delta, max(free_cap - depot_removals, 0))
+                        current_rebalancing = -n
+                    else:
+                        current_rebalancing = 0
+
                 mdp_action = MdpAction(
                     current_station=cur_id,
-                    rebalancing=0,
+                    rebalancing=int(current_rebalancing),
                     onsite_repairs=int(onsite_repairs),
                     depot_removals=int(depot_removals),
                     load_from_queue=int(load_from_queue),
@@ -691,10 +774,34 @@ class LinearVFAPolicy(Policy):
 
         base_func, base_onsite, base_depot = self._extract_inventories(state, vehicle)
 
+        '''# ── NEW: Pre-compute 3-hour expectations for feature extraction ───
+        curr_d = state.day() % 7
+        curr_h = state.hour() % 24
+        net_flow_3hr = np.zeros(len(self._station_ids))
+        expected_rent_3hr = np.zeros(len(self._station_ids))
+        expected_return_3hr = np.zeros(len(self._station_ids))
+        
+        for i, s_id in enumerate(self._station_ids):
+            station = state.stations[s_id]
+            flow, rent, ret = 0.0, 0.0, 0.0
+            for offset in range(3):
+                h = (curr_h + offset) % 24
+                d = (curr_d + (curr_h + offset) // 24) % 7
+                arr = station.arrive_intensities[d][h] if getattr(station, 'arrive_intensities', None) else 0
+                lev = station.leave_intensities[d][h] if getattr(station, 'leave_intensities', None) else 0
+                flow += (arr - lev)
+                rent += lev
+                ret += arr
+            net_flow_3hr[i] = flow
+            expected_rent_3hr[i] = rent
+            expected_return_3hr[i] = ret
+        # ──────────────────────────────────────────────────────────────────'''
+
+
         # ── Step 3: score each candidate ──────────────────────────────────
         phis: List[np.ndarray] = []
         values = np.empty(len(candidates), dtype=np.float64)
-
+        
         for k, action in enumerate(candidates):
             # Differentiate functional vs depot pickups
             # vehicle.location.bikes is already a dictionary of {bike_id: bike}, so we use it directly:
@@ -712,6 +819,7 @@ class LinearVFAPolicy(Policy):
             # Net change in functional bikes and vehicle depot cargo
             delta_func = len(action.delivery_bikes) - functional_pickups
             delta_depot_cargo = depot_pickups
+            delta_onsite_repairs = len(getattr(action, "onsite_repairs", []))
             
             # If vehicle is at depot, ALL depot cargo is unloaded
             if vehicle.is_at_depot():
@@ -725,7 +833,11 @@ class LinearVFAPolicy(Policy):
                 state, vehicle, 
                 base_func, base_onsite, base_depot, 
                 delta_func, delta_depot_cargo,
-                next_station_id=dest_id
+                delta_onsite_repairs,
+                next_station_id=dest_id,
+                #net_flow_3hr=net_flow_3hr,                # <-- PASS IT HERE
+                #expected_rent_3hr=expected_rent_3hr,      # <-- PASS IT HERE
+                #expected_return_3hr=expected_return_3hr   # <-- PASS IT HERE
             )
             phis.append(phi)
             values[k] = self.value(phi)
