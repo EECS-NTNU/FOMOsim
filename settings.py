@@ -38,7 +38,7 @@ SIM_CACHE_DIR = "sim_cache"
 TRAFFIC_LOGGING = False
 RANDOM_DESTINATION_PROB = 0.02 # 2% probability of going to a random destination
 FULL_TRIP = True
-START_TIME = 7 # hour of day the simulation starts at
+START_TIME = 5 # hour of day the simulation starts at
 DURATION = 24*60*7
 
 # Station settings

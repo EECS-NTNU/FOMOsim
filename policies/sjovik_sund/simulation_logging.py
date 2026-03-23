@@ -545,6 +545,9 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
     """
     os.makedirs(RESULTS_DIR, exist_ok=True)
     filepath = RESULTS_DIR / filename
+    
+    # Create parent directories for nested paths (e.g., run_*/ep_*/filename.csv)
+    filepath.parent.mkdir(parents=True, exist_ok=True)
    
     mode = 'a' if append else 'w'
     file_exists = os.path.isfile(filepath) and append
@@ -597,7 +600,7 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
             simulator.state.metrics.get_aggregate_value('vehicle arrivals'),
             simulator.state.metrics.get_aggregate_value('bike_deliveries'),
             simulator.state.metrics.get_aggregate_value('bike_pickups'),
-           # round(service_level, 4),
+            round(service_level, 4),
             # simulator.state.metrics.get_aggregate_value('maintenance time'),
             # #simulator.state.metrics.get_aggregate_value('maintenance violations'),
            # # simulator.state.metrics.get_aggregate_value('maintenance_starvation'),
@@ -1172,3 +1175,5 @@ def write_rl_decisions_to_file(filename_prefix, simulator, seed):
         df_rl.to_csv(RESULTS_DIR / f"{filename_prefix}_rl_decisions_seed_{seed}.csv", index=False)
         # Clear the log to save memory for the next run
         vfa_policy.rl_logs = []
+
+
