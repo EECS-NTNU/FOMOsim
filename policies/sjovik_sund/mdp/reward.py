@@ -1,0 +1,53 @@
+from dataclasses import dataclass
+
+@dataclass
+class RewardConfig:
+    # --- Operational Components ---
+    weight_starvation: float = -1.0
+    weight_congestion: float = -0.5
+    weight_maintenance_violation: float = 0.0  # Set to >0 to penalize broken bikes left alone
+    
+    # --- End-of-Day Components (from your existing code) ---
+    not_at_depot_at_end_penalty: float = -1000.0
+    functional_bikes_at_end_penalty: float = -50.0
+    
+    @staticmethod
+    def benchmark_base_only() -> "RewardConfig":
+        """Configuration for isolating just starvation and congestion."""
+        return RewardConfig(
+            weight_starvation=-1.0,
+            weight_congestion=-0.5,
+            not_at_depot_at_end_penalty=0.0,
+            functional_bikes_at_end_penalty=0.0
+        )
+
+class RewardCalculator:
+    def __init__(self, config: RewardConfig = None):
+        self.config = config or RewardConfig()
+        
+        # Move the state tracking out of the policy and into the calculator
+        self._prev_starvations = 0
+        self._prev_congestions = 0
+
+    def reset_episode(self):
+        """Must be called at the start of every 14-day episode."""
+        self._prev_starvations = 0
+        self._prev_congestions = 0
+
+    def compute_step_reward(self, simulator_metrics) -> float:
+        """Calculates the reward since the last decision epoch."""
+        cur_s = simulator_metrics.get_aggregate_value("starvations") or 0
+        cur_c = simulator_metrics.get_aggregate_value("long congestions") or 0
+
+        delta_s = cur_s - self._prev_starvations
+        delta_c = cur_c - self._prev_congestions
+
+        reward = 0.0
+        reward += self.config.weight_starvation * delta_s
+        reward += self.config.weight_congestion * delta_c
+
+        # Update trackers for the next step
+        self._prev_starvations = cur_s
+        self._prev_congestions = cur_c
+
+        return reward
