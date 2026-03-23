@@ -99,7 +99,7 @@ class LinearVFAPolicy(Policy):
         self.depot_log_file = depot_log_file
         self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled)
         self.N_FEATURES = len(self.FEATURE_NAMES)
-        self.reward_calc = reward_calculator or RewardCalculator()
+        self.reward_calc = reward_calculator or RewardCalculator(gamma=gamma)
 
         if n_features is None:
             n_features = self.N_FEATURES
@@ -424,6 +424,8 @@ class LinearVFAPolicy(Policy):
 
         self._prev_starvations = cur_s
         self._prev_congestions = cur_c
+        print(f"[REWARD] Starvations: {cur_s} (Δ={cur_s - self._prev_starvations}) | "
+              f"Congestions: {cur_c} (Δ={cur_c - self._prev_congestions})")
         return reward
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -463,6 +465,8 @@ class LinearVFAPolicy(Policy):
     # ─────────────────────────────────────────────────────────────────────────
 
     def _generate_candidates(self, state, vehicle) -> List[sim.Action]:
+        #NOTE: If if your first few training runs prove that the agent is getting stuck, update candidates to for example 5 nearest stations and 3 critical stations or something
+        #NOTE: Currently uses a tabu list generation for multi-vehicle coordination. Can consider adding other vehcile decisions and effective inventory to mdp state if we want a more mathematically profound coordination mechanism, but this is a simple and effective first step to prevent multiple vehicles from being dispatched to the same starving/congested station.
         """
         Generate a tractable set of candidate actions using action-space splitting:
 
@@ -472,6 +476,10 @@ class LinearVFAPolicy(Policy):
                               sorted by travel time from the current location.
 
         This version generates multiple candidates for different numbers of onsite repairs (0 to all).
+        
+        NEW: Multi-vehicle coordination via tabu list. Stations claimed by en-route vehicles
+        are excluded from the candidate pool to prevent multiple vehicles from being 
+        dispatched to the same starving/congested location.
         """
         load_from_queue = 0  # default – overridden when at depot
 
@@ -534,16 +542,51 @@ class LinearVFAPolicy(Policy):
         
         #TODO: Handle maintenance actions here as well when we add maintenance features and train the VFA with maintenance-enabled.
 
+        # ── TABU LIST: Identify stations already claimed by other en-route vehicles ────
+        # Uses MDP formulation notation: destination_station from VehicleStatus
+        claimed_stations = set()
+        for v in state.get_vehicles():
+            if v.id != vehicle.id:
+                # Check if vehicle is en-route (eta > 0 means traveling, not idle at a location)
+                # This semantics matches sim.Vehicle.eta behavior in the simulator
+                if getattr(v, 'eta', 0) > 0:
+                    # Extract destination using MDP-canonical notation
+                    # Fallback chain: destination_station (MDP) → next_location (sim.Action) → current location
+                    dest = (
+                        getattr(v, 'destination_station', None) or
+                        getattr(v, 'next_location', None) or
+                        (v.location.id if v.location else None)
+                    )
+                    if dest:
+                        claimed_stations.add(dest)
+        print(f"[TABU] Vehicle {vehicle.id} | Claimed stations by other vehicles: {claimed_stations}")
         # ── Macro: nearest N_CANDIDATES next stations (by travel time) ────
         cur_id = vehicle.location.id
-        pool   = [s for s in state.get_stations() if s.id != cur_id]
+        
+        # Build candidate pool, excluding currently claimed stations
+        pool = [s for s in state.get_stations() 
+                if s.id != cur_id and s.id not in claimed_stations]
+        
         depot_stations = state.get_depots()
         if depot_stations:
             depot = depot_stations[0]  # use first/closest depot
+            # Always include depot (not subject to tabu, as repairs are handled outside the rebalancing network)
             if depot.id != cur_id:
                 pool.append(depot)
+        
         pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
         pool = pool[: self.N_CANDIDATES]
+
+        # Fallback: if tabu filtering removed all stations, allow any non-claimed station
+        if not pool:
+            pool = [s for s in state.get_stations() if s.id != cur_id]
+            depot_stations = state.get_depots()
+            if depot_stations:
+                depot = depot_stations[0]
+                if depot.id != cur_id:
+                    pool.append(depot)
+            pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
+            pool = pool[: self.N_CANDIDATES]
 
         candidates = []
         for s in pool:

@@ -22,9 +22,11 @@ class RewardConfig:
         )
 
 class RewardCalculator:
-    def __init__(self, config: RewardConfig = None):
+    def __init__(self, config: RewardConfig = None, gamma: float = 0.99):
         self.config = config or RewardConfig()
-        
+        self.gamma = gamma
+        self._scale_factor = 1.0 - gamma  # Will be 0.01 when gamma=0.99
+       
         # Move the state tracking out of the policy and into the calculator
         self._prev_starvations = 0
         self._prev_congestions = 0
@@ -49,5 +51,5 @@ class RewardCalculator:
         # Update trackers for the next step
         self._prev_starvations = cur_s
         self._prev_congestions = cur_c
-
-        return reward
+ 
+        return reward*self._scale_factor  # Scale to keep values in a manageable range

@@ -99,7 +99,17 @@ $\lambda_i$ is the time-averaged arrival rate at station $i$.
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 
 policy = LinearVFAPolicy()
-phi = policy.extract_features(state, vehicle, delta_func=2)
+policy._lazy_init(state)  # Build static network caches
+func, onsite, depot = policy._extract_inventories(state, vehicle)
+# Compute features for post-decision state (dropping 2 items)
+phi = policy.extract_features(
+    state, 
+    vehicle, 
+    func=func, 
+    onsite=onsite, 
+    depot=depot, 
+    delta_func=2
+)
 print(f'V(S^x) = {policy.value(phi):.4f}')
 ```
 
@@ -124,7 +134,6 @@ policy = LinearVFAPolicy.load('models/my_vfa.pkl')  # learning_mode=False
 
 # Training (Boltzmann + TD updates)
 policy = LinearVFAPolicy(
-    n_features    = 5,
     alpha         = 0.01,
     gamma         = 0.99,
     tau           = 5.0,    # Boltzmann temperature
@@ -240,7 +249,7 @@ constants at the top of `train_vfa.py`:
 |-----------|----------|---------|--------|
 | `alpha` | `LinearVFAPolicy` | `0.01` | TD step size |
 | `gamma` | `LinearVFAPolicy` | `0.99` | Discount factor |
-| `n_features` | `LinearVFAPolicy` | `5` | φ vector length |
+| `n_features` | `LinearVFAPolicy` | `len(FEATURE_NAMES)` | φ vector length (dynamically populated) |
 | `N_CANDIDATES` | `LinearVFAPolicy` (class attr) | `8` | Routing candidates per decision |
 | `TAU_START` | `train_vfa.py` | `5.0` | Initial Boltzmann temperature |
 | `TAU_END` | `train_vfa.py` | `0.1` | Final Boltzmann temperature |
@@ -270,7 +279,7 @@ constants at the top of `train_vfa.py`:
    │                                                              │
    │  Each vehicle decision:                                      │
    │  1. Extract canonical MDP snapshot via extract_mdp_state()   │
-   │  2. Build φ(S^x) via vfa_features.extract() → shape (5,)     │
+   │  2. Build φ(S^x) via vfa_features.extract()                  │
    │  3. Boltzmann-select next station via  P∝exp(−V/τ)           │
    │  4. TD update:  θ += α(r + γV_next − V_cur) φ_cur            │
    └──────────────────────────────────────────────────────────────┘
