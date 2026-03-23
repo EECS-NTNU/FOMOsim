@@ -25,6 +25,7 @@ from policies import action
 from policies import action
 from policies.sjovik_sund.mdp.reward import RewardCalculator
 
+
 WORKSPACE_ROOT = Path(__file__).parents[3]
 sys.path.insert(0, str(WORKSPACE_ROOT))
 
@@ -205,7 +206,7 @@ class LinearVFAPolicy(Policy):
     # ─────────────────────────────────────────────────────────────────────────
     # Inventory extraction
     # ─────────────────────────────────────────────────────────────────────────
-    '''
+   
     def _extract_inventories(
         self, state, vehicle
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -235,7 +236,7 @@ class LinearVFAPolicy(Policy):
                 else:
                     func[k] += 1
 
-        return func, onsite, depot'''
+        return func, onsite, depot
 
     # ─────────────────────────────────────────────────────────────────────────
     # Feature vector  φ(S^x)  – delegated to vfa_features.py
@@ -252,9 +253,6 @@ class LinearVFAPolicy(Policy):
         delta_depot_cargo: int = 0,
         delta_onsite_repairs: int = 0,
         next_station_id: str = None,
-        net_flow_3hr: np.ndarray = None,          # <-- ADDED
-        expected_rent_3hr: np.ndarray = None,     # <-- ADDED
-        expected_return_3hr: np.ndarray = None,   # <-- ADDED
     ) -> np.ndarray:
         """
         Compute φ(S^x) for the post-decision state.

@@ -42,7 +42,7 @@ from helpers import timeInMinutes
 from policies.greedy_policy import GreedyPolicy
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy
 from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_feature_names
-from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig, write_simulation_outputs
+from policies.sjovik_sund.run_simulation_ingvild import run_simulation, SimulationConfig, write_simulation_outputs
 from settings import ENABLE_COMPONENT_FAILURES
 
 
@@ -65,7 +65,7 @@ ALPHA         : float = 0.01      # TD learning rate
 GAMMA         : float = 0.99      # discount factor
 
 # ── Feature configuration ──────────────────────────────────────────────────────
-SHIFT_TIMING_ENABLED : bool = True  # Enable end-of-shift anticipatory features
+SHIFT_TIMING_ENABLED : bool = False  # Enable end-of-shift anticipatory features
 N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, shift_timing_enabled=SHIFT_TIMING_ENABLED))  # auto-synced with vfa_features.py
 
 INSTANCE_NAME : str   = "TD_W34_old"
@@ -143,7 +143,9 @@ def train(
         gamma         = GAMMA,
         tau           = TAU_START,
         learning_mode = True,
-        seed          = 42
+        seed          = 42,
+        maintenance_enabled=ENABLE_COMPONENT_FAILURES,
+        shift_timing_enabled=SHIFT_TIMING_ENABLED,
     )
 
     greedy_policy = GreedyPolicy()
