@@ -88,9 +88,9 @@ def _service_level(simulator) -> float:
     Returns 0.0 if no trips were generated (e.g. very short test run).
     """
     m      = simulator.state.metrics
-    trips  = m.get_aggregate_value("total_trips")   or 1
-    starv  = m.get_aggregate_value("starvation")    or 0
-    cong  = m.get_aggregate_value("congestion")      or 0
+    trips  = m.get_aggregate_value("trips")   or 1
+    starv  = m.get_aggregate_value("starvations")    or 0
+    cong  = m.get_aggregate_value("long congestions")      or 0
     return 1.0 - (starv + cong) / max(trips, 1)
 
 
