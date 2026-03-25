@@ -89,4 +89,4 @@ def run_all_experiments(episodes: int = 200):
         )
 
 if __name__ == "__main__":
-    run_all_experiments(episodes=100)
+    run_all_experiments(episodes=50)

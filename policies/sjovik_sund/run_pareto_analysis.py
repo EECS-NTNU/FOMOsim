@@ -74,7 +74,7 @@ def _print_theta_debug(label, theta_start, theta_end):
     print(f"    theta_end       = {np.array2string(theta_end, precision=4)}")
     print(f"    theta_delta     = {np.array2string(delta, precision=4)}")
 
-def train_and_eval_ratio(label, w_starv, w_cong):
+def train_and_eval_ratio(label, w_starv, w_cong, model_seed):
     print(f"\n{'='*50}")
     print(f"Testing Ratio: {label} (S:{w_starv}, C:{w_cong})")
     print(f"{'='*50}")
@@ -89,7 +89,8 @@ def train_and_eval_ratio(label, w_starv, w_cong):
         gamma=0.99,
         tau=5.0,
         learning_mode=True,
-        reward_calculator=custom_reward_calc
+        reward_calculator=custom_reward_calc,
+        seed=model_seed
     )
     theta_start = vfa_policy.theta.copy()
     episode_theta_history = []
@@ -175,8 +176,13 @@ def train_and_eval_ratio(label, w_starv, w_cong):
 def run_analysis():
     results = {}
     theta_results = {}
-    for label, (w_starv, w_cong) in WEIGHT_RATIOS.items():
-        avg_s, avg_c = train_and_eval_ratio(label, w_starv, w_cong)
+    
+    # Give each ratio a unique starting seed (e.g., 42, 43, 44, 45, 46)
+    for i, (label, (w_starv, w_cong)) in enumerate(WEIGHT_RATIOS.items()):
+        
+        # Pass 42 + i so every model starts with a different blank slate
+        avg_s, avg_c = train_and_eval_ratio(label, w_starv, w_cong, model_seed=42+i) 
+        
         results[label] = (avg_s, avg_c)
         theta_path_label = _sanitize_label(label)
         theta_df = pd.read_csv(DEBUG_OUTPUT_DIR / f"pareto_theta_{theta_path_label}.csv")

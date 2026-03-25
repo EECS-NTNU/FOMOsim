@@ -70,6 +70,7 @@ class LinearVFAPolicy(Policy):
 
     def __init__(
         self,
+        active_features: List[str] = None,
         n_features: int = None,   # defaults to len(FEATURE_NAMES); set explicitly to override
         alpha: float = 0.01,
         gamma: float = 0.99,
@@ -97,7 +98,20 @@ class LinearVFAPolicy(Policy):
         self.shift_timing_enabled = shift_timing_enabled
         self.log_depot_visits = log_depot_visits
         self.depot_log_file = depot_log_file
-        self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled)
+        # 1. Get the canonical list of ALL possible features
+        self.ALL_FEATURE_NAMES = _get_feature_names(True, True)
+
+        # 2. Determine which features we are actually using
+        if active_features is None:
+            self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled)
+        else:
+            self.FEATURE_NAMES = active_features
+
+        # 3. Create a boolean mask to slice the numpy array extremely fast
+        self._feature_mask = np.array([
+            (name in self.FEATURE_NAMES) for name in self.ALL_FEATURE_NAMES
+        ], dtype=bool)
+            
         self.N_FEATURES = len(self.FEATURE_NAMES)
         self.reward_calc = reward_calculator or RewardCalculator(gamma=gamma)
 
@@ -351,7 +365,7 @@ class LinearVFAPolicy(Policy):
             ], dtype=np.float32)
 
         # ── Delegate to canonical feature extractor ────────────────────────
-        phi = _extract_phi(
+        phi_full = _extract_phi(
             func=func_post.astype(np.float64),
             onsite=onsite_post.astype(np.float64),
             depot=depot.astype(np.float64),
@@ -365,11 +379,16 @@ class LinearVFAPolicy(Policy):
             dist_to_depot=dist_to_depot,
             lambda_max_system=self._lambda_max_system, # New Lambda_max scaler
             max_gravity=self._max_gravity,                 # New G_max scaler
-            maintenance_enabled=self.maintenance_enabled,
-            shift_timing_enabled=self.shift_timing_enabled,
+            #maintenance_enabled=self.maintenance_enabled, # This should not be true un we are doing ablation study
+            maintenance_enabled=True,
+            #shift_timing_enabled=self.shift_timing_enabled, # This should not be true unless we are doing ablation study
+            shift_timing_enabled=True,
             time_remaining=self._get_time_remaining(state, vehicle),
-            shift_length=self._get_shift_length(state, vehicle),
+            shift_length=self._get_shift_length(state, vehicle)
         )
+    
+        # 4. Slice the full feature vector to only include active features
+        phi = phi_full[self._feature_mask]
 
         return phi
 
@@ -397,7 +416,7 @@ class LinearVFAPolicy(Policy):
         base_func, base_onsite, base_depot = self._extract_inventories(state, vehicle)
 
         phi = self.extract_features(state, vehicle, base_func, base_onsite, base_depot, delta_func, delta_depot_cargo)
-        return _phi_as_dict(phi, self.maintenance_enabled, self.shift_timing_enabled)
+        return dict(zip(self.FEATURE_NAMES, phi.tolist()))
 
     def value(self, phi: np.ndarray) -> float:
         """V(S^x) = θᵀ φ(S^x)."""
@@ -937,6 +956,10 @@ class LinearVFAPolicy(Policy):
             
         elif self.learning_mode and self._prev_phi is None:
             _ = self.reward_calc.compute_step_reward(state.metrics)
+            # Freeze the exact warmup totals here!
+            self.warmup_starvations_snapshot = self.reward_calc._prev_starvations
+            self.warmup_congestions_snapshot = self.reward_calc._prev_congestions
+            self.warmup_trips_snapshot = self.reward_calc._prev_trips
 
         """ # ── Step 5: select action ─────────────────────────────────────────
         if self.learning_mode:
@@ -962,7 +985,7 @@ class LinearVFAPolicy(Policy):
         # ── Step 8: Log the Brain's Decision (NEW) ────────────────────────
         if getattr(self, 'log_rl_decisions', False):
             # Get the human-readable features for the winning action
-            phi_dict = _phi_as_dict(phis[sel_idx], self.maintenance_enabled, self.shift_timing_enabled)
+            phi_dict = dict(zip(self.FEATURE_NAMES, phis[sel_idx].tolist()))
             
             log_entry = {
                 'time': state.time,

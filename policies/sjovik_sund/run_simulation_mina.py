@@ -34,6 +34,7 @@ from policies.sjovik_sund.simulation_logging import (
     write_component_failures_to_file,
     write_vehicle_and_health_logs, 
     write_rl_decisions_to_file,
+    write_bike_movements_to_file,
 )
 from policies.sjovik_sund.operational_logging import OperationalLogger
 
@@ -170,6 +171,10 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
     # 3. Station hourly metrics
     station_hourly_filename = f"{base_filename}_station_hourly_seed_{seed}.csv"
     write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
+
+    # Write bike movements for this seed
+    bike_movements_filename = f"{base_filename}_bike_movements_seed_{seed}.csv"
+    write_bike_movements_to_file(bike_movements_filename, simulator, seed)
     
     # 4. Component Failures (if enabled)
     if ENABLE_COMPONENT_FAILURES:

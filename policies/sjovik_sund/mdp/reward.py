@@ -25,21 +25,32 @@ class RewardCalculator:
     def __init__(self, config: RewardConfig = None, gamma: float = 0.99):
         self.config = config or RewardConfig()
         self.gamma = gamma
-        self._scale_factor = 1.0 - gamma  # Will be 0.01 when gamma=0.99
+        '''self._scale_factor = 1.0 - gamma  # Will be 0.01 when gamma=0.99
        
         # Move the state tracking out of the policy and into the calculator
         self._prev_starvations = 0
         self._prev_congestions = 0
+        self._prev_trips = 0  # <--- NEW: Track trips for exact service level'''
+
+        # --- FIXED: Set to 1.0. Stop crushing the reward signal! ---
+        self._scale_factor = 1.0  
+       
+        # Move the state tracking out of the policy and into the calculator
+        self._prev_starvations = 0
+        self._prev_congestions = 0
+        self._prev_trips = 0
 
     def reset_episode(self):
         """Must be called at the start of every 14-day episode."""
         self._prev_starvations = 0
         self._prev_congestions = 0
+        self._prev_trips = 0  # <--- NEW
 
     def compute_step_reward(self, simulator_metrics) -> float:
         """Calculates the reward since the last decision epoch."""
         cur_s = simulator_metrics.get_aggregate_value("starvations") or 0
         cur_c = simulator_metrics.get_aggregate_value("long congestions") or 0
+        cur_t = simulator_metrics.get_aggregate_value("trips") or 0  # <--- NEW
 
         delta_s = cur_s - self._prev_starvations
         delta_c = cur_c - self._prev_congestions
@@ -51,5 +62,6 @@ class RewardCalculator:
         # Update trackers for the next step
         self._prev_starvations = cur_s
         self._prev_congestions = cur_c
+        self._prev_trips = cur_t  # <--- NEW: Store the trips snapshot
  
-        return reward*self._scale_factor  # Scale to keep values in a manageable range
+        return reward * self._scale_factor
