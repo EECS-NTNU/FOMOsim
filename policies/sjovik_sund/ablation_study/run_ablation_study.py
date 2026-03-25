@@ -69,7 +69,7 @@ def run_all_experiments(episodes: int = 100):
     base_dir.mkdir(parents=True, exist_ok=True)
     
     # Define 3 different starting offsets for our multiple runs
-    MACRO_SEEDS = [1000, 2000, 3000] 
+    MACRO_SEEDS = [1000] 
     
     for exp_name, features in EXPERIMENTS.items():
         print(f"\n{'='*60}")
