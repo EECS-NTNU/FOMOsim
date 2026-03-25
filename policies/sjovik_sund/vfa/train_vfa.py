@@ -54,15 +54,15 @@ from settings import ENABLE_COMPONENT_FAILURES
 NUM_EPISODES  : int   = 200       # total training episodes
 
 EPISODE_DAYS  : int   = 14        # days per episode (total)
-WARMUP_DAYS   : int   = 4         # greedy warm-up, no TD updates
-LEARNING_DAYS : int   = 10        # VFA + Boltzmann + TD(0)  (days 5 – 14)
+WARMUP_DAYS   : int   = 1         # greedy warm-up, no TD updates
+LEARNING_DAYS : int   = 13        # VFA + Boltzmann + TD(0)  (days 5 – 14)
 
 TAU_START     : float = 5.0       # initial Boltzmann temperature
-TAU_END       : float = 0.1       # final   Boltzmann temperature
-# Exponential decay factor (computed once; re-used every episode)
-TAU_DECAY     : float = (TAU_END / TAU_START) ** (1.0 / max(NUM_EPISODES - 1, 1))
+TAU_END       : float = 0.01       # final   Boltzmann temperature
+# Exponential decay factor is computed per train() call to respect num_episodes
 
-ALPHA         : float = 0.01      # TD learning rate
+ALPHA_START   : float = 0.02     # TD learning rate
+ALPHA_END     : float = 0.001     # The "floor" it will decay to
 GAMMA         : float = 0.99      # discount factor
 
 # ── Feature configuration ──────────────────────────────────────────────────────
@@ -118,6 +118,9 @@ def train(
     Returns:
         The trained LinearVFAPolicy (θ frozen after training).
     """
+    # ── Compute TAU_DECAY based on the actual num_episodes for this run ───
+    tau_decay = (TAU_END / TAU_START) ** (1.0 / max(num_episodes - 1, 1))
+
     # ── Header ────────────────────────────────────────────────────────────────
     print("=" * 72)
     print("  OFFLINE VFA TRAINING  -  Time-Indexed Linear VFA")
@@ -129,9 +132,10 @@ def train(
     )
     print(
         f"  tau schedule        : {TAU_START:.2f}  ->  {TAU_END:.2f}  "
-        f"(decay per episode = {TAU_DECAY:.6f})"
+        f"(decay per episode = {tau_decay:.6f})"
     )
-    print(f"  alpha / gamma       : {ALPHA} / {GAMMA}")
+    print(f"  alpha schedule      : {ALPHA_START:.4f}  ->  {ALPHA_END:.4f}  (linear decay)")
+    print(f"  gamma               : {GAMMA}")
     print(f"  Instance          : {instance_name}")
     print("=" * 72 + "\n")
 
@@ -140,7 +144,7 @@ def train(
     # ── Initialise VFA policy  (θ persists across ALL episodes) ───────────────
     vfa_policy = LinearVFAPolicy(
         n_features    = N_FEATURES,
-        alpha         = ALPHA,
+        alpha         = ALPHA_START,
         gamma         = GAMMA,
         tau           = TAU_START,
         learning_mode = True,
@@ -166,8 +170,13 @@ def train(
         config        = SimulationConfig()
         
         # ── Boltzmann temperature for this episode ─────────────────────────
-        tau = TAU_START * (TAU_DECAY ** ep)
+        tau = TAU_START * (tau_decay ** ep)
         vfa_policy.set_temperature(tau)
+        
+        # ── Learning rate decay (linear from ALPHA_START to ALPHA_END) ───
+        decay_progress = ep / max(1, num_episodes - 1)
+        current_alpha = ALPHA_START - decay_progress * (ALPHA_START - ALPHA_END)
+        vfa_policy.alpha = current_alpha
 
         # ── Build episode policy ───────────────────────────────────────────
         # EpisodeTrainingPolicy:
@@ -215,6 +224,7 @@ def train(
         print(
             f"  Ep {ep + 1:3d}/{num_episodes} | "
             f"tau={tau:4.2f} | "
+            f"alpha={current_alpha:.4f} | "
             f"SL={sl:.4f} | "
             f"Weights: {formatted_theta} | "
             f"t={time.time() - t0:.0f}s"

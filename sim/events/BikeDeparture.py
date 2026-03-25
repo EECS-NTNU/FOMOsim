@@ -154,7 +154,19 @@ class BikeDeparture(Event):
  
         else:
             if FULL_TRIP:
-                closest_neighbour_with_bikes = simul.state.get_neighbouring_stations(departure_station,1,not_empty=True)[0]
+                closest_neighbours = simul.state.get_neighbouring_stations(departure_station, 1, not_empty=True)
+                
+                # --- THE FIX: Safety check for absolute starvation ---
+                if not closest_neighbours:
+                    # Treat as standard lost trip, bail out early
+                    simul.state.metrics.add_aggregate_metric(simul.state, "bike starvations", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "events", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "starvations", 1)
+                    simul.state.metrics.add_aggregate_metric(simul.state, "failed events", 1)
+                    return # Exit the perform() method cleanly
+                    
+                closest_neighbour_with_bikes = closest_neighbours[0]
+                
                 distance = departure_station.distance_to(closest_neighbour_with_bikes.get_lat(), closest_neighbour_with_bikes.get_lon())
                 mp=departure_station.get_move_probabilities(simul.state, simul.state.day(), simul.state.hour())
                 p = list(mp.values())

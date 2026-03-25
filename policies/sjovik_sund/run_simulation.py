@@ -28,6 +28,9 @@ import target_state
 import policies
 import policies.sjovik_sund.sjovik_sund_policy
 import policies.sjovik_sund.XPILOT_policy
+from policies.sjovik_sund.RolloutPolicy import RolloutPolicy
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+from policies.sjovik_sund.mdp.reward import RewardCalculator, RewardConfig
 from policies.do_nothing_policy import DoNothing
 import sim
 import demand
@@ -233,6 +236,11 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
         verbose=True,
     )
     simulator.operation_logger = operation_logger
+    
+    # Pass simulator reference to RolloutPolicy if applicable
+    if isinstance(policy, RolloutPolicy):
+        policy.source_simulator = simulator
+        print(f"\n[RolloutPolicy] Source simulator reference set for lookahead\n")
 
     if operation_logger.enabled:
         print("[OPS] Operational logging enabled (step-by-step vehicle/action trace)")
@@ -478,6 +486,24 @@ if __name__ == "__main__":
         default=config.default_maintenance_limit,
         help=f"Maintenance criticality limit to check for maintenance actions (default: {config.default_maintenance_limit}).",
     )
+    parser.add_argument(
+        "--vfa-model",
+        type=str,
+        default=None,
+        help="Path to trained VFA model (.pkl file). If provided, enables RolloutPolicy.",
+    )
+    parser.add_argument(
+        "--num-scenarios",
+        type=int,
+        default=50,
+        help="Number of stochastic scenarios per candidate in RolloutPolicy (default: 50).",
+    )
+    parser.add_argument(
+        "--rollout-horizon",
+        type=int,
+        default=4,
+        help="Lookahead horizon (number of decisions) for RolloutPolicy (default: 4).",
+    )
 
     args = parser.parse_args()
  
@@ -505,11 +531,41 @@ if __name__ == "__main__":
     policy_dict = {}
     
     # Add DoNothing baseline policy
-    policy_name_baseline = (
+    '''policy_name_baseline = (
         f"DoNothing_baseline_{args.instance}_V{num_vehicles}_D{duration}h_"
         f"{timestamp}_seed{start_seed}"
     )
-    policy_dict[policy_name_baseline] = DoNothing()
+    policy_dict[policy_name_baseline] = DoNothing()'''
+    
+    # Add RolloutPolicy if VFA model provided
+    if args.vfa_model:
+        try:
+            print(f"\nLoading VFA model from: {args.vfa_model}")
+            vfa_policy = LinearVFAPolicy.load(args.vfa_model)
+            vfa_policy.tau = 0.001  # Greedy mode
+            vfa_policy.learning_mode = False
+            
+            reward_config = RewardConfig()
+            reward_calculator = RewardCalculator(reward_config)
+            
+            rollout_policy = RolloutPolicy(
+                vfa_policy=vfa_policy,
+                reward_calculator=reward_calculator,
+                num_scenarios=args.num_scenarios,
+                horizon=args.rollout_horizon,
+                seed=args.seed,
+            )
+            
+            policy_name_rollout = (
+                f"RolloutPolicy_{args.instance}_V{num_vehicles}_D{duration}h_"
+                f"N{args.num_scenarios}_H{args.rollout_horizon}_{timestamp}_seed{start_seed}"
+            )
+            policy_dict[policy_name_rollout] = rollout_policy
+            print(f"RolloutPolicy created: {policy_name_rollout}\n")
+            
+        except Exception as e:
+            print(f"ERROR: Failed to load VFA model or create RolloutPolicy: {e}")
+            print("Proceeding with baseline policies only.\n")
     
     '''
     for alpha in alpha_values:

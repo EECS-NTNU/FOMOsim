@@ -518,11 +518,149 @@ class LinearVFAPolicy(Policy):
         self.weights  = list(self.theta)   # keep the logging attribute in sync
 
         return td_error
+    
     # ─────────────────────────────────────────────────────────────────────────
     # Action generation  (action-space splitting)
     # ─────────────────────────────────────────────────────────────────────────
-
     def _generate_candidates(self, state, vehicle) -> List[sim.Action]:
+        # ── OLD LOGIC COMMENTED OUT FOR REFERENCE ──────────────────────────────
+        '''
+        load_from_queue = 0  # default – overridden when at depot
+
+        if vehicle.is_at_depot():
+            rebalancing = 0
+            depot_removals = 0
+            # Pick up all repaired bikes that fit in free capacity
+            ... (rest of your giant commented block) ...
+                candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
+
+        return candidates
+        '''
+
+        # ── 0. Calculate Immediate Rebalancing Needs ───────────────────────────
+        load_from_queue = 0
+        depot_removals = 0
+        onsite_repairs_options = [0]
+        rebalancing = 0
+        
+        if vehicle.is_at_depot():
+            inv = vehicle.get_bike_inventory()
+            n_vehicle_total = len(inv)
+            vehicle_capacity = int(getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle_total)))
+            free_cap = max(0, vehicle_capacity - n_vehicle_total)
+            repaired_available = len(getattr(vehicle.location, "fixed_queue", {}))
+            load_from_queue = min(repaired_available, free_cap)
+        else:
+            target = round(vehicle.location.get_target_state(state.day(), state.hour()))
+            functional_bikes = [b for b in vehicle.location.get_bikes() if getattr(b, 'is_available', True)]
+            n_station = len(functional_bikes)
+            
+            inv = vehicle.get_bike_inventory()
+            n_vehicle_total = len(inv)
+            n_vehicle_func = sum(1 for b in inv if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])
+            
+            vehicle_capacity = int(getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle_total)))
+            free_cap = max(0, vehicle_capacity - n_vehicle_total)
+            
+            if self.maintenance_enabled:
+                broken_bikes = [b for b in vehicle.location.bikes.values() if getattr(b, 'damage_status', None) == 'depot']
+                depot_removals = min(len(broken_bikes), free_cap)
+                onsite_bikes = [b for b in vehicle.location.bikes.values() if getattr(b, 'damage_status', None) == 'onsite']
+                num_onsite = len(onsite_bikes)
+                onsite_repairs_options = list(range(0, num_onsite + 1))
+            
+            delta = target - n_station
+            if delta > 0:
+                rebalancing = min(n_vehicle_func, delta)
+            elif delta < 0:
+                n = min(n_station, -delta, max(free_cap - depot_removals, 0))
+                rebalancing = -n
+
+        # ── 1. Identify Claimed Stations (The Tabu List) ───────────────────────
+        claimed_stations = set()
+        for v in state.get_vehicles():
+            if v.id != vehicle.id and v.is_driving():
+                dest = getattr(v.location, "id", getattr(v, "destination_station", None))
+                if dest:
+                    claimed_stations.add(dest)
+
+        cur_id = vehicle.location.id
+        
+        # Filter out the current station and already claimed stations
+        available_stations = [
+            s for s in state.get_stations() 
+            if s.id != cur_id and s.id not in claimed_stations
+        ]
+
+        target_stations = []
+        added_ids = set()
+
+        def add_station(station):
+            """Helper to prevent duplicate candidates."""
+            if station.id not in added_ids:
+                target_stations.append(station)
+                added_ids.add(station.id)
+
+        # ── 2. Top 4 Nearest Stations (Local Efficiency) ───────────────────────
+        if cur_id in self._sid_to_idx:
+            v_idx = self._sid_to_idx[cur_id]
+            nearest = sorted(
+                available_stations,
+                key=lambda s: self._travel_time_matrix[v_idx, self._sid_to_idx[s.id]]
+            )
+            for s in nearest[:4]:
+                add_station(s)
+
+        # ── 3. Top 3 Starving Stations (Global Crisis Response) ────────────────
+        # Starving = low functional bikes relative to capacity
+        def get_functional_ratio(s):
+            """Count functional bikes (not depot/onsite) as fraction of capacity."""
+            station_bikes = s.bikes if isinstance(s.bikes, dict) else {}
+            func_count = sum(1 for b in station_bikes.values() 
+                           if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])
+            return func_count / max(1, s.capacity)
+        
+        starving = sorted(available_stations, key=get_functional_ratio)
+        for s in starving[:3]:
+            add_station(s)
+
+        # ── 4. Top 3 Congested Stations (Global Clearance) ─────────────────────
+        # Congested = high functional bikes relative to capacity
+        congested = sorted(available_stations, key=get_functional_ratio, reverse=True)
+        for s in congested[:3]:
+            add_station(s)
+
+        # ── 5. Build Routing Actions (Restored MdpAction Bridge) ───────────────
+        candidates = []
+        for s in target_stations:
+            for onsite_repairs in onsite_repairs_options:
+                mdp_action = MdpAction(
+                    current_station=cur_id,
+                    rebalancing=int(rebalancing),
+                    onsite_repairs=int(onsite_repairs),
+                    depot_removals=int(depot_removals),
+                    load_from_queue=int(load_from_queue),
+                    next_station=s.id,
+                )
+                candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
+
+        # ── 6. Fallback (If Tabu List clears everything, go to depot) ──────────
+        if not candidates:
+            depot_id = state.get_closest_depot(vehicle) if state.get_depots() else cur_id
+            for onsite_repairs in onsite_repairs_options:
+                mdp_action = MdpAction(
+                    current_station=cur_id,
+                    rebalancing=0,
+                    onsite_repairs=int(onsite_repairs),
+                    depot_removals=int(depot_removals),
+                    load_from_queue=int(load_from_queue),
+                    next_station=depot_id,
+                )
+                candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
+            
+        return candidates
+    
+    '''def _generate_candidates(self, state, vehicle) -> List[sim.Action]:
         #NOTE: If if your first few training runs prove that the agent is getting stuck, update candidates to for example 5 nearest stations and 3 critical stations or something
         #NOTE: Currently uses a tabu list generation for multi-vehicle coordination. Can consider adding other vehcile decisions and effective inventory to mdp state if we want a more mathematically profound coordination mechanism, but this is a simple and effective first step to prevent multiple vehicles from being dispatched to the same starving/congested station.
         """
@@ -559,11 +697,11 @@ class LinearVFAPolicy(Policy):
             functional_bikes = [b for b in vehicle.location.get_bikes() if getattr(b, 'is_available', True)]
             n_station = len(functional_bikes)
             
-            '''n_vehicle = len(vehicle.get_bike_inventory())
+            n_vehicle = len(vehicle.get_bike_inventory())
             vehicle_capacity = int(
                 getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle))
             )
-            free_cap = max(0, vehicle_capacity - n_vehicle)'''
+            free_cap = max(0, vehicle_capacity - n_vehicle)
             #########
             inv = vehicle.get_bike_inventory()
             n_vehicle_total = len(inv)
@@ -599,6 +737,7 @@ class LinearVFAPolicy(Policy):
                 rebalancing = 0
         
         #TODO: Handle maintenance actions here as well when we add maintenance features and train the VFA with maintenance-enabled.
+        
 
         # ── TABU LIST: Identify stations already claimed by other en-route vehicles ────
         # Uses MDP formulation notation: destination_station from VehicleStatus
@@ -672,7 +811,7 @@ class LinearVFAPolicy(Policy):
                 )
                 candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
 
-        return candidates
+        return candidates'''
 
     # ─────────────────────────────────────────────────────────────────────────
     # Boltzmann (softmax) selection
@@ -840,56 +979,7 @@ class LinearVFAPolicy(Policy):
             )
             phis.append(phi)
             values[k] = self.value(phi)
-
-        # ── Step 4: TD(0) update ──────────────────────────────────────────
-        '''# Bootstrap with the greedy (min-value) next post-decision state,
-        # consistent with the off-policy evaluation target.
-        if self.learning_mode and self._prev_phi is not None:
-            reward   = self._get_reward(state)
-            phi_next = phis[int(np.argmin(values))]
-            self.td_update(reward, phi_next)
-        elif self.learning_mode and self._prev_phi is None:
-            # First VFA call in the learning phase (warm-up just ended).
-            # Sync metric baseline so that costs accumulated during warm-up
-            # are NOT counted as part of the first reward signal.
-            self._prev_starvations = state.metrics.get_aggregate_value("starvation")      or 0
-            self._prev_congestions = state.metrics.get_aggregate_value("long_congestion") or 0'''
-        '''# ── Step 4: TD(0) update ──────────────────────────────────────────
-        td_err = 0.0  # Initialize it here safely!
-        
-        if self.learning_mode and self._prev_phi is not None:
-            reward   = self._get_reward(state)
-            phi_next = phis[int(np.argmin(values))]
-            # Capture the returned td_error from the function we modified earlier
-            td_err = self.td_update(reward, phi_next) 
-            
-        elif self.learning_mode and self._prev_phi is None:
-            # First VFA call in the learning phase...
-            self._prev_starvations = state.metrics.get_aggregate_value("starvation")      or 0
-            self._prev_congestions = state.metrics.get_aggregate_value("long_congestion") or 0'''
-        
-        '''# ── Step 4: TD(0) update ──────────────────────────────────────────
-        td_err = 0.0
-        if self.learning_mode and self._prev_phi is not None:
-            # The policy simply consumes the reward signal!
-            reward = self.reward_calc.compute_step_reward(state.metrics)
-            
-            phi_next = phis[int(np.argmin(values))]
-            td_err = self.td_update(reward, phi_next)'''
-        
-        '''# ── Step 4: TD(0) update ──────────────────────────────────────────
-        td_err = 0.0
-        if self.learning_mode and self._prev_phi is not None:
-            # Consume the reward signal safely
-            reward = self.reward_calc.compute_step_reward(state.metrics)
-            phi_next = phis[int(np.argmin(values))]
-            td_err = self.td_update(reward, phi_next)
-            
-        elif self.learning_mode and self._prev_phi is None:
-            # Now we must silently call compute_step_reward() once to sync the as we are no longer in warm-up, 
-            # but we don't want to use this reward for the TD update (since it includes the warm-up costs). 
-            _ = self.reward_calc.compute_step_reward(state.metrics)'''
-        
+    
         # ── Step 4: TD(0) update ──────────────────────────────────────────
         td_err = 0.0
         if self.learning_mode and self._prev_phi is not None:
@@ -902,13 +992,6 @@ class LinearVFAPolicy(Policy):
             
         elif self.learning_mode and self._prev_phi is None:
             _ = self.reward_calc.compute_step_reward(state.metrics)
-
-        ''' # ── Step 5: select action ─────────────────────────────────────────
-        if self.learning_mode:
-            selected, sel_idx = self._boltzmann_select(candidates, values)
-        else:
-            sel_idx  = int(np.argmin(values))
-            selected = candidates[sel_idx]'''
 
         # ── Step 5: select action ─────────────────────────────────────────
         if self.learning_mode:
