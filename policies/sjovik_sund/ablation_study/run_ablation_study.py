@@ -64,9 +64,12 @@ EXPERIMENTS = {
     #]
 }
 
-def run_all_experiments(episodes: int = 200):
+def run_all_experiments(episodes: int = 100):
     base_dir = Path("models/ablation_study")
     base_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Define 3 different starting offsets for our multiple runs
+    MACRO_SEEDS = [1000, 2000, 3000] 
     
     for exp_name, features in EXPERIMENTS.items():
         print(f"\n{'='*60}")
@@ -77,16 +80,19 @@ def run_all_experiments(episodes: int = 200):
         exp_dir = base_dir / exp_name
         exp_dir.mkdir(exist_ok=True)
         
-        # We save the model and the CSV logs directly into this experiment's folder
-        save_path = exp_dir / f"vfa_{exp_name}.pkl"
-        
-        # Run the training loop!
-        train(
-            num_episodes=episodes,
-            save_path=save_path,
-            seed_offset=42, # Keep seed consistent across experiments for fair comparison
-            active_features=features # Pass our specific subset
-        )
+        # Loop through each macro-seed and train from scratch
+        for run_id, seed_offset in enumerate(MACRO_SEEDS):
+            print(f"  --> Run {run_id + 1}/{len(MACRO_SEEDS)} (Seed Offset: {seed_offset})")
+            
+            # Save the model and logs with the run_id in the name
+            save_path = exp_dir / f"vfa_{exp_name}_run{run_id}.pkl"
+            
+            train(
+                num_episodes=episodes,
+                save_path=save_path,
+                seed_offset=seed_offset, # Pass the macro-seed here!
+                active_features=features
+            )
 
 if __name__ == "__main__":
-    run_all_experiments(episodes=50)
+    run_all_experiments(episodes=2)
