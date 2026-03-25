@@ -166,21 +166,33 @@ class LinearVFAPolicy(Policy):
         )
         self._capacities = np.array([s.capacity for s in stations], dtype=np.float32)
 
-        # ── 2. Demand tracking (Avg & Max Absolute) ────────────────────────────
-        # _activity = average lambda (used for maintenance weighting)
-        self._activity = np.array(
-            [np.mean([s.get_arrive_intensity(d, h) for d in range(7) for h in range(24)]) for s in stations],
-            dtype=np.float32,
-        )
+        # ── 2. Demand tracking (Weekday/Weekend Profiles) ──────────────────────
+        # Create a (2, 24, N) profile: Index 0 = Weekday, Index 1 = Weekend
+        self._activity_profile = np.zeros((2, 24, N), dtype=np.float32)
         
-        # max_abs_activity = peak absolute demand (used for Lambda_max and G_max)
-        max_abs_activity = np.array(
-            [max(abs(s.get_arrive_intensity(d, h)) for d in range(7) for h in range(24)) for s in stations],
-            dtype=np.float32,
-        )
-        
-        self._lambda_max_system = float(np.sum(max_abs_activity))
+        # Note: Standard datetime uses 0=Mon, 4=Fri, 5=Sat, 6=Sun. 
+        # Adjust these arrays if your simulator uses a different day index.
+        weekday_days = [0, 1, 2, 3, 4] 
+        weekend_days = [5, 6]          
 
+        for i, s in enumerate(stations):
+            for h in range(24):
+                wd_rates = [s.get_arrive_intensity(d, h) for d in weekday_days]
+                we_rates = [s.get_arrive_intensity(d, h) for d in weekend_days]
+                self._activity_profile[0, h, i] = np.mean(wd_rates)
+                self._activity_profile[1, h, i] = np.mean(we_rates)
+        
+        # Find the absolute peak 2-hour rolling demand for scaling (Lambda_max)
+        max_abs_2hr_activity = np.zeros(N, dtype=np.float32)
+        for day_type in range(2):
+            for h in range(24):
+                # Max possible demand over any 2 consecutive hours
+                two_hr_demand = np.abs(self._activity_profile[day_type, h]) + \
+                                np.abs(self._activity_profile[day_type, (h+1)%24])
+                max_abs_2hr_activity = np.maximum(max_abs_2hr_activity, two_hr_demand)
+                
+        self._lambda_max_system = float(np.sum(max_abs_2hr_activity))
+        
         # ── 3. Travel Time Matrix (N x N) ──────────────────────────────────────
         self._travel_time_matrix = np.zeros((N, N), dtype=np.float32)
         for i, s_from in enumerate(stations):
@@ -190,8 +202,8 @@ class LinearVFAPolicy(Policy):
         # ── 4. G_max (Maximum Theoretical Gravity) ─────────────────────────────
         best_gravity = 0.0
         for j in range(N):
-            # Calculate gravity if vehicle parked at station j facing peak network demand
-            current_gravity = np.sum(max_abs_activity / (self._travel_time_matrix[j] + 1.0))
+            # Calculate gravity using the absolute maximum 2-hour demand
+            current_gravity = np.sum(max_abs_2hr_activity / (self._travel_time_matrix[j] + 1.0))
             if current_gravity > best_gravity:
                 best_gravity = current_gravity
         
@@ -293,6 +305,28 @@ class LinearVFAPolicy(Policy):
                 pickup = min(-delta_nxt, free_cap, cur_nxt)
                 func_post[nxt_idx] -= pickup
                 func_cargo_veh += pickup
+        
+        # ── Rolling 2-Hour Demand Anticipation ─────────────────────────────
+        # 1. Determine time indices
+        d = state.day() % 7
+        day_type = 1 if d in [5, 6] else 0  # 1 if Weekend, 0 if Weekday
+        
+        current_minute = int(state.time % 60)
+        h0 = int((state.time // 60) % 24)
+        h1 = (h0 + 1) % 24
+        h2 = (h0 + 2) % 24
+        
+        # 2. Calculate rolling weights for a 120-minute horizon
+        weight_h0 = (60 - current_minute) / 60.0  # Remaining fraction of current hour
+        weight_h1 = 1.0                           # All of the next hour
+        weight_h2 = current_minute / 60.0         # Overlap into the third hour
+        
+        # 3. Extract the dynamic anticipated net demand array (N,)
+        dynamic_activity = (
+            self._activity_profile[day_type, h0] * weight_h0 +
+            self._activity_profile[day_type, h1] * weight_h1 +
+            self._activity_profile[day_type, h2] * weight_h2
+        )
 
         # ── Time-indexed target inventory (N,) ─────────────────────────────
         d, h   = state.day() % 7, state.hour() % 24
@@ -323,7 +357,7 @@ class LinearVFAPolicy(Policy):
             depot=depot.astype(np.float64),
             target=target.astype(np.float64),
             capacities=self._capacities,             # New scaler array
-            activity=self._activity.astype(np.float64),
+            activity=dynamic_activity.astype(np.float64),
             dist_to_stations=dist_to_stations,       # New spatial array
             func_cargo_veh=float(func_cargo_veh),
             depot_cargo_veh=float(depot_cargo_veh),
