@@ -48,7 +48,7 @@ class Depot(Station):
         # Bikes enter in_repair immediately, exit to fixed_queue when ready_timestamp <= current_time
         self.in_repair = []
 
-    def sloppycopy(self, *args):
+    '''def sloppycopy(self, *args):
         return Depot(
             self.id,
             self.is_station_based,
@@ -63,7 +63,56 @@ class Depot(Station):
             capacity=self.capacity,
             original_id=self.original_id,
             charging_station=self.charging_station,
+        )'''
+        
+    def sloppycopy(self, bike_map=None, *args):
+        if bike_map is None:
+            bike_map = {}
+        cloned_bikes = []
+        for bike in self.bikes.values():
+            if bike.bike_id not in bike_map:
+                bike_map[bike.bike_id] = copy.copy(bike)
+            cloned_bikes.append(bike_map[bike.bike_id])
+
+        new_depot = Depot(
+            self.id,
+            self.is_station_based,
+            self.depot_capacity,
+            cloned_bikes,
+            leave_intensities=self.leave_intensities,
+            arrive_intensities=self.arrive_intensities,
+            leave_intensities_stdev=self.leave_intensities_stdev,
+            arrive_intensities_stdev=self.arrive_intensities_stdev,
+            center_location=self.get_location(),
+            move_probabilities=self.move_probabilities,
+            average_number_of_bikes=self.average_number_of_bikes,
+            target_state=self.target_state,
+            capacity=self.capacity,
+            original_id=self.original_id,
+            charging_station=self.charging_station,
         )
+        
+        # Safely copy the repair queues!
+        new_depot.fixed_queue = {}
+        for bid, bike in self.fixed_queue.items():
+            if bike.bike_id not in bike_map:
+                bike_map[bike.bike_id] = copy.copy(bike)
+            new_depot.fixed_queue[bid] = bike_map[bike.bike_id]
+
+        new_depot.in_repair = []
+        for ready_time, bikes in self.in_repair:
+            cloned_queue_bikes = []
+            for bike in bikes:
+                if bike.bike_id not in bike_map:
+                    bike_map[bike.bike_id] = copy.copy(bike)
+                cloned_queue_bikes.append(bike_map[bike.bike_id])
+            new_depot.in_repair.append((ready_time, cloned_queue_bikes))
+
+        new_depot.battery_inventory = self.battery_inventory
+        new_depot.time = self.time
+        new_depot.charging = list(self.charging)
+        
+        return new_depot
 
     def is_depot(self):
         return True
@@ -177,7 +226,7 @@ class Depot(Station):
         self.in_repair = remaining_in_repair
         return bikes_completed
     
-    def remove_bikes_from_queue(self, num_bikes: int) -> list:
+    '''def remove_bikes_from_queue(self, num_bikes: int) -> list:
         """
         Vehicle picks up repaired bikes from fixed_queue.
         
@@ -195,7 +244,26 @@ class Depot(Station):
         Returns (num_in_repair, num_in_fixed_queue).
         """
         total_in_repair = sum(len(bikes) for _, bikes in self.in_repair)
-        return total_in_repair, len(self.fixed_queue)
+        return total_in_repair, len(self.fixed_queue)'''
+        
+    def get_bike_from_id(self, bike_id):
+        """Override to also search the fixed_queue for freshly repaired bikes."""
+        if bike_id in self.bikes:
+            return self.bikes[bike_id]
+        if hasattr(self, 'fixed_queue') and bike_id in self.fixed_queue:
+            return self.fixed_queue[bike_id]
+        # Fallback to parent just in case
+        return super().get_bike_from_id(bike_id)
+
+    def remove_bike(self, bike):
+        """Override to allow removing freshly repaired bikes directly from the fixed_queue."""
+        if bike.bike_id in self.bikes:
+            del self.bikes[bike.bike_id]
+        elif hasattr(self, 'fixed_queue') and bike.bike_id in self.fixed_queue:
+            del self.fixed_queue[bike.bike_id]
+        else:
+            # Fallback to parent
+            super().remove_bike(bike)
 
     def __str__(self):
         return f"Depot   {self.id}: Arrive {self.get_arrive_intensity(0, 8):4.2f} Leave {self.get_leave_intensity(0, 8):4.2f} Ideal {self.get_target_state(0, 8)} Bikes {len(self.bikes):3d} Cap {self.depot_capacity} Inv {self.battery_inventory}"

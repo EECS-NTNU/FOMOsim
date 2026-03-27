@@ -39,18 +39,6 @@ from helpers import timeInMinutes
 from settings import *
 import time
 import multiprocessing as mp
- 
-# python policies/sjovik_sund/run_simulation.py > policies/sjovik_sund/output/output.txt
-# Import visualization if needed
-'''
-try:
-    from policies.sjovik_sund.scripts.route_visualization.visualize_subproblem import Visualizer
-    VISUALIZATION_AVAILABLE = True
-except ModuleNotFoundError as e:
-    VISUALIZATION_AVAILABLE = False
-    print(f"Warning: Visualization not available ({e})")
-'''
-
 
 MAINTENANCE_ENABLED = False
  
@@ -58,6 +46,7 @@ MAINTENANCE_ENABLED = False
 # Import logging utilities
 from policies.sjovik_sund.simulation_logging import (
     LoggingSimulator,
+    write_bike_movements_to_file,
     #write_hourly_metrics_to_file,
     write_results_to_file,
     #write_simulation_summary,
@@ -301,7 +290,7 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
     
     # Write bike movements for this seed
     bike_movements_filename = f"{base_filename}_bike_movements_seed_{seed}.csv"
-    #write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
+    write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
     
     # Write trip requests for this seed
     trip_requests_filename = f"{base_filename}_trip_requests_seed_{seed}.csv"

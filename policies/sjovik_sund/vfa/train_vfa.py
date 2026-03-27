@@ -43,7 +43,7 @@ from helpers import timeInMinutes
 from policies.greedy_policy import GreedyPolicy
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy
 from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_feature_names
-from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig, write_simulation_outputs
+from policies.sjovik_sund.run_simulation_ingvild import run_simulation, SimulationConfig, write_simulation_outputs
 from settings import ENABLE_COMPONENT_FAILURES
 
 
@@ -51,15 +51,21 @@ from settings import ENABLE_COMPONENT_FAILURES
 # Hyperparameters  (all subject to change)
 # ─────────────────────────────────────────────────────────────────────────────
 
-NUM_EPISODES  : int   = 200       # total training episodes
+NUM_EPISODES  : int   = 200      # total training episodes
 
-EPISODE_DAYS  : int   = 14        # days per episode (total)
-WARMUP_DAYS   : int   = 1         # greedy warm-up, no TD updates
-LEARNING_DAYS : int   = 13        # VFA + Boltzmann + TD(0)  (days 5 – 14)
+EPISODE_DAYS  : int   = 14       # days per episode (total)
+WARMUP_DAYS   : int   = 4         # greedy warm-up, no TD updates
+LEARNING_DAYS : int   = 10        # VFA + Boltzmann + TD(0)  (days 5 – 14)
 
-TAU_START     : float = 5.0       # initial Boltzmann temperature
-TAU_END       : float = 0.01       # final   Boltzmann temperature
-# Exponential decay factor is computed per train() call to respect num_episodes
+'''TAU_START     : float = 5.0       # initial Boltzmann temperature
+TAU_END       : float = 0.1       # final   Boltzmann temperature
+# Exponential decay factor (computed once; re-used every episode)
+TAU_DECAY     : float = (TAU_END / TAU_START) ** (1.0 / max(NUM_EPISODES - 1, 1))'''
+
+TAU_START     : float = 0.05      # lowered from 5.0
+TAU_END       : float = 0.001     # lowered from 0.1
+# Exponential decay factor (computed once; re-used every episode)
+TAU_DECAY     : float = (TAU_END / TAU_START) ** (1.0 / max(NUM_EPISODES - 1, 1))
 
 ALPHA_START   : float = 0.02     # TD learning rate
 ALPHA_END     : float = 0.001     # The "floor" it will decay to
@@ -70,6 +76,7 @@ SHIFT_TIMING_ENABLED : bool = False  # Enable end-of-shift anticipatory features
 N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, shift_timing_enabled=SHIFT_TIMING_ENABLED))  # auto-synced with vfa_features.py
 
 INSTANCE_NAME : str   = "TD_W34_old"
+#INSTANCE_NAME : str   = "OS_W31"
 NUM_VEHICLES  : int   = 1
 START_HOUR    : int   = 5         # simulation clock starts at 00:00
 
@@ -81,7 +88,7 @@ SAVE_DIR = Path(__file__).parent / "models"
 # Metric helper
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _service_level(simulator) -> float:
+'''def _service_level(simulator) -> float:
     """
     Service level = 1 - (starvations + congestion) / total_trip_requests.
 
@@ -91,7 +98,55 @@ def _service_level(simulator) -> float:
     trips  = m.get_aggregate_value("trips")   or 1
     starv  = m.get_aggregate_value("starvations")    or 0
     cong  = m.get_aggregate_value("long congestions")      or 0
-    return 1.0 - (starv + cong) / max(trips, 1)
+    return 1.0 - (starv + cong) / max(trips, 1)'''
+
+'''def _service_level(simulator, vfa_policy) -> float:
+    """
+    Computes the service level strictly for the LEARNING phase.
+    It subtracts the starvations, congestions, and trips that occurred during the warm-up.
+    """
+    m = simulator.state.metrics
+    
+    # Total metrics at the end of Day 14
+    total_trips = m.get_aggregate_value("trips") or 1
+    total_starv = m.get_aggregate_value("starvations") or 0
+    total_cong = m.get_aggregate_value("long congestions") or 0
+
+    # The reward calculator tracked the exact metrics at the moment the warm-up ended!
+    warmup_starv = getattr(vfa_policy.reward_calc, '_prev_starvations', 0)
+    warmup_cong = getattr(vfa_policy.reward_calc, '_prev_congestions', 0)
+    warmup_trips = getattr(vfa_policy.reward_calc, '_prev_trips', 0)  # <--- NEW
+
+    # Isolate the VFA's true performance (Days 5-14)
+    vfa_starv = max(0, total_starv - warmup_starv)
+    vfa_cong = max(0, total_cong - warmup_cong)
+    vfa_trips = max(1, total_trips - warmup_trips)  # <--- EXACT math, no more estimating!
+
+    return 1.0 - (vfa_starv + vfa_cong) / vfa_trips'''
+
+def _service_level(simulator, vfa_policy) -> float:
+    """
+    Computes the service level strictly for the LEARNING phase.
+    It subtracts the starvations, congestions, and trips that occurred during the warm-up.
+    """
+    m = simulator.state.metrics
+    
+    # Total metrics at the end of Day 14
+    total_trips = m.get_aggregate_value("trips") or 1
+    total_starv = m.get_aggregate_value("starvations") or 0
+    total_cong = m.get_aggregate_value("long congestions") or 0
+
+    # --- FIXED: Use the policy snapshots, not the live calculator ---
+    warmup_starv = getattr(vfa_policy, 'warmup_starvations_snapshot', 0)
+    warmup_cong = getattr(vfa_policy, 'warmup_congestions_snapshot', 0)
+    warmup_trips = getattr(vfa_policy, 'warmup_trips_snapshot', 0) 
+
+    # Isolate the VFA's true performance (Days 5-14)
+    vfa_starv = max(0, total_starv - warmup_starv)
+    vfa_cong = max(0, total_cong - warmup_cong)
+    vfa_trips = max(1, total_trips - warmup_trips) 
+
+    return 1.0 - (vfa_starv + vfa_cong) / vfa_trips
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -103,6 +158,7 @@ def train(
     save_path     : Path  = None,
     seed_offset   : int   = 0,
     instance_name : str   = INSTANCE_NAME,
+    active_features: list | None = None,
 ) -> LinearVFAPolicy:
     """
     Run the full episodic VFA training loop.
@@ -114,6 +170,7 @@ def train(
         seed_offset:    Episode i uses random seed  seed_offset + i,
                         so different runs don't share the same trajectory.
         instance_name:  Simulator instance (e.g. "TD_W34_old").
+        active_features: Optional subset of canonical VFA feature names to use.
 
     Returns:
         The trained LinearVFAPolicy (θ frozen after training).
@@ -143,12 +200,15 @@ def train(
 
     # ── Initialise VFA policy  (θ persists across ALL episodes) ───────────────
     vfa_policy = LinearVFAPolicy(
-        n_features    = N_FEATURES,
-        alpha         = ALPHA_START,
+        active_features=active_features,
+        n_features    = len(active_features) if active_features is not None else N_FEATURES,
+        alpha         = ALPHA,
         gamma         = GAMMA,
         tau           = TAU_START,
         learning_mode = True,
-        seed          = 42
+        seed          = 42,
+        maintenance_enabled=ENABLE_COMPONENT_FAILURES,
+        shift_timing_enabled=SHIFT_TIMING_ENABLED,
     )
 
     greedy_policy = GreedyPolicy()
@@ -214,7 +274,7 @@ def train(
         )
         # ----------------------------
 
-        sl = _service_level(simulator)
+        sl = _service_level(simulator, vfa_policy)
         service_levels.append(sl)
         weights_history.append(vfa_policy.theta.copy())  # Store θ vector for this episode
 
@@ -246,7 +306,7 @@ def train(
     np.save(curve_path, np.array(service_levels))
 
     # ── Save weight evolution as CSV ────────────────────────────────────────────
-    feature_names = _get_feature_names(ENABLE_COMPONENT_FAILURES, shift_timing_enabled=SHIFT_TIMING_ENABLED)
+    feature_names = vfa_policy.FEATURE_NAMES
     weights_df = pd.DataFrame(
         weights_history,
         columns=feature_names,

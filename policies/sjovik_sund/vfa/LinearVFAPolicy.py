@@ -25,6 +25,7 @@ from policies import action
 from policies import action
 from policies.sjovik_sund.mdp.reward import RewardCalculator
 
+
 WORKSPACE_ROOT = Path(__file__).parents[3]
 sys.path.insert(0, str(WORKSPACE_ROOT))
 
@@ -69,6 +70,7 @@ class LinearVFAPolicy(Policy):
 
     def __init__(
         self,
+        active_features: List[str] = None,
         n_features: int = None,   # defaults to len(FEATURE_NAMES); set explicitly to override
         alpha: float = 0.01,
         gamma: float = 0.99,
@@ -96,7 +98,28 @@ class LinearVFAPolicy(Policy):
         self.shift_timing_enabled = shift_timing_enabled
         self.log_depot_visits = log_depot_visits
         self.depot_log_file = depot_log_file
-        self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled)
+        # 1. Get the canonical list of ALL possible features
+        self.ALL_FEATURE_NAMES = _get_feature_names(True, True)
+
+        # 2. Determine which features we are actually using
+        if active_features is None:
+            self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled)
+        else:
+            # --- FIXED: Force the user's active features into canonical mathematical order ---
+            self.FEATURE_NAMES = [name for name in self.ALL_FEATURE_NAMES if name in active_features]
+
+        # 3. Create a boolean mask to slice the numpy array extremely fast
+        self._feature_mask = np.array([
+            (name in self.FEATURE_NAMES) for name in self.ALL_FEATURE_NAMES
+        ], dtype=bool)
+        
+        # --- DEBUG 1: THE SCRAMBLER ---
+        actual_math_order = [name for name in self.ALL_FEATURE_NAMES if name in self.FEATURE_NAMES]
+        if self.FEATURE_NAMES != actual_math_order:
+            print(f"\n[DEBUG - SCRAMBLER] WARNING: FEATURE MISMATCH!")
+            print(f"You requested this order : {self.FEATURE_NAMES}")
+            print(f"The math outputs this order: {actual_math_order}\n")
+            
         self.N_FEATURES = len(self.FEATURE_NAMES)
         self.reward_calc = reward_calculator or RewardCalculator(gamma=gamma)
 
@@ -120,7 +143,9 @@ class LinearVFAPolicy(Policy):
         self._rng          = np.random.default_rng(seed)
 
         # ── Parameter vector θ (small random initialisation) ─────────────────
-        self.theta: np.ndarray = self._rng.standard_normal(n_features) * 0.01
+        #self.theta: np.ndarray = self._rng.standard_normal(n_features) * 0.01
+        # ── Parameter vector θ (start completely blind for ablation) ─────────
+        self.theta: np.ndarray = np.zeros(n_features, dtype=np.float64)
 
         # weights attribute forwarded by run_simulation.py for logging
         self.weights: List[float] = list(self.theta)
@@ -158,7 +183,7 @@ class LinearVFAPolicy(Policy):
         self._station_ids = [s.id for s in stations]
         self._sid_to_idx  = {sid: k for k, sid in enumerate(self._station_ids)}
 
-        # ── 1. Target matrix & Capacities ──────────────────────────────────────
+        # Target inventory matrix  (7 days × 24 hours × N stations)
         self._target_matrix = np.array(
             [[[s.get_target_state(d, h) for s in stations] for h in range(24)] for d in range(7)],
             dtype=np.float32,
@@ -217,56 +242,25 @@ class LinearVFAPolicy(Policy):
     # ─────────────────────────────────────────────────────────────────────────
     # Inventory extraction
     # ─────────────────────────────────────────────────────────────────────────
-    '''
-    def _extract_inventories(
-        self, state, vehicle
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        
-        As the raw Simulator state is a complex object this function uses 'extract_mdp_state' to snapshot the city and converts 
-        it into three simple integer arrays (functional, onsite, depot).
-        This is the expensive 'city-scan' we call only once per 
-        decision epoch.
-
-        """
-        N = len(self._station_ids)
-        func = np.zeros(N, dtype=np.int32)
-        onsite = np.zeros(N, dtype=np.int32)
-        depot = np.zeros(N, dtype=np.int32)
-
-        mdp_state = extract_mdp_state(
-            sim_state=state,
-            active_vehicle_id=vehicle.id,
-            config=self.config,
-            depot_id=self._depot_id,
-        )
-
-        for sid, inv in mdp_state.stations.items():
-            k = self._sid_to_idx[sid]
-            func[k] = inv.functional
-            onsite[k] = inv.onsite
-            depot[k] = inv.depot
-
-        return func, onsite, depot'''
-    
+   
     def _extract_inventories(
         self, state, vehicle
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Takes a snapshot of the city directly from the true simulator state,
-        bypassing the MDP extraction layer to ensure broken bikes are
+        bypassing the MDP extraction layer to ensure broken bikes are 
         accurately mapped.
         """
         N = len(self._station_ids)
         func = np.zeros(N, dtype=np.int32)
         onsite = np.zeros(N, dtype=np.int32)
         depot = np.zeros(N, dtype=np.int32)
- 
+
         for sid, station in state.stations.items():
             if sid not in self._sid_to_idx:
                 continue
             k = self._sid_to_idx[sid]
-           
+            
             # Extract true physical inventory directly from the station objects
             station_bikes = station.bikes if isinstance(station.bikes, dict) else {}
             for bike in station_bikes.values():
@@ -277,7 +271,7 @@ class LinearVFAPolicy(Policy):
                     depot[k] += 1
                 else:
                     func[k] += 1
- 
+
         return func, onsite, depot
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -293,17 +287,24 @@ class LinearVFAPolicy(Policy):
         depot: np.ndarray,     
         delta_func: int = 0,
         delta_depot_cargo: int = 0,
+        delta_onsite_repairs: int = 0,
         next_station_id: str = None,
     ) -> np.ndarray:
         """
         Compute φ(S^x) for the post-decision state.
         """
         func_post = func.copy()
+        onsite_post = onsite.copy()
 
         # ── Apply post-decision delta at the vehicle's current station ─────
         if vehicle.location.id in self._sid_to_idx:
             cur_idx = self._sid_to_idx[vehicle.location.id]
             func_post[cur_idx] = max(0, func_post[cur_idx] + delta_func)
+            if delta_onsite_repairs:
+                repairs = max(0, int(delta_onsite_repairs))
+                applied_repairs = min(repairs, int(onsite_post[cur_idx]))
+                onsite_post[cur_idx] = max(0, onsite_post[cur_idx] - applied_repairs)
+                func_post[cur_idx] += applied_repairs
 
         # ── Vehicle cargo in post-decision state ───────────────────────────
         vehicle_status = extract_vehicle_status(vehicle, state.time, self.config)
@@ -355,28 +356,30 @@ class LinearVFAPolicy(Policy):
         d, h   = state.day() % 7, state.hour() % 24
         target = self._target_matrix[d, h]              
 
-        # ── Current Distances ──────────────────────────────────────────────
+        # ── Anticipated Distances (from Destination) ────────────────
+        # Evaluate spatial gravity from where the vehicle is GOING, not where it is!
+        routing_target = next_station_id if next_station_id else vehicle.location.id
+        
         dist_to_depot = (
-            state.get_travel_time(vehicle.location.id, self._depot_id)
-            if self._depot_id and self._depot_id != vehicle.location.id
+            state.get_travel_time(routing_target, self._depot_id)
+            if self._depot_id and self._depot_id != routing_target
             else 0.0
         )
         
-        # Fast spatial slice from cached matrix
-        if vehicle.location.id in self._sid_to_idx:
-            v_idx = self._sid_to_idx[vehicle.location.id]
+        # Fast spatial slice from cached matrix using the routing target
+        if routing_target in self._sid_to_idx:
+            v_idx = self._sid_to_idx[routing_target]
             dist_to_stations = self._travel_time_matrix[v_idx]
         else:
-            # Fallback if vehicle is at a depot not in the station matrix
             dist_to_stations = np.array([
-                state.get_travel_time(vehicle.location.id, sid) 
+                state.get_travel_time(routing_target, sid) 
                 for sid in self._station_ids
             ], dtype=np.float32)
 
         # ── Delegate to canonical feature extractor ────────────────────────
-        phi = _extract_phi(
-            func=func_post.astype(np.float64), 
-            onsite=onsite.astype(np.float64),
+        phi_full = _extract_phi(
+            func=func_post.astype(np.float64),
+            onsite=onsite_post.astype(np.float64),
             depot=depot.astype(np.float64),
             target=target.astype(np.float64),
             capacities=self._capacities,             # New scaler array
@@ -388,11 +391,16 @@ class LinearVFAPolicy(Policy):
             dist_to_depot=dist_to_depot,
             lambda_max_system=self._lambda_max_system, # New Lambda_max scaler
             max_gravity=self._max_gravity,                 # New G_max scaler
-            maintenance_enabled=self.maintenance_enabled,
-            shift_timing_enabled=self.shift_timing_enabled,
+            #maintenance_enabled=self.maintenance_enabled, # This should not be true un we are doing ablation study
+            maintenance_enabled=True,
+            #shift_timing_enabled=self.shift_timing_enabled, # This should not be true unless we are doing ablation study
+            shift_timing_enabled=True,
             time_remaining=self._get_time_remaining(state, vehicle),
-            shift_length=self._get_shift_length(state, vehicle),
+            shift_length=self._get_shift_length(state, vehicle)
         )
+    
+        # 4. Slice the full feature vector to only include active features
+        phi = phi_full[self._feature_mask]
 
         return phi
 
@@ -420,7 +428,7 @@ class LinearVFAPolicy(Policy):
         base_func, base_onsite, base_depot = self._extract_inventories(state, vehicle)
 
         phi = self.extract_features(state, vehicle, base_func, base_onsite, base_depot, delta_func, delta_depot_cargo)
-        return _phi_as_dict(phi, self.maintenance_enabled, self.shift_timing_enabled)
+        return dict(zip(self.FEATURE_NAMES, phi.tolist()))
 
     def value(self, phi: np.ndarray) -> float:
         """V(S^x) = θᵀ φ(S^x)."""
@@ -756,7 +764,10 @@ class LinearVFAPolicy(Policy):
                     )
                     if dest:
                         claimed_stations.add(dest)
-        print(f"[TABU] Vehicle {vehicle.id} | Claimed stations by other vehicles: {claimed_stations}")
+        
+        if self.log_rl_decisions:
+            print(f"[TABU] Vehicle {vehicle.id} | Claimed stations: {claimed_stations}")
+            
         # ── Macro: nearest N_CANDIDATES next stations (by travel time) ────
         cur_id = vehicle.location.id
         
@@ -771,8 +782,18 @@ class LinearVFAPolicy(Policy):
             if depot.id != cur_id:
                 pool.append(depot)
         
+        # --- Myopic Blindspot (5 Nearest + 3 Most Critical) ---
+        # 1. Sort by travel time to find the nearest
         pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
-        pool = pool[: self.N_CANDIDATES]
+        nearest_stations = pool[:5] # Take the 5 closest
+        
+        # 2. Find the 3 most critical stations (highest deviation from target)
+        remaining_pool = pool[5:]
+        remaining_pool.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+        critical_stations = remaining_pool[:3]
+        
+        # 3. Combine them into our final candidate list
+        pool = nearest_stations + critical_stations
 
         # Fallback: if tabu filtering removed all stations, allow any non-claimed station
         if not pool:
@@ -788,9 +809,26 @@ class LinearVFAPolicy(Policy):
         candidates = []
         for s in pool:
             for onsite_repairs in onsite_repairs_options:
+                # --- NEW: Dynamic Rebalancing Math ---
+                # Adjust pickups/drop-offs based on the repairs we are doing right now!
+                if vehicle.is_at_depot():
+                    current_rebalancing = 0
+                else:
+                    new_n_station = n_station + onsite_repairs
+                    delta = target - new_n_station
+                    
+                    if delta > 0:
+                        current_rebalancing = min(n_vehicle_func, delta)
+                    elif delta < 0:
+                        n = min(new_n_station, -delta, max(free_cap - depot_removals, 0))
+                        current_rebalancing = -n
+                    else:
+                        current_rebalancing = 0
+                # -------------------------------------
+
                 mdp_action = MdpAction(
                     current_station=cur_id,
-                    rebalancing=int(rebalancing),
+                    rebalancing=int(current_rebalancing),
                     onsite_repairs=int(onsite_repairs),
                     depot_removals=int(depot_removals),
                     load_from_queue=int(load_from_queue),
@@ -801,15 +839,46 @@ class LinearVFAPolicy(Policy):
         if not candidates:
             depot_id   = state.get_closest_depot(vehicle)
             for onsite_repairs in onsite_repairs_options:
+
+                # --- Fallback Dynamic Rebalancing ---
+                if vehicle.is_at_depot():
+                    current_rebalancing = 0
+                else:
+                    new_n_station = n_station + onsite_repairs
+                    delta = target - new_n_station
+                    if delta > 0:
+                        current_rebalancing = min(n_vehicle_func, delta)
+                    elif delta < 0:
+                        n = min(new_n_station, -delta, max(free_cap - depot_removals, 0))
+                        current_rebalancing = -n
+                    else:
+                        current_rebalancing = 0
+
                 mdp_action = MdpAction(
                     current_station=cur_id,
-                    rebalancing=0,
+                    rebalancing=int(current_rebalancing),
                     onsite_repairs=int(onsite_repairs),
                     depot_removals=int(depot_removals),
                     load_from_queue=int(load_from_queue),
                     next_station=depot_id,
                 )
                 candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
+                
+        # --- DEBUG 3: MYOPIC BLINDSPOT ---
+        if not getattr(self, "_has_printed_blindspot", False):
+            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
+            
+            # Find the actual most critical station in the whole city
+            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
+            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+            most_critical = all_stats[0].id if all_stats else "None"
+            
+            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
+            print(f"  -> Candidate options: {cand_ids}")
+            print(f"  -> Most critical station in network: {most_critical}")
+            if most_critical not in cand_ids:
+                print(f"  ->  The most critical station is NOT in the candidate list!")
+            self._has_printed_blindspot = True
 
         return candidates'''
 
@@ -832,10 +901,10 @@ class LinearVFAPolicy(Policy):
 
         Returns (selected_action, selected_index).
         """
-        '''neg_v  = -values
+        neg_v  = -values
         neg_v -= neg_v.max()                              # numerical stability
         exp_v  = np.exp(neg_v / max(self.tau, 1e-8))
-        probs  = exp_v / exp_v.sum()'''
+        probs  = exp_v / exp_v.sum()
 
         # NEW: We want to favor higher values, not lower ones!
         v = values - values.max()  # shift for numerical stability (all <= 0)
@@ -941,10 +1010,34 @@ class LinearVFAPolicy(Policy):
 
         base_func, base_onsite, base_depot = self._extract_inventories(state, vehicle)
 
+        """# ── NEW: Pre-compute 3-hour expectations for feature extraction ───
+        curr_d = state.day() % 7
+        curr_h = state.hour() % 24
+        net_flow_3hr = np.zeros(len(self._station_ids))
+        expected_rent_3hr = np.zeros(len(self._station_ids))
+        expected_return_3hr = np.zeros(len(self._station_ids))
+        
+        for i, s_id in enumerate(self._station_ids):
+            station = state.stations[s_id]
+            flow, rent, ret = 0.0, 0.0, 0.0
+            for offset in range(3):
+                h = (curr_h + offset) % 24
+                d = (curr_d + (curr_h + offset) // 24) % 7
+                arr = station.arrive_intensities[d][h] if getattr(station, 'arrive_intensities', None) else 0
+                lev = station.leave_intensities[d][h] if getattr(station, 'leave_intensities', None) else 0
+                flow += (arr - lev)
+                rent += lev
+                ret += arr
+            net_flow_3hr[i] = flow
+            expected_rent_3hr[i] = rent
+            expected_return_3hr[i] = ret
+        # ──────────────────────────────────────────────────────────────────"""
+
+
         # ── Step 3: score each candidate ──────────────────────────────────
         phis: List[np.ndarray] = []
         values = np.empty(len(candidates), dtype=np.float64)
-
+        
         for k, action in enumerate(candidates):
             # Differentiate functional vs depot pickups
             # vehicle.location.bikes is already a dictionary of {bike_id: bike}, so we use it directly:
@@ -962,6 +1055,7 @@ class LinearVFAPolicy(Policy):
             # Net change in functional bikes and vehicle depot cargo
             delta_func = len(action.delivery_bikes) - functional_pickups
             delta_depot_cargo = depot_pickups
+            delta_onsite_repairs = len(getattr(action, "onsite_repairs", []))
             
             # If vehicle is at depot, ALL depot cargo is unloaded
             if vehicle.is_at_depot():
@@ -975,11 +1069,70 @@ class LinearVFAPolicy(Policy):
                 state, vehicle, 
                 base_func, base_onsite, base_depot, 
                 delta_func, delta_depot_cargo,
+                delta_onsite_repairs,
                 next_station_id=dest_id
             )
             phis.append(phi)
             values[k] = self.value(phi)
-    
+            
+        # --- DEBUG 2: SPATIAL PARALYSIS ---
+        if not getattr(self, "_has_printed_spatial", False) and "proximity_to_demand_gravity" in self.FEATURE_NAMES:
+            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
+            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            for k, action in enumerate(candidates):
+                dest = getattr(action, "next_location", getattr(action, "next_station", None))
+                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
+            self._has_printed_spatial = True
+
+        # ── Step 4: TD(0) update ──────────────────────────────────────────
+        """# Bootstrap with the greedy (min-value) next post-decision state,
+        # consistent with the off-policy evaluation target.
+        if self.learning_mode and self._prev_phi is not None:
+            reward   = self._get_reward(state)
+            phi_next = phis[int(np.argmin(values))]
+            self.td_update(reward, phi_next)
+        elif self.learning_mode and self._prev_phi is None:
+            # First VFA call in the learning phase (warm-up just ended).
+            # Sync metric baseline so that costs accumulated during warm-up
+            # are NOT counted as part of the first reward signal.
+            self._prev_starvations = state.metrics.get_aggregate_value("starvation")      or 0
+            self._prev_congestions = state.metrics.get_aggregate_value("long_congestion") or 0"""
+        """# ── Step 4: TD(0) update ──────────────────────────────────────────
+        td_err = 0.0  # Initialize it here safely!
+        
+        if self.learning_mode and self._prev_phi is not None:
+            reward   = self._get_reward(state)
+            phi_next = phis[int(np.argmin(values))]
+            # Capture the returned td_error from the function we modified earlier
+            td_err = self.td_update(reward, phi_next) 
+            
+        elif self.learning_mode and self._prev_phi is None:
+            # First VFA call in the learning phase...
+            self._prev_starvations = state.metrics.get_aggregate_value("starvation")      or 0
+            self._prev_congestions = state.metrics.get_aggregate_value("long_congestion") or 0"""
+        
+        """# ── Step 4: TD(0) update ──────────────────────────────────────────
+        td_err = 0.0
+        if self.learning_mode and self._prev_phi is not None:
+            # The policy simply consumes the reward signal!
+            reward = self.reward_calc.compute_step_reward(state.metrics)
+            
+            phi_next = phis[int(np.argmin(values))]
+            td_err = self.td_update(reward, phi_next)"""
+        
+        """# ── Step 4: TD(0) update ──────────────────────────────────────────
+        td_err = 0.0
+        if self.learning_mode and self._prev_phi is not None:
+            # Consume the reward signal safely
+            reward = self.reward_calc.compute_step_reward(state.metrics)
+            phi_next = phis[int(np.argmin(values))]
+            td_err = self.td_update(reward, phi_next)
+            
+        elif self.learning_mode and self._prev_phi is None:
+            # Now we must silently call compute_step_reward() once to sync the as we are no longer in warm-up, 
+            # but we don't want to use this reward for the TD update (since it includes the warm-up costs). 
+            _ = self.reward_calc.compute_step_reward(state.metrics)"""
+        
         # ── Step 4: TD(0) update ──────────────────────────────────────────
         td_err = 0.0
         if self.learning_mode and self._prev_phi is not None:
@@ -992,6 +1145,17 @@ class LinearVFAPolicy(Policy):
             
         elif self.learning_mode and self._prev_phi is None:
             _ = self.reward_calc.compute_step_reward(state.metrics)
+            # Freeze the exact warmup totals here!
+            self.warmup_starvations_snapshot = self.reward_calc._prev_starvations
+            self.warmup_congestions_snapshot = self.reward_calc._prev_congestions
+            self.warmup_trips_snapshot = self.reward_calc._prev_trips
+
+        """ # ── Step 5: select action ─────────────────────────────────────────
+        if self.learning_mode:
+            selected, sel_idx = self._boltzmann_select(candidates, values)
+        else:
+            sel_idx  = int(np.argmin(values))
+            selected = candidates[sel_idx]"""
 
         # ── Step 5: select action ─────────────────────────────────────────
         if self.learning_mode:
@@ -1010,7 +1174,7 @@ class LinearVFAPolicy(Policy):
         # ── Step 8: Log the Brain's Decision (NEW) ────────────────────────
         if getattr(self, 'log_rl_decisions', False):
             # Get the human-readable features for the winning action
-            phi_dict = _phi_as_dict(phis[sel_idx], self.maintenance_enabled, self.shift_timing_enabled)
+            phi_dict = dict(zip(self.FEATURE_NAMES, phis[sel_idx].tolist()))
             
             log_entry = {
                 'time': state.time,
@@ -1041,11 +1205,11 @@ class LinearVFAPolicy(Policy):
     # ─────────────────────────────────────────────────────────────────────────
 
     '''def reset_episode(self) -> None:
-        """
+        
         Clear per-episode TD tracking state.
 
         Does NOT reset θ or the station caches — those persist across episodes.
-        """
+        
         self._prev_phi         = None
         self._prev_starvations = 0
         self._prev_congestions = 0
@@ -1076,7 +1240,7 @@ class LinearVFAPolicy(Policy):
 
     @classmethod
     def load(cls, path: Path, **kwargs) -> "LinearVFAPolicy":
-        """Load a trained model from disk (learning_mode=False by default)."""
+        #Load a trained model from disk (learning_mode=False by default).
         with open(path, "rb") as f:
             payload = pickle.load(f)
         policy         = cls(

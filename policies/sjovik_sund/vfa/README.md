@@ -1,436 +1,612 @@
-# Value Function Approximation (VFA) for DSJBRMP
+# Hybrid VFA + Rollout Architecture
 
-## Overview
+This document explains the full architecture and workflow of the Sjovik-Sund
+hybrid ADP pipeline:
 
-This module implements an **Approximate Dynamic Programming (ADP)** solver with **Value Function Approximation (VFA)** for the **Dynamic Stochastic Joint Bike Rebalancing and Maintenance Problem (DSJBRMP)**.
+- offline training of a linear value function approximation (VFA),
+- feature ablation experiments,
+- simulator and state modifications required for maintenance-aware routing,
+- and online evaluation of a hybrid rollout policy that uses the trained VFA as
+  a terminal value estimator.
 
-## Problem Formulation
+The goal is to make the codebase understandable both as an implementation and
+as a research pipeline.
 
-### MDP Structure
+## 1. High-Level Idea
 
-#### State Space $S_k$
-Decision epochs occur when a vehicle arrives at a station at time $t_k$:
+The project uses a two-stage approximate dynamic programming design:
 
-- **Station Inventories**: $f_k^n = (f_k^{n,\text{func}}, f_k^{n,\text{onsite}}, f_k^{n,\text{depot}})$
-  - `functional`: Rentable bikes
-  - `onsite`: Bikes needing on-site repair
-  - `depot`: Bikes requiring depot removal
+1. A **linear VFA** is trained offline from episodic simulation.
+2. A **hybrid rollout policy** uses that frozen VFA online to score the tail of
+   a short explicit lookahead.
 
-- **Vehicle Status**: $V_k^v = (n_k^v, \alpha_k^v, f_k^{v,\text{func}}, f_k^{v,\text{depot}})$
-  - Current/destination station
-  - Arrival time
-  - Functional and damaged cargo
+Conceptually:
 
-#### Action Space $x \in \mathcal{X}_{S_k}$
-$x = (\iota^x, m_{\text{rep}}^x, m_{\text{rem}}^x, \rho^x)$
+- `LinearVFAPolicy` learns an approximation of the downstream value of a
+  post-decision state.
+- `HybridRolloutPolicy` explicitly simulates candidate actions for a short
+  horizon, then adds the trained VFA as a terminal continuation value.
 
-- $\iota^x$: **Rebalancing** (+ delivery, - pickup)
-- $m_{\text{rep}}^x$: **On-site repairs**
-- $m_{\text{rem}}^x$: **Depot removals**
-- $\rho^x$: **Next station** (routing)
+This is a standard “horizontal ADP” pattern:
 
-#### Post-Decision State $S_k^x$
-Deterministic state immediately after action, before stochastic events.
+- explicit simulation handles near-term consequences,
+- the VFA handles long-term continuation.
 
-#### Reward Function
-Minimize:
-- Failed rentals (station has 0 functional bikes)
-- Failed returns (station at capacity)
+## 2. Research Workflow
 
-### Bellman Equation
+The intended end-to-end workflow is:
 
-$$V(S_k) = \min_{x \in \mathcal{X}_{S_k}} \big[ C(S_k^x) + \bar{V}(S_k^x) \big]$$
+1. Define candidate feature sets in the ablation study.
+2. Train one VFA model per feature configuration and random seed.
+3. Compare learning curves and final performance across feature sets.
+4. Select a trained model.
+5. Run the selected model either:
+   - as a standalone greedy VFA policy, or
+   - as the terminal estimator inside `HybridRolloutPolicy`.
+6. Export detailed CSV logs for analysis.
+
+The relevant entry points are:
+
+- `policies/sjovik_sund/ablation_study/run_ablation_study.py`
+- `policies/sjovik_sund/vfa/train_vfa.py`
+- `policies/sjovik_sund/vfa/evaluate_hybrid_rollout.py`
+- `policies/sjovik_sund/run_simulation_ingvild.py`
+
+## 3. Main Modules
+
+### Core VFA modules
+
+- `LinearVFAPolicy.py`
+  - feature extraction from post-decision states,
+  - value computation `V(S^x) = theta^T phi(S^x)`,
+  - candidate generation,
+  - Boltzmann exploration during training,
+  - TD(0) weight updates,
+  - load/save of trained models.
+
+- `vfa_features.py`
+  - canonical feature registry,
+  - canonical feature computation,
+  - single source of truth for active feature names.
+
+- `HybridRolloutPolicy.py`
+  - online rollout policy,
+  - clones the simulator,
+  - applies candidate actions to cloned states,
+  - simulates forward for a short horizon,
+  - uses the frozen VFA as terminal value.
+
+### Canonical MDP layer
+
+- `policies/sjovik_sund/mdp/mdp_formulation.py`
+  - shared representation of state, actions, and post-decision states.
+
+- `policies/sjovik_sund/mdp/action_bridge.py`
+  - converts canonical `MdpAction` objects into simulator `sim.Action`
+    objects.
+
+- `policies/sjovik_sund/mdp/reward.py`
+  - reward accounting based on simulator metrics.
+
+### Experiment / pipeline modules
+
+- `train_vfa.py`
+  - offline episodic VFA training.
+
+- `run_ablation_study.py`
+  - runs multiple feature subsets and multiple seed offsets.
+
+- `evaluate_hybrid_rollout.py`
+  - loads a trained model and evaluates:
+    - `DoNothing`,
+    - `VFA_Only_Standalone`,
+    - `Hybrid_Rollout`.
+
+### Simulator / environment modules modified for this workflow
+
+- `sim/Simulator.py`
+- `sim/State.py`
+- `sim/Depot.py`
+- `sim/Station.py`
+- `sim/Area.py`
+- `sim/events/VehicleArrival.py`
+
+## 4. Problem Representation
+
+The simulator models a dynamic bike rebalancing and maintenance problem where a
+service vehicle moves between stations and depots while customer demand evolves
+stochastically over time.
+
+At a decision epoch, the active vehicle chooses:
+
+- how many functional bikes to deliver or pick up,
+- how many on-site repairs to perform,
+- how many depot-damaged bikes to remove,
+- where to drive next.
+
+The canonical MDP state separates:
+
+- **station inventory**
+  - functional bikes,
+  - onsite-repair bikes,
+  - depot-repair bikes,
+- **vehicle inventory**
+  - functional cargo,
+  - depot-damaged cargo,
+- **time**
+  - current simulation time,
+  - optional shift timing information.
+
+The post-decision state is central:
+
+- the VFA is evaluated on the post-decision state,
+- rollout uses the post-decision action consequence plus short forward
+  simulation.
+
+## 5. Feature System
+
+Feature definitions live only in `vfa_features.py`.
+
+This is intentional:
+
+- feature names,
+- feature ordering,
+- and feature computation
+
+must stay synchronized across training, loading, ablation, and evaluation.
+
+The file currently contains three categories of features.
+
+### Category A: Rebalancing features
+
+Examples:
+
+- `rebalancing_imbalance`
+- `anticipated_demand_shortfall`
+- `vehicle_functional_load`
+- `squared_starvation_penalty`
+- `squared_congestion_penalty`
+- `proximity_to_demand_gravity`
+- `delivery_potential`
+- `pickup_potential`
+- `starvation_gravity`
+- `congestion_gravity`
+
+These describe system imbalance, expected short-term shortage/congestion, and
+how useful the current vehicle inventory is relative to network demand.
+
+### Category B: Maintenance features
+
+Examples:
+
+- `trailer_cannibalization`
+- `global_onsite_backlog`
+- `demand_weighted_depot_backlog`
+- `depot_pull`
+
+These quantify maintenance burden and the pressure to route toward a depot.
+
+### Category C: Shift timing features
+
+Examples:
+
+- `time_remaining_fraction`
+- `functional_bikes_time_penalty`
+
+These are optional anticipatory features for end-of-shift behavior.
+
+## 6. Offline VFA Training
+
+Training is implemented in `train_vfa.py`.
+
+### Episode structure
+
+Each training episode is a full simulation with two phases:
+
+1. **Warm-up phase**
+   - controlled by `GreedyPolicy`,
+   - no TD learning,
+   - used to build a realistic non-empty system state before learning starts.
+
+2. **Learning phase**
+   - controlled by `LinearVFAPolicy`,
+   - uses Boltzmann exploration,
+   - updates `theta` via TD(0).
+
+### Why the warm-up exists
+
+Without warm-up, the VFA would learn from unrealistic startup conditions:
+
+- empty or near-empty routing histories,
+- unrealistically synchronized station inventories,
+- unrepresentative congestion/starvation patterns.
+
+Warm-up makes the learning phase start from a more representative operating
+regime.
+
+### TD update
+
+The learned parameter vector `theta` is updated online during the learning
+phase:
+
+`theta <- theta + alpha * (r + gamma * V(next) - V(cur)) * phi(cur)`
 
 where:
-- $C(S_k^x)$: Immediate cost
-- $\bar{V}(S_k^x) \approx \theta^T \phi(S_k^x)$: Approximate value function
-## Implementation
 
-### 1. Canonical MDP Formulation (`mdp_formulation.py`)
+- `phi(cur)` is the stored feature vector for the last chosen post-decision
+  state,
+- reward comes from changes in starvation/congestion metrics,
+- `phi(next)` is computed from the best downstream candidate.
 
-The VFA policy does not maintain a separate internal state schema. It references
-the shared MDP formulation in `policies/sjovik_sund/mdp/mdp_formulation.py` and
-extracts a canonical MDP snapshot from the live `sim.State`.
+### Model outputs
 
-**Key dataclasses / helpers**
-- `StationInventory`
-- `VehicleStatus`
-- `MDPState`
-- `MdpAction`
-- `extract_mdp_state(sim_state, active_vehicle_id, config, depot_id)`
-- `extract_vehicle_status(vehicle, time, config)`
+Training produces:
 
-`LinearVFAPolicy` uses these helpers so its feature inputs stay consistent with
-the project-wide MDP formulation.
+- a `.pkl` file containing the trained VFA,
+- a learning curve `.npy`,
+- a `*_weights_evolution.csv`,
+- detailed simulation CSV outputs for each episode under
+  `policies/sjovik_sund/simulation_results/csv/...`
 
-### 2. Feature Vector `φ(S^x)` — canonical definitions in `vfa_features.py`
+## 7. Ablation Study Workflow
 
-The feature set is defined in exactly one place:
+Feature ablations are configured in:
 
-- `policies/sjovik_sund/vfa/vfa_features.py`
+- `policies/sjovik_sund/ablation_study/run_ablation_study.py`
 
-That module is the single source of truth for:
-- `FEATURE_NAMES`
-- `N_FEATURES`
-- `extract(...)`
-- `as_dict(...)`
+The file defines named feature subsets such as:
 
-`LinearVFAPolicy.extract_features()` does **not** define features itself. It only:
-1. extracts station inventories from `extract_mdp_state(...)`
-2. applies post-decision deltas at the active station
-3. retrieves vehicle cargo from `extract_vehicle_status(...)`
-4. passes prepared numpy inputs to `vfa_features.extract(...)`
+- `1_Linear_Reactive`
+- `2_Non_Linear_Reactive`
+- `3_Anticipatory_Spatial_Base`
+- `4_Contextual_Interactions`
 
-This makes feature changes isolated to `vfa_features.py`; after changing the
-feature set, retrain the model.
+For each experiment:
 
-| # | Name | Formula |
-|---|------|---------|
-| φ₁ | Rebalancing imbalance | $\sum_i \lvert I_i^{\text{func}} - \hat{I}_i^{\text{func}} \rvert$ |
-| φ₂ | Trailer cannibalization | $q_v^{\text{depot}} / K$ |
-| φ₃ | Global onsite backlog | $\sum_i I_i^{\text{onsite}}$ |
-| φ₄ | Demand-weighted depot backlog | $\sum_i I_i^{\text{depot}} \times \lambda_i$ |
-| φ₅ | Depot pull | $\phi_2 \times \text{dist}(v, \text{depot})$ |
+1. a subset of feature names is selected,
+2. multiple macro-seed runs are launched,
+3. each run trains a fresh VFA from scratch,
+4. artifacts are saved under `models/ablation_study/<experiment>/`.
 
-where $\hat{I}_i^{\text{func}}$ is the time-indexed target state and
-$\lambda_i$ is the time-averaged arrival rate at station $i$.
+This isolates the contribution of different feature families:
 
-```python
-from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+- simple reactive imbalance features,
+- nonlinear penalties,
+- anticipatory/spatial features,
+- interaction features between inventory and network context.
 
-policy = LinearVFAPolicy()
-policy._lazy_init(state)  # Build static network caches
-func, onsite, depot = policy._extract_inventories(state, vehicle)
-# Compute features for post-decision state (dropping 2 items)
-phi = policy.extract_features(
-    state, 
-    vehicle, 
-    func=func, 
-    onsite=onsite, 
-    depot=depot, 
-    delta_func=2
-)
-print(f'V(S^x) = {policy.value(phi):.4f}')
-```
+## 8. Standalone VFA Decision Logic
 
-### 3. `LinearVFAPolicy` (`LinearVFAPolicy.py`)
+`LinearVFAPolicy` is the main deployment policy for a trained model.
 
-Single class that combines:
-- MDP-consistent state extraction
-- post-decision feature preparation
-- VFA scoring
-- Boltzmann action selection
-- TD(0) updates
+At each vehicle decision:
 
-It integrates directly with the simulator via the `Policy` base-class
-interface and defaults to `MDPConfig.full_maintenance()` unless a different
-MDP configuration is provided.
+1. lazily initialize caches from the simulator state,
+2. generate a tractable set of candidate actions,
+3. compute post-decision feature vectors for each candidate,
+4. evaluate the linear value function,
+5. select:
+   - via Boltzmann during training,
+   - via greedy argmax during exploitation.
 
-```python
-from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+### Candidate generation
 
-# Exploitation (frozen θ after training)
-policy = LinearVFAPolicy.load('models/my_vfa.pkl')  # learning_mode=False
+Action generation is split into two levels:
 
-# Training (Boltzmann + TD updates)
-policy = LinearVFAPolicy(
-    alpha         = 0.01,
-    gamma         = 0.99,
-    tau           = 5.0,    # Boltzmann temperature
-    learning_mode = True,
-    seed          = 42,
-)
-```
+- **micro decision**
+  - how many bikes to pick up/deliver/repair at the current station,
+- **macro decision**
+  - which next station/depot to route to.
 
-**TD(0) update rule** applied at every vehicle-decision during the learning phase:
+The routing candidate pool is pruned using:
 
-$$\theta \leftarrow \theta + \alpha \bigl( r + \gamma V(S^x_{\text{next}}) - V(S^x_{\text{cur}}) \bigr) \phi(S^x_{\text{cur}})$$
+- nearest stations,
+- critical stations,
+- a simple tabu mechanism to avoid sending multiple vehicles to the same
+  claimed target.
 
-**Action generation** uses action-space splitting:
-1. **Micro-step** (inventory): push current station toward its target state (greedy, fixed)
-2. **Macro-step** (routing): evaluate the `N_CANDIDATES = 8` nearest next stations with VFA
+## 9. Hybrid Rollout Logic
 
-### 4. `EpisodeTrainingPolicy` (`LinearVFAPolicy.py`)
+`HybridRolloutPolicy` wraps a trained `LinearVFAPolicy`.
 
-Episodic wrapper created fresh each episode; routes decisions to the correct
-phase while sharing a single persistent `LinearVFAPolicy` (θ persists).
+### Decision flow
 
-```python
-from policies.sjovik_sund.vfa.LinearVFAPolicy import EpisodeTrainingPolicy
-from policies.greedy_policy import GreedyPolicy
-from helpers import timeInMinutes
+At a real decision epoch:
 
-WARMUP_END = timeInMinutes(hours=7) + 4 * 24 * 60   # 07:00 + 4 days
+1. Generate candidate actions using the trained VFA’s candidate generator.
+2. For each candidate:
+   - clone the simulator,
+   - manually apply the candidate action to the clone,
+   - simulate forward for a short horizon,
+   - let downstream cloned vehicles act using the frozen VFA,
+   - accumulate discounted rollout reward,
+   - compute a terminal VFA value at the horizon.
+3. Choose the candidate with the highest estimated rollout value.
 
-episode_policy = EpisodeTrainingPolicy(
-    vfa_policy      = vfa,           # shared LinearVFAPolicy
-    greedy_policy   = GreedyPolicy(),
-    warmup_end_time = WARMUP_END,
-)
-# state.time < WARMUP_END  → GreedyPolicy  (no TD updates)
-# state.time >= WARMUP_END → LinearVFAPolicy (Boltzmann + TD)
-```
+### Why time appears to “jump backward” in debug output
 
-## Usage Examples
+Rollout evaluates multiple branches starting from the same root state.
 
-### Full Offline Training (recommended)
+So log patterns like:
+
+- `07:33 -> candidate A`
+- later again `07:33 -> candidate B`
+
+do not mean the real simulator is moving backward. They mean the rollout is
+restarting from the same real decision state and evaluating another branch.
+
+### Why the hybrid policy is slow
+
+The rollout policy is expensive by design. For each real decision it performs:
+
+- candidate generation,
+- simulator cloning,
+- scenario simulation,
+- event-by-event forward execution.
+
+Runtime scales roughly with:
+
+`#real decisions x #candidates x #scenarios x #events inside horizon`
+
+The main tuning levers are:
+
+- `lookahead_minutes`
+- `num_scenarios`
+- `LinearVFAPolicy.N_CANDIDATES`
+
+## 10. Simulator and Environment Modifications
+
+The original simulator was extended to support maintenance-aware ADP and
+rollout.
+
+### `sim/Depot.py`
+
+The depot was extended with explicit repair-cycle logic:
+
+- `fixed_queue`
+  - repaired bikes ready for pickup,
+- `in_repair`
+  - bikes currently undergoing the repair cycle,
+- `receive_bikes_for_repair(...)`
+  - pushes dropped-off broken bikes into the repair queue,
+- `tick_repair_queue(...)`
+  - moves finished repairs into `fixed_queue`.
+
+This creates a delayed depot-repair process rather than an instantaneous
+repair abstraction.
+
+### `sim/Simulator.py`
+
+The simulator was extended with:
+
+- depot queue ticking after each event,
+- rollout-safe dummy logging methods,
+- `sloppycopy()` to create fast simulator clones for rollout.
+
+The clone path is designed to avoid expensive full `deepcopy()` where
+possible.
+
+### `sim/State.py`
+
+The state layer was extended with:
+
+- maintenance-aware action execution,
+- depot drop-off and depot pickup logic,
+- onsite repair logic,
+- fast state cloning via `sloppycopy()`.
+
+The current clone strategy uses a **shared bike map**:
+
+- each `bike_id` is cloned once,
+- the same cloned bike object is reused across:
+  - station inventories,
+  - depot queues,
+  - vehicle cargo,
+  - bikes-in-use.
+
+This avoids identity mismatches that arise from naive shallow copying.
+
+### `sim/Station.py` and `sim/Area.py`
+
+These classes now support graph-consistent cloning of location inventories.
+
+The key design choice is:
+
+- static network data can be reused,
+- dynamic bike objects must be cloned consistently.
+
+### `sim/events/VehicleArrival.py`
+
+The vehicle-arrival event is the operational decision trigger:
+
+- policy chooses an action,
+- state executes the action,
+- travel and operation time are converted into the next arrival event,
+- operational logging is emitted for the real simulation.
+
+This same behavior is mirrored inside rollout when candidate actions are
+applied to cloned simulators.
+
+## 11. Sloppy Copy vs Deep Copy
+
+One of the biggest implementation challenges in the hybrid rollout was cloning.
+
+### Why `deepcopy` is too slow
+
+Full simulator deep copies are expensive because the simulator contains:
+
+- a large state graph,
+- event objects,
+- vehicle objects,
+- bike objects,
+- depot queues,
+- logging structures,
+- random generators.
+
+Using `deepcopy()` for every rollout branch quickly becomes the dominant cost.
+
+### Why naive `copy.copy()` is unsafe
+
+Plain shallow copying breaks the simulator graph:
+
+- the same physical bike may be duplicated into multiple unrelated objects,
+- vehicle cargo and station inventory may stop referring to the same cloned
+  bike,
+- queued repair bikes may diverge from depot or station references.
+
+This can produce runtime errors such as bike-ID mismatches during action
+execution.
+
+### Current solution
+
+The current strategy is a custom fast clone:
+
+- clone each bike exactly once into a shared `bike_map`,
+- rebuild all dynamic containers from those shared cloned bikes,
+- relink vehicles and event queue references into the cloned universe.
+
+This is the main reason the rollout can be made workable without relying on
+full deep copies.
+
+## 12. Logging and Output Files
+
+The pipeline writes outputs at multiple levels.
+
+### Training and evaluation summaries
+
+Main results CSVs are written by:
+
+- `write_results_to_file(...)`
+
+under:
+
+- `policies/sjovik_sund/simulation_results/csv/`
+
+### Detailed per-run outputs
+
+Additional outputs include:
+
+- bike movement logs,
+- component failure logs,
+- vehicle cargo logs,
+- daily health logs,
+- RL/VFA decision logs.
+
+### Model artifacts
+
+Trained models and weight evolution files are written under:
+
+- `models/`
+- `models/ablation_study/...`
+
+## 13. How to Run the Full Pipeline
+
+### A. Run ablation training
 
 ```bash
-# Default: 200 episodes × 14 days, saves to models/vfa_trained_<ts>.pkl
-python policies/sjovik_sund/vfa/train_vfa.py
+python policies/sjovik_sund/ablation_study/run_ablation_study.py
+```
 
-# Custom options
+This trains multiple feature subsets and writes:
+
+- trained models to `models/ablation_study/...`
+- per-run simulation CSVs to `policies/sjovik_sund/simulation_results/csv/...`
+
+### B. Train a single VFA directly
+
+```bash
 python policies/sjovik_sund/vfa/train_vfa.py \
-    --episodes 200 \
-    --save models/my_vfa.pkl \
-    --seed 0 \
-    --instance TD_W34_37
+  --episodes 200 \
+  --save models/my_vfa.pkl \
+  --instance TD_W34_old
 ```
 
-### Training Programmatically
+### C. Evaluate a trained VFA and hybrid rollout
 
-```python
-from policies.sjovik_sund.vfa.train_vfa import train
-from pathlib import Path
-
-vfa = train(
-    num_episodes  = 200,
-    save_path     = Path('models/my_vfa.pkl'),
-    seed_offset   = 0,
-    instance_name = 'TD_W34_old',
-)
-print(f'Final θ: {vfa.theta}')
+```bash
+python policies/sjovik_sund/vfa/evaluate_hybrid_rollout.py \
+  --model models/ablation_study/4_Contextual_Interactions/vfa_4_Contextual_Interactions_run2.pkl \
+  --lookahead 60 \
+  --scenarios 1 \
+  --episodes 1 \
+  --duration 120
 ```
 
-### Using a Frozen Pre-trained Model
+This compares:
 
-```python
-from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
-from policies.sjovik_sund.run_simulation import run_simulation, SimulationConfig
-from pathlib import Path
+- `DoNothing_Baseline`
+- `Hybrid_Rollout_H*_S*`
+- `VFA_Only_Standalone`
 
-# load() always sets learning_mode=False
-vfa = LinearVFAPolicy.load(Path('models/my_vfa.pkl'))
+using the standard simulation evaluation pipeline.
 
-simulator = run_simulation(
-    seed=100,
-    policy=vfa,
-    duration=24*7,
-    num_vehicles=1,
-    instance_name='TD_W34_old',
-    config=SimulationConfig(),
-)
-```
+## 14. How Feature Experiments Connect to the Final Hybrid Policy
 
-### Evaluating on Multiple Test Seeds
+The full research logic is:
 
-```python
-from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
-from policies.sjovik_sund.run_simulation import test_seeds
-from pathlib import Path
+1. Start with a broad candidate feature family.
+2. Use ablations to identify which feature combinations produce better learning
+   and better downstream policy behavior.
+3. Train a stable VFA on the selected feature set.
+4. Freeze that VFA.
+5. Use the frozen VFA in two ways:
+   - standalone deployment,
+   - hybrid rollout tail evaluation.
 
-vfa = LinearVFAPolicy.load(Path('models/my_vfa.pkl'))  # frozen
+This means the hybrid policy is not a separate learned model. It is a
+decision-time wrapper around a trained VFA.
 
-test_seeds(
-    list_of_seeds = list(range(100, 110)),
-    policy        = vfa,
-    filename      = 'vfa_test_results.csv',
-    duration      = 24 * 7,
-    use_multiprocessing = True,
-)
-```
+## 15. Practical Notes and Known Tradeoffs
 
-## Hyperparameter Tuning
+### Benefits
 
-All hyperparameters are constructor arguments of `LinearVFAPolicy` and
-constants at the top of `train_vfa.py`:
+- clean separation between offline learning and online decision support,
+- interpretable linear value function,
+- explicit simulator-based lookahead,
+- straightforward ablation workflow.
 
-| Parameter | Location | Default | Effect |
-|-----------|----------|---------|--------|
-| `alpha` | `LinearVFAPolicy` | `0.01` | TD step size |
-| `gamma` | `LinearVFAPolicy` | `0.99` | Discount factor |
-| `n_features` | `LinearVFAPolicy` | `len(FEATURE_NAMES)` | φ vector length (dynamically populated) |
-| `N_CANDIDATES` | `LinearVFAPolicy` (class attr) | `8` | Routing candidates per decision |
-| `TAU_START` | `train_vfa.py` | `5.0` | Initial Boltzmann temperature |
-| `TAU_END` | `train_vfa.py` | `0.1` | Final Boltzmann temperature |
-| `NUM_EPISODES` | `train_vfa.py` | `200` | Training episodes |
-| `EPISODE_DAYS` | `train_vfa.py` | `14` | Days per episode |
-| `WARMUP_DAYS` | `train_vfa.py` | `4` | Greedy warm-up days (no TD) |
+### Tradeoffs
 
-### Recommended Tuning Process
+- rollout is computationally expensive,
+- simulator cloning is delicate and must preserve graph consistency,
+- results depend strongly on candidate pruning and feature quality,
+- maintenance logic makes the environment substantially more stateful than a
+  pure rebalancing model.
 
-1. **Start with default τ schedule** (5.0 → 0.1 over 200 episodes) — well-calibrated for `TD_W34_old`.
-2. **Plot the learning curve** (`_learning_curve.npy`) to diagnose:
-   - Flat curve → increase `TAU_START` or `alpha`.
-   - Oscillating curve → decrease `alpha`.
-   - θ norm explodes → decrease `alpha`.
-3. **Adjust `WARMUP_DAYS`** if the system needs more (complex degradation) or less warm-up time.
-4. **Reduce `N_CANDIDATES`** if training is too slow (fewer routing options to evaluate per decision).
+## 16. Recommended Reading Order for New Contributors
 
-## Architecture Diagram
+For someone new to the codebase, the easiest path is:
 
-```
- OFFLINE TRAINING  (train_vfa.py)
- ─────────────────────────────────────────────────────────────────
- for episode in range(200):
-   ┌──── Days 1-4: GreedyPolicy warm-up ─── no θ update ────────┐
-   │  τ decays exponentially   5.0 → 0.1 over 200 episodes      │
-   ├──── Days 5-14: LinearVFAPolicy ────── TD(0) updates ────────┤
-   │                                                              │
-   │  Each vehicle decision:                                      │
-   │  1. Extract canonical MDP snapshot via extract_mdp_state()   │
-   │  2. Build φ(S^x) via vfa_features.extract()                  │
-   │  3. Boltzmann-select next station via  P∝exp(−V/τ)           │
-   │  4. TD update:  θ += α(r + γV_next − V_cur) φ_cur            │
-   └──────────────────────────────────────────────────────────────┘
-   θ persists; only per-episode tracking state is reset
+1. `vfa_features.py`
+2. `LinearVFAPolicy.py`
+3. `mdp_formulation.py`
+4. `train_vfa.py`
+5. `run_ablation_study.py`
+6. `HybridRolloutPolicy.py`
+7. `evaluate_hybrid_rollout.py`
+8. `run_simulation_ingvild.py`
+9. `sim/State.py`, `sim/Depot.py`, `sim/Simulator.py`
 
- Save frozen model  →  models/vfa_trained_<ts>.pkl
- ─────────────────────────────────────────────────────────────────
+That order moves from conceptual definitions to learning to online rollout to
+simulator implementation details.
 
- ONLINE DEPLOYMENT  (future Rollout Algorithm)
- ─────────────────────────────────────────────────────────────────
- For each vehicle decision:
-   ┌── Generate candidate actions (action-space splitting) ──────┐
-   │   Micro: greedy inventory push toward target state          │
-   │   Macro: N_CANDIDATES nearest next stations                 │
-   ├── For each candidate action a: ────────────────────────────┤
-   │   Rollout H decisions with default policy                   │
-   │   Q(s,a) ≈ Σ γ^h c_h  +  γ^H V̄(S_H)   ← frozen VFA         │
-   └── Select a* = argmin Q(s, a) ─────────────────────────────┘
-```
+## 17. Summary
 
+This system is a complete research and implementation stack for dynamic
+rebalancing with maintenance:
 
-## Key Design Decisions
+- a canonical MDP layer,
+- a modular feature system,
+- a trainable linear VFA,
+- an ablation framework for feature-set comparison,
+- a simulator extended with maintenance-aware depot logic,
+- and a hybrid rollout policy that uses short explicit simulation plus a
+  learned tail-value approximation.
 
-### 1. **POMDP Simplification**
-- **Simulator**: Tracks exact Weibull component ages (odometers)
-- **VFA Agent**: Observes only aggregate counts $(f^{\text{func}}, f^{\text{onsite}}, f^{\text{depot}})$
-- **Rationale**: VFA learns memoryless (exponential) approximation of failure dynamics through experience
+The central design principle is separation of responsibilities:
 
-### 2. **Post-Decision State VFA**
-- Approximate $\bar{V}(S^x)$ instead of $V(S)$
-- **Advantage**: Decouple action evaluation from stochastic transitions
-- **Update**: Use next pre-decision state for bootstrapping
-
-### 3. **Separable Value Functions**
-- Network value = sum of station values
-- **Advantage**: Reduces feature dimensionality from exponential to linear in number of stations
-- **Trade-off**: Ignores cross-station correlations (acceptable approximation)
-
-### 4. **Action Space Splitting**
-- **Micro-optimization**: Sample local actions $(ι, m_{\text{rep}}, m_{\text{rem}})$
-- **Macro-optimization**: Evaluate routing using VFA
-- **Advantage**: Avoid enumerating exponential joint action space
-
-## Monitoring Learning Progress
-
-### During Training
-
-`train_vfa.py` prints one line per episode:
-
-```
-Episode  42/200 | τ = 1.843 | ‖θ‖ = 3.2041 | θ̄  = -0.1203 | SL = 0.8712 | t = 324s
-```
-
-Checkpoints are saved every 50 episodes to `models/vfa_checkpoint_ep<N>.pkl`.
-
-### Post-Training Analysis
-
-```python
-import numpy as np
-import matplotlib.pyplot as plt
-from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
-from pathlib import Path
-
-# Inspect learned weights
-vfa = LinearVFAPolicy.load(Path('models/my_vfa.pkl'))
-feature_names = ['φ₁ rebalancing', 'φ₂ trailer', 'φ₃ onsite', 'φ₄ depot-demand', 'φ₅ depot-pull']
-for name, w in zip(feature_names, vfa.theta):
-    print(f'  {name:25s} {w:+.6f}')
-
-# Plot service-level learning curve
-sl = np.load('models/my_vfa_learning_curve.npy')
-plt.plot(sl, alpha=0.4, label='per-episode SL')
-plt.plot(np.convolve(sl, np.ones(10)/10, mode='valid'), label='10-ep MA')
-plt.xlabel('Episode')
-plt.ylabel('Service level')
-plt.title('VFA Training Convergence')
-plt.legend()
-plt.tight_layout()
-plt.savefig('learning_curve.png')
-```
-
-## Extending the System
-
-### Adding or Changing Features
-
-Permanent feature changes should be made in
-`policies/sjovik_sund/vfa/vfa_features.py`, not in `LinearVFAPolicy.py`.
-
-Update:
-1. `FEATURE_NAMES`
-2. the corresponding computation in `extract(...)`
-3. the returned numpy array shape/order
-4. retrain
-
-```python
-from policies.sjovik_sund.vfa.vfa_features import FEATURE_NAMES, N_FEATURES
-
-print(FEATURE_NAMES)
-print(N_FEATURES)
-```
-
-For temporary experiments, `LinearVFAPolicy.extract_features()` can still be
-overridden, but the preferred architecture is to keep canonical feature
-definitions in `vfa_features.py`.
-
-```python
-from policies.sjovik_sund.vfa.vfa_features import FEATURE_NAMES, N_FEATURES
-
-print(FEATURE_NAMES)
-print(N_FEATURES)
-
-# If you temporarily override extract_features() for an experiment,
-# note that canonical inventory extraction now uses:
-#     func, onsite, depot = self._extract_inventories(state, vehicle)
-# and permanent feature changes should still be moved back into
-# vfa_features.py before retraining.
-```
-
-### Changing the Reward Signal
-
-Override `_get_reward()` in `LinearVFAPolicy`.
-The default penalises starvations and long-congestions:
-
-```python
-def _get_reward(self, state) -> float:
-    cur_s = state.metrics.get_aggregate_value('starvation') or 0
-    cur_c = state.metrics.get_aggregate_value('long_congestion') or 0
-    reward = -(1.0 * (cur_s - self._prev_starvations) +
-               0.5 * (cur_c - self._prev_congestions))
-    self._prev_starvations = cur_s
-    self._prev_congestions = cur_c
-    return reward
-```
-
-## Performance Tips
-
-1. **`N_CANDIDATES`**: Reduce from 8 to 4-5 to halve decision time with minimal quality loss.
-2. **Warm Start**: `LinearVFAPolicy.load()` then set `learning_mode=True` and `tau` low for fine-tuning.
-3. **Parallel evaluation**: `test_seeds(..., use_multiprocessing=True)` is safe because the frozen policy does not mutate state.
-4. **Longer episodes**: Increasing `EPISODE_DAYS` from 14 to 28 captures stronger day-of-week patterns at the cost of slower training.
-
-## References
-
-- Powell, W. B. (2011). *Approximate Dynamic Programming*. Wiley.
-- Sutton, R. S., & Barto, A. G. (2018). *Reinforcement Learning: An Introduction*. MIT Press.
-
-## Authors
-
-DSJBRMP Research Team  
-Implementation Date: March 2026
-
-## License
-
-[Your License Here]
+- the simulator handles operational realism,
+- the MDP layer defines decision semantics,
+- the VFA learns long-horizon structure,
+- the rollout handles short-horizon branching,
+- and the ablation pipeline supports systematic feature research.

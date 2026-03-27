@@ -59,7 +59,7 @@ class Station(Location):
         if len(self.bikes) > self.capacity:
             self.capacity = len(self.bikes)
 
-    def sloppycopy(self, *args):
+    '''def sloppycopy(self, *args):
         return Station(
             #self.location_id,
             self.id,
@@ -78,6 +78,33 @@ class Station(Location):
             capacity=self.capacity,
             original_id=self.original_id,
             charging_station=self.charging_station,
+        )'''
+        
+    def sloppycopy(self, bike_map=None, *args):
+        if bike_map is None:
+            bike_map = {}
+        cloned_bikes = []
+        for bike in self.bikes.values():
+            if bike.bike_id not in bike_map:
+                bike_map[bike.bike_id] = copy.copy(bike)
+            cloned_bikes.append(bike_map[bike.bike_id])
+
+        return Station(
+            self.id,
+            cloned_bikes,
+            leave_intensities=self.leave_intensities,
+            leave_intensities_stdev=self.leave_intensities_stdev,
+            arrive_intensities=self.arrive_intensities,
+            arrive_intensities_stdev=self.arrive_intensities_stdev,
+            move_probabilities=self.move_probabilities,
+            center_location=self.get_location(),
+            average_number_of_bikes=self.average_number_of_bikes,
+            target_state=self.target_state,
+            capacity=self.capacity,
+            original_id=self.original_id,
+            charging_station=self.charging_station,
+            area=self.area,
+            is_station_based=self.is_station_based,
         )
 
     def is_depot(self):

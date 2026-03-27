@@ -87,142 +87,66 @@ def plot_weights_evolution():
         )
 
     # ---------------------------------------------------------
-    # 3. GENERATE PLOT 1: Individual weight evolution (subplots)
+    # 3. CALCULATE MOVING AVERAGES & SORT FEATURES
     # ---------------------------------------------------------
-    print("\n" + "=" * 72)
-    print(" GENERATING PLOTS")
-    print("=" * 72)
+    # Smooth the jumpy service level using a Rolling Mean (Window = 10 episodes)
+    window_size = min(10, len(episodes))
+    sl_smoothed = pd.Series(service_levels).rolling(window=window_size, min_periods=1).mean()
 
-    n_cols = 3
-    n_rows = (n_features + n_cols - 1) // n_cols
-
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 4 * n_rows))
-    axes = axes.flatten()
-
-    colors = plt.cm.tab20(np.linspace(0, 1, n_features))
-
-    for idx, feature in enumerate(feature_names):
-        ax = axes[idx]
-        ax.plot(
-            episodes,
-            df[feature],
-            marker="o",
-            linewidth=2.5,
-            markersize=5,
-            color=colors[idx],
-            alpha=0.8,
-        )
-        ax.fill_between(episodes, df[feature], alpha=0.2, color=colors[idx])
-
-        # Add mean line
-        mean_val = df[feature].mean()
-        ax.axhline(mean_val, color="red", linestyle="--", linewidth=1.5, alpha=0.6, label=f"Mean: {mean_val:.4f}")
-
-        ax.set_title(f"{feature}", fontsize=11, fontweight="bold")
-        ax.set_xlabel("Episode", fontsize=10)
-        ax.set_ylabel("Weight Value (θ)", fontsize=10)
-        ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=9, loc="best")
-
-    # Hide unused subplots
-    for idx in range(n_features, len(axes)):
-        axes[idx].set_visible(False)
-
-    plt.suptitle(
-        f"VFA Feature Weight Evolution Across Training Episodes\n({latest_csv.name})",
-        fontsize=14,
-        fontweight="bold",
-        y=0.995,
-    )
-    plt.tight_layout()
-
-    subplot_path = MODELS_DIR / latest_csv.name.replace("_weights_evolution.csv", "_weights_subplots.png")
-    plt.savefig(subplot_path, dpi=300, bbox_inches="tight")
-    plt.close()
-    print(f"✅ Saved Weight Subplots -> {subplot_path.name}")
+    # Sort features by how "important" they became (absolute magnitude of final weight)
+    # This separates the converging features from the noise!
+    final_weights = {feat: abs(df[feat].iloc[-1]) for feat in feature_names}
+    sorted_features = sorted(final_weights.keys(), key=lambda x: final_weights[x], reverse=True)
 
     # ---------------------------------------------------------
     # 4. GENERATE PLOT 2: All weights on single plot
     # ---------------------------------------------------------
     fig, ax = plt.subplots(figsize=(14, 8))
 
-    for idx, feature in enumerate(feature_names):
+    # Plot EVERY feature with equal thickness and full labels
+    for feature in sorted_features:
         ax.plot(
             episodes,
             df[feature],
-            marker="o",
             linewidth=2,
-            markersize=4,
-            label=feature,
-            alpha=0.8,
+            alpha=0.8, 
+            label=f"{feature} ({df[feature].iloc[-1]:+.2f})"
         )
 
     ax.set_title(
         f"VFA Feature Weight Evolution (All Features)\n({latest_csv.name})",
-        fontsize=14,
-        fontweight="bold",
+        fontsize=14, fontweight="bold",
     )
-    ax.set_xlabel("Training Episode", fontsize=12)
-    ax.set_ylabel("Weight Value (θ)", fontsize=12)
-    ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=10, loc="best", ncol=2)
-
-    plt.tight_layout()
-
-    combined_path = MODELS_DIR / latest_csv.name.replace("_weights_evolution.csv", "_weights_combined.png")
-    plt.savefig(combined_path, dpi=300, bbox_inches="tight")
-    plt.close()
-    print(f"✅ Saved Combined Weights Plot -> {combined_path.name}")
+    # Move the legend outside the plot so it doesn't cover the lines
+    ax.legend(fontsize=10, loc="center left", bbox_to_anchor=(1, 0.5))
 
     # ---------------------------------------------------------
-    # 5. GENERATE PLOT 3: Weight vs Service Level correlation
+    # 5. GENERATE PLOT 3: Weight vs Smoothed Service Level
     # ---------------------------------------------------------
-    fig, ax = plt.subplots(figsize=(12, 6))
-
+    fig, ax = plt.subplots(figsize=(14, 6))  # Made it a bit wider
     ax2 = ax.twinx()
 
-    # Plot service level on secondary axis
+    # Plot SMOOTHED service level
     ax2.plot(
-        episodes,
-        service_levels,
-        color="green",
-        linewidth=3,
-        label="Service Level",
-        alpha=0.7,
-        marker="s",
-        markersize=6,
+        episodes, sl_smoothed,
+        color="black", linewidth=4, label=f"Service Level ({window_size}-ep Avg)", alpha=0.9
     )
 
-    # Plot weights on primary axis
-    for idx, feature in enumerate(feature_names):
-        ax.plot(
-            episodes,
-            df[feature],
-            linewidth=1.5,
-            label=feature,
-            alpha=0.6,
-            marker="o",
-            markersize=3,
-        )
+    # Plot ALL features 
+    for feature in sorted_features:
+        ax.plot(episodes, df[feature], linewidth=1.5, label=feature, alpha=0.7)
 
     ax.set_xlabel("Training Episode", fontsize=12)
     ax.set_ylabel("Weight Value (θ)", fontsize=12, color="black")
-    ax2.set_ylabel("Service Level", fontsize=12, color="green")
+    ax2.set_ylabel("Service Level", fontsize=12, color="black")
     ax.set_title(
-        f"Weight Evolution vs Service Level Progress\n({latest_csv.name})",
-        fontsize=14,
-        fontweight="bold",
+        f"All Feature Evolutions vs Smoothed Service Level\n({latest_csv.name})",
+        fontsize=14, fontweight="bold",
     )
-    ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=9, loc="upper left", ncol=2)
+    
+    # Put the weights legend on the left (outside) and Service Level on the right
+    ax.legend(fontsize=9, loc="center left", bbox_to_anchor=(1.05, 0.5))
     ax2.legend(fontsize=10, loc="upper right")
-
-    plt.tight_layout()
-
-    correlation_path = MODELS_DIR / latest_csv.name.replace("_weights_evolution.csv", "_weights_vs_service_level.png")
-    plt.savefig(correlation_path, dpi=300, bbox_inches="tight")
-    plt.close()
-    print(f"✅ Saved Weight vs Service Level Plot -> {correlation_path.name}")
 
     # ---------------------------------------------------------
     # 6. GENERATE PLOT 4: Heatmap of weight evolution
