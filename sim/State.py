@@ -61,7 +61,7 @@ class State(LoadSave):
         self.mapdata = mapdata
         self.metrics = Metric()
 
-    def sloppycopy(self, *args):
+    '''def sloppycopy(self, *args):
         new_state = State(
             list(self.get_locations()),
             copy.deepcopy(self.vehicles),
@@ -78,6 +78,82 @@ class State(LoadSave):
             vehicle.location = new_state.get_location_by_id(
                 vehicle.location.id
             )
+
+        return new_state'''
+        
+    def sloppycopy(self, *args):
+        bike_map = {}
+
+        # 1. Clone locations first so parked bikes, depot queues, and in-repair
+        #    inventories all share the same bike objects by bike_id.
+        cloned_locations = [loc.sloppycopy(bike_map=bike_map) for loc in self.get_locations()]
+
+        # 2. Clone vehicles and re-use the same bike objects for cargo.
+        new_vehicles = {}
+        for vid, v in self.vehicles.items():
+            v_copy = copy.copy(v)
+            if hasattr(v, 'bike_inventory'):
+                if isinstance(v.bike_inventory, dict):
+                    new_inventory = {}
+                    for bid, bike in v.bike_inventory.items():
+                        if bike.bike_id not in bike_map:
+                            bike_map[bike.bike_id] = copy.copy(bike)
+                        new_inventory[bid] = bike_map[bike.bike_id]
+                    v_copy.bike_inventory = new_inventory
+                else:
+                    new_inventory = []
+                    for bike in v.bike_inventory:
+                        if bike.bike_id not in bike_map:
+                            bike_map[bike.bike_id] = copy.copy(bike)
+                        new_inventory.append(bike_map[bike.bike_id])
+                    v_copy.bike_inventory = new_inventory
+            new_vehicles[vid] = v_copy
+
+        # 3. Clone bikes in use and re-use same bike objects.
+        new_bikes_in_use = {}
+        for bid, bike in self.bikes_in_use.items():
+            if bike.bike_id not in bike_map:
+                bike_map[bike.bike_id] = copy.copy(bike)
+            new_bikes_in_use[bid] = bike_map[bike.bike_id]
+
+        # 4. CREATE NEW STATE
+        new_state = State(
+            cloned_locations, 
+            new_vehicles,
+            new_bikes_in_use,
+            
+            # STATIC MATRICES: Pass by reference!
+            traveltime_matrix = self.traveltime_matrix,
+            traveltime_matrix_stddev = self.traveltime_matrix_stddev,
+            traveltime_vehicle_matrix = self.traveltime_vehicle_matrix,
+            traveltime_vehicle_matrix_stddev = self.traveltime_vehicle_matrix_stddev,
+            rng = copy.deepcopy(self.rng),
+            rng2 = copy.deepcopy(self.rng2),
+        )
+
+        # 5. Re-link vehicles to cloned locations.
+        for vehicle in new_state.get_vehicles():
+            vehicle.location = new_state.get_location_by_id(vehicle.location.id)
+
+        # 6. Re-link station/area/neighbour references inside the cloned graph.
+        for station in new_state.get_stations():
+            if getattr(station, "area", None) is not None and station.area in new_state.locations:
+                station.area = new_state.get_location_by_id(station.area).id
+            station.neighbours = [
+                new_state.get_location_by_id(neighbour.id)
+                for neighbour in getattr(self.get_location_by_id(station.id), "neighbours", [])
+                if neighbour.id in new_state.locations
+            ]
+
+        for area in new_state.get_areas():
+            original_area = self.get_location_by_id(area.id)
+            if getattr(original_area, "station", None) is not None and original_area.station in new_state.locations:
+                area.station = new_state.get_location_by_id(original_area.station).id
+            area.neighbours = [
+                new_state.get_location_by_id(neighbour.id)
+                for neighbour in getattr(original_area, "neighbours", [])
+                if neighbour.id in new_state.locations
+            ]
 
         return new_state
 

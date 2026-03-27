@@ -54,7 +54,7 @@ class Area(Location):
             
         self.metrics = sim.Metric()
 
-    def sloppycopy(self, *args):
+    '''def sloppycopy(self, *args):
         return Area(
             self.id,
             list(copy.deepcopy(self.border_vertices)),
@@ -66,6 +66,32 @@ class Area(Location):
 
             center_location = self.get_location(),
             target_state = self.target_state
+        )'''
+        
+    def sloppycopy(self, bike_map=None, *args):
+        if bike_map is None:
+            bike_map = {}
+        cloned_bikes = []
+        for bike in self.bikes.values():
+            if bike.bike_id not in bike_map:
+                bike_map[bike.bike_id] = copy.copy(bike)
+            cloned_bikes.append(bike_map[bike.bike_id])
+
+        return Area(
+            self.id,
+            self.border_vertices,
+            cloned_bikes,
+            station=self.station,
+            neighbours=[],
+            leave_intensities=self.leave_intensities,
+            leave_intensities_stdev=self.leave_intensities_stdev,
+            arrive_intensities=self.arrive_intensities,
+            arrive_intensities_stdev=self.arrive_intensities_stdev,
+            center_location=self.get_location(),
+            move_probabilities=self.move_probabilities,
+            target_state=self.target_state,
+            capacity=self.capacity,
+            is_station_based=self.is_station_based
         )
 
     def get_difference_from_target(self, day, hour, with_neighbours):

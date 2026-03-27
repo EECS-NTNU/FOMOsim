@@ -105,12 +105,20 @@ class LinearVFAPolicy(Policy):
         if active_features is None:
             self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled)
         else:
-            self.FEATURE_NAMES = active_features
+            # --- FIXED: Force the user's active features into canonical mathematical order ---
+            self.FEATURE_NAMES = [name for name in self.ALL_FEATURE_NAMES if name in active_features]
 
         # 3. Create a boolean mask to slice the numpy array extremely fast
         self._feature_mask = np.array([
             (name in self.FEATURE_NAMES) for name in self.ALL_FEATURE_NAMES
         ], dtype=bool)
+        
+        # --- DEBUG 1: THE SCRAMBLER ---
+        actual_math_order = [name for name in self.ALL_FEATURE_NAMES if name in self.FEATURE_NAMES]
+        if self.FEATURE_NAMES != actual_math_order:
+            print(f"\n[DEBUG - SCRAMBLER] WARNING: FEATURE MISMATCH!")
+            print(f"You requested this order : {self.FEATURE_NAMES}")
+            print(f"The math outputs this order: {actual_math_order}\n")
             
         self.N_FEATURES = len(self.FEATURE_NAMES)
         self.reward_calc = reward_calculator or RewardCalculator(gamma=gamma)
@@ -348,21 +356,23 @@ class LinearVFAPolicy(Policy):
         d, h   = state.day() % 7, state.hour() % 24
         target = self._target_matrix[d, h]              
 
-        # ── Current Distances ──────────────────────────────────────────────
+        # ── Anticipated Distances (from Destination) ────────────────
+        # Evaluate spatial gravity from where the vehicle is GOING, not where it is!
+        routing_target = next_station_id if next_station_id else vehicle.location.id
+        
         dist_to_depot = (
-            state.get_travel_time(vehicle.location.id, self._depot_id)
-            if self._depot_id and self._depot_id != vehicle.location.id
+            state.get_travel_time(routing_target, self._depot_id)
+            if self._depot_id and self._depot_id != routing_target
             else 0.0
         )
         
-        # Fast spatial slice from cached matrix
-        if vehicle.location.id in self._sid_to_idx:
-            v_idx = self._sid_to_idx[vehicle.location.id]
+        # Fast spatial slice from cached matrix using the routing target
+        if routing_target in self._sid_to_idx:
+            v_idx = self._sid_to_idx[routing_target]
             dist_to_stations = self._travel_time_matrix[v_idx]
         else:
-            # Fallback if vehicle is at a depot not in the station matrix
             dist_to_stations = np.array([
-                state.get_travel_time(vehicle.location.id, sid) 
+                state.get_travel_time(routing_target, sid) 
                 for sid in self._station_ids
             ], dtype=np.float32)
 
@@ -615,7 +625,10 @@ class LinearVFAPolicy(Policy):
                     )
                     if dest:
                         claimed_stations.add(dest)
-        print(f"[TABU] Vehicle {vehicle.id} | Claimed stations by other vehicles: {claimed_stations}")
+        
+        if self.log_rl_decisions:
+            print(f"[TABU] Vehicle {vehicle.id} | Claimed stations: {claimed_stations}")
+            
         # ── Macro: nearest N_CANDIDATES next stations (by travel time) ────
         cur_id = vehicle.location.id
         
@@ -630,8 +643,18 @@ class LinearVFAPolicy(Policy):
             if depot.id != cur_id:
                 pool.append(depot)
         
+        # --- Myopic Blindspot (5 Nearest + 3 Most Critical) ---
+        # 1. Sort by travel time to find the nearest
         pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
-        pool = pool[: self.N_CANDIDATES]
+        nearest_stations = pool[:5] # Take the 5 closest
+        
+        # 2. Find the 3 most critical stations (highest deviation from target)
+        remaining_pool = pool[5:]
+        remaining_pool.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+        critical_stations = remaining_pool[:3]
+        
+        # 3. Combine them into our final candidate list
+        pool = nearest_stations + critical_stations
 
         # Fallback: if tabu filtering removed all stations, allow any non-claimed station
         if not pool:
@@ -701,6 +724,22 @@ class LinearVFAPolicy(Policy):
                     next_station=depot_id,
                 )
                 candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
+                
+        # --- DEBUG 3: MYOPIC BLINDSPOT ---
+        if not getattr(self, "_has_printed_blindspot", False):
+            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
+            
+            # Find the actual most critical station in the whole city
+            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
+            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+            most_critical = all_stats[0].id if all_stats else "None"
+            
+            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
+            print(f"  -> Candidate options: {cand_ids}")
+            print(f"  -> Most critical station in network: {most_critical}")
+            if most_critical not in cand_ids:
+                print(f"  ->  The most critical station is NOT in the candidate list!")
+            self._has_printed_blindspot = True
 
         return candidates
 
@@ -896,6 +935,15 @@ class LinearVFAPolicy(Policy):
             )
             phis.append(phi)
             values[k] = self.value(phi)
+            
+        # --- DEBUG 2: SPATIAL PARALYSIS ---
+        if not getattr(self, "_has_printed_spatial", False) and "proximity_to_demand_gravity" in self.FEATURE_NAMES:
+            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
+            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            for k, action in enumerate(candidates):
+                dest = getattr(action, "next_location", getattr(action, "next_station", None))
+                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
+            self._has_printed_spatial = True
 
         # ── Step 4: TD(0) update ──────────────────────────────────────────
         """# Bootstrap with the greedy (min-value) next post-decision state,
