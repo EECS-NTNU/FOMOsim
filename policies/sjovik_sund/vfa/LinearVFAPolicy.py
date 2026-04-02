@@ -201,8 +201,16 @@ class LinearVFAPolicy(Policy):
 
         for i, s in enumerate(stations):
             for h in range(24):
-                wd_rates = [s.get_arrive_intensity(d, h) for d in weekday_days]
-                we_rates = [s.get_arrive_intensity(d, h) for d in weekend_days]
+                #wd_rates = [s.get_arrive_intensity(d, h) for d in weekday_days]
+                #we_rates = [s.get_arrive_intensity(d, h) for d in weekend_days]
+                wd_rates = [
+                    s.get_leave_intensity(d, h) - s.get_arrive_intensity(d, h)
+                    for d in weekday_days
+                ]
+                we_rates = [
+                    s.get_leave_intensity(d, h) - s.get_arrive_intensity(d, h)
+                    for d in weekend_days
+        ]
                 self._activity_profile[0, h, i] = np.mean(wd_rates)
                 self._activity_profile[1, h, i] = np.mean(we_rates)
         
