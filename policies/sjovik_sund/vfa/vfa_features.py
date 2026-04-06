@@ -133,8 +133,11 @@ def extract(
     '''starvation_risk = np.maximum(0, activity - func)
     congestion_risk = np.maximum(0, (func - activity) - capacities)
     phi_2 = np.sum(starvation_risk + congestion_risk) / lambda_max_safe'''
-    expected_outflow = np.maximum(0, activity)
-    expected_inflow = np.maximum(0, -activity)
+    '''expected_outflow = np.maximum(0, activity)
+    expected_inflow = np.maximum(0, -activity)'''
+
+    expected_outflow = np.maximum(0, -activity)  # Outflow is negative
+    expected_inflow = np.maximum(0, activity)    # Inflow is positive
 
     starvation_risk = np.maximum(0, expected_outflow - func)
     congestion_risk = np.maximum(0, func + expected_inflow - capacities)
@@ -171,13 +174,25 @@ def extract(
     phi_3b = phi_3b_base * (network_congestion / max(total_cap_half, 1.0))
     
     # φ_6A: Starvation Gravity (Actionable Gravity)
-    outflow = np.maximum(0, activity) # Positive activity means net rentals
+    '''outflow = np.maximum(0, activity) # Positive activity means net rentals
     starving_mask = func < target
     starvation_grav_sum = np.sum((outflow * starving_mask) / (dist_to_stations + 1.0))
     phi_6a = phi_3 * (starvation_grav_sum / max_gravity_safe)
     
     # φ_6B: Congestion Gravity (Actionable Gravity)
     inflow = np.maximum(0, -activity) # Negative activity means net returns
+    congested_mask = func > target
+    congestion_grav_sum = np.sum((inflow * congested_mask) / (dist_to_stations + 1.0))
+    phi_6b = phi_3b_base * (congestion_grav_sum / max_gravity_safe)'''
+
+    # φ_6A: Starvation Gravity (Actionable Gravity)
+    outflow = np.maximum(0, -activity) # Negative activity means net rentals
+    starving_mask = func < target
+    starvation_grav_sum = np.sum((outflow * starving_mask) / (dist_to_stations + 1.0))
+    phi_6a = phi_3 * (starvation_grav_sum / max_gravity_safe)
+    
+    # φ_6B: Congestion Gravity (Actionable Gravity)
+    inflow = np.maximum(0, activity) # Positive activity means net returns
     congested_mask = func > target
     congestion_grav_sum = np.sum((inflow * congested_mask) / (dist_to_stations + 1.0))
     phi_6b = phi_3b_base * (congestion_grav_sum / max_gravity_safe)

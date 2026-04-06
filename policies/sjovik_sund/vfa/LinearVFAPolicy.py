@@ -142,9 +142,8 @@ class LinearVFAPolicy(Policy):
         self.config        = config or default_config  # defaults to full maintenance
         self._rng          = np.random.default_rng(seed)
 
-        # ── Parameter vector θ (small random initialisation) ─────────────────
-        #self.theta: np.ndarray = self._rng.standard_normal(n_features) * 0.01
-        self.theta: np.ndarray = self._rng.uniform(-0.5, 0.5, size=n_features).astype(np.float64)
+        # ── Parameter vector θ (small non-positive initialisation to avoid maximization bias) ─────────────────
+        self.theta: np.ndarray = np.zeros(n_features, dtype=np.float64)
 
         # weights attribute forwarded by run_simulation.py for logging
         self.weights: List[float] = list(self.theta)
@@ -359,7 +358,13 @@ class LinearVFAPolicy(Policy):
         weight_h2 = current_minute / 60.0         # Overlap into the third hour
         
         # 3. Extract the dynamic anticipated net demand array (N,)
-        dynamic_activity = (
+        '''dynamic_activity = (
+            self._activity_profile[day_type, h0] * weight_h0 +
+            self._activity_profile[day_type, h1] * weight_h1 +
+            self._activity_profile[day_type, h2] * weight_h2
+        )'''
+
+        dynamic_activity = -(
             self._activity_profile[day_type, h0] * weight_h0 +
             self._activity_profile[day_type, h1] * weight_h1 +
             self._activity_profile[day_type, h2] * weight_h2
