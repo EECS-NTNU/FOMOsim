@@ -57,25 +57,19 @@ EPISODE_DAYS  : int   = 14       # days per episode (total)
 WARMUP_DAYS   : int   = 4         # greedy warm-up, no TD updates
 LEARNING_DAYS : int   = 10        # VFA + Boltzmann + TD(0)  (days 5 – 14)
 
-'''TAU_START     : float = 5.0       # initial Boltzmann temperature
-TAU_END       : float = 0.1       # final   Boltzmann temperature
-# Exponential decay factor (computed once; re-used every episode)
-TAU_DECAY     : float = (TAU_END / TAU_START) ** (1.0 / max(NUM_EPISODES - 1, 1))'''
+TAU_START     : float = 1.0    
+TAU_END       : float = 0.05     
 
-TAU_START     : float = 0.5      # lowered from 5.0
-TAU_END       : float = 0.02     # lowered from 0.1
-# Exponential decay factor (computed once; re-used every episode)
-#TAU_DECAY     : float = (TAU_END / TAU_START) ** (1.0 / max(NUM_EPISODES - 1, 1))
+# --- Learning Rate (Alpha) ---
+ALPHA_START   : float = 0.1    # initial alpha for TD updates, will be overwritten in case of argument passing
 
-ALPHA         : float = 0.01      # TD learning rate
 GAMMA         : float = 0.99      # discount factor
 
 # ── Feature configuration ──────────────────────────────────────────────────────
 SHIFT_TIMING_ENABLED : bool = False  # Enable end-of-shift anticipatory features
 N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, shift_timing_enabled=SHIFT_TIMING_ENABLED))  # auto-synced with vfa_features.py
 
-INSTANCE_NAME : str   = "TD_W34_old"
-#INSTANCE_NAME : str   = "OS_W31"
+INSTANCE_NAME : str   = "TD_W34_old" #"OS_W31"
 NUM_VEHICLES  : int   = 1
 START_HOUR    : int   = 5         # simulation clock starts at 00:00
 
@@ -86,42 +80,6 @@ SAVE_DIR = Path(__file__).parent / "models"
 # ─────────────────────────────────────────────────────────────────────────────
 # Metric helper
 # ─────────────────────────────────────────────────────────────────────────────
-
-'''def _service_level(simulator) -> float:
-    """
-    Service level = 1 - (starvations + congestion) / total_trip_requests.
-
-    Returns 0.0 if no trips were generated (e.g. very short test run).
-    """
-    m      = simulator.state.metrics
-    trips  = m.get_aggregate_value("trips")   or 1
-    starv  = m.get_aggregate_value("starvations")    or 0
-    cong  = m.get_aggregate_value("long congestions")      or 0
-    return 1.0 - (starv + cong) / max(trips, 1)'''
-
-'''def _service_level(simulator, vfa_policy) -> float:
-    """
-    Computes the service level strictly for the LEARNING phase.
-    It subtracts the starvations, congestions, and trips that occurred during the warm-up.
-    """
-    m = simulator.state.metrics
-    
-    # Total metrics at the end of Day 14
-    total_trips = m.get_aggregate_value("trips") or 1
-    total_starv = m.get_aggregate_value("starvations") or 0
-    total_cong = m.get_aggregate_value("long congestions") or 0
-
-    # The reward calculator tracked the exact metrics at the moment the warm-up ended!
-    warmup_starv = getattr(vfa_policy.reward_calc, '_prev_starvations', 0)
-    warmup_cong = getattr(vfa_policy.reward_calc, '_prev_congestions', 0)
-    warmup_trips = getattr(vfa_policy.reward_calc, '_prev_trips', 0)  # <--- NEW
-
-    # Isolate the VFA's true performance (Days 5-14)
-    vfa_starv = max(0, total_starv - warmup_starv)
-    vfa_cong = max(0, total_cong - warmup_cong)
-    vfa_trips = max(1, total_trips - warmup_trips)  # <--- EXACT math, no more estimating!
-
-    return 1.0 - (vfa_starv + vfa_cong) / vfa_trips'''
 
 def _service_level(simulator, vfa_policy) -> float:
     """
@@ -158,9 +116,10 @@ def train(
     seed_offset   : int   = 0,
     instance_name : str   = INSTANCE_NAME,
     active_features: list | None = None,
-    gamma         : float = GAMMA,       # <-- NEW
-    tau_start     : float = TAU_START,   # <-- NEW
-    tau_end       : float = TAU_END,     # <-- NEW
+    gamma         : float = GAMMA,       
+    tau_start     : float = TAU_START,   
+    tau_end       : float = TAU_END,     
+    alpha_start   : float = ALPHA_START,  
 ) -> LinearVFAPolicy:
     
     # Calculate decay dynamically based on passed arguments
@@ -180,6 +139,11 @@ def train(
     Returns:
         The trained LinearVFAPolicy (θ frozen after training).
     """
+    
+    # <-- Alpha decay logic for preliminary testing -->
+    alpha_end = 0.0001
+    alpha_decay = (alpha_end / alpha_start) ** (1.0 / max(num_episodes - 1, 1))
+    
     # ── Header ────────────────────────────────────────────────────────────────
     print("=" * 72)
     print("  OFFLINE VFA TRAINING  -  Time-Indexed Linear VFA")
@@ -193,7 +157,8 @@ def train(
         f"  tau schedule        : {tau_start:.2f}  ->  {tau_end:.2f}  "
         f"(decay per episode = {tau_decay:.6f})"
     )
-    print(f"  alpha / gamma       : {ALPHA} / {GAMMA}")
+    print(f"  alpha schedule      : {alpha_start:.5f} -> {alpha_end:.5f}")
+    print(f"  gamma               : {gamma}")
     print(f"  Instance          : {instance_name}")
     print("=" * 72 + "\n")
 
@@ -203,9 +168,9 @@ def train(
     vfa_policy = LinearVFAPolicy(
         active_features=active_features,
         n_features    = len(active_features) if active_features is not None else N_FEATURES,
-        alpha         = ALPHA,
-        gamma         = gamma,          # <-- UPDATED
-        tau           = tau_start,      # <-- UPDATED
+        alpha         = alpha_start,
+        gamma         = gamma,          
+        tau           = tau_start,      
         learning_mode = True,
         seed          = 42,
         maintenance_enabled=ENABLE_COMPONENT_FAILURES,
@@ -213,10 +178,8 @@ def train(
     )
 
     greedy_policy = GreedyPolicy()
-    #config        = SimulationConfig()
 
     # Warm-up ends at this absolute simulation-time (minutes).
-    # The simulator clock starts at START_HOUR × 60 (e.g. 420 min = 07:00).
     sim_start_min   = timeInMinutes(hours=START_HOUR)
     warmup_end_time = sim_start_min + WARMUP_DAYS * 24 * 60   # e.g. 420 + 5760
 
@@ -230,10 +193,24 @@ def train(
     for ep in range(num_episodes):
         config        = SimulationConfig()
         
+        ###########
+        # ── Calculate current dynamic parameters ─────────────────────────
+        current_tau = max(tau_end, tau_start * (tau_decay ** ep))
+        current_alpha = max(alpha_end, alpha_start * (alpha_decay ** ep))
+        
+        # STRICT OVERRIDE: Force the policy to use this exact step-size
+        vfa_policy.alpha = current_alpha
+        vfa_policy.set_temperature(current_tau)
+        
+        print(f"\n{'='*50}")
+        print(f"EPISODE {ep+1}/{num_episodes} | Alpha: {current_alpha:.5f} | Tau: {current_tau:.3f}")
+        print(f"{'='*50}")
+        ############
+        
         # ── Boltzmann temperature for this episode ─────────────────────────
         #tau = TAU_START * (TAU_DECAY ** ep)
-        tau = tau_start * (tau_decay ** ep)
-        vfa_policy.set_temperature(tau)
+        #tau = max(TAU_END, TAU_START * (TAU_DECAY ** ep))
+        #vfa_policy.set_temperature(tau)
 
         # ── Build episode policy ───────────────────────────────────────────
         # EpisodeTrainingPolicy:
@@ -256,8 +233,7 @@ def train(
             config        = config,
         )
 
-        # --- NEW: WRITE CSV FILES INTO FOLDERS ---
-        # Notice the forward slashes (/)! This tells the system to make folders.
+        # --- WRITE CSV FILES INTO FOLDERS ---
         filename = f"run_{run_timestamp}/ep_{ep:03d}/vfa_training_{instance_name}.csv"
         
         write_simulation_outputs(
@@ -280,7 +256,7 @@ def train(
         
         print(
             f"  Ep {ep + 1:3d}/{num_episodes} | "
-            f"tau={tau:4.2f} | "
+            f"tau={current_tau:4.2f} | "
             f"SL={sl:.4f} | "
             f"Weights: {formatted_theta} | "
             f"t={time.time() - t0:.0f}s"
@@ -292,9 +268,11 @@ def train(
             vfa_policy.save(ck_path)
 
     # ── Final save ────────────────────────────────────────────────────────────
+    # ── Final save ────────────────────────────────────────────────────────────
+   # ── Final save ────────────────────────────────────────────────────────────
     if save_path is None:
         ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_path = SAVE_DIR / f"vfa_trained_{ts}.pkl"
+        save_path = SAVE_DIR / f"vfa_trained_alpha{alpha_start}_seed{seed_offset}_{ts}.pkl"
 
     vfa_policy.save(save_path)
 
@@ -390,6 +368,13 @@ if __name__ == "__main__":
         default=TAU_END, 
         help="Final Boltzmann temperature for exploitation"
     )
+    parser.add_argument(
+        "--alpha_start",
+        type=float,
+        default=ALPHA_START,
+        help="Initial learning rate (alpha) for TD updates"
+    )
+    
     args = parser.parse_args()
 
     train(
@@ -397,7 +382,8 @@ if __name__ == "__main__":
         save_path     = Path(args.save) if args.save else None,
         seed_offset   = args.seed,
         instance_name = args.instance,
-        gamma         = args.gamma,         # <-- NEW
-        tau_start     = args.tau_start,     # <-- NEW
-        tau_end       = args.tau_end        # <-- NEW
+        gamma         = args.gamma,         
+        tau_start     = args.tau_start,     
+        tau_end       = args.tau_end,       
+        alpha_start   = args.alpha_start    
     )

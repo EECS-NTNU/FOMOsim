@@ -1,94 +1,252 @@
-import numpy as np
+'''import numpy as np
 import matplotlib.pyplot as plt
-import glob
 from pathlib import Path
+import argparse
+import re
 
-def moving_average(data, window_size=5):
-    """Calculates the moving average to smooth out the learning curves."""
-    if len(data) < window_size:
-        return data # Not enough data to smooth
+# ─────────────────────────────────────────────────────────────────────────────
+# Configuration & Settings
+# ─────────────────────────────────────────────────────────────────────────────
+
+# The parent directory containing all the seed folders
+BASE_MODELS_DIR = Path("policies/sjovik_sund/sensitivity_analysis/models")
+
+# String to match the grid search folders
+GRID_SEARCH_PATTERN = "grid_search_*"
+
+# Fallback list if running directly from an IDE instead of the terminal.
+# Leave empty [] to plot ALL found configurations.
+HARDCODED_TARGET_CONFIGS = [
+    # "G0.99_Ts1.0_Te0.05",
+]
+
+# Moving average window to smooth out the noisy RL service levels
+SMOOTHING_WINDOW = 10  
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helper Functions
+# ─────────────────────────────────────────────────────────────────────────────
+
+def moving_average(data: np.ndarray, window_size: int) -> np.ndarray:
+    """Applies a simple moving average to smooth the learning curves."""
+    if window_size < 2:
+        return data
     return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
 
-def plot_learning_curves(folder_path, apply_smoothing=False, window_size=5):
+def extract_config_name(filename: str) -> str:
     """
-    Finds all learning curve .npy files in the target folder and plots them.
+    Extracts the config parameters from the filename.
+    Matches: vfa_G0.99_Ts1.0_Te0.05_learning_curve.npy -> G0.99_Ts1.0_Te0.05
     """
-    # Look for all .npy files in the specified directory
-    search_pattern = Path(folder_path) / "*_learning_curve.npy"
-    file_list = glob.glob(str(search_pattern))
+    match = re.search(r"vfa_(.*)_learning_curve\.npy", filename)
+    if match:
+        return match.group(1)
+    return "Unknown_Config"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main Plotting Logic
+# ─────────────────────────────────────────────────────────────────────────────
+
+def plot_aggregated_learning_curves(target_configs: list):
+    # Find all directories matching the grid search pattern across all seeds
+    seed_dirs = list(BASE_MODELS_DIR.glob(GRID_SEARCH_PATTERN))
     
-    if not file_list:
-        print(f"No '_learning_curve.npy' files found in {folder_path}!")
+    if not seed_dirs:
+        print(f"No directories found matching {BASE_MODELS_DIR / GRID_SEARCH_PATTERN}")
         return
 
-    # Set up the plot aesthetics (Academic style)
-    plt.figure(figsize=(12, 7))
-    plt.title("Sensitivity Analysis: Service Level Convergence", fontsize=14, fontweight='bold')
-    plt.xlabel("Training Episode", fontsize=12)
-    plt.ylabel(f"Service Level{' (' + str(window_size) + '-ep Moving Avg)' if apply_smoothing else ''}", fontsize=12)
-    plt.grid(True, linestyle='--', alpha=0.5)
+    print(f"Found {len(seed_dirs)} seed directories.")
     
-    final_values = []
+    if target_configs:
+        print(f"Filtering for specific configurations: {target_configs}")
+    else:
+        print("No specific targets provided. Automatically plotting ALL configurations.")
 
-    # Load and plot each file
-    for file_path in sorted(file_list):
-        # Extract a clean label from the filename (e.g., 'vfa_G0.99_Ts0.1_Te0.001')
-        filename = Path(file_path).name
-        label = filename.replace("_learning_curve.npy", "")
+    # Dictionary to aggregate curves: { "Config_Name": [array_seed1, array_seed2, ...] }
+    learning_data = {}
+
+    # 1. Gather all data across all seeds
+    for seed_dir in seed_dirs:
+        npy_files = list(seed_dir.glob("*_learning_curve.npy"))
         
-        # Load the numpy array
-        service_levels = np.load(file_path)
-        
-        # Apply smoothing if requested
-        if apply_smoothing:
-            plot_data = moving_average(service_levels, window_size)
-            # Adjust x-axis so it aligns correctly with the episodes
-            x_axis = range(window_size - 1, len(service_levels))
-        else:
-            plot_data = service_levels
-            x_axis = range(len(service_levels))
+        for npy_file in npy_files:
+            config_name = extract_config_name(npy_file.name)
             
-        # Plot the curve
-        plt.plot(x_axis, plot_data, label=label, linewidth=2, alpha=0.8)
-        
-        # --- NEW: Save the final value for ranking ---
-        final_values.append((label, plot_data[-1]))
-        
-    # print all final values for transparency
-    print("\nFinal Service Levels for Each Configuration:")
-    for label, val in final_values:
-        print(f"  {label}: {val:.4f}")
+            # IF target_configs is NOT empty AND this config is NOT in the list, skip it.
+            if target_configs and config_name not in target_configs:
+                continue
+                
+            # Load the numpy array (1D array of service levels per episode)
+            curve = np.load(npy_file)
+            
+            if config_name not in learning_data:
+                learning_data[config_name] = []
+            
+            learning_data[config_name].append(curve)
 
-    # --- NEW: Print the Top 3 and Bottom 3 ---
-    final_values.sort(key=lambda x: x[1], reverse=True)
-    print("\n--- GRID SEARCH RESULTS (Ranked by final episode) ---")
-    print("TOP 3 CONFIGURATIONS:")
-    for label, val in final_values[:3]:
-        print(f"  {label}: {val:.4f}")
-        
-    print("\nBOTTOM 3 CONFIGURATIONS (The Crashers):")
-    for label, val in final_values[-3:]:
-        print(f"  {label}: {val:.4f}")
-    print("---------------------------------------------------\n")
+    if not learning_data:
+        print("No learning curve data found for the specified target configurations.")
+        return
 
-    # Place legend outside the plot if there are many configurations
-    plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left", fontsize=9)
-    plt.tight_layout() # Ensures the legend doesn't get cut off
+    # 2. Process and Plot
+    plt.figure(figsize=(12, 7))
     
-    save_path = "policies/sjovik_sund/sensitivity_analysis/sensitivity_analysis_learning_curves.png"
+    for config_name, curves in learning_data.items():
+        # Ensure all curves have the same length before stacking
+        min_length = min(len(c) for c in curves)
+        truncated_curves = np.array([c[:min_length] for c in curves])
+        
+        # Calculate Mean and Standard Deviation across seeds
+        mean_curve = np.mean(truncated_curves, axis=0)
+        std_curve = np.std(truncated_curves, axis=0)
+        
+        # Apply smoothing for better visual clarity
+        smooth_mean = moving_average(mean_curve, SMOOTHING_WINDOW)
+        smooth_std = moving_average(std_curve, SMOOTHING_WINDOW)
+        
+        # Adjust x-axis to account for the smoothing window offset
+        episodes = np.arange(SMOOTHING_WINDOW - 1, min_length)
+        
+        # Plot the mean line
+        line, = plt.plot(episodes, smooth_mean, label=f"{config_name} ({len(curves)} seeds)", linewidth=2)
+        
+        # Fill the standard deviation bounds
+        plt.fill_between(
+            episodes, 
+            smooth_mean - smooth_std, 
+            smooth_mean + smooth_std, 
+            color=line.get_color(), 
+            alpha=0.2
+        )
+
+    # 3. Graph Formatting
+    plt.title(f"VFA Learning Curves across {len(seed_dirs)} Seeds", fontsize=16, fontweight='bold')
+    plt.xlabel("Training Episode", fontsize=14)
+    plt.ylabel("Service Level", fontsize=14)
     
+    # Add a grid, legend, and layout tightening
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend(loc='lower right', fontsize=12)
+    plt.tight_layout()
+    
+    # Save the plot in the base models directory
+    save_path = BASE_MODELS_DIR / "aggregated_learning_curves.png"
     plt.savefig(save_path, dpi=300)
-    print(f"Saved learning curves plot to: {save_path}")
+    print(f"\nPlot saved successfully to: {save_path}")
     
-    # Show the plot
+    # Show the plot interactively
     plt.show()
-    
-    
 
 if __name__ == "__main__":
-    TARGET_FOLDER = "models/grid_search_20260401_0856" 
+    parser = argparse.ArgumentParser(description="Plot aggregated learning curves from multiple seeds.")
+    parser.add_argument(
+        "--configs", 
+        nargs="*", 
+        default=HARDCODED_TARGET_CONFIGS,
+        help="List of specific configurations to plot (e.g., G0.99_Ts1.0_Te0.05). Leave blank to plot all."
+    )
     
-    print(f"Scanning for learning curves in: {TARGET_FOLDER}")
+    args = parser.parse_args()
+    plot_aggregated_learning_curves(args.configs)'''
     
-    # Set apply_smoothing=True if the raw lines are too chaotic
-    plot_learning_curves(TARGET_FOLDER, apply_smoothing=True, window_size=5)
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+import argparse
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Configuration & Settings
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Automatically point to your actual models folder
+DEFAULT_MODELS_DIR = Path("policies/sjovik_sund/vfa/models")
+
+# Moving average window to smooth out the noisy RL service levels
+SMOOTHING_WINDOW = 10  
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helper Functions
+# ─────────────────────────────────────────────────────────────────────────────
+
+def moving_average(data: np.ndarray, window_size: int) -> np.ndarray:
+    """Applies a simple moving average to smooth the learning curves."""
+    if window_size < 2:
+        return data
+    return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main Plotting Logic
+# ─────────────────────────────────────────────────────────────────────────────
+
+def plot_learning_curves(models_dir: Path):
+    # Find all .npy learning curve files in the specified directory
+    npy_files = list(models_dir.glob("*_learning_curve.npy"))
+    
+    if not npy_files:
+        print(f"No learning curve (.npy) files found in {models_dir}")
+        print("Make sure you have run train_vfa.py and that the files are saved there.")
+        return
+
+    print(f"Found {len(npy_files)} learning curve(s) to plot.")
+
+    plt.figure(figsize=(12, 7))
+    
+    for npy_file in sorted(npy_files):
+        # Extract the timestamp/name from the file for the legend
+        # e.g., "vfa_trained_20260404_151305_learning_curve.npy" -> "20260404_151305"
+        name_parts = npy_file.stem.split('_')
+        run_identifier = "_".join(name_parts[2:4]) if len(name_parts) >= 4 else npy_file.stem
+        
+        # Load the numpy array (1D array of service levels per episode)
+        curve = np.load(npy_file)
+        
+        # Apply smoothing for better visual clarity
+        smooth_mean = moving_average(curve, SMOOTHING_WINDOW)
+        
+        # Adjust x-axis to account for the smoothing window offset
+        episodes = np.arange(SMOOTHING_WINDOW - 1, len(curve))
+        
+        # Plot the smoothed line
+        plt.plot(episodes, smooth_mean, label=f"Run: {run_identifier}", linewidth=2)
+        
+        # Plot a faint, transparent version of the raw, noisy data in the background
+        plt.plot(np.arange(len(curve)), curve, alpha=0.15, color='gray')
+
+    # 3. Graph Formatting
+    plt.title(f"VFA Learning Curves Comparison", fontsize=16, fontweight='bold')
+    plt.xlabel("Training Episode", fontsize=14)
+    plt.ylabel("Service Level", fontsize=14)
+    
+    # Add a grid, legend, and layout tightening
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend(loc='lower right', fontsize=12)
+    plt.tight_layout()
+    
+    # Save the plot in the same directory as the models
+    save_path = models_dir / "alpha_comparison_curves.png"
+    plt.savefig(save_path, dpi=300)
+    print(f"\nPlot saved successfully to: {save_path}")
+    
+    # Show the plot interactively
+    plt.show()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Plot standalone learning curves from a directory.")
+    parser.add_argument(
+        "--dir", 
+        type=str, 
+        default=str(DEFAULT_MODELS_DIR),
+        help="Path to the directory containing the .npy files."
+    )
+    
+    args = parser.parse_args()
+    
+    # Fallback just in case the script is run from inside the vfa directory itself
+    models_path = Path(args.dir)
+    if not models_path.exists():
+        fallback_path = Path("models")
+        if fallback_path.exists():
+            models_path = fallback_path
+            print(f"Warning: {args.dir} not found. Falling back to local 'models/' directory.")
+            
+    plot_learning_curves(models_path)

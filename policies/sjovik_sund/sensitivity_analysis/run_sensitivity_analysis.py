@@ -19,7 +19,7 @@ tau_ends = [0.001, 0.01, 0.05]
 # Baseline configuration parameters
 EPISODES = 200
 INSTANCE = "TD_W34_old" # Using the baseline instance
-SEED = 2000
+SEED = 3000
 
 def run_grid_search():
     # Create a master directory for this grid search run
