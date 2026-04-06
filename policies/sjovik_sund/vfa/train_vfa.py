@@ -267,8 +267,6 @@ def train(
             ck_path = SAVE_DIR / f"vfa_checkpoint_ep{ep + 1:04d}.pkl"
             vfa_policy.save(ck_path)
 
-    # ── Final save ────────────────────────────────────────────────────────────
-    # ── Final save ────────────────────────────────────────────────────────────
    # ── Final save ────────────────────────────────────────────────────────────
     if save_path is None:
         ts        = datetime.now().strftime("%Y%m%d_%H%M%S")

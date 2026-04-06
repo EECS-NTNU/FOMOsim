@@ -360,7 +360,13 @@ class LinearVFAPolicy(Policy):
         weight_h2 = current_minute / 60.0         # Overlap into the third hour
         
         # 3. Extract the dynamic anticipated net demand array (N,)
-        dynamic_activity = (
+        '''dynamic_activity = (
+            self._activity_profile[day_type, h0] * weight_h0 +
+            self._activity_profile[day_type, h1] * weight_h1 +
+            self._activity_profile[day_type, h2] * weight_h2
+        )'''
+
+        dynamic_activity = -(
             self._activity_profile[day_type, h0] * weight_h0 +
             self._activity_profile[day_type, h1] * weight_h1 +
             self._activity_profile[day_type, h2] * weight_h2
