@@ -33,7 +33,7 @@ class RewardCalculator:
         self._prev_trips = 0  # <--- NEW: Track trips for exact service level'''
 
         # --- FIXED: Set to 1.0. Stop crushing the reward signal! ---
-        self._scale_factor = 1.0  
+        self._scale_factor = 1.0  - self.gamma  # This will be 0.01 when gamma=0.99
        
         # Move the state tracking out of the policy and into the calculator
         self._prev_starvations = 0

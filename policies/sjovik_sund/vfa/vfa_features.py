@@ -120,6 +120,7 @@ def extract(
     max_gravity_safe = max(max_gravity, 1.0)
     K = max(vehicle_capacity, 1)
     N = len(func)
+    F = len(func)+len(onsite)+len(depot)
    # =========================================================================
     # Category A: Base Rebalancing Features
     # =========================================================================
@@ -129,9 +130,17 @@ def extract(
     phi_1 = np.sum(np.abs(func - target)) / max(total_cap_half, 1.0)
 
     # φ_2: Anticipated Demand Shortfall
-    starvation_risk = np.maximum(0, activity - func)
+    '''starvation_risk = np.maximum(0, activity - func)
     congestion_risk = np.maximum(0, (func - activity) - capacities)
+    phi_2 = np.sum(starvation_risk + congestion_risk) / lambda_max_safe'''
+    expected_outflow = np.maximum(0, activity)
+    expected_inflow = np.maximum(0, -activity)
+
+    starvation_risk = np.maximum(0, expected_outflow - func)
+    congestion_risk = np.maximum(0, func + expected_inflow - capacities)
+
     phi_2 = np.sum(starvation_risk + congestion_risk) / lambda_max_safe
+
 
     # φ_3: Vehicle Functional Load (Baseline)
     phi_3 = func_cargo_veh / vehicle_capacity_safe
@@ -172,6 +181,27 @@ def extract(
     congested_mask = func > target
     congestion_grav_sum = np.sum((inflow * congested_mask) / (dist_to_stations + 1.0))
     phi_6b = phi_3b_base * (congestion_grav_sum / max_gravity_safe)
+    
+    ######################DEBUG: Print raw feature values before clipping (occasionally)######################
+    # 1. Store the raw values before they get squashed
+    raw_cat_a = [phi_1, phi_2, phi_3, phi_4, phi_5, phi_6, phi_3a, phi_3b, phi_6a, phi_6b]
+
+    # 2. --- DEBUG: Monitor Contextual Feature Clipping ---
+    # We check if the contextual features are breaching the 1.0 ceiling.
+    # Using a random threshold (e.g., 1%) prevents terminal spam since this 
+    # function is called thousands of times per episode.
+    if (phi_6a > 1.0 or phi_6b > 1.0) and np.random.rand() < 0.01:
+        print(f"\n[DEBUG - CLIPPING] Contextual features exceeding 1.0 ceiling!")
+        print(f"  -> phi_6a (Starv Gravity) Raw: {phi_6a:.3f}")
+        print(f"  -> phi_6b (Cong Gravity)  Raw: {phi_6b:.3f}")
+        print(f"  -> phi_3a (Del Potential) Raw: {phi_3a:.3f}")
+        print(f"  -> phi_3b (Pick Potential)Raw: {phi_3b:.3f}")
+        print(f"  * Note: These will be clipped to 1.0 for the VFA.\n")
+
+    # 3. Apply the clip and extend as usual
+    #cat_a = np.clip(raw_cat_a, 0.0, 1.0).tolist()
+    #features.extend(cat_a)
+    ############################################################################################################
 
     # Append Category A (Clipped to ensure numeric stability for VFA)
     cat_a = np.clip([phi_1, phi_2, phi_3, phi_4, phi_5, phi_6, phi_3a, phi_3b, phi_6a, phi_6b], 0.0, 1.0).tolist()
@@ -186,7 +216,7 @@ def extract(
 
         # φ_8: Global Onsite Backlog (Σ_i I_i^onsite / N)
         # Scaled by global fleet or capacities in the future, for now N.
-        phi_8 = float(np.sum(onsite)) / N
+        phi_8 = float(np.sum(onsite)) / F 
 
         # φ_9: Demand-Weighted Depot Backlog
         # Penalize broken bikes at high-activity stations.

@@ -112,7 +112,7 @@ class LinearVFAPolicy(Policy):
         self._feature_mask = np.array([
             (name in self.FEATURE_NAMES) for name in self.ALL_FEATURE_NAMES
         ], dtype=bool)
-
+        
         # --- DEBUG 1: THE SCRAMBLER ---
         actual_math_order = [name for name in self.ALL_FEATURE_NAMES if name in self.FEATURE_NAMES]
         if self.FEATURE_NAMES != actual_math_order:
@@ -201,8 +201,16 @@ class LinearVFAPolicy(Policy):
 
         for i, s in enumerate(stations):
             for h in range(24):
-                wd_rates = [s.get_arrive_intensity(d, h) for d in weekday_days]
-                we_rates = [s.get_arrive_intensity(d, h) for d in weekend_days]
+                #wd_rates = [s.get_arrive_intensity(d, h) for d in weekday_days]
+                #we_rates = [s.get_arrive_intensity(d, h) for d in weekend_days]
+                wd_rates = [
+                    s.get_leave_intensity(d, h) - s.get_arrive_intensity(d, h)
+                    for d in weekday_days
+                ]
+                we_rates = [
+                    s.get_leave_intensity(d, h) - s.get_arrive_intensity(d, h)
+                    for d in weekend_days
+        ]
                 self._activity_profile[0, h, i] = np.mean(wd_rates)
                 self._activity_profile[1, h, i] = np.mean(we_rates)
         
@@ -362,7 +370,7 @@ class LinearVFAPolicy(Policy):
         d, h   = state.day() % 7, state.hour() % 24
         target = self._target_matrix[d, h]              
 
-        # ── FIXED: Anticipated Distances (from Destination) ────────────────
+        # ── Anticipated Distances (from Destination) ────────────────
         # Evaluate spatial gravity from where the vehicle is GOING, not where it is!
         routing_target = next_station_id if next_station_id else vehicle.location.id
         
@@ -632,11 +640,10 @@ class LinearVFAPolicy(Policy):
                     )
                     if dest:
                         claimed_stations.add(dest)
-                        # --- DEBUG PRINT ---
-                        print(f"[DEBUG - TABU] Time: {state.time:.1f} | Veh {v.id} is en-route to {dest} (ETA: {v_eta:.1f}). Station is now TABU for Veh {vehicle.id}.")
         
-        if claimed_stations:
-            print(f"[TABU RESULT] Vehicle {vehicle.id} | Tabu list: {claimed_stations}")
+        if self.log_rl_decisions:
+            print(f"[TABU] Vehicle {vehicle.id} | Claimed stations: {claimed_stations}")
+            
         # ── Macro: nearest N_CANDIDATES next stations (by travel time) ────
         cur_id = vehicle.location.id
         
@@ -651,7 +658,7 @@ class LinearVFAPolicy(Policy):
             if depot.id != cur_id:
                 pool.append(depot)
         
-        # --- FIXED: Myopic Blindspot (5 Nearest + 3 Most Critical) ---
+        # --- Myopic Blindspot (5 Nearest + 3 Most Critical) ---
         # 1. Sort by travel time to find the nearest
         pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
         nearest_stations = pool[:5] # Take the 5 closest
@@ -732,6 +739,38 @@ class LinearVFAPolicy(Policy):
                     next_station=depot_id,
                 )
                 candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
+             
+        # --- DEBUG 3: MYOPIC BLINDSPOT ---
+        if not getattr(self, "_has_printed_blindspot", False):
+            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
+            
+            # Find the actual most critical station in the whole city
+            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
+            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+            most_critical = all_stats[0].id if all_stats else "None"
+            
+            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
+            print(f"  -> Candidate options: {cand_ids}")
+            print(f"  -> Most critical station in network: {most_critical}")
+            if most_critical not in cand_ids:
+                print(f"  ->  The most critical station is NOT in the candidate list!")
+            self._has_printed_blindspot = True
+
+        # --- DEBUG 3: MYOPIC BLINDSPOT ---
+        if not getattr(self, "_has_printed_blindspot", False):
+            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
+            
+            # Find the actual most critical station in the whole city
+            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
+            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+            most_critical = all_stats[0].id if all_stats else "None"
+            
+            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
+            print(f"  -> Candidate options: {cand_ids}")
+            print(f"  -> Most critical station in network: {most_critical}")
+            if most_critical not in cand_ids:
+                print(f"  -> The most critical station is NOT in the candidate list!")
+            self._has_printed_blindspot = True
 
         # --- DEBUG 3: MYOPIC BLINDSPOT ---
         if not getattr(self, "_has_printed_blindspot", False):
@@ -973,7 +1012,24 @@ class LinearVFAPolicy(Policy):
                 next_station_id=dest_id
             )
             phis.append(phi)
-            values[k] = self.value(phi)
+            values[k] = self.value(phi)            
+        # --- DEBUG 2: SPATIAL PARALYSIS ---
+        if not getattr(self, "_has_printed_spatial", False) and "proximity_to_demand_gravity" in self.FEATURE_NAMES:
+            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
+            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            for k, action in enumerate(candidates):
+                dest = getattr(action, "next_location", getattr(action, "next_station", None))
+                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
+            self._has_printed_spatial = True
+
+        # --- DEBUG 2: SPATIAL PARALYSIS ---
+        if "proximity_to_demand_gravity" in self.FEATURE_NAMES:
+            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
+            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            for k, action in enumerate(candidates):
+                dest = getattr(action, "next_location", getattr(action, "next_station", None))
+                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
+            
 
         # --- DEBUG 2: SPATIAL PARALYSIS ---
         if "proximity_to_demand_gravity" in self.FEATURE_NAMES:

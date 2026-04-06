@@ -182,7 +182,7 @@ class Simulator(LoadSave):
         directory = f"{settings.SIM_CACHE_DIR}/{filename}.pickle.gz"
         return sim.Simulator.load(directory)
 
-    def sloppycopy(self, *args):
+    '''def sloppycopy(self, *args):
         new_sim = Simulator(
             0,
             self.state.sloppycopy(),
@@ -194,4 +194,47 @@ class Simulator(LoadSave):
         new_sim.event_queue = copy.deepcopy(self.event_queue)
         #new_sim.metrics = copy.deepcopy(self.metrics)
         new_sim.state.metrics = copy.deepcopy(self.state.metrics)
+        return new_sim'''
+        
+    def sloppycopy(self, *args):
+        import copy
+        new_sim = Simulator(
+            duration=0,
+            initial_state=self.state.sloppycopy(),
+            target_state=self.target_state,
+            demand=self.demand,
+            start_time=self.state.time,
+            cluster=self.cluster,
+            verbose=self.verbose,
+            label=self.label,
+        )
+        new_sim.end_time = self.end_time
+        
+        # FIXED EVENT QUEUE COPY (No more ghost pointers!)
+        new_sim.event_queue = []
+        for e in self.event_queue:
+            e_copy = copy.copy(e)
+            if hasattr(e_copy, 'vehicle') and e_copy.vehicle is not None:
+                e_copy.vehicle = new_sim.state.get_vehicle_by_id(e_copy.vehicle.id)
+            new_sim.event_queue.append(e_copy)
+            
+        # 🚨 METRICS FIX: We explicitly DO NOT copy the metrics here!
+        # By doing nothing, new_sim.state.metrics remains a completely fresh, 
+        # empty scoreboard created by State.__init__(). 
+        # The fake rollout actions will no longer inflate the real numbers!
+            
         return new_sim
+    
+    
+    # ---------------------------------------------------------
+    # DUMMY LOGGING METHODS FOR ROLLOUTS
+    # ---------------------------------------------------------
+    # These prevent console flooding when a cloned base Simulator 
+    # (used in rollout lookaheads) processes events. 
+    # We intentionally do NOT want rollouts to write to the real logs!
+    
+    def log_bike_movement(self, *args, **kwargs):
+        pass
+
+    def log_trip_request(self, *args, **kwargs):
+        pass

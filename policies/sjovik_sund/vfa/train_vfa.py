@@ -62,10 +62,10 @@ TAU_END       : float = 0.1       # final   Boltzmann temperature
 # Exponential decay factor (computed once; re-used every episode)
 TAU_DECAY     : float = (TAU_END / TAU_START) ** (1.0 / max(NUM_EPISODES - 1, 1))'''
 
-TAU_START     : float = 0.05      # lowered from 5.0
-TAU_END       : float = 0.001     # lowered from 0.1
+TAU_START     : float = 0.5      # lowered from 5.0
+TAU_END       : float = 0.02     # lowered from 0.1
 # Exponential decay factor (computed once; re-used every episode)
-TAU_DECAY     : float = (TAU_END / TAU_START) ** (1.0 / max(NUM_EPISODES - 1, 1))
+#TAU_DECAY     : float = (TAU_END / TAU_START) ** (1.0 / max(NUM_EPISODES - 1, 1))
 
 ALPHA         : float = 0.01      # TD learning rate
 GAMMA         : float = 0.99      # discount factor
@@ -158,7 +158,13 @@ def train(
     seed_offset   : int   = 0,
     instance_name : str   = INSTANCE_NAME,
     active_features: list | None = None,
+    gamma         : float = GAMMA,       # <-- NEW
+    tau_start     : float = TAU_START,   # <-- NEW
+    tau_end       : float = TAU_END,     # <-- NEW
 ) -> LinearVFAPolicy:
+    
+    # Calculate decay dynamically based on passed arguments
+    tau_decay = (tau_end / tau_start) ** (1.0 / max(num_episodes - 1, 1))
     """
     Run the full episodic VFA training loop.
 
@@ -184,8 +190,8 @@ def train(
         f"(warm-up = {WARMUP_DAYS}d,  learning = {LEARNING_DAYS}d)"
     )
     print(
-        f"  tau schedule        : {TAU_START:.2f}  ->  {TAU_END:.2f}  "
-        f"(decay per episode = {TAU_DECAY:.6f})"
+        f"  tau schedule        : {tau_start:.2f}  ->  {tau_end:.2f}  "
+        f"(decay per episode = {tau_decay:.6f})"
     )
     print(f"  alpha / gamma       : {ALPHA} / {GAMMA}")
     print(f"  Instance          : {instance_name}")
@@ -198,8 +204,8 @@ def train(
         active_features=active_features,
         n_features    = len(active_features) if active_features is not None else N_FEATURES,
         alpha         = ALPHA,
-        gamma         = GAMMA,
-        tau           = TAU_START,
+        gamma         = gamma,          # <-- UPDATED
+        tau           = tau_start,      # <-- UPDATED
         learning_mode = True,
         seed          = 42,
         maintenance_enabled=ENABLE_COMPONENT_FAILURES,
@@ -225,7 +231,8 @@ def train(
         config        = SimulationConfig()
         
         # ── Boltzmann temperature for this episode ─────────────────────────
-        tau = TAU_START * (TAU_DECAY ** ep)
+        #tau = TAU_START * (TAU_DECAY ** ep)
+        tau = tau_start * (tau_decay ** ep)
         vfa_policy.set_temperature(tau)
 
         # ── Build episode policy ───────────────────────────────────────────
@@ -364,6 +371,25 @@ if __name__ == "__main__":
         default=INSTANCE_NAME,
         help="Simulator instance name",
     )
+    
+    parser.add_argument(
+        "--gamma", 
+        type=float, 
+        default=GAMMA, 
+        help="Discount factor for future rewards"
+    )
+    parser.add_argument(
+        "--tau_start", 
+        type=float, 
+        default=TAU_START, 
+        help="Initial Boltzmann temperature for exploration"
+    )
+    parser.add_argument(
+        "--tau_end", 
+        type=float, 
+        default=TAU_END, 
+        help="Final Boltzmann temperature for exploitation"
+    )
     args = parser.parse_args()
 
     train(
@@ -371,4 +397,7 @@ if __name__ == "__main__":
         save_path     = Path(args.save) if args.save else None,
         seed_offset   = args.seed,
         instance_name = args.instance,
+        gamma         = args.gamma,         # <-- NEW
+        tau_start     = args.tau_start,     # <-- NEW
+        tau_end       = args.tau_end        # <-- NEW
     )
