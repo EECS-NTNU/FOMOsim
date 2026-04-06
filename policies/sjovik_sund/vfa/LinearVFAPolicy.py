@@ -279,6 +279,12 @@ class LinearVFAPolicy(Policy):
                 else:
                     func[k] += 1
 
+        # --- FIXED DEBUG PRINT ---
+        # Print it once and then set a flag so it doesn't spam you forever
+        if not hasattr(self, '_has_printed_vision'):
+            print(f"\n[DEBUG - VFA VISION] VFA sees {sum(func)} functional, {sum(onsite)} onsite, {sum(depot)} depot bikes in the city.")
+            self._has_printed_vision = True
+
         return func, onsite, depot
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -622,7 +628,8 @@ class LinearVFAPolicy(Policy):
             if v.id != vehicle.id:
                 # Check if vehicle is en-route (eta > 0 means traveling, not idle at a location)
                 # This semantics matches sim.Vehicle.eta behavior in the simulator
-                if getattr(v, 'eta', 0) > 0:
+                v_eta = getattr(v, 'eta', 0)
+                if v_eta > state.time:
                     # Extract destination using MDP-canonical notation
                     # Fallback chain: destination_station (MDP) → next_location (sim.Action) → current location
                     dest = (
@@ -731,7 +738,7 @@ class LinearVFAPolicy(Policy):
                     next_station=depot_id,
                 )
                 candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
-                
+             
         # --- DEBUG 3: MYOPIC BLINDSPOT ---
         if not getattr(self, "_has_printed_blindspot", False):
             cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
@@ -746,6 +753,38 @@ class LinearVFAPolicy(Policy):
             print(f"  -> Most critical station in network: {most_critical}")
             if most_critical not in cand_ids:
                 print(f"  ->  The most critical station is NOT in the candidate list!")
+            self._has_printed_blindspot = True
+
+        # --- DEBUG 3: MYOPIC BLINDSPOT ---
+        if not getattr(self, "_has_printed_blindspot", False):
+            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
+            
+            # Find the actual most critical station in the whole city
+            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
+            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+            most_critical = all_stats[0].id if all_stats else "None"
+            
+            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
+            print(f"  -> Candidate options: {cand_ids}")
+            print(f"  -> Most critical station in network: {most_critical}")
+            if most_critical not in cand_ids:
+                print(f"  -> The most critical station is NOT in the candidate list!")
+            self._has_printed_blindspot = True
+
+        # --- DEBUG 3: MYOPIC BLINDSPOT ---
+        if not getattr(self, "_has_printed_blindspot", False):
+            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
+            
+            # Find the actual most critical station in the whole city
+            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
+            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+            most_critical = all_stats[0].id if all_stats else "None"
+            
+            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
+            print(f"  -> Candidate options: {cand_ids}")
+            print(f"  -> Most critical station in network: {most_critical}")
+            if most_critical not in cand_ids:
+                print(f"  -> The most critical station is NOT in the candidate list!")
             self._has_printed_blindspot = True
 
         return candidates
@@ -902,7 +941,7 @@ class LinearVFAPolicy(Policy):
         # ──────────────────────────────────────────────────────────────────"""
 
 
-        # ── Step 3: score each candidate ──────────────────────────────────
+        '''# ── Step 3: score each candidate ──────────────────────────────────
         phis: List[np.ndarray] = []
         values = np.empty(len(candidates), dtype=np.float64)
         
@@ -920,6 +959,37 @@ class LinearVFAPolicy(Policy):
                 elif b:
                     functional_pickups += 1
             
+            # Net change in functional bikes and vehicle depot cargo
+            delta_func = len(action.delivery_bikes) - functional_pickups
+            delta_depot_cargo = depot_pickups'''
+        
+        # ── Step 3: score each candidate ──────────────────────────────────
+        phis: List[np.ndarray] = []
+        values = np.empty(len(candidates), dtype=np.float64)
+        
+        for k, action in enumerate(candidates):
+            # --- FIXED: Safely map bike IDs to objects for fast lookup ---
+            raw_bikes = getattr(vehicle.location, "bikes", [])
+            if isinstance(raw_bikes, dict):
+                station_bikes = raw_bikes
+            else:
+                station_bikes = {getattr(b, 'bike_id', getattr(b, 'id')): b for b in raw_bikes}
+                
+            functional_pickups = 0
+            depot_pickups = 0
+            
+            for b_id in action.pick_ups:
+                b = station_bikes.get(b_id)
+                if b and getattr(b, 'damage_status', None) == 'depot':
+                    depot_pickups += 1
+                elif b:
+                    functional_pickups += 1
+            
+            # --- DEBUG PRINT ---
+            # Print only for the very first candidate of the decision epoch so it doesn't flood the console
+            if k == 0 and len(action.pick_ups) > 0:
+                 print(f"[DEBUG - CARGO] Action wanted {len(action.pick_ups)} pickups. VFA correctly identified {functional_pickups} functional and {depot_pickups} depot bikes.")
+
             # Net change in functional bikes and vehicle depot cargo
             delta_func = len(action.delivery_bikes) - functional_pickups
             delta_depot_cargo = depot_pickups
@@ -941,8 +1011,7 @@ class LinearVFAPolicy(Policy):
                 next_station_id=dest_id
             )
             phis.append(phi)
-            values[k] = self.value(phi)
-            
+            values[k] = self.value(phi)            
         # --- DEBUG 2: SPATIAL PARALYSIS ---
         if not getattr(self, "_has_printed_spatial", False) and "proximity_to_demand_gravity" in self.FEATURE_NAMES:
             idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
@@ -951,6 +1020,24 @@ class LinearVFAPolicy(Policy):
                 dest = getattr(action, "next_location", getattr(action, "next_station", None))
                 print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
             self._has_printed_spatial = True
+
+        # --- DEBUG 2: SPATIAL PARALYSIS ---
+        if "proximity_to_demand_gravity" in self.FEATURE_NAMES:
+            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
+            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            for k, action in enumerate(candidates):
+                dest = getattr(action, "next_location", getattr(action, "next_station", None))
+                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
+            
+
+        # --- DEBUG 2: SPATIAL PARALYSIS ---
+        if "proximity_to_demand_gravity" in self.FEATURE_NAMES:
+            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
+            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            for k, action in enumerate(candidates):
+                dest = getattr(action, "next_location", getattr(action, "next_station", None))
+                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
+            
 
         # ── Step 4: TD(0) update ──────────────────────────────────────────
         """# Bootstrap with the greedy (min-value) next post-decision state,
