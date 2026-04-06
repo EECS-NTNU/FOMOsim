@@ -339,10 +339,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--seed",
         type=int,
-        default=0,
+        default=1000,
         metavar="OFFSET",
         help="Seed offset: episode i uses random seed = offset + i",
-    )
+    ),
+    
     parser.add_argument(
         "--instance",
         type=str,

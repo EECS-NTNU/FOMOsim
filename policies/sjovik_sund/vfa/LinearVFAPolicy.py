@@ -144,7 +144,8 @@ class LinearVFAPolicy(Policy):
 
         # ── Parameter vector θ (small random initialisation) ─────────────────
         #self.theta: np.ndarray = self._rng.standard_normal(n_features) * 0.01
-        self.theta: np.ndarray = self._rng.uniform(-0.5, 0.5, size=n_features).astype(np.float64)
+        #self.theta: np.ndarray = self._rng.uniform(-0.5, 0.5, size=n_features).astype(np.float64)
+        self.theta: np.ndarray = np.zeros(n_features, dtype=np.float64)
 
         # weights attribute forwarded by run_simulation.py for logging
         self.weights: List[float] = list(self.theta)

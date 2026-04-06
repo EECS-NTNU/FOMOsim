@@ -1,105 +1,116 @@
+import os
+import re
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
 from pathlib import Path
 
-ALPHA_MAP = {
-    "20260405_163807": "0.1",
-    "20260405_163812": "0.05",  # Your winning run!
-    "20260405_163901": "0.01",
-    "20260405_163736": "0.005",
-    "20260405_163919": "0.001",
-}
-
-def get_alpha_label(filename: str) -> str:
-    """Checks the dictionary to see if we know the alpha for this file."""
-    for timestamp, alpha in ALPHA_MAP.items():
-        if timestamp in filename:
-            return f" (Alpha: {alpha})"
-    return ""  # If it's not in the map, just leave it blank
-
-def plot_weight_evolution(csv_path: Path):
-    """Generates and saves a convergence plot for a single CSV file."""
-    df = pd.read_csv(csv_path)
+def plot_averaged_weights(alpha: str, files: list[Path], target_dir: Path):
+    """Generates and saves an averaged weight convergence plot for a specific alpha."""
+    all_weights = []
+    episodes = None
+    feature_names = None
     
-    if 'episode' not in df.columns:
-        print(f"  [Skip] {csv_path.name} is missing the 'episode' column.")
+    for csv_path in files:
+        df = pd.read_csv(csv_path)
+        if 'episode' not in df.columns:
+            continue
+            
+        if episodes is None:
+            episodes = df['episode'].values
+        if feature_names is None:
+            feature_names = df.drop(columns=['episode', 'service_level']).columns
+            
+        # Extract just the weights
+        weights = df.drop(columns=['episode', 'service_level']).values
+        all_weights.append(weights)
+
+    if not all_weights:
         return
 
-    episodes = df['episode']
+    # Calculate the mean across all seeds
+    # Shape becomes: [num_episodes, num_features]
+    all_weights = np.array(all_weights)
+    mean_weights = np.mean(all_weights, axis=0)
+
     plt.figure(figsize=(14, 8))
     
-    features_plotted = 0
-    for column in df.columns:
-        if column not in ['episode', 'service_level']:
-            plt.plot(episodes, df[column], linewidth=2, label=column)
-            features_plotted += 1
+    # Plot the averaged lines
+    for i, column in enumerate(feature_names):
+        plt.plot(episodes, mean_weights[:, i], linewidth=2, label=column)
 
-    run_id = csv_path.stem.replace("_weights_evolution", "").replace("vfa_trained_", "")
-    alpha_label = get_alpha_label(csv_path.name)
-
-    plt.title(f"VFA Weight (\u03B8) Convergence: {run_id}{alpha_label}", fontsize=16, fontweight='bold')
+    plt.title(f"Averaged VFA Weight (\u03B8) Convergence (\u03B1 = {alpha}) - {len(files)} Seeds", fontsize=16, fontweight='bold')
     plt.xlabel("Training Episode", fontsize=14)
-    plt.ylabel("Weight Value", fontsize=14)
+    plt.ylabel("Mean Weight Value", fontsize=14)
     plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left", fontsize=10)
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.tight_layout()
     
-    save_path = csv_path.with_suffix('.png')
+    save_path = target_dir / f"vfa_mean_weights_alpha{alpha}.png"
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    print(f"  -> Saved Weight Plot: {save_path.name}{alpha_label}")
-    plt.close() 
+    print(f"  -> Saved Averaged Weight Plot: {save_path.name}")
+    plt.close()
 
-def plot_alpha_comparison(csv_files: list[Path], target_dir: Path):
-    """Generates a master plot comparing the Service Levels of all mapped Alphas."""
+def plot_averaged_alpha_comparison(grouped_runs: dict, target_dir: Path):
+    """Generates a master plot comparing the averaged Service Levels across all alphas."""
     plt.figure(figsize=(12, 7))
     plotted_lines = 0
 
-    # Sort files so the legend order is consistent
-    for csv_path in sorted(csv_files):
-        alpha_label = get_alpha_label(csv_path.name)
+    # Sort alphas numerically so the legend makes sense (e.g., 0.001 -> 0.005 -> 0.01)
+    sorted_alphas = sorted(grouped_runs.keys(), key=float)
+
+    for alpha in sorted_alphas:
+        files = grouped_runs[alpha]
+        all_sls = []
+        episodes = None
         
-        # Only plot it on the comparison graph if it is in our ALPHA_MAP
-        if not alpha_label:
+        for csv_path in files:
+            df = pd.read_csv(csv_path)
+            if 'episode' not in df.columns or 'service_level' not in df.columns:
+                continue
+
+            if episodes is None:
+                episodes = df['episode'].values
+            
+            # Smooth the individual seed's RL service level
+            window_size = min(10, len(episodes))
+            sl_smoothed = df['service_level'].rolling(window=window_size, min_periods=1).mean().values
+            all_sls.append(sl_smoothed)
+
+        if not all_sls:
             continue
             
-        df = pd.read_csv(csv_path)
-        if 'episode' not in df.columns or 'service_level' not in df.columns:
-            continue
-
-        episodes = df['episode']
+        all_sls = np.array(all_sls)
+        mean_sl = np.mean(all_sls, axis=0)
+        std_sl = np.std(all_sls, axis=0)
         
-        # Apply a rolling mean to smooth the noisy RL service levels
-        window_size = min(10, len(episodes))
-        sl_smoothed = df['service_level'].rolling(window=window_size, min_periods=1).mean()
+        # Plot mean line and shaded standard deviation
+        line = plt.plot(episodes, mean_sl, linewidth=2.5, label=f"α = {alpha}")
+        color = line[0].get_color()
+        plt.fill_between(episodes, mean_sl - std_sl, mean_sl + std_sl, color=color, alpha=0.15)
         
-        # Clean up the label for the legend (e.g., "0.05" instead of "(Alpha: 0.05)")
-        clean_alpha_val = alpha_label.replace(" (Alpha: ", "").replace(")", "")
-        
-        plt.plot(episodes, sl_smoothed, linewidth=2.5, alpha=0.9, label=f"α = {clean_alpha_val}")
         plotted_lines += 1
 
     if plotted_lines > 0:
-        plt.title("Learning Rate (\u03B1) Comparison: Service Level Convergence", fontsize=16, fontweight='bold')
+        plt.title("Learning Rate (\u03B1) Robust Comparison (Mean \u00B1 1 Std Dev)", fontsize=16, fontweight='bold')
         plt.xlabel("Training Episode", fontsize=14)
         plt.ylabel(f"Service Level ({window_size}-ep Moving Avg)", fontsize=14)
         
-        # Add legend and grid
         plt.legend(loc="lower right", title="Learning Rates", fontsize=12, title_fontsize=12)
         plt.grid(True, linestyle='--', alpha=0.5)
         plt.tight_layout()
         
-        # Save the master plot
-        save_path = target_dir / "alpha_comparison_service_level.png"
+        save_path = target_dir / "alpha_comparison_service_level_robust.png"
         plt.savefig(save_path, dpi=300)
-        print(f"\n🚀 Success! Master Alpha Comparison Plot saved to: {save_path.name}")
+        print(f"\n🚀 Success! Master Robust Alpha Comparison Plot saved to: {save_path.name}")
     else:
-        print("\n⚠️ No mapped alphas found to compare. Check your ALPHA_MAP!")
+        print("\n⚠️ No valid runs found to compare.")
     
     plt.close()
 
 def main():
-    parser = argparse.ArgumentParser(description="Batch plot VFA weight evolution CSVs.")
+    parser = argparse.ArgumentParser(description="Batch plot robust, seed-averaged VFA results.")
     parser.add_argument(
         "--dir", 
         type=str, 
@@ -109,31 +120,40 @@ def main():
     args = parser.parse_args()
     
     target_dir = Path(args.dir)
-    
     if not target_dir.exists():
-        if Path("models").exists():
-            target_dir = Path("models")
-        else:
-            print(f"Error: Directory {target_dir} does not exist.")
-            return
+        print(f"Error: Directory {target_dir} does not exist.")
+        return
 
     csv_files = list(target_dir.glob("*_weights_evolution.csv"))
-    
     if not csv_files:
         print(f"No '*_weights_evolution.csv' files found in {target_dir}")
         return
 
-    print(f"Found {len(csv_files)} weight evolution files. Generating plots...")
-    print("-" * 50)
+    # 1. Group files by Alpha using regex
+    # Matches patterns like "alpha0.1_seed" or "alpha0.05_seed"
+    grouped_runs = {}
+    for csv_file in csv_files:
+        match = re.search(r"alpha([0-9\.]+)_seed", csv_file.name)
+        if match:
+            alpha_val = match.group(1)
+            if alpha_val not in grouped_runs:
+                grouped_runs[alpha_val] = []
+            grouped_runs[alpha_val].append(csv_file)
+        else:
+            print(f"  [Warning] Could not parse alpha from filename: {csv_file.name}. Skipping.")
+
+    print(f"Found {len(csv_files)} files across {len(grouped_runs)} distinct alpha values.")
+    print("-" * 60)
     
-    # 1. Plot individual weight evolutions
-    for csv_file in sorted(csv_files):
-        plot_weight_evolution(csv_file)
+    # 2. Plot averaged weights for each alpha group
+    for alpha, files in grouped_runs.items():
+        print(f"Processing \u03B1 = {alpha} ({len(files)} seeds)...")
+        plot_averaged_weights(alpha, files, target_dir)
         
-    print("-" * 50)
+    print("-" * 60)
     
-    # 2. Plot the master Alpha comparison
-    plot_alpha_comparison(csv_files, target_dir)
+    # 3. Plot the master Service Level comparison
+    plot_averaged_alpha_comparison(grouped_runs, target_dir)
 
 if __name__ == "__main__":
     main()
