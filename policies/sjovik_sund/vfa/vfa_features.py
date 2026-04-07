@@ -120,6 +120,7 @@ def extract(
     max_gravity_safe = max(max_gravity, 1.0)
     K = max(vehicle_capacity, 1)
     N = len(func)
+    F = len(func)+len(onsite)+len(depot)
    # =========================================================================
     # Category A: Base Rebalancing Features
     # =========================================================================
@@ -128,9 +129,13 @@ def extract(
     total_cap_half = 0.5 * np.sum(capacities)
     phi_1 = np.sum(np.abs(func - target)) / max(total_cap_half, 1.0)
 
+    expected_outflow = np.maximum(0, -activity)  # Outflow is negative
+    expected_inflow = np.maximum(0, activity)    # Inflow is positive
+
+    starvation_risk = np.maximum(0, expected_outflow - func)
+    congestion_risk = np.maximum(0, func + expected_inflow - capacities)
+
     # φ_2: Anticipated Demand Shortfall
-    starvation_risk = np.maximum(0, activity - func)
-    congestion_risk = np.maximum(0, (func - activity) - capacities)
     phi_2 = np.sum(starvation_risk + congestion_risk) / lambda_max_safe
 
     # φ_3: Vehicle Functional Load (Baseline)
@@ -139,19 +144,20 @@ def extract(
     # φ_4: Squared Starvation Penalty
     target_safe = np.maximum(1.0, target)
     starv_ratio = np.maximum(0, target - func) / target_safe
-    phi_4 = np.sum(starv_ratio**2) / N
+    phi_4 = np.sum(starv_ratio**2) / F
 
     # φ_5: Squared Congestion Penalty
     cap_rem = np.maximum(1.0, capacities - target)
     cong_ratio = np.maximum(0, func - target) / cap_rem
-    phi_5 = np.sum(cong_ratio**2) / N
+    phi_5 = np.sum(cong_ratio**2) / F
 
-    # φ_6: Proximity to Demand Gravity (Baseline)
-    phi_6 = np.sum(np.abs(activity) / (dist_to_stations + 1.0)) / max_gravity_safe
-
-    # --- NEW INTERACTION TERMS ---
+    # φ_6: LACK OF Proximity to Demand Gravity (General Bonus -> Inverted to Penalty)
+    raw_phi_6 = np.sum(np.abs(activity) / (dist_to_stations + 1.0)) / max_gravity_safe
+    phi_6 = 1.0 - np.clip(raw_phi_6, 0.0, 1.0)
     
-    # φ_3A: Delivery Potential (Actionable Capacity)
+    ######### interaction terms ##########
+    
+    '''# φ_3A: Delivery Potential (Actionable Capacity)
     network_starvation = np.sum(np.maximum(0, target - func))
     phi_3a = phi_3 * (network_starvation / max(total_cap_half, 1.0))
     
@@ -162,16 +168,63 @@ def extract(
     phi_3b = phi_3b_base * (network_congestion / max(total_cap_half, 1.0))
     
     # φ_6A: Starvation Gravity (Actionable Gravity)
-    outflow = np.maximum(0, activity) # Positive activity means net rentals
+    outflow = np.maximum(0, -activity) # Negative activity means net rentals
     starving_mask = func < target
     starvation_grav_sum = np.sum((outflow * starving_mask) / (dist_to_stations + 1.0))
     phi_6a = phi_3 * (starvation_grav_sum / max_gravity_safe)
     
     # φ_6B: Congestion Gravity (Actionable Gravity)
-    inflow = np.maximum(0, -activity) # Negative activity means net returns
+    inflow = np.maximum(0, activity) # Positive activity means net returns
     congested_mask = func > target
     congestion_grav_sum = np.sum((inflow * congested_mask) / (dist_to_stations + 1.0))
-    phi_6b = phi_3b_base * (congestion_grav_sum / max_gravity_safe)
+    phi_6b = phi_3b_base * (congestion_grav_sum / max_gravity_safe)'''
+    
+    # φ_3A: Delivery Potential (Penalty: Holding bikes while network starves)
+    network_starvation = np.sum(np.maximum(0, target - func))
+    raw_phi_3a = phi_3 * (network_starvation / max(total_cap_half, 1.0))
+    phi_3a = np.clip(raw_phi_3a, 0.0, 1.0)
+    
+    # φ_3B: Pickup Potential (Penalty: Empty van while network is congested)
+    free_space = vehicle_capacity_safe - func_cargo_veh - depot_cargo_veh
+    phi_3b_base = max(0.0, free_space) / vehicle_capacity_safe
+    network_congestion = np.sum(np.maximum(0, func - target))
+    raw_phi_3b = phi_3b_base * (network_congestion / max(total_cap_half, 1.0))
+    phi_3b = np.clip(raw_phi_3b, 0.0, 1.0)
+    
+    # φ_6A: Starvation Gravity (Penalty: Full van parked near a starving station)
+    outflow = np.maximum(0, -activity) # Negative activity means net rentals
+    starving_mask = func < target
+    starvation_grav_sum = np.sum((outflow * starving_mask) / (dist_to_stations + 1.0))
+    raw_phi_6a = phi_3 * (starvation_grav_sum / max_gravity_safe)
+    phi_6a = np.clip(raw_phi_6a, 0.0, 1.0)
+    
+    # φ_6B: Congestion Gravity (Penalty: Empty van parked near a congested station)
+    inflow = np.maximum(0, activity) # Positive activity means net returns
+    congested_mask = func > target
+    congestion_grav_sum = np.sum((inflow * congested_mask) / (dist_to_stations + 1.0))
+    raw_phi_6b = phi_3b_base * (congestion_grav_sum / max_gravity_safe)
+    phi_6b = np.clip(raw_phi_6b, 0.0, 1.0)
+    
+    ######################DEBUG: Print raw feature values before clipping (occasionally)######################
+    # 1. Store the raw values before they get squashed
+    raw_cat_a = [phi_1, phi_2, phi_3, phi_4, phi_5, phi_6, phi_3a, phi_3b, phi_6a, phi_6b]
+
+    # 2. --- DEBUG: Monitor Contextual Feature Clipping ---
+    # We check if the contextual features are breaching the 1.0 ceiling.
+    # Using a random threshold (e.g., 1%) prevents terminal spam since this 
+    # function is called thousands of times per episode.
+    if (phi_6a > 1.0 or phi_6b > 1.0) and np.random.rand() < 0.01:
+        print(f"\n[DEBUG - CLIPPING] Contextual features exceeding 1.0 ceiling!")
+        print(f"  -> phi_6a (Starv Gravity) Raw: {phi_6a:.3f}")
+        print(f"  -> phi_6b (Cong Gravity)  Raw: {phi_6b:.3f}")
+        print(f"  -> phi_3a (Del Potential) Raw: {phi_3a:.3f}")
+        print(f"  -> phi_3b (Pick Potential)Raw: {phi_3b:.3f}")
+        print(f"  * Note: These will be clipped to 1.0 for the VFA.\n")
+
+    # 3. Apply the clip and extend as usual
+    #cat_a = np.clip(raw_cat_a, 0.0, 1.0).tolist()
+    #features.extend(cat_a)
+    ############################################################################################################
 
     # Append Category A (Clipped to ensure numeric stability for VFA)
     cat_a = np.clip([phi_1, phi_2, phi_3, phi_4, phi_5, phi_6, phi_3a, phi_3b, phi_6a, phi_6b], 0.0, 1.0).tolist()
@@ -186,7 +239,7 @@ def extract(
 
         # φ_8: Global Onsite Backlog (Σ_i I_i^onsite / N)
         # Scaled by global fleet or capacities in the future, for now N.
-        phi_8 = float(np.sum(onsite)) / N
+        phi_8 = float(np.sum(onsite)) / F 
 
         # φ_9: Demand-Weighted Depot Backlog
         # Penalize broken bikes at high-activity stations.

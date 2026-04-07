@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 from pathlib import Path
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
@@ -8,7 +9,6 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 
 from policies.sjovik_sund.vfa.train_vfa import train
 
-# Define your experimental subsets here!
 # Define your experimental subsets here!
 EXPERIMENTS = {
     # Test 1: Can it learn anything with basic, linear snapshots?
@@ -64,12 +64,9 @@ EXPERIMENTS = {
     #]
 }
 
-def run_all_experiments(episodes: int = 100):
+def run_all_experiments(seeds: list[int], episodes: int = 200):
     base_dir = Path("models/ablation_study")
     base_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Define 3 different starting offsets for our multiple runs
-    MACRO_SEEDS = [1000, 2000, 3000] 
     
     for exp_name, features in EXPERIMENTS.items():
         print(f"\n{'='*60}")
@@ -80,19 +77,40 @@ def run_all_experiments(episodes: int = 100):
         exp_dir = base_dir / exp_name
         exp_dir.mkdir(exist_ok=True)
         
-        # Loop through each macro-seed and train from scratch
-        for run_id, seed_offset in enumerate(MACRO_SEEDS):
-            print(f"  --> Run {run_id + 1}/{len(MACRO_SEEDS)} (Seed Offset: {seed_offset})")
+        # Loop through each macro-seed provided via the terminal
+        for run_id, seed_offset in enumerate(seeds):
+            print(f"  --> Run {run_id + 1}/{len(seeds)} (Seed Offset: {seed_offset})")
             
-            # Save the model and logs with the run_id in the name
-            save_path = exp_dir / f"vfa_{exp_name}_run{run_id}.pkl"
+            # Save the model and logs with the specific SEED in the name
+            save_path = exp_dir / f"vfa_{exp_name}_seed{seed_offset}.pkl"
             
             train(
                 num_episodes=episodes,
                 save_path=save_path,
-                seed_offset=seed_offset, # Pass the macro-seed here!
+                seed_offset=seed_offset, 
                 active_features=features
             )
 
 if __name__ == "__main__":
-    run_all_experiments(episodes=2)
+    parser = argparse.ArgumentParser(description="Run VFA Feature Ablation Study")
+    
+    # Allow passing multiple seeds directly from the terminal
+    parser.add_argument(
+        "--seeds",
+        nargs="+",
+        type=int,
+        default=[1000, 2000, 3000],
+        help="List of seed offsets to run for robust averaging (e.g., --seeds 1000 2000 3000)"
+    )
+    
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=200,
+        help="Number of training episodes per run"
+    )
+    
+    args = parser.parse_args()
+
+    # Pass the parsed arguments into the runner
+    run_all_experiments(seeds=args.seeds, episodes=args.episodes)

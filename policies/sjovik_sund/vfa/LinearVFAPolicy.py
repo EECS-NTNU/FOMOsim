@@ -144,7 +144,7 @@ class LinearVFAPolicy(Policy):
 
         # ── Parameter vector θ (small random initialisation) ─────────────────
         #self.theta: np.ndarray = self._rng.standard_normal(n_features) * 0.01
-        # ── Parameter vector θ (start completely blind for ablation) ─────────
+        #self.theta: np.ndarray = self._rng.uniform(-0.5, 0.5, size=n_features).astype(np.float64)
         self.theta: np.ndarray = np.zeros(n_features, dtype=np.float64)
 
         # weights attribute forwarded by run_simulation.py for logging
@@ -201,8 +201,16 @@ class LinearVFAPolicy(Policy):
 
         for i, s in enumerate(stations):
             for h in range(24):
-                wd_rates = [s.get_arrive_intensity(d, h) for d in weekday_days]
-                we_rates = [s.get_arrive_intensity(d, h) for d in weekend_days]
+                #wd_rates = [s.get_arrive_intensity(d, h) for d in weekday_days]
+                #we_rates = [s.get_arrive_intensity(d, h) for d in weekend_days]
+                wd_rates = [
+                    s.get_leave_intensity(d, h) - s.get_arrive_intensity(d, h)
+                    for d in weekday_days
+                ]
+                we_rates = [
+                    s.get_leave_intensity(d, h) - s.get_arrive_intensity(d, h)
+                    for d in weekend_days
+        ]
                 self._activity_profile[0, h, i] = np.mean(wd_rates)
                 self._activity_profile[1, h, i] = np.mean(we_rates)
         
@@ -271,6 +279,12 @@ class LinearVFAPolicy(Policy):
                     depot[k] += 1
                 else:
                     func[k] += 1
+
+        # --- FIXED DEBUG PRINT ---
+        # Print it once and then set a flag so it doesn't spam you forever
+        if not hasattr(self, '_has_printed_vision'):
+            print(f"\n[DEBUG - VFA VISION] VFA sees {sum(func)} functional, {sum(onsite)} onsite, {sum(depot)} depot bikes in the city.")
+            self._has_printed_vision = True
 
         return func, onsite, depot
 
@@ -346,7 +360,13 @@ class LinearVFAPolicy(Policy):
         weight_h2 = current_minute / 60.0         # Overlap into the third hour
         
         # 3. Extract the dynamic anticipated net demand array (N,)
-        dynamic_activity = (
+        '''dynamic_activity = (
+            self._activity_profile[day_type, h0] * weight_h0 +
+            self._activity_profile[day_type, h1] * weight_h1 +
+            self._activity_profile[day_type, h2] * weight_h2
+        )'''
+
+        dynamic_activity = -(
             self._activity_profile[day_type, h0] * weight_h0 +
             self._activity_profile[day_type, h1] * weight_h1 +
             self._activity_profile[day_type, h2] * weight_h2
@@ -497,7 +517,7 @@ class LinearVFAPolicy(Policy):
     # TD(0) update
     # ─────────────────────────────────────────────────────────────────────────
 
-    def td_update(self, reward: float, phi_next: np.ndarray) -> None:
+    '''def td_update(self, reward: float, phi_next: np.ndarray) -> None:
         """
         TD(0) semi-gradient update for linear VFA:
 
@@ -514,7 +534,7 @@ class LinearVFAPolicy(Policy):
         # Compute pre-update values for logging
         v_cur = self.value(self._prev_phi)
         v_next = self.value(phi_next)
-        td_error = reward + self.gamma * v_next - v_cur
+        td_error = reward + (self.gamma * v_next) - v_cur
 
         # --- SMART LOGGING ---
         # Only print if a physical penalty occurred OR if the VFA was highly surprised
@@ -524,6 +544,31 @@ class LinearVFAPolicy(Policy):
 
         self.theta   += self.alpha * td_error * self._prev_phi
         self.weights  = list(self.theta)   # keep the logging attribute in sync
+
+        return td_error'''
+        
+    def td_update(self, reward: float, phi_next: np.ndarray) -> None:
+        if self._prev_phi is None:
+            return 0.0
+
+        # Compute pre-update values for logging
+        v_cur = self.value(self._prev_phi)
+        v_next = self.value(phi_next)
+        td_error = reward + (self.gamma * v_next) - v_cur
+
+        # --- SMART LOGGING ---
+        if reward < -0.01 or abs(td_error) > 1.0:
+            target_value = reward + self.gamma * v_next
+            print(f"    [TD Alert] Reward: {reward:6.3f} | V(S): {v_cur:6.3f} | Target: {target_value:6.3f} | TD Err: {td_error:6.3f}")
+
+        # 1. Apply the mathematical update
+        self.theta   += self.alpha * td_error * self._prev_phi
+        
+        # 2. THE MISSING SHIELD: Force all weights to be 0.0 or negative
+        self.theta = np.minimum(self.theta, 0.0)
+        
+        # 3. Save the safely bounded weights
+        self.weights  = list(self.theta)
 
         return td_error
     
@@ -754,7 +799,8 @@ class LinearVFAPolicy(Policy):
             if v.id != vehicle.id:
                 # Check if vehicle is en-route (eta > 0 means traveling, not idle at a location)
                 # This semantics matches sim.Vehicle.eta behavior in the simulator
-                if getattr(v, 'eta', 0) > 0:
+                v_eta = getattr(v, 'eta', 0)
+                if v_eta > state.time:
                     # Extract destination using MDP-canonical notation
                     # Fallback chain: destination_station (MDP) → next_location (sim.Action) → current location
                     dest = (
@@ -863,7 +909,7 @@ class LinearVFAPolicy(Policy):
                     next_station=depot_id,
                 )
                 candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
-                
+             
         # --- DEBUG 3: MYOPIC BLINDSPOT ---
         if not getattr(self, "_has_printed_blindspot", False):
             cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
@@ -880,7 +926,39 @@ class LinearVFAPolicy(Policy):
                 print(f"  ->  The most critical station is NOT in the candidate list!")
             self._has_printed_blindspot = True
 
-        return candidates'''
+        # --- DEBUG 3: MYOPIC BLINDSPOT ---
+        if not getattr(self, "_has_printed_blindspot", False):
+            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
+            
+            # Find the actual most critical station in the whole city
+            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
+            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+            most_critical = all_stats[0].id if all_stats else "None"
+            
+            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
+            print(f"  -> Candidate options: {cand_ids}")
+            print(f"  -> Most critical station in network: {most_critical}")
+            if most_critical not in cand_ids:
+                print(f"  -> The most critical station is NOT in the candidate list!")
+            self._has_printed_blindspot = True
+
+        # --- DEBUG 3: MYOPIC BLINDSPOT ---
+        if not getattr(self, "_has_printed_blindspot", False):
+            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
+            
+            # Find the actual most critical station in the whole city
+            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
+            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+            most_critical = all_stats[0].id if all_stats else "None"
+            
+            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
+            print(f"  -> Candidate options: {cand_ids}")
+            print(f"  -> Most critical station in network: {most_critical}")
+            if most_critical not in cand_ids:
+                print(f"  -> The most critical station is NOT in the candidate list!")
+            self._has_printed_blindspot = True
+
+        return candidates
 
     # ─────────────────────────────────────────────────────────────────────────
     # Boltzmann (softmax) selection
@@ -1034,7 +1112,7 @@ class LinearVFAPolicy(Policy):
         # ──────────────────────────────────────────────────────────────────"""
 
 
-        # ── Step 3: score each candidate ──────────────────────────────────
+        '''# ── Step 3: score each candidate ──────────────────────────────────
         phis: List[np.ndarray] = []
         values = np.empty(len(candidates), dtype=np.float64)
         
@@ -1052,6 +1130,37 @@ class LinearVFAPolicy(Policy):
                 elif b:
                     functional_pickups += 1
             
+            # Net change in functional bikes and vehicle depot cargo
+            delta_func = len(action.delivery_bikes) - functional_pickups
+            delta_depot_cargo = depot_pickups'''
+        
+        # ── Step 3: score each candidate ──────────────────────────────────
+        phis: List[np.ndarray] = []
+        values = np.empty(len(candidates), dtype=np.float64)
+        
+        for k, action in enumerate(candidates):
+            # --- FIXED: Safely map bike IDs to objects for fast lookup ---
+            raw_bikes = getattr(vehicle.location, "bikes", [])
+            if isinstance(raw_bikes, dict):
+                station_bikes = raw_bikes
+            else:
+                station_bikes = {getattr(b, 'bike_id', getattr(b, 'id')): b for b in raw_bikes}
+                
+            functional_pickups = 0
+            depot_pickups = 0
+            
+            for b_id in action.pick_ups:
+                b = station_bikes.get(b_id)
+                if b and getattr(b, 'damage_status', None) == 'depot':
+                    depot_pickups += 1
+                elif b:
+                    functional_pickups += 1
+            
+            # --- DEBUG PRINT ---
+            # Print only for the very first candidate of the decision epoch so it doesn't flood the console
+            if k == 0 and len(action.pick_ups) > 0:
+                 print(f"[DEBUG - CARGO] Action wanted {len(action.pick_ups)} pickups. VFA correctly identified {functional_pickups} functional and {depot_pickups} depot bikes.")
+
             # Net change in functional bikes and vehicle depot cargo
             delta_func = len(action.delivery_bikes) - functional_pickups
             delta_depot_cargo = depot_pickups
@@ -1073,8 +1182,7 @@ class LinearVFAPolicy(Policy):
                 next_station_id=dest_id
             )
             phis.append(phi)
-            values[k] = self.value(phi)
-            
+            values[k] = self.value(phi)            
         # --- DEBUG 2: SPATIAL PARALYSIS ---
         if not getattr(self, "_has_printed_spatial", False) and "proximity_to_demand_gravity" in self.FEATURE_NAMES:
             idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
@@ -1083,6 +1191,24 @@ class LinearVFAPolicy(Policy):
                 dest = getattr(action, "next_location", getattr(action, "next_station", None))
                 print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
             self._has_printed_spatial = True
+
+        # --- DEBUG 2: SPATIAL PARALYSIS ---
+        if "proximity_to_demand_gravity" in self.FEATURE_NAMES:
+            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
+            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            for k, action in enumerate(candidates):
+                dest = getattr(action, "next_location", getattr(action, "next_station", None))
+                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
+            
+
+        # --- DEBUG 2: SPATIAL PARALYSIS ---
+        if "proximity_to_demand_gravity" in self.FEATURE_NAMES:
+            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
+            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            for k, action in enumerate(candidates):
+                dest = getattr(action, "next_location", getattr(action, "next_station", None))
+                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
+            
 
         # ── Step 4: TD(0) update ──────────────────────────────────────────
         """# Bootstrap with the greedy (min-value) next post-decision state,
