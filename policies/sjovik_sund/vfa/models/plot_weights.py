@@ -74,7 +74,7 @@ def plot_averaged_alpha_comparison(grouped_runs: dict, target_dir: Path):
                 episodes = df['episode'].values
             
             # Smooth the individual seed's RL service level
-            window_size = min(10, len(episodes))
+            window_size = min(20, len(episodes))
             sl_smoothed = df['service_level'].rolling(window=window_size, min_periods=1).mean().values
             all_sls.append(sl_smoothed)
 

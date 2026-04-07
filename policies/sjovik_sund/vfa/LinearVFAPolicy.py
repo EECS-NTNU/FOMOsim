@@ -517,7 +517,7 @@ class LinearVFAPolicy(Policy):
     # TD(0) update
     # ─────────────────────────────────────────────────────────────────────────
 
-    def td_update(self, reward: float, phi_next: np.ndarray) -> None:
+    '''def td_update(self, reward: float, phi_next: np.ndarray) -> None:
         """
         TD(0) semi-gradient update for linear VFA:
 
@@ -544,6 +544,31 @@ class LinearVFAPolicy(Policy):
 
         self.theta   += self.alpha * td_error * self._prev_phi
         self.weights  = list(self.theta)   # keep the logging attribute in sync
+
+        return td_error'''
+        
+    def td_update(self, reward: float, phi_next: np.ndarray) -> None:
+        if self._prev_phi is None:
+            return 0.0
+
+        # Compute pre-update values for logging
+        v_cur = self.value(self._prev_phi)
+        v_next = self.value(phi_next)
+        td_error = reward + (self.gamma * v_next) - v_cur
+
+        # --- SMART LOGGING ---
+        if reward < -0.01 or abs(td_error) > 1.0:
+            target_value = reward + self.gamma * v_next
+            print(f"    [TD Alert] Reward: {reward:6.3f} | V(S): {v_cur:6.3f} | Target: {target_value:6.3f} | TD Err: {td_error:6.3f}")
+
+        # 1. Apply the mathematical update
+        self.theta   += self.alpha * td_error * self._prev_phi
+        
+        # 2. THE MISSING SHIELD: Force all weights to be 0.0 or negative
+        self.theta = np.minimum(self.theta, 0.0)
+        
+        # 3. Save the safely bounded weights
+        self.weights  = list(self.theta)
 
         return td_error
     # ─────────────────────────────────────────────────────────────────────────

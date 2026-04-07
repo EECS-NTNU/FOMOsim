@@ -165,7 +165,7 @@ def train(
     SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
     # ── Initialise VFA policy  (θ persists across ALL episodes) ───────────────
-    vfa_policy = LinearVFAPolicy(
+    '''vfa_policy = LinearVFAPolicy(
         active_features=active_features,
         n_features    = len(active_features) if active_features is not None else N_FEATURES,
         alpha         = alpha_start,
@@ -175,8 +175,37 @@ def train(
         seed          = 42,
         maintenance_enabled=ENABLE_COMPONENT_FAILURES,
         shift_timing_enabled=SHIFT_TIMING_ENABLED,
-    )
+    )'''
+    ########################################################
+    # --- ABLATION STUDY TOGGLES ---
+    # To run the Kitchen Sink later, comment out `baseline_features` and 
+    # uncomment the original active_features lines below.
+    baseline_features = [
+        "rebalancing_imbalance",
+        "anticipated_demand_shortfall",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+    ]
 
+    vfa_policy = LinearVFAPolicy(
+        # --- COMMENT OUT THE OLD KITCHEN SINK CONFIG ---
+        # active_features=active_features,
+        # n_features    = len(active_features) if active_features is not None else N_FEATURES,
+        
+        # --- UNCOMMENT THIS FOR CLEAN ALPHA TUNING ---
+        active_features=baseline_features,
+        n_features    = len(baseline_features),
+        
+        # --- EVERYTHING BELOW REMAINS EXACTLY THE SAME ---
+        alpha         = alpha_start,
+        gamma         = gamma,          
+        tau           = tau_start,      
+        learning_mode = True,
+        seed          = 42,
+        maintenance_enabled=ENABLE_COMPONENT_FAILURES,
+        shift_timing_enabled=SHIFT_TIMING_ENABLED,
+    )
+    ###############################################################################
     greedy_policy = GreedyPolicy()
 
     # Warm-up ends at this absolute simulation-time (minutes).
@@ -270,7 +299,7 @@ def train(
    # ── Final save ────────────────────────────────────────────────────────────
     if save_path is None:
         ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_path = SAVE_DIR / f"vfa_trained_alpha{alpha_start}_seed{seed_offset}_{ts}.pkl"
+        save_path = SAVE_DIR / f"vfa_trained_baseline_features_alpha{alpha_start}_seed{seed_offset}_{ts}.pkl"
 
     vfa_policy.save(save_path)
 
