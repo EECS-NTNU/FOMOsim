@@ -10,6 +10,16 @@ class Bike(Location):
     Bike class - manages bike state and basic operations.
     Complex degradation logic is handled by external models.
     """
+    
+    # Class-level set to keep track of all unique bike IDs created in the system.
+    # This neatly bypasses having to search through depots, vehicles and stations.
+    created_bike_ids = set()
+
+    @classmethod
+    def reset_bike_tracker(cls):
+        """Reset the bike tracker between separate simulation runs."""
+        cls.created_bike_ids = set()
+
     def __init__(self, 
                  is_station_based, 
                  lat: float = 0, 
@@ -20,6 +30,7 @@ class Bike(Location):
         self.is_station_based = is_station_based
         self.metrics = Metric()
         self.bike_id = bike_id
+        Bike.created_bike_ids.add(bike_id)
         self.battery = 100.0
         self.log = []
 

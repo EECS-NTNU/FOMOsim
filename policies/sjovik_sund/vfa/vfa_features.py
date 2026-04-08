@@ -106,6 +106,8 @@ def extract(
     dist_to_depot: float,
     lambda_max_system: float,
     max_gravity: float,
+    total_fleet_size: float,       # <-- NEW
+    total_stations: int,           # <-- NEW
     maintenance_enabled: bool = True,
     shift_timing_enabled: bool = False,
     time_remaining: float = None,
@@ -113,14 +115,20 @@ def extract(
 ) -> np.ndarray:
     
     features = []
-    
+
     # ── Safe Denominators ──
     vehicle_capacity_safe = max(float(vehicle_capacity), 1.0)
     lambda_max_safe = max(lambda_max_system, 1.0)
     max_gravity_safe = max(max_gravity, 1.0)
     K = max(vehicle_capacity, 1)
-    N = len(func)
-    F = len(func)+len(onsite)+len(depot)
+    
+    # Use the constants provided by the policy rather than sum()
+    N = max(total_stations, 1)
+    F = max(total_fleet_size, 1.0)
+    
+    #DEBUG: print all func, onsie, depot, func_cargo_vehcile and depot_cargo_veh to check individual values
+    print(f"[DEBUG] - func: {np.sum(func)}, depot: {np.sum(depot)}, onsite: {np.sum(onsite)}, cargo func: {func_cargo_veh}, cargo depot: {depot_cargo_veh}")
+    print(f"[DEBUG] Safe Denominators - Vehicle Cap: {vehicle_capacity_safe}, Lambda Max: {lambda_max_safe}, Max Gravity: {max_gravity_safe}, Number of Stations: {N}, Total Fleet: {F}")
    # =========================================================================
     # Category A: Base Rebalancing Features
     # =========================================================================
@@ -135,6 +143,7 @@ def extract(
     starvation_risk = np.maximum(0, expected_outflow - func)
     congestion_risk = np.maximum(0, func + expected_inflow - capacities)
 
+    #TODO: Consider fixing the scaling of max lambda 
     # φ_2: Anticipated Demand Shortfall
     phi_2 = np.sum(starvation_risk + congestion_risk) / lambda_max_safe
 
@@ -144,13 +153,12 @@ def extract(
     # φ_4: Squared Starvation Penalty
     target_safe = np.maximum(1.0, target)
     starv_ratio = np.maximum(0, target - func) / target_safe
-    phi_4 = np.sum(starv_ratio**2) / F
+    phi_4 = np.sum(starv_ratio**2) / N
 
     # φ_5: Squared Congestion Penalty
     cap_rem = np.maximum(1.0, capacities - target)
     cong_ratio = np.maximum(0, func - target) / cap_rem
-    phi_5 = np.sum(cong_ratio**2) / F
-
+    phi_5 = np.sum(cong_ratio**2) / N
     # φ_6: LACK OF Proximity to Demand Gravity (General Bonus -> Inverted to Penalty)
     raw_phi_6 = np.sum(np.abs(activity) / (dist_to_stations + 1.0)) / max_gravity_safe
     phi_6 = 1.0 - np.clip(raw_phi_6, 0.0, 1.0)
