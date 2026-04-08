@@ -8,15 +8,15 @@ class RewardConfig:
     weight_maintenance_violation: float = 0.0  # Set to >0 to penalize broken bikes left alone
     
     # --- End-of-Day Components (from your existing code) ---
-    not_at_depot_at_end_penalty: float = -1000.0
-    functional_bikes_at_end_penalty: float = -50.0
+    not_at_depot_at_end_penalty: float = 0.0 #-1000.0
+    functional_bikes_at_end_penalty: float = 0.0 #-50.0
     
     @staticmethod
     def benchmark_base_only() -> "RewardConfig":
         """Configuration for isolating just starvation and congestion."""
         return RewardConfig(
             weight_starvation=-1.0,
-            weight_congestion=-0.5,
+            weight_congestion=-1.0,
             not_at_depot_at_end_penalty=0.0,
             functional_bikes_at_end_penalty=0.0
         )
