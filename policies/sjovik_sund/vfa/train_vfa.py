@@ -54,11 +54,11 @@ from settings import ENABLE_COMPONENT_FAILURES
 NUM_EPISODES  : int   = 200      # total training episodes
 
 EPISODE_DAYS  : int   = 14       # days per episode (total)
-WARMUP_DAYS   : int   = 4         # greedy warm-up, no TD updates
-LEARNING_DAYS : int   = 10        # VFA + Boltzmann + TD(0)  (days 5 – 14)
+WARMUP_DAYS   : int   = 2         # greedy warm-up, no TD updates
+LEARNING_DAYS : int   = 12        # VFA + Boltzmann + TD(0)  (days 5 – 14)
 
-TAU_START     : float = 1.0    
-TAU_END       : float = 0.05     
+TAU_START     : float = 10.0    
+TAU_END       : float = 0.1     
 
 # --- Learning Rate (Alpha) ---
 ALPHA_START   : float = 0.1    # initial alpha for TD updates, will be overwritten in case of argument passing
@@ -141,8 +141,9 @@ def train(
     """
     
     # <-- Alpha decay logic for preliminary testing -->
-    alpha_end = 0.0001
+    alpha_end = alpha_start * 0.1 # Decay alpha to 10% of its initial value by the end of training
     alpha_decay = (alpha_end / alpha_start) ** (1.0 / max(num_episodes - 1, 1))
+    
     
     # ── Header ────────────────────────────────────────────────────────────────
     print("=" * 72)
@@ -181,7 +182,7 @@ def train(
     # To run the Kitchen Sink later, comment out `baseline_features` and 
     # uncomment the original active_features lines below.
     baseline_features = [
-        "rebalancing_imbalance",
+        #"rebalancing_imbalance",
         "anticipated_demand_shortfall",
         "squared_starvation_penalty",
         "squared_congestion_penalty",
@@ -226,6 +227,7 @@ def train(
         # ── Calculate current dynamic parameters ─────────────────────────
         current_tau = max(tau_end, tau_start * (tau_decay ** ep))
         current_alpha = max(alpha_end, alpha_start * (alpha_decay ** ep))
+        print(f"\n[DEBUG TAU AND ALPHA] Episode {ep+1}: Calculated tau={current_tau:.4f}, alpha={current_alpha:.5f}")
         
         # STRICT OVERRIDE: Force the policy to use this exact step-size
         vfa_policy.alpha = current_alpha
