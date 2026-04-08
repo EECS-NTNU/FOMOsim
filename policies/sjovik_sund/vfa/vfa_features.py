@@ -113,14 +113,18 @@ def extract(
 ) -> np.ndarray:
     
     features = []
-    
-    # ── Safe Denominators ──
+       
+   # ── Safe Denominators ──
     vehicle_capacity_safe = max(float(vehicle_capacity), 1.0)
     lambda_max_safe = max(lambda_max_system, 1.0)
     max_gravity_safe = max(max_gravity, 1.0)
     K = max(vehicle_capacity, 1)
-    N = len(func)
-    F = len(func)+len(onsite)+len(depot)
+    N = len(func) # stations)
+    F = np.sum(func) + np.sum(onsite) + np.sum(depot) + func_cargo_veh + depot_cargo_veh # total fleet (functional + onsite + depot) - used for normalization in some features
+    print(f"func sum: {np.sum(func)}, onsite sum: {np.sum(onsite)}, depot sum: {np.sum(depot)}, func_cargo_veh: {func_cargo_veh}, depot_cargo_veh: {depot_cargo_veh}")
+    print(f"[DEBUG] Safe Denominators - Vehicle Cap: {vehicle_capacity_safe}, Lambda Max: {lambda_max_safe}, Max Gravity: {max_gravity_safe}, Number of Stations: {N}, Total Fleet: {F}")
+
+    
    # =========================================================================
     # Category A: Base Rebalancing Features
     # =========================================================================

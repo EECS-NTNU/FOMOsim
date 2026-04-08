@@ -13,7 +13,7 @@ class Station(Location):
     def __init__(
         self,
         station_id,
-        bikes = {},
+        bikes = None,
         leave_intensities=None,
         leave_intensities_stdev=None,
         arrive_intensities=None,
@@ -28,6 +28,10 @@ class Station(Location):
         area = None,
         is_station_based = True
     ):
+        
+        if bikes is None:
+            bikes = {}
+            
         super().__init__(
             *(center_location if center_location else self.__compute_center(bikes)), station_id
         )
