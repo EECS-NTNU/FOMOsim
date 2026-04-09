@@ -61,7 +61,7 @@ TAU_START     : float = 10.0
 TAU_END       : float = 0.1     
 
 # --- Learning Rate (Alpha) ---
-ALPHA_START   : float = 0.1    # initial alpha for TD updates, will be overwritten in case of argument passing
+ALPHA_START   : float = 0.5    # initial alpha for TD updates, will be overwritten in case of argument passing
 
 GAMMA         : float = 0.99      # discount factor
 
@@ -194,8 +194,9 @@ def train(
         # n_features    = len(active_features) if active_features is not None else N_FEATURES,
         
         # --- UNCOMMENT THIS FOR CLEAN ALPHA TUNING ---
-        active_features=baseline_features,
-        n_features    = len(baseline_features),
+        #active_features=baseline_features,
+        active_features=active_features if active_features is not None else baseline_features,
+        n_features    = len(active_features) if active_features is not None else len(baseline_features),
         
         # --- EVERYTHING BELOW REMAINS EXACTLY THE SAME ---
         alpha         = alpha_start,

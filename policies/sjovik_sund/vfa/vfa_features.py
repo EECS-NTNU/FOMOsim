@@ -56,9 +56,13 @@ from typing import List
 
 
 # ── Feature registry ───────────────────────────────────────────────────────────────
-def get_feature_names(maintenance_enabled: bool = True, shift_timing_enabled: bool = False) -> list:
+def get_feature_names(
+    maintenance_enabled: bool = True,
+    shift_timing_enabled: bool = False,
+    temporal_enabled: bool = False,
+) -> list:
     """Returns the canonical list of feature names based on active modules."""
-    
+
     # Category A: Base Rebalancing (Always active)
     names = [
         "rebalancing_imbalance",
@@ -71,8 +75,10 @@ def get_feature_names(maintenance_enabled: bool = True, shift_timing_enabled: bo
         "pickup_potential",              # NEW: Actionable Capacity (Congested)
         "starvation_gravity",            # NEW: Actionable Gravity (Requires full van)
         "congestion_gravity",            # NEW: Actionable Gravity (Requires empty van)
+        "imbalance_weighted_distance",   # NEW: Recoverability — how far away is the imbalance?
+        "starvation_severity_max",       # NEW: Worst-case station starvation ratio
     ]
-    
+
     # Category B: Maintenance Features
     if maintenance_enabled:
         names.extend([
@@ -81,15 +87,27 @@ def get_feature_names(maintenance_enabled: bool = True, shift_timing_enabled: bo
             "demand_weighted_depot_backlog",
             "depot_pull",
         ])
-        
+
     # Category C: Shift Timing Features
     if shift_timing_enabled:
         names.extend([
             "time_remaining_fraction",
             "functional_bikes_time_penalty",
         ])
-        
+
+    # Category D: Temporal Demand Features
+    if temporal_enabled:
+        names.extend([
+            "time_of_day_fraction",          # Where in the 24h cycle are we?
+            "day_of_week_fraction",          # Where in the weekly cycle are we?
+            "hours_until_peak_fraction",     # How far until next morning rush?
+            "multi_horizon_starvation_risk", # Integrated starvation over next H hours
+        ])
+
     return names
+
+
+_MORNING_PEAK_HOUR: int = 8  # 08:00 — bike-sharing morning rush anchor
 
 
 def extract(
@@ -106,11 +124,16 @@ def extract(
     dist_to_depot: float,
     lambda_max_system: float,
     max_gravity: float,
-    fleet_size: float, 
+    fleet_size: float,
     maintenance_enabled: bool = True,
     shift_timing_enabled: bool = False,
     time_remaining: float = None,
     shift_length: float = 1440.0,
+    temporal_enabled: bool = False,
+    current_time_minutes: float = 0.0,
+    current_day_of_week: int = 0,
+    target_matrix: np.ndarray = None,   # shape (7, 24, N) — for multi-horizon look-ahead
+    horizon_hours: int = 4,             # how many hours ahead to integrate
 ) -> np.ndarray:
     
     features = []
@@ -125,8 +148,8 @@ def extract(
     #print(f"func sum: {np.sum(func)}, onsite sum: {np.sum(onsite)}, depot sum: {np.sum(depot)}, func_cargo_veh: {func_cargo_veh}, depot_cargo_veh: {depot_cargo_veh}")
     #print(f"[DEBUG] Safe Denominators - Vehicle Cap: {vehicle_capacity_safe}, Lambda Max: {lambda_max_safe}, Max Gravity: {max_gravity_safe}, Number of Stations: {N}, Total Fleet: {F}")
 
-    
-   # =========================================================================
+
+    # =========================================================================
     # Category A: Base Rebalancing Features
     # =========================================================================
     
@@ -274,8 +297,22 @@ def extract(
     #features.extend(cat_a)
     ############################################################################################################
 
+    # φ_R1: Imbalance Weighted Distance
+    # Captures recoverability: a station badly out of balance AND far away is harder to fix.
+    # Normalized by total_cap_half * max possible travel time (capped at 60 min).
+    max_dist_safe = max(float(np.max(dist_to_stations)), 1.0)
+    phi_r1 = np.clip(
+        np.sum(np.abs(func - target) * dist_to_stations) / (total_cap_half * max_dist_safe),
+        0.0, 1.0,
+    )
+
+    # φ_R2: Worst-case Station Starvation Ratio
+    # max_i (max(0, target_i - func_i) / target_i) — reuses starv_ratio already computed for φ_4.
+    # 1.0 means at least one station has zero bikes against a non-zero target.
+    phi_r2 = float(np.max(starv_ratio))
+
     # Append Category A (Clipped to ensure numeric stability for VFA)
-    cat_a = np.clip([phi_1, phi_2, phi_3, phi_4, phi_5, phi_6, phi_3a, phi_3b, phi_6a, phi_6b], 0.0, 1.0).tolist()
+    cat_a = np.clip([phi_1, phi_2, phi_3, phi_4, phi_5, phi_6, phi_3a, phi_3b, phi_6a, phi_6b, phi_r1, phi_r2], 0.0, 1.0).tolist()
     features.extend(cat_a)
 
     # =========================================================================
@@ -318,16 +355,64 @@ def extract(
         cat_c = np.clip([phi_11, phi_12], 0.0, 1.0).tolist()
         features.extend(cat_c)
 
+    # =========================================================================
+    # Category D: Temporal Demand Features
+    # =========================================================================
+    if temporal_enabled:
+        # Derive time coordinates from the simulation clock
+        current_hour = int((current_time_minutes // 60) % 24)
+
+        # Hours until next morning peak (e.g. 8am).
+        # Result is in [0, 23]: 0 means we are AT peak, 23 means we just passed it.
+        hours_until_morning_peak = (_MORNING_PEAK_HOUR - current_hour) % 24
+
+        # φ_T1: Where in the 24h cycle are we? (0 = midnight, 0.5 = noon)
+        phi_t1 = current_hour / 24.0
+
+        # φ_T2: Where in the weekly cycle? (0 = Monday, 6/7 ≈ Sunday evening)
+        phi_t2 = current_day_of_week / 7.0
+
+        # φ_T3: How close is the next morning rush?
+        # Normalized over a 12-hour window: 0 = peak is now, 1 = 12+ hours away
+        phi_t3 = np.clip(hours_until_morning_peak / 12.0, 0.0, 1.0)
+
+        # φ_D1: Multi-horizon starvation risk
+        # Integrate expected starvation across the next `horizon_hours` target snapshots.
+        # Uses the full 7×24×N target_matrix so the VFA can see upcoming demand pressure.
+        if target_matrix is not None:
+            abs_hour_now = int(current_time_minutes // 60)
+            total_future_risk = 0.0
+            for h in range(1, horizon_hours + 1):
+                abs_hour_future = abs_hour_now + h
+                future_hour = abs_hour_future % 24
+                future_day  = (current_day_of_week + abs_hour_future // 24) % 7
+                future_target = target_matrix[future_day, future_hour]
+                total_future_risk += np.sum(np.maximum(0.0, future_target - func))
+            phi_d1 = np.clip(
+                total_future_risk / (horizon_hours * max(total_cap_half, 1.0)),
+                0.0, 1.0,
+            )
+        else:
+            phi_d1 = 0.0
+
+        cat_d = [phi_t1, phi_t2, phi_t3, phi_d1]
+        features.extend(cat_d)
+
     return np.array(features, dtype=np.float64)
 
 
-def as_dict(phi: np.ndarray, maintenance_enabled: bool = True, shift_timing_enabled: bool = False) -> dict:
-    """
-    Return a labelled dict of a computed feature vector.
-    """
-    features = get_feature_names(maintenance_enabled, shift_timing_enabled)
-    assert len(phi) == len(features), (
-        f"phi has {len(phi)} elements but {len(features)} names are registered. "
-        f"Check maintenance_enabled={maintenance_enabled}, shift_timing_enabled={shift_timing_enabled}."
+def as_dict(
+    phi: np.ndarray,
+    maintenance_enabled: bool = True,
+    shift_timing_enabled: bool = False,
+    temporal_enabled: bool = False,
+) -> dict:
+    """Return a labelled dict of a computed feature vector."""
+    names = get_feature_names(maintenance_enabled, shift_timing_enabled, temporal_enabled)
+    assert len(phi) == len(names), (
+        f"phi has {len(phi)} elements but {len(names)} names are registered. "
+        f"Check maintenance_enabled={maintenance_enabled}, "
+        f"shift_timing_enabled={shift_timing_enabled}, "
+        f"temporal_enabled={temporal_enabled}."
     )
-    return dict(zip(features, phi.tolist()))
+    return dict(zip(names, phi.tolist()))

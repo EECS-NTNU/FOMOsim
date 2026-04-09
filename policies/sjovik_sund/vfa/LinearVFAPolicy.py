@@ -80,30 +80,30 @@ class LinearVFAPolicy(Policy):
         seed: int = 42,
         maintenance_enabled: bool = ENABLE_COMPONENT_FAILURES,
         shift_timing_enabled: bool = False,
+        temporal_enabled: bool = False,
         log_depot_visits: bool = False,
         depot_log_file: Optional[str] = None,
         reward_calculator: Optional[RewardCalculator] = None,
-        
     ) -> None:
-        
         """
-        Initializes the policy, sets hyperparameters (alpha, gamma, tau), 
-        and creates the weight vector (theta) which represents the 
+        Initializes the policy, sets hyperparameters (alpha, gamma, tau),
+        and creates the weight vector (theta) which represents the
         agent's learned knowledge.
         """
 
         super().__init__(maintenance_enabled=maintenance_enabled)
-        
+
         self.maintenance_enabled = maintenance_enabled
         self.shift_timing_enabled = shift_timing_enabled
+        self.temporal_enabled = temporal_enabled
         self.log_depot_visits = log_depot_visits
         self.depot_log_file = depot_log_file
         # 1. Get the canonical list of ALL possible features
-        self.ALL_FEATURE_NAMES = _get_feature_names(True, True)
+        self.ALL_FEATURE_NAMES = _get_feature_names(True, True, True)
 
         # 2. Determine which features we are actually using
         if active_features is None:
-            self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled)
+            self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled, self.temporal_enabled)
         else:
             # --- FIXED: Force the user's active features into canonical mathematical order ---
             self.FEATURE_NAMES = [name for name in self.ALL_FEATURE_NAMES if name in active_features]
@@ -449,22 +449,24 @@ class LinearVFAPolicy(Policy):
             onsite=onsite_post.astype(np.float64),
             depot=depot.astype(np.float64),
             target=target.astype(np.float64),
-            capacities=self._capacities,             # New scaler array
+            capacities=self._capacities,
             activity=dynamic_activity.astype(np.float64),
-            dist_to_stations=dist_to_stations,       # New spatial array
+            dist_to_stations=dist_to_stations,
             func_cargo_veh=float(func_cargo_veh),
             depot_cargo_veh=float(depot_cargo_veh),
             vehicle_capacity=K,
             dist_to_depot=dist_to_depot,
-            lambda_max_system=self._lambda_max_system, # New Lambda_max scaler
-            max_gravity=self._max_gravity,                 # New G_max scaler
+            lambda_max_system=self._lambda_max_system,
+            max_gravity=self._max_gravity,
             fleet_size=self.cached_fleet_size,
-            #maintenance_enabled=self.maintenance_enabled, # This should not be true un we are doing ablation study
             maintenance_enabled=True,
-            #shift_timing_enabled=self.shift_timing_enabled, # This should not be true unless we are doing ablation study
             shift_timing_enabled=True,
             time_remaining=self._get_time_remaining(state, vehicle),
-            shift_length=self._get_shift_length(state, vehicle)
+            shift_length=self._get_shift_length(state, vehicle),
+            temporal_enabled=True,
+            current_time_minutes=float(state.time),
+            current_day_of_week=int(state.day() % 7),
+            target_matrix=self._target_matrix,
         )
     
         # 4. Slice the full feature vector to only include active features

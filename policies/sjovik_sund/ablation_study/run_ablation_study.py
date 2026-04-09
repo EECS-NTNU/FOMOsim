@@ -11,57 +11,54 @@ from policies.sjovik_sund.vfa.train_vfa import train
 
 # Define your experimental subsets here!
 EXPERIMENTS = {
-    # Test 1: Can it learn anything with basic, linear snapshots?
-    "1_Linear_Reactive": [
+    # --- AXIS 1: Temporal Horizon Depth (controls how far ahead the VFA "sees") ---
+    
+    # Horizon-0: Pure reactive snapshot (no temporal info at all)
+    "H0_Reactive_Snapshot": [
         "rebalancing_imbalance",
-        "vehicle_functional_load"
-    ],
-    
-    # Test 2: Does punishing severe imbalances (squaring) improve routing?
-    # ( REMOVE 'rebalancing_imbalance' to avoid redundancy)
-    "2_Non_Linear_Reactive": [
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "vehicle_functional_load"
-    ],
-    
-    # Test 3: Add forward-looking demand and basic spatial anchors
-    "3_Anticipatory_Spatial_Base": [
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "anticipated_demand_shortfall",
         "vehicle_functional_load",
-        "proximity_to_demand_gravity"
     ],
     
-    # Test 4: Do interaction terms fix the ambiguity of standalone vehicle states?
-    # ( REMOVE the standalone vehicle/spatial features and replace them with potentials)
-    "4_Contextual_Interactions": [
+    # Horizon-1: One-step demand anticipation
+    "H1_One_Step_Demand": [
+        "squared_starvation_penalty",   # uses time-indexed target
+        "squared_congestion_penalty",
+        "anticipated_demand_shortfall", # one-step activity
+        "vehicle_functional_load",
+    ],
+    
+    # Horizon-N: Multi-step demand integration
+    "HN_Multi_Horizon": [
         "squared_starvation_penalty",
         "squared_congestion_penalty",
-        "anticipated_demand_shortfall",
-        # --- Upgraded Vehicle & Spatial Interactions ---
-        "delivery_potential",  
+        "multi_horizon_starvation_risk",  # NEW: integrate over H hours
+        "time_of_day_fraction",           # NEW: φ_T1
+        "hours_until_peak_fraction",      # NEW: φ_T3
+        "vehicle_functional_load",
+    ],
+    
+    # --- AXIS 2: Spatial recoverability ---
+    "Spatial_Recoverability": [
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "imbalance_weighted_distance",    # NEW: φ_R1
+        "starvation_severity_max",        # NEW: φ_R2
+        "delivery_potential",
+        "pickup_potential",
+    ],
+    
+    # --- AXIS 3: Full candidate ---
+    "Full_VFA_Candidate": [
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "multi_horizon_starvation_risk",
+        "time_of_day_fraction",
+        "delivery_potential",
         "pickup_potential",
         "starvation_gravity",
-        "congestion_gravity"
+        "congestion_gravity",
+        "imbalance_weighted_distance",
     ],
-    
-    # Test 5: Can it manage the trade-off between rebalancing and degradation?
-    #"5_Full_System_Maintenance": [
-        #"squared_starvation_penalty",
-        ##"squared_congestion_penalty",
-        ##"anticipated_demand_shortfall",
-        ##"delivery_potential",  
-        #"pickup_potential",
-        #"starvation_gravity",
-        #"congestion_gravity",
-        # --- Maintenance Features ---
-        #"trailer_cannibalization",
-       # "global_onsite_backlog",
-        #"demand_weighted_depot_backlog",
-        #"depot_pull"
-    #]
 }
 
 def run_all_experiments(seeds: list[int], episodes: int = 200):
