@@ -106,6 +106,7 @@ def extract(
     dist_to_depot: float,
     lambda_max_system: float,
     max_gravity: float,
+    fleet_size: float, 
     maintenance_enabled: bool = True,
     shift_timing_enabled: bool = False,
     time_remaining: float = None,
@@ -120,9 +121,9 @@ def extract(
     max_gravity_safe = max(max_gravity, 1.0)
     K = max(vehicle_capacity, 1)
     N = len(func) # stations)
-    F = np.sum(func) + np.sum(onsite) + np.sum(depot) + func_cargo_veh + depot_cargo_veh # total fleet (functional + onsite + depot) - used for normalization in some features
-    print(f"func sum: {np.sum(func)}, onsite sum: {np.sum(onsite)}, depot sum: {np.sum(depot)}, func_cargo_veh: {func_cargo_veh}, depot_cargo_veh: {depot_cargo_veh}")
-    print(f"[DEBUG] Safe Denominators - Vehicle Cap: {vehicle_capacity_safe}, Lambda Max: {lambda_max_safe}, Max Gravity: {max_gravity_safe}, Number of Stations: {N}, Total Fleet: {F}")
+    F = max(fleet_size, 1.0)
+    #print(f"func sum: {np.sum(func)}, onsite sum: {np.sum(onsite)}, depot sum: {np.sum(depot)}, func_cargo_veh: {func_cargo_veh}, depot_cargo_veh: {depot_cargo_veh}")
+    #print(f"[DEBUG] Safe Denominators - Vehicle Cap: {vehicle_capacity_safe}, Lambda Max: {lambda_max_safe}, Max Gravity: {max_gravity_safe}, Number of Stations: {N}, Total Fleet: {F}")
 
     
    # =========================================================================
@@ -148,12 +149,12 @@ def extract(
     # φ_4: Squared Starvation Penalty
     target_safe = np.maximum(1.0, target)
     starv_ratio = np.maximum(0, target - func) / target_safe
-    phi_4 = np.sum(starv_ratio**2) / F
+    phi_4 = np.sum(starv_ratio**2) / N
 
     # φ_5: Squared Congestion Penalty
     cap_rem = np.maximum(1.0, capacities - target)
     cong_ratio = np.maximum(0, func - target) / cap_rem
-    phi_5 = np.sum(cong_ratio**2) / F
+    phi_5 = np.sum(cong_ratio**2) / N
 
     # φ_6: LACK OF Proximity to Demand Gravity (General Bonus -> Inverted to Penalty)
     raw_phi_6 = np.sum(np.abs(activity) / (dist_to_stations + 1.0)) / max_gravity_safe

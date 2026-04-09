@@ -166,6 +166,9 @@ class LinearVFAPolicy(Policy):
         # logging for RL decisions (e.g., depot visits)
         self.log_rl_decisions = True  
         self.rl_logs = []
+        
+        # Cache for static fleet size to optimize VFA speed
+        self.cached_fleet_size = None
 
     # ─────────────────────────────────────────────────────────────────────────
     # Lazy initialisation  (uses sim.State, not the full simulator)
@@ -244,6 +247,8 @@ class LinearVFAPolicy(Policy):
         # Closest-depot ID
         vehicles = state.get_vehicles()
         self._depot_id = state.get_closest_depot(vehicles[0]) if vehicles else None
+        
+        self.cached_fleet_size = float(len(state.get_all_bikes()))
 
         self._initialized = True
 
@@ -411,6 +416,7 @@ class LinearVFAPolicy(Policy):
             dist_to_depot=dist_to_depot,
             lambda_max_system=self._lambda_max_system, # New Lambda_max scaler
             max_gravity=self._max_gravity,                 # New G_max scaler
+            fleet_size=self.cached_fleet_size,
             #maintenance_enabled=self.maintenance_enabled, # This should not be true un we are doing ablation study
             maintenance_enabled=True,
             #shift_timing_enabled=self.shift_timing_enabled, # This should not be true unless we are doing ablation study
