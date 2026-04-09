@@ -146,10 +146,44 @@ def extract(
     # φ_3: Vehicle Functional Load (Baseline)
     phi_3 = func_cargo_veh / vehicle_capacity_safe
 
+
+    # --- INJECT DEBUG BLOCK 2: TARGET STATE AUDIT ---
+    # Runs ~1% of the time to prevent terminal flood
+    if np.random.rand() < 0.7: 
+        network_starv_actual = np.sum(np.maximum(0, target - func))
+        zero_targets = np.sum(target <= 0.0)
+        
+        if network_starv_actual == 0.0 and np.sum(func) < 100:
+            print(f"\n[DEBUG 2 - TARGETS] City is empty (func={np.sum(func)}), but VFA sees 0 starvation.")
+            print(f"  -> Why? Because target sum is: {np.sum(target):.1f}")
+            print(f"  -> Number of stations with Target = 0: {zero_targets} out of {N}")
+            if zero_targets > (N * 0.8):
+                print(f"  -> ALARM: 80%+ of your network has a target of 0. Starvation penalty is mathematically impossible.")
+    # ------------------------------------------------
+
     # φ_4: Squared Starvation Penalty
     target_safe = np.maximum(1.0, target)
     starv_ratio = np.maximum(0, target - func) / target_safe
     phi_4 = np.sum(starv_ratio**2) / N
+
+    # --- INJECT GUARANTEED PHI_4 DIAGNOSTIC ---
+    if phi_4 == 0.0 and not getattr(extract, "_has_printed_phi4", False):
+        print(f"\n[DIAGNOSTIC] phi_4 evaluated to exactly 0.0!")
+        print(f"  -> Max target in the city:   {np.max(target)}")
+        print(f"  -> Total func in the city:   {np.sum(func)}")
+        
+        # Are the targets just zeroes?
+        zero_targets = np.sum(target <= 0.0)
+        print(f"  -> Stations with Target = 0: {zero_targets} out of {N}")
+        
+        if zero_targets > (N * 0.8):
+            print(f"  -> CONCLUSION: Culprit 1. Your historical target algorithm is outputting 0 for almost everything.")
+        else:
+            print(f"  -> CONCLUSION: Culprit 2 or 3. The targets are healthy, meaning the van's post-decision state perfectly solved the starvation, or the city is over-saturated with bikes.")
+        
+        # Stop printing after the first catch
+        extract._has_printed_phi4 = True
+    # ------------------------------------------
 
     # φ_5: Squared Congestion Penalty
     cap_rem = np.maximum(1.0, capacities - target)
@@ -209,6 +243,15 @@ def extract(
     congestion_grav_sum = np.sum((inflow * congested_mask) / (dist_to_stations + 1.0))
     raw_phi_6b = phi_3b_base * (congestion_grav_sum / max_gravity_safe)
     phi_6b = np.clip(raw_phi_6b, 0.0, 1.0)
+
+    # --- INJECT DEBUG BLOCK 3: GRAVITY MASKING ---
+    if np.random.rand() < 0.01:
+        if starvation_grav_sum > 0.5 and phi_6a == 0.0:
+            print(f"\n[DEBUG 3 - GRAVITY MASKING] Massive starvation gravity exists ({starvation_grav_sum:.2f}), but phi_6a evaluated to 0.0!")
+            print(f"  -> Was the van empty? phi_3 = {phi_3:.2f} (Func Cargo: {func_cargo_veh})")
+            if phi_3 == 0.0:
+                print(f"  -> CONFIRMED: Actionable Gravity feature is hiding the network starvation because the van is empty.")
+    # ---------------------------------------------
     
     ######################DEBUG: Print raw feature values before clipping (occasionally)######################
     # 1. Store the raw values before they get squashed
