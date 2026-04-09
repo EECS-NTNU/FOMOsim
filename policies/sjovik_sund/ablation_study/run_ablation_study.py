@@ -61,11 +61,18 @@ EXPERIMENTS = {
     ],
 }
 
-def run_all_experiments(seeds: list[int], episodes: int = 200):
+def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None):
     base_dir = Path("models/ablation_study")
     base_dir.mkdir(parents=True, exist_ok=True)
-    
-    for exp_name, features in EXPERIMENTS.items():
+
+    experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
+
+    if run_only:
+        unknown = set(run_only) - set(EXPERIMENTS)
+        if unknown:
+            raise ValueError(f"Unknown experiment(s): {unknown}. Valid: {list(EXPERIMENTS)}")
+
+    for exp_name, features in experiments.items():
         print(f"\n{'='*60}")
         print(f"STARTING EXPERIMENT: {exp_name}")
         print(f"Features: {features}")
@@ -106,8 +113,16 @@ if __name__ == "__main__":
         default=200,
         help="Number of training episodes per run"
     )
-    
+
+    parser.add_argument(
+        "--experiments",
+        nargs="+",
+        type=str,
+        default=None,
+        metavar="NAME",
+        help=f"Which experiments to run (default: all). Choices: {list(EXPERIMENTS)}"
+    )
+
     args = parser.parse_args()
 
-    # Pass the parsed arguments into the runner
-    run_all_experiments(seeds=args.seeds, episodes=args.episodes)
+    run_all_experiments(seeds=args.seeds, episodes=args.episodes, run_only=args.experiments)
