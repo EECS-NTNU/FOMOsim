@@ -59,6 +59,42 @@ EXPERIMENTS = {
         "congestion_gravity",
         "imbalance_weighted_distance",
     ],
+
+    # --- AXIS 4: V2 Refined Core ---
+    # Drops vehicle_functional_load, rebalancing_imbalance, hours_until_peak_fraction.
+    # Adds starvation_severity_max (proven strong in Spatial_Recoverability but absent from Full).
+    # Hypothesis: fewer competing gradients → faster, more stable convergence.
+    "V2_Refined_Core": [
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "multi_horizon_starvation_risk",
+        "time_of_day_fraction",
+        "starvation_severity_max",
+        "starvation_gravity",
+        "congestion_gravity",
+        "delivery_potential",
+        "pickup_potential",
+    ],
+
+    # --- AXIS 5: V2 Extended ---
+    # V2_Refined_Core + three new features testing orthogonal information:
+    #   congestion_severity_max  : worst-case congestion (symmetric to starvation_severity_max)
+    #   station_starvation_count : breadth of starvation (how many stations, not just how much)
+    #   temporal_demand_gradient : directional demand signal (rising vs. falling next hour)
+    "V2_Extended": [
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "multi_horizon_starvation_risk",
+        "time_of_day_fraction",
+        "starvation_severity_max",
+        "starvation_gravity",
+        "congestion_gravity",
+        "delivery_potential",
+        "pickup_potential",
+        "congestion_severity_max",
+        "station_starvation_count",
+        "temporal_demand_gradient",
+    ],
 }
 
 def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None):

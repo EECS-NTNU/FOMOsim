@@ -67,7 +67,7 @@ def get_feature_names(
     names = [
         "rebalancing_imbalance",
         "anticipated_demand_shortfall",
-        "vehicle_functional_load",       # (Old phi_3 - kept for baseline ablation tests)
+        #"vehicle_functional_load",       # (Old phi_3 - kept for baseline ablation tests)
         "squared_starvation_penalty",
         "squared_congestion_penalty",
         "proximity_to_demand_gravity",   # (Old phi_6 - kept for baseline ablation tests)
@@ -77,6 +77,8 @@ def get_feature_names(
         "congestion_gravity",            # NEW: Actionable Gravity (Requires empty van)
         "imbalance_weighted_distance",   # NEW: Recoverability — how far away is the imbalance?
         "starvation_severity_max",       # NEW: Worst-case station starvation ratio
+        "congestion_severity_max",       # NEW: Worst-case station congestion ratio (symmetric)
+        "station_starvation_count",      # NEW: Fraction of stations currently below target
     ]
 
     # Category B: Maintenance Features
@@ -102,6 +104,7 @@ def get_feature_names(
             "day_of_week_fraction",          # Where in the weekly cycle are we?
             "hours_until_peak_fraction",     # How far until next morning rush?
             "multi_horizon_starvation_risk", # Integrated starvation over next H hours
+            "temporal_demand_gradient",      # Is demand rising or falling next hour?
         ])
 
     return names
@@ -164,7 +167,14 @@ def extract(
     congestion_risk = np.maximum(0, func + expected_inflow - capacities)
 
     # φ_2: Anticipated Demand Shortfall
-    phi_2 = np.sum(starvation_risk + congestion_risk) / lambda_max_safe
+    # Normalized by lambda_max / sqrt(N) rather than the full system total.
+    # sqrt(N) accounts for aggregation over N stations: a network-level shortfall grows
+    # with sqrt(N) independent station contributions, not N.
+    # phi_2 ∈ [0, 1]: 0 = no demand at risk, 1 = system-wide crisis (shortfall ≈ lambda_max/sqrt(N)).
+    phi_2 = np.clip(
+        np.sum(starvation_risk + congestion_risk) / (lambda_max_safe / np.sqrt(N)),
+        0.0, 1.0,
+    )
 
     # φ_3: Vehicle Functional Load (Baseline)
     phi_3 = func_cargo_veh / vehicle_capacity_safe
@@ -311,8 +321,18 @@ def extract(
     # 1.0 means at least one station has zero bikes against a non-zero target.
     phi_r2 = float(np.max(starv_ratio))
 
+    # φ_R3: Worst-case Station Congestion Ratio (symmetric to φ_R2)
+    # max_i (max(0, func_i - target_i) / (C_i - target_i))
+    # 1.0 means at least one station is full against a non-full target.
+    cong_ratio_per_station = np.maximum(0, func - target) / np.maximum(1.0, capacities - target)
+    phi_r3 = float(np.max(cong_ratio_per_station))
+
+    # φ_R4: Fraction of Stations Currently Below Target
+    # Captures breadth of starvation (how many stations) vs. φ_4 which captures depth (how much).
+    phi_r4 = float(np.sum(func < target)) / N
+
     # Append Category A (Clipped to ensure numeric stability for VFA)
-    cat_a = np.clip([phi_1, phi_2, phi_3, phi_4, phi_5, phi_6, phi_3a, phi_3b, phi_6a, phi_6b, phi_r1, phi_r2], 0.0, 1.0).tolist()
+    cat_a = np.clip([phi_1, phi_2, phi_4, phi_5, phi_6, phi_3a, phi_3b, phi_6a, phi_6b, phi_r1, phi_r2, phi_r3, phi_r4], 0.0, 1.0).tolist()
     features.extend(cat_a)
 
     # =========================================================================
@@ -395,7 +415,24 @@ def extract(
         else:
             phi_d1 = 0.0
 
-        cat_d = [phi_t1, phi_t2, phi_t3, phi_d1]
+        # φ_D2: Temporal Demand Gradient
+        # Is the total network target rising or falling in the next hour?
+        # Positive = more bikes will be needed soon (rising demand pressure).
+        # Negative = demand pressure is easing next hour.
+        # Range: [-1, 1]. Complements φ_D1 (cumulative risk) with a directional signal.
+        if target_matrix is not None:
+            abs_hour_next = int(current_time_minutes // 60) + 1
+            next_hour = abs_hour_next % 24
+            next_day = (current_day_of_week + abs_hour_next // 24) % 7
+            next_target_sum = float(np.sum(target_matrix[next_day, next_hour]))
+            phi_d2 = np.clip(
+                (next_target_sum - float(np.sum(target))) / max(total_cap_half, 1.0),
+                -1.0, 1.0,
+            )
+        else:
+            phi_d2 = 0.0
+
+        cat_d = [phi_t1, phi_t2, phi_t3, phi_d1, phi_d2]
         features.extend(cat_d)
 
     return np.array(features, dtype=np.float64)
