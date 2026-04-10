@@ -16,7 +16,6 @@ EXPERIMENTS = {
     # Horizon-0: Pure reactive snapshot (no temporal info at all)
     "H0_Reactive_Snapshot": [
         "rebalancing_imbalance",
-        "vehicle_functional_load",
     ],
     
     # Horizon-1: One-step demand anticipation
@@ -24,7 +23,6 @@ EXPERIMENTS = {
         "squared_starvation_penalty",   # uses time-indexed target
         "squared_congestion_penalty",
         "anticipated_demand_shortfall", # one-step activity
-        "vehicle_functional_load",
     ],
     
     # Horizon-N: Multi-step demand integration
@@ -34,7 +32,6 @@ EXPERIMENTS = {
         "multi_horizon_starvation_risk",  # NEW: integrate over H hours
         "time_of_day_fraction",           # NEW: φ_T1
         "hours_until_peak_fraction",      # NEW: φ_T3
-        "vehicle_functional_load",
     ],
     
     # --- AXIS 2: Spatial recoverability ---
