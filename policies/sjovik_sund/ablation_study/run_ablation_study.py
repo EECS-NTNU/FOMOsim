@@ -14,28 +14,28 @@ EXPERIMENTS = {
     # --- AXIS 1: Temporal Horizon Depth (controls how far ahead the VFA "sees") ---
     
     # Horizon-0: Pure reactive snapshot (no temporal info at all)
-    "H0_Reactive_Snapshot": [
+    "H0": [
         "rebalancing_imbalance",
     ],
     
     # Horizon-1: One-step demand anticipation
-    "H1_One_Step_Demand": [
+    "H1": [
         "squared_starvation_penalty",   # uses time-indexed target
         "squared_congestion_penalty",
         "anticipated_demand_shortfall", # one-step activity
     ],
     
     # Horizon-N: Multi-step demand integration
-    "HN_Multi_Horizon": [
+    "HN": [
         "squared_starvation_penalty",
         "squared_congestion_penalty",
         "multi_horizon_starvation_risk",  # NEW: integrate over H hours
         "time_of_day_fraction",           # NEW: φ_T1
-        "hours_until_peak_fraction",      # NEW: φ_T3
+       #"hours_until_peak_fraction",      # NEW: φ_T3
     ],
     
     # --- AXIS 2: Spatial recoverability ---
-    "Spatial_Recoverability": [
+    "SR": [
         "squared_starvation_penalty",
         "squared_congestion_penalty",
         "imbalance_weighted_distance",    # NEW: φ_R1
@@ -45,7 +45,7 @@ EXPERIMENTS = {
     ],
     
     # --- AXIS 3: Full candidate ---
-    "Full_VFA_Candidate": [
+    "FullVFA": [
         "squared_starvation_penalty",
         "squared_congestion_penalty",
         "multi_horizon_starvation_risk",
@@ -61,7 +61,7 @@ EXPERIMENTS = {
     # Drops vehicle_functional_load, rebalancing_imbalance, hours_until_peak_fraction.
     # Adds starvation_severity_max (proven strong in Spatial_Recoverability but absent from Full).
     # Hypothesis: fewer competing gradients → faster, more stable convergence.
-    "V2_Refined_Core": [
+    "V2_RC": [
         "squared_starvation_penalty",
         "squared_congestion_penalty",
         "multi_horizon_starvation_risk",
