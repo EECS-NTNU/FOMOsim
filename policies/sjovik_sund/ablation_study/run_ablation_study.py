@@ -1,3 +1,44 @@
+"""
+run_ablation_study.py  —  VFA Feature Ablation Study
+
+Usage
+─────
+    # Run all experiments, 3 seeds, 200 episodes each:
+    python run_ablation_study.py
+
+    # Run specific experiments only:
+    python run_ablation_study.py --experiments V3_Rollout LongTerm_Only
+
+    # Custom seeds and episode count:
+    python run_ablation_study.py --seeds 1000 2000 3000 --episodes 300
+
+Results are saved under:
+    models/ablation_study/<experiment_name>/vfa_<name>_seed<N>.pkl
+    models/ablation_study/<experiment_name>/vfa_<name>_seed<N>_weights_evolution.csv
+    models/ablation_study/<experiment_name>/vfa_<name>_seed<N>_learning_curve.npy
+
+Feature reference  (see vfa_features.py for full definitions)
+──────────────────────────────────────────────────────────────
+  Category A — Base Rebalancing (always available)
+    A1  rebalancing_imbalance          total L1 deviation from target
+    A2  anticipated_demand_shortfall   one-step starvation + congestion risk
+    A3  squared_starvation_penalty     mean squared starvation depth
+    A4  squared_congestion_penalty     mean squared congestion depth
+    A5  proximity_to_demand_gravity    penalty for being far from demand
+    A6  starvation_gravity             van load × proximity to starving stations
+    A7  congestion_gravity             van free space × proximity to congested stations
+    A8  imbalance_weighted_distance    distant imbalance = deferred cost
+    A9  starvation_severity_max        worst single-station starvation ratio
+    A10 congestion_severity_max        worst single-station congestion ratio
+    A11 station_starvation_count       fraction of stations below target
+    A12 work_ratio                     van trips needed to fix all imbalance
+    A13 imbalance_concentration        tractability — is imbalance in one spot or everywhere?
+
+  Category D — Temporal Demand (requires temporal_enabled=True in train_vfa.py)
+    D1  time_of_day_fraction           where in the 24h cycle
+    D4  multi_horizon_starvation_risk  integrated starvation over next H hours
+"""
+
 import os
 import sys
 import argparse
@@ -9,192 +50,189 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 
 from policies.sjovik_sund.vfa.train_vfa import train
 
-# Define your experimental subsets here!
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Experiment definitions
+#
+# Each entry is a named subset of features to train the VFA with.
+# Features must be valid names from vfa_features.get_feature_names().
+# The training loop in LinearVFAPolicy enforces canonical ordering automatically,
+# so the order listed here does not matter.
+# ─────────────────────────────────────────────────────────────────────────────
+
 EXPERIMENTS = {
-    # ── AXIS 1: Temporal Horizon Depth ────────────────────────────────────────
-    # Controls how far ahead the VFA "sees". Baselines for comparison.
 
-    # Horizon-0: Pure reactive snapshot (no temporal info)
-    "H0": [
-        "rebalancing_imbalance",
+    # ── Axis 1: Temporal Horizon Depth ───────────────────────────────────────
+    # How far ahead does the VFA need to see to make good decisions?
+    # These experiments isolate the temporal dimension from spatial features.
+
+    # One-step demand anticipation only (no multi-hour look-ahead)
+    "H1_OneStep": [
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
+        "anticipated_demand_shortfall",   # A2: one-step activity
     ],
 
-    # Horizon-1: One-step demand anticipation
-    "H1": [
-        "squared_starvation_penalty",    # uses time-indexed target
-        "squared_congestion_penalty",
-        "anticipated_demand_shortfall",  # one-step activity
+    # Multi-step demand integration using the target matrix
+    "HN_MultiStep": [
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
+        "multi_horizon_starvation_risk",  # D4: integrated over H hours
+        "time_of_day_fraction",           # D1: anchors D4 in the daily cycle
     ],
 
-    # Horizon-N: Multi-step demand integration
-    "HN": [
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "multi_horizon_starvation_risk", # integrate over H hours
-        "time_of_day_fraction",
+    # ── Axis 2: Spatial Recoverability ───────────────────────────────────────
+    # Does spatial structure (distance-weighted features, gravity) help
+    # beyond pure magnitude features?
+
+    "Spatial": [
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
+        "imbalance_weighted_distance",    # A8: distant imbalance = deferred cost
+        "starvation_severity_max",        # A9: worst-case bottleneck
+        "starvation_gravity",             # A6: van load × proximity to starving stations
+        "congestion_gravity",             # A7: van free space × proximity to congested stations
     ],
 
-    # ── AXIS 2: Spatial Recoverability ────────────────────────────────────────
-    # Tests whether spatial structure (distance-weighted imbalance, gravity)
-    # adds over pure magnitude features.
-    "SR": [
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "imbalance_weighted_distance",   # φ_r1: distant imbalance = deferred cost
-        "starvation_severity_max",       # φ_r2: worst-case bottleneck
-        "starvation_gravity",            # φ_6a: van load × proximity to starving stations
-        "congestion_gravity",            # φ_6b: van free space × proximity to congested stations
+    # ── Axis 3: Long-Term Recoverability ─────────────────────────────────────
+    # Do features that encode how recoverable the state is (rather than just
+    # how bad it is) improve tail value estimation?
+
+    "LongTerm": [
+        "squared_starvation_penalty",     # A3: baseline — how bad is the state?
+        "squared_congestion_penalty",     # A4
+        "work_ratio",                     # A12: how many van trips to fix everything?
+        "imbalance_concentration",        # A13: is the work concentrated or spread out?
     ],
 
-    # ── AXIS 3: Full Candidate ─────────────────────────────────────────────────
-    # Kitchen-sink test of all non-temporal features.
-    "FullVFA": [
-        "rebalancing_imbalance",
-        "anticipated_demand_shortfall",
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "proximity_to_demand_gravity",
-        "starvation_gravity",
-        "congestion_gravity",
-        "imbalance_weighted_distance",
-        "starvation_severity_max",
-        "congestion_severity_max",
-        "station_starvation_count",
-        "work_ratio",
-        "imbalance_concentration",
-        "multi_horizon_starvation_risk",
-        "time_of_day_fraction",
-    ],
+    # ── Axis 4: Iterative Refinement ─────────────────────────────────────────
+    # Progressive builds toward the best hypothesis, so results can be compared
+    # incrementally rather than in a single jump.
 
-    # ── AXIS 4: V2 Refined Core ────────────────────────────────────────────────
-    # Drops vehicle_functional_load and rebalancing_imbalance.
-    # Gravity features replace the simpler delivery/pickup potentials.
+    # V2 Refined Core: gravity replaces simple potentials; adds temporal features.
     # Hypothesis: fewer competing gradients → faster, more stable convergence.
-    "V2_RC": [
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "multi_horizon_starvation_risk",
-        "time_of_day_fraction",
-        "starvation_severity_max",
-        "starvation_gravity",
-        "congestion_gravity",
-        "imbalance_weighted_distance",
+    "V2_Core": [
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
+        "starvation_severity_max",        # A9
+        "starvation_gravity",             # A6
+        "congestion_gravity",             # A7
+        "imbalance_weighted_distance",    # A8
+        "multi_horizon_starvation_risk",  # D4
+        "time_of_day_fraction",           # D1
     ],
 
-    # ── AXIS 5: V2 Extended ────────────────────────────────────────────────────
-    # V2_RC + symmetric congestion severity + starvation breadth.
+    # V2 Extended: V2_Core + symmetric congestion severity + starvation breadth.
     "V2_Extended": [
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "multi_horizon_starvation_risk",
-        "time_of_day_fraction",
-        "starvation_severity_max",
-        "starvation_gravity",
-        "congestion_gravity",
-        "imbalance_weighted_distance",
-        "congestion_severity_max",
-        "station_starvation_count",
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
+        "starvation_severity_max",        # A9
+        "congestion_severity_max",        # A10
+        "starvation_gravity",             # A6
+        "congestion_gravity",             # A7
+        "imbalance_weighted_distance",    # A8
+        "station_starvation_count",       # A11
+        "multi_horizon_starvation_risk",  # D4
+        "time_of_day_fraction",           # D1
     ],
 
-    # ── AXIS 6: Long-Term Features ─────────────────────────────────────────────
-    # Tests the two new long-term features in isolation.
-    # Hypothesis: work_ratio and imbalance_concentration improve tail value
-    # by encoding recoverability rather than just the size of the problem.
-    "LongTerm_Only": [
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "work_ratio",                    # trips needed to fix all imbalance
-        "imbalance_concentration",       # fraction held by worst station (tractability)
-    ],
-
-    # ── AXIS 7: V3 Rollout Core ────────────────────────────────────────────────
-    # Best-hypothesis set for rollout tail value.
-    # Combines the proven V2 core with the new long-term features.
+    # V3 Rollout: best-hypothesis set for rollout tail value.
+    # V2_Core + long-term recoverability features (A12, A13) + global imbalance (A1).
     "V3_Rollout": [
-        "rebalancing_imbalance",
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "starvation_severity_max",
-        "congestion_severity_max",
-        "starvation_gravity",
-        "congestion_gravity",
-        "imbalance_weighted_distance",
-        "work_ratio",
-        "imbalance_concentration",
-        "multi_horizon_starvation_risk",
-        "time_of_day_fraction",
+        "rebalancing_imbalance",          # A1: total work remaining
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
+        "starvation_severity_max",        # A9
+        "congestion_severity_max",        # A10
+        "starvation_gravity",             # A6
+        "congestion_gravity",             # A7
+        "imbalance_weighted_distance",    # A8
+        "work_ratio",                     # A12: can the network be recovered?
+        "imbalance_concentration",        # A13: tractability
+        "multi_horizon_starvation_risk",  # D4
+        "time_of_day_fraction",           # D1
+    ],
+
+    # ── Kitchen Sink ─────────────────────────────────────────────────────────
+    # All non-maintenance features. Useful as an upper bound and to check for
+    # harmful redundancy (if FullVFA is worse than V3_Rollout, some features hurt).
+    "FullVFA": [
+        "rebalancing_imbalance",          # A1
+        "anticipated_demand_shortfall",   # A2
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
+        "proximity_to_demand_gravity",    # A5
+        "starvation_gravity",             # A6
+        "congestion_gravity",             # A7
+        "imbalance_weighted_distance",    # A8
+        "starvation_severity_max",        # A9
+        "congestion_severity_max",        # A10
+        "station_starvation_count",       # A11
+        "work_ratio",                     # A12
+        "imbalance_concentration",        # A13
+        "multi_horizon_starvation_risk",  # D4
+        "time_of_day_fraction",           # D1
     ],
 }
 
-def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None, alpha_start: float = 0.5):
-    base_dir = Path("models/ablation_study")
-    base_dir.mkdir(parents=True, exist_ok=True)
 
-    experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
+# ─────────────────────────────────────────────────────────────────────────────
+# Runner
+# ─────────────────────────────────────────────────────────────────────────────
 
+def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
             raise ValueError(f"Unknown experiment(s): {unknown}. Valid: {list(EXPERIMENTS)}")
 
+    experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
+
+    base_dir = Path("models/ablation_study")
+    base_dir.mkdir(parents=True, exist_ok=True)
+
     for exp_name, features in experiments.items():
         print(f"\n{'='*60}")
-        print(f"STARTING EXPERIMENT: {exp_name}")
-        print(f"Features: {features}")
-        print(f"Alpha: {alpha_start}")
+        print(f"EXPERIMENT: {exp_name}  ({len(features)} features)")
+        for f in features:
+            print(f"  - {f}")
         print(f"{'='*60}")
 
         exp_dir = base_dir / f"{exp_name}_alpha_{alpha_start}"
         exp_dir.mkdir(exist_ok=True)
 
         for run_id, seed_offset in enumerate(seeds):
-            print(f"  --> Run {run_id + 1}/{len(seeds)} (Seed Offset: {seed_offset})")
-
-            save_path = exp_dir / f"vfa_{exp_name}_seed{seed_offset}.pkl"
-
+            print(f"\n  Run {run_id + 1}/{len(seeds)}  (seed={seed_offset})")
             train(
                 num_episodes=episodes,
-                save_path=save_path,
+                save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}.pkl",
                 seed_offset=seed_offset,
                 active_features=features,
-                alpha_start=alpha_start,
             )
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLI
+# ─────────────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run VFA Feature Ablation Study")
-
-    parser.add_argument(
-        "--seeds",
-        nargs="+",
-        type=int,
-        default=[1000, 2000, 3000],
-        help="List of seed offsets to run for robust averaging (e.g., --seeds 1000 2000 3000)"
+    parser = argparse.ArgumentParser(
+        description="Run VFA feature ablation study",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=f"Available experiments: {', '.join(EXPERIMENTS)}",
     )
-
     parser.add_argument(
-        "--episodes",
-        type=int,
-        default=200,
-        help="Number of training episodes per run"
+        "--seeds", nargs="+", type=int, default=[1000, 2000, 3000],
+        help="Seed offsets to run (one independent training run per seed)",
     )
-
     parser.add_argument(
-        "--experiments",
-        nargs="+",
-        type=str,
-        default=None,
-        metavar="NAME",
-        help=f"Which experiments to run. Use 'all' or omit to run all. Choices: {list(EXPERIMENTS)}"
+        "--episodes", type=int, default=200,
+        help="Training episodes per run",
     )
-
     parser.add_argument(
-        "--alpha",
-        type=float,
-        default=0.5,
-        help="Initial learning rate (alpha) for TD updates (default: 0.5)"
+        "--experiments", nargs="+", type=str, default=None, metavar="NAME",
+        help="Subset of experiments to run (default: all)",
     )
 
     args = parser.parse_args()
-
-    run_only = None if (args.experiments is None or args.experiments == ["all"]) else args.experiments
-    run_all_experiments(seeds=args.seeds, episodes=args.episodes, run_only=run_only, alpha_start=args.alpha)
+    run_all_experiments(seeds=args.seeds, episodes=args.episodes, run_only=args.experiments)
