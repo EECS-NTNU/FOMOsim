@@ -428,11 +428,11 @@ class PostDecisionState:
         )
 
         # ── compute action duration ────────────────────────────────────────
-        # Time = unload depot bikes + load functional bikes + on-site repairs
+        # Time = unload depot bikes + move functional bikes (either direction) + on-site repairs
         time_unload_depot = depot_rem * PostDecisionState.MINUTES_PER_ACTION
-        time_load_functional = max(0, -action.rebalancing) * PostDecisionState.MINUTES_PER_ACTION
+        time_rebalancing = abs(action.rebalancing) * PostDecisionState.MINUTES_PER_ACTION
         time_onsite_repairs = onsite_rep * PostDecisionState.MAINTENANCE_FULL_FIX
-        action_duration = time_unload_depot + time_load_functional + time_onsite_repairs
+        action_duration = time_unload_depot + time_rebalancing + time_onsite_repairs
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
             bikes_repaired_onsite=onsite_rep,

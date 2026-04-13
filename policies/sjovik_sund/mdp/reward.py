@@ -4,7 +4,7 @@ from dataclasses import dataclass
 class RewardConfig:
     # --- Operational Components ---
     weight_starvation: float = -1.0
-    weight_congestion: float = -1.0
+    weight_congestion: float = -0.7
     weight_maintenance_violation: float = 0.0  # Set to >0 to penalize broken bikes left alone
     
     # --- End-of-Day Components (from your existing code) ---

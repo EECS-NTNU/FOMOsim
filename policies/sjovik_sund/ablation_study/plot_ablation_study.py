@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -25,7 +26,7 @@ def plot_ablation_comparison():
         if not exp_dir.is_dir(): 
             continue
         
-        # Load ALL runs for this specific experiment
+        # Load ALL runs (seeds) for this specific experiment
         csv_files = list(exp_dir.glob("*_weights_evolution.csv"))
         if not csv_files:
             continue
@@ -33,41 +34,59 @@ def plot_ablation_comparison():
         try:
             all_sls = []
             all_weights = []
+            found_seeds = []
+            min_length = float('inf')
             
+            # First pass: load everything and find the shortest run (in case a seed crashed early)
+            loaded_data = []
             for csv_file in csv_files:
+                # Try to extract the seed number from the filename for logging
+                seed_match = re.search(r"seed(\d+)", csv_file.name)
+                seed_num = seed_match.group(1) if seed_match else "Unknown"
+                found_seeds.append(seed_num)
+
                 df = pd.read_csv(csv_file)
                 episodes = df["episode"].values
                 service_levels = df["service_level"].values
                 
-                # Smooth the service level for THIS specific run
-                window_size = min(10, len(episodes))
+                # Smooth the service level for THIS specific seed
+                window_size = min(20, len(episodes)) # Using 20 for smoother 200-episode runs
                 sl_smoothed = pd.Series(service_levels).rolling(window=window_size, min_periods=1).mean().values
-                all_sls.append(sl_smoothed)
                 
                 # Extract weights
                 w_df = df.drop(columns=["episode", "service_level"])
-                all_weights.append(w_df.values)
+                
+                loaded_data.append((sl_smoothed, w_df.values, episodes))
+                if len(episodes) < min_length:
+                    min_length = len(episodes)
             
-            # Convert to numpy arrays for easy math 
-            # Shape will be: [number_of_runs, number_of_episodes]
+            # Second pass: Truncate to min_length so NumPy doesn't crash, then stack
+            final_episodes = None
+            for sl_smoothed, w_vals, ep_vals in loaded_data:
+                all_sls.append(sl_smoothed[:min_length])
+                all_weights.append(w_vals[:min_length, :])
+                final_episodes = ep_vals[:min_length] # Grab the x-axis from the truncated length
+            
+            # Convert to numpy arrays: Shape -> [number_of_seeds, num_episodes]
             all_sls = np.array(all_sls)
+            all_weights = np.array(all_weights)
             
             # --- 1. ADD TO MASTER SERVICE LEVEL PLOT ---
-            # Calculate the Mean and Standard Deviation across all runs
+            # Calculate the Mean and Standard Deviation across all SEEDS
             sl_mean = all_sls.mean(axis=0)
             sl_std = all_sls.std(axis=0)
             
             # Plot the solid mean line
             line = ax_sl.plot(
-                episodes, sl_mean, 
+                final_episodes, sl_mean, 
                 linewidth=2.5, 
                 label=f"{exp_dir.name} (Max Mean SL: {sl_mean.max():.3f})"
             )
             color = line[0].get_color() # Grab the color so the shading matches
             
-            # Add the shaded confidence interval!
+            # Add the shaded confidence interval (Standard Deviation across the seeds!)
             ax_sl.fill_between(
-                episodes, 
+                final_episodes, 
                 sl_mean - sl_std, 
                 sl_mean + sl_std, 
                 color=color, 
@@ -75,9 +94,7 @@ def plot_ablation_comparison():
             )
             plotted_anything = True
             
-            # --- 2. GENERATE INDIVIDUAL WEIGHT EVOLUTION PLOT (Averaged) ---
-            # Average the weights across all runs so the graph isn't too messy
-            all_weights = np.array(all_weights)
+            # --- 2. GENERATE INDIVIDUAL WEIGHT EVOLUTION PLOT (Averaged across seeds) ---
             weights_mean = all_weights.mean(axis=0)
             feature_names = df.columns.drop(["episode", "service_level"])
             
@@ -85,29 +102,26 @@ def plot_ablation_comparison():
             
             for i, feature in enumerate(feature_names):
                 ax_w.plot(
-                    episodes, 
+                    final_episodes, 
                     weights_mean[:, i], 
                     linewidth=2, 
                     alpha=0.8,
                     label=f"{feature} ({weights_mean[-1, i]:+.2f})"
                 )
                 
-            ax_w.set_title(f"Mean Weight Evolution: {exp_dir.name} (Averaged over {len(csv_files)} runs)", fontsize=14, fontweight="bold")
+            ax_w.set_title(f"Mean Weight Evolution: {exp_dir.name}\n(Averaged over {len(csv_files)} runs - Seeds: {', '.join(found_seeds)})", fontsize=14, fontweight="bold")
             ax_w.set_xlabel("Training Episode", fontsize=12)
-            ax_w.set_ylabel("Mean Weight Value (θ)", fontsize=12)
+            ax_w.set_ylabel("Mean Weight Value (\u03B8)", fontsize=12)
             ax_w.grid(True, alpha=0.3)
             
-            # Move legend outside
             ax_w.legend(loc="center left", bbox_to_anchor=(1, 0.5), fontsize=10)
-            
             plt.tight_layout()
             
-            # Save it
             weight_plot_path = exp_dir / f"{exp_dir.name}_mean_weights.png"
             fig_w.savefig(weight_plot_path, dpi=300, bbox_inches="tight")
             plt.close(fig_w)
             
-            print(f"✅ Loaded {exp_dir.name} ({len(csv_files)} runs averaged) & saved mean weight plot")
+            print(f"✅ Processed {exp_dir.name} | Found {len(csv_files)} seeds ({', '.join(found_seeds)})")
             
         except Exception as e:
             print(f"❌ Failed to process {exp_dir.name}: {e}")
@@ -117,14 +131,14 @@ def plot_ablation_comparison():
         return
 
     # --- 3. SAVE MASTER SERVICE LEVEL PLOT ---
-    ax_sl.set_title("Feature Set Ablation Study: Service Level Convergence (Mean ± 1 Std Dev)", fontsize=14, fontweight="bold")
+    ax_sl.set_title("Feature Set Ablation Study: Service Level Convergence\n(Solid Line: Mean | Shaded Region: ±1 Standard Deviation across Seeds)", fontsize=14, fontweight="bold")
     ax_sl.set_xlabel("Training Episode", fontsize=12)
-    ax_sl.set_ylabel("Service Level (10-ep Moving Avg)", fontsize=12)
+    ax_sl.set_ylabel("Service Level (20-ep Moving Avg)", fontsize=12)
     ax_sl.grid(True, alpha=0.3)
     ax_sl.legend(loc="lower right", fontsize=10)
     
     fig_sl.tight_layout()
-    output_path = study_dir / "ablation_comparison_multi_run.png"
+    output_path = study_dir / "ablation_comparison_multi_seed.png"
     fig_sl.savefig(output_path, dpi=300)
     plt.close(fig_sl)
     print(f"\n🚀 Success! Saved master comparison plot to: {output_path.name}")

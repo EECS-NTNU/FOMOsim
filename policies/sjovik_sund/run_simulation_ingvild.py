@@ -70,6 +70,8 @@ class SimulationConfig:
     # === Time Settings ===
     start_hour: int = 5  # 5 AM start time
     
+    
+    
     # === Instance Settings ===
     default_instance: str = "TD_W34_old"
     available_instances: List[str] = field(default_factory=lambda: 
@@ -172,6 +174,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
     instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
     state = init_state.read_initial_state(str(instance_path))
     state.set_seed(seed)
+    
+    FLEET_SIZE = state.get_all_bikes()
+    print(f"Initialized state with {len(FLEET_SIZE)} bikes for instance '{INSTANCE}' and seed {seed}.")
 
     # Initialize bike maintenance criticality AFTER setting seed for deterministic results
     if MAINTENANCE_ENABLED:

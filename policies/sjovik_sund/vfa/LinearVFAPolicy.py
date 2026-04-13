@@ -81,30 +81,30 @@ class LinearVFAPolicy(Policy):
         seed: int = 42,
         maintenance_enabled: bool = ENABLE_COMPONENT_FAILURES,
         shift_timing_enabled: bool = False,
+        temporal_enabled: bool = False,
         log_depot_visits: bool = False,
         depot_log_file: Optional[str] = None,
         reward_calculator: Optional[RewardCalculator] = None,
-        
     ) -> None:
-        
         """
-        Initializes the policy, sets hyperparameters (alpha, gamma, tau), 
-        and creates the weight vector (theta) which represents the 
+        Initializes the policy, sets hyperparameters (alpha, gamma, tau),
+        and creates the weight vector (theta) which represents the
         agent's learned knowledge.
         """
 
         super().__init__(maintenance_enabled=maintenance_enabled)
-        
+
         self.maintenance_enabled = maintenance_enabled
         self.shift_timing_enabled = shift_timing_enabled
+        self.temporal_enabled = temporal_enabled
         self.log_depot_visits = log_depot_visits
         self.depot_log_file = depot_log_file
         # 1. Get the canonical list of ALL possible features
-        self.ALL_FEATURE_NAMES = _get_feature_names(True, True)
+        self.ALL_FEATURE_NAMES = _get_feature_names(True, True, True)
 
         # 2. Determine which features we are actually using
         if active_features is None:
-            self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled)
+            self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled, self.temporal_enabled)
         else:
             # --- FIXED: Force the user's active features into canonical mathematical order ---
             self.FEATURE_NAMES = [name for name in self.ALL_FEATURE_NAMES if name in active_features]
@@ -167,6 +167,20 @@ class LinearVFAPolicy(Policy):
         # logging for RL decisions (e.g., depot visits)
         self.log_rl_decisions = True  
         self.rl_logs = []
+        
+        # Cache for static fleet size to optimize VFA speed
+        self.cached_fleet_size = None
+
+        # Simulator reference — set by init_sim(), used to pre-warm target matrix
+        self._simulator_ref = None
+
+    def init_sim(self, simulator) -> None:
+        """
+        Called by Simulator.init() after the event queue is built.
+        Stores the simulator reference so _lazy_init can access the
+        target_state object and pre-warm the full 7×24 target matrix.
+        """
+        self._simulator_ref = simulator
 
     # ─────────────────────────────────────────────────────────────────────────
     # Lazy initialisation  (uses sim.State, not the full simulator)
@@ -189,6 +203,24 @@ class LinearVFAPolicy(Policy):
 
         self._station_ids = [s.id for s in stations]
         self._sid_to_idx  = {sid: k for k, sid in enumerate(self._station_ids)}
+
+        # Target inventory matrix  (7 days × 24 hours × N stations)
+        '''self._target_matrix = np.array(
+            [[[s.get_target_state(d, h) for s in stations] for h in range(24)] for d in range(7)],
+            dtype=np.float32,
+        )
+        self._capacities = np.array([s.capacity for s in stations], dtype=np.float32)'''
+
+        # Pre-warm: at _lazy_init time, the event loop has only called
+        # update_target_state for the current (day, hour), leaving the other
+        # 167 slots as zero in each station's target_state matrix.
+        # Drive the target_state object over all 168 combinations now so that
+        # the snapshot below is complete.
+        if self._simulator_ref is not None and self._simulator_ref.target_state is not None:
+            ts_obj = self._simulator_ref.target_state
+            for d_pre in range(7):
+                for h_pre in range(24):
+                    ts_obj.update_target_state(state, d_pre, h_pre)
 
         # Target inventory matrix  (7 days × 24 hours × N stations)
         self._target_matrix = np.array(
@@ -251,6 +283,8 @@ class LinearVFAPolicy(Policy):
         # Closest-depot ID
         vehicles = state.get_vehicles()
         self._depot_id = state.get_closest_depot(vehicles[0]) if vehicles else None
+        
+        self.cached_fleet_size = float(len(state.get_all_bikes()))
 
         self._initialized = True
 
@@ -274,6 +308,19 @@ class LinearVFAPolicy(Policy):
         for sid, station in state.stations.items():
             if sid not in self._sid_to_idx:
                 continue
+
+            # --- INJECT DEBUG BLOCK 1: TYPE CHECK ---
+            if not hasattr(self, '_debug_type_check'):
+                print(f"\n[DEBUG 1 - DATA TYPE] Investigating station.bikes structure...")
+                print(f"Type of station.bikes: {type(station.bikes)}")
+                if isinstance(station.bikes, dict):
+                    print(f"It is a dict! Example keys: {list(station.bikes.keys())[:3]}")
+                elif isinstance(station.bikes, list):
+                    print(f"WARNING: It is a list (length {len(station.bikes)})!")
+                    print(f"Your code `station.bikes if isinstance(station.bikes, dict) else` will wipe this to 0!")
+                self._debug_type_check = True
+            # ----------------------------------------
+
             k = self._sid_to_idx[sid]
             
             # Extract true physical inventory directly from the station objects
@@ -409,23 +456,24 @@ class LinearVFAPolicy(Policy):
             onsite=onsite_post.astype(np.float64),
             depot=depot.astype(np.float64),
             target=target.astype(np.float64),
-            capacities=self._capacities,             # New scaler array
+            capacities=self._capacities,
             activity=dynamic_activity.astype(np.float64),
-            dist_to_stations=dist_to_stations,       # New spatial array
+            dist_to_stations=dist_to_stations,
             func_cargo_veh=float(func_cargo_veh),
             depot_cargo_veh=float(depot_cargo_veh),
             vehicle_capacity=K,
             dist_to_depot=dist_to_depot,
-            lambda_max_system=self._lambda_max_system, # New Lambda_max scaler
-            max_gravity=self._max_gravity,                 # New G_max scaler
-            total_fleet_size=self._total_fleet_size,       # <-- NEW
-            total_stations=self._N_stations,               # <-- NEW
-            #maintenance_enabled=self.maintenance_enabled, # This should not be true un we are doing ablation study
+            lambda_max_system=self._lambda_max_system,
+            max_gravity=self._max_gravity,
+            fleet_size=self.cached_fleet_size,
             maintenance_enabled=True,
-            #shift_timing_enabled=self.shift_timing_enabled, # This should not be true unless we are doing ablation study
             shift_timing_enabled=True,
             time_remaining=self._get_time_remaining(state, vehicle),
-            shift_length=self._get_shift_length(state, vehicle)
+            shift_length=self._get_shift_length(state, vehicle),
+            temporal_enabled=True,
+            current_time_minutes=float(state.time),
+            current_day_of_week=int(state.day() % 7),
+            target_matrix=self._target_matrix,
         )
     
         # 4. Slice the full feature vector to only include active features
@@ -934,7 +982,13 @@ class LinearVFAPolicy(Policy):
     # Main decision entry point
     # ─────────────────────────────────────────────────────────────────────────
 
+    '''def init_sim(self, simulator) -> None:
+        """Forward simulator reference to both inner policies."""
+        self.vfa_policy.init_sim(simulator)
+        self.greedy_policy.init_sim(simulator)'''
+
     def get_best_action(self, state, vehicle) -> sim.Action:
+    #def get_best_action(self, state, vehicle) -> sim.Action:
         """
         Called by VehicleArrival event at each decision epoch.
 
@@ -957,52 +1011,6 @@ class LinearVFAPolicy(Policy):
         candidates = self._generate_candidates(state, vehicle)
 
         base_func, base_onsite, base_depot = self._extract_inventories(state, vehicle)
-
-        """# ── NEW: Pre-compute 3-hour expectations for feature extraction ───
-        curr_d = state.day() % 7
-        curr_h = state.hour() % 24
-        net_flow_3hr = np.zeros(len(self._station_ids))
-        expected_rent_3hr = np.zeros(len(self._station_ids))
-        expected_return_3hr = np.zeros(len(self._station_ids))
-        
-        for i, s_id in enumerate(self._station_ids):
-            station = state.stations[s_id]
-            flow, rent, ret = 0.0, 0.0, 0.0
-            for offset in range(3):
-                h = (curr_h + offset) % 24
-                d = (curr_d + (curr_h + offset) // 24) % 7
-                arr = station.arrive_intensities[d][h] if getattr(station, 'arrive_intensities', None) else 0
-                lev = station.leave_intensities[d][h] if getattr(station, 'leave_intensities', None) else 0
-                flow += (arr - lev)
-                rent += lev
-                ret += arr
-            net_flow_3hr[i] = flow
-            expected_rent_3hr[i] = rent
-            expected_return_3hr[i] = ret
-        # ──────────────────────────────────────────────────────────────────"""
-
-
-        '''# ── Step 3: score each candidate ──────────────────────────────────
-        phis: List[np.ndarray] = []
-        values = np.empty(len(candidates), dtype=np.float64)
-        
-        for k, action in enumerate(candidates):
-            # Differentiate functional vs depot pickups
-            # vehicle.location.bikes is already a dictionary of {bike_id: bike}, so we use it directly:
-            station_bikes = vehicle.location.bikes if isinstance(vehicle.location.bikes, dict) else {}
-            functional_pickups = 0
-            depot_pickups = 0
-            
-            for b_id in action.pick_ups:
-                b = station_bikes.get(b_id)
-                if b and getattr(b, 'damage_status', None) == 'depot':
-                    depot_pickups += 1
-                elif b:
-                    functional_pickups += 1
-            
-            # Net change in functional bikes and vehicle depot cargo
-            delta_func = len(action.delivery_bikes) - functional_pickups
-            delta_depot_cargo = depot_pickups'''
         
         # ── Step 3: score each candidate ──────────────────────────────────
         phis: List[np.ndarray] = []
@@ -1286,6 +1294,22 @@ class EpisodeTrainingPolicy(Policy):
 
         # Reset per-episode TD state on the shared VFA policy
         vfa_policy.reset_episode()
+
+    '''def get_best_action(self, state, vehicle) -> sim.Action:
+        if state.time < self.warmup_end_time:
+            # Warm-up: purely greedy, θ left unchanged
+            return self.greedy_policy.get_best_action(state, vehicle)
+        else:
+            # Learning: VFA + Boltzmann exploration + TD(0) update
+            return self.vfa_policy.get_best_action(state, vehicle)
+
+    def __repr__(self) -> str:
+        return f"EpisodeTrainingPolicy(tau={self.vfa_policy.tau:.4f})"'''
+    
+    def init_sim(self, simulator) -> None:
+        """Forward simulator reference to both inner policies."""
+        self.vfa_policy.init_sim(simulator)
+        self.greedy_policy.init_sim(simulator)
 
     def get_best_action(self, state, vehicle) -> sim.Action:
         if state.time < self.warmup_end_time:

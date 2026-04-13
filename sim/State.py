@@ -22,9 +22,9 @@ class State(LoadSave):
 
     def __init__(
         self,
-        locations = {},
-        vehicles = {},
-        bikes_in_use = {}, # bikes not parked at any station
+        locations = None,
+        vehicles = None,
+        bikes_in_use = None, # bikes not parked at any station
         mapdata=None,
         traveltime_matrix=None,
         traveltime_matrix_stddev=None,
@@ -46,12 +46,17 @@ class State(LoadSave):
         else:
             self.rng2 = rng2
 
-        self.vehicles = vehicles
+        '''self.vehicles = vehicles
         self.bikes_in_use = bikes_in_use
+        self.seed = seed
+        self.roaming_radius = FF_ROAMING_AREA_RADIUS'''
+        self.vehicles = vehicles if vehicles is not None else {}
+        self.bikes_in_use = bikes_in_use if bikes_in_use is not None else {}
         self.seed = seed
         self.roaming_radius = FF_ROAMING_AREA_RADIUS
 
-        self.set_locations(locations)
+        '''self.set_locations(locations)'''
+        self.set_locations(locations if locations is not None else [])
 
         self.traveltime_matrix = traveltime_matrix
         self.traveltime_matrix_stddev = traveltime_matrix_stddev
