@@ -168,8 +168,8 @@ def extract(
     total_imbalance = np.sum(np.abs(func - target))
     
     #DEBUG: print all func, onsie, depot, func_cargo_vehcile and depot_cargo_veh to check individual values
-    print(f"[DEBUG] - func: {np.sum(func)}, depot: {np.sum(depot)}, onsite: {np.sum(onsite)}, cargo func: {func_cargo_veh}, cargo depot: {depot_cargo_veh}")
-    print(f"[DEBUG] Safe Denominators - Vehicle Cap: {vehicle_capacity_safe}, Lambda Max: {lambda_max_safe}, Max Gravity: {max_gravity_safe}, Number of Stations: {N}, Total Fleet: {F}")
+    #print(f"[DEBUG] - func: {np.sum(func)}, depot: {np.sum(depot)}, onsite: {np.sum(onsite)}, cargo func: {func_cargo_veh}, cargo depot: {depot_cargo_veh}")
+    #print(f"[DEBUG] Safe Denominators - Vehicle Cap: {vehicle_capacity_safe}, Lambda Max: {lambda_max_safe}, Max Gravity: {max_gravity_safe}, Number of Stations: {N}, Total Fleet: {F}")
    # =========================================================================
     # Category A: Base Rebalancing Features
     # =========================================================================

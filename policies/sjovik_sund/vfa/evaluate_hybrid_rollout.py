@@ -136,13 +136,13 @@ if __name__ == "__main__":
     # Rollout tuning
     parser.add_argument("--lookahead", type=float, default=60.0,
                         help="Rollout horizon in simulation minutes")
-    parser.add_argument("--scenarios", type=int, default=3,
+    parser.add_argument("--scenarios", type=int, default=5,
                         help="Number of Monte Carlo scenarios per action")
 
     # Simulation settings
     parser.add_argument("--episodes", type=int, default=1,
                         help="Number of evaluation episodes (seeds) to run")
-    parser.add_argument("--seed", type=int, default=999,
+    parser.add_argument("--seed", type=int, default=10000,
                         help="Starting random seed")
     parser.add_argument("--duration", type=int, default=24 * 5,
                         help="Simulation duration in hours")
