@@ -30,6 +30,7 @@ Results are written to the standard simulation_results/csv output folder.
 
 import os
 import sys
+import re
 import argparse
 from pathlib import Path
 
@@ -91,6 +92,7 @@ def evaluate_model(
         policy_dict=policy_dict,
         num_vehicles=vehicles,
         duration=duration_hours,
+        use_multiprocessing=False,
         use_multiprocessing=False,
         instance_name=instance,
         config=SimulationConfig(),
@@ -265,6 +267,17 @@ if __name__ == "__main__":
                      help="Simulator instance name")
     sim.add_argument("--vehicles", type=int, default=1,
                      help="Number of service vehicles")
+
+    # Overrides for auto-detection
+    parser.add_argument(
+        "--experiment", type=str, default=None,
+        metavar="NAME",
+        help=f"Override experiment name (auto-detected from path). Choices: {list(EXPERIMENTS.keys())}",
+    )
+    parser.add_argument(
+        "--alpha", type=str, default=None,
+        help="Override alpha value (auto-detected from path, used for logging only)",
+    )
 
     args = parser.parse_args()
 
