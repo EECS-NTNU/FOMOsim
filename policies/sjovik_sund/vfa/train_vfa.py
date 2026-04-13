@@ -61,7 +61,7 @@ TAU_START     : float = 10.0
 TAU_END       : float = 0.1     
 
 # --- Learning Rate (Alpha) ---
-ALPHA_START   : float = 0.5    # initial alpha for TD updates, will be overwritten in case of argument passing
+ALPHA_START   : float = 0.2    # initial alpha for TD updates, will be overwritten in case of argument passing
 
 GAMMA         : float = 0.99      # discount factor
 

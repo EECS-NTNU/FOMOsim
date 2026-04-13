@@ -126,7 +126,7 @@ EXPERIMENTS = {
     ],
 }
 
-def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None):
+def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None, alpha_start: float = 0.5):
     base_dir = Path("models/ablation_study")
     base_dir.mkdir(parents=True, exist_ok=True)
 
@@ -141,9 +141,10 @@ def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[st
         print(f"\n{'='*60}")
         print(f"STARTING EXPERIMENT: {exp_name}")
         print(f"Features: {features}")
+        print(f"Alpha: {alpha_start}")
         print(f"{'='*60}")
 
-        exp_dir = base_dir / exp_name
+        exp_dir = base_dir / f"{exp_name}_alpha_{alpha_start}"
         exp_dir.mkdir(exist_ok=True)
 
         for run_id, seed_offset in enumerate(seeds):
@@ -155,7 +156,8 @@ def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[st
                 num_episodes=episodes,
                 save_path=save_path,
                 seed_offset=seed_offset,
-                active_features=features
+                active_features=features,
+                alpha_start=alpha_start,
             )
 
 if __name__ == "__main__":
@@ -182,9 +184,17 @@ if __name__ == "__main__":
         type=str,
         default=None,
         metavar="NAME",
-        help=f"Which experiments to run (default: all). Choices: {list(EXPERIMENTS)}"
+        help=f"Which experiments to run. Use 'all' or omit to run all. Choices: {list(EXPERIMENTS)}"
+    )
+
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=0.5,
+        help="Initial learning rate (alpha) for TD updates (default: 0.5)"
     )
 
     args = parser.parse_args()
 
-    run_all_experiments(seeds=args.seeds, episodes=args.episodes, run_only=args.experiments)
+    run_only = None if (args.experiments is None or args.experiments == ["all"]) else args.experiments
+    run_all_experiments(seeds=args.seeds, episodes=args.episodes, run_only=run_only, alpha_start=args.alpha)

@@ -46,8 +46,14 @@ def detect_experiment(model_path: str):
     return None, None
 
 
+def resolve_model_path(exp_name: str, alpha: str, seed: int) -> Path:
+    """Build the canonical model path from experiment + alpha + seed."""
+    folder = WORKSPACE_ROOT / "models" / "ablation_study" / f"{exp_name}_alpha_{alpha}"
+    return folder / f"vfa_{exp_name}_seed{seed}.pkl"
+
+
 def run_evaluation(
-    model_path: str,
+    model_path: str | None,
     lookahead_minutes: float,
     num_scenarios: int,
     episodes: int,
@@ -55,34 +61,41 @@ def run_evaluation(
     duration_hours: int,
     instance: str,
     vehicles: int,
-    exp_override: str = None,
-    alpha_override: str = None,
+    exp_name: str = None,
+    alpha: str = None,
+    seed: int = 1000,
 ):
     print("=" * 60)
     print("  HYBRID ROLLOUT EVALUATION")
     print("=" * 60)
 
-    model_file = Path(model_path)
+    # --- Resolve experiment and model file ---
+    if model_path:
+        # Explicit path: auto-detect exp/alpha from it, allow CLI overrides
+        detected_exp, detected_alpha = detect_experiment(model_path)
+        exp_name  = exp_name  or detected_exp
+        alpha     = alpha     or detected_alpha
+        model_file = Path(model_path)
+    elif exp_name and alpha:
+        # Build path from experiment + alpha + seed
+        model_file = resolve_model_path(exp_name, alpha, seed)
+    else:
+        print("Error: Provide either --model or both --experiment and --alpha.")
+        sys.exit(1)
+
+    if exp_name is None or exp_name not in EXPERIMENTS:
+        print(f"Error: Could not resolve a valid experiment name.")
+        print(f"       Valid experiments: {list(EXPERIMENTS.keys())}")
+        sys.exit(1)
+
     if not model_file.exists():
         print(f"Error: Could not find model at {model_file}")
         sys.exit(1)
 
-    # --- Auto-detect experiment and alpha from path ---
-    exp_name, alpha_str = detect_experiment(model_path)
-    if exp_override:
-        exp_name = exp_override
-    if alpha_override:
-        alpha_str = alpha_override
-
-    if exp_name is None or exp_name not in EXPERIMENTS:
-        print(f"Error: Could not detect a valid experiment name from path '{model_path}'.")
-        print(f"       Valid experiments: {list(EXPERIMENTS.keys())}")
-        print(f"       Use --experiment to override.")
-        sys.exit(1)
-
     active_features = EXPERIMENTS[exp_name]
     print(f"--> Experiment : {exp_name}")
-    print(f"--> Alpha      : {alpha_str if alpha_str else 'unknown'}")
+    print(f"--> Alpha      : {alpha if alpha else 'unknown'}")
+    print(f"--> Model      : {model_file}")
     print(f"--> Features   : {active_features}")
 
     # --- Load frozen VFA ---
@@ -128,9 +141,23 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--model", type=str, required=True,
-        help="Path to trained VFA .pkl file "
+        "--model", type=str, default=None,
+        help="Path to trained VFA .pkl file. "
+             "If omitted, path is built from --experiment, --alpha, and --model_seed. "
              "(e.g. models/ablation_study/V3_Rollout_alpha_0.5/vfa_V3_Rollout_seed1000.pkl)",
+    )
+    parser.add_argument(
+        "--experiment", type=str, default=None,
+        metavar="NAME",
+        help=f"Experiment name. Required when --model is not given. Choices: {list(EXPERIMENTS.keys())}",
+    )
+    parser.add_argument(
+        "--alpha", type=str, default=None,
+        help="Alpha value (e.g. 0.5). Required when --model is not given.",
+    )
+    parser.add_argument(
+        "--model_seed", type=int, default=1000,
+        help="Seed of the trained model to load when building path from --experiment/--alpha",
     )
 
     # Rollout tuning
@@ -143,24 +170,13 @@ if __name__ == "__main__":
     parser.add_argument("--episodes", type=int, default=1,
                         help="Number of evaluation episodes (seeds) to run")
     parser.add_argument("--seed", type=int, default=999,
-                        help="Starting random seed")
+                        help="Starting random seed for evaluation")
     parser.add_argument("--duration", type=int, default=24 * 5,
                         help="Simulation duration in hours")
     parser.add_argument("--instance", type=str, default="TD_W34_old",
                         help="Simulator instance name")
     parser.add_argument("--vehicles", type=int, default=1,
                         help="Number of service vehicles")
-
-    # Overrides for auto-detection
-    parser.add_argument(
-        "--experiment", type=str, default=None,
-        metavar="NAME",
-        help=f"Override experiment name (auto-detected from path). Choices: {list(EXPERIMENTS.keys())}",
-    )
-    parser.add_argument(
-        "--alpha", type=str, default=None,
-        help="Override alpha value (auto-detected from path, used for logging only)",
-    )
 
     args = parser.parse_args()
 
@@ -173,6 +189,7 @@ if __name__ == "__main__":
         duration_hours=args.duration,
         instance=args.instance,
         vehicles=args.vehicles,
-        exp_override=args.experiment,
-        alpha_override=args.alpha,
+        exp_name=args.experiment,
+        alpha=args.alpha,
+        seed=args.model_seed,
     )
