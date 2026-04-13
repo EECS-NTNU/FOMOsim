@@ -1,151 +1,284 @@
 #!/usr/bin/env python3
 """
-evaluate_hybrid_rollout.py
+evaluate_hybrid_rollout.py  —  Evaluate trained VFA models inside the Hybrid Rollout Policy
 
-This script loads a fully trained offline Linear VFA model and wraps it 
-inside a Hybrid Rollout Policy. It then runs a full simulation using your 
-existing evaluation architecture to measure its final, real-world performance.
+Two modes of operation:
+
+  1. BATCH MODE (mirrors the ablation study runner):
+     Scans models/ablation_study/ for all saved .pkl files and evaluates each one.
+     Loops over the same experiments and seeds as run_ablation_study.py.
+
+       # All experiments, all seeds:
+       python evaluate_hybrid_rollout.py
+
+       # Specific experiments only:
+       python evaluate_hybrid_rollout.py --experiments V3_Rollout LongTerm
+
+       # Specific seeds only:
+       python evaluate_hybrid_rollout.py --seeds 1000 2000
+
+  2. SINGLE MODE:
+     Point directly at one .pkl file. Features are auto-detected from the folder name,
+     or overridden manually with --features.
+
+       python evaluate_hybrid_rollout.py --model models/ablation_study/V3_Rollout/vfa_V3_Rollout_seed1000.pkl
+       python evaluate_hybrid_rollout.py --model my_model.pkl --features squared_starvation_penalty work_ratio
+
+Each evaluated model is compared against DoNothing and VFA-only baselines.
+Results are written to the standard simulation_results/csv output folder.
 """
 
 import os
 import sys
 import argparse
 from pathlib import Path
-import time
 
-# --- BULLETPROOF PATHING ---
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, str(WORKSPACE_ROOT))
 
-# Import your VFA and Hybrid policies
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.sjovik_sund.vfa.HybridRolloutPolicy import HybridRolloutPolicy
-
-# Import the baseline policy for comparison
 from policies.do_nothing_policy import DoNothing
+from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, test_policies
 
-# --- CLEVER REUSE: Import your exact simulation runner and config! ---
-# This ensures we keep all your existing CSV logging and metric tracking.
-from policies.sjovik_sund.run_simulation_ingvild import (
-    SimulationConfig,
-    test_policies
-)
+# Single source of truth for experiment definitions
+from policies.sjovik_sund.ablation_study.run_ablation_study import EXPERIMENTS
 
-def run_evaluation(
-    model_path: str,
+ABLATION_DIR = Path("models/ablation_study")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Core evaluation — one model file
+# ─────────────────────────────────────────────────────────────────────────────
+
+def evaluate_model(
+    model_file: Path,
+    active_features: list[str],
+    exp_name: str,
+    seed: int,
     lookahead_minutes: float,
     num_scenarios: int,
     episodes: int,
     start_seed: int,
     duration_hours: int,
     instance: str,
-    vehicles: int
+    vehicles: int,
 ):
-    print("=" * 60)
-    print("  HYBRID ROLLOUT EVALUATION")
-    print("=" * 60)
-    
-    model_file = Path(model_path)
-    if not model_file.exists():
-        print(f" Error: Could not find the trained model at {model_file}")
-        sys.exit(1)
+    print(f"\n{'='*60}")
+    print(f"  {exp_name}  |  seed={seed}  |  {len(active_features)} features")
+    print(f"  Model: {model_file.name}")
+    print(f"{'='*60}")
 
-    # --- EXPERIMENT FEATURE MAPPING ---
-    EXPERIMENTS = {
-        "1_Linear_Reactive": ["rebalancing_imbalance", "vehicle_functional_load"],
-        "2_Non_Linear_Reactive": ["squared_starvation_penalty", "squared_congestion_penalty", "vehicle_functional_load"],
-        "3_Anticipatory_Spatial_Base": ["squared_starvation_penalty", "squared_congestion_penalty", "anticipated_demand_shortfall", "vehicle_functional_load", "proximity_to_demand_gravity"],
-        "4_Contextual_Interactions": ["squared_starvation_penalty", "squared_congestion_penalty", "anticipated_demand_shortfall", "delivery_potential", "pickup_potential", "starvation_gravity", "congestion_gravity"]
-    }
-
-    # Automatically figure out which features to use based on the folder path!
-    exp_name = next((key for key in EXPERIMENTS.keys() if key in model_path), None)
-    
-    if exp_name:
-        active_features = EXPERIMENTS[exp_name]
-        print(f"--> Auto-detected experiment '{exp_name}'. Injecting {len(active_features)} features.")
-    else:
-        print(f"Error: Could not detect experiment name from path '{model_path}'.")
-        print("Make sure the folder name matches your EXPERIMENTS dictionary!")
-        sys.exit(1)
-
-    # 1. Load the frozen VFA (passing the correct active features!)
-    print(f"--> Loading trained VFA from: {model_file.name}")
     trained_vfa = LinearVFAPolicy.load(model_file, active_features=active_features)
-    
-    # 🚨 CRITICAL: Ensure the VFA is strictly in exploitation mode 🚨
-    trained_vfa.learning_mode = False 
-    
-    # 2. Wrap it in the Rollout framework
-    print(f"--> Initializing Hybrid Rollout (Horizon: {lookahead_minutes}m, Scenarios: {num_scenarios})")
+    trained_vfa.learning_mode = False   # strictly exploitation — no TD updates
+
     hybrid_policy = HybridRolloutPolicy(
         trained_vfa=trained_vfa,
         lookahead_minutes=lookahead_minutes,
-        num_scenarios=num_scenarios
+        num_scenarios=num_scenarios,
     )
-    
-    # 3. Setup the policy dictionary for the simulator
-    # (You can easily add your XPilot benchmark here later!)
+
+    # Policy names include exp_name + seed so CSV output files never overwrite each other
     policy_dict = {
-        f"DoNothing_Baseline": DoNothing(),
-        f"Hybrid_Rollout_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid_policy,
-        f"VFA_Only_Standalone": trained_vfa  # Compare hybrid against the raw VFA!
+        f"DoNothing":                               DoNothing(),
+        f"{exp_name}_seed{seed}_VFA":               trained_vfa,
+        f"{exp_name}_seed{seed}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid_policy,
     }
-    
-    # 4. Configure the simulation environment
-    config = SimulationConfig()
-    list_of_seeds = list(range(start_seed, start_seed + episodes))
-    
-    print("\nStarting simulation runs...")
-    
-    # Run using your existing test_policies function!
+
     test_policies(
-        list_of_seeds=list_of_seeds,
+        list_of_seeds=list(range(start_seed, start_seed + episodes)),
         policy_dict=policy_dict,
         num_vehicles=vehicles,
         duration=duration_hours,
-        use_multiprocessing=False, # Keep False until fast_clone() is fully thread-safe
+        use_multiprocessing=False,
         instance_name=instance,
-        config=config
+        config=SimulationConfig(),
     )
-    
-    print("\n Evaluation complete! Check your standard output folders for the CSVs.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Batch mode — loop over ablation study experiments and seeds
+# ─────────────────────────────────────────────────────────────────────────────
+
+def run_batch(
+    seeds: list[int],
+    experiments: list[str] | None,
+    lookahead_minutes: float,
+    num_scenarios: int,
+    episodes: int,
+    start_seed: int,
+    duration_hours: int,
+    instance: str,
+    vehicles: int,
+):
+    target_experiments = {
+        k: v for k, v in EXPERIMENTS.items()
+        if experiments is None or k in experiments
+    }
+
+    if experiments:
+        unknown = set(experiments) - set(EXPERIMENTS)
+        if unknown:
+            raise ValueError(f"Unknown experiment(s): {unknown}. Valid: {list(EXPERIMENTS)}")
+
+    total  = len(target_experiments) * len(seeds)
+    done   = 0
+    skipped = 0
+
+    print(f"\nBatch evaluation: {len(target_experiments)} experiment(s) × {len(seeds)} seed(s) = {total} model(s)")
+
+    for exp_name, features in target_experiments.items():
+        for seed in seeds:
+            model_file = ABLATION_DIR / exp_name / f"vfa_{exp_name}_seed{seed}.pkl"
+            done += 1
+
+            if not model_file.exists():
+                print(f"\n[{done}/{total}] SKIP  {exp_name} seed={seed}  (model not found: {model_file})")
+                skipped += 1
+                continue
+
+            print(f"\n[{done}/{total}] EVAL  {exp_name} seed={seed}")
+            evaluate_model(
+                model_file=model_file,
+                active_features=features,
+                exp_name=exp_name,
+                seed=seed,
+                lookahead_minutes=lookahead_minutes,
+                num_scenarios=num_scenarios,
+                episodes=episodes,
+                start_seed=start_seed,
+                duration_hours=duration_hours,
+                instance=instance,
+                vehicles=vehicles,
+            )
+
+    print(f"\n{'='*60}")
+    print(f"Batch complete. Evaluated: {done - skipped}/{total}  |  Skipped: {skipped}")
+    print(f"Results written to simulation_results/csv/")
+    print(f"{'='*60}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Single model mode
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _detect_features(model_path: str) -> tuple[list[str], str]:
+    """Infer feature set by matching the model path against known experiment names."""
+    for exp_name, features in EXPERIMENTS.items():
+        if exp_name in model_path:
+            return features, exp_name
+    raise ValueError(
+        f"Could not detect an experiment name in path '{model_path}'.\n"
+        f"Known experiments: {list(EXPERIMENTS.keys())}\n"
+        f"Use --features to specify features manually."
+    )
+
+
+def run_single(
+    model_path: str,
+    features_override: list[str] | None,
+    lookahead_minutes: float,
+    num_scenarios: int,
+    episodes: int,
+    start_seed: int,
+    duration_hours: int,
+    instance: str,
+    vehicles: int,
+):
+    model_file = Path(model_path)
+    if not model_file.exists():
+        print(f"Error: model not found at {model_file}")
+        sys.exit(1)
+
+    if features_override:
+        active_features = features_override
+        exp_name = model_file.stem
+    else:
+        active_features, exp_name = _detect_features(model_path)
+
+    evaluate_model(
+        model_file=model_file,
+        active_features=active_features,
+        exp_name=exp_name,
+        seed=0,
+        lookahead_minutes=lookahead_minutes,
+        num_scenarios=num_scenarios,
+        episodes=episodes,
+        start_seed=start_seed,
+        duration_hours=duration_hours,
+        instance=instance,
+        vehicles=vehicles,
+    )
+    print("\nEvaluation complete. Check simulation_results/csv/ for output.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLI
+# ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate Hybrid Rollout Policy.")
-    
-    # Required Argument: Which model are we testing?
-    parser.add_argument("--model", type=str, required=True, 
-                        help="Path to the trained VFA .pkl file (e.g., models/ablation_study/4_Contextual/vfa_run0.pkl)")
-    
-    # Rollout Tuning
-    parser.add_argument("--lookahead", type=float, default=60.0, 
-                        help="Rollout horizon in simulation minutes (default: 60)")
-    parser.add_argument("--scenarios", type=int, default=3, 
-                        help="Number of Monte Carlo scenarios per action (default: 3)")
-    
-    # Standard Simulation Settings
-    parser.add_argument("--episodes", type=int, default=1, 
-                        help="Number of evaluation episodes/seeds to run (default: 1)")
-    parser.add_argument("--seed", type=int, default=999, 
-                        help="Starting random seed (default: 999)")
-    parser.add_argument("--duration", type=int, default=24 * 5, 
-                        help="Duration in hours (default: 120)")
-    parser.add_argument("--instance", type=str, default="TD_W34_old", 
-                        help="Simulator instance name")
-    parser.add_argument("--vehicles", type=int, default=1, 
-                        help="Number of service vehicles")
+    parser = argparse.ArgumentParser(
+        description="Evaluate trained VFA models inside the Hybrid Rollout Policy",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=f"Known experiments: {', '.join(EXPERIMENTS.keys())}",
+    )
+
+    # Mode selection
+    mode = parser.add_argument_group("Mode (mutually exclusive — omit --model for batch mode)")
+    mode.add_argument(
+        "--model", type=str, default=None,
+        help="Path to a single .pkl file (activates single mode)",
+    )
+    mode.add_argument(
+        "--features", nargs="+", type=str, default=None, metavar="FEATURE",
+        help="Override feature set manually (single mode only)",
+    )
+
+    # Batch mode options
+    batch = parser.add_argument_group("Batch mode options (ignored in single mode)")
+    batch.add_argument(
+        "--experiments", nargs="+", type=str, default=None, metavar="NAME",
+        help="Experiments to evaluate (default: all)",
+    )
+    batch.add_argument(
+        "--seeds", nargs="+", type=int, default=[1000, 2000, 3000],
+        help="Seeds to evaluate (default: 1000 2000 3000)",
+    )
+
+    # Rollout tuning
+    rollout = parser.add_argument_group("Rollout parameters")
+    rollout.add_argument("--lookahead", type=float, default=60.0,
+                         help="Rollout horizon in simulation minutes (default: 60)")
+    rollout.add_argument("--scenarios", type=int, default=3,
+                         help="Monte Carlo scenarios per action (default: 3)")
+
+    # Simulation settings
+    sim = parser.add_argument_group("Simulation settings")
+    sim.add_argument("--episodes", type=int, default=5,
+                     help="Evaluation episodes per model (default: 5)")
+    sim.add_argument("--seed", type=int, default=9000,
+                     help="Starting evaluation seed (default: 9000, kept separate from training seeds)")
+    sim.add_argument("--duration", type=int, default=24 * 5,
+                     help="Simulation duration in hours (default: 120)")
+    sim.add_argument("--instance", type=str, default="TD_W34_old",
+                     help="Simulator instance name")
+    sim.add_argument("--vehicles", type=int, default=1,
+                     help="Number of service vehicles")
 
     args = parser.parse_args()
 
-    run_evaluation(
-        model_path=args.model,
+    shared = dict(
         lookahead_minutes=args.lookahead,
         num_scenarios=args.scenarios,
         episodes=args.episodes,
         start_seed=args.seed,
         duration_hours=args.duration,
         instance=args.instance,
-        vehicles=args.vehicles
+        vehicles=args.vehicles,
     )
+
+    if args.model:
+        run_single(model_path=args.model, features_override=args.features, **shared)
+    else:
+        run_batch(seeds=args.seeds, experiments=args.experiments, **shared)
