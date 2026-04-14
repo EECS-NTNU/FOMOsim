@@ -364,6 +364,8 @@ class LinearVFAPolicy(Policy):
         func_post = func.copy()
         onsite_post = onsite.copy()
 
+        #TODO: Fix so that the values on car is always integer
+        
         # ── Apply post-decision delta at the vehicle's current station ─────
         if vehicle.location.id in self._sid_to_idx:
             cur_idx = self._sid_to_idx[vehicle.location.id]
@@ -474,6 +476,7 @@ class LinearVFAPolicy(Policy):
             current_time_minutes=float(state.time),
             current_day_of_week=int(state.day() % 7),
             target_matrix=self._target_matrix,
+            total_stations=self._N_stations
         )
     
         # 4. Slice the full feature vector to only include active features

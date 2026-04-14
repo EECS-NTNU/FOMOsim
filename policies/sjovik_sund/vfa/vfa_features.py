@@ -156,6 +156,7 @@ def extract(
     lambda_max_system: float,
     max_gravity: float,
     fleet_size: float,
+    total_stations: int,           # <-- NEW
     maintenance_enabled: bool = True,
     shift_timing_enabled: bool = False,
     time_remaining: float = None,
@@ -168,6 +169,7 @@ def extract(
 ) -> np.ndarray:
 
     features = []
+
 
     # ── Safe denominators ─────────────────────────────────────────────────────
     K            = max(vehicle_capacity, 1)

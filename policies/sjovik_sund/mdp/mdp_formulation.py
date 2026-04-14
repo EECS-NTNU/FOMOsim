@@ -294,7 +294,7 @@ class PostDecisionState:
 
     # Settings constants (import from settings module)
     MINUTES_PER_ACTION = 0.5      # time to load/unload per bike
-    MAINTENANCE_FULL_FIX = 5      # time to fully repair one bike on-site
+    MAINTENANCE_REPAIR = 3      # time to fully repair one bike on-site
 
     @staticmethod
     def apply(state: MDPState, action: MdpAction) -> Tuple[MDPState, float, ExecutedAction]:
@@ -429,9 +429,10 @@ class PostDecisionState:
 
         # ── compute action duration ────────────────────────────────────────
         # Time = unload depot bikes + move functional bikes (either direction) + on-site repairs
+        #NOTE: names are a bit misleading since depot is pickup 
         time_unload_depot = depot_rem * PostDecisionState.MINUTES_PER_ACTION
         time_rebalancing = abs(action.rebalancing) * PostDecisionState.MINUTES_PER_ACTION
-        time_onsite_repairs = onsite_rep * PostDecisionState.MAINTENANCE_FULL_FIX
+        time_onsite_repairs = onsite_rep * PostDecisionState.MAINTENANCE_REPAIR
         action_duration = time_unload_depot + time_rebalancing + time_onsite_repairs
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
