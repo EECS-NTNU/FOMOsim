@@ -625,251 +625,27 @@ class LinearVFAPolicy(Policy):
     # Action generation  (action-space splitting)
     # ─────────────────────────────────────────────────────────────────────────
 
-    def _generate_candidates(self, state, vehicle) -> List[sim.Action]:
-        #NOTE: If if your first few training runs prove that the agent is getting stuck, update candidates to for example 5 nearest stations and 3 critical stations or something
-        #NOTE: Currently uses a tabu list generation for multi-vehicle coordination. Can consider adding other vehcile decisions and effective inventory to mdp state if we want a more mathematically profound coordination mechanism, but this is a simple and effective first step to prevent multiple vehicles from being dispatched to the same starving/congested station.
+    def _generate_candidates(self, state, vehicle, return_pairs: bool = False):
         """
-        Generate a tractable set of candidate actions using action-space splitting:
+        Thin wrapper around the shared generate_candidates() function in
+        policies/sjovik_sund/mdp/candidate_generator.py.
 
-          Micro (inventory) - push current station toward its target state.
-                              This is fixed greedily; only the routing varies.
-          Macro (routing)   - enumerate the N_CANDIDATES nearest next stations
-                              sorted by travel time from the current location.
+        Passes the VFA's own configuration flags as arguments so the
+        standalone function does not need to know about this class.
 
-        This version generates multiple candidates for different numbers of onsite repairs (0 to all).
-        
-        NEW: Multi-vehicle coordination via tabu list. Stations claimed by en-route vehicles
-        are excluded from the candidate pool to prevent multiple vehicles from being 
-        dispatched to the same starving/congested location.
+        Args:
+            return_pairs : if True, returns List[(MdpAction, sim.Action)];
+                           if False (default), returns List[sim.Action].
         """
-        load_from_queue = 0  # default – overridden when at depot
-
-        if vehicle.is_at_depot():
-            rebalancing = 0
-            depot_removals = 0
-            # Pick up all repaired bikes that fit in free capacity
-            n_vehicle = len(vehicle.get_bike_inventory())
-            vehicle_capacity = int(
-                getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle))
-            )
-            free_cap = max(0, vehicle_capacity - n_vehicle)
-            repaired_available = len(getattr(vehicle.location, "fixed_queue", {}))
-            load_from_queue = min(repaired_available, free_cap)
-            onsite_repairs_options = [0]  # No onsite repairs at depot
-        else:
-            target = round(vehicle.location.get_target_state(state.day(), state.hour()))
-            # Only count functional bikes as valid inventory for regular rebalancing
-            functional_bikes = [b for b in vehicle.location.get_bikes() if getattr(b, 'is_available', True)]
-            n_station = len(functional_bikes)
-            
-            n_vehicle = len(vehicle.get_bike_inventory())
-            vehicle_capacity = int(
-                getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle))
-            )
-            free_cap = max(0, vehicle_capacity - n_vehicle)
-            #########
-            inv = vehicle.get_bike_inventory()
-            n_vehicle_total = len(inv)
-            
-            # Count only functional bikes (not depot or onsite)
-            n_vehicle_func = sum(1 for b in inv if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])
-            
-            vehicle_capacity = int(getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle_total)))
-            
-            # Free capacity MUST use total bikes, because broken bikes take up physical space!
-            free_cap = max(0, vehicle_capacity - n_vehicle_total)
-            #########
-
-            # --- Greedily pick up any depot-damaged bikes ---
-            depot_removals = 0
-            onsite_bikes = []
-            if self.maintenance_enabled:
-                broken_bikes = [b for b in vehicle.location.bikes.values() if getattr(b, 'damage_status', None) == 'depot']
-                depot_removals = min(len(broken_bikes), free_cap)
-                onsite_bikes = [b for b in vehicle.location.bikes.values() if getattr(b, 'damage_status', None) == 'onsite']
-            num_onsite = len(onsite_bikes)
-            onsite_repairs_options = list(range(0, num_onsite + 1))  # 0 to all
-
-            # Normal Rebalancing Logic 
-            delta = target - n_station       # >0 → deliver,  <0 → pickup
-            if delta > 0:
-                # NEW: Cap deliveries at the number of functional bikes we actually have!
-                rebalancing = min(n_vehicle_func, delta)
-            elif delta < 0:
-                n = min(n_station, -delta, max(free_cap - depot_removals, 0))
-                rebalancing = -n
-            else:
-                rebalancing = 0
-        
-        #TODO: Handle maintenance actions here as well when we add maintenance features and train the VFA with maintenance-enabled.
-
-        # ── TABU LIST: Identify stations already claimed by other en-route vehicles ────
-        # Uses MDP formulation notation: destination_station from VehicleStatus
-        claimed_stations = set()
-        for v in state.get_vehicles():
-            if v.id != vehicle.id:
-                # Check if vehicle is en-route (eta > 0 means traveling, not idle at a location)
-                # This semantics matches sim.Vehicle.eta behavior in the simulator
-                v_eta = getattr(v, 'eta', 0)
-                if v_eta > state.time:
-                    # Extract destination using MDP-canonical notation
-                    # Fallback chain: destination_station (MDP) → next_location (sim.Action) → current location
-                    dest = (
-                        getattr(v, 'destination_station', None) or
-                        getattr(v, 'next_location', None) or
-                        (v.location.id if v.location else None)
-                    )
-                    if dest:
-                        claimed_stations.add(dest)
-        
-        if self.log_rl_decisions:
-            print(f"[TABU] Vehicle {vehicle.id} | Claimed stations: {claimed_stations}")
-            
-        # ── Macro: nearest N_CANDIDATES next stations (by travel time) ────
-        cur_id = vehicle.location.id
-        
-        # Build candidate pool, excluding currently claimed stations
-        pool = [s for s in state.get_stations() 
-                if s.id != cur_id and s.id not in claimed_stations]
-        
-        depot_stations = state.get_depots()
-        if depot_stations:
-            depot = depot_stations[0]  # use first/closest depot
-            # Always include depot (not subject to tabu, as repairs are handled outside the rebalancing network)
-            if depot.id != cur_id:
-                pool.append(depot)
-        
-        # --- Myopic Blindspot (5 Nearest + 3 Most Critical) ---
-        # 1. Sort by travel time to find the nearest
-        pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
-        nearest_stations = pool[:5] # Take the 5 closest
-        
-        # 2. Find the 3 most critical stations (highest deviation from target)
-        remaining_pool = pool[5:]
-        remaining_pool.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
-        critical_stations = remaining_pool[:3]
-        
-        # 3. Combine them into our final candidate list
-        pool = nearest_stations + critical_stations
-
-        # Fallback: if tabu filtering removed all stations, allow any non-claimed station
-        if not pool:
-            pool = [s for s in state.get_stations() if s.id != cur_id]
-            depot_stations = state.get_depots()
-            if depot_stations:
-                depot = depot_stations[0]
-                if depot.id != cur_id:
-                    pool.append(depot)
-            pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
-            pool = pool[: self.N_CANDIDATES]
-
-        candidates = []
-        for s in pool:
-            for onsite_repairs in onsite_repairs_options:
-                # --- NEW: Dynamic Rebalancing Math ---
-                # Adjust pickups/drop-offs based on the repairs we are doing right now!
-                if vehicle.is_at_depot():
-                    current_rebalancing = 0
-                else:
-                    new_n_station = n_station + onsite_repairs
-                    delta = target - new_n_station
-                    
-                    if delta > 0:
-                        current_rebalancing = min(n_vehicle_func, delta)
-                    elif delta < 0:
-                        n = min(new_n_station, -delta, max(free_cap - depot_removals, 0))
-                        current_rebalancing = -n
-                    else:
-                        current_rebalancing = 0
-                # -------------------------------------
-
-                mdp_action = MdpAction(
-                    current_station=cur_id,
-                    rebalancing=int(current_rebalancing),
-                    onsite_repairs=int(onsite_repairs),
-                    depot_removals=int(depot_removals),
-                    load_from_queue=int(load_from_queue),
-                    next_station=s.id,
-                )
-                candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
-
-        if not candidates:
-            depot_id   = state.get_closest_depot(vehicle)
-            for onsite_repairs in onsite_repairs_options:
-
-                # --- Fallback Dynamic Rebalancing ---
-                if vehicle.is_at_depot():
-                    current_rebalancing = 0
-                else:
-                    new_n_station = n_station + onsite_repairs
-                    delta = target - new_n_station
-                    if delta > 0:
-                        current_rebalancing = min(n_vehicle_func, delta)
-                    elif delta < 0:
-                        n = min(new_n_station, -delta, max(free_cap - depot_removals, 0))
-                        current_rebalancing = -n
-                    else:
-                        current_rebalancing = 0
-
-                mdp_action = MdpAction(
-                    current_station=cur_id,
-                    rebalancing=int(current_rebalancing),
-                    onsite_repairs=int(onsite_repairs),
-                    depot_removals=int(depot_removals),
-                    load_from_queue=int(load_from_queue),
-                    next_station=depot_id,
-                )
-                candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
-             
-        # --- DEBUG 3: MYOPIC BLINDSPOT ---
-        if not getattr(self, "_has_printed_blindspot", False):
-            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
-            
-            # Find the actual most critical station in the whole city
-            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
-            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
-            most_critical = all_stats[0].id if all_stats else "None"
-            
-            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
-            print(f"  -> Candidate options: {cand_ids}")
-            print(f"  -> Most critical station in network: {most_critical}")
-            if most_critical not in cand_ids:
-                print(f"  ->  The most critical station is NOT in the candidate list!")
-            self._has_printed_blindspot = True
-
-        # --- DEBUG 3: MYOPIC BLINDSPOT ---
-        if not getattr(self, "_has_printed_blindspot", False):
-            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
-            
-            # Find the actual most critical station in the whole city
-            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
-            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
-            most_critical = all_stats[0].id if all_stats else "None"
-            
-            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
-            print(f"  -> Candidate options: {cand_ids}")
-            print(f"  -> Most critical station in network: {most_critical}")
-            if most_critical not in cand_ids:
-                print(f"  -> The most critical station is NOT in the candidate list!")
-            self._has_printed_blindspot = True
-
-        # --- DEBUG 3: MYOPIC BLINDSPOT ---
-        if not getattr(self, "_has_printed_blindspot", False):
-            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
-            
-            # Find the actual most critical station in the whole city
-            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
-            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
-            most_critical = all_stats[0].id if all_stats else "None"
-            
-            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
-            print(f"  -> Candidate options: {cand_ids}")
-            print(f"  -> Most critical station in network: {most_critical}")
-            if most_critical not in cand_ids:
-                print(f"  -> The most critical station is NOT in the candidate list!")
-            self._has_printed_blindspot = True
-
-        return candidates
+        from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
+        return generate_candidates(
+            state=state,
+            vehicle=vehicle,
+            maintenance_enabled=self.maintenance_enabled,
+            n_fallback=self.N_CANDIDATES,
+            verbose=self.log_rl_decisions,
+            return_pairs=return_pairs,
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # Boltzmann (softmax) selection

@@ -180,7 +180,7 @@ EXPERIMENTS = {
 # Runner
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None):
+def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None, alpha_start: float = 0.1):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -208,6 +208,7 @@ def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[st
                 save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}.pkl",
                 seed_offset=seed_offset,
                 active_features=features,
+                alpha_start=alpha_start,
             )
 
 
