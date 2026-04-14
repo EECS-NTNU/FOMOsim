@@ -37,8 +37,8 @@ Category A  —  Base Rebalancing  (always active)
   A3  squared_starvation_penalty    (1/N) Σ_i (max(0, T_i-I_i) / T_i)^2
   A4  squared_congestion_penalty    (1/N) Σ_i (max(0, I_i-T_i) / (C_i-T_i))^2
   A5  proximity_to_demand_gravity   1 - Σ_i (|λ_i| / (d_i+1)) / Φ_max
-  A6  starvation_gravity            (q_func/K) * Σ_i (outflow_i * 1[I_i<T_i] / (d_i+1)) / Φ_max
-  A7  congestion_gravity            (free/K) * Σ_i (inflow_i * 1[I_i>T_i] / (d_i+1)) / Φ_max
+  A6  starvation_gravity            (q_func/K) * Σ_i (outflow_i * 1[I_i<T_i] / (d_i+1)) / Σ_i outflow_i
+  A7  congestion_gravity            (free/K) * Σ_i (inflow_i * 1[I_i>T_i] / (d_i+1)) / Σ_i inflow_i
   A8  imbalance_weighted_distance   Σ_i |I_i-T_i| * d_i / (0.5*Σ C_i * max_d)
   A9  starvation_severity_max       max_i (max(0, T_i-I_i) / T_i)
   A10 congestion_severity_max       max_i (max(0, I_i-T_i) / (C_i-T_i))
@@ -237,22 +237,19 @@ def extract(
 
     # A6: Starvation Gravity — penalty for holding bikes near starving stations
     # (van load) × (demand-weighted proximity to stations below target)
-    starving_mask      = func < target
-    starvation_grav    = np.sum((outflow * starving_mask) / (dist_to_stations + 1.0))
-    phi_starvation_grav = np.clip(veh_load * (starvation_grav / grav_safe), 0.0, 1.0)
-
-    # ── Debug: gravity masking (~1% of calls) ─────────────────────────────────
-    if np.random.rand() < 0.01 and starvation_grav > 0.5 and phi_starvation_grav == 0.0:
-        print(f"\n[DEBUG - GRAVITY MASKING] starvation_grav={starvation_grav:.2f} but A6=0.")
-        print(f"  veh_load={veh_load:.2f}  (func_cargo_veh={func_cargo_veh})")
-        if veh_load == 0.0:
-            print("  -> Confirmed: van is empty, so A6 is correctly masked.")
+    # Normalised by own-activity max so the gravity term itself can reach 1.0,
+    # rather than by the full-network grav_safe which is always larger.
+    starving_mask       = func < target
+    starvation_grav     = np.sum((outflow * starving_mask) / (dist_to_stations + 1.0))
+    starv_grav_max      = max(float(np.sum(outflow)), 1.0)
+    phi_starvation_grav = np.clip(veh_load * (starvation_grav / starv_grav_max), 0.0, 1.0)
 
     # A7: Congestion Gravity — penalty for an empty van near congested stations
     # (van free space) × (return-weighted proximity to stations above target)
-    congested_mask     = func > target
-    congestion_grav    = np.sum((inflow * congested_mask) / (dist_to_stations + 1.0))
-    phi_congestion_grav = np.clip(veh_free_frac * (congestion_grav / grav_safe), 0.0, 1.0)
+    congested_mask      = func > target
+    congestion_grav     = np.sum((inflow * congested_mask) / (dist_to_stations + 1.0))
+    cong_grav_max       = max(float(np.sum(inflow)), 1.0)
+    phi_congestion_grav = np.clip(veh_free_frac * (congestion_grav / cong_grav_max), 0.0, 1.0)
 
     # A8: Imbalance Weighted Distance — recoverability (distant imbalance = deferred cost)
     max_dist_safe      = max(float(np.max(dist_to_stations)), 1.0)
