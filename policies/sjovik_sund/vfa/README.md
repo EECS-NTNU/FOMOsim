@@ -50,6 +50,9 @@ The relevant entry points are:
 - `policies/sjovik_sund/ablation_study/run_ablation_study.py`
 - `policies/sjovik_sund/vfa/train_vfa.py`
 - `policies/sjovik_sund/vfa/evaluate_hybrid_rollout.py`
+- `policies/sjovik_sund/vfa/plot_weights_evolution.py`
+- `policies/sjovik_sund/vfa/run_correlation_analysis.py`
+- `policies/sjovik_sund/vfa/models/plot_weights.py`
 - `policies/sjovik_sund/run_simulation_ingvild.py`
 
 ## 3. Main Modules
@@ -101,6 +104,12 @@ The relevant entry points are:
     - `DoNothing`,
     - `VFA_Only_Standalone`,
     - `Hybrid_Rollout`.
+
+- `plot_weights_evolution.py` / `models/plot_weights.py`
+  - generates visualizations of VFA weight changes over training episodes.
+
+- `run_correlation_analysis.py`
+  - analyzes the correlation between various VFA features.
 
 ### Simulator / environment modules modified for this workflow
 
