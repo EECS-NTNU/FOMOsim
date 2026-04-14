@@ -15,7 +15,7 @@ class Depot(Station):
         depot_id,
         is_station_based,
         depot_capacity = DEFAULT_DEPOT_CAPACITY,
-        bikes = [],
+        bikes = None,
         leave_intensities=None,
         arrive_intensities=None,
         leave_intensities_stdev=None,
@@ -28,6 +28,10 @@ class Depot(Station):
         original_id = None,
         charging_station = None,
     ):
+        
+        if bikes is None:
+            bikes = []
+            
         super().__init__(
             depot_id, bikes, leave_intensities, leave_intensities_stdev, arrive_intensities, arrive_intensities_stdev,
             center_location, move_probabilities, average_number_of_bikes, target_state,
