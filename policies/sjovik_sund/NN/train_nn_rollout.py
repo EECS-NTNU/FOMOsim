@@ -126,7 +126,7 @@ VERBOSE_EPISODE: int = 0
 # EVAL_GREEDY_EVERY : run a tau=0 eval episode every N episodes (0 = disabled).
 #                     Each eval adds ~1 episode worth of wall time.
 DEBUG_EVERY       : int = 5   # set to 0 to silence all diagnostic output
-EVAL_GREEDY_EVERY : int = 50   # set to 0 to skip greedy evaluation runs
+EVAL_GREEDY_EVERY : int = 10   # set to 0 to skip greedy evaluation runs
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -826,6 +826,7 @@ def train_nn_rollout(
         "mean_reward",           # raw step reward mean; scale check for TD signal
         "pct_zero_reward",       # % decisions with r=0; high = too sparse
         "fallback_rate",         # % PostDecisionState.apply() failures; > 5% = data quality issue
+        "greedy_sl",             # tau=0 eval SL — true NN quality, unconfounded by exploration
     ]
     csv_file   = csv_path.open("w", newline="")
     csv_writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
@@ -1056,6 +1057,7 @@ def train_nn_rollout(
         # ── Optional greedy evaluation run ────────────────────────────────────
         # Runs a separate tau=0 episode to measure true NN quality,
         # unconfounded by Boltzmann exploration noise.
+        eval_sl = None
         if (EVAL_GREEDY_EVERY > 0
                 and (ep + 1) % EVAL_GREEDY_EVERY == 0
                 and reward_calc_config is not None):
@@ -1128,6 +1130,7 @@ def train_nn_rollout(
             "mean_reward":          mean_reward,
             "pct_zero_reward":      pct_zero_reward,
             "fallback_rate":        fallback_rate,
+            "greedy_sl":            round(eval_sl, 4) if eval_sl is not None else "",
         })
         csv_file.flush()
 
