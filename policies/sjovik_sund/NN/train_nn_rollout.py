@@ -306,6 +306,15 @@ class NNLearningPolicy(Policy):
         # Decision counter — used for verbose debug output.
         self._decision_count: int = 0
 
+        # V-spread tracker: records (max - min) over candidates at each decision.
+        # Used post-episode to diagnose whether the NN distinguishes candidates.
+        self._v_spreads: list = []
+
+    @property
+    def mean_v_spread(self) -> float:
+        """Mean candidate V spread across all learning-phase decisions this episode."""
+        return sum(self._v_spreads) / len(self._v_spreads) if self._v_spreads else 0.0
+
     # init_sim is intentionally not overridden: generate_candidates() is a
     # standalone function that reads directly from sim.State and sim.Vehicle,
     # so no policy-level initialisation is needed before calling it.
@@ -430,6 +439,10 @@ class NNLearningPolicy(Policy):
             )
 
         self._decision_count += 1
+
+        # --- Track candidate V spread (diagnostic) ---
+        if len(values) > 1:
+            self._v_spreads.append(max(values) - min(values))
 
         # --- Step 5: Action selection (Boltzmann if tau > 0, else greedy) ---
         idx = _boltzmann_select(values, self.tau)
@@ -666,7 +679,7 @@ def train_nn_rollout(
     ts_run   = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_path = SAVE_DIR / f"training_log_seed{seed_offset}_{ts_run}.csv"
     CSV_FIELDS = ["episode", "mean_loss", "lr", "tau",
-                  "service_level", "buffer_size", "n_updates", "elapsed_s"]
+                  "service_level", "mean_v_spread", "buffer_size", "n_updates", "elapsed_s"]
     csv_file   = csv_path.open("w", newline="")
     csv_writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
     csv_writer.writeheader()
@@ -740,6 +753,7 @@ def train_nn_rollout(
 
         # NEW: Calculate service level for this episode
         sl = _service_level(simulator, episode_policy)
+        mean_spread = nn_learning.mean_v_spread
 
         # --- Gradient updates from replay buffer (post-episode) ---
         # We do one gradient pass per episode rather than per transition.
@@ -807,25 +821,29 @@ def train_nn_rollout(
             "tau":           current_tau,
             "buffer_size":   len(replay_buffer),
             "service_level": sl,
+            "mean_v_spread": mean_spread,
         })
         elapsed = time.time() - t0
         print(
             f"  Ep {ep+1:3d}/{num_episodes} | "
             f"lr={current_lr:.5f} | tau={current_tau:.3f} | "
-            f"loss={mean_loss:.4f} | SL={sl:.4f} | buffer={len(replay_buffer):,} | "
+            f"loss={mean_loss:.4f} | SL={sl:.4f} | "
+            f"V_spread={mean_spread:.5f} | "
+            f"buffer={len(replay_buffer):,} | "
             f"t={elapsed:.0f}s"
         )
 
         # Write one CSV row per episode (flushed immediately so partial runs are readable)
         csv_writer.writerow({
             "episode":       ep + 1,
-            "mean_loss":     round(mean_loss,   6),
-            "lr":            round(current_lr,  6),
-            "tau":           round(current_tau, 4),
-            "service_level": round(sl,          4),
+            "mean_loss":     round(mean_loss,    6),
+            "lr":            round(current_lr,   6),
+            "tau":           round(current_tau,  4),
+            "service_level": round(sl,           4),
+            "mean_v_spread": round(mean_spread,  6),
             "buffer_size":   len(replay_buffer),
             "n_updates":     n_updates,
-            "elapsed_s":     round(elapsed,     1),
+            "elapsed_s":     round(elapsed,      1),
         })
         csv_file.flush()
 
