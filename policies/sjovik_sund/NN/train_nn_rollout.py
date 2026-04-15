@@ -356,7 +356,7 @@ class NNLearningPolicy(Policy):
         #                      which validation check fires most often.
         # _reward_values     : raw step rewards pushed to the buffer (for scale check).
         self._value_spreads:         list = []
-        self._shift_remaining_values: list = []
+        #self._shift_remaining_values: list = []
         self._fallback_count:         int  = 0
         self._fallback_reasons:       dict = {}   # {reason_str: count}
         self._candidate_count:        int  = 0    # total _encode_post_decision calls (denominator for fallback %)
@@ -457,31 +457,32 @@ class NNLearningPolicy(Policy):
 
         # --- Debug: state representation and candidate scores ---
         if self.verbose:
-            if self._decision_count == 0:
+            # make it print more regularly than just episode 0 — every 2nd decision epoch (since some episodes have very few decisions)
+            if self._decision_count % 2 == 0: 
                 # Full state encoding dump on the very first learning decision
                 enc = post_encodings[0] if post_encodings else self._encode_post_decision(mdp_state, pairs[0][0])
                 sb = enc["station_block"]   # [N, 4]
                 vb = enc["vehicle_block"]   # [M, 5]
                 gc = enc["global_context"]  # [7]
                 print("\n" + "-" * 60)
-                print("  [DEBUG] First learning-phase decision - state encoding")
+                print("  [DEBUG] Learning-phase decision - state encoding")
                 print("-" * 60)
                 print(f"  station_block   shape : {list(sb.shape)}  (N_stations x 4)")
                 print(f"  vehicle_block   shape : {list(vb.shape)}  (M_vehicles x 5)")
                 print(f"  global_context  shape : {list(gc.shape)}  (7 features)")
                 print()
-                print("  station_block  [func | onsite | depot | free_docks]")
+                print("  station_block  [func | onsite | depot ]")
                 for i, row in enumerate(sb.tolist()):
                     sid = sorted(mdp_state.stations.keys())[i]
                     print(f"    station {sid:>4s}: {['%.3f'%x for x in row]}")
                 print()
-                print("  vehicle_block  [func_cargo | depot_cargo | free_cap | dest_func | eta]")
+                print("  vehicle_block  [func_cargo | depot_cargo | dest_func | eta]")
                 for i, row in enumerate(vb.tolist()):
                     vid = sorted(mdp_state.vehicles.keys())[i]
                     print(f"    vehicle {vid:>4s}: {['%.3f'%x for x in row]}")
                 print()
                 gc_labels = ["time_sin", "time_cos", "starvation", "broken_ratio",
-                             "depot_queue", "shift_remain", "mean_load"]
+                             "depot_queue", "mean_load"]
                 print("  global_context:")
                 for label, val in zip(gc_labels, gc.tolist()):
                     print(f"    {label:<15s}: {val:.4f}")
@@ -515,9 +516,9 @@ class NNLearningPolicy(Policy):
         # Track shift_remaining from the chosen post-decision encoding.
         # global_context[5] = shift_remaining (see nn_state_encoder.py).
         # This lets us verify in the CSV that the feature is now non-constant.
-        self._shift_remaining_values.append(
+        '''self._shift_remaining_values.append(
             chosen_post_encoded["global_context"][5].item()
-        )
+        )'''
 
         # --- Step 6: push transition to replay buffer ---
         # We push (S^x_{k-1}, r_k, S^x_k) where:
@@ -820,7 +821,7 @@ def train_nn_rollout(
         "episode", "mean_loss", "lr", "tau",
         "service_level", "buffer_size", "n_updates", "elapsed_s",
         # Encoding diagnostics — verify encoder health per episode:
-        "mean_shift_remaining",  # global_context[5]; should vary 0→1 across shift
+        #"mean_shift_remaining",  # global_context[5]; should vary 0→1 across shift
         "mean_value_spread",     # max(V)-min(V) per decision; near 0 = NN not discriminating
         "mean_reward",           # raw step reward mean; scale check for TD signal
         "pct_zero_reward",       # % decisions with r=0; high = too sparse
@@ -1099,12 +1100,12 @@ def train_nn_rollout(
         import statistics as _stat
         _spreads  = nn_learning._value_spreads
         _rewards  = nn_learning._reward_values
-        _shifts   = nn_learning._shift_remaining_values
+        #_shifts   = nn_learning._shift_remaining_values
         _n_dec    = nn_learning._decision_count
         _n_fall   = nn_learning._fallback_count
         _n_cand   = nn_learning._candidate_count   # true denominator for fallback %
 
-        mean_shift_remaining = round(_stat.mean(_shifts),  4) if _shifts  else 1.0
+        #mean_shift_remaining = round(_stat.mean(_shifts),  4) if _shifts  else 1.0
         mean_value_spread    = round(_stat.mean(_spreads), 6) if _spreads else 0.0
         mean_reward          = round(_stat.mean(_rewards), 5) if _rewards else 0.0
         pct_zero_reward      = round(
@@ -1122,7 +1123,7 @@ def train_nn_rollout(
             "buffer_size":         len(replay_buffer),
             "n_updates":           n_updates,
             "elapsed_s":           round(elapsed,      1),
-            "mean_shift_remaining": mean_shift_remaining,
+            #"mean_shift_remaining": mean_shift_remaining,
             "mean_value_spread":    mean_value_spread,
             "mean_reward":          mean_reward,
             "pct_zero_reward":      pct_zero_reward,

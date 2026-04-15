@@ -59,7 +59,7 @@ from policies.sjovik_sund.mdp.mdp_formulation import MDPState, StationInventory,
 
 STATION_FEATURE_DIM = 3   # features per station row  (functional, onsite, depot ratios)
 VEHICLE_FEATURE_DIM = 4   # features per vehicle row  (func_cargo, depot_cargo, dest_func, eta)
-GLOBAL_FEATURE_DIM  = 7   # entries in the global context vector
+GLOBAL_FEATURE_DIM  = 6   # entries in the global context vector
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -282,13 +282,13 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
     #
     # Previous bug: denominator was shift_end_time (an absolute timestamp),
     # making the ratio near-zero for any episode past minute ~1440.
-    if mdp_state.shift_end_time is not None and mdp_state.shift_end_time > mdp_state.time:
+    '''if mdp_state.shift_end_time is not None and mdp_state.shift_end_time > mdp_state.time:
         shift_remaining = min(
             1.0,
             mdp_state.time_remaining_in_shift() / 1440.0,
         )
     else:
-        shift_remaining = 1.0   # treat as full shift remaining when unknown
+        shift_remaining = 1.0   # treat as full shift remaining when unknown'''
 
     # --- mean functional cargo ratio across fleet ---
     if mdp_state.vehicles:
@@ -301,9 +301,9 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
 
     return torch.tensor(
         [time_sin, time_cos, total_starvation, broken_ratio,
-         depot_queue_ratio, shift_remaining, mean_load],
+         depot_queue_ratio, mean_load],
         dtype=torch.float32,
-    )   # [7]
+    )   # [6]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
