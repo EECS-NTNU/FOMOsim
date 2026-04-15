@@ -57,7 +57,7 @@ from policies.sjovik_sund.mdp.mdp_formulation import MDPState, StationInventory,
 # Dimension constants — imported by nn_model.py to keep shapes in sync
 # ─────────────────────────────────────────────────────────────────────────────
 
-STATION_FEATURE_DIM = 5   # features per station row
+STATION_FEATURE_DIM = 4   # features per station row
 VEHICLE_FEATURE_DIM = 5   # features per vehicle row
 GLOBAL_FEATURE_DIM  = 7   # entries in the global context vector
 
@@ -81,10 +81,6 @@ def _encode_station(inv: StationInventory) -> list:
       [3] empty_dock_ratio  : free docking spaces / capacity
                               (NOT simply 1 − functional; broken bikes
                                also occupy docks but cannot be rented)
-      [4] broken_ratio      : (onsite + depot) / capacity
-                              (total maintenance backlog; redundant but
-                               gives an explicit signal so the model does
-                               not have to reconstruct it from [1]+[2])
     """
     cap = inv.capacity if inv.capacity > 0 else 1  # guard zero-capacity stations
 
@@ -93,7 +89,6 @@ def _encode_station(inv: StationInventory) -> list:
         inv.onsite             / cap,               # [1] onsite_ratio
         inv.depot              / cap,               # [2] depot_ratio
         inv.free_docks()       / cap,               # [3] empty_dock_ratio
-        (inv.onsite + inv.depot) / cap,             # [4] broken_ratio
     ]
 
 
@@ -126,7 +121,7 @@ def encode_station_block(mdp_state: MDPState) -> torch.Tensor:
 
 def _encode_vehicle(
     status: VehicleStatus,
-    sorted_station_ids: list,
+    stations: dict,
     shift_end_time: Optional[float],
     current_time: float,
 ) -> list:
@@ -140,12 +135,14 @@ def _encode_vehicle(
                                      (these three sum to 1 together with each
                                       other — useful for capacity planning)
 
-      [3] destination_index        : destination station's position in the
-                                     sorted station list, normalized to [0, 1].
-                                     Cheap positional signal so the model can
-                                     distinguish which station the vehicle is
-                                     heading to without a learned embedding.
-                                     Falls back to 0.0 for depot destinations.
+      [3] dest_functional_ratio    : functional bikes / capacity at the
+                                     destination station, i.e. how full the
+                                     target station currently is.
+                                     This tells the model what the vehicle will
+                                     find on arrival — far more actionable than
+                                     an arbitrary positional index.
+                                     Falls back to 0.0 for depot destinations
+                                     or unknown station IDs.
 
       [4] eta_normalized           : time until arrival / shift_length.
                                      0.0 = vehicle already arrived,
@@ -160,13 +157,14 @@ def _encode_vehicle(
     depot_cargo_ratio        = status.depot_cargo       / cap
     remaining_capacity_ratio = status.free_capacity()   / cap
 
-    # --- destination as a normalized positional index ---
-    if status.destination_station in sorted_station_ids:
-        n_stations    = max(len(sorted_station_ids) - 1, 1)
-        dest_index    = sorted_station_ids.index(status.destination_station) / n_stations
+    # --- destination station's current fill level ---
+    dest_inv = stations.get(status.destination_station)
+    if dest_inv is not None:
+        dest_cap              = dest_inv.capacity if dest_inv.capacity > 0 else 1
+        dest_functional_ratio = dest_inv.functional / dest_cap
     else:
-        # Depot or unknown destination; use 0.0 as a sentinel
-        dest_index = 0.0
+        # Depot or unknown destination
+        dest_functional_ratio = 0.0
 
     # --- normalized ETA: how far in the future does this vehicle arrive? ---
     time_until_arrival = max(0.0, status.eta - current_time)
@@ -182,7 +180,7 @@ def _encode_vehicle(
         functional_cargo_ratio,    # [0]
         depot_cargo_ratio,         # [1]
         remaining_capacity_ratio,  # [2]
-        dest_index,                # [3]
+        dest_functional_ratio,     # [3]
         eta_normalized,            # [4]
     ]
 
@@ -200,12 +198,10 @@ def encode_vehicle_block(mdp_state: MDPState) -> torch.Tensor:
     Returns:
         Float32 tensor of shape [M_vehicles, VEHICLE_FEATURE_DIM].
     """
-    sorted_station_ids = sorted(mdp_state.stations.keys())
-
     rows = [
         _encode_vehicle(
             mdp_state.vehicles[vid],
-            sorted_station_ids,
+            mdp_state.stations,
             mdp_state.shift_end_time,
             mdp_state.time,
         )

@@ -40,6 +40,7 @@ EpisodeTrainingPolicy in LinearVFAPolicy.py, just wrapping the NN policy
 instead of the linear VFA.
 """
 
+import csv
 import sys
 import copy
 import random
@@ -73,12 +74,15 @@ from policies.sjovik_sund.mdp.reward import RewardCalculator
 from policies.sjovik_sund.run_simulation_ingvild import run_simulation, SimulationConfig
 from settings import ENABLE_COMPONENT_FAILURES
 
+# --- Device Selection ---
+device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+print(f"Using device: {device}")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Hyperparameters
 # ─────────────────────────────────────────────────────────────────────────────
 
-NUM_EPISODES         : int   = 50
+NUM_EPISODES         : int   = 300
 EPISODE_DAYS         : int   = 14
 WARMUP_DAYS          : int   = 2     # GreedyPolicy for days 1–2
 LEARNING_DAYS        : int   = 12    # NNLearningPolicy for days 3–14
@@ -95,6 +99,12 @@ BATCH_SIZE           : int   = 64      # mini-batch size per gradient update
 MIN_BUFFER_SIZE      : int   = 256     # start learning only after this many transitions
 
 GRAD_CLIP_NORM       : float = 1.0   # max gradient norm (prevents large TD spikes)
+
+# Boltzmann exploration temperature schedule (linear anneal over all episodes)
+# tau_start: high temperature early → broad exploration of action space
+# tau_end:   near-zero  late        → essentially greedy exploitation
+TAU_START            : float = 0.5
+TAU_END              : float = 0.02
 
 INSTANCE_NAME        : str   = "TD_W34_old"
 NUM_VEHICLES         : int   = 1
@@ -174,77 +184,54 @@ def _greedy_select(values: list) -> int:
     return max(range(len(values)), key=lambda i: values[i])
 
 
+def _boltzmann_select(values: list, tau: float) -> int:
+    """
+    Sample a candidate proportional to softmax(V / tau).
+
+    tau → 0 : collapses to greedy (pure exploitation)
+    tau → ∞ : uniform random (pure exploration)
+
+    Values are shifted by their max before exponentiation to prevent
+    overflow when tau is small and value differences are large.
+    """
+    if tau <= 0.0 or len(values) == 1:
+        return _greedy_select(values)
+    import torch.nn.functional as F
+    v = torch.tensor(values, dtype=torch.float32)
+    probs = F.softmax(v / tau, dim=0)
+    return torch.multinomial(probs, num_samples=1).item()
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # TD LOSS
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _compute_td_loss(
-    online_model:  NNValueNetwork,
-    target_model:  NNValueNetwork,
-    batch:         list,
-    gamma:         float,
-    n_stations:    int,
-) -> torch.Tensor:
-    """
-    Compute the mean squared TD error over a mini-batch.
-
-    For each transition (S^x_cur, r, S^x_next, done):
-
-        target = r / n_stations                          if done (terminal)
-                 r / n_stations + γ · V_target(S^x_next) otherwise
-
-        loss_i = ( target  −  V_online(S^x_cur) )²
-
-    Key properties:
-      - The TARGET uses the FROZEN target_model — no gradients flow through it.
-        This prevents the TD target from chasing its own gradient, which is
-        the primary source of divergence in neural TD learning.
-      - Rewards are divided by n_stations for scale normalization.
-        Starvation counts grow with network size; normalizing keeps the
-        TD error on a consistent scale regardless of instance.
-      - Gradients flow ONLY through V_online(S^x_cur). This is the
-        "semi-gradient" convention standard in ADP / DQN.
-
-    Args:
-        online_model : the model being trained (gradients computed here)
-        target_model : periodically frozen copy (no gradients)
-        batch        : list of (enc_cur, reward, enc_next, done) tuples
-        gamma        : discount factor
-        n_stations   : number of stations (for reward normalization)
-
-    Returns:
-        Scalar mean loss tensor.
-    """
+def _compute_td_loss(online_model, target_model, batch, gamma, n_stations):
     losses = []
-
     for (enc_cur, reward, enc_next, done) in batch:
-
-        # --- Online value for the current post-decision state ---
-        # Gradient flows through this call.
+        # Move input blocks to M1 GPU
         v_cur = online_model(
-            enc_cur["station_block"],
-            enc_cur["vehicle_block"],
-            enc_cur["global_context"],
-        )   # [1]
+            enc_cur["station_block"].to(device),
+            enc_cur["vehicle_block"].to(device),
+            enc_cur["global_context"].to(device),
+        )
 
-        # --- TD target: no gradient through target_model ---
         with torch.no_grad():
-            normalized_r = torch.tensor(
-                [reward / max(n_stations, 1)], dtype=torch.float32
-            )
+            # Reward and target must also be on the same device
+            normalized_r = torch.tensor([reward / max(n_stations, 1)], 
+                                        dtype=torch.float32, device=device)
             if done:
-                # Terminal transition: no bootstrap term
                 td_target = normalized_r
             else:
-                v_next    = target_model(
-                    enc_next["station_block"],
-                    enc_next["vehicle_block"],
-                    enc_next["global_context"],
+                # Move next-state blocks to M1 GPU
+                v_next = target_model(
+                    enc_next["station_block"].to(device),
+                    enc_next["vehicle_block"].to(device),
+                    enc_next["global_context"].to(device),
                 )
                 td_target = normalized_r + gamma * v_next
 
         losses.append((td_target - v_cur) ** 2)
-
     return torch.stack(losses).mean()
 
 
@@ -294,17 +281,19 @@ class NNLearningPolicy(Policy):
         gamma:             float,
         config:            MDPConfig,
         depot_id:          Optional[str],
+        tau:               float = 0.0,   # Boltzmann temperature; 0 = greedy
         verbose:           bool = False,
     ):
         super().__init__(maintenance_enabled=config.allow_onsite_repairs)
 
-        self.online_model      = online_model
+        self.online_model       = online_model
         self.reward_calc_config = reward_calc_config
-        self.replay_buffer     = replay_buffer
-        self.gamma             = gamma
-        self.config            = config
-        self.depot_id          = depot_id
-        self.verbose           = verbose
+        self.replay_buffer      = replay_buffer
+        self.gamma              = gamma
+        self.config             = config
+        self.depot_id           = depot_id
+        self.tau                = tau
+        self.verbose            = verbose
 
         # RewardCalculator: initialized lazily on the first get_best_action call
         # because we need the simulator's initial metrics to set the baseline.
@@ -392,9 +381,9 @@ class NNLearningPolicy(Policy):
             for mdp_action, _ in pairs:
                 post_encoded = self._encode_post_decision(mdp_state, mdp_action)
                 v = self.online_model(
-                    post_encoded["station_block"],
-                    post_encoded["vehicle_block"],
-                    post_encoded["global_context"],
+                    post_encoded["station_block"].to(device),
+                    post_encoded["vehicle_block"].to(device),
+                    post_encoded["global_context"].to(device),
                 )
                 values.append(v.item())
                 post_encodings.append(post_encoded)
@@ -404,22 +393,22 @@ class NNLearningPolicy(Policy):
             if self._decision_count == 0:
                 # Full state encoding dump on the very first learning decision
                 enc = post_encodings[0] if post_encodings else self._encode_post_decision(mdp_state, pairs[0][0])
-                sb = enc["station_block"]   # [N, 5]
+                sb = enc["station_block"]   # [N, 4]
                 vb = enc["vehicle_block"]   # [M, 5]
                 gc = enc["global_context"]  # [7]
                 print("\n" + "-" * 60)
                 print("  [DEBUG] First learning-phase decision - state encoding")
                 print("-" * 60)
-                print(f"  station_block   shape : {list(sb.shape)}  (N_stations x 5)")
+                print(f"  station_block   shape : {list(sb.shape)}  (N_stations x 4)")
                 print(f"  vehicle_block   shape : {list(vb.shape)}  (M_vehicles x 5)")
                 print(f"  global_context  shape : {list(gc.shape)}  (7 features)")
                 print()
-                print("  station_block  [func | onsite | depot | free_docks | broken]")
+                print("  station_block  [func | onsite | depot | free_docks]")
                 for i, row in enumerate(sb.tolist()):
                     sid = sorted(mdp_state.stations.keys())[i]
                     print(f"    station {sid:>4s}: {['%.3f'%x for x in row]}")
                 print()
-                print("  vehicle_block  [func_cargo | depot_cargo | free_cap | dest_idx | eta]")
+                print("  vehicle_block  [func_cargo | depot_cargo | free_cap | dest_func | eta]")
                 for i, row in enumerate(vb.tolist()):
                     vid = sorted(mdp_state.vehicles.keys())[i]
                     print(f"    vehicle {vid:>4s}: {['%.3f'%x for x in row]}")
@@ -442,8 +431,8 @@ class NNLearningPolicy(Policy):
 
         self._decision_count += 1
 
-        # --- Step 5: Greedy selection ---
-        idx = _greedy_select(values)
+        # --- Step 5: Action selection (Boltzmann if tau > 0, else greedy) ---
+        idx = _boltzmann_select(values, self.tau)
         chosen_sim_action    = pairs[idx][1]
         chosen_post_encoded  = post_encodings[idx]
 
@@ -540,15 +529,42 @@ class NNEpisodeTrainingPolicy(Policy):
         After warmup_end_time:  NNLearningPolicy (Boltzmann + replay recording).
         """
         if state.time < self.warmup_end_time:
-            # Warm-up phase: greedy decisions build up a realistic messy state
-            # without biasing the NN weights with early-episode noise.
             return self.greedy_policy.get_best_action(state, vehicle)
         else:
-            # Learning phase: NN scoring + Boltzmann exploration + replay buffer
+            # --- NEW: Snapshot metrics at the exact moment warmup ends ---
+            if not hasattr(self, 'warmup_trips_snapshot'):
+                self.warmup_trips_snapshot = state.metrics.get_aggregate_value("trips") or 1
+                self.warmup_starvations_snapshot = state.metrics.get_aggregate_value("starvations") or 0
+                self.warmup_congestions_snapshot = state.metrics.get_aggregate_value("long congestions") or 0
+            # -------------------------------------------------------------
+            
+            # Learning phase: NN scoring + Boltzmann exploration
             return self.nn_policy.get_best_action(state, vehicle)
 
     def __repr__(self) -> str:
         return "NNEpisodeTrainingPolicy(greedy)"
+    
+    
+def _service_level(simulator, episode_policy) -> float:
+    """Computes the service level strictly for the LEARNING phase (Days 3-14)."""
+    m = simulator.state.metrics
+    
+    # Total metrics at the end of the episode
+    total_trips = m.get_aggregate_value("trips") or 1
+    total_starv = m.get_aggregate_value("starvations") or 0
+    total_cong  = m.get_aggregate_value("long congestions") or 0
+
+    # Retrieve the snapshots taken at the end of warmup
+    warmup_trips = getattr(episode_policy, 'warmup_trips_snapshot', 0)
+    warmup_starv = getattr(episode_policy, 'warmup_starvations_snapshot', 0)
+    warmup_cong  = getattr(episode_policy, 'warmup_congestions_snapshot', 0)
+
+    # Isolate the Neural Network's true performance
+    nn_trips = max(1, total_trips - warmup_trips)
+    nn_starv = max(0, total_starv - warmup_starv)
+    nn_cong  = max(0, total_cong - warmup_cong)
+
+    return 1.0 - ((nn_starv + nn_cong) / nn_trips)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -563,6 +579,8 @@ def train_nn_rollout(
     gamma:              float = GAMMA,
     lr_start:           float = LR_START,
     lr_end:             float = LR_END,
+    tau_start:          float = TAU_START,
+    tau_end:            float = TAU_END,
     target_update_freq: int   = TARGET_UPDATE_FREQ,
     batch_size:         int   = BATCH_SIZE,
     buffer_size:        int   = BUFFER_SIZE,
@@ -606,8 +624,8 @@ def train_nn_rollout(
     # The target model starts as an exact copy of the online model.
     # It is NEVER updated by backprop; only by hard weight copies every
     # TARGET_UPDATE_FREQ episodes.
-    online_model = build_nn_value_network()
-    target_model = copy.deepcopy(online_model)
+    online_model = build_nn_value_network().to(device)
+    target_model = copy.deepcopy(online_model).to(device)
     for param in target_model.parameters():
         param.requires_grad = False   # no gradient tracking in target
 
@@ -640,8 +658,19 @@ def train_nn_rollout(
         reward_calc_config = _tmp_vfa.reward_calc.config
 
     # ── Metrics tracking ──────────────────────────────────────────────────────
-    learning_curve = []   # (episode, mean_loss, tau, lr) logged after each episode
+    learning_curve = []   # written to checkpoint; also mirrored to CSV below
     t0 = time.time()
+
+    # Open CSV log — one row per episode, written incrementally so a partial
+    # run is still readable if training is interrupted on the cluster.
+    ts_run   = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_path = SAVE_DIR / f"training_log_seed{seed_offset}_{ts_run}.csv"
+    CSV_FIELDS = ["episode", "mean_loss", "lr", "tau",
+                  "service_level", "buffer_size", "n_updates", "elapsed_s"]
+    csv_file   = csv_path.open("w", newline="")
+    csv_writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
+    csv_writer.writeheader()
+    print(f"  CSV log           : {csv_path}")
 
     print("=" * 72)
     print("  NN ROLLOUT TRAINING")
@@ -649,7 +678,7 @@ def train_nn_rollout(
     print(f"  Episodes          : {num_episodes}")
     print(f"  Episode duration  : {EPISODE_DAYS} days  "
           f"(warm-up = {WARMUP_DAYS}d,  learning = {LEARNING_DAYS}d)")
-    print(f"  Selection         : greedy (no exploration)")
+    print(f"  Selection         : Boltzmann  tau {tau_start:.3f} -> {tau_end:.3f}  (linear anneal)")
     print(f"  LR schedule       : {lr_start:.5f}  ->  {lr_end:.5f}  (linear)")
     print(f"  gamma                 : {gamma}")
     print(f"  Target update     : every {target_update_freq} episodes")
@@ -663,9 +692,10 @@ def train_nn_rollout(
     _buffer_ready_logged = False   # print once when buffer first becomes ready
     for ep in range(num_episodes):
 
-        # --- Decay lr (linear) for this episode ---
+        # --- Decay lr and tau (both linear) for this episode ---
         frac        = ep / max(num_episodes - 1, 1)
-        current_lr  = lr_start + (lr_end - lr_start) * frac
+        current_lr  = lr_start  + (lr_end  - lr_start)  * frac
+        current_tau = tau_start + (tau_end  - tau_start) * frac
         for param_group in optimizer.param_groups:
             param_group["lr"] = current_lr
 
@@ -680,6 +710,7 @@ def train_nn_rollout(
             gamma=gamma,
             config=config,
             depot_id=depot_id,
+            tau=current_tau,
             verbose=(ep == VERBOSE_EPISODE),
         )
         greedy_policy  = GreedyPolicy()
@@ -705,13 +736,16 @@ def train_nn_rollout(
         )
 
         # Push the terminal transition for the last learning-phase decision
-        # (closes the open (S^x_prev, r, ?) transition with done=True).
         nn_learning.flush_terminal_transition(simulator.state)
+
+        # NEW: Calculate service level for this episode
+        sl = _service_level(simulator, episode_policy)
 
         # --- Gradient updates from replay buffer (post-episode) ---
         # We do one gradient pass per episode rather than per transition.
         # This keeps training fast while still leveraging the diversity of the buffer.
         episode_losses = []
+        n_updates      = 0   # tracked for CSV logging
 
         buffer_ready = replay_buffer.ready(min_size=MIN_BUFFER_SIZE)
         if not buffer_ready:
@@ -767,17 +801,33 @@ def train_nn_rollout(
 
         # --- Logging ---
         learning_curve.append({
-            "episode":     ep + 1,
-            "mean_loss":   mean_loss,
-            "lr":          current_lr,
-            "buffer_size": len(replay_buffer),
+            "episode":       ep + 1,
+            "mean_loss":     mean_loss,
+            "lr":            current_lr,
+            "tau":           current_tau,
+            "buffer_size":   len(replay_buffer),
+            "service_level": sl,
         })
+        elapsed = time.time() - t0
         print(
             f"  Ep {ep+1:3d}/{num_episodes} | "
-            f"lr={current_lr:.5f} | "
-            f"loss={mean_loss:.4f} | buffer={len(replay_buffer):,} | "
-            f"t={time.time()-t0:.0f}s"
+            f"lr={current_lr:.5f} | tau={current_tau:.3f} | "
+            f"loss={mean_loss:.4f} | SL={sl:.4f} | buffer={len(replay_buffer):,} | "
+            f"t={elapsed:.0f}s"
         )
+
+        # Write one CSV row per episode (flushed immediately so partial runs are readable)
+        csv_writer.writerow({
+            "episode":       ep + 1,
+            "mean_loss":     round(mean_loss,   6),
+            "lr":            round(current_lr,  6),
+            "tau":           round(current_tau, 4),
+            "service_level": round(sl,          4),
+            "buffer_size":   len(replay_buffer),
+            "n_updates":     n_updates,
+            "elapsed_s":     round(elapsed,     1),
+        })
+        csv_file.flush()
 
         # --- Periodic checkpoint ---
         if (ep + 1) % 50 == 0:
@@ -808,12 +858,15 @@ def train_nn_rollout(
         "global_feature_dim":  online_model.global_feature_dim,
     }, save_path)
 
-    elapsed = time.time() - t0
+    csv_file.close()
+
+    total_elapsed = time.time() - t0
     print("\n" + "=" * 72)
     print("  NN TRAINING COMPLETE")
     print("=" * 72)
-    print(f"  Total time    : {elapsed / 60:.1f} min")
+    print(f"  Total time    : {total_elapsed / 60:.1f} min")
     print(f"  Model saved   : {save_path}")
+    print(f"  CSV log saved : {csv_path}")
     print("=" * 72 + "\n")
 
     online_model.eval()

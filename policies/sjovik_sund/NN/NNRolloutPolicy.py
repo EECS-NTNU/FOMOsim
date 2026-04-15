@@ -112,7 +112,7 @@ class NNRolloutPolicy(Policy):
         nn_model:           NNValueNetwork,
         candidate_vfa:      LinearVFAPolicy,
         lookahead_minutes:  float = 60.0,
-        num_scenarios:      int   = 1,
+        num_scenarios:      int   = 3,
         maintenance_enabled: bool = True,
         depot_id:           str   = None,
     ):
@@ -261,14 +261,17 @@ class NNRolloutPolicy(Policy):
 
         # Step 2: encode into tensors (no handcrafted features; raw ratios only)
         encoded = encode_state(terminal_mdp_state)
+        
+        # Dynamically check which device the model is currently on
+        device = next(self.nn_model.parameters()).device
 
         # Step 3: forward pass — torch.no_grad() ensures no gradients are
         # accumulated, keeping inference fast and memory-efficient
         with torch.no_grad():
             value_tensor = self.nn_model(
-                encoded["station_block"],
-                encoded["vehicle_block"],
-                encoded["global_context"],
+                encoded["station_block"].to(device),
+                encoded["vehicle_block"].to(device),
+                encoded["global_context"].to(device),
             )
 
         # Step 4: unwrap to a Python scalar
@@ -277,6 +280,7 @@ class NNRolloutPolicy(Policy):
     # ─────────────────────────────────────────────────────────────────────────
     # Main decision method
     # ─────────────────────────────────────────────────────────────────────────
+
 
     def get_best_action(self, state, vehicle):
         """
