@@ -121,6 +121,13 @@ SAVE_DIR = Path(__file__).parent / "models"
 # Set to -1 to disable all debug output (normal training).
 VERBOSE_EPISODE: int = 0
 
+# ── Diagnostic probes ─────────────────────────────────────────────────────────
+# DEBUG_EVERY   : print a full diagnostic summary every N episodes.
+# EVAL_GREEDY_EVERY : run a tau=0 eval episode every N episodes (0 = disabled).
+#                     Each eval adds ~1 episode worth of wall time.
+DEBUG_EVERY       : int = 25   # set to 0 to silence all diagnostic output
+EVAL_GREEDY_EVERY : int = 50   # set to 0 to skip greedy evaluation runs
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # EXPERIENCE REPLAY BUFFER
@@ -206,8 +213,14 @@ def _boltzmann_select(values: list, tau: float) -> int:
 # TD LOSS
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _compute_td_loss(online_model, target_model, batch, gamma, n_stations):
-    losses = []
+def _compute_td_loss(online_model, target_model, batch, gamma, n_stations,
+                     collect_debug: bool = False):
+    losses      = []
+    # Debug accumulators — only filled when collect_debug=True
+    _v_curs     = []
+    _td_targets = []
+    _rewards    = []
+
     for (enc_cur, reward, enc_next, done) in batch:
         # Move input blocks to M1 GPU
         v_cur = online_model(
@@ -218,7 +231,7 @@ def _compute_td_loss(online_model, target_model, batch, gamma, n_stations):
 
         with torch.no_grad():
             # Reward and target must also be on the same device
-            normalized_r = torch.tensor([reward / max(n_stations, 1)], 
+            normalized_r = torch.tensor([reward / max(n_stations, 1)],
                                         dtype=torch.float32, device=device)
             if done:
                 td_target = normalized_r
@@ -232,7 +245,31 @@ def _compute_td_loss(online_model, target_model, batch, gamma, n_stations):
                 td_target = normalized_r + gamma * v_next
 
         losses.append((td_target - v_cur) ** 2)
-    return torch.stack(losses).mean()
+
+        if collect_debug:
+            _v_curs.append(v_cur.item())
+            _td_targets.append(td_target.item())
+            _rewards.append(reward)
+
+    loss = torch.stack(losses).mean()
+
+    if collect_debug:
+        import statistics
+        debug_info = {
+            "v_cur_mean":    statistics.mean(_v_curs),
+            "v_cur_std":     statistics.stdev(_v_curs) if len(_v_curs) > 1 else 0.0,
+            "v_cur_min":     min(_v_curs),
+            "v_cur_max":     max(_v_curs),
+            "td_target_mean": statistics.mean(_td_targets),
+            "td_target_std":  statistics.stdev(_td_targets) if len(_td_targets) > 1 else 0.0,
+            "reward_mean":   statistics.mean(_rewards),
+            "reward_min":    min(_rewards),
+            "reward_max":    max(_rewards),
+            "n_done":        sum(1 for (_, _, _, d) in batch if d),
+        }
+        return loss, debug_info
+
+    return loss, None
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -306,6 +343,18 @@ class NNLearningPolicy(Policy):
         # Decision counter — used for verbose debug output.
         self._decision_count: int = 0
 
+        # ── Per-episode diagnostic accumulators ───────────────────────────────
+        # _value_spreads   : max(V) - min(V) across candidates, per decision.
+        #                    If this is consistently near 0, the NN cannot
+        #                    distinguish candidates → Boltzmann collapses to random.
+        # _fallback_count  : how many times PostDecisionState.apply() failed
+        #                    and fell back to encoding the pre-decision state.
+        # _reward_values   : raw step rewards pushed to the buffer (for scale check).
+        self._value_spreads:  list = []
+        self._fallback_count: int  = 0
+        self._reward_values:  list = []
+        self._shift_checked:  bool = False   # print shift_remaining once per episode
+
     # init_sim is intentionally not overridden: generate_candidates() is a
     # standalone function that reads directly from sim.State and sim.Vehicle,
     # so no policy-level initialisation is needed before calling it.
@@ -337,9 +386,29 @@ class NNLearningPolicy(Policy):
         """
         try:
             post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
+
+            # One-time sanity check for shift_remaining encoding.
+            # shift_remaining = time_remaining_in_shift() / shift_end_time
+            # If shift_end_time is an absolute timestamp rather than a duration
+            # this ratio will be near 0 for every state, killing the feature.
+            if not self._shift_checked and post_state.shift_end_time is not None:
+                self._shift_checked = True
+                t_remaining = post_state.time_remaining_in_shift()
+                t_end       = post_state.shift_end_time
+                naive_ratio = t_remaining / max(t_end, 1)
+                print(
+                    f"\n  [DEBUG:shift_remaining]"
+                    f"  time={post_state.time:.0f}min"
+                    f"  shift_end_time={t_end:.0f}min"
+                    f"  time_remaining_in_shift()={t_remaining:.0f}min"
+                    f"  naive_ratio={naive_ratio:.4f}"
+                    f"  <- should be in (0,1]; near 0 means denominator bug"
+                )
+
             return encode_state(post_state)
-        except Exception:
+        except Exception as _exc:
             # Fallback: encode current state; slightly less accurate but safe
+            self._fallback_count += 1
             return encode_state(mdp_state)
 
     def get_best_action(self, state, vehicle):
@@ -429,6 +498,12 @@ class NNLearningPolicy(Policy):
                 f"r_k={r_k:.4f}"
             )
 
+        # Accumulate per-decision spread for episode-level diagnostics.
+        # A spread near 0 means all candidates look equally good to the NN
+        # → Boltzmann selection degenerates to uniform random.
+        if len(values) > 1:
+            self._value_spreads.append(max(values) - min(values))
+
         self._decision_count += 1
 
         # --- Step 5: Action selection (Boltzmann if tau > 0, else greedy) ---
@@ -454,6 +529,7 @@ class NNLearningPolicy(Policy):
                 encoded_next=chosen_post_encoded,
                 done=False,
             )
+            self._reward_values.append(r_k)   # track for episode-level reward stats
 
         # --- Step 7: store chosen post-decision state for next epoch ---
         self._prev_post_encoded = chosen_post_encoded
@@ -565,6 +641,58 @@ def _service_level(simulator, episode_policy) -> float:
     nn_cong  = max(0, total_cong - warmup_cong)
 
     return 1.0 - ((nn_starv + nn_cong) / nn_trips)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Greedy evaluation episode
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _run_greedy_eval(
+    online_model:    NNValueNetwork,
+    reward_calc_config,
+    config:          MDPConfig,
+    depot_id:        Optional[str],
+    seed:            int,
+    instance_name:   str,
+    gamma:           float,
+    warmup_end_time: float,
+) -> float:
+    """
+    Run one evaluation episode with tau=0 (pure greedy NN) and no buffer writes.
+
+    This is the key check for whether the NN has learned anything useful.
+    During training episodes, Boltzmann noise masks the NN quality.
+    Here tau=0 forces the NN to pick its argmax action every time,
+    so the returned service level purely reflects the NN's value estimates.
+
+    Returns the learning-phase service level (same formula as _service_level).
+    """
+    eval_learning = NNLearningPolicy(
+        online_model=online_model,
+        reward_calc_config=reward_calc_config,
+        replay_buffer=ReplayBuffer(max_size=1),   # dummy — nothing pushed with tau=0 eval
+        gamma=gamma,
+        config=config,
+        depot_id=depot_id,
+        tau=0.0,       # <-- pure greedy: NN argmax only
+        verbose=False,
+    )
+    greedy_policy  = GreedyPolicy()
+    eval_episode   = NNEpisodeTrainingPolicy(
+        nn_learning_policy=eval_learning,
+        greedy_policy=greedy_policy,
+        warmup_end_time=warmup_end_time,
+    )
+    sim_config = SimulationConfig()
+    eval_sim   = run_simulation(
+        seed          = seed,
+        policy        = eval_episode,
+        duration      = 24 * EPISODE_DAYS,
+        num_vehicles  = NUM_VEHICLES,
+        instance_name = instance_name,
+        config        = sim_config,
+    )
+    return _service_level(eval_sim, eval_episode)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -754,6 +882,13 @@ def train_nn_rollout(
             print(f"  [DEBUG] Buffer ready at episode {ep+1} ({len(replay_buffer)} transitions) — gradient updates begin")
             _buffer_ready_logged = True
 
+        # Decide whether to collect detailed debug stats this episode.
+        # Collected on the LAST gradient step to avoid the overhead on every step.
+        collect_debug_this_ep = (
+            DEBUG_EVERY > 0 and (ep + 1) % DEBUG_EVERY == 0
+        )
+        last_debug_info = None
+
         if buffer_ready:
             # Number of gradient steps: proportional to episode length relative to batch size,
             # capped to prevent overfitting on a single episode's transitions.
@@ -769,17 +904,23 @@ def train_nn_rollout(
             if ep == VERBOSE_EPISODE:
                 print(f"  [DEBUG] gradient update: {n_updates} steps x batch={batch_size} | n_stations={n_stations}")
 
-            for _ in range(n_updates):
+            for update_i in range(n_updates):
                 batch = replay_buffer.sample(batch_size)
 
+                # Collect debug info on the final update step of a diagnostic episode.
+                want_debug = collect_debug_this_ep and (update_i == n_updates - 1)
+
                 # Forward: online model; backward: clip gradients; step
-                loss = _compute_td_loss(
+                loss, debug_info = _compute_td_loss(
                     online_model=online_model,
                     target_model=target_model,
                     batch=batch,
                     gamma=gamma,
                     n_stations=n_stations,
+                    collect_debug=want_debug,
                 )
+                if debug_info is not None:
+                    last_debug_info = debug_info
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -798,6 +939,107 @@ def train_nn_rollout(
         if (ep + 1) % target_update_freq == 0:
             target_model.load_state_dict(online_model.state_dict())
             print(f"  -> Target network updated (episode {ep+1})")
+
+        # ── Periodic diagnostic summary ───────────────────────────────────────
+        # Printed every DEBUG_EVERY episodes to help diagnose flat service level.
+        if collect_debug_this_ep:
+            import statistics as _stat
+            spreads = nn_learning._value_spreads
+            rewards = nn_learning._reward_values
+            n_dec   = nn_learning._decision_count
+            n_fall  = nn_learning._fallback_count
+
+            print(f"\n  {'─'*60}")
+            print(f"  [DIAGNOSTIC] Episode {ep+1}")
+            print(f"  {'─'*60}")
+
+            # 1. Candidate value spread — is the NN discriminating?
+            if spreads:
+                mean_sp = _stat.mean(spreads)
+                med_sp  = _stat.median(spreads)
+                max_sp  = max(spreads)
+                pct_tiny = sum(1 for s in spreads if s < 0.001) / len(spreads) * 100
+                print(
+                    f"  Value spread (max-min across candidates):"
+                    f"  mean={mean_sp:.5f}  median={med_sp:.5f}  max={max_sp:.5f}"
+                    f"  | {pct_tiny:.0f}% decisions < 0.001"
+                    f"\n  -> If mean spread < 0.01: NN not discriminating candidates"
+                )
+            else:
+                print("  Value spread: no data (no multi-candidate decisions?)")
+
+            # 2. Reward distribution — is the signal non-trivial?
+            if rewards:
+                mean_r = _stat.mean(rewards)
+                min_r  = min(rewards)
+                max_r  = max(rewards)
+                pct_z  = sum(1 for r in rewards if r == 0.0) / len(rewards) * 100
+                print(
+                    f"  Raw rewards pushed to buffer:"
+                    f"  mean={mean_r:.4f}  min={min_r:.4f}  max={max_r:.4f}"
+                    f"  | {pct_z:.0f}% are exactly 0"
+                    f"\n  -> If >80% zero: reward is too sparse to drive learning"
+                )
+            else:
+                print("  Rewards: no transitions pushed this episode")
+
+            # 3. TD loss internals — are V and targets at similar scales?
+            if last_debug_info is not None:
+                d = last_debug_info
+                print(
+                    f"  V(S^x) online  (last batch):  "
+                    f"mean={d['v_cur_mean']:.4f}  std={d['v_cur_std']:.4f}"
+                    f"  [{d['v_cur_min']:.4f}, {d['v_cur_max']:.4f}]"
+                )
+                print(
+                    f"  TD targets     (last batch):  "
+                    f"mean={d['td_target_mean']:.4f}  std={d['td_target_std']:.4f}"
+                )
+                print(
+                    f"  Normalized rewards (last batch):  "
+                    f"mean={d['reward_mean']:.5f}  "
+                    f"min={d['reward_min']:.5f}  max={d['reward_max']:.5f}"
+                    f"  | done transitions: {d['n_done']}/{batch_size}"
+                    f"\n  -> If V and TD targets both near 0 with tiny std:"
+                    f" reward normalization may be over-squashing the signal"
+                )
+            else:
+                print("  TD internals: no gradient updates this episode")
+
+            # 4. PostDecisionState fallback rate
+            if n_dec > 0:
+                fall_pct = n_fall / n_dec * 100
+                print(
+                    f"  PostDecisionState fallbacks: {n_fall}/{n_dec} ({fall_pct:.1f}%)"
+                    f"\n  -> If >5%: corrupted S^x inputs in replay buffer"
+                )
+
+            print(f"  {'─'*60}\n")
+
+        # ── Optional greedy evaluation run ────────────────────────────────────
+        # Runs a separate tau=0 episode to measure true NN quality,
+        # unconfounded by Boltzmann exploration noise.
+        if (EVAL_GREEDY_EVERY > 0
+                and (ep + 1) % EVAL_GREEDY_EVERY == 0
+                and reward_calc_config is not None):
+            online_model.eval()
+            eval_sl = _run_greedy_eval(
+                online_model=online_model,
+                reward_calc_config=reward_calc_config,
+                config=config,
+                depot_id=depot_id,
+                seed=seed_offset + num_episodes + ep,   # unseen seed
+                instance_name=instance_name,
+                gamma=gamma,
+                warmup_end_time=warmup_end_time,
+            )
+            online_model.train()
+            print(
+                f"  [GREEDY EVAL ep {ep+1}]  SL={eval_sl:.4f}"
+                f"  (training SL this ep={sl:.4f})"
+                f"\n  -> If greedy eval SL >> training SL: NN learned but"
+                f" exploration is masking it in training metrics"
+            )
 
         # --- Logging ---
         learning_curve.append({
