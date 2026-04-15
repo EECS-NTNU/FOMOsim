@@ -208,19 +208,21 @@ class MDPState:
     
     def shift_time_fraction_remaining(self) -> float:
         """
-        Normalized time remaining as a fraction of shift length.
-        
+        Normalized time remaining as a fraction of the standard 24-hour shift.
+
         Returns:
             frac : float in [0, 1]
-                0 = shift over, 1.0 = shift all ahead
+                0 = shift over, 1.0 = shift entirely ahead
                 If shift_end_time is None, returns 1.0.
+
+        The denominator is a fixed 1440-minute reference (24 hours), matching
+        LinearVFAPolicy._get_shift_length().  Using remaining time as the
+        denominator would always return 1.0 — which was the previous bug.
         """
         if self.shift_end_time is None:
             return 1.0
-        shift_length = self.shift_end_time - self.time  # rough approximation
-        if shift_length <= 0:
-            return 0.0
-        return min(1.0, self.time_remaining_in_shift() / max(shift_length, 1.0))
+        remaining = self.time_remaining_in_shift()   # max(0, shift_end_time - time)
+        return min(1.0, max(0.0, remaining / 1440.0))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -451,6 +453,7 @@ class PostDecisionState:
             depot=state.depot,
             vehicles=new_vehicles,
             config=cfg,
+            shift_end_time=state.shift_end_time,   # propagate so encoder sees it
         )
 
         return new_state, action_duration, executed
@@ -549,6 +552,7 @@ class PostDecisionState:
             depot=new_depot,
             vehicles=new_vehicles,
             config=cfg,
+            shift_end_time=state.shift_end_time,   # propagate so encoder sees it
         )
 
         return new_state, action_duration, executed

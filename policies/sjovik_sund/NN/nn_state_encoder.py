@@ -34,7 +34,7 @@ FLOW OVERVIEW
 
   MDPState
       │
-      ├─ mdp_state.stations  ──►  encode_station_block()  ──►  [N × 5]
+      ├─ mdp_state.stations  ──►  encode_station_block()  ──►  [N × 3]
       │       (N StationInventory objects, sorted by ID for determinism)
       │
       ├─ mdp_state.vehicles  ──►  encode_vehicle_block()  ──►  [M × 5]
@@ -57,8 +57,8 @@ from policies.sjovik_sund.mdp.mdp_formulation import MDPState, StationInventory,
 # Dimension constants — imported by nn_model.py to keep shapes in sync
 # ─────────────────────────────────────────────────────────────────────────────
 
-STATION_FEATURE_DIM = 4   # features per station row
-VEHICLE_FEATURE_DIM = 5   # features per vehicle row
+STATION_FEATURE_DIM = 3   # features per station row  (functional, onsite, depot ratios)
+VEHICLE_FEATURE_DIM = 4   # features per vehicle row  (func_cargo, depot_cargo, dest_func, eta)
 GLOBAL_FEATURE_DIM  = 7   # entries in the global context vector
 
 
@@ -78,17 +78,20 @@ def _encode_station(inv: StationInventory) -> list:
       [0] functional_ratio  : rentable bikes / capacity
       [1] onsite_ratio      : bikes repairable on-site / capacity
       [2] depot_ratio       : bikes requiring depot removal / capacity
-      [3] empty_dock_ratio  : free docking spaces / capacity
-                              (NOT simply 1 − functional; broken bikes
-                               also occupy docks but cannot be rented)
+
+    Note — empty_dock_ratio is intentionally omitted.
+    free_docks = capacity - functional - onsite - depot, so
+    functional_ratio + onsite_ratio + depot_ratio + empty_dock_ratio = 1 always.
+    Including it adds a perfectly linearly dependent fourth column — the network
+    can always derive it, and including it wastes a dimension while forcing the
+    encoder weights to compensate for the constant-sum constraint.
     """
     cap = inv.capacity if inv.capacity > 0 else 1  # guard zero-capacity stations
 
     return [
-        inv.functional         / cap,               # [0] functional_ratio
-        inv.onsite             / cap,               # [1] onsite_ratio
-        inv.depot              / cap,               # [2] depot_ratio
-        inv.free_docks()       / cap,               # [3] empty_dock_ratio
+        inv.functional / cap,   # [0] functional_ratio
+        inv.onsite     / cap,   # [1] onsite_ratio
+        inv.depot      / cap,   # [2] depot_ratio
     ]
 
 
@@ -131,20 +134,19 @@ def _encode_vehicle(
     Features (index → meaning):
       [0] functional_cargo_ratio   : functional bikes on board / capacity
       [1] depot_cargo_ratio        : depot-damaged bikes on board / capacity
-      [2] remaining_capacity_ratio : free space / capacity
-                                     (these three sum to 1 together with each
-                                      other — useful for capacity planning)
 
-      [3] dest_functional_ratio    : functional bikes / capacity at the
+      Note — remaining_capacity_ratio is intentionally omitted.
+      free_capacity = capacity - functional_cargo - depot_cargo, so
+      features [0]+[1]+[2] would always sum to 1 — a perfect linear dependency.
+      The two cargo ratios already fully describe vehicle load state.
+
+      [2] dest_functional_ratio    : functional bikes / capacity at the
                                      destination station, i.e. how full the
                                      target station currently is.
-                                     This tells the model what the vehicle will
-                                     find on arrival — far more actionable than
-                                     an arbitrary positional index.
                                      Falls back to 0.0 for depot destinations
                                      or unknown station IDs.
 
-      [4] eta_normalized           : time until arrival / shift_length.
+      [3] eta_normalized           : time until arrival / shift_length (1440 min).
                                      0.0 = vehicle already arrived,
                                      ~1.0 = vehicle just departed near shift start.
                                      Falls back to a fixed 8-hour window if no
@@ -152,10 +154,9 @@ def _encode_vehicle(
     """
     cap = status.capacity if status.capacity > 0 else 1
 
-    # --- cargo composition ---
-    functional_cargo_ratio   = status.functional_cargo  / cap
-    depot_cargo_ratio        = status.depot_cargo       / cap
-    remaining_capacity_ratio = status.free_capacity()   / cap
+    # --- cargo composition (two independent values; third is 1 - these two) ---
+    functional_cargo_ratio = status.functional_cargo / cap
+    depot_cargo_ratio      = status.depot_cargo      / cap
 
     # --- destination station's current fill level ---
     dest_inv = stations.get(status.destination_station)
@@ -166,22 +167,18 @@ def _encode_vehicle(
         # Depot or unknown destination
         dest_functional_ratio = 0.0
 
-    # --- normalized ETA: how far in the future does this vehicle arrive? ---
+    # --- normalized ETA ---
+    # Normalized against the standard 24-hour shift length (1440 min), matching
+    # the reference used by LinearVFAPolicy._get_shift_length().
+    # This gives a consistent scale across all decision epochs.
     time_until_arrival = max(0.0, status.eta - current_time)
-    if shift_end_time is not None and shift_end_time > current_time:
-        # Normalize against remaining shift length
-        remaining_shift = shift_end_time - current_time
-        eta_normalized  = min(1.0, time_until_arrival / remaining_shift)
-    else:
-        # No shift boundary known; normalize against a fixed 8-hour reference
-        eta_normalized = min(1.0, time_until_arrival / 480.0)
+    eta_normalized = min(1.0, time_until_arrival / 1440.0)
 
     return [
-        functional_cargo_ratio,    # [0]
-        depot_cargo_ratio,         # [1]
-        remaining_capacity_ratio,  # [2]
-        dest_functional_ratio,     # [3]
-        eta_normalized,            # [4]
+        functional_cargo_ratio,   # [0]
+        depot_cargo_ratio,        # [1]
+        dest_functional_ratio,    # [2]
+        eta_normalized,           # [3]
     ]
 
 
@@ -279,13 +276,19 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
         depot_queue_ratio = 0.0   # no depot in this instance
 
     # --- normalized time remaining in shift ---
+    # Normalize against the standard 24-hour shift length (1440 min), which
+    # matches LinearVFAPolicy._get_shift_length() and gives a consistent [0, 1]
+    # scale regardless of what absolute time shift_end_time holds.
+    #
+    # Previous bug: denominator was shift_end_time (an absolute timestamp),
+    # making the ratio near-zero for any episode past minute ~1440.
     if mdp_state.shift_end_time is not None and mdp_state.shift_end_time > mdp_state.time:
         shift_remaining = min(
             1.0,
-            mdp_state.time_remaining_in_shift() / max(mdp_state.shift_end_time, 1),
+            mdp_state.time_remaining_in_shift() / 1440.0,
         )
     else:
-        shift_remaining = 1.0   # treat as beginning of shift when unknown
+        shift_remaining = 1.0   # treat as full shift remaining when unknown
 
     # --- mean functional cargo ratio across fleet ---
     if mdp_state.vehicles:

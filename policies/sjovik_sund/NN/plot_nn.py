@@ -234,6 +234,6 @@ def plot_training_results(checkpoint_path: Path):
 if __name__ == "__main__":
     model_path = (
         Path(__file__).parent
-        / "models/training_log_seed1000_20260414_172707.csv"
+        / "models\nn_model_ep0300_seed1000.pt"
     )
     plot_training_results(model_path)

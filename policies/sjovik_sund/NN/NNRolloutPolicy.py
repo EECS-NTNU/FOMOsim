@@ -251,12 +251,20 @@ class NNRolloutPolicy(Policy):
         Returns:
             float — estimated future value (will be negative; penalties only)
         """
-        # Step 1: snapshot the terminal simulator state as an MDPState
+        # Step 1: snapshot the terminal simulator state as an MDPState.
+        # Read shift_end_time from the vehicle in the clone so the encoder's
+        # shift_remaining feature is non-constant (same pattern as training).
+        try:
+            _terminal_vehicle = clone_sim_state.get_vehicle_by_id(vehicle_id)
+            _shift_end = getattr(_terminal_vehicle, "shift_end_time", None)
+        except Exception:
+            _shift_end = None
         terminal_mdp_state = extract_mdp_state(
             sim_state=clone_sim_state,
             active_vehicle_id=vehicle_id,
             config=self._vfa_for_candidates.config,
             depot_id=self.depot_id,
+            shift_end_time=_shift_end,
         )
 
         # Step 2: encode into tensors (no handcrafted features; raw ratios only)
