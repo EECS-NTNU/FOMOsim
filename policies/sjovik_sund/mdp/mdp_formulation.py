@@ -744,14 +744,18 @@ def extract_mdp_state(
     """
     cfg = config or MDPConfig.full_maintenance()
 
-    # Extract normal stations
+    # Extract normal stations (sim.State keeps depots in a separate dict,
+    # so get_stations() never contains the depot — look it up via get_depots()).
     stations = {}
     depot = None
     for s in sim_state.get_stations():
-        if depot_id is not None and s.id == depot_id:
-            depot = extract_depot_inventory(s, cfg)
-        else:
-            stations[s.id] = extract_station_inventory(s, cfg)
+        stations[s.id] = extract_station_inventory(s, cfg)
+
+    if depot_id is not None:
+        for d in sim_state.get_depots():
+            if d.id == depot_id:
+                depot = extract_depot_inventory(d, cfg)
+                break
 
     vehicles = {
         v.id: extract_vehicle_status(v, sim_state.time, cfg)
