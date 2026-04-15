@@ -125,7 +125,7 @@ VERBOSE_EPISODE: int = 0
 # DEBUG_EVERY   : print a full diagnostic summary every N episodes.
 # EVAL_GREEDY_EVERY : run a tau=0 eval episode every N episodes (0 = disabled).
 #                     Each eval adds ~1 episode worth of wall time.
-DEBUG_EVERY       : int = 25   # set to 0 to silence all diagnostic output
+DEBUG_EVERY       : int = 5   # set to 0 to silence all diagnostic output
 EVAL_GREEDY_EVERY : int = 50   # set to 0 to skip greedy evaluation runs
 
 
@@ -343,27 +343,25 @@ class NNLearningPolicy(Policy):
         # Decision counter — used for verbose debug output.
         self._decision_count: int = 0
 
+
+        # ── Per-episode diagnostic accumulators ───────────────────────────────
         # V-spread tracker: records (max - min) over candidates at each decision.
         # Used post-episode to diagnose whether the NN distinguishes candidates.
-       
-                # ── Per-episode diagnostic accumulators ───────────────────────────────
         # _value_spreads   : max(V) - min(V) across candidates, per decision.
         #                    If this is consistently near 0, the NN cannot
         #                    distinguish candidates → Boltzmann collapses to random.
-        # _fallback_count  : how many times PostDecisionState.apply() failed
-        #                    and fell back to encoding the pre-decision state.
-        # _reward_values   : raw step rewards pushed to the buffer (for scale check).
-        self._v_spreads: list = []
-        self._fallback_count: int  = 0
-        self._reward_values:  list = []
-        self._shift_checked:  bool = False   # print shift_remaining once per episode
-
-    @property
-    def mean_v_spread(self) -> float:
-        """Mean candidate V spread across all learning-phase decisions this episode."""
-        return sum(self._v_spreads) / len(self._v_spreads) if self._v_spreads else 0.0
-
-
+        # _fallback_count    : how many times PostDecisionState.apply() failed
+        #                      and fell back to encoding the pre-decision state.
+        # _fallback_reasons  : Counter of exception message prefixes — tells you
+        #                      which validation check fires most often.
+        # _reward_values     : raw step rewards pushed to the buffer (for scale check).
+        self._value_spreads:         list = []
+        self._shift_remaining_values: list = []
+        self._fallback_count:         int  = 0
+        self._fallback_reasons:       dict = {}   # {reason_str: count}
+        self._candidate_count:        int  = 0    # total _encode_post_decision calls (denominator for fallback %)
+        self._reward_values:          list = []
+        self._shift_checked:          bool = False   # print shift_remaining once per episode
 
     # init_sim is intentionally not overridden: generate_candidates() is a
     # standalone function that reads directly from sim.State and sim.Vehicle,
@@ -394,12 +392,16 @@ class NNLearningPolicy(Policy):
         Falls back to encoding the current pre-decision state if apply() raises
         a validation error (e.g., action is infeasible due to state rounding).
         """
+        self._candidate_count += 1
         try:
             post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
             return encode_state(post_state)
         except Exception as _exc:
-            # Fallback: encode current state; slightly less accurate but safe
+            # Fallback: encode current state; slightly less accurate but safe.
+            # Tally the reason so we can diagnose which validation check fires.
             self._fallback_count += 1
+            reason = str(_exc)[:80]   # first 80 chars is enough to identify the check
+            self._fallback_reasons[reason] = self._fallback_reasons.get(reason, 0) + 1
             return encode_state(mdp_state)
 
     def get_best_action(self, state, vehicle):
@@ -501,10 +503,6 @@ class NNLearningPolicy(Policy):
             self._value_spreads.append(max(values) - min(values))
 
         self._decision_count += 1
-
-        # --- Track candidate V spread (diagnostic) ---
-        if len(values) > 1:
-            self._v_spreads.append(max(values) - min(values))
 
         # --- Step 5: Action selection (Boltzmann if tau > 0, else greedy) ---
         idx = _boltzmann_select(values, self.tau)
@@ -792,6 +790,24 @@ def train_nn_rollout(
         )
         reward_calc_config = _tmp_vfa.reward_calc.config
 
+    # ── Resolve depot_id from instance if not supplied ────────────────────────
+    # LinearVFAPolicy resolves this in init_sim via state.get_closest_depot().
+    # We do the same here with a 1-step probe so every episode gets the correct
+    # depot_id — without it, is_at_depot() always returns False and every depot
+    # visit falls through to apply_at_normal_station(), causing a KeyError.
+    if depot_id is None:
+        _probe = run_simulation(
+            seed=seed_offset,
+            policy=GreedyPolicy(),
+            duration=1,
+            num_vehicles=NUM_VEHICLES,
+            instance_name=instance_name,
+            config=SimulationConfig(),
+        )
+        _probe_vehicles = _probe.state.get_vehicles()
+        depot_id = _probe.state.get_closest_depot(_probe_vehicles[0]) if _probe_vehicles else None
+        print(f"  Depot ID          : {depot_id!r}  (auto-resolved from instance)")
+
     # ── Metrics tracking ──────────────────────────────────────────────────────
     learning_curve = []   # written to checkpoint; also mirrored to CSV below
     t0 = time.time()
@@ -802,7 +818,7 @@ def train_nn_rollout(
     csv_path = SAVE_DIR / f"training_log_seed{seed_offset}_{ts_run}.csv"
     CSV_FIELDS = [
         "episode", "mean_loss", "lr", "tau",
-        "service_level", "mean_v_spread", "buffer_size", "n_updates", "elapsed_s",
+        "service_level", "buffer_size", "n_updates", "elapsed_s",
         # Encoding diagnostics — verify encoder health per episode:
         "mean_shift_remaining",  # global_context[5]; should vary 0→1 across shift
         "mean_value_spread",     # max(V)-min(V) per decision; near 0 = NN not discriminating
@@ -883,7 +899,6 @@ def train_nn_rollout(
 
         # NEW: Calculate service level for this episode
         sl = _service_level(simulator, episode_policy)
-        mean_spread = nn_learning.mean_v_spread
 
         # --- Gradient updates from replay buffer (post-episode) ---
         # We do one gradient pass per episode rather than per transition.
@@ -1022,13 +1037,18 @@ def train_nn_rollout(
             else:
                 print("  TD internals: no gradient updates this episode")
 
-            # 4. PostDecisionState fallback rate
+            # 4. PostDecisionState fallback rate + breakdown by reason
             if n_dec > 0:
                 fall_pct = n_fall / n_dec * 100
                 print(
                     f"  PostDecisionState fallbacks: {n_fall}/{n_dec} ({fall_pct:.1f}%)"
                     f"\n  -> If >5%: corrupted S^x inputs in replay buffer"
                 )
+                reasons = nn_learning._fallback_reasons
+                if reasons:
+                    print("  Fallback reasons (top 5):")
+                    for msg, cnt in sorted(reasons.items(), key=lambda x: -x[1])[:5]:
+                        print(f"    [{cnt:4d}x]  {msg}")
 
             print(f"  {'─'*60}\n")
 
@@ -1065,14 +1085,12 @@ def train_nn_rollout(
             "tau":           current_tau,
             "buffer_size":   len(replay_buffer),
             "service_level": sl,
-            "mean_v_spread": mean_spread,
         })
         elapsed = time.time() - t0
         print(
             f"  Ep {ep+1:3d}/{num_episodes} | "
             f"lr={current_lr:.5f} | tau={current_tau:.3f} | "
             f"loss={mean_loss:.4f} | SL={sl:.4f} | "
-            f"V_spread={mean_spread:.5f} | "
             f"buffer={len(replay_buffer):,} | "
             f"t={elapsed:.0f}s"
         )
@@ -1084,6 +1102,7 @@ def train_nn_rollout(
         _shifts   = nn_learning._shift_remaining_values
         _n_dec    = nn_learning._decision_count
         _n_fall   = nn_learning._fallback_count
+        _n_cand   = nn_learning._candidate_count   # true denominator for fallback %
 
         mean_shift_remaining = round(_stat.mean(_shifts),  4) if _shifts  else 1.0
         mean_value_spread    = round(_stat.mean(_spreads), 6) if _spreads else 0.0
@@ -1091,7 +1110,7 @@ def train_nn_rollout(
         pct_zero_reward      = round(
             sum(1 for r in _rewards if r == 0.0) / max(len(_rewards), 1) * 100, 1
         )
-        fallback_rate        = round(_n_fall / max(_n_dec, 1) * 100, 2)
+        fallback_rate        = round(_n_fall / max(_n_cand, 1) * 100, 2)
 
         # Write one CSV row per episode (flushed immediately so partial runs are readable)
         csv_writer.writerow({
@@ -1100,7 +1119,6 @@ def train_nn_rollout(
             "lr":                  round(current_lr,   6),
             "tau":                 round(current_tau,  4),
             "service_level":       round(sl,           4),
-            "mean_v_spread": round(mean_spread,  6),
             "buffer_size":         len(replay_buffer),
             "n_updates":           n_updates,
             "elapsed_s":           round(elapsed,      1),
@@ -1210,7 +1228,9 @@ if __name__ == "__main__":
     parser.add_argument("--gamma",    type=float, default=GAMMA)
     parser.add_argument("--lr_start",  type=float, default=LR_START)
     parser.add_argument("--lr_end",    type=float, default=LR_END)
-    parser.add_argument("--save",     type=str, default=None)
+    parser.add_argument("--save",      type=str,   default=None)
+    parser.add_argument("--depot_id",  type=str,   default='D0',
+                        help="Depot station ID (e.g. 'D0'). Auto-resolved from instance if omitted.")
     args = parser.parse_args()
 
     train_nn_rollout(
@@ -1221,4 +1241,5 @@ if __name__ == "__main__":
         lr_start      = args.lr_start,
         lr_end        = args.lr_end,
         save_path     = Path(args.save) if args.save else None,
+        depot_id      = args.depot_id,
     )
