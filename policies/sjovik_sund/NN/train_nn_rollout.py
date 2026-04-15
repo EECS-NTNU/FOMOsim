@@ -386,25 +386,6 @@ class NNLearningPolicy(Policy):
         """
         try:
             post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
-
-            # One-time sanity check for shift_remaining encoding.
-            # shift_remaining = time_remaining_in_shift() / shift_end_time
-            # If shift_end_time is an absolute timestamp rather than a duration
-            # this ratio will be near 0 for every state, killing the feature.
-            if not self._shift_checked and post_state.shift_end_time is not None:
-                self._shift_checked = True
-                t_remaining = post_state.time_remaining_in_shift()
-                t_end       = post_state.shift_end_time
-                naive_ratio = t_remaining / max(t_end, 1)
-                print(
-                    f"\n  [DEBUG:shift_remaining]"
-                    f"  time={post_state.time:.0f}min"
-                    f"  shift_end_time={t_end:.0f}min"
-                    f"  time_remaining_in_shift()={t_remaining:.0f}min"
-                    f"  naive_ratio={naive_ratio:.4f}"
-                    f"  <- should be in (0,1]; near 0 means denominator bug"
-                )
-
             return encode_state(post_state)
         except Exception as _exc:
             # Fallback: encode current state; slightly less accurate but safe
@@ -426,11 +407,16 @@ class NNLearningPolicy(Policy):
         r_k = self._reward_calc.compute_step_reward(state.metrics)
 
         # --- Step 2: snapshot MDP state from live simulator ---
+        # Read shift_end_time from the vehicle object — same pattern as
+        # LinearVFAPolicy._get_time_remaining(). Without this, shift_remaining
+        # in the global context is always 1.0 (a dead constant feature).
+        vehicle_shift_end = getattr(vehicle, "shift_end_time", None)
         mdp_state = extract_mdp_state(
             sim_state=state,
             active_vehicle_id=vehicle.id,
             config=self.config,
             depot_id=self.depot_id,
+            shift_end_time=vehicle_shift_end,
         )
         # --- Step 3: generate (MdpAction, sim.Action) pairs ---
         # return_pairs=True gives us the MdpAction objects needed for
@@ -513,6 +499,13 @@ class NNLearningPolicy(Policy):
 
         if self.verbose:
             print(f"             chosen candidate idx={idx} | V={values[idx]:.4f}")
+
+        # Track shift_remaining from the chosen post-decision encoding.
+        # global_context[5] = shift_remaining (see nn_state_encoder.py).
+        # This lets us verify in the CSV that the feature is now non-constant.
+        self._shift_remaining_values.append(
+            chosen_post_encoded["global_context"][5].item()
+        )
 
         # --- Step 6: push transition to replay buffer ---
         # We push (S^x_{k-1}, r_k, S^x_k) where:
@@ -793,8 +786,16 @@ def train_nn_rollout(
     # run is still readable if training is interrupted on the cluster.
     ts_run   = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_path = SAVE_DIR / f"training_log_seed{seed_offset}_{ts_run}.csv"
-    CSV_FIELDS = ["episode", "mean_loss", "lr", "tau",
-                  "service_level", "buffer_size", "n_updates", "elapsed_s"]
+    CSV_FIELDS = [
+        "episode", "mean_loss", "lr", "tau",
+        "service_level", "buffer_size", "n_updates", "elapsed_s",
+        # Encoding diagnostics — verify encoder health per episode:
+        "mean_shift_remaining",  # global_context[5]; should vary 0→1 across shift
+        "mean_value_spread",     # max(V)-min(V) per decision; near 0 = NN not discriminating
+        "mean_reward",           # raw step reward mean; scale check for TD signal
+        "pct_zero_reward",       # % decisions with r=0; high = too sparse
+        "fallback_rate",         # % PostDecisionState.apply() failures; > 5% = data quality issue
+    ]
     csv_file   = csv_path.open("w", newline="")
     csv_writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
     csv_writer.writeheader()
@@ -1058,16 +1059,37 @@ def train_nn_rollout(
             f"t={elapsed:.0f}s"
         )
 
+        # Compute per-episode encoding diagnostics from nn_learning accumulators.
+        import statistics as _stat
+        _spreads  = nn_learning._value_spreads
+        _rewards  = nn_learning._reward_values
+        _shifts   = nn_learning._shift_remaining_values
+        _n_dec    = nn_learning._decision_count
+        _n_fall   = nn_learning._fallback_count
+
+        mean_shift_remaining = round(_stat.mean(_shifts),  4) if _shifts  else 1.0
+        mean_value_spread    = round(_stat.mean(_spreads), 6) if _spreads else 0.0
+        mean_reward          = round(_stat.mean(_rewards), 5) if _rewards else 0.0
+        pct_zero_reward      = round(
+            sum(1 for r in _rewards if r == 0.0) / max(len(_rewards), 1) * 100, 1
+        )
+        fallback_rate        = round(_n_fall / max(_n_dec, 1) * 100, 2)
+
         # Write one CSV row per episode (flushed immediately so partial runs are readable)
         csv_writer.writerow({
-            "episode":       ep + 1,
-            "mean_loss":     round(mean_loss,   6),
-            "lr":            round(current_lr,  6),
-            "tau":           round(current_tau, 4),
-            "service_level": round(sl,          4),
-            "buffer_size":   len(replay_buffer),
-            "n_updates":     n_updates,
-            "elapsed_s":     round(elapsed,     1),
+            "episode":             ep + 1,
+            "mean_loss":           round(mean_loss,   6),
+            "lr":                  round(current_lr,  6),
+            "tau":                 round(current_tau, 4),
+            "service_level":       round(sl,          4),
+            "buffer_size":         len(replay_buffer),
+            "n_updates":           n_updates,
+            "elapsed_s":           round(elapsed,     1),
+            "mean_shift_remaining": mean_shift_remaining,
+            "mean_value_spread":    mean_value_spread,
+            "mean_reward":          mean_reward,
+            "pct_zero_reward":      pct_zero_reward,
+            "fallback_rate":        fallback_rate,
         })
         csv_file.flush()
 
