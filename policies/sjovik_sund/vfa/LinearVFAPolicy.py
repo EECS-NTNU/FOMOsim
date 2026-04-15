@@ -1,11 +1,10 @@
 """
-LinearVFAPolicy.py  –  Time-Indexed Linear Value Function Approximation
+ LinearVFAPolicy.py  –  Time-Indexed Linear Value Function Approximation
 
 Implements (strictly no rollout / lookahead logic here):
   1. Feature extraction  φ(S^x)  from the **post-decision state** (numpy-vectorised)
   2. VFA scoring         V(S^x) = θᵀ φ(S^x)
-  3. Boltzmann (softmax) action selection  P(a) ∝ exp(−V(S^x_a) / τ)
-  4. TD(0) weight update:
+  3. TD(0) weight update:
          θ ← θ + α (r + γ V(S^x_next) − V(S^x_cur)) φ(S^x_cur)
 
 Feature definitions live in policies/sjovik_sund/vfa/vfa_features.py
@@ -20,6 +19,7 @@ import pickle
 import numpy as np
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from collections import deque
 
 from policies import action
 from policies import action
@@ -58,11 +58,10 @@ class LinearVFAPolicy(Policy):
       - Lazy initialisation from sim.State on the first decision call
         (because Simulator.init() does not call policy.init_sim())
       - Post-decision feature vector extraction (numpy-vectorised)
-      - Boltzmann action selection during training
       - TD(0) online weight updates during the learning phase
       - save / load for the trained θ vector
 
-    Parameters that change across training episodes (τ, learning_mode) can
+    Parameters that change across training episodes (learning_mode) can
     be updated externally between episodes by the training loop.
     """
 
@@ -73,9 +72,8 @@ class LinearVFAPolicy(Policy):
         self,
         active_features: List[str] = None,
         n_features: int = None,   # defaults to len(FEATURE_NAMES); set explicitly to override
-        alpha: float = 0.01,
+        alpha: float = 0.1,
         gamma: float = 0.99,
-        tau: float = 5.0,
         learning_mode: bool = True,
         config: Optional[MDPConfig] = None,
         seed: int = 42,
@@ -87,7 +85,7 @@ class LinearVFAPolicy(Policy):
         reward_calculator: Optional[RewardCalculator] = None,
     ) -> None:
         """
-        Initializes the policy, sets hyperparameters (alpha, gamma, tau),
+        Initializes the policy, sets hyperparameters (alpha, gamma),
         and creates the weight vector (theta) which represents the
         agent's learned knowledge.
         """
@@ -137,7 +135,6 @@ class LinearVFAPolicy(Policy):
         self.n_features    = n_features
         self.alpha         = alpha
         self.gamma         = gamma
-        self.tau           = tau            # Boltzmann temperature – set by training loop
         self.learning_mode = learning_mode
         default_config = MDPConfig.full_maintenance() if maintenance_enabled else MDPConfig.no_maintenance()
         self.config        = config or default_config  # defaults to full maintenance
@@ -151,6 +148,18 @@ class LinearVFAPolicy(Policy):
         # weights attribute forwarded by run_simulation.py for logging
         self.weights: List[float] = list(self.theta)
 
+        # ── Optimizer State (SGD with Momentum) ───────────────────────────────
+        self.velocity = np.zeros(n_features, dtype=np.float64)
+        self.momentum = 0.9
+
+        # --- OPTIONAL: Adam Optimizer State (Commented out) ---
+        # self.adam_m = np.zeros(n_features, dtype=np.float64)
+        # self.adam_v = np.zeros(n_features, dtype=np.float64)
+        # self.adam_t = 0
+        # self.adam_beta1 = 0.9
+        # self.adam_beta2 = 0.999
+        # self.adam_epsilon = 1e-8
+
         # ── Caches – filled on first call (lazy init) ─────────────────────────
         self._initialized: bool              = False
         self._station_ids: List[str]         = []
@@ -163,6 +172,14 @@ class LinearVFAPolicy(Policy):
         self._prev_phi:          Optional[np.ndarray] = None
         self._prev_starvations:  int   = 0
         self._prev_congestions:  int   = 0
+
+        # Buffer for Synchronous Batch Learning
+        self.batch_buffer: List[Tuple[np.ndarray, float, np.ndarray]] = []
+
+        # Buffer for Experience Replay (Mini-Batch SGD)
+        self.use_experience_replay = False
+        self.replay_buffer = deque(maxlen=50000)
+        self.mini_batch_size = 64
 
         # logging for RL decisions (e.g., depot visits)
         self.log_rl_decisions = True  
@@ -607,7 +624,7 @@ class LinearVFAPolicy(Policy):
 
         return td_error'''
         
-    def td_update(self, reward: float, phi_next: np.ndarray) -> None:
+    def td_update(self, reward: float, phi_next: np.ndarray) -> float:
         if self._prev_phi is None:
             return 0.0
 
@@ -621,16 +638,124 @@ class LinearVFAPolicy(Policy):
             target_value = reward + self.gamma * v_next
             print(f"    [TD Alert] Reward: {reward:6.3f} | V(S): {v_cur:6.3f} | Target: {target_value:6.3f} | TD Err: {td_error:6.3f}")
 
-        # 1. Apply the mathematical update
-        self.theta   += self.alpha * td_error * self._prev_phi
-        
-        # 2. THE MISSING SHIELD: Force all weights to be 0.0 or negative
-        self.theta = np.minimum(self.theta, 0.0)
-        
-        # 3. Save the safely bounded weights
-        self.weights  = list(self.theta)
+        if getattr(self, 'use_experience_replay', False):
+            # 1. Experience Replay Logging
+            self.replay_buffer.append((self._prev_phi.copy(), reward, phi_next.copy()))
+            
+            # 2. Trigger mini batch update if buffer has enough experiences (Warmup phase)
+            # Typically wait until we have a decent number of samples to break initial correlation
+            if len(self.replay_buffer) >= max(1000, self.mini_batch_size):
+                self.apply_mini_batch_update()
+        else:
+            # 1. Store transition for synchronous batch update
+            self.batch_buffer.append((self._prev_phi.copy(), reward, phi_next.copy()))
+            if len(self.batch_buffer) >= self.mini_batch_size:
+                self.apply_batch_update()
 
         return td_error
+
+    def apply_mini_batch_update(self) -> None:
+        """
+        Randomly samples exactly 'mini_batch_size' transitions from the replay buffer
+        and updates the weights using SGD with Momentum.
+        """
+        if len(self.replay_buffer) < self.mini_batch_size:
+            return
+
+        # Randomly sample a mini-batch
+        import random
+        batch = random.sample(list(self.replay_buffer), self.mini_batch_size)
+
+        total_gradient = np.zeros_like(self.theta)
+        total_td = 0.0
+
+        for phi_cur, reward, phi_nxt in batch:
+            v_cur = self.value(phi_cur)
+            v_next = self.value(phi_nxt)
+            td_err = reward + (self.gamma * v_next) - v_cur
+            
+            total_td += td_err
+            total_gradient += td_err * phi_cur
+
+        avg_gradient = total_gradient / self.mini_batch_size
+        mean_td = total_td / self.mini_batch_size
+
+        # Apply SGD with Momentum Update
+        self.velocity = (self.momentum * self.velocity) + avg_gradient
+        step = self.alpha * self.velocity
+        self.theta += step
+
+        # THE MISSING SHIELD: Force all weights to be 0.0 or negative
+        self.theta = np.minimum(self.theta, 0.0)
+        self.weights = list(self.theta)
+
+        # Note: We omit logging here to avoid spamming the console 
+        # since this triggers at EVERY decision step.
+
+    def apply_batch_update(self) -> None:
+        """
+        Aggregate accumulated TD errors over frozen trajectories
+        and update the value function weights.
+        """
+        if not self.batch_buffer:
+            return
+
+        n_transitions = len(self.batch_buffer)
+        total_gradient = np.zeros_like(self.theta)
+        total_td = 0.0
+
+        # Compute gradient over the entire buffered batch
+        for phi_cur, reward, phi_next in self.batch_buffer:
+            v_cur = self.value(phi_cur)
+            v_next = self.value(phi_next)
+            td_error = reward + (self.gamma * v_next) - v_cur
+            
+            total_td += td_error
+            # The gradient for a linear model is exactly the feature vector phi.
+            total_gradient += td_error * phi_cur
+
+        # Average the batch gradients
+        avg_gradient = total_gradient / n_transitions
+        mean_td = total_td / n_transitions
+
+        old_theta = self.theta.copy()
+        
+        # 1. Apply SGD with Momentum Update
+        self.velocity = (self.momentum * self.velocity) + avg_gradient
+        step = self.alpha * self.velocity
+        self.theta += step
+        
+        # --- OPTIONAL: Alternative Adam Update (Commented out) ---
+        # self.adam_t += 1
+        # self.adam_m = self.adam_beta1 * self.adam_m + (1 - self.adam_beta1) * avg_gradient
+        # self.adam_v = self.adam_beta2 * self.adam_v + (1 - self.adam_beta2) * (avg_gradient ** 2)
+        # m_hat = self.adam_m / (1 - self.adam_beta1 ** self.adam_t)
+        # v_hat = self.adam_v / (1 - self.adam_beta2 ** self.adam_t)
+        # step = self.alpha * m_hat / (np.sqrt(v_hat) + self.adam_epsilon)
+        # self.theta += step
+
+        # 2. THE MISSING SHIELD: Force all weights to be 0.0 or negative
+        self.theta = np.minimum(self.theta, 0.0)
+
+        # 3. Save the safely bounded weights
+        self.weights = list(self.theta)
+
+        # --- CONCISE BATCH LOGGING ---
+        grad_norm = np.linalg.norm(avg_gradient)
+        weight_diff = np.linalg.norm(self.theta - old_theta)
+        vel_norm = np.linalg.norm(self.velocity)
+        step_norm = np.linalg.norm(step)
+
+        print(f"    [BATCH UPDATE] Processed {n_transitions} transitions | Mean TD Error: {mean_td:.4f} | Grad Norm: {grad_norm:.4f} | Theta Diff: {weight_diff:.4f}")
+        print(f"    [SGD+M DEBUG]  Velocity Norm: {vel_norm:.4f} | Raw Step Norm: {step_norm:.4f}")
+        
+        # --- OPTIONAL: Adam Debug Logging (Commented out) ---
+        # m_norm = np.linalg.norm(m_hat)
+        # v_norm = np.linalg.norm(v_hat)
+        # print(f"    [ADAM DEBUG]   m_hat Norm: {m_norm:.4f} | v_hat Norm: {v_norm:.4f} | Raw Step Norm: {step_norm:.4f}")
+
+        # Dump buffer for the next trajectory sync phase
+        self.batch_buffer.clear()
     # ─────────────────────────────────────────────────────────────────────────
     # Action generation  (action-space splitting)
     # ─────────────────────────────────────────────────────────────────────────
@@ -754,11 +879,49 @@ class LinearVFAPolicy(Policy):
         pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
         nearest_stations = pool[:5] # Take the 5 closest
         
-        # 2. Find the 3 most critical stations (highest deviation from target)
+        # 2. Inventory-Aware Criticality (State-Matching)
         remaining_pool = pool[5:]
-        remaining_pool.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+        
+        # --- OLD NAIVE CRITICALITY ---
+        # remaining_pool.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
+        
+        # --- NEW INVENTORY-AWARE CRITICALITY ---
+        _inv = vehicle.get_bike_inventory()
+        _n_func_avail = sum(1 for b in _inv if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])
+        _cap = int(getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", max(1, len(_inv)))))
+        _cap = max(1, _cap) # Prevent division by zero
+        _free_space = max(0, _cap - len(_inv))
+        
+        free_ratio = _free_space / _cap
+
+
+
+        def actionable_deviation(s):
+            target_val = round(s.get_target_state(state.day(), state.hour()))
+            current_bikes = len(s.get_bikes())
+            delta = target_val - current_bikes # > 0 means starving, < 0 means congested
+            
+            # Must physically be able to do something
+            can_deliver = (delta > 0 and _n_func_avail > 0)
+            can_pickup = (delta < 0 and _free_space > 0)
+            
+            if free_ratio < 0.2 and can_deliver:
+                return delta        # Van is mostly full -> prioritize delivery to starved stations
+            elif free_ratio > 0.8 and can_pickup:
+                return abs(delta)   # Van is mostly empty -> prioritize pickups from congested stations
+            elif 0.2 <= free_ratio <= 0.8 and (can_deliver or can_pickup):
+                return abs(delta)   # Van has mixed capacity -> prioritize top absolute imbalance
+            return 0                # Can't help this station physically, or doesn't match threshold
+            
+        remaining_pool.sort(key=actionable_deviation, reverse=True)
         critical_stations = remaining_pool[:3]
         
+        if getattr(self, "log_rl_decisions", False):
+            target_type = "Dropoffs (Starved)" if free_ratio < 0.2 else "Pickups (Congested)" if free_ratio > 0.8 else "Both (Imbalanced)"
+            print(f"[CANDIDATES] Veh {vehicle.id} | Fill Ratio: {1-free_ratio:.2f} (Free Ratio: {free_ratio:.2f}) | Func: {_n_func_avail}, Cap: {_cap}")
+            print(f"[CANDIDATES] Target: {target_type}")
+            print(f"[CANDIDATES] Top 3 Critical scores: {[(s.id, actionable_deviation(s)) for s in critical_stations]}")
+
         # 3. Combine them into our final candidate list
         pool = nearest_stations + critical_stations
 
@@ -882,38 +1045,6 @@ class LinearVFAPolicy(Policy):
         return candidates
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Boltzmann (softmax) selection
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def _boltzmann_select(
-        self,
-        actions: List[sim.Action],
-        values: np.ndarray,
-    ) -> Tuple[sim.Action, int]:
-        """
-        Select an action via the Boltzmann distribution.
-
-            P(a_i) ∝ exp( −V(S^x_i) / τ )
-
-        Lower V is better, so we negate before the softmax.
-        Subtracts the max for numerical stability.
-
-        Returns (selected_action, selected_index).
-        """
-        neg_v  = -values
-        neg_v -= neg_v.max()                              # numerical stability
-        exp_v  = np.exp(neg_v / max(self.tau, 1e-8))
-        probs  = exp_v / exp_v.sum()
-
-        # NEW: We want to favor higher values, not lower ones!
-        v = values - values.max()  # shift for numerical stability (all <= 0)
-        exp_v = np.exp(v / max(self.tau, 1e-8))
-        probs = exp_v / exp_v.sum()
-
-        idx = int(self._rng.choice(len(actions), p=probs))
-        return actions[idx], idx
-
-    # ─────────────────────────────────────────────────────────────────────────
     # Logging
     # ─────────────────────────────────────────────────────────────────────────
 
@@ -1002,7 +1133,7 @@ class LinearVFAPolicy(Policy):
         3. Compute φ(S^x_a) and V(S^x_a) = θᵀφ for each candidate.
         4. (If learning) run TD(0) update using reward since last decision
            and the greedy next post-decision state as the bootstrap target.
-        5. Select action via Boltzmann (learning) or greedy (exploitation).
+        5. Select action greedy (exploitation).
         6. Cache the selected action's post-decision features for step 4
            of the next call.
         """
@@ -1157,20 +1288,9 @@ class LinearVFAPolicy(Policy):
             self.warmup_congestions_snapshot = self.reward_calc._prev_congestions
             self.warmup_trips_snapshot = self.reward_calc._prev_trips
 
-        """ # ── Step 5: select action ─────────────────────────────────────────
-        if self.learning_mode:
-            selected, sel_idx = self._boltzmann_select(candidates, values)
-        else:
-            sel_idx  = int(np.argmin(values))
-            selected = candidates[sel_idx]"""
-
-        # ── Step 5: select action ─────────────────────────────────────────
-        if self.learning_mode:
-            selected, sel_idx = self._boltzmann_select(candidates, values)
-        else:
-            # FIXED: Pick the action with the highest expected reward!
-            sel_idx  = int(np.argmax(values))
-            selected = candidates[sel_idx]
+        # Always use greedy selection (even during learning) to avoid the "Deadly Triad" in RL
+        sel_idx  = int(np.argmax(values))
+        selected = candidates[sel_idx]
 
         # ── Step 6: Log depot decisions (optional) ────────────────────────
         self._log_depot_decision(state, vehicle, selected, phis[sel_idx], values[sel_idx])
@@ -1198,14 +1318,6 @@ class LinearVFAPolicy(Policy):
             self.rl_logs.append(log_entry)
 
         return selected
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Temperature control  (called by training loop, once per episode)
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def set_temperature(self, tau: float) -> None:
-        """Set Boltzmann temperature τ for the next episode."""
-        self.tau = max(tau, 1e-8)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Episode boundary reset  (called by EpisodeTrainingPolicy.__init__)
@@ -1271,7 +1383,7 @@ class EpisodeTrainingPolicy(Policy):
     Episodic wrapper that routes vehicle decisions to:
 
       - GreedyPolicy        during the warm-up phase  (no TD updates)
-      - LinearVFAPolicy     during the learning phase (Boltzmann + TD(0))
+      - LinearVFAPolicy     during the learning phase (TD(0))
 
     The phase transition is time-based: once state.time >= warmup_end_time
     (an absolute simulation-minutes value), the VFA policy takes control.
@@ -1303,11 +1415,11 @@ class EpisodeTrainingPolicy(Policy):
             # Warm-up: purely greedy, θ left unchanged
             return self.greedy_policy.get_best_action(state, vehicle)
         else:
-            # Learning: VFA + Boltzmann exploration + TD(0) update
+            # Learning: VFA + TD(0) update
             return self.vfa_policy.get_best_action(state, vehicle)
 
     def __repr__(self) -> str:
-        return f"EpisodeTrainingPolicy(tau={self.vfa_policy.tau:.4f})"'''
+        return f"EpisodeTrainingPolicy()"'''
     
     def init_sim(self, simulator) -> None:
         """Forward simulator reference to both inner policies."""
@@ -1319,8 +1431,8 @@ class EpisodeTrainingPolicy(Policy):
             # Warm-up: purely greedy, θ left unchanged
             return self.greedy_policy.get_best_action(state, vehicle)
         else:
-            # Learning: VFA + Boltzmann exploration + TD(0) update
+            # Learning: VFA + TD(0) update
             return self.vfa_policy.get_best_action(state, vehicle)
 
     def __repr__(self) -> str:
-        return f"EpisodeTrainingPolicy(tau={self.vfa_policy.tau:.4f})"
+        return f"EpisodeTrainingPolicy()"

@@ -13,7 +13,8 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, str(WORKSPACE_ROOT))
 
-FOLDER_PATTERN = re.compile(r"^(.+)_alpha_([\d.]+)$")
+# Matches both old (exp_alpha_0.2) and new (exp_sgd_0.2_20260414_134502) folder structures
+FOLDER_PATTERN = re.compile(r"^(.+)_(?:alpha|adam|sgd)_([\d.]+(?:_\d{8}_\d{6})?)$")
 
 
 def discover_runs(study_dir: Path, filter_alphas=None, filter_experiments=None):
@@ -90,7 +91,7 @@ def load_experiment(exp_dir: Path):
 
 
 def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
-    study_dir = WORKSPACE_ROOT / "models" / "ablation_study"
+    study_dir = WORKSPACE_ROOT / "models" / "ablation_study" / "SGDMINIBATCH_2"
 
     if not study_dir.exists():
         print(f"Error: Could not find ablation study directory at {study_dir}")

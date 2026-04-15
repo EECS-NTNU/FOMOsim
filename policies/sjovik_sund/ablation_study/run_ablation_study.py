@@ -42,13 +42,14 @@ Feature reference  (see vfa_features.py for full definitions)
 import os
 import sys
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from policies.sjovik_sund.vfa.train_vfa import train
+from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,7 +92,7 @@ EXPERIMENTS = {
         "imbalance_weighted_distance",    # A8: distant imbalance = deferred cost
         "starvation_severity_max",        # A9: worst-case bottleneck
         "starvation_gravity",             # A6: van load × proximity to starving stations
-        "congestion_gravity",             # A7: van free space × proximity to congested stations
+        # "congestion_gravity",             # A7: van free space × proximity to congested stations
     ],
 
     # ── Axis 3: Long-Term Recoverability ─────────────────────────────────────
@@ -102,7 +103,7 @@ EXPERIMENTS = {
         "squared_starvation_penalty",     # A3: baseline — how bad is the state?
         "squared_congestion_penalty",     # A4
         "work_ratio",                     # A12: how many van trips to fix everything?
-        "imbalance_concentration",        # A13: is the work concentrated or spread out?
+        # "imbalance_concentration",        # A13: is the work concentrated or spread out?
     ],
 
     # ── Axis 4: Iterative Refinement ─────────────────────────────────────────
@@ -116,7 +117,7 @@ EXPERIMENTS = {
         "squared_congestion_penalty",     # A4
         "starvation_severity_max",        # A9
         "starvation_gravity",             # A6
-        "congestion_gravity",             # A7
+        # "congestion_gravity",             # A7
         "imbalance_weighted_distance",    # A8
         "multi_horizon_starvation_risk",  # D4
         "time_of_day_fraction",           # D1
@@ -129,9 +130,9 @@ EXPERIMENTS = {
         "starvation_severity_max",        # A9
         "congestion_severity_max",        # A10
         "starvation_gravity",             # A6
-        "congestion_gravity",             # A7
+        # "congestion_gravity",             # A7
         "imbalance_weighted_distance",    # A8
-        "station_starvation_count",       # A11
+        #"station_starvation_count",       # A11
         "multi_horizon_starvation_risk",  # D4
         "time_of_day_fraction",           # D1
     ],
@@ -145,10 +146,10 @@ EXPERIMENTS = {
         "starvation_severity_max",        # A9
         "congestion_severity_max",        # A10
         "starvation_gravity",             # A6
-        "congestion_gravity",             # A7
+        # "congestion_gravity",             # A7
         "imbalance_weighted_distance",    # A8
         "work_ratio",                     # A12: can the network be recovered?
-        "imbalance_concentration",        # A13: tractability
+        # "imbalance_concentration",        # A13: tractability
         "multi_horizon_starvation_risk",  # D4
         "time_of_day_fraction",           # D1
     ],
@@ -161,15 +162,15 @@ EXPERIMENTS = {
         "anticipated_demand_shortfall",   # A2
         "squared_starvation_penalty",     # A3
         "squared_congestion_penalty",     # A4
-        "proximity_to_demand_gravity",    # A5
+        # "proximity_to_demand_gravity",    # A5
         "starvation_gravity",             # A6
-        "congestion_gravity",             # A7
+        # "congestion_gravity",             # A7
         "imbalance_weighted_distance",    # A8
         "starvation_severity_max",        # A9
         "congestion_severity_max",        # A10
-        "station_starvation_count",       # A11
+        #"station_starvation_count",       # A11
         "work_ratio",                     # A12
-        "imbalance_concentration",        # A13
+        # "imbalance_concentration",        # A13
         "multi_horizon_starvation_risk",  # D4
         "time_of_day_fraction",           # D1
     ],
@@ -180,35 +181,45 @@ EXPERIMENTS = {
 # Runner
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None):
+def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None, alphas: list[float] = None):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
             raise ValueError(f"Unknown experiment(s): {unknown}. Valid: {list(EXPERIMENTS)}")
 
+    if alphas is None:
+        alphas = [ALPHA_START]
+
     experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
 
-    base_dir = Path("models/ablation_study")
+    base_dir = Path("models/ablation_study/SGDMINIBATCH_2")
     base_dir.mkdir(parents=True, exist_ok=True)
 
-    for exp_name, features in experiments.items():
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    for alpha in alphas:
         print(f"\n{'='*60}")
-        print(f"EXPERIMENT: {exp_name}  ({len(features)} features)")
-        for f in features:
-            print(f"  - {f}")
+        print(f"RUNNING WITH ALPHA: {alpha}")
         print(f"{'='*60}")
+        for exp_name, features in experiments.items():
+            print(f"\n{'='*40}")
+            print(f"EXPERIMENT: {exp_name}  ({len(features)} features)")
+            for f in features:
+                print(f"  - {f}")
+            print(f"{'='*40}")
 
-        exp_dir = base_dir / f"{exp_name}_alpha_{alpha_start}"
-        exp_dir.mkdir(exist_ok=True)
+            exp_dir = base_dir / f"{exp_name}_alpha_{alpha}_{timestamp}"
+            exp_dir.mkdir(exist_ok=True)
 
-        for run_id, seed_offset in enumerate(seeds):
-            print(f"\n  Run {run_id + 1}/{len(seeds)}  (seed={seed_offset})")
-            train(
-                num_episodes=episodes,
-                save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}.pkl",
-                seed_offset=seed_offset,
-                active_features=features,
-            )
+            for run_id, seed_offset in enumerate(seeds):
+                print(f"\n  Run {run_id + 1}/{len(seeds)}  (seed={seed_offset})")
+                train(
+                    num_episodes=episodes,
+                    save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}.pkl",
+                    seed_offset=seed_offset,
+                    active_features=features,
+                    alpha_start=alpha,
+                )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -222,7 +233,7 @@ if __name__ == "__main__":
         epilog=f"Available experiments: {', '.join(EXPERIMENTS)}",
     )
     parser.add_argument(
-        "--seeds", nargs="+", type=int, default=[1000, 2000, 3000],
+        "--seeds", nargs="+", type=int, default=[1000],
         help="Seed offsets to run (one independent training run per seed)",
     )
     parser.add_argument(
@@ -233,6 +244,15 @@ if __name__ == "__main__":
         "--experiments", nargs="+", type=str, default=None, metavar="NAME",
         help="Subset of experiments to run (default: all)",
     )
+    parser.add_argument(
+        "--alphas", nargs="+", type=float, default=None,
+        help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
+    )
 
     args = parser.parse_args()
-    run_all_experiments(seeds=args.seeds, episodes=args.episodes, run_only=args.experiments)
+    run_all_experiments(
+        seeds=args.seeds, 
+        episodes=args.episodes, 
+        run_only=args.experiments, 
+        alphas=args.alphas
+    )

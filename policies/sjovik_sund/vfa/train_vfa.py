@@ -14,11 +14,8 @@ Episode structure  (14-day simulation per episode)
   Days 1 - 4   Warm-up   : GreedyPolicy drives the system.
                             No TD updates → builds up a realistic
                             "messy" state without biasing θ.
-  Days 5 - 14  Learning  : LinearVFAPolicy with Boltzmann exploration.
+  Days 5 - 14  Learning  : LinearVFAPolicy.
                             TD(0) updates occur at every vehicle decision.
-
-Boltzmann temperature τ decays exponentially over NUM_EPISODES episodes:
-    τ_ep = TAU_START x (TAU_END / TAU_START)^(ep / (NUM_EPISODES - 1))
 
 Usage
 ─────
@@ -55,13 +52,10 @@ NUM_EPISODES  : int   = 200      # total training episodes
 
 EPISODE_DAYS  : int   = 14       # days per episode (total)
 WARMUP_DAYS   : int   = 2         # greedy warm-up, no TD updates
-LEARNING_DAYS : int   = 12        # VFA + Boltzmann + TD(0)  (days 5 – 14)
-
-TAU_START     : float = 10.0    
-TAU_END       : float = 0.1     
+LEARNING_DAYS : int   = 12        # VFA + TD(0)  (days 5 – 14)
 
 # --- Learning Rate (Alpha) ---
-ALPHA_START   : float = 0.2    # initial alpha for TD updates, will be overwritten in case of argument passing
+ALPHA_START   : float = 0.01   # initial alpha for TD updates, will be overwritten in case of argument passing
 
 GAMMA         : float = 0.99      # discount factor
 
@@ -117,13 +111,12 @@ def train(
     instance_name : str   = INSTANCE_NAME,
     active_features: list | None = None,
     gamma         : float = GAMMA,       
-    tau_start     : float = TAU_START,   
-    tau_end       : float = TAU_END,     
     alpha_start   : float = ALPHA_START,  
 ) -> LinearVFAPolicy:
     
-    # Calculate decay dynamically based on passed arguments
-    tau_decay = (tau_end / tau_start) ** (1.0 / max(num_episodes - 1, 1))
+    # BATCH SIZE configuration
+    batch_size = 1  # Number of episodes to run before applying batch updates to θ
+    
     """
     Run the full episodic VFA training loop.
 
@@ -154,10 +147,6 @@ def train(
         f"  Episode duration  : {EPISODE_DAYS} days  "
         f"(warm-up = {WARMUP_DAYS}d,  learning = {LEARNING_DAYS}d)"
     )
-    print(
-        f"  tau schedule        : {tau_start:.2f}  ->  {tau_end:.2f}  "
-        f"(decay per episode = {tau_decay:.6f})"
-    )
     print(f"  alpha schedule      : {alpha_start:.5f} -> {alpha_end:.5f}")
     print(f"  gamma               : {gamma}")
     print(f"  Instance          : {instance_name}")
@@ -171,7 +160,6 @@ def train(
         n_features    = len(active_features) if active_features is not None else N_FEATURES,
         alpha         = alpha_start,
         gamma         = gamma,          
-        tau           = tau_start,      
         learning_mode = True,
         seed          = 42,
         maintenance_enabled=ENABLE_COMPONENT_FAILURES,
@@ -201,12 +189,17 @@ def train(
         # --- EVERYTHING BELOW REMAINS EXACTLY THE SAME ---
         alpha         = alpha_start,
         gamma         = gamma,          
-        tau           = tau_start,      
         learning_mode = True,
         seed          = 42,
         maintenance_enabled=ENABLE_COMPONENT_FAILURES,
         shift_timing_enabled=SHIFT_TIMING_ENABLED,
     )
+    
+    # --- EXPERIENCE REPLAY TOGGLE ---
+    # Set to True to use Mini-Batch SGD at every timestep 
+    # Set to False to keep your well-working Episodic Synchronous Batching
+    vfa_policy.use_experience_replay = True
+    vfa_policy.mini_batch_size = 64
     ###############################################################################
     greedy_policy = GreedyPolicy()
 
@@ -226,23 +219,16 @@ def train(
         
         ###########
         # ── Calculate current dynamic parameters ─────────────────────────
-        current_tau = max(tau_end, tau_start * (tau_decay ** ep))
         current_alpha = max(alpha_end, alpha_start * (alpha_decay ** ep))
-        print(f"\n[DEBUG TAU AND ALPHA] Episode {ep+1}: Calculated tau={current_tau:.4f}, alpha={current_alpha:.5f}")
+        print(f"\n[DEBUG ALPHA] Episode {ep+1}: Calculated alpha={current_alpha:.5f}")
         
         # STRICT OVERRIDE: Force the policy to use this exact step-size
         vfa_policy.alpha = current_alpha
-        vfa_policy.set_temperature(current_tau)
         
         print(f"\n{'='*50}")
-        print(f"EPISODE {ep+1}/{num_episodes} | Alpha: {current_alpha:.5f} | Tau: {current_tau:.3f}")
+        print(f"EPISODE {ep+1}/{num_episodes} | Alpha: {current_alpha:.5f}")
         print(f"{'='*50}")
         ############
-        
-        # ── Boltzmann temperature for this episode ─────────────────────────
-        #tau = TAU_START * (TAU_DECAY ** ep)
-        #tau = max(TAU_END, TAU_START * (TAU_DECAY ** ep))
-        #vfa_policy.set_temperature(tau)
 
         # ── Build episode policy ───────────────────────────────────────────
         # EpisodeTrainingPolicy:
@@ -281,6 +267,11 @@ def train(
 
         sl = _service_level(simulator, vfa_policy)
         service_levels.append(sl)
+        
+        # Apply synchronous batch update every 'batch_size' episodes
+        if (ep + 1) % batch_size == 0 or (ep + 1) == num_episodes:
+            vfa_policy.apply_batch_update()
+            
         weights_history.append(vfa_policy.theta.copy())  # Store θ vector for this episode
 
     
@@ -288,7 +279,6 @@ def train(
         
         print(
             f"  Ep {ep + 1:3d}/{num_episodes} | "
-            f"tau={current_tau:4.2f} | "
             f"SL={sl:.4f} | "
             f"Weights: {formatted_theta} | "
             f"t={time.time() - t0:.0f}s"
@@ -388,18 +378,6 @@ if __name__ == "__main__":
         help="Discount factor for future rewards"
     )
     parser.add_argument(
-        "--tau_start", 
-        type=float, 
-        default=TAU_START, 
-        help="Initial Boltzmann temperature for exploration"
-    )
-    parser.add_argument(
-        "--tau_end", 
-        type=float, 
-        default=TAU_END, 
-        help="Final Boltzmann temperature for exploitation"
-    )
-    parser.add_argument(
         "--alpha_start",
         type=float,
         default=ALPHA_START,
@@ -414,7 +392,5 @@ if __name__ == "__main__":
         seed_offset   = args.seed,
         instance_name = args.instance,
         gamma         = args.gamma,         
-        tau_start     = args.tau_start,     
-        tau_end       = args.tau_end,       
         alpha_start   = args.alpha_start    
     )

@@ -46,7 +46,7 @@ from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, test_p
 # Single source of truth for experiment definitions
 from policies.sjovik_sund.ablation_study.run_ablation_study import EXPERIMENTS
 
-ABLATION_DIR = Path("models/ablation_study")
+ABLATION_DIR = Path("models/ablation_study/SGDMINIBATCH")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -65,9 +65,6 @@ def evaluate_model(
     duration_hours: int,
     instance: str,
     vehicles: int,
-    exp_name: str = None,
-    alpha: str = None,
-    seed: int = 1000,
 ):
     print(f"\n{'='*60}")
     print(f"  {exp_name}  |  seed={seed}  |  {len(active_features)} features")
@@ -83,11 +80,13 @@ def evaluate_model(
         num_scenarios=num_scenarios,
     )
 
-    # Policy names include exp_name + seed so CSV output files never overwrite each other
+    alpha_match = re.search(r'alpha_([\d.]+)', str(model_file))
+    alpha_str = f"_A{alpha_match.group(1)}" if alpha_match else ""
+
     policy_dict = {
-        f"DoNothing":                               DoNothing(),
-        f"{exp_name}_seed{seed}_VFA":               trained_vfa,
-        f"{exp_name}_seed{seed}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid_policy,
+        f"{exp_name}_seed{seed}{alpha_str}_VFA_Only": trained_vfa,
+        # Uncomment to also/instead run the Hybrid Rollout Policy
+        # f"{exp_name}_seed{seed}{alpha_str}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid_policy,
     }
 
     test_policies(
@@ -95,7 +94,6 @@ def evaluate_model(
         policy_dict=policy_dict,
         num_vehicles=vehicles,
         duration=duration_hours,
-        use_multiprocessing=False,
         use_multiprocessing=False,
         instance_name=instance,
         config=SimulationConfig(),
@@ -107,8 +105,6 @@ def evaluate_model(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def run_batch(
-    seeds: list[int],
-    experiments: list[str] | None,
     lookahead_minutes: float,
     num_scenarios: int,
     episodes: int,
@@ -117,49 +113,56 @@ def run_batch(
     instance: str,
     vehicles: int,
 ):
-    target_experiments = {
-        k: v for k, v in EXPERIMENTS.items()
-        if experiments is None or k in experiments
-    }
+    print(f"\n{'='*60}")
+    print("  RUNNING BASELINE: DoNothing")
+    print(f"{'='*60}")
+    test_policies(
+        list_of_seeds=list(range(start_seed, start_seed + episodes)),
+        policy_dict={"DoNothing_Baseline": DoNothing()},
+        num_vehicles=vehicles,
+        duration=duration_hours,
+        use_multiprocessing=False,
+        instance_name=instance,
+        config=SimulationConfig(),
+    )
 
-    if experiments:
-        unknown = set(experiments) - set(EXPERIMENTS)
-        if unknown:
-            raise ValueError(f"Unknown experiment(s): {unknown}. Valid: {list(EXPERIMENTS)}")
+    pkl_files = list(ABLATION_DIR.rglob("*.pkl"))
+    
+    if not pkl_files:
+        print(f"Error: No .pkl models found in {ABLATION_DIR}")
+        return
 
-    total  = len(target_experiments) * len(seeds)
-    done   = 0
-    skipped = 0
+    print(f"\nBatch evaluation: Found {len(pkl_files)} model(s) to evaluate.")
 
-    print(f"\nBatch evaluation: {len(target_experiments)} experiment(s) × {len(seeds)} seed(s) = {total} model(s)")
+    for i, model_file in enumerate(pkl_files):
+        # Infer experiment properties
+        try:
+            active_features, exp_name = _detect_features(str(model_file))
+        except ValueError as e:
+            print(f"\n[{i+1}/{len(pkl_files)}] SKIP: {e}")
+            continue
+        
+        # Extract seed if possible
+        seed_match = re.search(r"seed(\d+)", model_file.name)
+        seed_val = int(seed_match.group(1)) if seed_match else 0
 
-    for exp_name, features in target_experiments.items():
-        for seed in seeds:
-            model_file = ABLATION_DIR / exp_name / f"vfa_{exp_name}_seed{seed}.pkl"
-            done += 1
-
-            if not model_file.exists():
-                print(f"\n[{done}/{total}] SKIP  {exp_name} seed={seed}  (model not found: {model_file})")
-                skipped += 1
-                continue
-
-            print(f"\n[{done}/{total}] EVAL  {exp_name} seed={seed}")
-            evaluate_model(
-                model_file=model_file,
-                active_features=features,
-                exp_name=exp_name,
-                seed=seed,
-                lookahead_minutes=lookahead_minutes,
-                num_scenarios=num_scenarios,
-                episodes=episodes,
-                start_seed=start_seed,
-                duration_hours=duration_hours,
-                instance=instance,
-                vehicles=vehicles,
-            )
+        print(f"\n[{i+1}/{len(pkl_files)}] EVAL  {exp_name} (from: {model_file.name})")
+        evaluate_model(
+            model_file=model_file,
+            active_features=active_features,
+            exp_name=exp_name,
+            seed=seed_val,
+            lookahead_minutes=lookahead_minutes,
+            num_scenarios=num_scenarios,
+            episodes=episodes,
+            start_seed=start_seed,
+            duration_hours=duration_hours,
+            instance=instance,
+            vehicles=vehicles,
+        )
 
     print(f"\n{'='*60}")
-    print(f"Batch complete. Evaluated: {done - skipped}/{total}  |  Skipped: {skipped}")
+    print(f"Batch complete. Evaluated {len(pkl_files)} model(s).")
     print(f"Results written to simulation_results/csv/")
     print(f"{'='*60}")
 
@@ -268,17 +271,17 @@ if __name__ == "__main__":
     rollout = parser.add_argument_group("Rollout parameters")
     rollout.add_argument("--lookahead", type=float, default=60.0,
                          help="Rollout horizon in simulation minutes (default: 60)")
-    rollout.add_argument("--scenarios", type=int, default=3,
-                         help="Monte Carlo scenarios per action (default: 3)")
+    rollout.add_argument("--scenarios", type=int, default=5,
+                         help="Monte Carlo scenarios per action (default: 5)")
 
     # Simulation settings
     sim = parser.add_argument_group("Simulation settings")
-    sim.add_argument("--episodes", type=int, default=5,
-                     help="Evaluation episodes per model (default: 5)")
+    sim.add_argument("--episodes", type=int, default=1,
+                     help="Evaluation episodes per model (default: 1)")
     sim.add_argument("--seed", type=int, default=9000,
                      help="Starting evaluation seed (default: 9000, kept separate from training seeds)")
-    sim.add_argument("--duration", type=int, default=24 * 5,
-                     help="Simulation duration in hours (default: 120)")
+    sim.add_argument("--duration", type=int, default=24 * 14,
+                     help="Simulation duration in hours (default: 336)")
     sim.add_argument("--instance", type=str, default="TD_W34_old",
                      help="Simulator instance name")
     sim.add_argument("--vehicles", type=int, default=1,
@@ -294,12 +297,9 @@ if __name__ == "__main__":
         duration_hours=args.duration,
         instance=args.instance,
         vehicles=args.vehicles,
-        exp_name=args.experiment,
-        alpha=args.alpha,
-        seed=args.model_seed,
     )
 
     if args.model:
         run_single(model_path=args.model, features_override=args.features, **shared)
     else:
-        run_batch(seeds=args.seeds, experiments=args.experiments, **shared)
+        run_batch(**shared)
