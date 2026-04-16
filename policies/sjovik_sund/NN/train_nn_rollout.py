@@ -82,7 +82,7 @@ print(f"Using device: {device}")
 # Hyperparameters
 # ─────────────────────────────────────────────────────────────────────────────
 
-NUM_EPISODES         : int   = 300
+NUM_EPISODES         : int   = 800
 EPISODE_DAYS         : int   = 14
 WARMUP_DAYS          : int   = 2     # GreedyPolicy for days 1–2
 LEARNING_DAYS        : int   = 12    # NNLearningPolicy for days 3–14
@@ -463,26 +463,26 @@ class NNLearningPolicy(Policy):
                 enc = post_encodings[0] if post_encodings else self._encode_post_decision(mdp_state, pairs[0][0])
                 sb = enc["station_block"]   # [N, 4]
                 vb = enc["vehicle_block"]   # [M, 5]
-                gc = enc["global_context"]  # [7]
+                gc = enc["global_context"]  # [8]
                 print("\n" + "-" * 60)
                 print("  [DEBUG] Learning-phase decision - state encoding")
                 print("-" * 60)
-                print(f"  station_block   shape : {list(sb.shape)}  (N_stations x 4)")
+                print(f"  station_block   shape : {list(sb.shape)}  (N_stations x 5)")
                 print(f"  vehicle_block   shape : {list(vb.shape)}  (M_vehicles x 5)")
-                print(f"  global_context  shape : {list(gc.shape)}  (7 features)")
+                print(f"  global_context  shape : {list(gc.shape)}  (8 features)")
                 print()
-                print("  station_block  [func | onsite | depot ]")
+                print("  station_block  [func | onsite | depot | time_sin | time_cos]")
                 for i, row in enumerate(sb.tolist()):
                     sid = sorted(mdp_state.stations.keys())[i]
                     print(f"    station {sid:>4s}: {['%.3f'%x for x in row]}")
                 print()
-                print("  vehicle_block  [func_cargo | depot_cargo | dest_func | eta]")
+                print("  vehicle_block  [func_cargo | depot_cargo | dest_func | eta | dest_id]")
                 for i, row in enumerate(vb.tolist()):
                     vid = sorted(mdp_state.vehicles.keys())[i]
                     print(f"    vehicle {vid:>4s}: {['%.3f'%x for x in row]}")
                 print()
-                gc_labels = ["time_sin", "time_cos", "starvation", "broken_ratio",
-                             "depot_queue", "mean_load"]
+                gc_labels = ["time_sin", "time_cos", "starved_ratio", "low_ratio",
+                             "broken_ratio", "depot_queue", "shift_remaining", "mean_load"]
                 print("  global_context:")
                 for label, val in zip(gc_labels, gc.tolist()):
                     print(f"    {label:<15s}: {val:.4f}")

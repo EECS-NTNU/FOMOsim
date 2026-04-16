@@ -51,22 +51,27 @@ import torch
 from typing import Dict, Optional
 
 from policies.sjovik_sund.mdp.mdp_formulation import MDPState, StationInventory, VehicleStatus
+from settings import SERVICE_TIME_FROM, SERVICE_TIME_TO
+
+_SHIFT_START_MIN  = SERVICE_TIME_FROM * 60                          # 420
+_SHIFT_END_MIN    = SERVICE_TIME_TO   * 60                          # 1200
+_SHIFT_LENGTH_MIN = _SHIFT_END_MIN - _SHIFT_START_MIN              # 780
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Dimension constants — imported by nn_model.py to keep shapes in sync
 # ─────────────────────────────────────────────────────────────────────────────
 
-STATION_FEATURE_DIM = 3   # features per station row  (functional, onsite, depot ratios)
-VEHICLE_FEATURE_DIM = 4   # features per vehicle row  (func_cargo, depot_cargo, dest_func, eta)
-GLOBAL_FEATURE_DIM  = 6   # entries in the global context vector
+STATION_FEATURE_DIM = 5   # features per station row  (functional, onsite, depot ratios, time sin/cos)
+VEHICLE_FEATURE_DIM = 5   # features per vehicle row  (func_cargo, depot_cargo, dest_func, eta, dest_id)
+GLOBAL_FEATURE_DIM  = 8   # entries in the global context vector
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # STATION BLOCK  [N_stations × STATION_FEATURE_DIM]
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _encode_station(inv: StationInventory) -> list:
+def _encode_station(inv: StationInventory, hour_of_day: float) -> list:
     """
     Encode one StationInventory as a 5-element feature vector.
 
@@ -78,6 +83,9 @@ def _encode_station(inv: StationInventory) -> list:
       [0] functional_ratio  : rentable bikes / capacity
       [1] onsite_ratio      : bikes repairable on-site / capacity
       [2] depot_ratio       : bikes requiring depot removal / capacity
+      [3] time_sin          : sin(2π · hour_of_day / 24) — cyclic time-of-day,
+      [4] time_cos          : cos(2π · hour_of_day / 24)   shared per station so
+                             the NN can learn per-station demand patterns by time.
 
     Note — empty_dock_ratio is intentionally omitted.
     free_docks = capacity - functional - onsite - depot, so
@@ -89,9 +97,11 @@ def _encode_station(inv: StationInventory) -> list:
     cap = inv.capacity if inv.capacity > 0 else 1  # guard zero-capacity stations
 
     return [
-        inv.functional / cap,   # [0] functional_ratio
-        inv.onsite     / cap,   # [1] onsite_ratio
-        inv.depot      / cap,   # [2] depot_ratio
+        inv.functional / cap,                           # [0] functional_ratio
+        inv.onsite     / cap,                           # [1] onsite_ratio
+        inv.depot      / cap,                           # [2] depot_ratio
+        math.sin(2 * math.pi * hour_of_day / 24),      # [3] time_sin
+        math.cos(2 * math.pi * hour_of_day / 24),      # [4] time_cos
     ]
 
 
@@ -111,8 +121,9 @@ def encode_station_block(mdp_state: MDPState) -> torch.Tensor:
     Returns:
         Float32 tensor of shape [N_stations, STATION_FEATURE_DIM].
     """
+    hour_of_day = (mdp_state.time % (24 * 60)) / 60.0
     rows = [
-        _encode_station(mdp_state.stations[sid])
+        _encode_station(mdp_state.stations[sid], hour_of_day)
         for sid in sorted(mdp_state.stations.keys())
     ]
     return torch.tensor(rows, dtype=torch.float32)   # [N, 5]
@@ -127,6 +138,7 @@ def _encode_vehicle(
     stations: dict,
     shift_end_time: Optional[float],
     current_time: float,
+    sorted_station_ids: list,
 ) -> list:
     """
     Encode one VehicleStatus as a 5-element feature vector.
@@ -151,6 +163,11 @@ def _encode_vehicle(
                                      ~1.0 = vehicle just departed near shift start.
                                      Falls back to a fixed 8-hour window if no
                                      shift_end_time is defined.
+
+      [4] dest_id_normalized       : sorted index of destination station / n_stations.
+                                     Gives the NN a stable identity signal so it can
+                                     learn station-specific value differences.
+                                     0.0 for depot or unknown destinations.
     """
     cap = status.capacity if status.capacity > 0 else 1
 
@@ -174,11 +191,20 @@ def _encode_vehicle(
     time_until_arrival = max(0.0, status.eta - current_time)
     eta_normalized = min(1.0, time_until_arrival / 1440.0)
 
+    # --- normalized destination station identity ---
+    n_stations = max(len(sorted_station_ids), 1)
+    if status.destination_station in stations:
+        dest_idx = sorted_station_ids.index(status.destination_station)
+        dest_id_normalized = dest_idx / n_stations
+    else:
+        dest_id_normalized = 0.0   # depot or unknown
+
     return [
         functional_cargo_ratio,   # [0]
         depot_cargo_ratio,        # [1]
         dest_functional_ratio,    # [2]
         eta_normalized,           # [3]
+        dest_id_normalized,       # [4]
     ]
 
 
@@ -195,12 +221,14 @@ def encode_vehicle_block(mdp_state: MDPState) -> torch.Tensor:
     Returns:
         Float32 tensor of shape [M_vehicles, VEHICLE_FEATURE_DIM].
     """
+    sorted_station_ids = sorted(mdp_state.stations.keys())
     rows = [
         _encode_vehicle(
             mdp_state.vehicles[vid],
             mdp_state.stations,
             mdp_state.shift_end_time,
             mdp_state.time,
+            sorted_station_ids,
         )
         for vid in sorted(mdp_state.vehicles.keys())
     ]
@@ -226,23 +254,24 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
                              sees a smooth, periodic signal and can learn
                              demand patterns that repeat daily.
 
-      [2] total_starvation : fraction of stations with 0 functional bikes.
-                             Proxy for global demand pressure.  A more
-                             precise version would use station targets,
-                             which are not currently stored in MDPState.
+      [2] starved_ratio     : fraction of stations with 0 functional bikes.
+      [3] low_ratio         : fraction of stations with functional < 10% capacity.
+                             Together these give the NN a coarse demand-pressure
+                             signal: fully empty vs. critically low.
 
       [3] total_broken     : total broken bikes (onsite + depot) across
                              all stations, normalized by total capacity.
                              Global maintenance backlog signal.
 
-      [4] depot_queue_ratio: fixed_queue / (fixed_queue + in_repair).
+      [4] depot_queue_ratio  (shifted +1 due to low_ratio insertion): fixed_queue / (fixed_queue + in_repair).
                              0 = all depot bikes still in repair (no
                              stock available for pickup),
                              1 = all repair finished (ready to reload).
 
-      [5] shift_remaining  : time remaining in shift / shift_length.
-                             Enables anticipatory end-of-day behavior
-                             (e.g., head toward depot before shift ends).
+      [5] shift_remaining  : (1440 - time % 1440) / 1440. Fraction of the
+                             24-hour day remaining. Enables anticipatory
+                             end-of-day behavior (e.g., head toward depot
+                             before shift ends). Always in (0, 1].
 
       [6] mean_load_ratio  : mean functional_cargo / capacity across fleet.
                              Whether vehicles are collectively loaded or empty.
@@ -258,10 +287,15 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
     time_sin = math.sin(2 * math.pi * hour_of_day / 24)
     time_cos = math.cos(2 * math.pi * hour_of_day / 24)
 
-    # --- system-wide starvation (stations with no rentable bikes) ---
-    n_stations      = max(len(mdp_state.stations), 1)
-    n_starved       = sum(1 for inv in mdp_state.stations.values() if inv.functional == 0)
-    total_starvation = n_starved / n_stations
+    # --- system-wide starvation signals ---
+    n_stations  = max(len(mdp_state.stations), 1)
+    n_starved   = sum(1 for inv in mdp_state.stations.values() if inv.functional == 0)
+    n_low       = sum(
+        1 for inv in mdp_state.stations.values()
+        if inv.functional < 0.1 * max(inv.capacity, 1)
+    )
+    starved_ratio = n_starved / n_stations
+    low_ratio     = n_low     / n_stations
 
     # --- system-wide maintenance backlog ---
     total_capacity = sum(inv.capacity for inv in mdp_state.stations.values())
@@ -282,13 +316,9 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
     #
     # Previous bug: denominator was shift_end_time (an absolute timestamp),
     # making the ratio near-zero for any episode past minute ~1440.
-    '''if mdp_state.shift_end_time is not None and mdp_state.shift_end_time > mdp_state.time:
-        shift_remaining = min(
-            1.0,
-            mdp_state.time_remaining_in_shift() / 1440.0,
-        )
-    else:
-        shift_remaining = 1.0   # treat as full shift remaining when unknown'''
+    # Shift runs SERVICE_TIME_FROM–SERVICE_TIME_TO each day (7:00–20:00 = 780 min).
+    time_of_day     = mdp_state.time % 1440.0
+    shift_remaining = max(0.0, (_SHIFT_END_MIN - time_of_day) / _SHIFT_LENGTH_MIN)
 
     # --- mean functional cargo ratio across fleet ---
     if mdp_state.vehicles:
@@ -300,10 +330,10 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
         mean_load = 0.0
 
     return torch.tensor(
-        [time_sin, time_cos, total_starvation, broken_ratio,
-         depot_queue_ratio, mean_load],
+        [time_sin, time_cos, starved_ratio, low_ratio, broken_ratio,
+         depot_queue_ratio, shift_remaining, mean_load],
         dtype=torch.float32,
-    )   # [6]
+    )   # [8]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
