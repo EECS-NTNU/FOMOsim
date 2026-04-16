@@ -20,6 +20,8 @@ class HybridRolloutPolicy(Policy):
         self.num_scenarios = num_scenarios
         self._simulator = None
         self.weights = getattr(trained_vfa, "weights", [])
+        self.N_ROLLOUT_CANDIDATES = 5  # Number of top candidates to fully simulate
+
 
     def __deepcopy__(self, memo):
         return self
@@ -84,8 +86,45 @@ class HybridRolloutPolicy(Policy):
             self.vfa._lazy_init(state)
 
         # 1. Generate the immediate candidate actions
-        candidates = self.vfa._generate_candidates(state, vehicle)
+        all_candidates = self.vfa._generate_candidates(state, vehicle)
         
+        # 1b. Pre-score using the frozen VFA and prune to N_ROLLOUT_CANDIDATES
+        base_func, base_onsite, base_depot = self.vfa._extract_inventories(state, vehicle)
+        candidate_scores = []
+        for action in all_candidates:
+            functional_pickups = 0
+            depot_pickups = 0
+            station_bikes = getattr(vehicle.location, "bikes", {})
+            for b_id in action.pick_ups:
+                b = station_bikes.get(b_id)
+                if b and getattr(b, 'damage_status', None) == 'depot':
+                    depot_pickups += 1
+                elif b:
+                    functional_pickups += 1
+            
+            delta_func = len(action.delivery_bikes) - functional_pickups
+            delta_depot_cargo = depot_pickups
+            delta_onsite_repairs = len(getattr(action, "onsite_repairs", []))
+            
+            if vehicle.is_at_depot():
+                vehicle_depot_cargo = sum(1 for b in vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) == 'depot')
+                delta_depot_cargo = -vehicle_depot_cargo
+            
+            dest_id = getattr(action, "next_location", getattr(action, "next_station", None))
+            
+            phi = self.vfa.extract_features(
+                state, vehicle, 
+                base_func, base_onsite, base_depot, 
+                delta_func, delta_depot_cargo,
+                delta_onsite_repairs,
+                next_station_id=dest_id
+            )
+            vfa_score = self.vfa.value(phi)
+            candidate_scores.append((vfa_score, action))
+            
+        candidate_scores.sort(key=lambda x: x[0], reverse=True)
+        candidates = [item[1] for item in candidate_scores[:self.N_ROLLOUT_CANDIDATES]]
+
         best_action = None
         best_q_value = -float('inf')
 

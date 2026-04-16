@@ -24,6 +24,7 @@ from collections import deque
 from policies import action
 from policies import action
 from policies.sjovik_sund.mdp.reward import RewardCalculator
+from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
 
 
 WORKSPACE_ROOT = Path(__file__).parents[3]
@@ -761,6 +762,13 @@ class LinearVFAPolicy(Policy):
     # ─────────────────────────────────────────────────────────────────────────
 
     def _generate_candidates(self, state, vehicle) -> List[sim.Action]:
+        """
+        NEW DECOUPLED CANDIDATE GENERATION:
+        Delegated to candidate_generator.py to create combination of operations and routing.
+        """
+        return generate_candidates(state, vehicle, self.maintenance_enabled)
+
+    def _generate_candidates_OLD(self, state, vehicle) -> List[sim.Action]:
         #NOTE: If if your first few training runs prove that the agent is getting stuck, update candidates to for example 5 nearest stations and 3 critical stations or something
         #NOTE: Currently uses a tabu list generation for multi-vehicle coordination. Can consider adding other vehcile decisions and effective inventory to mdp state if we want a more mathematically profound coordination mechanism, but this is a simple and effective first step to prevent multiple vehicles from being dispatched to the same starving/congested station.
         """
@@ -1291,6 +1299,8 @@ class LinearVFAPolicy(Policy):
         # Always use greedy selection (even during learning) to avoid the "Deadly Triad" in RL
         sel_idx  = int(np.argmax(values))
         selected = candidates[sel_idx]
+        
+        print(f"4. Selected action: next station: {getattr(selected, 'next_location', getattr(selected, 'next_station', None))}, pickups: {len(getattr(selected, 'pick_ups', []))}, deliveries: {len(getattr(selected, 'delivery_bikes', []))}")
 
         # ── Step 6: Log depot decisions (optional) ────────────────────────
         self._log_depot_decision(state, vehicle, selected, phis[sel_idx], values[sel_idx])
