@@ -46,7 +46,7 @@ from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, test_p
 # Single source of truth for experiment definitions
 from policies.sjovik_sund.ablation_study.run_ablation_study import EXPERIMENTS
 
-ABLATION_DIR = Path("models/ablation_study/SGDMINIBATCH")
+ABLATION_DIR = Path("models/ablation_study/SGDMINIBATCH_2/LongTerm_alpha_0.01_20260415_171622")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ def evaluate_model(
     policy_dict = {
         f"{exp_name}_seed{seed}{alpha_str}_VFA_Only": trained_vfa,
         # Uncomment to also/instead run the Hybrid Rollout Policy
-        # f"{exp_name}_seed{seed}{alpha_str}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid_policy,
+        f"{exp_name}_seed{seed}{alpha_str}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid_policy,
     }
 
     test_policies(
