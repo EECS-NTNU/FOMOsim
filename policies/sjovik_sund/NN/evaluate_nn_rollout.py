@@ -88,21 +88,9 @@ def evaluate_model(
         depot_id=depot_id,
     )
 
-    # Pure NN (no rollout) baseline — needs its own candidate_vfa instance
-    nn_greedy_vfa = _make_candidate_vfa()
-    nn_greedy = NNRolloutPolicy(
-        nn_model=nn_model,
-        candidate_vfa=nn_greedy_vfa,
-        lookahead_minutes=0.0,   # no lookahead → pure NN greedy
-        num_scenarios=1,
-        maintenance_enabled=ENABLE_COMPONENT_FAILURES,
-        depot_id=depot_id,
-    )
-
     policy_dict = {
-        "DoNothing":                                          DoNothing(),
-        f"{model_name}_NNGreedy":                             nn_greedy,
-        f"{model_name}_NNRollout_H{int(lookahead_minutes)}_S{num_scenarios}": nn_rollout,
+        "DoNothing":                                                             DoNothing(),
+        f"{model_name}_NNRollout_H{int(lookahead_minutes)}_S{num_scenarios}":   nn_rollout,
     }
 
     test_policies(

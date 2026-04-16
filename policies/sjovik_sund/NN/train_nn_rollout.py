@@ -811,6 +811,8 @@ def train_nn_rollout(
 
     # ── Metrics tracking ──────────────────────────────────────────────────────
     learning_curve = []   # written to checkpoint; also mirrored to CSV below
+    best_greedy_sl  = -float("inf")   # track best greedy SL for model saving
+    best_greedy_path: Path = None
     t0 = time.time()
 
     # Open CSV log — one row per episode, written incrementally so a partial
@@ -1079,6 +1081,22 @@ def train_nn_rollout(
                 f"\n  -> If greedy eval SL >> training SL: NN learned but"
                 f" exploration is masking it in training metrics"
             )
+            # Save best-greedy-SL checkpoint whenever a new high is reached
+            if eval_sl > best_greedy_sl:
+                best_greedy_sl = eval_sl
+                best_greedy_path = SAVE_DIR / f"nn_model_best_greedy_seed{seed_offset}.pt"
+                torch.save({
+                    "episode":              ep + 1,
+                    "model_state":          online_model.state_dict(),
+                    "target_state":         target_model.state_dict(),
+                    "optimizer_state":      optimizer.state_dict(),
+                    "learning_curve":       learning_curve,
+                    "station_feature_dim":  online_model.station_feature_dim,
+                    "vehicle_feature_dim":  online_model.vehicle_feature_dim,
+                    "global_feature_dim":   online_model.global_feature_dim,
+                    "best_greedy_sl":       best_greedy_sl,
+                }, best_greedy_path)
+                print(f"  -> New best greedy SL={best_greedy_sl:.4f} — saved to {best_greedy_path.name}")
 
         # --- Logging ---
         learning_curve.append({
@@ -1170,7 +1188,9 @@ def train_nn_rollout(
     print("  NN TRAINING COMPLETE")
     print("=" * 72)
     print(f"  Total time    : {total_elapsed / 60:.1f} min")
-    print(f"  Model saved   : {save_path}")
+    print(f"  Final model   : {save_path}")
+    if best_greedy_path is not None:
+        print(f"  Best greedy   : {best_greedy_path.name}  (SL={best_greedy_sl:.4f})")
     print(f"  CSV log saved : {csv_path}")
     print("=" * 72 + "\n")
 
