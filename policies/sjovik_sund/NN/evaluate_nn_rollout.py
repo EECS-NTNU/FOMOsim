@@ -22,8 +22,10 @@ Results are written to simulation_results/csv/.
 """
 
 import os
+import re
 import sys
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
@@ -32,7 +34,6 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 
 from policies.sjovik_sund.NN.train_nn_rollout import load_nn_model
 from policies.sjovik_sund.NN.NNRolloutPolicy import NNRolloutPolicy
-from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.do_nothing_policy import DoNothing
 from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, test_policies
 from settings import ENABLE_COMPONENT_FAILURES
@@ -40,22 +41,24 @@ from settings import ENABLE_COMPONENT_FAILURES
 NN_MODELS_DIR = Path(__file__).parent / "models"
 
 
+def _parse_model_hyperparams(model_stem: str):
+    """Extract lr, tau, freq from a model filename stem, e.g.
+    'nn_model_best_greedy_seed1000_tau0.1_freq10_lr0.001_20260417_115857'
+    Returns (lr, tau, freq) as strings, or None if not found.
+    """
+    lr_m   = re.search(r'lr[_]?([\d.]+)',  model_stem)
+    tau_m  = re.search(r'tau[_]?([\d.]+)', model_stem)
+    freq_m = re.search(r'freq[_]?(\d+)',   model_stem)
+    return (
+        lr_m.group(1)   if lr_m   else None,
+        tau_m.group(1)  if tau_m  else None,
+        freq_m.group(1) if freq_m else None,
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Core evaluation — one .pt model file
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _make_candidate_vfa() -> LinearVFAPolicy:
-    """
-    Build a default LinearVFAPolicy used only for candidate generation and
-    reward config inside NNRolloutPolicy.  Weights are never queried.
-    """
-    vfa = LinearVFAPolicy(
-        learning_mode=False,
-        maintenance_enabled=ENABLE_COMPONENT_FAILURES,
-    )
-    vfa.learning_mode = False
-    return vfa
-
 
 def evaluate_model(
     model_file: Path,
@@ -69,19 +72,33 @@ def evaluate_model(
     depot_id: str = None,
 ):
     model_name = model_file.stem
+    lr, tau, freq = _parse_model_hyperparams(model_name)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Build a compact hyper-param tag for the output filename
+    hp_parts = []
+    if tau  is not None: hp_parts.append(f"tau{tau}")
+    if freq is not None: hp_parts.append(f"freq{freq}")
+    if lr   is not None: hp_parts.append(f"lr{lr}")
+    hp_str = ("_" + "_".join(hp_parts)) if hp_parts else ""
+
+    eval_key = (
+        f"{model_name}_NNRollout_H{int(lookahead_minutes)}_S{num_scenarios}"
+        f"{hp_str}_{timestamp}"
+    )
 
     print(f"\n{'='*60}")
     print(f"  Model: {model_file.name}")
     print(f"  Lookahead: {lookahead_minutes} min  |  Scenarios: {num_scenarios}")
+    if hp_parts:
+        print(f"  Hyperparams: {', '.join(hp_parts)}")
+    print(f"  Eval timestamp: {timestamp}")
     print(f"{'='*60}")
 
     nn_model = load_nn_model(str(model_file))
 
-    candidate_vfa = _make_candidate_vfa()
-
     nn_rollout = NNRolloutPolicy(
         nn_model=nn_model,
-        candidate_vfa=candidate_vfa,
         lookahead_minutes=lookahead_minutes,
         num_scenarios=num_scenarios,
         maintenance_enabled=ENABLE_COMPONENT_FAILURES,
@@ -89,8 +106,8 @@ def evaluate_model(
     )
 
     policy_dict = {
-        "DoNothing":                                                             DoNothing(),
-        f"{model_name}_NNRollout_H{int(lookahead_minutes)}_S{num_scenarios}":   nn_rollout,
+        "DoNothing": DoNothing(),
+        eval_key:    nn_rollout,
     }
 
     test_policies(

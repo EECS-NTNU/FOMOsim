@@ -208,8 +208,8 @@ class LoggingSimulator(sim.Simulator):
         #current_maintenance_starvations = self.state.metrics.get_aggregate_value("maintenance_starvations")
         current_depot_failures = self.state.metrics.get_aggregate_value("depot_failures")
         current_onsite_failures = self.state.metrics.get_aggregate_value("onsite_failures")
-        current_bike_pickups = self.state.metrics.get_aggregate_value("num bike pickups")
-        current_bike_deliveries = self.state.metrics.get_aggregate_value("num bike deliveries")
+        current_bike_pickups = self.state.metrics.get_aggregate_value("bike_pickups")
+        current_bike_deliveries = self.state.metrics.get_aggregate_value("bike_deliveries")
         #current_maintenance_time = self.state.metrics.get_aggregate_value("maintenance_time")
         # DEBUGGING: Print what metrics exist
         '''print("\n[DEBUG] All metrics in state.metrics:")
@@ -520,8 +520,6 @@ class LoggingSimulator(sim.Simulator):
         })
         
         self.last_starvations = starvations
-
-        self.last_starvations = starvations
         self.last_congestions = congestions
         self.last_pickups = pickups
         self.last_deliveries = deliveries
@@ -579,7 +577,7 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
             ])
        
         # Calculate metrics needed for service level
-        # NOTE: We define service level as 1 - (failed events / total trips), which represents the percentage of trips that were successful. This assumes failed events are derived from starvations and LONG congestions.
+        # NOTE: We define service level as 1 - (failed events / total trips), which represents the percentage of trips that were successful. failed events = starvations + long congestions + battery violations.
         total_trips = simulator.state.metrics.get_aggregate_value('trips')
         failed_events = simulator.state.metrics.get_aggregate_value('failed events')
         service_level = 1 - (failed_events / total_trips) if total_trips > 0 else 0.0

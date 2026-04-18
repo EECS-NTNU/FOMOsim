@@ -268,7 +268,8 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
     base_filename = filename.replace('.csv', '')
     
     # Extract alpha from policy weights if available
-    alpha_value = policy.weights[3] if policy.weights and len(policy.weights) > 3 else None
+    weights = getattr(policy, "weights", None)
+    alpha_value = weights[3] if weights and len(weights) > 3 else None
     
     # Write main results file
     write_results_to_file(filename, simulator, duration, solve_time, seed, append=append_to_results)

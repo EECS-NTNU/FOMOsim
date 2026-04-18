@@ -77,10 +77,11 @@ import torch
 import sim
 
 from policies.policy import Policy
+from policies.sjovik_sund.NN.NNGreedyPolicy import NNGreedyPolicy
 from policies.sjovik_sund.mdp.mdp_formulation import extract_mdp_state
+from policies.sjovik_sund.mdp.mdp_config import MDPConfig
 from policies.sjovik_sund.mdp.reward import RewardCalculator
 from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
-from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.sjovik_sund.NN.nn_model import NNValueNetwork
 from policies.sjovik_sund.NN.nn_state_encoder import encode_state
 
@@ -97,24 +98,21 @@ class NNRolloutPolicy(Policy):
     Args:
         nn_model              : trained NNValueNetwork (from train_nn_rollout or
                                 loaded via torch.load).
-        candidate_vfa         : a LinearVFAPolicy whose _generate_candidates()
-                                method is borrowed for action enumeration.
-                                Its VALUE WEIGHTS ARE NOT USED for scoring.
-                                Set learning_mode=False before passing in.
         lookahead_minutes     : how far ahead to simulate per scenario (H).
         num_scenarios         : number of Monte Carlo rollout samples per candidate.
+        gamma                 : discount factor.
         maintenance_enabled   : whether depot/onsite maintenance actions are included.
         depot_id              : ID of the depot station, passed to extract_mdp_state.
     """
 
     def __init__(
         self,
-        nn_model:           NNValueNetwork,
-        candidate_vfa:      LinearVFAPolicy,
-        lookahead_minutes:  float = 60.0,
-        num_scenarios:      int   = 3,
-        maintenance_enabled: bool = True,
-        depot_id:           str   = None,
+        nn_model:            NNValueNetwork,
+        lookahead_minutes:   float = 60.0,
+        num_scenarios:       int   = 8,
+        gamma:               float = 0.99,
+        maintenance_enabled: bool  = True,
+        depot_id:            str   = None,
     ):
         super().__init__(maintenance_enabled=maintenance_enabled)
 
@@ -123,17 +121,28 @@ class NNRolloutPolicy(Policy):
         self.nn_model = nn_model
         self.nn_model.eval()
 
-        # The VFA is used ONLY for _generate_candidates() and reward_calc config.
-        # Its scoring weights are never queried; learning_mode must be False.
-        self._vfa_for_candidates = candidate_vfa
-        self._vfa_for_candidates.learning_mode = False
-
         self.lookahead_minutes   = lookahead_minutes
         self.num_scenarios       = num_scenarios
+        self.gamma               = gamma
         self.depot_id            = depot_id
 
-        # Discount factor: reuse from the candidate VFA for consistency.
-        self.gamma = getattr(candidate_vfa, "gamma", 0.99)
+        # MDP config derived directly from maintenance flag — no VFA needed.
+        self._mdp_config = (
+            MDPConfig.full_maintenance() if maintenance_enabled
+            else MDPConfig.no_maintenance()
+        )
+
+        # RewardCalculator with default RewardConfig.
+        self._reward_config = RewardCalculator(gamma=gamma).config
+
+        # NNGreedyPolicy is used as the base policy for cloned vehicles during
+        # the rollout fast-forward — equivalent to VFA being the base policy in
+        # HybridRolloutPolicy. Greedy NN scoring, no recursive rollout.
+        self._base_policy = NNGreedyPolicy(
+            nn_model=nn_model,
+            config=self._mdp_config,
+            depot_id=depot_id,
+        )
 
         # Will be set by init_sim() once the simulator is attached.
         self._simulator = None
@@ -144,15 +153,13 @@ class NNRolloutPolicy(Policy):
 
     def __deepcopy__(self, memo):
         # Prevent deep-copying the policy when the simulator clones itself.
-        # Cloned vehicles must NOT point to a cloned version of this policy;
-        # they need to point back to the candidate VFA so the rollout terminates
-        # after one level (no recursive lookahead on lookahead).
+        # Cloned vehicles are assigned _base_policy (DoNothing), so this policy
+        # is never called recursively inside a rollout branch.
         return self
 
     def init_sim(self, simulator):
         """Called by the simulator after the event queue is initialized."""
         self._simulator = simulator
-        self._vfa_for_candidates.init_sim(simulator)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Simulator cloning helpers (mirrors HybridRolloutPolicy)
@@ -177,7 +184,6 @@ class NNRolloutPolicy(Policy):
 
         # Restore root reference that sloppycopy() may have clobbered
         self._simulator = root_sim
-        self._vfa_for_candidates.init_sim(root_sim)
 
         # Silence operational logging in the clone
         for attr in ("operation_logger",):
@@ -196,7 +202,7 @@ class NNRolloutPolicy(Policy):
         the beginning of the simulation.
         """
         reward_calc = RewardCalculator(
-            config=copy.deepcopy(self._vfa_for_candidates.reward_calc.config),
+            config=copy.deepcopy(self._reward_config),
             gamma=self.gamma,
         )
         reward_calc.compute_step_reward(simulator.state.metrics)
@@ -262,7 +268,7 @@ class NNRolloutPolicy(Policy):
         terminal_mdp_state = extract_mdp_state(
             sim_state=clone_sim_state,
             active_vehicle_id=vehicle_id,
-            config=self._vfa_for_candidates.config,
+            config=self._mdp_config,
             depot_id=self.depot_id,
             shift_end_time=_shift_end,
         )
@@ -314,14 +320,6 @@ class NNRolloutPolicy(Policy):
             maintenance_enabled=self.maintenance_enabled,
         )
 
-        # Mute VFA logging for the rollout phase — cloned vehicles still use
-        # _vfa_for_candidates as their internal policy, so its debug prints
-        # would otherwise flood output during scoring.
-        old_log_rl    = getattr(self._vfa_for_candidates, "log_rl_decisions", False)
-        old_log_depot = getattr(self._vfa_for_candidates, "log_depot_visits", False)
-        self._vfa_for_candidates.log_rl_decisions = False
-        self._vfa_for_candidates.log_depot_visits = False
-
         best_action  = None
         best_q_value = -float("inf")
 
@@ -337,13 +335,11 @@ class NNRolloutPolicy(Policy):
                 clone_vehicle = clone_state.get_vehicle_by_id(vehicle.id)
                 reward_calc   = self._make_reward_calculator(clone_sim)
 
-                # 2. CRITICAL: force cloned vehicles to use the candidate VFA,
-                #    not this NNRolloutPolicy. This prevents infinite recursion
-                #    (rollout calling rollout calling rollout...). The lookahead
-                #    uses the VFA greedily for internal decisions; the NN only
-                #    evaluates the terminal state at the end of the horizon.
+                # 2. Assign DoNothing as the base policy for cloned vehicles.
+                #    This prevents recursive rollout (NNRolloutPolicy calling itself)
+                #    while still letting the simulator advance through demand events.
                 for v in clone_state.get_vehicles():
-                    v.policy = self._vfa_for_candidates
+                    v.policy = self._base_policy
 
                 # 3. Apply the candidate action and register the next arrival event
                 self._apply_action_to_clone(clone_sim, clone_vehicle, action)
@@ -380,9 +376,5 @@ class NNRolloutPolicy(Policy):
             if mean_q > best_q_value:
                 best_q_value = mean_q
                 best_action  = action
-
-        # Restore VFA logging settings for the real simulation step
-        self._vfa_for_candidates.log_rl_decisions = old_log_rl
-        self._vfa_for_candidates.log_depot_visits = old_log_depot
 
         return best_action

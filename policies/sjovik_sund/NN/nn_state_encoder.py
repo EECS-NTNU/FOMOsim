@@ -62,18 +62,17 @@ _SHIFT_LENGTH_MIN = _SHIFT_END_MIN - _SHIFT_START_MIN              # 780
 # Dimension constants — imported by nn_model.py to keep shapes in sync
 # ─────────────────────────────────────────────────────────────────────────────
 
-STATION_FEATURE_DIM = 5   # features per station row  (functional, onsite, depot ratios, time sin/cos)
+STATION_FEATURE_DIM = 6   # features per station row (functional, onsite, depot, time sin/cos, target_travel_time)
 VEHICLE_FEATURE_DIM = 5   # features per vehicle row  (func_cargo, depot_cargo, dest_func, eta, dest_id)
 GLOBAL_FEATURE_DIM  = 8   # entries in the global context vector
-
 
 # ═════════════════════════════════════════════════════════════════════════════
 # STATION BLOCK  [N_stations × STATION_FEATURE_DIM]
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _encode_station(inv: StationInventory, hour_of_day: float) -> list:
+def _encode_station(inv: StationInventory, hour_of_day: float, target_travel_time: float) -> list:
     """
-    Encode one StationInventory as a 5-element feature vector.
+    Encode one StationInventory as a 6-element feature vector.
 
     All quantities are normalized by station capacity so the values are in
     [0, 1] regardless of how large or small the station is.  This lets the
@@ -86,6 +85,9 @@ def _encode_station(inv: StationInventory, hour_of_day: float) -> list:
       [3] time_sin          : sin(2π · hour_of_day / 24) — cyclic time-of-day,
       [4] time_cos          : cos(2π · hour_of_day / 24)   shared per station so
                              the NN can learn per-station demand patterns by time.
+      [5] target_travel_time: normalized travel time to this station if it is 
+                              the destination of the active vehicle, else 0.0.
+                              This gives the network explicit spatial distance.
 
     Note — empty_dock_ratio is intentionally omitted.
     free_docks = capacity - functional - onsite - depot, so
@@ -102,6 +104,7 @@ def _encode_station(inv: StationInventory, hour_of_day: float) -> list:
         inv.depot      / cap,                           # [2] depot_ratio
         math.sin(2 * math.pi * hour_of_day / 24),      # [3] time_sin
         math.cos(2 * math.pi * hour_of_day / 24),      # [4] time_cos
+        target_travel_time,                            # [5] explicit travel time to destination
     ]
 
 
@@ -122,11 +125,22 @@ def encode_station_block(mdp_state: MDPState) -> torch.Tensor:
         Float32 tensor of shape [N_stations, STATION_FEATURE_DIM].
     """
     hour_of_day = (mdp_state.time % (24 * 60)) / 60.0
-    rows = [
-        _encode_station(mdp_state.stations[sid], hour_of_day)
-        for sid in sorted(mdp_state.stations.keys())
-    ]
-    return torch.tensor(rows, dtype=torch.float32)   # [N, 5]
+    
+    active_vehicle = mdp_state.vehicles.get(mdp_state.active_vehicle_id)
+    target_station_id = None
+    target_travel_time = 0.0
+    
+    if active_vehicle:
+        target_station_id = active_vehicle.destination_station
+        time_until_arrival = max(0.0, active_vehicle.eta - mdp_state.time)
+        target_travel_time = min(1.0, time_until_arrival / 1440.0)
+
+    rows = []
+    for sid in sorted(mdp_state.stations.keys()):
+        tt_val = target_travel_time if sid == target_station_id else 0.0
+        rows.append(_encode_station(mdp_state.stations[sid], hour_of_day, tt_val))
+        
+    return torch.tensor(rows, dtype=torch.float32)   # [N, STATION_FEATURE_DIM]
 
 
 # ═════════════════════════════════════════════════════════════════════════════

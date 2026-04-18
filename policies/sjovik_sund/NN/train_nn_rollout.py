@@ -41,6 +41,7 @@ instead of the linear VFA.
 """
 
 import csv
+import math
 import sys
 import copy
 import random
@@ -87,18 +88,22 @@ EPISODE_DAYS         : int   = 14
 WARMUP_DAYS          : int   = 2     # GreedyPolicy for days 1–2
 LEARNING_DAYS        : int   = 12    # NNLearningPolicy for days 3–14
 
-LR_START             : float = 1e-3  # Adam lr at episode 0
-LR_END               : float = 1e-4  # Adam lr at episode N (linearly decayed)
+LR_START             : float = 5e-4  # Adam lr at episode 0
+LR_END               : float = 5e-5  # Adam lr at episode N (linearly decayed)
 
 GAMMA                : float = 0.99  # discount factor (matches linear VFA)
 
-TARGET_UPDATE_FREQ   : int   = 10    # copy online → target every N episodes
+TARGET_UPDATE_FREQ   : int   = 10    # kept for CLI arg compatibility; not used when POLYAK > 0
+POLYAK               : float = 0.005 # soft target update rate: θ_target ← (1-τ)θ_target + τθ_online
+                                     # applied every episode instead of hard copy every N episodes.
+                                     # Set to 0.0 to fall back to hard copies (original behaviour).
 
 BUFFER_SIZE          : int   = 10_000  # max transitions in replay buffer
-BATCH_SIZE           : int   = 64      # mini-batch size per gradient update
+BATCH_SIZE           : int   = 128     # mini-batch size per gradient update
 MIN_BUFFER_SIZE      : int   = 256     # start learning only after this many transitions
 
-GRAD_CLIP_NORM       : float = 1.0   # max gradient norm (prevents large TD spikes)
+GRAD_CLIP_NORM       : float = 0.5   # max gradient norm (prevents large TD spikes)
+REWARD_NORM_EPS      : float = 1e-8  # avoid div-by-zero in reward normalizer
 
 # Boltzmann exploration temperature schedule (linear anneal over all episodes)
 # tau_start: high temperature early → broad exploration of action space
@@ -183,6 +188,59 @@ class ReplayBuffer:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# REWARD NORMALIZER
+# ═════════════════════════════════════════════════════════════════════════════
+
+class RewardNormalizer:
+    """
+    Online Welford normalizer for step rewards.
+
+    Rewards range from -76.7 to 0.0 (mean ≈ -2.7, std ≈ 5.6).
+    The NN outputs ~0.16.  Without normalization, a single bad step
+    produces a TD target of -76.5, creating a gradient ≈5900× larger
+    than a typical step — the network never converges.
+
+    This normalizer tracks the running mean and variance of ALL rewards
+    seen across ALL episodes (Welford's exact online algorithm) and maps
+    each reward to approximately N(0, 1) before it enters the buffer.
+
+    normalize(r) = (r - mean) / (std + eps)
+
+    WHY WELFORD?  Moving averages forget old data (EMA) or require storing
+    all values (batch).  Welford's algorithm is exact, O(1) per update,
+    and uses O(1) memory — ideal for a running training loop.
+
+    Shared across episodes so the statistics accumulate over the full run.
+    """
+
+    def __init__(self):
+        self._n    = 0
+        self._mean = 0.0
+        self._M2   = 0.0   # sum of squared deviations (Welford accumulator)
+
+    def update(self, reward: float) -> None:
+        """Incorporate one new reward into the running statistics."""
+        self._n += 1
+        delta        = reward - self._mean
+        self._mean  += delta / self._n
+        delta2       = reward - self._mean
+        self._M2    += delta * delta2
+
+    @property
+    def mean(self) -> float:
+        return self._mean
+
+    @property
+    def std(self) -> float:
+        if self._n < 2:
+            return 1.0   # no estimate yet → no scaling
+        return math.sqrt(self._M2 / (self._n - 1))
+
+    def normalize(self, reward: float) -> float:
+        return reward / (self.std + REWARD_NORM_EPS)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 # BOLTZMANN ACTION SELECTION
 # ═════════════════════════════════════════════════════════════════════════════
 
@@ -213,8 +271,8 @@ def _boltzmann_select(values: list, tau: float) -> int:
 # TD LOSS
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _compute_td_loss(online_model, target_model, batch, gamma, n_stations,
-                     collect_debug: bool = False):
+def _compute_td_loss(online_model, target_model, batch, gamma,
+                     reward_normalizer=None, collect_debug: bool = False):
     losses      = []
     # Debug accumulators — only filled when collect_debug=True
     _v_curs     = []
@@ -231,10 +289,10 @@ def _compute_td_loss(online_model, target_model, batch, gamma, n_stations,
 
         with torch.no_grad():
             # Reward and target must also be on the same device
-            normalized_r = torch.tensor([reward / max(n_stations, 1)],
-                                        dtype=torch.float32, device=device)
+            r_val = reward if reward_normalizer is None else reward_normalizer.normalize(reward)
+            r = torch.tensor([r_val], dtype=torch.float32, device=device)
             if done:
-                td_target = normalized_r
+                td_target = r
             else:
                 # Move next-state blocks to M1 GPU
                 v_next = target_model(
@@ -242,9 +300,9 @@ def _compute_td_loss(online_model, target_model, batch, gamma, n_stations,
                     enc_next["vehicle_block"].to(device),
                     enc_next["global_context"].to(device),
                 )
-                td_target = normalized_r + gamma * v_next
+                td_target = r + gamma * v_next
 
-        losses.append((td_target - v_cur) ** 2)
+        losses.append(torch.nn.functional.huber_loss(v_cur, td_target, delta=1.0))
 
         if collect_debug:
             _v_curs.append(v_cur.item())
@@ -320,6 +378,7 @@ class NNLearningPolicy(Policy):
         depot_id:          Optional[str],
         tau:               float = 0.0,   # Boltzmann temperature; 0 = greedy
         verbose:           bool = False,
+        reward_normalizer: Optional[RewardNormalizer] = None,
     ):
         super().__init__(maintenance_enabled=config.allow_onsite_repairs)
 
@@ -339,6 +398,7 @@ class NNLearningPolicy(Policy):
         # Stores the encoded POST-DECISION state from the previous decision epoch.
         # None until the first learning-phase decision.
         self._prev_post_encoded: Optional[dict] = None
+        self._prev_time: Optional[float] = None
 
         # Decision counter — used for verbose debug output.
         self._decision_count: int = 0
@@ -362,6 +422,14 @@ class NNLearningPolicy(Policy):
         self._candidate_count:        int  = 0    # total _encode_post_decision calls (denominator for fallback %)
         self._reward_values:          list = []
         self._shift_checked:          bool = False   # print shift_remaining once per episode
+
+        # Reward normalizer — shared across episodes, passed in from training loop.
+        self.reward_normalizer = reward_normalizer
+
+        # Candidate index tracking: which pool slot (0=nearest, last=most critical) did NN pick?
+        # Persistent clustering at 0 → NN collapsed to "always go nearest".
+        # Distributed picks → NN is making state-dependent choices.
+        self._chosen_indices: list = []
 
     # init_sim is intentionally not overridden: generate_candidates() is a
     # standalone function that reads directly from sim.State and sim.Vehicle,
@@ -513,12 +581,8 @@ class NNLearningPolicy(Policy):
         if self.verbose:
             print(f"             chosen candidate idx={idx} | V={values[idx]:.4f}")
 
-        # Track shift_remaining from the chosen post-decision encoding.
-        # global_context[5] = shift_remaining (see nn_state_encoder.py).
-        # This lets us verify in the CSV that the feature is now non-constant.
-        '''self._shift_remaining_values.append(
-            chosen_post_encoded["global_context"][5].item()
-        )'''
+        # Track which pool slot was chosen (0=nearest station, last=most critical).
+        self._chosen_indices.append(idx)
 
         # --- Step 6: push transition to replay buffer ---
         # We push (S^x_{k-1}, r_k, S^x_k) where:
@@ -529,16 +593,26 @@ class NNLearningPolicy(Policy):
         # On the very first learning-phase call, _prev_post_encoded is None
         # (no previous learning-phase decision), so we skip this push.
         if self._prev_post_encoded is not None:
+            # Reward shaping: division by elapsed step time to yield a rate.
+            elapsed_time = mdp_state.time - (self._prev_time if self._prev_time is not None else mdp_state.time)
+            elapsed_time = max(1.0, elapsed_time)
+            
+            # Divide raw reward by elapsed time
+            scaled_r = r_k / elapsed_time
+            
+            self._reward_values.append(scaled_r)   # track raw (but scaled) reward for episode-level stats
+            if self.reward_normalizer is not None:
+                self.reward_normalizer.update(scaled_r)
             self.replay_buffer.push(
                 encoded_cur=self._prev_post_encoded,
-                reward=r_k,
+                reward=scaled_r,
                 encoded_next=chosen_post_encoded,
                 done=False,
             )
-            self._reward_values.append(r_k)   # track for episode-level reward stats
 
         # --- Step 7: store chosen post-decision state for next epoch ---
         self._prev_post_encoded = chosen_post_encoded
+        self._prev_time         = mdp_state.time
 
         return chosen_sim_action
 
@@ -553,17 +627,26 @@ class NNLearningPolicy(Policy):
         """
         if self._prev_post_encoded is not None and self._reward_calc is not None:
             final_r = self._reward_calc.compute_step_reward(sim_state.metrics)
+            
+            elapsed_time = sim_state.time - (self._prev_time if self._prev_time is not None else sim_state.time)
+            elapsed_time = max(1.0, elapsed_time)
+            
+            scaled_r = final_r / elapsed_time
+            
+            if self.reward_normalizer is not None:
+                self.reward_normalizer.update(scaled_r)
             # For the terminal transition, S^x_next is a copy of S^x_cur
             # (the bootstrapped value will be multiplied by 0 since done=True
             # means _compute_td_loss uses only r, not r + γ V_next).
             self.replay_buffer.push(
                 encoded_cur=self._prev_post_encoded,
-                reward=final_r,
+                reward=scaled_r,
                 encoded_next=self._prev_post_encoded,  # not used; done=True
                 done=True,
             )
         # Reset for the next episode
         self._prev_post_encoded = None
+        self._prev_time = None
         self._reward_calc       = None
 
 
@@ -720,6 +803,7 @@ def train_nn_rollout(
     buffer_size:        int   = BUFFER_SIZE,
     depot_id:           Optional[str] = None,
     reward_calc_config=None,  # RewardConfig used to build the step-reward calculator
+    run_label:          Optional[str] = None,  # extra tag injected into all output filenames
 ) -> NNValueNetwork:
     """
     Run the full episodic NN training loop.
@@ -767,8 +851,9 @@ def train_nn_rollout(
     # The replay buffer is shared across ALL episodes: transitions from earlier
     # episodes (when the policy was exploratory) stay in the buffer and continue
     # to contribute to gradient updates in later episodes.
-    optimizer     = optim.Adam(online_model.parameters(), lr=lr_start)
-    replay_buffer = ReplayBuffer(max_size=buffer_size)
+    optimizer         = optim.Adam(online_model.parameters(), lr=lr_start)
+    replay_buffer     = ReplayBuffer(max_size=buffer_size)
+    reward_normalizer = RewardNormalizer()   # shared across all episodes
 
     # ── Warmup end time (absolute simulation minutes) ─────────────────────────
     # Mirrors the calculation in train_vfa.py:
@@ -817,18 +902,20 @@ def train_nn_rollout(
 
     # Open CSV log — one row per episode, written incrementally so a partial
     # run is still readable if training is interrupted on the cluster.
-    ts_run   = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_path = SAVE_DIR / f"training_log_seed{seed_offset}_{ts_run}.csv"
+    ts_run    = datetime.now().strftime("%Y%m%d_%H%M%S")
+    _label    = f"_{run_label}" if run_label else f"_tau{tau_start}_freq{target_update_freq}_lr{lr_start}"
+    csv_path  = SAVE_DIR / f"training_log_seed{seed_offset}{_label}_{ts_run}.csv"
     CSV_FIELDS = [
         "episode", "mean_loss", "lr", "tau",
         "service_level", "buffer_size", "n_updates", "elapsed_s",
-        # Encoding diagnostics — verify encoder health per episode:
-        #"mean_shift_remaining",  # global_context[5]; should vary 0→1 across shift
-        "mean_value_spread",     # max(V)-min(V) per decision; near 0 = NN not discriminating
-        "mean_reward",           # raw step reward mean; scale check for TD signal
-        "pct_zero_reward",       # % decisions with r=0; high = too sparse
-        "fallback_rate",         # % PostDecisionState.apply() failures; > 5% = data quality issue
-        "greedy_sl",             # tau=0 eval SL — true NN quality, unconfounded by exploration
+        "mean_value_spread",  # max(V)-min(V) per decision; near 0 = NN not discriminating
+        "mean_reward",        # raw step reward mean (un-normalized); scale check
+        "pct_zero_reward",    # % decisions with r=0; high = too sparse
+        "fallback_rate",      # % PostDecisionState.apply() failures; > 5% = data quality issue
+        "reward_norm_std",    # running std of all rewards seen so far; tracks normalization scale
+        "pct_idx0",           # % decisions where NN picked pool slot 0 (nearest); ~100% = collapsed
+        "mean_chosen_idx",    # mean pool index chosen; 0=always nearest, ~3.5=uniform
+        "greedy_sl",          # tau=0 eval SL — true NN quality, unconfounded by exploration
     ]
     csv_file   = csv_path.open("w", newline="")
     csv_writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
@@ -875,6 +962,7 @@ def train_nn_rollout(
             depot_id=depot_id,
             tau=current_tau,
             verbose=(ep == VERBOSE_EPISODE),
+            reward_normalizer=reward_normalizer,
         )
         greedy_policy  = GreedyPolicy()
         episode_policy = NNEpisodeTrainingPolicy(
@@ -928,16 +1016,12 @@ def train_nn_rollout(
             # Number of gradient steps: proportional to episode length relative to batch size,
             # capped to prevent overfitting on a single episode's transitions.
             n_updates = min(
-                max(1, len(replay_buffer) // batch_size),
-                50,   # hard cap: at most 50 gradient steps per episode
+                max(1, len(replay_buffer) // batch_size) * 4,
+                400,  # hard cap: at most 400 gradient steps per episode
             )
 
-            # Infer n_stations from the first sample for reward normalization
-            sample_batch = replay_buffer.sample(min(batch_size, len(replay_buffer)))
-            n_stations   = len(sample_batch[0][0]["station_block"])
-
             if ep == VERBOSE_EPISODE:
-                print(f"  [DEBUG] gradient update: {n_updates} steps x batch={batch_size} | n_stations={n_stations}")
+                print(f"  [DEBUG] gradient update: {n_updates} steps x batch={batch_size}")
 
             for update_i in range(n_updates):
                 batch = replay_buffer.sample(batch_size)
@@ -951,7 +1035,7 @@ def train_nn_rollout(
                     target_model=target_model,
                     batch=batch,
                     gamma=gamma,
-                    n_stations=n_stations,
+                    reward_normalizer=reward_normalizer,
                     collect_debug=want_debug,
                 )
                 if debug_info is not None:
@@ -1041,6 +1125,23 @@ def train_nn_rollout(
             else:
                 print("  TD internals: no gradient updates this episode")
 
+            # 3b. Candidate index distribution — is NN collapsed to "always nearest"?
+            idxs = nn_learning._chosen_indices
+            if idxs:
+                pct0 = sum(1 for i in idxs if i == 0) / len(idxs) * 100
+                mean_idx = sum(idxs) / len(idxs)
+                print(
+                    f"  Candidate index: pct_idx0={pct0:.1f}%  mean_idx={mean_idx:.2f}"
+                    f"  (uniform random → mean≈3.5, collapsed → mean≈0)"
+                    f"\n  -> >70% idx0: NN is collapsing to 'always go nearest'"
+                )
+            # 3c. Reward normalizer stats
+            print(
+                f"  Reward normalizer: mean={reward_normalizer.mean:.3f}"
+                f"  std={reward_normalizer.std:.3f}"
+                f"  n={reward_normalizer._n}"
+            )
+
             # 4. PostDecisionState fallback rate + breakdown by reason
             if n_dec > 0:
                 fall_pct = n_fall / n_dec * 100
@@ -1084,7 +1185,7 @@ def train_nn_rollout(
             # Save best-greedy-SL checkpoint whenever a new high is reached
             if eval_sl > best_greedy_sl:
                 best_greedy_sl = eval_sl
-                best_greedy_path = SAVE_DIR / f"nn_model_best_greedy_seed{seed_offset}.pt"
+                best_greedy_path = SAVE_DIR / f"nn_model_best_greedy_seed{seed_offset}{_label}_{ts_run}.pt"
                 torch.save({
                     "episode":              ep + 1,
                     "model_state":          online_model.state_dict(),
@@ -1126,35 +1227,40 @@ def train_nn_rollout(
         _n_cand   = nn_learning._candidate_count   # true denominator for fallback %
 
         #mean_shift_remaining = round(_stat.mean(_shifts),  4) if _shifts  else 1.0
-        mean_value_spread    = round(_stat.mean(_spreads), 6) if _spreads else 0.0
-        mean_reward          = round(_stat.mean(_rewards), 5) if _rewards else 0.0
-        pct_zero_reward      = round(
+        mean_value_spread = round(_stat.mean(_spreads), 6) if _spreads else 0.0
+        mean_reward       = round(_stat.mean(_rewards), 5) if _rewards else 0.0
+        pct_zero_reward   = round(
             sum(1 for r in _rewards if r == 0.0) / max(len(_rewards), 1) * 100, 1
         )
-        fallback_rate        = round(_n_fall / max(_n_cand, 1) * 100, 2)
+        fallback_rate     = round(_n_fall / max(_n_cand, 1) * 100, 2)
+        _idxs             = nn_learning._chosen_indices
+        pct_idx0          = round(sum(1 for i in _idxs if i == 0) / max(len(_idxs), 1) * 100, 1)
+        mean_chosen_idx   = round(sum(_idxs) / max(len(_idxs), 1), 2)
 
         # Write one CSV row per episode (flushed immediately so partial runs are readable)
         csv_writer.writerow({
-            "episode":             ep + 1,
-            "mean_loss":           round(mean_loss,    6),
-            "lr":                  round(current_lr,   6),
-            "tau":                 round(current_tau,  4),
-            "service_level":       round(sl,           4),
-            "buffer_size":         len(replay_buffer),
-            "n_updates":           n_updates,
-            "elapsed_s":           round(elapsed,      1),
-            #"mean_shift_remaining": mean_shift_remaining,
-            "mean_value_spread":    mean_value_spread,
-            "mean_reward":          mean_reward,
-            "pct_zero_reward":      pct_zero_reward,
-            "fallback_rate":        fallback_rate,
-            "greedy_sl":            round(eval_sl, 4) if eval_sl is not None else "",
+            "episode":          ep + 1,
+            "mean_loss":        round(mean_loss,    6),
+            "lr":               round(current_lr,   6),
+            "tau":              round(current_tau,  4),
+            "service_level":    round(sl,           4),
+            "buffer_size":      len(replay_buffer),
+            "n_updates":        n_updates,
+            "elapsed_s":        round(elapsed,      1),
+            "mean_value_spread": mean_value_spread,
+            "mean_reward":       mean_reward,
+            "pct_zero_reward":   pct_zero_reward,
+            "fallback_rate":     fallback_rate,
+            "reward_norm_std":   round(reward_normalizer.std, 4),
+            "pct_idx0":          pct_idx0,
+            "mean_chosen_idx":   mean_chosen_idx,
+            "greedy_sl":         round(eval_sl, 4) if eval_sl is not None else "",
         })
         csv_file.flush()
 
         # --- Periodic checkpoint ---
         if (ep + 1) % 50 == 0:
-            ck_path = SAVE_DIR / f"nn_model_ep{ep+1:04d}_seed{seed_offset}.pt"
+            ck_path = SAVE_DIR / f"nn_model_ep{ep+1:04d}_seed{seed_offset}{_label}_{ts_run}.pt"
             torch.save({
                 "episode":              ep + 1,
                 "model_state":          online_model.state_dict(),
@@ -1170,7 +1276,7 @@ def train_nn_rollout(
     # ── Final save ────────────────────────────────────────────────────────────
     if save_path is None:
         ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_path = SAVE_DIR / f"nn_model_final_seed{seed_offset}_{ts}.pt"
+        save_path = SAVE_DIR / f"nn_model_final_seed{seed_offset}{_label}_{ts}.pt"
 
     torch.save({
         "episode":             num_episodes,
@@ -1246,24 +1352,37 @@ if __name__ == "__main__":
         description="Offline episodic TD(0) training of a neural network value function",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--episodes", type=int, default=NUM_EPISODES)
-    parser.add_argument("--seed",     type=int, default=0)
-    parser.add_argument("--instance", type=str, default=INSTANCE_NAME)
-    parser.add_argument("--gamma",    type=float, default=GAMMA)
-    parser.add_argument("--lr_start",  type=float, default=LR_START)
-    parser.add_argument("--lr_end",    type=float, default=LR_END)
-    parser.add_argument("--save",      type=str,   default=None)
-    parser.add_argument("--depot_id",  type=str,   default='D0',
+    parser.add_argument("--episodes",           type=int,   default=NUM_EPISODES)
+    parser.add_argument("--seed",               type=int,   default=0)
+    parser.add_argument("--instance",           type=str,   default=INSTANCE_NAME)
+    parser.add_argument("--gamma",              type=float, default=GAMMA)
+    parser.add_argument("--lr_start",           type=float, default=LR_START)
+    parser.add_argument("--lr_end",             type=float, default=LR_END)
+    parser.add_argument("--tau_start",          type=float, default=TAU_START)
+    parser.add_argument("--tau_end",            type=float, default=TAU_END)
+    parser.add_argument("--target_update_freq", type=int,   default=TARGET_UPDATE_FREQ)
+    parser.add_argument("--batch_size",         type=int,   default=BATCH_SIZE)
+    parser.add_argument("--buffer_size",        type=int,   default=BUFFER_SIZE)
+    parser.add_argument("--run_label",           type=str,   default=None,
+                        help="Tag injected into output filenames (auto-generated from tau/freq if omitted).")
+    parser.add_argument("--save",               type=str,   default=None)
+    parser.add_argument("--depot_id",           type=str,   default='D0',
                         help="Depot station ID (e.g. 'D0'). Auto-resolved from instance if omitted.")
     args = parser.parse_args()
 
     train_nn_rollout(
-        num_episodes  = args.episodes,
-        seed_offset   = args.seed,
-        instance_name = args.instance,
-        gamma         = args.gamma,
-        lr_start      = args.lr_start,
-        lr_end        = args.lr_end,
-        save_path     = Path(args.save) if args.save else None,
-        depot_id      = args.depot_id,
+        num_episodes        = args.episodes,
+        seed_offset         = args.seed,
+        instance_name       = args.instance,
+        gamma               = args.gamma,
+        lr_start            = args.lr_start,
+        lr_end              = args.lr_end,
+        tau_start           = args.tau_start,
+        tau_end             = args.tau_end,
+        target_update_freq  = args.target_update_freq,
+        batch_size          = args.batch_size,
+        buffer_size         = args.buffer_size,
+        save_path           = Path(args.save) if args.save else None,
+        depot_id            = args.depot_id,
+        run_label           = args.run_label,
     )
