@@ -35,11 +35,15 @@ Category A  —  Base Rebalancing  (always active)
   A1  rebalancing_imbalance         Σ_i |I_i - T_i| / (0.5 * Σ_i C_i)
   A3  squared_starvation_penalty    (1/N) Σ_i (max(0, T_i-I_i) / T_i)^2
   A4  squared_congestion_penalty    (1/N) Σ_i (max(0, I_i-T_i) / (C_i-T_i))^2
-  A9  starvation_severity_max       max_i (max(0, T_i-I_i) / T_i)
-  A10 congestion_severity_max       max_i (max(0, I_i-T_i) / (C_i-T_i))
+  A9  starvation_severity_max       q95_i (max(0, T_i-I_i) / T_i)
+  A10 congestion_severity_max       q95_i (max(0, I_i-T_i) / (C_i-T_i))
   A11 unmet_starvation_deficit      max(0, sum(T_i - I_i) - van_bikes) / (0.5*Σ C_i)
   A12 starvation_variance           variance of starvation ratios
-  A13 work_ratio                    Σ_i |I_i-T_i| / (4*K)     ← van trips needed
+  A14 imbalance_hotspot_distance    distance to the worst-imbalance hotspot, normalised
+  A15 starvation_count              fraction of stations with severe starvation
+  A16 congestion_count              fraction of stations with severe congestion
+  A17 imbalance_asymmetry           signed starvation vs congestion balance
+  A18 hotspot_imbalance_mass        share of imbalance concentrated in the worst hotspot stations
 
 Category B  —  Maintenance  (appended if maintenance_enabled)
 ──────────────────────────────────────────────────────────────────────────────
@@ -54,6 +58,7 @@ Category C  —  End-of-Day Timing  (appended if shift_timing_enabled)
   C1  time_remaining_fraction       t_rem / L
   C2  functional_bikes_time_penalty (q_func / K) * (1 - C1)
   C3  reachable_imbalance_fraction  Σ_i |I_i-T_i|*1[d_i≤t_rem] / Σ_i |I_i-T_i|
+  C4  recoverable_imbalance_fraction fraction of imbalance reachable and serviceable now
 
 Category D  —  Temporal Demand  (appended if temporal_enabled)
 ──────────────────────────────────────────────────────────────────────────────
@@ -62,7 +67,7 @@ Category D  —  Temporal Demand  (appended if temporal_enabled)
   D3  hours_until_peak_fraction     hours_until_8am / 12
   D4  multi_horizon_starvation_risk Σ_{h=1..H} Σ_i max(0, T_i^{t+h} - I_i) / (H * 0.5*Σ C_i)
   D5  multi_horizon_congestion_risk Σ_{h=1..H} Σ_i max(0, I_i - T_i^{t+h}) / (H * 0.5*Σ C_i)
-  D6  temporal_demand_gradient      (Σ_i T_i^{t+1} - Σ_i T_i) / (0.5*Σ C_i)
+  D7  future_net_pressure           signed balance of future starvation vs congestion
 ──────────────────────────────────────────────────────────────────────────────
 """
 
@@ -93,7 +98,10 @@ def get_feature_names(
         "congestion_severity_max",        # A10
         "unmet_starvation_deficit",       # A11
         "starvation_variance",            # A12
-        "work_ratio",                     # A13
+        "imbalance_hotspot_distance",     # A14
+        "starvation_count",               # A15
+        "congestion_count",               # A16
+        "hotspot_imbalance_mass",         # A18
     ]
 
     # Category B: Maintenance
@@ -112,17 +120,19 @@ def get_feature_names(
             "time_remaining_fraction",        # C1
             "functional_bikes_time_penalty",  # C2
             "reachable_imbalance_fraction",   # C3
+            "recoverable_imbalance_fraction", # C4
         ])
 
     # Category D: Temporal Demand
     if temporal_enabled:
         names.extend([
-            "time_of_day_fraction",           # D1
-            "day_of_week_fraction",           # D2
-            "hours_until_peak_fraction",      # D3
-            "multi_horizon_starvation_risk",  # D4
-            "multi_horizon_congestion_risk",  # D5
-            "temporal_demand_gradient",       # D6
+            # "sin_time_of_day",                # D1a
+            # "cos_time_of_day",                # D1b
+            # "sin_day_of_week",                # D2a
+            # "cos_day_of_week",                # D2b
+            # "hours_until_peak_fraction",      # D3
+            "projected_starvation_risk",      # D4
+            "projected_congestion_risk",      # D5
         ])
 
     return names
@@ -222,34 +232,55 @@ def extract(
     # A6: Exponential Congestion Penalty
     phi_congestion_exp = np.sum((np.exp(3.0 * cong_ratio) - 1.0) / (np.exp(3.0) - 1.0)) / N
 
-    # A9: Starvation Severity Max — worst single-station starvation ratio
-    # 1.0 = at least one station has zero bikes against a non-zero target.
-    phi_starvation_max = float(np.max(starv_ratio))
+    # A9: Starvation Severity (Q95) — severity at the 95th percentile of stations
+    # Robust to single persistent outliers while still tracking tail risk.
+    phi_starvation_max = float(np.quantile(starv_ratio, 0.95))
 
-    # A10: Congestion Severity Max — worst single-station congestion ratio (symmetric to A9)
-    phi_congestion_max = float(np.max(cong_ratio))
+    # A10: Congestion Severity (Q95) — symmetric 95th percentile congestion depth.
+    phi_congestion_max = float(np.quantile(cong_ratio, 0.95))
 
     # A11: Unmet Starvation Deficit — is the van empty when the city is starving?
     total_starvation = np.sum(np.maximum(0.0, target - func))
-    phi_unmet_starv = np.clip(max(0.0, float(total_starvation - func_cargo_veh)) / max(total_cap_half, 1.0), 0.0, 1.0)
+    phi_unmet_starv = max(0.0, float(total_starvation - func_cargo_veh)) / max(total_cap_half, 1.0)
 
     # A12: Starvation Variance — spread of the starvation problem
     phi_starv_var = float(np.var(starv_ratio))
 
-    # A13: Work Ratio — total van trips needed to fix all imbalance
-    # 4 full one-way loads → 1.0 (barely recoverable). Key long-term rollout signal.
-    phi_work_ratio = np.clip(total_imbalance / max(4.0 * K_safe, 1.0), 0.0, 1.0)
+    # A14: Distance to the worst-imbalance hotspot.
+    # Uses the stations with the largest absolute deviation from target,
+    # so tiny above/below-target noise across the network does not dominate.
+    max_dist = max(float(np.max(dist_to_stations)), 1.0)
+    imbalance = np.abs(func - target)
+    if np.any(imbalance > 0.0):
+        hotspot_count = min(5, N)
+        hotspot_idx = np.argpartition(imbalance, -hotspot_count)[-hotspot_count:]
+        hotspot_weights = imbalance[hotspot_idx]
+        phi_imbalance_hotspot_dist = float(np.average(dist_to_stations[hotspot_idx], weights=hotspot_weights)) / max_dist
+    else:
+        phi_imbalance_hotspot_dist = 0.0
 
-    # Severe Station Starvation Count (kept as internal variable for B5)
-    # Only counts stations missing >= 80% of their target
-    phi_starvation_cnt = float(np.sum(starv_ratio >= 0.8)) / N
+    # A18: Hotspot Imbalance Mass — how concentrated is the imbalance mass
+    # in the stations that matter most right now?
+    if total_imbalance > 0.0:
+        phi_hotspot_imbalance_mass = float(np.sum(imbalance[hotspot_idx])) / max(float(total_imbalance), 1.0) if np.any(imbalance > 0.0) else 0.0
+    else:
+        phi_hotspot_imbalance_mass = 0.0
 
-    cat_a = np.clip(
-        [phi_imbalance, phi_starvation_sq, phi_congestion_sq, 
-         phi_starvation_exp, phi_congestion_exp,
-         phi_starvation_max, phi_congestion_max, phi_unmet_starv, phi_starv_var, phi_work_ratio],
-        0.0, 1.0,
-    ).tolist()
+    # A15: Severe Station Starvation Count
+    # Fraction of stations missing >= 90% of their target.
+    phi_starvation_cnt = float(np.sum(starv_ratio >= 0.9)) / N
+
+    # A16: Severe Station Congestion Count
+    # Fraction of stations exceeding target by >= 90% of remaining capacity.
+    phi_congestion_cnt = float(np.sum(cong_ratio >= 0.9)) / N
+
+    cat_a = [
+        phi_imbalance, phi_starvation_sq, phi_congestion_sq, 
+        phi_starvation_exp, phi_congestion_exp,
+        phi_starvation_max, phi_congestion_max, phi_unmet_starv, phi_starv_var,
+        phi_imbalance_hotspot_dist, phi_starvation_cnt, phi_congestion_cnt,
+        phi_hotspot_imbalance_mass
+    ]
     features.extend(cat_a)
 
     # =========================================================================
@@ -273,11 +304,10 @@ def extract(
         # High when many stations are BOTH below target AND have unrepaired bikes.
         phi_maint_urgency = phi_onsite_backlog * phi_starvation_cnt
 
-        cat_b = np.clip(
-            [phi_cannibalization, phi_onsite_backlog, phi_depot_backlog,
-             phi_depot_pull, phi_maint_urgency],
-            0.0, 1.0,
-        ).tolist()
+        cat_b = [
+            phi_cannibalization, phi_onsite_backlog, phi_depot_backlog,
+            phi_depot_pull, phi_maint_urgency
+        ]
         features.extend(cat_b)
 
     # =========================================================================
@@ -288,8 +318,10 @@ def extract(
             time_remaining = shift_length
         shift_length_safe = max(shift_length, 1.0)
 
-        # C1: Time Remaining Fraction ∈ [0, 1]
-        phi_time_remaining = np.clip(float(time_remaining) / shift_length_safe, 0.0, 1.0)
+        #NOTE! Doesnt work - time remaining is not being calculated correctly. If enabled, this must be fixed.
+
+        # C1: Time Remaining Fraction
+        phi_time_remaining = float(time_remaining) / shift_length_safe
 
         # C2: Functional Bikes Time Penalty — urgency to flush bikes as shift ends
         phi_time_penalty = veh_load * (1.0 - phi_time_remaining)
@@ -303,7 +335,15 @@ def extract(
             if total_imbalance >= 1e-6 else 0.0
         )
 
-        cat_c = np.clip([phi_time_remaining, phi_time_penalty, phi_reachable], 0.0, 1.0).tolist()
+        cat_c = [phi_time_remaining, phi_time_penalty, phi_reachable]
+
+        # C4: Recoverable Imbalance Fraction — how much current imbalance can
+        # still be reached and serviced by the vehicle's current remaining capacity.
+        reachable_imbalance = float(np.sum(np.abs(func - target) * (dist_to_stations <= time_remaining)))
+        serviceable_capacity = max(0.0, K_safe - float(depot_cargo_veh))
+        phi_recoverable_imbalance = min(reachable_imbalance, serviceable_capacity) / max(total_imbalance, 1.0)
+
+        cat_c.append(phi_recoverable_imbalance)
         features.extend(cat_c)
 
     # =========================================================================
@@ -311,73 +351,37 @@ def extract(
     # =========================================================================
     if temporal_enabled:
         current_hour              = int((current_time_minutes // 60) % 24)
-        hours_until_morning_peak  = (_MORNING_PEAK_HOUR - current_hour) % 24
+        
+        # D1: Cyclic Time of Day (24-hour clock wrapped in sin/cos to preserve continuity)
+        # phi_sin_time = float(np.sin(2 * np.pi * current_hour / 24.0))
+        # phi_cos_time = float(np.cos(2 * np.pi * current_hour / 24.0))
 
-        # D1: Time of Day Fraction — where in the 24h cycle (0 = midnight, 0.5 = noon)
-        phi_time_of_day = current_hour / 24.0
+        # D2: Cyclic Day of Week (7-day week wrapped in sin/cos to preserve continuity)
+        # phi_sin_day = float(np.sin(2 * np.pi * current_day_of_week / 7.0))
+        # phi_cos_day = float(np.cos(2 * np.pi * current_day_of_week / 7.0))
 
-        # D2: Day of Week Fraction — where in the weekly cycle (0 = Monday)
-        phi_day_of_week = current_day_of_week / 7.0
+        # D3: Hours Until Peak Fraction — shortest absolute distance to the morning peak (0 = at peak, 1 = 12h away)
+        # dist_forward = (_MORNING_PEAK_HOUR - current_hour) % 24
+        # dist_backward = (current_hour - _MORNING_PEAK_HOUR) % 24
+        # shortest_peak_dist = min(dist_forward, dist_backward)
+        # phi_peak_distance = shortest_peak_dist / 12.0
 
-        # D3: Hours Until Peak Fraction — proximity to next morning rush (0 = at peak, 1 = 12h away)
-        phi_peak_distance = np.clip(hours_until_morning_peak / 12.0, 0.0, 1.0)
+        # D4: Projected Starvation Risk — expected upcoming rentals that cannot be served
+        # 'outflow' is the expected rentals over the next 3 hours.
+        # If a station expects 10 rentals but only has 3 functional bikes, 7 rentals are lost.
+        # lam_max_safe provides a stable, system-wide scaling denominator.
+        phi_projected_starv = float(np.sum(np.maximum(0.0, outflow - func))) / lam_max_safe
 
-        # D4: Multi-Horizon Starvation Risk — integrated starvation over next H hours
-        if target_matrix is not None:
-            abs_hour_now      = int(current_time_minutes // 60)
-            total_future_risk = 0.0
-            for h in range(1, horizon_hours + 1):
-                abs_h       = abs_hour_now + h
-                future_hour = abs_h % 24
-                future_day  = (current_day_of_week + abs_h // 24) % 7
-                total_future_risk += np.sum(np.maximum(0.0, target_matrix[future_day, future_hour] - func))
-            phi_horizon_risk = np.clip(
-                total_future_risk / (horizon_hours * max(total_cap_half, 1.0)),
-                0.0, 1.0,
-            )
-        else:
-            phi_horizon_risk = 0.0
+        # D5: Projected Congestion Risk — expected upcoming returns that cannot be parked
+        # 'inflow' is the expected returns over the next 3 hours.
+        # We need free physical capacity to handle returns.
+        free_docks = np.maximum(0.0, capacities - func - onsite)
+        phi_projected_cong = float(np.sum(np.maximum(0.0, inflow - free_docks))) / lam_max_safe
 
-        # D5: Multi-Horizon Congestion Risk — integrated congestion over next H hours
-        if target_matrix is not None:
-            abs_hour_now      = int(current_time_minutes // 60)
-            total_future_cong = 0.0
-            for h in range(1, horizon_hours + 1):
-                abs_h       = abs_hour_now + h
-                future_hour = abs_h % 24
-                future_day  = (current_day_of_week + abs_h // 24) % 7
-                total_future_cong += np.sum(np.maximum(0.0, func - target_matrix[future_day, future_hour]))
-            phi_horizon_cong = np.clip(
-                total_future_cong / (horizon_hours * max(total_cap_half, 1.0)),
-                0.0, 1.0,
-            )
-        else:
-            phi_horizon_cong = 0.0
-
-        # D6: Temporal Demand Gradient — is total network target rising or falling next hour?
-        # Positive = more bikes needed soon.  Range: [-1, 1].
-        if target_matrix is not None:
-            abs_hour_next   = int(current_time_minutes // 60) + 1
-            next_hour       = abs_hour_next % 24
-            next_day        = (current_day_of_week + abs_hour_next // 24) % 7
-            phi_demand_grad = np.clip(
-                (float(np.sum(target_matrix[next_day, next_hour])) - float(np.sum(target)))
-                / max(total_cap_half, 1.0),
-                -1.0, 1.0,
-            )
-        else:
-            phi_demand_grad = 0.0
-
-        cat_d = [phi_time_of_day, phi_day_of_week, phi_peak_distance,
-                 phi_horizon_risk, phi_horizon_cong, phi_demand_grad]
+        cat_d = [phi_projected_starv, phi_projected_cong]
         features.extend(cat_d)
 
-    return np.array(features, dtype=np.float64)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Utility
-# ─────────────────────────────────────────────────────────────────────────────
+    return np.array(features, dtype=np.float32)
 
 def as_dict(
     phi: np.ndarray,

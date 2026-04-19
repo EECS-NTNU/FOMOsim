@@ -38,6 +38,7 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 
 from helpers import timeInMinutes
 from policies.greedy_policy import GreedyPolicy
+from policies.do_nothing_policy import DoNothing
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy
 from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_feature_names
 from policies.sjovik_sund.run_simulation_ingvild import run_simulation, SimulationConfig, write_simulation_outputs
@@ -55,7 +56,7 @@ WARMUP_DAYS   : int   = 2         # greedy warm-up, no TD updates
 LEARNING_DAYS : int   = 12        # VFA + TD(0)  (days 5 – 14)
 
 # --- Learning Rate (Alpha) ---
-ALPHA_START   : float = 0.01   # initial alpha for TD updates, will be overwritten in case of argument passing
+ALPHA_START   : float = 0.001   # initial alpha for TD updates, will be overwritten in case of argument passing
 
 GAMMA         : float = 0.99      # discount factor
 
@@ -201,7 +202,7 @@ def train(
     vfa_policy.use_experience_replay = True
     vfa_policy.mini_batch_size = 64
     ###############################################################################
-    greedy_policy = GreedyPolicy()
+    greedy_policy = DoNothing()
 
     # Warm-up ends at this absolute simulation-time (minutes).
     sim_start_min   = timeInMinutes(hours=START_HOUR)
@@ -237,7 +238,7 @@ def train(
         #   • routes to VFAPolicy     once   state.time >= warmup_end_time
         episode_policy = EpisodeTrainingPolicy(
             vfa_policy      = vfa_policy,
-            greedy_policy   = greedy_policy,
+            warmup_policy   = greedy_policy,
             warmup_end_time = warmup_end_time,
         )
 
@@ -296,8 +297,8 @@ def train(
 
     vfa_policy.save(save_path)
 
-    curve_path = Path(str(save_path).replace(".pkl", "_learning_curve.npy"))
-    np.save(curve_path, np.array(service_levels))
+    #curve_path = Path(str(save_path).replace(".pkl", "_learning_curve.npy"))
+    #np.save(curve_path, np.array(service_levels))
 
     # ── Save weight evolution as CSV ────────────────────────────────────────────
     feature_names = vfa_policy.FEATURE_NAMES
@@ -326,7 +327,7 @@ def train(
     )
     print(f"  Total time        : {elapsed / 60:.1f} min")
     print(f"  Model saved       : {save_path}")
-    print(f"  Learning curve    : {curve_path}")
+    #print(f"  Learning curve    : {curve_path}")
     print(f"  Weight evolution  : {weights_csv_path}")
     print("=" * 72 + "\n")
 

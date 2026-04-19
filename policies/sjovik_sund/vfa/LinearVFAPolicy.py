@@ -271,16 +271,17 @@ class LinearVFAPolicy(Policy):
                 self._activity_profile[0, h, i] = np.mean(wd_rates)
                 self._activity_profile[1, h, i] = np.mean(we_rates)
         
-        # Find the absolute peak 2-hour rolling demand for scaling (Lambda_max)
-        max_abs_2hr_activity = np.zeros(N, dtype=np.float32)
+        # Find the absolute peak 3-hour rolling demand for scaling (Lambda_max)
+        max_abs_3hr_activity = np.zeros(N, dtype=np.float32)
         for day_type in range(2):
             for h in range(24):
-                # Max possible demand over any 2 consecutive hours
-                two_hr_demand = np.abs(self._activity_profile[day_type, h]) + \
-                                np.abs(self._activity_profile[day_type, (h+1)%24])
-                max_abs_2hr_activity = np.maximum(max_abs_2hr_activity, two_hr_demand)
+                # Max possible demand over any 3 consecutive hours
+                three_hr_demand = np.abs(self._activity_profile[day_type, h]) + \
+                                  np.abs(self._activity_profile[day_type, (h+1)%24]) + \
+                                  np.abs(self._activity_profile[day_type, (h+2)%24])
+                max_abs_3hr_activity = np.maximum(max_abs_3hr_activity, three_hr_demand)
                 
-        self._lambda_max_system = float(np.sum(max_abs_2hr_activity))
+        self._lambda_max_system = float(np.sum(max_abs_3hr_activity))
         
         # ── 3. Travel Time Matrix (N x N) ──────────────────────────────────────
         self._travel_time_matrix = np.zeros((N, N), dtype=np.float32)
@@ -291,8 +292,8 @@ class LinearVFAPolicy(Policy):
         # ── 4. G_max (Maximum Theoretical Gravity) ─────────────────────────────
         best_gravity = 0.0
         for j in range(N):
-            # Calculate gravity using the absolute maximum 2-hour demand
-            current_gravity = np.sum(max_abs_2hr_activity / (self._travel_time_matrix[j] + 1.0))
+            # Calculate gravity using the absolute maximum 3-hour demand
+            current_gravity = np.sum(max_abs_3hr_activity / (self._travel_time_matrix[j] + 1.0))
             if current_gravity > best_gravity:
                 best_gravity = current_gravity
         
@@ -374,6 +375,8 @@ class LinearVFAPolicy(Policy):
         delta_func: int = 0,
         delta_depot_cargo: int = 0,
         delta_onsite_repairs: int = 0,
+        time_remaining: Optional[float] = None,
+        shift_length: float = 1440.0,
         next_station_id: str = None,
     ) -> np.ndarray:
         """
@@ -396,7 +399,10 @@ class LinearVFAPolicy(Policy):
 
         # ── Vehicle cargo in post-decision state ───────────────────────────
         vehicle_status = extract_vehicle_status(vehicle, state.time, self.config)
-        func_cargo_veh = vehicle_status.functional_cargo + delta_func
+        # Note: delta_func is (deliveries - pickups), so it represents the change to the STATION's inventory.
+        # Therefore, we MUST SUBTRACT it to get the change to the VEHICLE's inventory.
+        func_cargo_veh = vehicle_status.functional_cargo - delta_func
+        
         depot_cargo_veh = vehicle_status.depot_cargo + delta_depot_cargo
         K = max(int(vehicle_status.capacity), 1)
 
@@ -427,23 +433,27 @@ class LinearVFAPolicy(Policy):
         h0 = int((state.time // 60) % 24)
         h1 = (h0 + 1) % 24
         h2 = (h0 + 2) % 24
+        h3 = (h0 + 3) % 24
         
-        # 2. Calculate rolling weights for a 120-minute horizon
+        # 2. Calculate rolling weights for a 180-minute (3-hour) horizon
         weight_h0 = (60 - current_minute) / 60.0  # Remaining fraction of current hour
         weight_h1 = 1.0                           # All of the next hour
-        weight_h2 = current_minute / 60.0         # Overlap into the third hour
+        weight_h2 = 1.0                           # All of the second next hour
+        weight_h3 = current_minute / 60.0         # Overlap into the fourth hour
         
         # 3. Extract the dynamic anticipated net demand array (N,)
         '''dynamic_activity = (
             self._activity_profile[day_type, h0] * weight_h0 +
             self._activity_profile[day_type, h1] * weight_h1 +
-            self._activity_profile[day_type, h2] * weight_h2
+            self._activity_profile[day_type, h2] * weight_h2 +
+            self._activity_profile[day_type, h3] * weight_h3
         )'''
 
         dynamic_activity = -(
             self._activity_profile[day_type, h0] * weight_h0 +
             self._activity_profile[day_type, h1] * weight_h1 +
-            self._activity_profile[day_type, h2] * weight_h2
+            self._activity_profile[day_type, h2] * weight_h2 +
+            self._activity_profile[day_type, h3] * weight_h3
         )
 
         # ── Time-indexed target inventory (N,) ─────────────────────────────
@@ -548,6 +558,9 @@ class LinearVFAPolicy(Policy):
         
         if hasattr(vehicle, "shift_end_time") and vehicle.shift_end_time is not None:
             return max(0.0, vehicle.shift_end_time - state.time)
+            
+        if self._simulator_ref is not None and hasattr(self._simulator_ref, "duration"):
+            return max(0.0, self._simulator_ref.duration - state.time)
         
         return None
     
@@ -558,6 +571,11 @@ class LinearVFAPolicy(Policy):
         Default: 1440 minutes (24 hours).
         Can be customized per vehicle if needed.
         """
+        if hasattr(vehicle, "shift_length") and vehicle.shift_length is not None:
+            return float(vehicle.shift_length)
+        if self._simulator_ref is not None and hasattr(self._simulator_ref, "duration"):
+            return float(self._simulator_ref.duration)
+            
         # Default 24-hour shift
         return 1440.0
 
@@ -1193,12 +1211,17 @@ class LinearVFAPolicy(Policy):
             
             dest_id = getattr(action, "next_location", getattr(action, "next_station", None))
 
+            time_rem = self._get_time_remaining(state, vehicle)
+            shift_len = self._get_shift_length(state, vehicle)
+
             #phi = self.extract_features(state, vehicle, delta_func, delta_depot_cargo)
             phi = self.extract_features(
                 state, vehicle, 
                 base_func, base_onsite, base_depot, 
                 delta_func, delta_depot_cargo,
                 delta_onsite_repairs,
+                time_remaining=time_rem,
+                shift_length=shift_len,
                 next_station_id=dest_id
             )
             phis.append(phi)
@@ -1392,7 +1415,7 @@ class EpisodeTrainingPolicy(Policy):
     """
     Episodic wrapper that routes vehicle decisions to:
 
-      - GreedyPolicy        during the warm-up phase  (no TD updates)
+      - Warmup Policy       during the warm-up phase  (no TD updates)
       - LinearVFAPolicy     during the learning phase (TD(0))
 
     The phase transition is time-based: once state.time >= warmup_end_time
@@ -1405,13 +1428,13 @@ class EpisodeTrainingPolicy(Policy):
     def __init__(
         self,
         vfa_policy:     LinearVFAPolicy,
-        greedy_policy,
+        warmup_policy,
         warmup_end_time: float,
     ) -> None:
         super().__init__(maintenance_enabled=True)
 
         self.vfa_policy      = vfa_policy
-        self.greedy_policy   = greedy_policy
+        self.warmup_policy   = warmup_policy
         self.warmup_end_time = warmup_end_time
 
         # Mirror the VFA weights for run_simulation.py logging
@@ -1434,12 +1457,12 @@ class EpisodeTrainingPolicy(Policy):
     def init_sim(self, simulator) -> None:
         """Forward simulator reference to both inner policies."""
         self.vfa_policy.init_sim(simulator)
-        self.greedy_policy.init_sim(simulator)
+        self.warmup_policy.init_sim(simulator)
 
     def get_best_action(self, state, vehicle) -> sim.Action:
         if state.time < self.warmup_end_time:
-            # Warm-up: purely greedy, θ left unchanged
-            return self.greedy_policy.get_best_action(state, vehicle)
+            # Warm-up: pure exploitation policy, θ left unchanged
+            return self.warmup_policy.get_best_action(state, vehicle)
         else:
             # Learning: VFA + TD(0) update
             return self.vfa_policy.get_best_action(state, vehicle)

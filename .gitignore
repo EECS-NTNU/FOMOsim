@@ -9,10 +9,7 @@ log_files
 saved_states
 sim_cache
 stateParams.txt
-output_eval.txt
-evaluateRA.txt
-output_eval2.txt
-output_eval3.txt
+output.txt
 # *.csv
 policies/inngjerdingen_moeller/saved_time_data/NY_W31_static_data.json
 policies/inngjerdingen_moeller/saved_time_data/BO_W31_static_data.json
@@ -202,3 +199,11 @@ models/ablation_study/BATCHEXPERIMENTS
 models/ablation_study/NORMALSGD
 
 terminal_output/
+
+
+models/ablation_study
+models/ablation_study/SGDMINIBATCH
+models/ablation_study/SGDMINIBATCH_2
+models/ablation_study/SGDMINIBATCH_NEWCANDIDATES
+models/ablation_study/SGDMINIBATCH_NEWCANDIDATES_alpha_0.001
+models/ablation_study/SGDMINIBATCH_NEWROUTES

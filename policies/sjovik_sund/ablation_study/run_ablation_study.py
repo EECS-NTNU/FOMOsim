@@ -23,11 +23,10 @@ Feature reference  (see vfa_features.py for full definitions)
     A1  rebalancing_imbalance          total L1 deviation from target
     A3  squared_starvation_penalty     mean squared starvation depth
     A4  squared_congestion_penalty     mean squared congestion depth
-    A9  starvation_severity_max        worst single-station starvation ratio
-    A10 congestion_severity_max        worst single-station congestion ratio
+        A9  starvation_severity_max        95th-percentile starvation ratio
+        A10 congestion_severity_max        95th-percentile congestion ratio
     A11 unmet_starvation_deficit       unmet starvation normalized by half capacity
     A12 starvation_variance            variance of starvation ratios
-    A13 work_ratio                     van trips needed to fix all imbalance
 
   Category D — Temporal Demand (requires temporal_enabled=True in train_vfa.py)
     D1  time_of_day_fraction           where in the 24h cycle
@@ -59,154 +58,80 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 
 EXPERIMENTS = {
 
-    # ── Axis 1: Temporal Horizon Depth ───────────────────────────────────────
-    # How far ahead does the VFA need to see to make good decisions?
-    # These experiments isolate the temporal dimension from spatial features.
-
-    # One-step demand anticipation only (no multi-hour look-ahead)
-    "H1_OneStep": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-    ],
-
-    # Multi-step demand integration using the target matrix
-    "HN_MultiStep": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "multi_horizon_starvation_risk",  # D4: integrated over H hours
-        "time_of_day_fraction",           # D1: anchors D4 in the daily cycle
-    ],
-
-    # ── Axis 2: Spatial Recoverability ───────────────────────────────────────
-    # Does spatial structure (distance-weighted features, gravity) help
-    # beyond pure magnitude features?
-
-    "Spatial": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "starvation_severity_max",        # A9: worst-case bottleneck
-    ],
-
-    # ── Axis 3: Long-Term Recoverability ─────────────────────────────────────
-    # Do features that encode how recoverable the state is (rather than just
-    # how bad it is) improve tail value estimation?
-
-    "LongTerm": [
-        "squared_starvation_penalty",     # A3: baseline — how bad is the state?
-        "squared_congestion_penalty",     # A4
-        "work_ratio",                     # A12: how many van trips to fix everything?
-    ],
-
-   
-
-    # ── Axis 4: Iterative Refinement ─────────────────────────────────────────
-    # Progressive builds toward the best hypothesis, so results can be compared
-    # incrementally rather than in a single jump.
-
-    # V2 Refined Core: gravity replaces simple potentials; adds temporal features.
-    # Hypothesis: fewer competing gradients → faster, more stable convergence.
-    "V2_Core": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "starvation_severity_max",        # A9
-        "multi_horizon_starvation_risk",  # D4
-        "time_of_day_fraction",           # D1
-    ],
-
-    # V2 Extended: V2_Core + symmetric congestion severity + starvation breadth.
-    "V2_Extended": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "starvation_severity_max",        # A9
-        "congestion_severity_max",        # A10
-        "multi_horizon_starvation_risk",  # D4
-        "time_of_day_fraction",           # D1
-    ],
-
-    # V3 Rollout: best-hypothesis set for rollout tail value.
-    # V2_Core + long-term recoverability features (A12, A13) + global imbalance (A1).
-    "V3_Rollout": [
-        "rebalancing_imbalance",          # A1: total work remaining
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "starvation_severity_max",        # A9
-        "congestion_severity_max",        # A10
-        "work_ratio",                     # A12: can the network be recovered?
-        "multi_horizon_starvation_risk",  # D4
-        "time_of_day_fraction",           # D1
-    ],
-
-
-    # ── New Experiments (April) ──────────────────────────────────────────────
-    "LongTerm_Spatial": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "starvation_severity_max",        # A9: worst-case bottleneck
-        "work_ratio",                     # A12: how many van trips to fix everything?
-    ],
-    
-    # Pure Macro: Strip away local severity depth and variance. Focus entirely 
-    # on network mass and deferred future network mass.
-    "Pure_Macro": [
-        "rebalancing_imbalance",          # A1: global mass
-        "work_ratio",                     # A13: global tractability
-        "multi_horizon_starvation_risk",  # D4: future global mass
-        "time_of_day_fraction",           # D1: temporal anchor
-    ],
-
-    # Symmetric Temporal: Look at both horizon risks to avoid dropping off 
-    # bikes at stations that have massive impending inflow.
-    "Symmetric_Temporal": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "multi_horizon_starvation_risk",  # D4
-        "multi_horizon_congestion_risk",  # D5
-        "time_of_day_fraction",           # D1
-    ],
-
-    # Van State Terminal: Focus on whether the VFA accurately leaves the 
-    # van in a state equipped to handle the residual starvation.
-    "Van_State_Terminal": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "unmet_starvation_deficit",       # A11: Is the van equipped to fix the remaining starvation?
-    ],
-
-    # Exponential Penalty Test: Replace the squared terms with an exponential 
-    # decay equivalent to heavily penalize high severity starvation while gracefully
-    # decaying low severity starvation.
-    "Exponential_Penalties": [
-        "rebalancing_imbalance",          # A1
-        "exponential_starvation_penalty", # A5
-        "exponential_congestion_penalty", # A6
-        "starvation_severity_max",        # A9
-        "congestion_severity_max",        # A10
-        "time_of_day_fraction",           # D1
-        "multi_horizon_starvation_risk",  # D4
-    ],
-
-        # ── Kitchen Sink ─────────────────────────────────────────────────────────
-    # All non-maintenance features. Useful as an upper bound and to check for
-    # harmful redundancy (if FullVFA is worse than V3_Rollout, some features hurt).
+    # ── Kitchen Sink ─────────────────────────────────────────────────────────
+    # Superset of all independent features tested across the 6 core experiments below.
     "FullVFA": [
-        "rebalancing_imbalance",          # A1
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
         "exponential_starvation_penalty", # A5
         "exponential_congestion_penalty", # A6
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
         "starvation_severity_max",        # A9
         "congestion_severity_max",        # A10
         "unmet_starvation_deficit",       # A11
-        "starvation_variance",            # A12
-        "work_ratio",                     # A13
-        "time_of_day_fraction",           # D1
-        "day_of_week_fraction",           # D2
-        "hours_until_peak_fraction",      # D3
-        "multi_horizon_starvation_risk",  # D4
-        "multi_horizon_congestion_risk",  # D5
-        "temporal_demand_gradient",       # D6
+        "imbalance_hotspot_distance",     # A14
+        "rebalancing_imbalance",          # A1
+        "starvation_count",               # A15
+        "congestion_count",               # A16
+        "hotspot_imbalance_mass",         # A18
+        "projected_starvation_risk",      # D4
+        "projected_congestion_risk",      # D5
     ],
 
+    # 1. Pure Exponential Baseline
+    # Tests if heavily penalizing extreme cases (exponential) is sufficient on its own,
+    # without diluting the signal with global averages.
+    "Base_Exponential": [
+        "exponential_starvation_penalty", # A5
+        "exponential_congestion_penalty", # A6
+    ],
+
+    # 2. Micro Severity & Spatial Routing
+    # Ignores average system health entirely. Tells the VFA to focus only on the 
+    # worst individual stations (Q95) and how far away the biggest hotspot is.
+    "Micro_Severity_Spatial": [
+        "starvation_severity_max",        # A9
+        "congestion_severity_max",        # A10
+        "imbalance_hotspot_distance",     # A14
+    ],
+
+    # 3. Macro vs Anticipatory (Future Outlook)
+    # Pits the current total global imbalance against our new OD-matrix projections.
+    # 'rebalancing_imbalance' is used as a single proxy for current state since it 
+    # perfectly correlates with most other current-state metrics.
+    "Macro_vs_Future": [
+        "rebalancing_imbalance",          # A1
+        "projected_starvation_risk",      # D4
+        "projected_congestion_risk",      # D5
+    ],
+
+    # 4. Breadth and Mass Concentration
+    # Instead of looking at "how deep" the starvation is, this focuses on "how wide" 
+    # the problem has spread, and how concentrated it is in hotspots.
+    "Breadth_And_Mass": [
+        "starvation_count",               # A15
+        "congestion_count",               # A16
+        "hotspot_imbalance_mass",         # A18
+    ],
+
+    # 5. Optimal Orthogonal Mix (Best Hypothesis)
+    # The ultimate minimally-correlated combination. It takes exactly one feature 
+    # from every independent mathematical cluster discovered in the correlation study.
+    "Optimal_Orthogonal_Mix": [
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
+        "imbalance_hotspot_distance",     # A14
+        "projected_starvation_risk",      # D4
+        "projected_congestion_risk",      # D5
+    ],
+
+    # 6. Structural Capacity Limits
+    # Tests if the VFA can prioritize based purely on physical van constraints 
+    # combined with future demand risks.
+    "Structural_Constraints": [
+        "unmet_starvation_deficit",       # A11
+        "starvation_severity_max",        # A9
+        "projected_starvation_risk",      # D4
+    ],
 }
 
 
@@ -225,7 +150,7 @@ def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[st
 
     experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
 
-    base_dir = Path("models/ablation_study/SGDMINIBATCH_2")
+    base_dir = Path("models/ablation_study_solstorm")
     base_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -278,7 +203,7 @@ if __name__ == "__main__":
         help="Subset of experiments to run (default: all)",
     )
     parser.add_argument(
-        "--alphas", nargs="+", type=float, default=None,
+        "--alphas", nargs="+", type=float, default= [0.005,0.01],
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
     )
 
@@ -289,3 +214,147 @@ if __name__ == "__main__":
         run_only=args.experiments, 
         alphas=args.alphas
     )
+
+
+    # ── Axis 2: Spatial Recoverability ───────────────────────────────────────
+    # Does spatial structure (distance-weighted features, gravity) help
+    # beyond pure magnitude features?
+    # "Squared": [
+    #     "squared_starvation_penalty", # A3
+    #     "squared_congestion_penalty", # A4
+    # ],
+
+    # "Exponential": [
+    #     "exponential_starvation_penalty", # A5
+    #     "exponential_congestion_penalty", # A6
+    # ],
+
+    # ── Axis 3: Long-Term Recoverability ─────────────────────────────────────
+    # Do features that encode how recoverable the state is (rather than just
+    # how bad it is) improve tail value estimation?
+
+    # "LongTerm": [
+    #     "squared_starvation_penalty",     # A3: baseline — how bad is the state?
+    #     "squared_congestion_penalty",     # A4
+    # ],
+
+    # ── Axis 4: Iterative Refinement ─────────────────────────────────────────
+    # Progressive builds toward the best hypothesis, so results can be compared
+    # incrementally rather than in a single jump.
+
+    # V2 Extended: V2_Core + symmetric congestion severity + starvation breadth.
+    # "V2_Extended": [
+    #     "squared_starvation_penalty",     # A3
+    #     "squared_congestion_penalty",     # A4
+    #     "starvation_severity_max",        # A9
+    #     "congestion_severity_max",        # A10
+    #     "multi_horizon_starvation_risk",  # D4
+    #     "time_of_day_fraction",           # D1
+    # ],
+
+    # V3 Rollout: best-hypothesis set for rollout tail value.
+    # V2_Core + long-term recoverability features (A12, A14) + global imbalance (A1).
+    # "V3_Rollout": [
+    #     "rebalancing_imbalance",          # A1: total work remaining
+    #     "squared_starvation_penalty",     # A3
+    #     "squared_congestion_penalty",     # A4
+    #     "starvation_severity_max",        # A9
+    #     "congestion_severity_max",        # A10
+    #     "multi_horizon_starvation_risk",  # D4
+    #     "time_of_day_fraction",           # D1
+    # ],
+
+
+    # ── New Experiments (April) ──────────────────────────────────────────────
+    # "LongTerm_Spatial": [
+    #     "squared_starvation_penalty",     # A3
+    #     "squared_congestion_penalty",     # A4
+    #     "starvation_severity_max",        # A9: worst-case bottleneck
+    # ],
+    
+    # Pure Macro: Strip away local severity depth and variance. Focus entirely 
+    # on network mass and deferred future network mass.
+    # "Pure_Macro": [
+    #     "rebalancing_imbalance",          # A1: global mass
+    #     "multi_horizon_starvation_risk",  # D4: future global mass
+    #     "time_of_day_fraction",           # D1: temporal anchor
+    # ],
+
+    # Symmetric Temporal: Look at both horizon risks to avoid dropping off 
+    # bikes at stations that have massive impending inflow.
+    # "Symmetric_Temporal": [
+    #     "squared_starvation_penalty",     # A3
+    #     "squared_congestion_penalty",     # A4
+    #     "multi_horizon_starvation_risk",  # D4
+    #     "multi_horizon_congestion_risk",  # D5
+    #     "time_of_day_fraction",           # D1
+    # ],
+
+    # Van State Terminal: Focus on whether the VFA accurately leaves the 
+    # van in a state equipped to handle the residual starvation.
+    # "Van_State_Terminal": [
+    #     "squared_starvation_penalty",     # A3
+    #     "squared_congestion_penalty",     # A4
+    #     "unmet_starvation_deficit",       # A11: Is the van equipped to fix the remaining starvation?
+    # ],
+
+    # ── New Diverse Sets (April Refresh) ────────────────────────────────────
+    # Built to reduce overlap and test compact hypotheses.
+
+    # "Spatial_Recovery_Pressure": [
+    #     "squared_starvation_penalty",     # A3
+    #     "squared_congestion_penalty",     # A4
+    #     "unmet_starvation_deficit",       # A11
+    #     "imbalance_hotspot_distance",     # A14
+    #     "starvation_count",               # A15
+    #     "congestion_count",               # A16
+    #     "future_net_pressure",            # D7
+    #     "time_of_day_fraction",           # D1
+    # ],
+
+    # "V2_Core_HotspotBalance": [
+    #     "squared_starvation_penalty",     # A3
+    #     "squared_congestion_penalty",     # A4
+    #     "starvation_severity_max",        # A9
+    #     "imbalance_asymmetry",            # A17
+    #     "hotspot_imbalance_mass",         # A18
+    #     "multi_horizon_starvation_risk",  # D4
+    #     "time_of_day_fraction",           # D1
+    # ],
+
+    # "Expo_Macro_Reachability": [
+    #     "exponential_starvation_penalty", # A5
+    #     "exponential_congestion_penalty", # A6
+    #     "congestion_severity_max",        # A10
+    #     "rebalancing_imbalance",          # A1
+    #     "hotspot_imbalance_mass",         # A18
+    #     "multi_horizon_congestion_risk",  # D5
+    # ],
+
+    # "Rollout_Balanced_MinRedundancy": [
+    #     "squared_starvation_penalty",     # A3
+    #     "congestion_severity_max",        # A10
+    #     "congestion_count",               # A16
+    #     "imbalance_asymmetry",            # A17
+    #     "imbalance_hotspot_distance",     # A14
+    #     "multi_horizon_starvation_risk",  # D4
+    #     "temporal_demand_gradient",       # D6
+    # ],
+
+        # ── Axis 1: Temporal Horizon Depth ───────────────────────────────────────
+    # How far ahead does the VFA need to see to make good decisions?
+    # These experiments isolate the temporal dimension from spatial features.
+
+    # One-step demand anticipation only (no multi-hour look-ahead)
+    # "H1_OneStep": [
+    #     "squared_starvation_penalty",     # A3
+    #     "squared_congestion_penalty",     # A4
+    # ],
+
+    # Multi-step demand integration using the target matrix
+    # "HN_MultiStep": [
+    #     "squared_starvation_penalty",     # A3
+    #     "squared_congestion_penalty",     # A4
+    #     "multi_horizon_starvation_risk",  # D4: integrated over H hours
+    #     "time_of_day_fraction",           # D1: anchors D4 in the daily cycle
+    # ],

@@ -106,7 +106,7 @@ def train_and_eval_ratio(label, w_starv, w_cong, model_seed):
         
         episode_policy = EpisodeTrainingPolicy(
             vfa_policy=vfa_policy,
-            greedy_policy=greedy_policy,
+            warmup_policy=greedy_policy,
             warmup_end_time=warmup_end_time
         )
         
@@ -139,7 +139,7 @@ def train_and_eval_ratio(label, w_starv, w_cong, model_seed):
         # --- FIX 1: Wrap the frozen VFA in the episode policy so it gets the exact same 4-day warmup! ---
         eval_policy = EpisodeTrainingPolicy(
             vfa_policy=vfa_policy,
-            greedy_policy=greedy_policy,
+            warmup_policy=greedy_policy,
             warmup_end_time=warmup_end_time
         )
         

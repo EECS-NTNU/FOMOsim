@@ -46,7 +46,7 @@ from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, test_p
 # Single source of truth for experiment definitions
 from policies.sjovik_sund.ablation_study.run_ablation_study import EXPERIMENTS
 
-ABLATION_DIR = Path("models/ablation_study/SGDMINIBATCH_2/LongTerm_alpha_0.01_20260415_171622")
+ABLATION_DIR = Path("models/ablation_study/SGDMINIBATCH_NEWROUTES/Spatial_alpha_0.001_20260417_163706")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -253,6 +253,7 @@ if __name__ == "__main__":
         "--seeds", nargs="+", type=int, default=[1000, 2000, 3000],
         help="Seeds to evaluate (default: 1000 2000 3000)",
     )
+
     parser.add_argument(
         "--experiment", type=str, default=None,
         metavar="NAME",
@@ -263,7 +264,7 @@ if __name__ == "__main__":
         help="Alpha value (e.g. 0.5). Required when --model is not given.",
     )
     parser.add_argument(
-        "--model_seed", type=int, default=1000,
+        "--model_seed", type=int, default=42000,
         help="Seed of the trained model to load when building path from --experiment/--alpha",
     )
 
