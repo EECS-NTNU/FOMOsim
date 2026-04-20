@@ -69,6 +69,9 @@ class StationInventory:
     onsite:      int   # bikes needing on-site repair (repairable without depot trip)
     depot:       int   # bikes requiring removal to depot
     capacity:    int   # docking capacity
+    target:      int   = 0    # target inventory for this station at current time-of-day
+    expected_departure_rate: float = 0.0  # bikes/hour leaving this station (from demand model)
+    expected_arrival_rate:   float = 0.0  # bikes/hour arriving at this station (from demand model)
 
     def total_bikes(self) -> int:
         return self.functional + self.onsite + self.depot
@@ -178,6 +181,7 @@ class MDPState:
     vehicles:           Dict[int,  VehicleStatus]
     config:             MDPConfig = field(default_factory=MDPConfig.full_maintenance)
     shift_end_time:     Optional[float] = None  # end of shift for the active vehicle (minutes)
+    travel_times:       Optional[Dict[str, float]] = None  # {station_id: minutes from active vehicle}
 
     def get_station(self, station_id: str) -> StationInventory:
         """Get a normal station (not depot)."""
@@ -411,6 +415,7 @@ class PostDecisionState:
             onsite=new_onsite,
             depot=new_depot_s,
             capacity=s.capacity,
+            target=s.target,   # propagate target — unchanged by action
         )
 
         # ── build new vehicle status ───────────────────────────────────────
@@ -453,7 +458,8 @@ class PostDecisionState:
             depot=state.depot,
             vehicles=new_vehicles,
             config=cfg,
-            shift_end_time=state.shift_end_time,   # propagate so encoder sees it
+            shift_end_time=state.shift_end_time,
+            travel_times=state.travel_times,   # static distances — unchanged by action
         )
 
         return new_state, action_duration, executed
@@ -552,7 +558,8 @@ class PostDecisionState:
             depot=new_depot,
             vehicles=new_vehicles,
             config=cfg,
-            shift_end_time=state.shift_end_time,   # propagate so encoder sees it
+            shift_end_time=state.shift_end_time,
+            travel_times=state.travel_times,   # static distances — unchanged by action
         )
 
         return new_state, action_duration, executed
@@ -629,13 +636,19 @@ def _count_bikes(station, config: Optional[MDPConfig] = None) -> Tuple[int, int,
 def extract_station_inventory(
     station,
     config: Optional[MDPConfig] = None,
+    target: int = 0,
+    expected_departure_rate: float = 0.0,
+    expected_arrival_rate:   float = 0.0,
 ) -> StationInventory:
     """
     Build a StationInventory from a live sim.Station object.
 
     Args:
-        station : sim.Station object (normal operating station, not depot)
-        config  : MDPConfig (defaults to full maintenance)
+        station                : sim.Station object (normal operating station, not depot)
+        config                 : MDPConfig (defaults to full maintenance)
+        target                 : target inventory for this station at current time-of-day
+        expected_departure_rate: expected departures/hour from demand model (bikes/hour)
+        expected_arrival_rate  : expected arrivals/hour from demand model (bikes/hour)
     """
     cfg = config or MDPConfig.full_maintenance()
     func, onsite, depot = _count_bikes(station, cfg)
@@ -645,6 +658,9 @@ def extract_station_inventory(
         onsite=onsite,
         depot=depot,
         capacity=station.capacity,
+        target=target,
+        expected_departure_rate=expected_departure_rate,
+        expected_arrival_rate=expected_arrival_rate,
     )
 
 
@@ -748,8 +764,18 @@ def extract_mdp_state(
     # so get_stations() never contains the depot — look it up via get_depots()).
     stations = {}
     depot = None
+    sim_day  = sim_state.day()
+    sim_hour = sim_state.hour()
     for s in sim_state.get_stations():
-        stations[s.id] = extract_station_inventory(s, cfg)
+        try:
+            target = round(s.get_target_state(sim_day, sim_hour))
+        except Exception:
+            target = 0
+        stations[s.id] = extract_station_inventory(
+            s, cfg, target=target,
+            expected_departure_rate=s.get_leave_intensity(sim_day, sim_hour),
+            expected_arrival_rate=s.get_arrive_intensity(sim_day, sim_hour),
+        )
 
     if depot_id is not None:
         for d in sim_state.get_depots():
@@ -761,6 +787,19 @@ def extract_mdp_state(
         v.id: extract_vehicle_status(v, sim_state.time, cfg)
         for v in sim_state.get_vehicles()
     }
+
+    # Travel times from the active vehicle's current location to every station.
+    # The active vehicle has just arrived, so destination_station == current location.
+    travel_times = None
+    active_loc = vehicles[active_vehicle_id].destination_station if active_vehicle_id in vehicles else None
+    if active_loc is not None:
+        travel_times = {
+            sid: sim_state.get_travel_time(active_loc, sid)
+            for sid in stations
+        }
+        if depot_id is not None:
+            travel_times[depot_id] = sim_state.get_travel_time(active_loc, depot_id)
+
     return MDPState(
         time=sim_state.time,
         active_vehicle_id=active_vehicle_id,
@@ -769,4 +808,5 @@ def extract_mdp_state(
         vehicles=vehicles,
         config=cfg,
         shift_end_time=shift_end_time,
+        travel_times=travel_times,
     )
