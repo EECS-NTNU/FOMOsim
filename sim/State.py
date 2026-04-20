@@ -811,9 +811,6 @@ class State(LoadSave):
                     # Log aggregate metric for delivery (consistent across all policies)
                     self.metrics.add_aggregate_metric(self, 'num bike deliveries', 1)
 
-                    # Log aggregate metric for delivery (consistent across all policies)
-                    self.metrics.add_aggregate_metric(self, 'num bike deliveries', 1)
-
                 for helping_pickup_id in action.helping_pickup:
                     helping_pickup_bike = action.helping_cluster.get_bike_from_id(
                         helping_pickup_id
