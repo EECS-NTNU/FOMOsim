@@ -216,11 +216,18 @@ def train(
     sim_start_min   = timeInMinutes(hours=START_HOUR)
     warmup_end_time = sim_start_min + WARMUP_DAYS * 24 * 60   # e.g. 420 + 5760
 
+
     service_levels: list = []
     weights_history: list = []  # Collect θ vectors per episode
     t0 = time.time()
 
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+
+    # Prepare weights evolution CSV path
+    weights_csv_path = None
+    if save_path is not None:
+        weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
+    # If save_path is None, will be set at the end as before
 
     # ── Episode loop ──────────────────────────────────────────────────────────
     for ep in range(num_episodes):
@@ -296,32 +303,62 @@ def train(
             f"t={time.time() - t0:.0f}s"
         )
 
+
         # ── Periodic checkpoint every 50 episodes ─────────────────────────
         if (ep + 1) % 50 == 0:
             ck_path = SAVE_DIR / f"vfa_checkpoint_ep{ep + 1:04d}.pkl"
             vfa_policy.save(ck_path)
 
-   # ── Final save ────────────────────────────────────────────────────────────
+        # ── Periodically update weights evolution CSV every 5 episodes ──
+        if (ep + 1) % 5 == 0:
+            # Determine CSV path if not already set
+            if weights_csv_path is None and save_path is not None:
+                weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
+            elif weights_csv_path is None:
+                # If save_path is None, skip writing until final
+                continue
+
+            feature_names = vfa_policy.FEATURE_NAMES
+            # Get the last 5 episodes' weights and service levels
+            start_idx = ep - 4 if ep >= 4 else 0
+            end_idx = ep + 1
+            partial_weights = weights_history[start_idx:end_idx]
+            partial_service = service_levels[start_idx:end_idx]
+            partial_episodes = list(range(start_idx, end_idx))
+            partial_df = pd.DataFrame(partial_weights, columns=feature_names)
+            partial_df.insert(0, 'episode', partial_episodes)
+            partial_df.insert(1, 'service_level', partial_service)
+
+            # Append to CSV, write header only if file does not exist
+            write_header = not weights_csv_path.exists()
+            with open(weights_csv_path, 'a') as f:
+                partial_df.to_csv(f, header=write_header, index=False)
+
+
+    # ── Final save ────────────────────────────────────────────────────────────
     if save_path is None:
         ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
         save_path = SAVE_DIR / f"vfa_trained_baseline_features_alpha{alpha_start}_seed{seed_offset}_{ts}.pkl"
+        weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
 
     vfa_policy.save(save_path)
 
     #curve_path = Path(str(save_path).replace(".pkl", "_learning_curve.npy"))
     #np.save(curve_path, np.array(service_levels))
 
-    # ── Save weight evolution as CSV ────────────────────────────────────────────
-    feature_names = vfa_policy.FEATURE_NAMES
-    weights_df = pd.DataFrame(
-        weights_history,
-        columns=feature_names,
-    )
-    weights_df.insert(0, 'episode', range(num_episodes))
-    weights_df.insert(1, 'service_level', service_levels)
-    
-    weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
-    weights_df.to_csv(weights_csv_path, index=False)
+    # Write any remaining weights not yet written (if num_episodes not divisible by 5)
+    if len(weights_history) % 5 != 0:
+        feature_names = vfa_policy.FEATURE_NAMES
+        start_idx = (num_episodes // 5) * 5
+        partial_weights = weights_history[start_idx:]
+        partial_service = service_levels[start_idx:]
+        partial_episodes = list(range(start_idx, num_episodes))
+        partial_df = pd.DataFrame(partial_weights, columns=feature_names)
+        partial_df.insert(0, 'episode', partial_episodes)
+        partial_df.insert(1, 'service_level', partial_service)
+        write_header = not weights_csv_path.exists()
+        with open(weights_csv_path, 'a') as f:
+            partial_df.to_csv(f, header=write_header, index=False)
 
     # ── Summary ───────────────────────────────────────────────────────────────
     elapsed = time.time() - t0

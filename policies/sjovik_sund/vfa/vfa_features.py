@@ -35,6 +35,8 @@ Category A  —  Base Rebalancing  (always active)
   A1  rebalancing_imbalance         Σ_i |I_i - T_i| / (0.5 * Σ_i C_i)
   A3  squared_starvation_penalty    (1/N) Σ_i (max(0, T_i-I_i) / T_i)^2
   A4  squared_congestion_penalty    (1/N) Σ_i (max(0, I_i-T_i) / (C_i-T_i))^2
+  A5  exponential_starvation_penalty (1/N) Σ_i (exp(3 * starv_ratio_i) - 1) / (exp(3) - 1)
+  A6  exponential_congestion_penalty (1/N) Σ_i (exp(3 * cong_ratio_i) - 1) / (exp(3) - 1)
   A9  starvation_severity_max       q95_i (max(0, T_i-I_i) / T_i)
   A10 congestion_severity_max       q95_i (max(0, I_i-T_i) / (C_i-T_i))
   A11 unmet_starvation_deficit      max(0, sum(T_i - I_i) - van_bikes) / (0.5*Σ C_i)
@@ -42,7 +44,6 @@ Category A  —  Base Rebalancing  (always active)
   A14 imbalance_hotspot_distance    distance to the worst-imbalance hotspot, normalised
   A15 starvation_count              fraction of stations with severe starvation
   A16 congestion_count              fraction of stations with severe congestion
-  A17 imbalance_asymmetry           signed starvation vs congestion balance
   A18 hotspot_imbalance_mass        share of imbalance concentrated in the worst hotspot stations
 
 Category B  —  Maintenance  (appended if maintenance_enabled)
@@ -62,12 +63,8 @@ Category C  —  End-of-Day Timing  (appended if shift_timing_enabled)
 
 Category D  —  Temporal Demand  (appended if temporal_enabled)
 ──────────────────────────────────────────────────────────────────────────────
-  D1  time_of_day_fraction          current_hour / 24
-  D2  day_of_week_fraction          current_day / 7
-  D3  hours_until_peak_fraction     hours_until_8am / 12
-  D4  multi_horizon_starvation_risk Σ_{h=1..H} Σ_i max(0, T_i^{t+h} - I_i) / (H * 0.5*Σ C_i)
-  D5  multi_horizon_congestion_risk Σ_{h=1..H} Σ_i max(0, I_i - T_i^{t+h}) / (H * 0.5*Σ C_i)
-  D7  future_net_pressure           signed balance of future starvation vs congestion
+  D4  projected_starvation_risk     Σ_i max(0, expected_rentals_i - I_i) / Λ_max
+  D5  projected_congestion_risk     Σ_i max(0, expected_returns_i - free_docks_i) / Λ_max
 ──────────────────────────────────────────────────────────────────────────────
 """
 
@@ -192,8 +189,39 @@ def extract(
     veh_free_frac = max(0.0, K_safe - func_cargo_veh - depot_cargo_veh) / K_safe  # free / K
 
     # ── Shared demand decomposition ───────────────────────────────────────────
-    outflow = np.maximum(0.0, -activity)   # net rentals  (negative activity)
-    inflow  = np.maximum(0.0,  activity)   # net returns  (positive activity)
+    # If activity is 2D (horizon_hours, N), simulate inventory evolution for lost demand
+    if activity.ndim == 2:
+        horizon, N = activity.shape
+        # Initialize arrays
+        lost_rentals = np.zeros(N)
+        lost_returns = np.zeros(N)
+        inventory = func.copy().astype(float)
+        onsite_broken = onsite.copy().astype(float)
+        cap = capacities.copy().astype(float)
+        for t in range(horizon):
+            # Rentals (negative activity): demand to remove bikes
+            rentals = np.maximum(0.0, -activity[t])
+            # Returns (positive activity): demand to add bikes
+            returns = np.maximum(0.0, activity[t])
+            # Lost rentals: demand above available bikes
+            lost_now = np.maximum(0.0, rentals - inventory)
+            lost_rentals += lost_now
+            # Fulfilled rentals: can't take more than available
+            fulfilled_rentals = np.minimum(rentals, inventory)
+            inventory -= fulfilled_rentals
+            # Returns: add bikes, but can't exceed capacity minus broken bikes
+            free_docks = np.maximum(0.0, cap - inventory - onsite_broken)
+            lost_now_ret = np.maximum(0.0, returns - free_docks)
+            lost_returns += lost_now_ret
+            # Fulfilled returns: can't return more than free docks
+            fulfilled_returns = np.minimum(returns, free_docks)
+            inventory += fulfilled_returns
+        outflow = np.sum(np.maximum(0.0, -activity), axis=0)
+        inflow = np.sum(np.maximum(0.0, activity), axis=0)
+    else:
+        # Backward compatibility: treat as before
+        outflow = np.maximum(0.0, -activity)
+        inflow  = np.maximum(0.0,  activity)
 
     # ── Shared per-station starvation/congestion ratios (reused in A3, A9) ───
     target_safe  = np.maximum(1.0, target)
@@ -351,33 +379,18 @@ def extract(
     # =========================================================================
     if temporal_enabled:
         current_hour              = int((current_time_minutes // 60) % 24)
-        
-        # D1: Cyclic Time of Day (24-hour clock wrapped in sin/cos to preserve continuity)
-        # phi_sin_time = float(np.sin(2 * np.pi * current_hour / 24.0))
-        # phi_cos_time = float(np.cos(2 * np.pi * current_hour / 24.0))
-
-        # D2: Cyclic Day of Week (7-day week wrapped in sin/cos to preserve continuity)
-        # phi_sin_day = float(np.sin(2 * np.pi * current_day_of_week / 7.0))
-        # phi_cos_day = float(np.cos(2 * np.pi * current_day_of_week / 7.0))
-
-        # D3: Hours Until Peak Fraction — shortest absolute distance to the morning peak (0 = at peak, 1 = 12h away)
-        # dist_forward = (_MORNING_PEAK_HOUR - current_hour) % 24
-        # dist_backward = (current_hour - _MORNING_PEAK_HOUR) % 24
-        # shortest_peak_dist = min(dist_forward, dist_backward)
-        # phi_peak_distance = shortest_peak_dist / 12.0
-
-        # D4: Projected Starvation Risk — expected upcoming rentals that cannot be served
-        # 'outflow' is the expected rentals over the next 3 hours.
-        # If a station expects 10 rentals but only has 3 functional bikes, 7 rentals are lost.
-        # lam_max_safe provides a stable, system-wide scaling denominator.
-        phi_projected_starv = float(np.sum(np.maximum(0.0, outflow - func))) / lam_max_safe
-
-        # D5: Projected Congestion Risk — expected upcoming returns that cannot be parked
-        # 'inflow' is the expected returns over the next 3 hours.
-        # We need free physical capacity to handle returns.
-        free_docks = np.maximum(0.0, capacities - func - onsite)
-        phi_projected_cong = float(np.sum(np.maximum(0.0, inflow - free_docks))) / lam_max_safe
-
+        # D4: Projected Starvation Risk — true lost rentals over the horizon
+        # D5: Projected Congestion Risk — true lost returns over the horizon
+        if activity.ndim == 2:
+            phi_projected_starv = float(np.sum(lost_rentals)) / lam_max_safe
+            phi_projected_cong = float(np.sum(lost_returns)) / lam_max_safe
+            print(f"\n[DEBUG] Lost rentals: {lost_rentals}, Lost returns: {lost_returns}")
+        else:
+            # Fallback: old logic
+            print("\n[WARNING] Temporal features enabled but activity is not 2D. Using fallback logic which may be inaccurate.")
+            phi_projected_starv = float(np.sum(np.maximum(0.0, outflow - func))) / lam_max_safe
+            free_docks = np.maximum(0.0, capacities - func - onsite)
+            phi_projected_cong = float(np.sum(np.maximum(0.0, inflow - free_docks))) / lam_max_safe
         cat_d = [phi_projected_starv, phi_projected_cong]
         features.extend(cat_d)
 

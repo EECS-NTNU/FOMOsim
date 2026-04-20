@@ -443,20 +443,14 @@ class LinearVFAPolicy(Policy):
         weight_h2 = 1.0                           # All of the second next hour
         weight_h3 = current_minute / 60.0         # Overlap into the fourth hour
         
-        # 3. Extract the dynamic anticipated net demand array (N,)
-        '''dynamic_activity = (
-            self._activity_profile[day_type, h0] * weight_h0 +
-            self._activity_profile[day_type, h1] * weight_h1 +
-            self._activity_profile[day_type, h2] * weight_h2 +
-            self._activity_profile[day_type, h3] * weight_h3
-        )'''
 
-        dynamic_activity = -(
-            self._activity_profile[day_type, h0] * weight_h0 +
-            self._activity_profile[day_type, h1] * weight_h1 +
-            self._activity_profile[day_type, h2] * weight_h2 +
+        # 3. Extract the dynamic anticipated net demand array (4, N)
+        dynamic_activity = -np.array([
+            self._activity_profile[day_type, h0] * weight_h0,
+            self._activity_profile[day_type, h1] * weight_h1,
+            self._activity_profile[day_type, h2] * weight_h2,
             self._activity_profile[day_type, h3] * weight_h3
-        )
+        ])
 
         # ── Time-indexed target inventory (N,) ─────────────────────────────
         d, h   = state.day() % 7, state.hour() % 24
@@ -1325,10 +1319,12 @@ class LinearVFAPolicy(Policy):
         if self.learning_mode and self.epsilon > 0.0 and self._rng.random() < self.epsilon:
             # Exploration: pick a random action from the candidate pool
             sel_idx = self._rng.integers(len(candidates))
+            print(f"4. Exploring: randomly selected action index {sel_idx} with value {values[sel_idx]:.4f}")
         else:
             # Exploitation: pick the action with maximum value
             sel_idx = int(np.argmax(values))
-            
+            print(f"4. Exploiting: selected best action index {sel_idx} with value {values[sel_idx]:.4f}")
+
         selected = candidates[sel_idx]
         
         print(f"4. Selected action: next station: {getattr(selected, 'next_location', getattr(selected, 'next_station', None))}, pickups: {len(getattr(selected, 'pick_ups', []))}, deliveries: {len(getattr(selected, 'delivery_bikes', []))}")

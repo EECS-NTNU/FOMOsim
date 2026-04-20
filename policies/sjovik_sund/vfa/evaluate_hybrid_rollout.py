@@ -46,7 +46,7 @@ from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, test_p
 # Single source of truth for experiment definitions
 from policies.sjovik_sund.ablation_study.run_ablation_study import EXPERIMENTS
 
-ABLATION_DIR = Path("models/ablation_study/SGDMINIBATCH_NEWROUTES/Spatial_alpha_0.001_20260417_163706")
+ABLATION_DIR = Path("models/ablation_study_solstorm/Base_Exponential_alpha_0.01_20260420_122300")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -132,37 +132,63 @@ def run_batch(
         print(f"Error: No .pkl models found in {ABLATION_DIR}")
         return
 
-    print(f"\nBatch evaluation: Found {len(pkl_files)} model(s) to evaluate.")
+    print(f"\nBatch evaluation: Found {len(pkl_files)} model(s) to average.")
 
+    # Load all weights and average them
+    thetas = []
+    active_features = None
+    exp_name = None
     for i, model_file in enumerate(pkl_files):
-        # Infer experiment properties
         try:
-            active_features, exp_name = _detect_features(str(model_file))
+            features, exp = _detect_features(str(model_file))
         except ValueError as e:
             print(f"\n[{i+1}/{len(pkl_files)}] SKIP: {e}")
             continue
-        
-        # Extract seed if possible
-        seed_match = re.search(r"seed(\d+)", model_file.name)
-        seed_val = int(seed_match.group(1)) if seed_match else 0
+        vfa = LinearVFAPolicy.load(model_file, active_features=features)
+        thetas.append(vfa.theta)
+        if active_features is None:
+            active_features = features
+        if exp_name is None:
+            exp_name = exp
 
-        print(f"\n[{i+1}/{len(pkl_files)}] EVAL  {exp_name} (from: {model_file.name})")
-        evaluate_model(
-            model_file=model_file,
-            active_features=active_features,
-            exp_name=exp_name,
-            seed=seed_val,
-            lookahead_minutes=lookahead_minutes,
-            num_scenarios=num_scenarios,
-            episodes=episodes,
-            start_seed=start_seed,
-            duration_hours=duration_hours,
-            instance=instance,
-            vehicles=vehicles,
-        )
+    if not thetas:
+        print("No valid models loaded for averaging.")
+        return
+
+    # Compute average theta
+    import numpy as np
+    avg_theta = np.mean(np.stack(thetas), axis=0)
+
+    # Create a new LinearVFAPolicy with averaged weights
+    avg_policy = LinearVFAPolicy(active_features=active_features, n_features=len(avg_theta), learning_mode=False)
+    avg_policy.theta = avg_theta.copy()
+    avg_policy.weights = list(avg_theta)
+
+    # Hybrid policy using averaged VFA
+    hybrid_policy = HybridRolloutPolicy(
+        trained_vfa=avg_policy,
+        lookahead_minutes=lookahead_minutes,
+        num_scenarios=num_scenarios,
+    )
+
+    policy_dict = {
+        f"{exp_name}_AVG_VFA_Only": avg_policy,
+        f"{exp_name}_AVG_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid_policy,
+    }
+
+    print(f"\nEvaluating averaged policy...")
+    test_policies(
+        list_of_seeds=list(range(start_seed, start_seed + episodes)),
+        policy_dict=policy_dict,
+        num_vehicles=vehicles,
+        duration=duration_hours,
+        use_multiprocessing=False,
+        instance_name=instance,
+        config=SimulationConfig(),
+    )
 
     print(f"\n{'='*60}")
-    print(f"Batch complete. Evaluated {len(pkl_files)} model(s).")
+    print(f"Batch complete. Evaluated averaged policy.")
     print(f"Results written to simulation_results/csv/")
     print(f"{'='*60}")
 

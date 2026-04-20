@@ -57,6 +57,45 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 # ─────────────────────────────────────────────────────────────────────────────
 
 EXPERIMENTS = {
+    # 2. Macro vs Future
+    # Hypothesis: The VFA only needs to evaluate total global volume and incoming demand waves because the tactical rollout algorithm perfectly handles local spatial routing.
+    "Macro_vs_Future": [
+        "rebalancing_imbalance",          # A1: Total work left in the system today
+        "projected_starvation_risk",      # D4: Future demand wave
+        "projected_congestion_risk",      # D5: Future return wave
+    ],
+    # 3. Breadth And Mass
+    # Hypothesis: Strategic difficulty over a shift is driven by how widely spread the problem is across the city rather than the depth of individual bottlenecks.
+    "Breadth_And_Mass": [
+        "starvation_count",               # A15: How widespread is the starvation?
+        "congestion_count",               # A16: How widespread is the congestion?
+        "hotspot_imbalance_mass",         # A18: Is the problem contained, or everywhere?
+    ],
+    # 4. Base Exponential Future
+    # Hypothesis: The VFA should ignore average network conditions and instead heavily penalize states that leave deep structural tail risks combined with worsening future demand.
+    "Base_Exponential_Future": [
+        "exponential_starvation_penalty", # A5: Punishes leaving severe, deep starvation
+        "exponential_congestion_penalty", # A6: Punishes leaving severe, deep congestion
+        "projected_starvation_risk",      # D4: Ensures future demand doesn't make it worse
+    ],
+
+    # 5. Optimal Orthogonal Mix
+    # Hypothesis: Maximum strategic efficiency is achieved by providing the VFA with exactly one clean signal from each mathematically independent cluster to eliminate noise.
+    "Optimal_Orthogonal_Mix": [
+        "squared_starvation_penalty",     # A3: Balanced non-linear penalty
+        "squared_congestion_penalty",     # A4: Balanced non-linear penalty
+        "imbalance_hotspot_distance",     # A14: Spatial routing difficulty left for later
+        "projected_starvation_risk",      # D4: Multi-hour demand anticipation
+        "projected_congestion_risk",      # D5: Multi-hour return anticipation
+    ],
+
+    # 6. Micro Severity Focus
+    # Hypothesis: The rollout algorithm cannot handle immediate local emergencies alone and requires the VFA to explicitly prioritize the single worst bottleneck in the network.
+    "Micro_Severity_Spatial": [
+        "starvation_severity_max",        # A9
+        "congestion_severity_max",        # A10
+        "imbalance_hotspot_distance",     # A14
+    ],
 
     # ── Kitchen Sink ─────────────────────────────────────────────────────────
     # Superset of all independent features tested across the 6 core experiments below.
@@ -67,7 +106,6 @@ EXPERIMENTS = {
         "squared_congestion_penalty",     # A4
         "starvation_severity_max",        # A9
         "congestion_severity_max",        # A10
-        "unmet_starvation_deficit",       # A11
         "imbalance_hotspot_distance",     # A14
         "rebalancing_imbalance",          # A1
         "starvation_count",               # A15
@@ -75,62 +113,6 @@ EXPERIMENTS = {
         "hotspot_imbalance_mass",         # A18
         "projected_starvation_risk",      # D4
         "projected_congestion_risk",      # D5
-    ],
-
-    # 1. Pure Exponential Baseline
-    # Tests if heavily penalizing extreme cases (exponential) is sufficient on its own,
-    # without diluting the signal with global averages.
-    "Base_Exponential": [
-        "exponential_starvation_penalty", # A5
-        "exponential_congestion_penalty", # A6
-    ],
-
-    # 2. Micro Severity & Spatial Routing
-    # Ignores average system health entirely. Tells the VFA to focus only on the 
-    # worst individual stations (Q95) and how far away the biggest hotspot is.
-    "Micro_Severity_Spatial": [
-        "starvation_severity_max",        # A9
-        "congestion_severity_max",        # A10
-        "imbalance_hotspot_distance",     # A14
-    ],
-
-    # 3. Macro vs Anticipatory (Future Outlook)
-    # Pits the current total global imbalance against our new OD-matrix projections.
-    # 'rebalancing_imbalance' is used as a single proxy for current state since it 
-    # perfectly correlates with most other current-state metrics.
-    "Macro_vs_Future": [
-        "rebalancing_imbalance",          # A1
-        "projected_starvation_risk",      # D4
-        "projected_congestion_risk",      # D5
-    ],
-
-    # 4. Breadth and Mass Concentration
-    # Instead of looking at "how deep" the starvation is, this focuses on "how wide" 
-    # the problem has spread, and how concentrated it is in hotspots.
-    "Breadth_And_Mass": [
-        "starvation_count",               # A15
-        "congestion_count",               # A16
-        "hotspot_imbalance_mass",         # A18
-    ],
-
-    # 5. Optimal Orthogonal Mix (Best Hypothesis)
-    # The ultimate minimally-correlated combination. It takes exactly one feature 
-    # from every independent mathematical cluster discovered in the correlation study.
-    "Optimal_Orthogonal_Mix": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "imbalance_hotspot_distance",     # A14
-        "projected_starvation_risk",      # D4
-        "projected_congestion_risk",      # D5
-    ],
-
-    # 6. Structural Capacity Limits
-    # Tests if the VFA can prioritize based purely on physical van constraints 
-    # combined with future demand risks.
-    "Structural_Constraints": [
-        "unmet_starvation_deficit",       # A11
-        "starvation_severity_max",        # A9
-        "projected_starvation_risk",      # D4
     ],
 }
 
@@ -150,7 +132,7 @@ def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[st
 
     experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
 
-    base_dir = Path("models/ablation_study_solstorm")
+    base_dir = Path("models/ablation_study_solstorm_NEW")
     base_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -191,11 +173,11 @@ if __name__ == "__main__":
         epilog=f"Available experiments: {', '.join(EXPERIMENTS)}",
     )
     parser.add_argument(
-        "--seeds", nargs="+", type=int, default=[3000,4000,5000],
+        "--seeds", nargs="+", type=int, default= [1000], metavar="SEED",
         help="Seed offsets to run (one independent training run per seed)",
     )
     parser.add_argument(
-        "--episodes", type=int, default=20,
+        "--episodes", type=int, default=200,
         help="Training episodes per run",
     )
     parser.add_argument(
@@ -203,7 +185,7 @@ if __name__ == "__main__":
         help="Subset of experiments to run (default: all)",
     )
     parser.add_argument(
-        "--alphas", nargs="+", type=float, default= [0.005,0.01],
+        "--alphas", nargs="+", type=float, default= [0.1,0.05,0.01,0.005], metavar="ALPHA",
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
     )
 
@@ -214,7 +196,6 @@ if __name__ == "__main__":
         run_only=args.experiments, 
         alphas=args.alphas
     )
-
 
     # ── Axis 2: Spatial Recoverability ───────────────────────────────────────
     # Does spatial structure (distance-weighted features, gravity) help
