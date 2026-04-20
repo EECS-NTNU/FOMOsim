@@ -75,6 +75,7 @@ class LinearVFAPolicy(Policy):
         n_features: int = None,   # defaults to len(FEATURE_NAMES); set explicitly to override
         alpha: float = 0.1,
         gamma: float = 0.99,
+        epsilon: float = 0.0,
         learning_mode: bool = True,
         config: Optional[MDPConfig] = None,
         seed: int = 42,
@@ -86,7 +87,7 @@ class LinearVFAPolicy(Policy):
         reward_calculator: Optional[RewardCalculator] = None,
     ) -> None:
         """
-        Initializes the policy, sets hyperparameters (alpha, gamma),
+        Initializes the policy, sets hyperparameters (alpha, gamma, epsilon),
         and creates the weight vector (theta) which represents the
         agent's learned knowledge.
         """
@@ -136,6 +137,7 @@ class LinearVFAPolicy(Policy):
         self.n_features    = n_features
         self.alpha         = alpha
         self.gamma         = gamma
+        self.epsilon       = epsilon
         self.learning_mode = learning_mode
         default_config = MDPConfig.full_maintenance() if maintenance_enabled else MDPConfig.no_maintenance()
         self.config        = config or default_config  # defaults to full maintenance
@@ -1319,8 +1321,14 @@ class LinearVFAPolicy(Policy):
             self.warmup_congestions_snapshot = self.reward_calc._prev_congestions
             self.warmup_trips_snapshot = self.reward_calc._prev_trips
 
-        # Always use greedy selection (even during learning) to avoid the "Deadly Triad" in RL
-        sel_idx  = int(np.argmax(values))
+        # ── Step 5: select best action (epsilon-greedy) ──────────────────
+        if self.learning_mode and self.epsilon > 0.0 and self._rng.random() < self.epsilon:
+            # Exploration: pick a random action from the candidate pool
+            sel_idx = self._rng.integers(len(candidates))
+        else:
+            # Exploitation: pick the action with maximum value
+            sel_idx = int(np.argmax(values))
+            
         selected = candidates[sel_idx]
         
         print(f"4. Selected action: next station: {getattr(selected, 'next_location', getattr(selected, 'next_station', None))}, pickups: {len(getattr(selected, 'pick_ups', []))}, deliveries: {len(getattr(selected, 'delivery_bikes', []))}")
