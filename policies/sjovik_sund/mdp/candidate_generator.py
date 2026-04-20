@@ -92,7 +92,7 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
             
     return unique_profiles
 
-def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled: bool, n_func_avail_post: int, free_space_post: int, n_candidates=10):
+def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled: bool, n_func_avail_post: int, free_space_post: int, n_candidates=10, debug_mode: bool = False):
     """
     Returns a list of target location IDs based on the ANTICIPATED post-operation inventory.
     """
@@ -108,16 +108,16 @@ def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled:
     def score_station(s):
         functional = len([b for b in s.get_bikes() if getattr(b, 'is_available', True)])
         target = round(s.get_target_state(state.day(), state.hour()))
-        delta = target - functional # > 0 means starving, < 0 means congested
+        delta = functional - target # > 0 means congested, < 0 means starving
         
-        can_deliver = (delta > 0 and n_func_avail_post > 0)
-        can_pickup = (delta < 0 and free_space_post > 0)
+        can_deliver = (delta < 0 and n_func_avail_post > 0)
+        can_pickup = (delta > 0 and free_space_post > 0)
         
         score = 0
         if free_ratio <= 0.2 and can_deliver:
-            score = delta # Prioritize delivery
+            score = abs(delta) # Prioritize delivery
         elif free_ratio >= 0.8 and can_pickup:
-            score = abs(delta) # Prioritize pickup
+            score = delta # Prioritize pickup
         elif 0.2 < free_ratio < 0.8 and (can_deliver or can_pickup):
             score = abs(delta) # Balanced / mixed
         
@@ -140,20 +140,38 @@ def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled:
             
         # Temporarily store debug variables on the station object
         s._debug_score = {
-            'total': score, 'base_delta': base_score, 'maint': maint_score,
-            'travel_time': travel_time, 'penalty': penalty_factor
+            'total': score, 'base_delta': delta, 'maint': maint_score,
+            'travel_time': travel_time, 'penalty': penalty_factor,
+            'functional': functional, 'target': target
         }
         return score
     
     all_stations.sort(key=score_station, reverse=True)
     
     # --- Debug print for scoring balance ---
-    # Inspect scoring weights (triggers during hour 12 for the first vehicle)
-    if state.hour() == 12 and len(tabu_list) == 0:
+    if debug_mode:
         print(f"\n--- Routing Scoring Debug (from {vehicle.location.id}) ---")
-        for s in all_stations[:3]:
+        print(f"Vehicle Free Ratio: {free_ratio:.2f} (Func post-op: {n_func_avail_post}, Free post-op: {free_space_post})")
+        
+        if free_ratio <= 0.2:
+            print("  -> SYSTEMATIC VERIFICATION: MOSTLY FULL. Top candidates MUST have BaseDelta < 0 (Starving).")
+        elif free_ratio >= 0.8:
+            print("  -> SYSTEMATIC VERIFICATION: MOSTLY EMPTY. Top candidates MUST have BaseDelta > 0 (Congested).")
+        else:
+            print("  -> SYSTEMATIC VERIFICATION: BALANCED. Top candidates can have BaseDelta > 0 or < 0.")
+
+        for s in all_stations[:5]: # Show top 5
             d = getattr(s, '_debug_score', {})
-            print(f"Station {s.id:<3}: Total={d.get('total', 0):.2f} | BaseDelta={d.get('base_delta', 0):.2f} | Maint={d.get('maint', 0):.2f} | Time={d.get('travel_time', 0):.1f} (Penalty=/{d.get('penalty', 1):.2f})")
+            # Verify delta direction matches fullness criteria (ignoring 0 score stations or maintenance driven)
+            is_valid = False
+            base_delta = d.get('base_delta', 0)
+            if free_ratio <= 0.2 and base_delta < 0: is_valid = True
+            elif free_ratio >= 0.8 and base_delta > 0: is_valid = True
+            elif 0.2 < free_ratio < 0.8: is_valid = True
+            elif d.get('maint', 0) > 0 and base_delta == 0: is_valid = True # Maintenance overrides
+            
+            valid_str = " OK " if is_valid or d.get('total', 0) == 0 else "FAIL"
+            print(f"Station {s.id:<3} [{valid_str}]: Total={d.get('total', 0):.2f} | BaseDelta={base_delta:.0f} (Inv: {d.get('functional', 0)} / Tgt: {d.get('target', 0)}) | Maint={d.get('maint', 0):.2f} | Time={d.get('travel_time', 0):.1f} (Penalty=/{d.get('penalty', 1):.2f})")
     
     candidates.extend([s.id for s in all_stations[:n_candidates]])
     
@@ -165,7 +183,6 @@ def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled:
             nearest_depot = depots[0].id
             if nearest_depot not in candidates and nearest_depot not in tabu_list and nearest_depot != vehicle.location.id:
                 candidates.append(nearest_depot)
-                
     return candidates
 
 def generate_candidates(state, vehicle, maintenance_enabled: bool) -> List[sim.Action]:
@@ -174,7 +191,7 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool) -> List[sim.A
     """
     tabu_list = [v.location.id for v in state.get_vehicles() if v.id != vehicle.id]
     
-    debug_mode = (state.hour() == 12 and len(tabu_list) == 0)
+    debug_mode = (state.hour() in [8, 10, 14, 16] and len(tabu_list) == 0 and state.day() == 0)
     if debug_mode:
         print(f"\n========== CANDIDATE GENERATION DEBUG (Hour 12, Vehicle {vehicle.id} at {vehicle.location.id}) ==========")
         print(f"Current Vehicle Inventory: {sum(1 for b in vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])} functional, {sum(1 for b in vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) in ['depot', 'onsite'])} broken bicycles.")
@@ -211,7 +228,7 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool) -> List[sim.A
                 print("  -> Expected Heuristic: Vehicle BALANCED. Will balance evaluation between pickups and deliveries.")
         
         # GENERATE ROUTES SPECIFIC TO THIS OPERATION'S RESULTING INVENTORY!
-        routing_targets = _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled, n_func_avail_post=functional_after_op, free_space_post=free_space_post)
+        routing_targets = _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled, n_func_avail_post=functional_after_op, free_space_post=free_space_post, debug_mode=debug_mode)
 
         if debug_mode:
             print(f"  -> Generated {len(routing_targets)} target routes: {routing_targets}")

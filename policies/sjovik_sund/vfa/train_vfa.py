@@ -55,8 +55,10 @@ EPISODE_DAYS  : int   = 14       # days per episode (total)
 WARMUP_DAYS   : int   = 2         # greedy warm-up, no TD updates
 LEARNING_DAYS : int   = 12        # VFA + TD(0)  (days 5 – 14)
 
-# --- Learning Rate (Alpha) ---
+# --- Learning Rate (Alpha) & Exploration (Epsilon) ---
 ALPHA_START   : float = 0.001   # initial alpha for TD updates, will be overwritten in case of argument passing
+EPSILON_START : float = 0.2     # initial exploration rate
+EPSILON_END   : float = 0.01    # final exploration rate
 
 GAMMA         : float = 0.99      # discount factor
 
@@ -112,7 +114,9 @@ def train(
     instance_name : str   = INSTANCE_NAME,
     active_features: list | None = None,
     gamma         : float = GAMMA,       
-    alpha_start   : float = ALPHA_START,  
+    alpha_start   : float = ALPHA_START,
+    epsilon_start : float = EPSILON_START,
+    epsilon_end   : float = EPSILON_END,
 ) -> LinearVFAPolicy:
     
     # BATCH SIZE configuration
@@ -137,6 +141,9 @@ def train(
     # <-- Alpha decay logic for preliminary testing -->
     alpha_end = alpha_start * 0.1 # Decay alpha to 10% of its initial value by the end of training
     alpha_decay = (alpha_end / alpha_start) ** (1.0 / max(num_episodes - 1, 1))
+
+    # <-- Epsilon decay logic -->
+    epsilon_decay = (epsilon_end / epsilon_start) ** (1.0 / max(num_episodes - 1, 1)) if epsilon_start > 0 else 1.0
     
     
     # ── Header ────────────────────────────────────────────────────────────────
@@ -149,6 +156,7 @@ def train(
         f"(warm-up = {WARMUP_DAYS}d,  learning = {LEARNING_DAYS}d)"
     )
     print(f"  alpha schedule      : {alpha_start:.5f} -> {alpha_end:.5f}")
+    print(f"  epsilon schedule    : {epsilon_start:.5f} -> {epsilon_end:.5f}")
     print(f"  gamma               : {gamma}")
     print(f"  Instance          : {instance_name}")
     print("=" * 72 + "\n")
@@ -221,13 +229,16 @@ def train(
         ###########
         # ── Calculate current dynamic parameters ─────────────────────────
         current_alpha = max(alpha_end, alpha_start * (alpha_decay ** ep))
-        print(f"\n[DEBUG ALPHA] Episode {ep+1}: Calculated alpha={current_alpha:.5f}")
+        current_epsilon = max(epsilon_end, epsilon_start * (epsilon_decay ** ep)) if epsilon_start > 0 else 0.0
+
+        print(f"\n[DEBUG] Episode {ep+1}: Calculated alpha={current_alpha:.5f}, epsilon={current_epsilon:.5f}")
         
         # STRICT OVERRIDE: Force the policy to use this exact step-size
         vfa_policy.alpha = current_alpha
+        vfa_policy.epsilon = current_epsilon
         
         print(f"\n{'='*50}")
-        print(f"EPISODE {ep+1}/{num_episodes} | Alpha: {current_alpha:.5f}")
+        print(f"EPISODE {ep+1}/{num_episodes} | Alpha: {current_alpha:.5f} | Epsilon: {current_epsilon:.5f}")
         print(f"{'='*50}")
         ############
 
@@ -384,6 +395,18 @@ if __name__ == "__main__":
         default=ALPHA_START,
         help="Initial learning rate (alpha) for TD updates"
     )
+    parser.add_argument(
+        "--epsilon_start",
+        type=float,
+        default=EPSILON_START,
+        help="Initial exploration rate (epsilon) for epsilon-greedy policy"
+    )
+    parser.add_argument(
+        "--epsilon_end",
+        type=float,
+        default=EPSILON_END,
+        help="Final exploration rate (epsilon) for epsilon-greedy policy"
+    )
     
     args = parser.parse_args()
 
@@ -393,5 +416,7 @@ if __name__ == "__main__":
         seed_offset   = args.seed,
         instance_name = args.instance,
         gamma         = args.gamma,         
-        alpha_start   = args.alpha_start    
+        alpha_start   = args.alpha_start,
+        epsilon_start = args.epsilon_start,
+        epsilon_end   = args.epsilon_end
     )
