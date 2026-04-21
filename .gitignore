@@ -201,7 +201,6 @@ models/ablation_study/NORMALSGD
 terminal_output/
 
 
-models/ablation_study
 models/ablation_study/SGDMINIBATCH
 models/ablation_study/SGDMINIBATCH_2
 models/ablation_study/SGDMINIBATCH_NEWCANDIDATES
