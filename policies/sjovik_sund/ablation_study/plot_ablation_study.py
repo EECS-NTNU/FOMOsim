@@ -91,7 +91,7 @@ def load_experiment(exp_dir: Path):
 
 
 def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
-    study_dir = WORKSPACE_ROOT / "models" / "ablation_study_solstorm"
+    study_dir = WORKSPACE_ROOT / "models" / "ablation_study_solstorm_NEW"
 
     if not study_dir.exists():
         print(f"Error: Could not find ablation study directory at {study_dir}")
