@@ -71,8 +71,8 @@ class LinearVFAPolicy(Policy):
 
     def __init__(
         self,
-        active_features: List[str] = None,
-        n_features: int = None,   # defaults to len(FEATURE_NAMES); set explicitly to override
+        active_features: Optional[List[str]] = None,
+        n_features: Optional[int] = None,   # defaults to len(FEATURE_NAMES); set explicitly to override
         alpha: float = 0.1,
         gamma: float = 0.99,
         epsilon: float = 0.0,
@@ -167,9 +167,17 @@ class LinearVFAPolicy(Policy):
         self._initialized: bool              = False
         self._station_ids: List[str]         = []
         self._sid_to_idx:  Dict[str, int]    = {}
-        self._target_matrix: Optional[np.ndarray] = None  # shape (7, 24, N)
-        self._activity:      Optional[np.ndarray] = None  # shape (N,)  avg λ_i
-        self._depot_id:      Optional[str]        = None
+        
+        # Formally declare all lazy arrays as Optional so Pylance tracks them
+        self._target_matrix:       Optional[np.ndarray] = None
+        self._activity_profile:    Optional[np.ndarray] = None
+        self._travel_time_matrix:  Optional[np.ndarray] = None
+        self._capacities:          Optional[np.ndarray] = None
+        self._lambda_max_system:   Optional[float]      = None
+        self._max_gravity:         Optional[float]      = None
+        self._depot_id:            Optional[str]        = None
+        self._N_stations:          Optional[int]        = None
+        self._total_fleet_size:    Optional[int]        = None
 
         # ── Per-episode TD tracking ───────────────────────────────────────────
         self._prev_phi:          Optional[np.ndarray] = None
@@ -177,11 +185,11 @@ class LinearVFAPolicy(Policy):
         self._prev_congestions:  int   = 0
 
         # Buffer for Synchronous Batch Learning
-        self.batch_buffer: List[Tuple[np.ndarray, float, np.ndarray]] = []
-
+        self.batch_buffer: List[Tuple[np.ndarray, float, np.ndarray, float]] = []
+        
         # Buffer for Experience Replay (Mini-Batch SGD)
         self.use_experience_replay = False
-        self.replay_buffer = deque(maxlen=50000)
+        self.replay_buffer = deque(maxlen=2000)
         self.mini_batch_size = 64
 
         # logging for RL decisions (e.g., depot visits)
@@ -345,8 +353,8 @@ class LinearVFAPolicy(Policy):
             k = self._sid_to_idx[sid]
             
             # Extract true physical inventory directly from the station objects
-            station_bikes = station.bikes if isinstance(station.bikes, dict) else {}
-            for bike in station_bikes.values():
+            station_bikes = station.bikes.values() if isinstance(station.bikes, dict) else station.bikes
+            for bike in station_bikes:
                 status = getattr(bike, 'damage_status', None)
                 if status == 'onsite':
                     onsite[k] += 1
@@ -379,11 +387,21 @@ class LinearVFAPolicy(Policy):
         delta_onsite_repairs: int = 0,
         time_remaining: Optional[float] = None,
         shift_length: float = 1440.0,
-        next_station_id: str = None,
+        next_station_id: Optional[str] = None,
     ) -> np.ndarray:
         """
         Compute φ(S^x) for the post-decision state.
         """
+        # Explicitly tell Pylance the lazy caches are populated
+        assert self._target_matrix is not None
+        assert self._activity_profile is not None
+        assert self._travel_time_matrix is not None
+        assert self._capacities is not None
+        assert self._lambda_max_system is not None
+        assert self._max_gravity is not None
+        assert self._N_stations is not None
+        assert self.cached_fleet_size is not None
+
         func_post = func.copy()
         onsite_post = onsite.copy()
 
@@ -639,23 +657,26 @@ class LinearVFAPolicy(Policy):
 
         return td_error'''
         
-    def td_update(self, reward: float, phi_next: np.ndarray) -> float:
+    def td_update(self, reward: float, phi_next: np.ndarray, elapsed_minutes: float) -> float:
         if self._prev_phi is None:
             return 0.0
 
         # Compute pre-update values for logging
         v_cur = self.value(self._prev_phi)
         v_next = self.value(phi_next)
-        td_error = reward + (self.gamma * v_next) - v_cur
+        
+        # Apply continuous time discounting
+        discount = self.gamma ** (elapsed_minutes / 60.0)
+        td_error = reward + (discount * v_next) - v_cur
 
         # --- SMART LOGGING ---
         if reward < -0.01 or abs(td_error) > 1.0:
-            target_value = reward + self.gamma * v_next
+            target_value = reward + discount * v_next
             print(f"    [TD Alert] Reward: {reward:6.3f} | V(S): {v_cur:6.3f} | Target: {target_value:6.3f} | TD Err: {td_error:6.3f}")
 
         if getattr(self, 'use_experience_replay', False):
             # 1. Experience Replay Logging
-            self.replay_buffer.append((self._prev_phi.copy(), reward, phi_next.copy()))
+            self.replay_buffer.append((self._prev_phi.copy(), reward, phi_next.copy(), elapsed_minutes))
             
             # 2. Trigger mini batch update if buffer has enough experiences (Warmup phase)
             # Typically wait until we have a decent number of samples to break initial correlation
@@ -663,16 +684,14 @@ class LinearVFAPolicy(Policy):
                 self.apply_mini_batch_update()
         else:
             # 1. Store transition for synchronous batch update
-            self.batch_buffer.append((self._prev_phi.copy(), reward, phi_next.copy()))
-            if len(self.batch_buffer) >= self.mini_batch_size:
-                self.apply_batch_update()
+            self.batch_buffer.append((self._prev_phi.copy(), reward, phi_next.copy(), elapsed_minutes))
 
         return td_error
 
     def apply_mini_batch_update(self) -> None:
         """
         Randomly samples exactly 'mini_batch_size' transitions from the replay buffer
-        and updates the weights using SGD with Momentum.
+        and updates the weights using plain mini-batch SGD.
         """
         if len(self.replay_buffer) < self.mini_batch_size:
             return
@@ -684,27 +703,25 @@ class LinearVFAPolicy(Policy):
         total_gradient = np.zeros_like(self.theta)
         total_td = 0.0
 
-        for phi_cur, reward, phi_nxt in batch:
+        # Compute gradient over the sampled mini-batch
+        for phi_cur, reward, phi_next, elapsed_minutes in batch:
             v_cur = self.value(phi_cur)
-            v_next = self.value(phi_nxt)
-            td_err = reward + (self.gamma * v_next) - v_cur
+            v_next = self.value(phi_next)
             
-            total_td += td_err
-            total_gradient += td_err * phi_cur
+            # Apply continuous time discounting based on an hourly rate
+            discount = self.gamma ** (elapsed_minutes / 60.0)
+            td_error = np.clip(reward + (discount * v_next) - v_cur, -5.0, 5.0)
+
+            total_td += td_error
+            total_gradient += td_error * phi_cur
 
         avg_gradient = total_gradient / self.mini_batch_size
-        mean_td = total_td / self.mini_batch_size
 
-        # Apply SGD with Momentum Update
-        self.velocity = (self.momentum * self.velocity) + avg_gradient
-        step = self.alpha * self.velocity
-        self.theta += step
-
-        # THE MISSING SHIELD: Force all weights to be 0.0 or negative
-        self.theta = np.minimum(self.theta, 0.0)
+        # Plain SGD: no momentum, no weight sign constraint
+        self.theta += self.alpha * avg_gradient
         self.weights = list(self.theta)
 
-        # Note: We omit logging here to avoid spamming the console 
+        # Note: We omit logging here to avoid spamming the console
         # since this triggers at EVERY decision step.
 
     def apply_batch_update(self) -> None:
@@ -719,55 +736,38 @@ class LinearVFAPolicy(Policy):
         total_gradient = np.zeros_like(self.theta)
         total_td = 0.0
 
-        # Compute gradient over the entire buffered batch
-        for phi_cur, reward, phi_next in self.batch_buffer:
+       # Compute gradient over the entire buffered batch
+        for phi_cur, reward, phi_next, elapsed_minutes in self.batch_buffer:
             v_cur = self.value(phi_cur)
             v_next = self.value(phi_next)
-            td_error = reward + (self.gamma * v_next) - v_cur
             
+            # Apply continuous time discounting based on an hourly rate
+            discount = self.gamma ** (elapsed_minutes / 60.0)
+            
+            # REMOVED CLIPPING: Let the raw reward signal flow through!
+            td_error = reward + (discount * v_next) - v_cur
+
             total_td += td_error
-            # The gradient for a linear model is exactly the feature vector phi.
             total_gradient += td_error * phi_cur
 
-        # Average the batch gradients
-        avg_gradient = total_gradient / n_transitions
         mean_td = total_td / n_transitions
 
         old_theta = self.theta.copy()
-        
-        # 1. Apply SGD with Momentum Update
-        self.velocity = (self.momentum * self.velocity) + avg_gradient
-        step = self.alpha * self.velocity
+
+        # FIXED: Accumulate the trajectory's gradient (Sum, not Average)
+        sum_gradient = total_gradient
+        step = self.alpha * sum_gradient
         self.theta += step
-        
-        # --- OPTIONAL: Alternative Adam Update (Commented out) ---
-        # self.adam_t += 1
-        # self.adam_m = self.adam_beta1 * self.adam_m + (1 - self.adam_beta1) * avg_gradient
-        # self.adam_v = self.adam_beta2 * self.adam_v + (1 - self.adam_beta2) * (avg_gradient ** 2)
-        # m_hat = self.adam_m / (1 - self.adam_beta1 ** self.adam_t)
-        # v_hat = self.adam_v / (1 - self.adam_beta2 ** self.adam_t)
-        # step = self.alpha * m_hat / (np.sqrt(v_hat) + self.adam_epsilon)
-        # self.theta += step
 
-        # 2. THE MISSING SHIELD: Force all weights to be 0.0 or negative
-        self.theta = np.minimum(self.theta, 0.0)
-
-        # 3. Save the safely bounded weights
+        # Save the updated weights
         self.weights = list(self.theta)
 
         # --- CONCISE BATCH LOGGING ---
-        grad_norm = np.linalg.norm(avg_gradient)
+        grad_norm = np.linalg.norm(sum_gradient)
         weight_diff = np.linalg.norm(self.theta - old_theta)
-        vel_norm = np.linalg.norm(self.velocity)
         step_norm = np.linalg.norm(step)
 
-        print(f"    [BATCH UPDATE] Processed {n_transitions} transitions | Mean TD Error: {mean_td:.4f} | Grad Norm: {grad_norm:.4f} | Theta Diff: {weight_diff:.4f}")
-        print(f"    [SGD+M DEBUG]  Velocity Norm: {vel_norm:.4f} | Raw Step Norm: {step_norm:.4f}")
-        
-        # --- OPTIONAL: Adam Debug Logging (Commented out) ---
-        # m_norm = np.linalg.norm(m_hat)
-        # v_norm = np.linalg.norm(v_hat)
-        # print(f"    [ADAM DEBUG]   m_hat Norm: {m_norm:.4f} | v_hat Norm: {v_norm:.4f} | Raw Step Norm: {step_norm:.4f}")
+        print(f"    [BATCH UPDATE] Processed {n_transitions} transitions | Mean TD Error: {mean_td:.4f} | Grad Norm: {grad_norm:.4f} | Theta Diff: {weight_diff:.4f} | Step Norm: {step_norm:.4f}")
 
         # Dump buffer for the next trajectory sync phase
         self.batch_buffer.clear()
@@ -1304,9 +1304,11 @@ class LinearVFAPolicy(Policy):
             # Consume the reward signal safely
             reward = self.reward_calc.compute_step_reward(state.metrics)
             
+            elapsed_minutes = state.time - self._prev_time
+            
             # FIXED: We expect to take the BEST action next, so use argmax!
             phi_next = phis[int(np.argmax(values))]
-            td_err = self.td_update(reward, phi_next)
+            td_err = self.td_update(reward, phi_next, elapsed_minutes)
             
         elif self.learning_mode and self._prev_phi is None:
             _ = self.reward_calc.compute_step_reward(state.metrics)
@@ -1334,6 +1336,7 @@ class LinearVFAPolicy(Policy):
 
         # ── Step 7: cache post-decision features for next TD update ───────
         self._prev_phi = phis[sel_idx]
+        self._prev_time = state.time
 
         # ── Step 8: Log the Brain's Decision (NEW) ────────────────────────
         if getattr(self, 'log_rl_decisions', False):
@@ -1360,23 +1363,10 @@ class LinearVFAPolicy(Policy):
     # Episode boundary reset  (called by EpisodeTrainingPolicy.__init__)
     # ─────────────────────────────────────────────────────────────────────────
 
-    '''def reset_episode(self) -> None:
-        
-        Clear per-episode TD tracking state.
-
-        Does NOT reset θ or the station caches — those persist across episodes.
-        
-        self._prev_phi         = None
-        self._prev_starvations = 0
-        self._prev_congestions = 0
-        
-        # RL decision making logging
-        self.log_rl_decisions = True  
-        self.rl_logs = []'''
-    
     def reset_episode(self) -> None:
         self._prev_phi = None
-        # Delegate reset to the calculator
+        self._prev_time = None  # New line
+        self.velocity = np.zeros_like(self.theta)
         self.reward_calc.reset_episode()
     # ─────────────────────────────────────────────────────────────────────────
     # Serialisation

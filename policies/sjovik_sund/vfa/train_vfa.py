@@ -31,6 +31,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 
 # ── Workspace root on sys.path ────────────────────────────────────────────────
 WORKSPACE_ROOT = Path(__file__).parents[3]
@@ -56,7 +57,7 @@ WARMUP_DAYS   : int   = 2         # greedy warm-up, no TD updates
 LEARNING_DAYS : int   = 12        # VFA + TD(0)  (days 5 – 14)
 
 # --- Learning Rate (Alpha) & Exploration (Epsilon) ---
-ALPHA_START   : float = 0.001   # initial alpha for TD updates, will be overwritten in case of argument passing
+ALPHA_START   : float = 0.1   # initial alpha for TD updates, will be overwritten in case of argument passing
 EPSILON_START : float = 0.2     # initial exploration rate
 EPSILON_END   : float = 0.01    # final exploration rate
 
@@ -109,7 +110,7 @@ def _service_level(simulator, vfa_policy) -> float:
 
 def train(
     num_episodes  : int   = NUM_EPISODES,
-    save_path     : Path  = None,
+    save_path     : Optional[Path] = None,
     seed_offset   : int   = 0,
     instance_name : str   = INSTANCE_NAME,
     active_features: list | None = None,
@@ -138,9 +139,11 @@ def train(
         The trained LinearVFAPolicy (θ frozen after training).
     """
     
-    # <-- Alpha decay logic for preliminary testing -->
-    alpha_end = alpha_start * 0.1 # Decay alpha to 10% of its initial value by the end of training
-    alpha_decay = (alpha_end / alpha_start) ** (1.0 / max(num_episodes - 1, 1))
+    # Harmonic decay: α_t = α_0 / (1 + c·t)
+    # Satisfies Robbins-Monro conditions (Σα→∞, Σα²<∞), unlike geometric decay.
+    # c chosen so α reaches ~10% of α_start by the final episode.
+    harmonic_c = 9.0 / max(num_episodes - 1, 1)
+    alpha_end  = alpha_start / (1.0 + harmonic_c * (num_episodes - 1))
 
     # <-- Epsilon decay logic -->
     epsilon_decay = (epsilon_end / epsilon_start) ** (1.0 / max(num_episodes - 1, 1)) if epsilon_start > 0 else 1.0
@@ -179,8 +182,7 @@ def train(
     # To run the Kitchen Sink later, comment out `baseline_features` and 
     # uncomment the original active_features lines below.
     baseline_features = [
-        #"rebalancing_imbalance",
-        "anticipated_demand_shortfall",
+        "rebalancing_imbalance",
         "squared_starvation_penalty",
         "squared_congestion_penalty",
     ]
@@ -207,10 +209,10 @@ def train(
     # --- EXPERIENCE REPLAY TOGGLE ---
     # Set to True to use Mini-Batch SGD at every timestep 
     # Set to False to keep your well-working Episodic Synchronous Batching
-    vfa_policy.use_experience_replay = True
-    vfa_policy.mini_batch_size = 64
+    vfa_policy.use_experience_replay = False
+    vfa_policy.mini_batch_size = 32
     ###############################################################################
-    greedy_policy = DoNothing()
+    greedy_policy = GreedyPolicy()
 
     # Warm-up ends at this absolute simulation-time (minutes).
     sim_start_min   = timeInMinutes(hours=START_HOUR)
@@ -235,7 +237,7 @@ def train(
         
         ###########
         # ── Calculate current dynamic parameters ─────────────────────────
-        current_alpha = max(alpha_end, alpha_start * (alpha_decay ** ep))
+        current_alpha = alpha_start / (1.0 + harmonic_c * ep)
         current_epsilon = max(epsilon_end, epsilon_start * (epsilon_decay ** ep)) if epsilon_start > 0 else 0.0
 
         print(f"\n[DEBUG] Episode {ep+1}: Calculated alpha={current_alpha:.5f}, epsilon={current_epsilon:.5f}")
@@ -330,6 +332,7 @@ def train(
             partial_df.insert(1, 'service_level', partial_service)
 
             # Append to CSV, write header only if file does not exist
+            assert weights_csv_path is not None
             write_header = not weights_csv_path.exists()
             with open(weights_csv_path, 'a') as f:
                 partial_df.to_csv(f, header=write_header, index=False)
@@ -356,6 +359,8 @@ def train(
         partial_df = pd.DataFrame(partial_weights, columns=feature_names)
         partial_df.insert(0, 'episode', partial_episodes)
         partial_df.insert(1, 'service_level', partial_service)
+        
+        assert weights_csv_path is not None
         write_header = not weights_csv_path.exists()
         with open(weights_csv_path, 'a') as f:
             partial_df.to_csv(f, header=write_header, index=False)
@@ -411,7 +416,7 @@ if __name__ == "__main__":
         default=1000,
         metavar="OFFSET",
         help="Seed offset: episode i uses random seed = offset + i",
-    ),
+    )
     
     parser.add_argument(
         "--instance",

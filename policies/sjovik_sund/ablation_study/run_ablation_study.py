@@ -39,6 +39,7 @@ import sys
 import argparse
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
  
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
@@ -57,6 +58,28 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 # ─────────────────────────────────────────────────────────────────────────────
  
 EXPERIMENTS = {
+     # 5. V2 Core Adapted
+    # Translated from V2_Core (SGDMINIBATCH_NEWROUTES), the best historical performer
+    # (SL=0.945 in 100 episodes at α=0.001). Squared penalties + tail-risk severity +
+    # demand anticipation. Dropped time_of_day_fraction (not in current feature set).
+    "V2_Core_Adapted": [
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
+        "starvation_severity_max",        # A9: Tail-risk severity
+        "projected_starvation_risk",      # D4
+    ],
+
+    # 3. Optimal Orthogonal Mix
+    # Hypothesis: Maximum strategic efficiency is achieved by providing the VFA with exactly one
+    # clean signal from each mathematically independent cluster to eliminate noise.
+    "Optimal_Orthogonal_Mix": [
+        "squared_starvation_penalty",     # A3: Balanced non-linear penalty
+        "squared_congestion_penalty",     # A4: Balanced non-linear penalty
+        "imbalance_hotspot_distance",     # A14: Spatial routing difficulty left for later
+        "projected_starvation_risk",      # D4: Multi-hour demand anticipation
+        "projected_congestion_risk",      # D5: Multi-hour return anticipation
+    ],
+
     # 1. Macro vs Future
     # Hypothesis: The VFA only needs to evaluate total global volume and incoming demand waves
     # because the tactical rollout algorithm perfectly handles local spatial routing.
@@ -74,18 +97,7 @@ EXPERIMENTS = {
         "exponential_congestion_penalty", # A6: Punishes leaving severe, deep congestion
         "projected_starvation_risk",      # D4: Ensures future demand doesn't make it worse
     ],
- 
-    # 3. Optimal Orthogonal Mix
-    # Hypothesis: Maximum strategic efficiency is achieved by providing the VFA with exactly one
-    # clean signal from each mathematically independent cluster to eliminate noise.
-    "Optimal_Orthogonal_Mix": [
-        "squared_starvation_penalty",     # A3: Balanced non-linear penalty
-        "squared_congestion_penalty",     # A4: Balanced non-linear penalty
-        "imbalance_hotspot_distance",     # A14: Spatial routing difficulty left for later
-        "projected_starvation_risk",      # D4: Multi-hour demand anticipation
-        "projected_congestion_risk",      # D5: Multi-hour return anticipation
-    ],
- 
+
     # 4. Squared Temporal
     # Minimal reliable set: squared penalties cover current-state imbalance depth,
     # temporal features cover symmetric future demand. No spatial features that consistently
@@ -95,17 +107,6 @@ EXPERIMENTS = {
         "squared_congestion_penalty",     # A4
         "projected_starvation_risk",      # D4
         "projected_congestion_risk",      # D5
-    ],
- 
-    # 5. V2 Core Adapted
-    # Translated from V2_Core (SGDMINIBATCH_NEWROUTES), the best historical performer
-    # (SL=0.945 in 100 episodes at α=0.001). Squared penalties + tail-risk severity +
-    # demand anticipation. Dropped time_of_day_fraction (not in current feature set).
-    "V2_Core_Adapted": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "starvation_severity_max",        # A9: Tail-risk severity
-        "projected_starvation_risk",      # D4
     ],
  
     # 6. Severity Temporal
@@ -155,7 +156,7 @@ EXPERIMENTS = {
 # Runner
 # ─────────────────────────────────────────────────────────────────────────────
  
-def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[str] = None, alphas: list[float] = None):
+def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: Optional[list[str]] = None, alphas: Optional[list[float]] = None, output_dir: str = "results"):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -166,27 +167,34 @@ def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[st
  
     experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
  
-    base_dir = Path("models/ablation_study_solstorm_NEW_2")
-    base_dir.mkdir(parents=True, exist_ok=True)
- 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
  
-    for alpha in alphas:
+    # 1. OUTERMOST LOOP: Seeds
+    for run_id, seed_offset in enumerate(seeds):
         print(f"\n{'='*60}")
-        print(f"RUNNING WITH ALPHA: {alpha}")
+        print(f"STARTING SEED: {seed_offset}  (Run {run_id + 1}/{len(seeds)})")
         print(f"{'='*60}")
-        for exp_name, features in experiments.items():
-            print(f"\n{'='*40}")
-            print(f"EXPERIMENT: {exp_name}  ({len(features)} features)")
-            for f in features:
-                print(f"  - {f}")
-            print(f"{'='*40}")
+        
+        # 2. MIDDLE LOOP: Alphas
+        for alpha in alphas:
+            print(f"\n  -> RUNNING WITH ALPHA: {alpha}")
+            
+            # 3. INNERMOST LOOP: Experiments
+            for exp_name, features in experiments.items():
+                print(f"\n{'='*40}")
+                print(f"EXPERIMENT: {exp_name} | Alpha: {alpha} | Seed: {seed_offset}")
+                for f in features:
+                    print(f"  - {f}")
+                print(f"{'='*40}")
+
+                # Force 'models' to be the root, and add your custom folder name inside it
+                base_dir = Path("models") / output_dir
+                exp_dir = base_dir / f"{exp_name}_alpha_{alpha}_{timestamp}"
+                
+                # Safely create the whole chain (models -> custom_name -> exp_name)
+                # exist_ok=True ensures subsequent seeds peacefully reuse this folder
+                exp_dir.mkdir(parents=True, exist_ok=True)
  
-            exp_dir = base_dir / f"{exp_name}_alpha_{alpha}_{timestamp}"
-            exp_dir.mkdir(exist_ok=True)
- 
-            for run_id, seed_offset in enumerate(seeds):
-                print(f"\n  Run {run_id + 1}/{len(seeds)}  (seed={seed_offset})")
                 train(
                     num_episodes=episodes,
                     save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}.pkl",
@@ -194,7 +202,6 @@ def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: list[st
                     active_features=features,
                     alpha_start=alpha,
                 )
- 
  
 # ─────────────────────────────────────────────────────────────────────────────
 # CLI
@@ -219,8 +226,12 @@ if __name__ == "__main__":
         help="Subset of experiments to run (default: all)",
     )
     parser.add_argument(
-        "--alphas", nargs="+", type=float, default=[0.01], metavar="ALPHA",
+        "--alphas", nargs="+", type=float, default=[0.1,0.05], metavar="ALPHA",
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
+    )
+
+    parser.add_argument("--output_dir", type=str, default="results", 
+                        help="Directory to save experiment results"
     )
  
     args = parser.parse_args()
@@ -228,7 +239,8 @@ if __name__ == "__main__":
         seeds=args.seeds,
         episodes=args.episodes,
         run_only=args.experiments,
-        alphas=args.alphas
+        alphas=args.alphas,
+        output_dir=args.output_dir
     )
  
     # ── Axis 2: Spatial Recoverability ───────────────────────────────────────
