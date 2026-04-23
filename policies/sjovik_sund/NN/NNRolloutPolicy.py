@@ -78,12 +78,13 @@ import sim
 
 from policies.policy import Policy
 from policies.sjovik_sund.NN.NNGreedyPolicy import NNGreedyPolicy
-from policies.sjovik_sund.mdp.mdp_formulation import extract_mdp_state
+from policies.sjovik_sund.mdp.mdp_formulation import extract_mdp_state, PostDecisionState
 from policies.sjovik_sund.mdp.mdp_config import MDPConfig
 from policies.sjovik_sund.mdp.reward import RewardCalculator
 from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
 from policies.sjovik_sund.NN.nn_model import NNValueNetwork
 from policies.sjovik_sund.NN.nn_state_encoder import encode_state
+from policies.sjovik_sund.NN.nn_debug_logger import MaintenanceDebugLogger
 
 
 class NNRolloutPolicy(Policy):
@@ -110,9 +111,13 @@ class NNRolloutPolicy(Policy):
         nn_model:            NNValueNetwork,
         lookahead_minutes:   float = 60.0,
         num_scenarios:       int   = 8,
+        n_rollout_candidates:int   = 5,    
         gamma:               float = 0.99,
         maintenance_enabled: bool  = True,
         depot_id:            str   = None,
+        congestion_weight:   float = -0.7,
+        debug_logger:        "MaintenanceDebugLogger" = None,
+        rollout_log_every:   int   = 1,   # log every N rollout decisions (use >1 to reduce volume)
     ):
         super().__init__(maintenance_enabled=maintenance_enabled)
 
@@ -123,8 +128,11 @@ class NNRolloutPolicy(Policy):
 
         self.lookahead_minutes   = lookahead_minutes
         self.num_scenarios       = num_scenarios
+        self.n_rollout_candidates = n_rollout_candidates
         self.gamma               = gamma
         self.depot_id            = depot_id
+        self._debug_logger       = debug_logger
+        self._rollout_log_every  = rollout_log_every
 
         # MDP config derived directly from maintenance flag — no VFA needed.
         self._mdp_config = (
@@ -132,12 +140,13 @@ class NNRolloutPolicy(Policy):
             else MDPConfig.no_maintenance()
         )
 
-        # RewardCalculator with default RewardConfig.
+        # 1. First, create the reward config using the default settings
         self._reward_config = RewardCalculator(gamma=gamma).config
-
-        # NNGreedyPolicy is used as the base policy for cloned vehicles during
-        # the rollout fast-forward — equivalent to VFA being the base policy in
-        # HybridRolloutPolicy. Greedy NN scoring, no recursive rollout.
+        
+        # 2. THEN, override the congestion weight with the passed argument
+        self._reward_config.weight_congestion = congestion_weight
+        
+        # 3. Finally, NNGreedyPolicy is instantiated...
         self._base_policy = NNGreedyPolicy(
             nn_model=nn_model,
             config=self._mdp_config,
@@ -288,42 +297,84 @@ class NNRolloutPolicy(Policy):
                 encoded["global_context"].to(device),
             )
 
+        raw_terminal_value = value_tensor.item() * 227.80667
+        return raw_terminal_value
         # Step 4: unwrap to a Python scalar
-        return value_tensor.item()
+        #return value_tensor.item()
 
     # ─────────────────────────────────────────────────────────────────────────
     # Main decision method
     # ─────────────────────────────────────────────────────────────────────────
 
 
+    # Number of top candidates (by cheap NN pre-score) to send to full rollout.
+    # Mirrors HybridRolloutPolicy.N_ROLLOUT_CANDIDATES.
+    N_ROLLOUT_CANDIDATES = 15 #5
+
     def get_best_action(self, state, vehicle):
         """
         Select the best action for the arriving vehicle using rollout + NN.
 
-        For each candidate action, num_scenarios independent rollouts are run.
-        The Q-value of an action is the average over scenarios of:
+        Two-stage evaluation (mirrors HybridRolloutPolicy):
+          1. Pre-score ALL candidates cheaply via a single NN forward pass on
+             the post-decision state (no simulator cloning).
+          2. Run full Monte Carlo rollout only on the top N_ROLLOUT_CANDIDATES.
 
+        Q-value per rollout candidate:
             Q(a, ω) = Σ_t γ^t r_t  +  γ^H · V_NN(S^x_terminal)
 
-        where r_t are step rewards (starvation/congestion penalties) and
-        V_NN is the neural network's terminal value estimate.
-
-        The action with the highest (least negative) Q-value is returned.
+        The action with the highest mean Q-value across scenarios is returned.
         """
-        # --- Enumerate candidate actions ---
-        # Calls the shared standalone function from mdp/candidate_generator.py.
-        # No VFA initialisation needed; generate_candidates() reads directly
-        # from sim.State and sim.Vehicle.
-        candidates = generate_candidates(
+        # --- Step 1: enumerate (MdpAction, sim.Action) pairs ---
+        mdp_state = extract_mdp_state(
+            sim_state=state,
+            active_vehicle_id=vehicle.id,
+            config=self._mdp_config,
+            depot_id=self.depot_id,
+            shift_end_time=getattr(vehicle, "shift_end_time", None),
+        )
+
+        pairs = generate_candidates(
             state=state,
             vehicle=vehicle,
             maintenance_enabled=self.maintenance_enabled,
+            return_pairs=True,
+            wide_search=True,
         )
+
+        if not pairs:
+            return None
+
+        # --- Step 2: cheap NN pre-score → prune to top N_ROLLOUT_CANDIDATES ---
+        device = next(self.nn_model.parameters()).device
+        pre_scores = []
+        with torch.no_grad():
+            for mdp_action, sim_action in pairs:
+                try:
+                    post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
+                    enc = encode_state(post_state)
+                except Exception as e:
+                    print(f"[NNRollout] pre-score failed: {e}")
+                    continue
+                v = self.nn_model(
+                    enc["station_block"].to(device),
+                    enc["vehicle_block"].to(device),
+                    enc["global_context"].to(device),
+                ).item()
+
+                raw_v = v * 227.80667
+                pre_scores.append((raw_v, mdp_action, sim_action))
+
+        pre_scores.sort(key=lambda x: x[0], reverse=True)
+        candidates = [sim_action for _, _, sim_action in pre_scores[:self.n_rollout_candidates]]
+
+        if not candidates:
+            return None
 
         best_action  = None
         best_q_value = -float("inf")
 
-        # --- Score each candidate via Monte Carlo rollout ---
+        # --- Step 3: full Monte Carlo rollout on pruned candidates ---
         for action in candidates:
             total_q = 0.0
 
@@ -356,7 +407,8 @@ class NNRolloutPolicy(Policy):
                         break
                     clone_sim.single_step()
 
-                    step_reward   = reward_calc.compute_step_reward(clone_state.metrics)
+                    step_reward   = (reward_calc.compute_step_reward(clone_state.metrics)
+                                     + reward_calc.compute_fleet_penalty(clone_state))
                     time_elapsed  = clone_state.time - state.time
                     # Discount grows with elapsed time; each 60-minute unit = one γ step
                     discount      = self.gamma ** max(time_elapsed / 60.0, 0.0)
@@ -376,5 +428,15 @@ class NNRolloutPolicy(Policy):
             if mean_q > best_q_value:
                 best_q_value = mean_q
                 best_action  = action
+
+        if self._debug_logger is not None:
+            self._debug_logger.log_rollout_decision(
+                sim_time=state.time,
+                vehicle_id=vehicle.id,
+                pre_scored=pre_scores,
+                chosen_sim_action=best_action,
+                sim_state=state,
+                log_every=self._rollout_log_every,
+            )
 
         return best_action

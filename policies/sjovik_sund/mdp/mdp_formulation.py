@@ -622,7 +622,7 @@ def _count_bikes(station, config: Optional[MDPConfig] = None) -> Tuple[int, int,
         return len(station.bikes), 0, 0
 
     functional = onsite = depot = 0
-    for bike in station.bikes:
+    for bike in station.bikes.values():
         ds = getattr(bike, "damage_status", None)
         if ds == "depot":
             depot += 1
@@ -777,11 +777,12 @@ def extract_mdp_state(
             expected_arrival_rate=s.get_arrive_intensity(sim_day, sim_hour),
         )
 
-    if depot_id is not None:
-        for d in sim_state.get_depots():
-            if d.id == depot_id:
-                depot = extract_depot_inventory(d, cfg)
-                break
+    for d in sim_state.get_depots():
+        if depot_id is None or d.id == depot_id:
+            depot = extract_depot_inventory(d, cfg)
+            if depot_id is None:
+                depot_id = d.id  # use first depot found
+            break
 
     vehicles = {
         v.id: extract_vehicle_status(v, sim_state.time, cfg)
@@ -798,7 +799,10 @@ def extract_mdp_state(
             for sid in stations
         }
         if depot_id is not None:
-            travel_times[depot_id] = sim_state.get_travel_time(active_loc, depot_id)
+            try:
+                travel_times[depot_id] = sim_state.get_travel_time(active_loc, depot_id)
+            except (KeyError, Exception):
+                pass  # depot not in locations dict for this sim instance
 
     return MDPState(
         time=sim_state.time,

@@ -6,7 +6,8 @@ class RewardConfig:
     weight_starvation: float = -1.0
     weight_congestion: float = -0.7
     weight_maintenance_violation: float = 0.0  # Set to >0 to penalize broken bikes left alone
-    
+    weight_fleet_degradation: float = -0.5     # Penalizes total_broken / total_fleet ratio each step
+
     # --- End-of-Day Components (from your existing code) ---
     not_at_depot_at_end_penalty: float = 0.0 #-1000.0
     functional_bikes_at_end_penalty: float = 0.0 #-50.0
@@ -49,6 +50,27 @@ class RewardCalculator:
         self._prev_starvations = 0
         self._prev_congestions = 0
         self._prev_trips = 0  # <--- NEW
+
+    def compute_fleet_penalty(self, sim_state) -> float:
+        """
+        Penalize total_broken / total_fleet ratio at this moment.
+        Call once per decision epoch alongside compute_step_reward.
+        Returns a negative float (or 0.0 if weight is 0 or no stations).
+        """
+        if self.config.weight_fleet_degradation == 0.0:
+            return 0.0
+        total_bikes  = 0
+        total_broken = 0
+        for s in sim_state.get_stations():
+            for bike in s.get_bikes():
+                total_bikes += 1
+                ds = getattr(bike, "damage_status", None)
+                if ds in ("depot", "onsite"):
+                    total_broken += 1
+        if total_bikes == 0:
+            return 0.0
+        ratio = total_broken / total_bikes
+        return self.config.weight_fleet_degradation * ratio * self._scale_factor
 
     def compute_step_reward(self, simulator_metrics) -> float:
         """Calculates the reward since the last decision epoch."""
