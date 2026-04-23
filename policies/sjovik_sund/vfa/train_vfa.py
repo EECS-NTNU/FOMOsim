@@ -43,6 +43,7 @@ from policies.do_nothing_policy import DoNothing
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy
 from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_feature_names
 from policies.sjovik_sund.run_simulation_ingvild import run_simulation, SimulationConfig, write_simulation_outputs
+from policies.sjovik_sund.mdp.reward import RewardConfig, RewardCalculator
 from settings import ENABLE_COMPONENT_FAILURES
 
 
@@ -114,10 +115,12 @@ def train(
     seed_offset   : int   = 0,
     instance_name : str   = INSTANCE_NAME,
     active_features: list | None = None,
-    gamma         : float = GAMMA,       
+    gamma         : float = GAMMA,
     alpha_start   : float = ALPHA_START,
     epsilon_start : float = EPSILON_START,
     epsilon_end   : float = EPSILON_END,
+    weight_starvation : float = -1.0,
+    weight_congestion : float = -0.7,
 ) -> LinearVFAPolicy:
     
     # BATCH SIZE configuration
@@ -166,44 +169,25 @@ def train(
 
     SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
+
     # ── Initialise VFA policy  (θ persists across ALL episodes) ───────────────
-    '''vfa_policy = LinearVFAPolicy(
-        active_features=active_features,
-        n_features    = len(active_features) if active_features is not None else N_FEATURES,
-        alpha         = alpha_start,
-        gamma         = gamma,          
-        learning_mode = True,
-        seed          = 42,
-        maintenance_enabled=ENABLE_COMPONENT_FAILURES,
-        shift_timing_enabled=SHIFT_TIMING_ENABLED,
-    )'''
-    ########################################################
-    # --- ABLATION STUDY TOGGLES ---
-    # To run the Kitchen Sink later, comment out `baseline_features` and 
-    # uncomment the original active_features lines below.
-    baseline_features = [
-        "rebalancing_imbalance",
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-    ]
+    reward_config = RewardConfig(
+        weight_starvation=weight_starvation,
+        weight_congestion=weight_congestion,
+    )
+    
+    print(f" RewardConfig: weight_starvation={reward_config.weight_starvation}, weight_congestion={reward_config.weight_congestion}")
 
     vfa_policy = LinearVFAPolicy(
-        # --- COMMENT OUT THE OLD KITCHEN SINK CONFIG ---
-        # active_features=active_features,
-        # n_features    = len(active_features) if active_features is not None else N_FEATURES,
-        
-        # --- UNCOMMENT THIS FOR CLEAN ALPHA TUNING ---
-        #active_features=baseline_features,
-        active_features=active_features if active_features is not None else baseline_features,
-        n_features    = len(active_features) if active_features is not None else len(baseline_features),
-        
-        # --- EVERYTHING BELOW REMAINS EXACTLY THE SAME ---
+        active_features=active_features,
+        n_features=len(active_features) if active_features is not None else N_FEATURES,
         alpha         = alpha_start,
-        gamma         = gamma,          
+        gamma         = gamma,
         learning_mode = True,
         seed          = 42,
         maintenance_enabled=ENABLE_COMPONENT_FAILURES,
         shift_timing_enabled=SHIFT_TIMING_ENABLED,
+        reward_calculator=RewardCalculator(config=reward_config, gamma=gamma),
     )
     
     # --- EXPERIENCE REPLAY TOGGLE ---
@@ -273,7 +257,8 @@ def train(
         )
 
         # --- WRITE CSV FILES INTO FOLDERS ---
-        filename = f"run_{run_timestamp}/ep_{ep:03d}/vfa_training_{instance_name}.csv"
+        # Only use for specific debug as it takes up too much space
+        '''filename = f"run_{run_timestamp}/ep_{ep:03d}/vfa_training_{instance_name}.csv"
         
         write_simulation_outputs(
             simulator=simulator,
@@ -283,7 +268,7 @@ def train(
             duration=24 * EPISODE_DAYS,
             num_vehicles=NUM_VEHICLES,
             append_to_results=False
-        )
+        )'''
         # ----------------------------
 
         sl = _service_level(simulator, vfa_policy)
@@ -346,9 +331,6 @@ def train(
 
     vfa_policy.save(save_path)
 
-    #curve_path = Path(str(save_path).replace(".pkl", "_learning_curve.npy"))
-    #np.save(curve_path, np.array(service_levels))
-
     # Write any remaining weights not yet written (if num_episodes not divisible by 5)
     if len(weights_history) % 5 != 0:
         feature_names = vfa_policy.FEATURE_NAMES
@@ -380,7 +362,6 @@ def train(
     )
     print(f"  Total time        : {elapsed / 60:.1f} min")
     print(f"  Model saved       : {save_path}")
-    #print(f"  Learning curve    : {curve_path}")
     print(f"  Weight evolution  : {weights_csv_path}")
     print("=" * 72 + "\n")
 
@@ -449,16 +430,30 @@ if __name__ == "__main__":
         default=EPSILON_END,
         help="Final exploration rate (epsilon) for epsilon-greedy policy"
     )
-    
+    parser.add_argument(
+        "--weight_starvation",
+        type=float,
+        default=-1.0,
+        help="Reward weight for starvation events (default: -1.0)",
+    )
+    parser.add_argument(
+        "--weight_congestion",
+        type=float,
+        default=-0.7,
+        help="Reward weight for congestion events (default: -0.7)",
+    )
+
     args = parser.parse_args()
 
     train(
-        num_episodes  = args.episodes,
-        save_path     = Path(args.save) if args.save else None,
-        seed_offset   = args.seed,
-        instance_name = args.instance,
-        gamma         = args.gamma,         
-        alpha_start   = args.alpha_start,
-        epsilon_start = args.epsilon_start,
-        epsilon_end   = args.epsilon_end
+        num_episodes      = args.episodes,
+        save_path         = Path(args.save) if args.save else None,
+        seed_offset       = args.seed,
+        instance_name     = args.instance,
+        gamma             = args.gamma,
+        alpha_start       = args.alpha_start,
+        epsilon_start     = args.epsilon_start,
+        epsilon_end       = args.epsilon_end,
+        weight_starvation = args.weight_starvation,
+        weight_congestion = args.weight_congestion,
     )

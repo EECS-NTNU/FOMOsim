@@ -58,66 +58,78 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 # ─────────────────────────────────────────────────────────────────────────────
  
 EXPERIMENTS = {
-     # 5. V2 Core Adapted
-    # Translated from V2_Core (SGDMINIBATCH_NEWROUTES), the best historical performer
-    # (SL=0.945 in 100 episodes at α=0.001). Squared penalties + tail-risk severity +
-    # demand anticipation. Dropped time_of_day_fraction (not in current feature set).
-    "V2_Core_Adapted": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "starvation_severity_max",        # A9: Tail-risk severity
-        "projected_starvation_risk",      # D4
+    # ── Short_term_only ───────────────────────────────────────────────────────
+    # Hypothesis: Temporal anticipation (D4/D5) is unnecessary — current-state
+    # global mass (A1) combined with Q95 tail severity on both sides already
+    # captures everything the VFA needs. If this performs comparably to
+    # Squared_Temporal, temporal features provide no net value.
+    "Short_term_only": [
+        "rebalancing_imbalance",          # A1: total L1 imbalance across the network
+        "starvation_severity_max",        # A9: Q95 starvation tail depth
+        "congestion_severity_max",        # A10: Q95 congestion tail depth
     ],
 
-    # 3. Optimal Orthogonal Mix
-    # Hypothesis: Maximum strategic efficiency is achieved by providing the VFA with exactly one
-    # clean signal from each mathematically independent cluster to eliminate noise.
-    "Optimal_Orthogonal_Mix": [
-        "squared_starvation_penalty",     # A3: Balanced non-linear penalty
-        "squared_congestion_penalty",     # A4: Balanced non-linear penalty
-        "imbalance_hotspot_distance",     # A14: Spatial routing difficulty left for later
-        "projected_starvation_risk",      # D4: Multi-hour demand anticipation
-        "projected_congestion_risk",      # D5: Multi-hour return anticipation
+    # ── Exponential_Temporal ─────────────────────────────────────────────────
+    # Hypothesis: Exponential penalties, which disproportionately punish deep
+    # starvation/congestion, produce a better-shaped value surface than squared
+    # penalties when combined with symmetric temporal anticipation. Directly
+    # comparable to Squared_Temporal — same structure, different penalty form.
+    "Exponential_Temporal": [
+        "exponential_starvation_penalty", # A5: exp penalty, emphasises tail states
+        "exponential_congestion_penalty", # A6: symmetric
+        "projected_starvation_risk",      # D4: gross departure pressure
+        "projected_congestion_risk",      # D5: gross arrival pressure
     ],
 
-    # 1. Macro vs Future
-    # Hypothesis: The VFA only needs to evaluate total global volume and incoming demand waves
-    # because the tactical rollout algorithm perfectly handles local spatial routing.
-    "Macro_vs_Future": [
-        "rebalancing_imbalance",          # A1: Total work left in the system today
-        "projected_starvation_risk",      # D4: Future demand wave
-        "projected_congestion_risk",      # D5: Future return wave
-    ],
- 
-    # 2. Base Exponential Future
-    # Hypothesis: The VFA should ignore average network conditions and instead heavily penalize
-    # states that leave deep structural tail risks combined with worsening future demand.
-    "Base_Exponential_Future": [
-        "exponential_starvation_penalty", # A5: Punishes leaving severe, deep starvation
-        "exponential_congestion_penalty", # A6: Punishes leaving severe, deep congestion
-        "projected_starvation_risk",      # D4: Ensures future demand doesn't make it worse
-    ],
-
-    # 4. Squared Temporal
-    # Minimal reliable set: squared penalties cover current-state imbalance depth,
-    # temporal features cover symmetric future demand. No spatial features that consistently
-    # fail to learn. Replaces FullVFA which crashed at α=0.1 due to correlated feature overload.
+    # ── Squared_Temporal ─────────────────────────────────────────────────────
+    # Hypothesis: Squared penalties capture current-state imbalance depth and
+    # symmetric temporal features cover both demand sides. Minimal and stable —
+    # serves as the primary baseline against all other experiments.
     "Squared_Temporal": [
+        "squared_starvation_penalty",     # A3: mean squared starvation depth
+        "squared_congestion_penalty",     # A4: mean squared congestion depth
+        "projected_starvation_risk",      # D4: gross departure pressure
+        "projected_congestion_risk",      # D5: gross arrival pressure
+    ],
+
+    # ── Severity_Temporal ────────────────────────────────────────────────────
+    # Hypothesis: Q95 tail-severity features alone (without mean-penalty features)
+    # are sufficient to distinguish good from bad states, and temporal features
+    # give them forward-looking context. If this matches Squared_Temporal,
+    # tail depth and mean depth carry equivalent information for the VFA.
+    "Severity_Temporal": [
+        "starvation_severity_max",        # A9: Q95 starvation tail depth
+        "congestion_severity_max",        # A10: Q95 congestion tail depth
+        "projected_starvation_risk",      # D4: gross departure pressure
+        "projected_congestion_risk",      # D5: gross arrival pressure
+    ],
+
+    # ── Combined_Temporal ────────────────────────────────────────────────────
+    # Hypothesis: Combining mean-penalty features (A3/A4) with tail-severity
+    # features (A9/A10) gives the VFA both network-wide depth and worst-case
+    # bottleneck signals simultaneously, outperforming either family alone.
+    # If this does not beat Squared_Temporal, A9/A10 add no incremental value.
+    "Combined_Temporal": [
+        "squared_starvation_penalty",     # A3: mean squared starvation depth
+        "squared_congestion_penalty",     # A4: mean squared congestion depth
+        "starvation_severity_max",        # A9: Q95 starvation tail depth
+        "congestion_severity_max",        # A10: Q95 congestion tail depth
+        "projected_starvation_risk",      # D4: gross departure pressure
+        "projected_congestion_risk",      # D5: gross arrival pressure
+    ],
+
+    # ── Starvation_focused ────────────────────────────────────────────────────
+    # Hypothesis: Starvation is the dominant failure mode in this instance, so the
+    # VFA only needs to penalise starvation depth (A3/A9) and anticipate starvation
+    # demand (D4). Congestion features dilute the gradient signal by forcing the
+    # VFA to learn a trade-off that rarely matters in practice. Asymmetric by
+    # design — if this outperforms Squared_Temporal, it confirms that congestion
+    # features are noise rather than signal for this network.
+    "Starvation_focused": [
         "squared_starvation_penalty",     # A3
         "squared_congestion_penalty",     # A4
-        "projected_starvation_risk",      # D4
-        "projected_congestion_risk",      # D5
-    ],
- 
-    # 6. Severity Temporal
-    # Symmetric severity (worst-case tail risk on both sides) combined with full temporal
-    # anticipation. No spatial features. Replaces Micro_Severity_Spatial where
-    # imbalance_hotspot_distance consistently converged to ~0.
-    "Severity_Temporal": [
-        "starvation_severity_max",        # A9
-        "congestion_severity_max",        # A10
-        "projected_starvation_risk",      # D4
-        "projected_congestion_risk",      # D5
+        "starvation_severity_max",        # A9: Q95 starvation tail depth
+        "projected_starvation_risk",      # D4: gross departure pressure
     ],
  
     # ── Disregarded experiments ───────────────────────────────────────────────
@@ -156,7 +168,7 @@ EXPERIMENTS = {
 # Runner
 # ─────────────────────────────────────────────────────────────────────────────
  
-def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: Optional[list[str]] = None, alphas: Optional[list[float]] = None, output_dir: str = "results"):
+def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: Optional[list[str]] = None, alphas: Optional[list[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -0.7):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -201,6 +213,8 @@ def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: Optiona
                     seed_offset=seed_offset,
                     active_features=features,
                     alpha_start=alpha,
+                    weight_starvation=weight_starvation,
+                    weight_congestion=weight_congestion,
                 )
  
 # ─────────────────────────────────────────────────────────────────────────────
@@ -230,17 +244,27 @@ if __name__ == "__main__":
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
     )
 
-    parser.add_argument("--output_dir", type=str, default="results", 
+    parser.add_argument("--output_dir", type=str, default="results",
                         help="Directory to save experiment results"
     )
- 
+    parser.add_argument(
+        "--weight_starvation", type=float, default=-1.0,
+        help="Reward weight for starvation events (default: -1.0)",
+    )
+    parser.add_argument(
+        "--weight_congestion", type=float, default=-0.7,
+        help="Reward weight for congestion events (default: -0.7)",
+    )
+
     args = parser.parse_args()
     run_all_experiments(
         seeds=args.seeds,
         episodes=args.episodes,
         run_only=args.experiments,
         alphas=args.alphas,
-        output_dir=args.output_dir
+        output_dir=args.output_dir,
+        weight_starvation=args.weight_starvation,
+        weight_congestion=args.weight_congestion,
     )
  
     # ── Axis 2: Spatial Recoverability ───────────────────────────────────────

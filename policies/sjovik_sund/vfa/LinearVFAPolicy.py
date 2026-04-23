@@ -22,7 +22,6 @@ from typing import Dict, List, Optional, Tuple
 from collections import deque
 
 from policies import action
-from policies import action
 from policies.sjovik_sund.mdp.reward import RewardCalculator
 from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
 
@@ -144,24 +143,10 @@ class LinearVFAPolicy(Policy):
         self._rng          = np.random.default_rng(seed)
 
         # ── Parameter vector θ (small random initialisation) ─────────────────
-        #self.theta: np.ndarray = self._rng.standard_normal(n_features) * 0.01
-        #self.theta: np.ndarray = self._rng.uniform(-0.5, 0.5, size=n_features).astype(np.float64)
         self.theta: np.ndarray = np.zeros(n_features, dtype=np.float64)
 
         # weights attribute forwarded by run_simulation.py for logging
         self.weights: List[float] = list(self.theta)
-
-        # ── Optimizer State (SGD with Momentum) ───────────────────────────────
-        self.velocity = np.zeros(n_features, dtype=np.float64)
-        self.momentum = 0.9
-
-        # --- OPTIONAL: Adam Optimizer State (Commented out) ---
-        # self.adam_m = np.zeros(n_features, dtype=np.float64)
-        # self.adam_v = np.zeros(n_features, dtype=np.float64)
-        # self.adam_t = 0
-        # self.adam_beta1 = 0.9
-        # self.adam_beta2 = 0.999
-        # self.adam_epsilon = 1e-8
 
         # ── Caches – filled on first call (lazy init) ─────────────────────────
         self._initialized: bool              = False
@@ -170,7 +155,8 @@ class LinearVFAPolicy(Policy):
         
         # Formally declare all lazy arrays as Optional so Pylance tracks them
         self._target_matrix:       Optional[np.ndarray] = None
-        self._activity_profile:    Optional[np.ndarray] = None
+        self._leave_profile:       Optional[np.ndarray] = None
+        self._arrive_profile:      Optional[np.ndarray] = None
         self._travel_time_matrix:  Optional[np.ndarray] = None
         self._capacities:          Optional[np.ndarray] = None
         self._lambda_max_system:   Optional[float]      = None
@@ -181,8 +167,6 @@ class LinearVFAPolicy(Policy):
 
         # ── Per-episode TD tracking ───────────────────────────────────────────
         self._prev_phi:          Optional[np.ndarray] = None
-        self._prev_starvations:  int   = 0
-        self._prev_congestions:  int   = 0
 
         # Buffer for Synchronous Batch Learning
         self.batch_buffer: List[Tuple[np.ndarray, float, np.ndarray, float]] = []
@@ -232,13 +216,6 @@ class LinearVFAPolicy(Policy):
         self._station_ids = [s.id for s in stations]
         self._sid_to_idx  = {sid: k for k, sid in enumerate(self._station_ids)}
 
-        # Target inventory matrix  (7 days × 24 hours × N stations)
-        '''self._target_matrix = np.array(
-            [[[s.get_target_state(d, h) for s in stations] for h in range(24)] for d in range(7)],
-            dtype=np.float32,
-        )
-        self._capacities = np.array([s.capacity for s in stations], dtype=np.float32)'''
-
         # Pre-warm: at _lazy_init time, the event loop has only called
         # update_target_state for the current (day, hour), leaving the other
         # 167 slots as zero in each station's target_state matrix.
@@ -257,38 +234,31 @@ class LinearVFAPolicy(Policy):
         )
         self._capacities = np.array([s.capacity for s in stations], dtype=np.float32)
 
-        # ── 2. Demand tracking (Weekday/Weekend Profiles) ──────────────────────
-        # Create a (2, 24, N) profile: Index 0 = Weekday, Index 1 = Weekend
-        self._activity_profile = np.zeros((2, 24, N), dtype=np.float32)
-        
-        # Note: Standard datetime uses 0=Mon, 4=Fri, 5=Sat, 6=Sun. 
-        # Adjust these arrays if your simulator uses a different day index.
-        weekday_days = [0, 1, 2, 3, 4] 
-        weekend_days = [5, 6]          
+        # ── 2. Demand tracking — separate leave / arrive profiles ─────────────
+        # Shape (2, 24, N): axis 0 = day type (0=weekday, 1=weekend),
+        #                   axis 1 = hour (0-23), axis 2 = station index.
+        weekday_days = [0, 1, 2, 3, 4]
+        weekend_days = [5, 6]
+
+        self._leave_profile  = np.zeros((2, 24, N), dtype=np.float32)
+        self._arrive_profile = np.zeros((2, 24, N), dtype=np.float32)
 
         for i, s in enumerate(stations):
             for h in range(24):
-                #wd_rates = [s.get_arrive_intensity(d, h) for d in weekday_days]
-                #we_rates = [s.get_arrive_intensity(d, h) for d in weekend_days]
-                wd_rates = [
-                    s.get_leave_intensity(d, h) - s.get_arrive_intensity(d, h)
-                    for d in weekday_days
-                ]
-                we_rates = [
-                    s.get_leave_intensity(d, h) - s.get_arrive_intensity(d, h)
-                    for d in weekend_days
-        ]
-                self._activity_profile[0, h, i] = np.mean(wd_rates)
-                self._activity_profile[1, h, i] = np.mean(we_rates)
-        
-        # Find the absolute peak 3-hour rolling demand for scaling (Lambda_max)
+                self._leave_profile[0, h, i]  = np.mean([s.get_leave_intensity(d, h)  for d in weekday_days])
+                self._leave_profile[1, h, i]  = np.mean([s.get_leave_intensity(d, h)  for d in weekend_days])
+                self._arrive_profile[0, h, i] = np.mean([s.get_arrive_intensity(d, h) for d in weekday_days])
+                self._arrive_profile[1, h, i] = np.mean([s.get_arrive_intensity(d, h) for d in weekend_days])
+
+        # Find the absolute peak 3-hour rolling net demand for scaling (Lambda_max)
         max_abs_3hr_activity = np.zeros(N, dtype=np.float32)
         for day_type in range(2):
             for h in range(24):
-                # Max possible demand over any 3 consecutive hours
-                three_hr_demand = np.abs(self._activity_profile[day_type, h]) + \
-                                  np.abs(self._activity_profile[day_type, (h+1)%24]) + \
-                                  np.abs(self._activity_profile[day_type, (h+2)%24])
+                three_hr_demand = (
+                    np.abs(self._leave_profile[day_type, h]        - self._arrive_profile[day_type, h]) +
+                    np.abs(self._leave_profile[day_type, (h+1)%24] - self._arrive_profile[day_type, (h+1)%24]) +
+                    np.abs(self._leave_profile[day_type, (h+2)%24] - self._arrive_profile[day_type, (h+2)%24])
+                )
                 max_abs_3hr_activity = np.maximum(max_abs_3hr_activity, three_hr_demand)
                 
         self._lambda_max_system = float(np.sum(max_abs_3hr_activity))
@@ -394,7 +364,8 @@ class LinearVFAPolicy(Policy):
         """
         # Explicitly tell Pylance the lazy caches are populated
         assert self._target_matrix is not None
-        assert self._activity_profile is not None
+        assert self._leave_profile is not None
+        assert self._arrive_profile is not None
         assert self._travel_time_matrix is not None
         assert self._capacities is not None
         assert self._lambda_max_system is not None
@@ -444,31 +415,21 @@ class LinearVFAPolicy(Policy):
                 func_post[nxt_idx] -= pickup
                 func_cargo_veh += pickup
         
-        # ── Rolling 2-Hour Demand Anticipation ─────────────────────────────
-        # 1. Determine time indices
+        # ── Rolling 3-Hour Demand Anticipation ─────────────────────────────
         d = state.day() % 7
-        day_type = 1 if d in [5, 6] else 0  # 1 if Weekend, 0 if Weekday
-        
-        current_minute = int(state.time % 60)
-        h0 = int((state.time // 60) % 24)
-        h1 = (h0 + 1) % 24
-        h2 = (h0 + 2) % 24
-        h3 = (h0 + 3) % 24
-        
-        # 2. Calculate rolling weights for a 180-minute (3-hour) horizon
-        weight_h0 = (60 - current_minute) / 60.0  # Remaining fraction of current hour
-        weight_h1 = 1.0                           # All of the next hour
-        weight_h2 = 1.0                           # All of the second next hour
-        weight_h3 = current_minute / 60.0         # Overlap into the fourth hour
-        
+        day_type = 1 if d in [5, 6] else 0  # 0 = weekday, 1 = weekend
 
-        # 3. Extract the dynamic anticipated net demand array (4, N)
-        dynamic_activity = -np.array([
-            self._activity_profile[day_type, h0] * weight_h0,
-            self._activity_profile[day_type, h1] * weight_h1,
-            self._activity_profile[day_type, h2] * weight_h2,
-            self._activity_profile[day_type, h3] * weight_h3
+        current_minute = int(state.time % 60)
+        hours   = [(int((state.time // 60) % 24) + k) % 24 for k in range(4)]
+        weights = np.array([
+            (60 - current_minute) / 60.0,  # remaining fraction of current hour
+            1.0,                            # full next hour
+            1.0,                            # full hour after that
+            current_minute / 60.0,          # overlap into fourth hour
         ])
+
+        dynamic_leave  = np.array([self._leave_profile[day_type, h]  * w for h, w in zip(hours, weights)])
+        dynamic_arrive = np.array([self._arrive_profile[day_type, h] * w for h, w in zip(hours, weights)])
 
         # ── Time-indexed target inventory (N,) ─────────────────────────────
         d, h   = state.day() % 7, state.hour() % 24
@@ -501,7 +462,8 @@ class LinearVFAPolicy(Policy):
             depot=depot.astype(np.float64),
             target=target.astype(np.float64),
             capacities=self._capacities,
-            activity=dynamic_activity.astype(np.float64),
+            leave_activity=dynamic_leave.astype(np.float64),
+            arrive_activity=dynamic_arrive.astype(np.float64),
             dist_to_stations=dist_to_stations,
             func_cargo_veh=float(func_cargo_veh),
             depot_cargo_veh=float(depot_cargo_veh),
@@ -590,72 +552,12 @@ class LinearVFAPolicy(Policy):
         if self._simulator_ref is not None and hasattr(self._simulator_ref, "duration"):
             return float(self._simulator_ref.duration)
             
-        # Default 24-hour shift
-        return 1440.0
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Reward signal
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def _get_reward(self, state) -> float:
-        """
-        Compute the reward accumulated since the previous decision epoch.
-
-        Reward = –(c_s · Δstarvations + c_c · Δcongestions)
-
-        Negative because starvations and congestions are costs to minimise.
-        Updates the internal counters for the next call.
-        """
-        C_STARV = 1.0   # penalty per starvation event
-        C_CONG  = 0.5   # penalty per long-congestion event
-
-        cur_s = state.metrics.get_aggregate_value("starvations")      or 0
-        cur_c = state.metrics.get_aggregate_value("long congestions") or 0
-
-        reward = -(
-            C_STARV * (cur_s - self._prev_starvations) +
-            C_CONG  * (cur_c - self._prev_congestions)
-        )
-
-        self._prev_starvations = cur_s
-        self._prev_congestions = cur_c
-        print(f"[REWARD] Starvations: {cur_s} (Δ={cur_s - self._prev_starvations}) | "
-              f"Congestions: {cur_c} (Δ={cur_c - self._prev_congestions})")
-        return reward
+        # Default 12-hour shift
+        return 1220.0
 
     # ─────────────────────────────────────────────────────────────────────────
     # TD(0) update
     # ─────────────────────────────────────────────────────────────────────────
-
-    '''def td_update(self, reward: float, phi_next: np.ndarray) -> None:
-        """
-        TD(0) semi-gradient update for linear VFA:
-
-            θ ← θ + α ( r + γ V(S^x_next) − V(S^x_cur) ) φ(S^x_cur)
-
-        where V(S^x) = θᵀφ(S^x) and φ(S^x_cur) is cached from the
-        previous call to get_best_action().
-
-        No-op if there is no previous post-decision state stored yet.
-        """
-        if self._prev_phi is None:
-            return 0.0
-
-        # Compute pre-update values for logging
-        v_cur = self.value(self._prev_phi)
-        v_next = self.value(phi_next)
-        td_error = reward + (self.gamma * v_next) - v_cur
-
-        # --- SMART LOGGING ---
-        # Only print if a physical penalty occurred OR if the VFA was highly surprised
-        if reward < -0.01 or abs(td_error) > 1.0:
-            target_value = reward + self.gamma * v_next
-            print(f"    [TD Alert] Reward: {reward:6.3f} | V(S): {v_cur:6.3f} | Target: {target_value:6.3f} | TD Err: {td_error:6.3f}")
-
-        self.theta   += self.alpha * td_error * self._prev_phi
-        self.weights  = list(self.theta)   # keep the logging attribute in sync
-
-        return td_error'''
         
     def td_update(self, reward: float, phi_next: np.ndarray, elapsed_minutes: float) -> float:
         if self._prev_phi is None:
@@ -692,6 +594,8 @@ class LinearVFAPolicy(Policy):
         """
         Randomly samples exactly 'mini_batch_size' transitions from the replay buffer
         and updates the weights using plain mini-batch SGD.
+        THIS IS ONLY USED WHEN EXPERIENCE REPLAY IS ENABLED. In the standard synchronous batch learning setup,
+        this method is not called and the policy relies on apply_batch_update() instead.
         """
         if len(self.replay_buffer) < self.mini_batch_size:
             return
@@ -777,294 +681,10 @@ class LinearVFAPolicy(Policy):
 
     def _generate_candidates(self, state, vehicle) -> List[sim.Action]:
         """
-        NEW DECOUPLED CANDIDATE GENERATION:
+        DECOUPLED CANDIDATE GENERATION:
         Delegated to candidate_generator.py to create combination of operations and routing.
         """
         return generate_candidates(state, vehicle, self.maintenance_enabled)
-
-    def _generate_candidates_OLD(self, state, vehicle) -> List[sim.Action]:
-        #NOTE: If if your first few training runs prove that the agent is getting stuck, update candidates to for example 5 nearest stations and 3 critical stations or something
-        #NOTE: Currently uses a tabu list generation for multi-vehicle coordination. Can consider adding other vehcile decisions and effective inventory to mdp state if we want a more mathematically profound coordination mechanism, but this is a simple and effective first step to prevent multiple vehicles from being dispatched to the same starving/congested station.
-        """
-        Generate a tractable set of candidate actions using action-space splitting:
-
-          Micro (inventory) - push current station toward its target state.
-                              This is fixed greedily; only the routing varies.
-          Macro (routing)   - enumerate the N_CANDIDATES nearest next stations
-                              sorted by travel time from the current location.
-
-        This version generates multiple candidates for different numbers of onsite repairs (0 to all).
-        
-        NEW: Multi-vehicle coordination via tabu list. Stations claimed by en-route vehicles
-        are excluded from the candidate pool to prevent multiple vehicles from being 
-        dispatched to the same starving/congested location.
-        """
-        load_from_queue = 0  # default – overridden when at depot
-
-        if vehicle.is_at_depot():
-            rebalancing = 0
-            depot_removals = 0
-            # Pick up all repaired bikes that fit in free capacity
-            n_vehicle = len(vehicle.get_bike_inventory())
-            vehicle_capacity = int(
-                getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle))
-            )
-            free_cap = max(0, vehicle_capacity - n_vehicle)
-            repaired_available = len(getattr(vehicle.location, "fixed_queue", {}))
-            load_from_queue = min(repaired_available, free_cap)
-            onsite_repairs_options = [0]  # No onsite repairs at depot
-        else:
-            target = round(vehicle.location.get_target_state(state.day(), state.hour()))
-            # Only count functional bikes as valid inventory for regular rebalancing
-            functional_bikes = [b for b in vehicle.location.get_bikes() if getattr(b, 'is_available', True)]
-            n_station = len(functional_bikes)
-            
-            n_vehicle = len(vehicle.get_bike_inventory())
-            vehicle_capacity = int(
-                getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle))
-            )
-            free_cap = max(0, vehicle_capacity - n_vehicle)
-            #########
-            inv = vehicle.get_bike_inventory()
-            n_vehicle_total = len(inv)
-            
-            # Count only functional bikes (not depot or onsite)
-            n_vehicle_func = sum(1 for b in inv if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])
-            
-            vehicle_capacity = int(getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle_total)))
-            
-            # Free capacity MUST use total bikes, because broken bikes take up physical space!
-            free_cap = max(0, vehicle_capacity - n_vehicle_total)
-            #########
-
-            # --- Greedily pick up any depot-damaged bikes ---
-            depot_removals = 0
-            onsite_bikes = []
-            if self.maintenance_enabled:
-                broken_bikes = [b for b in vehicle.location.bikes.values() if getattr(b, 'damage_status', None) == 'depot']
-                depot_removals = min(len(broken_bikes), free_cap)
-                onsite_bikes = [b for b in vehicle.location.bikes.values() if getattr(b, 'damage_status', None) == 'onsite']
-            num_onsite = len(onsite_bikes)
-            onsite_repairs_options = list(range(0, num_onsite + 1))  # 0 to all
-
-            # Normal Rebalancing Logic 
-            delta = target - n_station       # >0 → deliver,  <0 → pickup
-            if delta > 0:
-                # NEW: Cap deliveries at the number of functional bikes we actually have!
-                rebalancing = min(n_vehicle_func, delta)
-            elif delta < 0:
-                n = min(n_station, -delta, max(free_cap - depot_removals, 0))
-                rebalancing = -n
-            else:
-                rebalancing = 0
-        
-        #TODO: Handle maintenance actions here as well when we add maintenance features and train the VFA with maintenance-enabled.
-
-        # ── TABU LIST: Identify stations already claimed by other en-route vehicles ────
-        # Uses MDP formulation notation: destination_station from VehicleStatus
-        claimed_stations = set()
-        for v in state.get_vehicles():
-            if v.id != vehicle.id:
-                # Check if vehicle is en-route (eta > 0 means traveling, not idle at a location)
-                # This semantics matches sim.Vehicle.eta behavior in the simulator
-                v_eta = getattr(v, 'eta', 0)
-                if v_eta > state.time:
-                    # Extract destination using MDP-canonical notation
-                    # Fallback chain: destination_station (MDP) → next_location (sim.Action) → current location
-                    dest = (
-                        getattr(v, 'destination_station', None) or
-                        getattr(v, 'next_location', None) or
-                        (v.location.id if v.location else None)
-                    )
-                    if dest:
-                        claimed_stations.add(dest)
-        
-        if self.log_rl_decisions:
-            print(f"[TABU] Vehicle {vehicle.id} | Claimed stations: {claimed_stations}")
-            
-        # ── Macro: nearest N_CANDIDATES next stations (by travel time) ────
-        cur_id = vehicle.location.id
-        
-        # Build candidate pool, excluding currently claimed stations
-        pool = [s for s in state.get_stations() 
-                if s.id != cur_id and s.id not in claimed_stations]
-        
-        depot_stations = state.get_depots()
-        if depot_stations:
-            depot = depot_stations[0]  # use first/closest depot
-            # Always include depot (not subject to tabu, as repairs are handled outside the rebalancing network)
-            if depot.id != cur_id:
-                pool.append(depot)
-        
-        # --- Myopic Blindspot (5 Nearest + 3 Most Critical) ---
-        # 1. Sort by travel time to find the nearest
-        pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
-        nearest_stations = pool[:5] # Take the 5 closest
-        
-        # 2. Inventory-Aware Criticality (State-Matching)
-        remaining_pool = pool[5:]
-        
-        # --- OLD NAIVE CRITICALITY ---
-        # remaining_pool.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
-        
-        # --- NEW INVENTORY-AWARE CRITICALITY ---
-        _inv = vehicle.get_bike_inventory()
-        _n_func_avail = sum(1 for b in _inv if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])
-        _cap = int(getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", max(1, len(_inv)))))
-        _cap = max(1, _cap) # Prevent division by zero
-        _free_space = max(0, _cap - len(_inv))
-        
-        free_ratio = _free_space / _cap
-
-
-
-        def actionable_deviation(s):
-            target_val = round(s.get_target_state(state.day(), state.hour()))
-            current_bikes = len(s.get_bikes())
-            delta = target_val - current_bikes # > 0 means starving, < 0 means congested
-            
-            # Must physically be able to do something
-            can_deliver = (delta > 0 and _n_func_avail > 0)
-            can_pickup = (delta < 0 and _free_space > 0)
-            
-            if free_ratio < 0.2 and can_deliver:
-                return delta        # Van is mostly full -> prioritize delivery to starved stations
-            elif free_ratio > 0.8 and can_pickup:
-                return abs(delta)   # Van is mostly empty -> prioritize pickups from congested stations
-            elif 0.2 <= free_ratio <= 0.8 and (can_deliver or can_pickup):
-                return abs(delta)   # Van has mixed capacity -> prioritize top absolute imbalance
-            return 0                # Can't help this station physically, or doesn't match threshold
-            
-        remaining_pool.sort(key=actionable_deviation, reverse=True)
-        critical_stations = remaining_pool[:3]
-        
-        if getattr(self, "log_rl_decisions", False):
-            target_type = "Dropoffs (Starved)" if free_ratio < 0.2 else "Pickups (Congested)" if free_ratio > 0.8 else "Both (Imbalanced)"
-            print(f"[CANDIDATES] Veh {vehicle.id} | Fill Ratio: {1-free_ratio:.2f} (Free Ratio: {free_ratio:.2f}) | Func: {_n_func_avail}, Cap: {_cap}")
-            print(f"[CANDIDATES] Target: {target_type}")
-            print(f"[CANDIDATES] Top 3 Critical scores: {[(s.id, actionable_deviation(s)) for s in critical_stations]}")
-
-        # 3. Combine them into our final candidate list
-        pool = nearest_stations + critical_stations
-
-        # Fallback: if tabu filtering removed all stations, allow any non-claimed station
-        if not pool:
-            pool = [s for s in state.get_stations() if s.id != cur_id]
-            depot_stations = state.get_depots()
-            if depot_stations:
-                depot = depot_stations[0]
-                if depot.id != cur_id:
-                    pool.append(depot)
-            pool.sort(key=lambda s: state.get_travel_time(cur_id, s.id))
-            pool = pool[: self.N_CANDIDATES]
-
-        candidates = []
-        for s in pool:
-            for onsite_repairs in onsite_repairs_options:
-                # --- NEW: Dynamic Rebalancing Math ---
-                # Adjust pickups/drop-offs based on the repairs we are doing right now!
-                if vehicle.is_at_depot():
-                    current_rebalancing = 0
-                else:
-                    new_n_station = n_station + onsite_repairs
-                    delta = target - new_n_station
-                    
-                    if delta > 0:
-                        current_rebalancing = min(n_vehicle_func, delta)
-                    elif delta < 0:
-                        n = min(new_n_station, -delta, max(free_cap - depot_removals, 0))
-                        current_rebalancing = -n
-                    else:
-                        current_rebalancing = 0
-                # -------------------------------------
-
-                mdp_action = MdpAction(
-                    current_station=cur_id,
-                    rebalancing=int(current_rebalancing),
-                    onsite_repairs=int(onsite_repairs),
-                    depot_removals=int(depot_removals),
-                    load_from_queue=int(load_from_queue),
-                    next_station=s.id,
-                )
-                candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
-
-        if not candidates:
-            depot_id   = state.get_closest_depot(vehicle)
-            for onsite_repairs in onsite_repairs_options:
-
-                # --- Fallback Dynamic Rebalancing ---
-                if vehicle.is_at_depot():
-                    current_rebalancing = 0
-                else:
-                    new_n_station = n_station + onsite_repairs
-                    delta = target - new_n_station
-                    if delta > 0:
-                        current_rebalancing = min(n_vehicle_func, delta)
-                    elif delta < 0:
-                        n = min(new_n_station, -delta, max(free_cap - depot_removals, 0))
-                        current_rebalancing = -n
-                    else:
-                        current_rebalancing = 0
-
-                mdp_action = MdpAction(
-                    current_station=cur_id,
-                    rebalancing=int(current_rebalancing),
-                    onsite_repairs=int(onsite_repairs),
-                    depot_removals=int(depot_removals),
-                    load_from_queue=int(load_from_queue),
-                    next_station=depot_id,
-                )
-                candidates.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
-             
-        # --- DEBUG 3: MYOPIC BLINDSPOT ---
-        if not getattr(self, "_has_printed_blindspot", False):
-            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
-            
-            # Find the actual most critical station in the whole city
-            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
-            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
-            most_critical = all_stats[0].id if all_stats else "None"
-            
-            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
-            print(f"  -> Candidate options: {cand_ids}")
-            print(f"  -> Most critical station in network: {most_critical}")
-            if most_critical not in cand_ids:
-                print(f"  ->  The most critical station is NOT in the candidate list!")
-            self._has_printed_blindspot = True
-
-        # --- DEBUG 3: MYOPIC BLINDSPOT ---
-        if not getattr(self, "_has_printed_blindspot", False):
-            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
-            
-            # Find the actual most critical station in the whole city
-            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
-            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
-            most_critical = all_stats[0].id if all_stats else "None"
-            
-            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
-            print(f"  -> Candidate options: {cand_ids}")
-            print(f"  -> Most critical station in network: {most_critical}")
-            if most_critical not in cand_ids:
-                print(f"  -> The most critical station is NOT in the candidate list!")
-            self._has_printed_blindspot = True
-
-        # --- DEBUG 3: MYOPIC BLINDSPOT ---
-        if not getattr(self, "_has_printed_blindspot", False):
-            cand_ids = [getattr(c, "next_location", getattr(c, "next_station", None)) for c in candidates]
-            
-            # Find the actual most critical station in the whole city
-            all_stats = [s for s in state.get_stations() if s.id != vehicle.location.id]
-            all_stats.sort(key=lambda s: abs(s.get_target_state(state.day(), state.hour()) - len(s.get_bikes())), reverse=True)
-            most_critical = all_stats[0].id if all_stats else "None"
-            
-            print(f"\n[DEBUG - BLINDSPOT] Vehicle at {vehicle.location.id}")
-            print(f"  -> Candidate options: {cand_ids}")
-            print(f"  -> Most critical station in network: {most_critical}")
-            if most_critical not in cand_ids:
-                print(f"  -> The most critical station is NOT in the candidate list!")
-            self._has_printed_blindspot = True
-
-        return candidates
 
     # ─────────────────────────────────────────────────────────────────────────
     # Logging
@@ -1138,11 +758,6 @@ class LinearVFAPolicy(Policy):
     # Main decision entry point
     # ─────────────────────────────────────────────────────────────────────────
 
-    '''def init_sim(self, simulator) -> None:
-        """Forward simulator reference to both inner policies."""
-        self.vfa_policy.init_sim(simulator)
-        self.greedy_policy.init_sim(simulator)'''
-
     def get_best_action(self, state, vehicle) -> sim.Action:
     #def get_best_action(self, state, vehicle) -> sim.Action:
         """
@@ -1210,7 +825,6 @@ class LinearVFAPolicy(Policy):
             time_rem = self._get_time_remaining(state, vehicle)
             shift_len = self._get_shift_length(state, vehicle)
 
-            #phi = self.extract_features(state, vehicle, delta_func, delta_depot_cargo)
             phi = self.extract_features(
                 state, vehicle, 
                 base_func, base_onsite, base_depot, 
@@ -1221,7 +835,8 @@ class LinearVFAPolicy(Policy):
                 next_station_id=dest_id
             )
             phis.append(phi)
-            values[k] = self.value(phi)            
+            values[k] = self.value(phi)    
+                    
         # --- DEBUG 2: SPATIAL PARALYSIS ---
         if not getattr(self, "_has_printed_spatial", False) and "proximity_to_demand_gravity" in self.FEATURE_NAMES:
             idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
@@ -1231,73 +846,6 @@ class LinearVFAPolicy(Policy):
                 print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
             self._has_printed_spatial = True
 
-        # --- DEBUG 2: SPATIAL PARALYSIS ---
-        if "proximity_to_demand_gravity" in self.FEATURE_NAMES:
-            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
-            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
-            for k, action in enumerate(candidates):
-                dest = getattr(action, "next_location", getattr(action, "next_station", None))
-                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
-            
-
-        # --- DEBUG 2: SPATIAL PARALYSIS ---
-        if "proximity_to_demand_gravity" in self.FEATURE_NAMES:
-            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
-            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
-            for k, action in enumerate(candidates):
-                dest = getattr(action, "next_location", getattr(action, "next_station", None))
-                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
-            
-
-        # ── Step 4: TD(0) update ──────────────────────────────────────────
-        """# Bootstrap with the greedy (min-value) next post-decision state,
-        # consistent with the off-policy evaluation target.
-        if self.learning_mode and self._prev_phi is not None:
-            reward   = self._get_reward(state)
-            phi_next = phis[int(np.argmin(values))]
-            self.td_update(reward, phi_next)
-        elif self.learning_mode and self._prev_phi is None:
-            # First VFA call in the learning phase (warm-up just ended).
-            # Sync metric baseline so that costs accumulated during warm-up
-            # are NOT counted as part of the first reward signal.
-            self._prev_starvations = state.metrics.get_aggregate_value("starvation")      or 0
-            self._prev_congestions = state.metrics.get_aggregate_value("long_congestion") or 0"""
-        """# ── Step 4: TD(0) update ──────────────────────────────────────────
-        td_err = 0.0  # Initialize it here safely!
-        
-        if self.learning_mode and self._prev_phi is not None:
-            reward   = self._get_reward(state)
-            phi_next = phis[int(np.argmin(values))]
-            # Capture the returned td_error from the function we modified earlier
-            td_err = self.td_update(reward, phi_next) 
-            
-        elif self.learning_mode and self._prev_phi is None:
-            # First VFA call in the learning phase...
-            self._prev_starvations = state.metrics.get_aggregate_value("starvation")      or 0
-            self._prev_congestions = state.metrics.get_aggregate_value("long_congestion") or 0"""
-        
-        """# ── Step 4: TD(0) update ──────────────────────────────────────────
-        td_err = 0.0
-        if self.learning_mode and self._prev_phi is not None:
-            # The policy simply consumes the reward signal!
-            reward = self.reward_calc.compute_step_reward(state.metrics)
-            
-            phi_next = phis[int(np.argmin(values))]
-            td_err = self.td_update(reward, phi_next)"""
-        
-        """# ── Step 4: TD(0) update ──────────────────────────────────────────
-        td_err = 0.0
-        if self.learning_mode and self._prev_phi is not None:
-            # Consume the reward signal safely
-            reward = self.reward_calc.compute_step_reward(state.metrics)
-            phi_next = phis[int(np.argmin(values))]
-            td_err = self.td_update(reward, phi_next)
-            
-        elif self.learning_mode and self._prev_phi is None:
-            # Now we must silently call compute_step_reward() once to sync the as we are no longer in warm-up, 
-            # but we don't want to use this reward for the TD update (since it includes the warm-up costs). 
-            _ = self.reward_calc.compute_step_reward(state.metrics)"""
-        
         # ── Step 4: TD(0) update ──────────────────────────────────────────
         td_err = 0.0
         if self.learning_mode and self._prev_phi is not None:
@@ -1366,7 +914,6 @@ class LinearVFAPolicy(Policy):
     def reset_episode(self) -> None:
         self._prev_phi = None
         self._prev_time = None  # New line
-        self.velocity = np.zeros_like(self.theta)
         self.reward_calc.reset_episode()
     # ─────────────────────────────────────────────────────────────────────────
     # Serialisation
@@ -1436,17 +983,6 @@ class EpisodeTrainingPolicy(Policy):
 
         # Reset per-episode TD state on the shared VFA policy
         vfa_policy.reset_episode()
-
-    '''def get_best_action(self, state, vehicle) -> sim.Action:
-        if state.time < self.warmup_end_time:
-            # Warm-up: purely greedy, θ left unchanged
-            return self.greedy_policy.get_best_action(state, vehicle)
-        else:
-            # Learning: VFA + TD(0) update
-            return self.vfa_policy.get_best_action(state, vehicle)
-
-    def __repr__(self) -> str:
-        return f"EpisodeTrainingPolicy()"'''
     
     def init_sim(self, simulator) -> None:
         """Forward simulator reference to both inner policies."""

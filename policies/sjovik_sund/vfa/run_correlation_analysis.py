@@ -1,119 +1,176 @@
+"""
+run_correlation_analysis.py  —  VFA Feature Diagnostic
+
+Runs N_EPISODES of the full episode structure (warmup + VFA learning, 14 days
+each) and then analyses the feature vectors logged by LinearVFAPolicy.rl_logs.
+
+Two outputs
+───────────
+  feature_study/feature_correlation_heatmap.png   — feature×feature Pearson r
+  feature_study/feature_value_correlation.png     — per-feature r with V(S^x)
+  feature_study/feature_statistics.csv            — mean/std/min/max per feature
+
+The second plot is the signal-quality check: it reveals which features actually
+co-vary with the learned value estimate, and whether D4/D5 carry useful signal
+after the gross-flow fix.
+"""
+
 import os
 import sys
 from pathlib import Path
-import pandas as pd
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
 
-# --- Force Python to see the FOMOsim root directory ---
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# ── Workspace root ─────────────────────────────────────────────────────────────
 WORKSPACE_ROOT = Path(__file__).parents[3]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from policies.sjovik_sund.vfa.train_vfa import run_simulation
-from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
-from policies.policy import Policy
+from helpers import timeInMinutes
+from policies.greedy_policy import GreedyPolicy
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy
+from policies.sjovik_sund.run_simulation_ingvild import run_simulation, SimulationConfig
+from settings import ENABLE_COMPONENT_FAILURES
 
-class FeatureLoggingPolicy(Policy):
-    """A wrapper policy that logs all 25 VFA features before taking an action."""
-    def __init__(self, vfa_policy):
-        super().__init__(maintenance_enabled=True)
-        self.vfa_policy = vfa_policy
-        self.feature_log = []
+# ── Study configuration ────────────────────────────────────────────────────────
+N_EPISODES    : int = 5
+EPISODE_DAYS  : int = 14
+WARMUP_DAYS   : int = 2
+START_HOUR    : int = 5
+INSTANCE_NAME : str = "TD_W34_old"
+NUM_VEHICLES  : int = 1
+SEED_OFFSET   : int = 0
 
-    def get_best_action(self, state, vehicle):
-        # 1. Initialize VFA caches if it's the first step
-        if not self.vfa_policy._initialized:
-            self.vfa_policy._lazy_init(state)
-        
-        # 2. Compute the 3-hour expectations for the candidate features
-        curr_d = state.day() % 7
-        curr_h = state.hour() % 24
-        N = len(self.vfa_policy._station_ids)
-        
-        for i, s_id in enumerate(self.vfa_policy._station_ids):
-            station = state.stations[s_id]
-            flow, rent, ret = 0.0, 0.0, 0.0
-            for offset in range(3):
-                h = (curr_h + offset) % 24
-                d = (curr_d + (curr_h + offset) // 24) % 7
-                arr = station.arrive_intensities[d][h] if getattr(station, 'arrive_intensities', None) else 0
-                lev = station.leave_intensities[d][h] if getattr(station, 'leave_intensities', None) else 0
-                flow += (arr - lev)
-                rent += lev
-                ret += arr
+OUT_DIR = Path(__file__).parent / "feature_study"
 
-        # 3. Extract base inventories
-        base_func, base_onsite, base_depot = self.vfa_policy._extract_inventories(state, vehicle)
 
-        # 4. Extract the full 25-feature vector for the CURRENT state (no action applied)
-        phi = self.vfa_policy.extract_features(
-            state, vehicle,
-            base_func, base_onsite, base_depot,
-            delta_func=0, delta_depot_cargo=0, delta_onsite_repairs=0,
-            next_station_id=None
+def run_analysis() -> None:
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # ── Build VFA policy with temporal features enabled ────────────────────────
+    vfa = LinearVFAPolicy(
+        learning_mode       = True,
+        temporal_enabled    = True,
+        maintenance_enabled = ENABLE_COMPONENT_FAILURES,
+        seed                = 42,
+    )
+    vfa.use_experience_replay = False
+
+    greedy          = GreedyPolicy()
+    sim_start_min   = timeInMinutes(hours=START_HOUR)
+    warmup_end_time = sim_start_min + WARMUP_DAYS * 24 * 60   # same formula as train_vfa
+
+    print(f"Running {N_EPISODES} episodes × {EPISODE_DAYS} days "
+          f"(warmup={WARMUP_DAYS}d, learning={EPISODE_DAYS - WARMUP_DAYS}d)...")
+
+    # ── Episode loop — mirrors train_vfa structure ─────────────────────────────
+    # EpisodeTrainingPolicy routes to GreedyPolicy during warmup and VFA+TD(0)
+    # during the learning phase. apply_batch_update() is called after each
+    # episode, matching the batch_size=1 default in train_vfa.
+    for ep in range(N_EPISODES):
+        episode_policy = EpisodeTrainingPolicy(
+            vfa_policy      = vfa,
+            warmup_policy   = greedy,
+            warmup_end_time = warmup_end_time,
         )
-        
-        # 5. Map the vector back to the feature names and log it
-        features_dict = dict(zip(self.vfa_policy.FEATURE_NAMES, phi))
-        self.feature_log.append(features_dict)
-        
-        # 6. Ask the VFA policy to take the action so it ACTUALLY repairs bikes!
-        return self.vfa_policy.get_best_action(state, vehicle)
+        run_simulation(
+            seed          = SEED_OFFSET + ep,
+            policy        = episode_policy,
+            duration      = 24 * EPISODE_DAYS,
+            num_vehicles  = NUM_VEHICLES,
+            instance_name = INSTANCE_NAME,
+            config        = SimulationConfig(),
+        )
+        vfa.apply_batch_update()
+        print(f"  Episode {ep + 1}/{N_EPISODES}: {len(vfa.rl_logs):,} VFA decisions logged so far")
 
+    # ── Build dataframe from VFA decision logs ─────────────────────────────────
+    # rl_logs is populated in LinearVFAPolicy.get_best_action for every VFA
+    # decision (warmup decisions are excluded — EpisodeTrainingPolicy routes
+    # those to GreedyPolicy instead). Each entry contains one value per feature
+    # in FEATURE_NAMES, plus expected_value_V and td_error.
+    print(f"\nTotal VFA decisions logged: {len(vfa.rl_logs):,}")
+    df = pd.DataFrame(vfa.rl_logs)
 
-def run_analysis():
-    print("Running simulation to collect feature samples...")
-    
-    # Use LinearVFAPolicy to drive the simulation! 
-    # We set learning_mode=True and tau=5.0 so it uses Boltzmann exploration 
-    # to visit diverse states and actively test out repairs.
-    vfa = LinearVFAPolicy(learning_mode=True, tau=5.0)
-    logging_policy = FeatureLoggingPolicy(vfa)
+    feature_cols = vfa.FEATURE_NAMES
+    value_cols   = ["expected_value_V", "td_error"]
+    keep_cols    = feature_cols + [c for c in value_cols if c in df.columns]
+    df           = df[keep_cols].copy()
 
-    # Run a 30-day simulation to get a massive dataset of actions
-    run_simulation(seed=42, policy=logging_policy, duration=24 * 60, num_vehicles=1)
+    # Drop columns that are constant (carry no information, cause NaN in corr)
+    non_constant = df.nunique() > 1
+    dropped      = df.columns[~non_constant].tolist()
+    df           = df.loc[:, non_constant]
+    if dropped:
+        print(f"Dropped constant columns: {dropped}")
 
-    print(f"Success! Collected {len(logging_policy.feature_log)} state samples.\n")
+    present_features = [c for c in feature_cols if c in df.columns]
 
-    # --- CALCULATE CORRELATIONS ---
-    df = pd.DataFrame(logging_policy.feature_log)
-    
-    # Drop features that literally had 0 variance across all 30 days (avoids NaN errors in correlation)
-    df = df.loc[:, (df != df.iloc[0]).any()] 
-    
-    corr_matrix = df.corr(method='pearson')
+    # ── 1. Feature–feature correlation heatmap ────────────────────────────────
+    corr_ff = df[present_features].corr(method="pearson")
 
-    # --- PRINT WARNINGS FOR HIGH CORRELATION ---
-    print("--- HIGHLY CORRELATED FEATURES (|r| > 0.85) ---")
-    found_high_corr = False
-    
-    for i in range(len(corr_matrix.columns)):
-        for j in range(i + 1, len(corr_matrix.columns)):
-            r_value = corr_matrix.iloc[i, j]
-            if pd.notna(r_value) and abs(r_value) > 0.85:
-                feat_a = corr_matrix.columns[i]
-                feat_b = corr_matrix.columns[j]
-                print(f" WARNING: '{feat_a}' and '{feat_b}' are highly correlated (r = {r_value:.3f})")
-                found_high_corr = True
-                
-    if not found_high_corr:
-        print(" Excellent! No highly correlated features found. Your VFA design is mathematically stable.")
+    print("\n--- HIGHLY CORRELATED FEATURES (|r| > 0.85) ---")
+    found_high = False
+    corr_vals = corr_ff.to_numpy()
+    for i in range(len(corr_ff.columns)):
+        for j in range(i + 1, len(corr_ff.columns)):
+            r = float(corr_vals[i, j])
+            if not np.isnan(r) and abs(r) > 0.85:
+                print(f"  WARNING: '{corr_ff.columns[i]}' ↔ '{corr_ff.columns[j]}'  r = {r:+.3f}")
+                found_high = True
+    if not found_high:
+        print("  No highly correlated feature pairs found.")
 
-    # --- PLOT THE HEATMAP ---
-    plt.figure(figsize=(22, 18))
-    sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", center=0, 
-                vmin=-1, vmax=1, square=True, linewidths=.5, annot_kws={"size": 8})
-    
-    plt.title("VFA Feature Pearson Correlation Matrix (Exploration Mode)", fontsize=20)
-    plt.xticks(rotation=45, ha='right', fontsize=10)
-    plt.yticks(fontsize=10)
-    plt.tight_layout()
-    
-    plot_path = "feature_correlation_heatmap.png"
-    plt.savefig(plot_path, dpi=300)
-    print(f"\nHeatmap saved to '{plot_path}'")
+    fig, ax = plt.subplots(figsize=(22, 18))
+    sns.heatmap(
+        corr_ff, annot=True, fmt=".2f", cmap="coolwarm",
+        center=0, vmin=-1, vmax=1, square=True,
+        linewidths=0.5, annot_kws={"size": 8}, ax=ax,
+    )
+    ax.set_title(
+        f"VFA Feature Pearson Correlation Matrix  ({N_EPISODES} episodes × {EPISODE_DAYS}d)",
+        fontsize=18,
+    )
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right", fontsize=10)
+    ax.set_yticklabels(ax.get_yticklabels(), fontsize=10)
+    fig.tight_layout()
+    heatmap_path = OUT_DIR / "feature_correlation_heatmap.png"
+    fig.savefig(heatmap_path, dpi=300)
+    plt.close(fig)
+    print(f"\nHeatmap saved to '{heatmap_path}'")
+
+    # ── 2. Feature–value correlation bar chart ────────────────────────────────
+    if "expected_value_V" in df.columns:
+        corr_fv = df[present_features].corrwith(df["expected_value_V"]).sort_values()
+
+        print("\n--- FEATURE-VALUE CORRELATION (sorted by |r|) ---")
+        for feat, r in corr_fv.sort_values(key=abs, ascending=False).items():
+            print(f"  {feat:<42} r = {r:+.3f}")
+
+        colors = ["#d73027" if v < 0 else "#1a9850" for v in corr_fv.values]
+        fig, ax = plt.subplots(figsize=(10, max(6, len(corr_fv) * 0.4)))
+        corr_fv.plot(kind="barh", color=colors, ax=ax)
+        ax.axvline(0, color="black", linewidth=0.8)
+        ax.set_xlabel("Pearson r with V(S^x)")
+        ax.set_title(
+            f"Feature–Value Correlation  ({N_EPISODES} episodes × {EPISODE_DAYS}d)"
+        )
+        fig.tight_layout()
+        fv_path = OUT_DIR / "feature_value_correlation.png"
+        fig.savefig(fv_path, dpi=300)
+        plt.close(fig)
+        print(f"\nFeature–value chart saved to '{fv_path}'")
+
+    # ── 3. Feature statistics table ───────────────────────────────────────────
+    stats = df[present_features].agg(["mean", "std", "min", "max"]).T
+    stats["variance"] = stats["std"] ** 2
+    stats_path = OUT_DIR / "feature_statistics.csv"
+    stats.to_csv(stats_path)
+    print(f"Feature statistics saved to '{stats_path}'")
+
 
 if __name__ == "__main__":
     run_analysis()
