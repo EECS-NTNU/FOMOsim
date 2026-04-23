@@ -205,8 +205,8 @@ models/ablation_study/SGDMINIBATCH
 models/ablation_study/SGDMINIBATCH_2
 models/ablation_study/SGDMINIBATCH_NEWCANDIDATES
 models/ablation_study/SGDMINIBATCH_NEWCANDIDATES_alpha_0.001
-
 outputseed7000.txt
 outputseed8000.txt
 outputseed9000.txt
 outputseed10000.txt
+models/ablation_study/SGDMINIBATCH_NEWROUTES
