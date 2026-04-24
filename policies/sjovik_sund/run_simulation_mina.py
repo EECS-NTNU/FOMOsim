@@ -62,7 +62,7 @@ class SimulationConfig:
     })
     
     # === Operational Debug Logging ===
-    operation_logging_enabled: bool = True
+    operation_logging_enabled: bool = False
     operation_logging_include_bike_ids: bool = True
     
     # === Target State ===

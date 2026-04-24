@@ -4,27 +4,26 @@ evaluate_hybrid_rollout.py  —  Evaluate trained VFA models inside the Hybrid R
 
 Two modes of operation:
 
-  1. BATCH MODE (mirrors the ablation study runner):
-     Scans models/ablation_study/ for all saved .pkl files and evaluates each one.
-     Loops over the same experiments and seeds as run_ablation_study.py.
+  1. BATCH MODE (iterates over all experiment × alpha combinations):
+     For each combination, scans models/final_ablation_300ep/ for per-seed
+     weights_evolution CSVs, averages the last --last_n episode rows across all
+     available seeds, and evaluates the resulting averaged VFA inside a Hybrid
+     Rollout Policy.
 
-       # All experiments, all seeds:
+       # All experiments, both alphas, default 10-episode tail average:
        python evaluate_hybrid_rollout.py
 
-       # Specific experiments only:
-       python evaluate_hybrid_rollout.py --experiments V3_Rollout LongTerm
-
-       # Specific seeds only:
-       python evaluate_hybrid_rollout.py --seeds 1000 2000
+       # Custom training seeds / alphas / tail window:
+       python evaluate_hybrid_rollout.py --train_seeds 5000 6000 --train_alphas 0.1 0.05 --last_n 10
 
   2. SINGLE MODE:
      Point directly at one .pkl file. Features are auto-detected from the folder name,
      or overridden manually with --features.
 
-       python evaluate_hybrid_rollout.py --model models/ablation_study/V3_Rollout/vfa_V3_Rollout_seed1000.pkl
-       python evaluate_hybrid_rollout.py --model my_model.pkl --features squared_starvation_penalty work_ratio
+       python evaluate_hybrid_rollout.py --model models/final_ablation_300ep/seed5000_alpha0.1_/Squared_Temporal_alpha_0.1_20260422_150154/vfa_Squared_Temporal_seed5000.pkl
+       python evaluate_hybrid_rollout.py --model my_model.pkl --features squared_starvation_penalty projected_starvation_risk
 
-Each evaluated model is compared against DoNothing and VFA-only baselines.
+Each evaluated model is compared against a DoNothing baseline.
 Results are written to the standard simulation_results/csv output folder.
 """
 
@@ -34,23 +33,62 @@ import re
 import argparse
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
+# run_logger import is deferred to avoid circular dependency at module load time
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, str(WORKSPACE_ROOT))
 
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.sjovik_sund.vfa.HybridRolloutPolicy import HybridRolloutPolicy
+from policies.sjovik_sund.vfa.run_logger import RunLogger
 from policies.do_nothing_policy import DoNothing
 from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, test_policies
 
 # Single source of truth for experiment definitions
 from policies.sjovik_sund.ablation_study.run_ablation_study import EXPERIMENTS
 
-ABLATION_DIR = Path("models/ablation_study_solstorm/Base_Exponential_alpha_0.01_20260420_122300")
+FINAL_ABLATION_DIR = Path("models/final_ablation_300ep")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Core evaluation — one model file
+# Helpers for CSV-based weight averaging
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _find_weights_csv(
+    base_dir: Path,
+    exp_name: str,
+    alpha: float,
+    seed: int,
+) -> Path | None:
+    """Locate vfa_*_weights_evolution.csv for one (exp, alpha, seed) combination."""
+    alpha_str = str(alpha)
+    seed_alpha_dir = base_dir / f"seed{seed}_alpha{alpha_str}_"
+    if not seed_alpha_dir.exists():
+        return None
+    for exp_dir in seed_alpha_dir.iterdir():
+        if not exp_dir.is_dir():
+            continue
+        if not exp_dir.name.startswith(f"{exp_name}_alpha_{alpha_str}_"):
+            continue
+        csv = exp_dir / f"vfa_{exp_name}_seed{seed}_weights_evolution.csv"
+        if csv.exists():
+            return csv
+    return None
+
+
+def _load_averaged_theta(csv_path: Path, last_n: int) -> tuple[np.ndarray, list[str]]:
+    """Return (mean theta over last_n episodes, feature_names) from a weights CSV."""
+    df = pd.read_csv(csv_path)
+    weight_cols = [c for c in df.columns if c not in ("episode", "service_level")]
+    theta = df[weight_cols].values[-last_n:].mean(axis=0)
+    return theta, weight_cols
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Core evaluation — one pre-built policy
 # ─────────────────────────────────────────────────────────────────────────────
 
 def evaluate_model(
@@ -72,7 +110,7 @@ def evaluate_model(
     print(f"{'='*60}")
 
     trained_vfa = LinearVFAPolicy.load(model_file, active_features=active_features)
-    trained_vfa.learning_mode = False   # strictly exploitation — no TD updates
+    trained_vfa.learning_mode = False
 
     hybrid_policy = HybridRolloutPolicy(
         trained_vfa=trained_vfa,
@@ -84,8 +122,7 @@ def evaluate_model(
     alpha_str = f"_A{alpha_match.group(1)}" if alpha_match else ""
 
     policy_dict = {
-        f"{exp_name}_seed{seed}{alpha_str}_VFA_Only": trained_vfa,
-        # Uncomment to also/instead run the Hybrid Rollout Policy
+        # f"{exp_name}_seed{seed}{alpha_str}_VFA_Only": trained_vfa,
         f"{exp_name}_seed{seed}{alpha_str}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid_policy,
     }
 
@@ -101,10 +138,15 @@ def evaluate_model(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Batch mode — loop over ablation study experiments and seeds
+# Batch mode — one hybrid rollout test per (experiment × alpha) combination,
+#              weights averaged over last_n episodes across all available seeds
 # ─────────────────────────────────────────────────────────────────────────────
 
 def run_batch(
+    train_seeds: list[int],
+    train_alphas: list[float],
+    last_n: int,
+    base_dir: Path,
     lookahead_minutes: float,
     num_scenarios: int,
     episodes: int,
@@ -112,7 +154,12 @@ def run_batch(
     duration_hours: int,
     instance: str,
     vehicles: int,
+    log_decisions: bool = False,
+    run_only: list[str] | None = None,
 ):
+    # One RunLogger for the entire batch — all experiments/alphas/seeds share it
+    run_logger = RunLogger(log_decisions=log_decisions)
+
     print(f"\n{'='*60}")
     print("  RUNNING BASELINE: DoNothing")
     print(f"{'='*60}")
@@ -124,72 +171,89 @@ def run_batch(
         use_multiprocessing=False,
         instance_name=instance,
         config=SimulationConfig(),
+        # DoNothing has no VFA logger — omit run_logger intentionally
     )
 
-    pkl_files = list(ABLATION_DIR.rglob("*.pkl"))
-    
-    if not pkl_files:
-        print(f"Error: No .pkl models found in {ABLATION_DIR}")
-        return
+    if run_only:
+        unknown = set(run_only) - set(EXPERIMENTS)
+        if unknown:
+            raise ValueError(f"Unknown experiment(s): {unknown}. Valid: {list(EXPERIMENTS)}")
 
-    print(f"\nBatch evaluation: Found {len(pkl_files)} model(s) to average.")
+    active_experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
+    total = len(active_experiments) * len(train_alphas)
+    run_idx = 0
 
-    # Load all weights and average them
-    thetas = []
-    active_features = None
-    exp_name = None
-    for i, model_file in enumerate(pkl_files):
-        try:
-            features, exp = _detect_features(str(model_file))
-        except ValueError as e:
-            print(f"\n[{i+1}/{len(pkl_files)}] SKIP: {e}")
-            continue
-        vfa = LinearVFAPolicy.load(model_file, active_features=features)
-        thetas.append(vfa.theta)
-        if active_features is None:
-            active_features = features
-        if exp_name is None:
-            exp_name = exp
+    for alpha in train_alphas:
+        alpha_str = str(alpha)
+        for exp_name, _ in active_experiments.items():
+            run_idx += 1
+            print(f"\n{'='*60}")
+            print(f"  [{run_idx}/{total}]  {exp_name}  |  alpha={alpha}")
+            print(f"  Averaging last {last_n} episodes over seeds {train_seeds}")
+            print(f"{'='*60}")
 
-    if not thetas:
-        print("No valid models loaded for averaging.")
-        return
+            seed_thetas: list[np.ndarray] = []
+            feature_names: list[str] | None = None
 
-    # Compute average theta
-    import numpy as np
-    avg_theta = np.mean(np.stack(thetas), axis=0)
+            for seed in train_seeds:
+                csv_path = _find_weights_csv(base_dir, exp_name, alpha, seed)
+                if csv_path is None:
+                    print(f"  [SKIP seed {seed}] CSV not found under {base_dir}")
+                    continue
+                theta, feat_names = _load_averaged_theta(csv_path, last_n)
+                seed_thetas.append(theta)
+                if feature_names is None:
+                    feature_names = feat_names
+                print(f"  [seed {seed}]  {csv_path.parent.name}")
+                print(f"             θ = {np.round(theta, 4)}")
 
-    # Create a new LinearVFAPolicy with averaged weights
-    avg_policy = LinearVFAPolicy(active_features=active_features, n_features=len(avg_theta), learning_mode=False)
-    avg_policy.theta = avg_theta.copy()
-    avg_policy.weights = list(avg_theta)
+            if not seed_thetas:
+                print(f"  [SKIP] No CSVs found for {exp_name} alpha={alpha} — skipping.")
+                continue
 
-    # Hybrid policy using averaged VFA
-    hybrid_policy = HybridRolloutPolicy(
-        trained_vfa=avg_policy,
-        lookahead_minutes=lookahead_minutes,
-        num_scenarios=num_scenarios,
-    )
+            avg_theta = np.mean(np.stack(seed_thetas), axis=0)
+            n_seeds = len(seed_thetas)
+            print(f"  Averaged {n_seeds} seed(s):  θ = {np.round(avg_theta, 4)}")
 
-    policy_dict = {
-        f"{exp_name}_AVG_VFA_Only": avg_policy,
-        f"{exp_name}_AVG_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid_policy,
-    }
+            vfa = LinearVFAPolicy(
+                active_features=feature_names,
+                n_features=len(avg_theta),
+                learning_mode=False,
+            )
+            vfa.theta = avg_theta.copy()
+            vfa.weights = list(avg_theta)
 
-    print(f"\nEvaluating averaged policy...")
-    test_policies(
-        list_of_seeds=list(range(start_seed, start_seed + episodes)),
-        policy_dict=policy_dict,
-        num_vehicles=vehicles,
-        duration=duration_hours,
-        use_multiprocessing=False,
-        instance_name=instance,
-        config=SimulationConfig(),
-    )
+            run_logger.set_run_label(exp_name, alpha, policy_type="Hybrid")
+            hybrid = HybridRolloutPolicy(
+                trained_vfa=vfa,
+                lookahead_minutes=lookahead_minutes,
+                num_scenarios=num_scenarios,
+                logger=run_logger,
+            )
+            vfa.logger = run_logger
 
+            tag = f"{exp_name}_A{alpha_str}_last{last_n}ep_{n_seeds}seeds"
+            policy_dict = {
+                f"{tag}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid,
+                # To also run VFA-only: call run_logger.set_run_label(exp_name, alpha, policy_type="VFA")
+                # in a separate test_policies call below, then add: f"{tag}_VFA": vfa
+            }
+
+            test_policies(
+                list_of_seeds=list(range(start_seed, start_seed + episodes)),
+                policy_dict=policy_dict,
+                num_vehicles=vehicles,
+                duration=duration_hours,
+                use_multiprocessing=False,
+                instance_name=instance,
+                config=SimulationConfig(),
+                run_logger=run_logger,
+            )
+
+    run_logger.close()
     print(f"\n{'='*60}")
-    print(f"Batch complete. Evaluated averaged policy.")
-    print(f"Results written to simulation_results/csv/")
+    print(f"Batch complete ({run_idx} runs). Results written to simulation_results/csv/")
+    print(f"  Structured run logs: {run_logger.run_dir}")
     print(f"{'='*60}")
 
 
@@ -259,7 +323,7 @@ if __name__ == "__main__":
     )
 
     # Mode selection
-    mode = parser.add_argument_group("Mode (mutually exclusive — omit --model for batch mode)")
+    mode = parser.add_argument_group("Mode (omit --model for batch mode)")
     mode.add_argument(
         "--model", type=str, default=None,
         help="Path to a single .pkl file (activates single mode)",
@@ -272,34 +336,37 @@ if __name__ == "__main__":
     # Batch mode options
     batch = parser.add_argument_group("Batch mode options (ignored in single mode)")
     batch.add_argument(
-        "--experiments", nargs="+", type=str, default=None, metavar="NAME",
-        help="Experiments to evaluate (default: all)",
+        "--train_seeds", nargs="+", type=int, default=[5000, 6000], metavar="SEED",
+        help="Training seeds whose weight CSVs to average (default: 5000 6000)",
     )
     batch.add_argument(
-        "--seeds", nargs="+", type=int, default=[1000, 2000, 3000],
-        help="Seeds to evaluate (default: 1000 2000 3000)",
+        "--train_alphas", nargs="+", type=float, default=[0.1, 0.05], metavar="ALPHA",
+        help="Training alphas to evaluate (default: 0.1 0.05)",
+    )
+    batch.add_argument(
+        "--last_n", type=int, default=10, metavar="N",
+        help="Average weights over last N episodes per seed (default: 10)",
+    )
+    batch.add_argument(
+        "--base_dir", type=str, default=str(FINAL_ABLATION_DIR),
+        help=f"Root directory containing trained models (default: {FINAL_ABLATION_DIR})",
     )
 
-    parser.add_argument(
-        "--experiment", type=str, default=None,
-        metavar="NAME",
-        help=f"Experiment name. Required when --model is not given. Choices: {list(EXPERIMENTS.keys())}",
+    batch.add_argument(
+        "--run_only", nargs="+", type=str, default=None, metavar="NAME",
+        help="Subset of experiments to run, e.g. --run_only Squared_Temporal Short_term_only",
     )
-    parser.add_argument(
-        "--alpha", type=str, default=None,
-        help="Alpha value (e.g. 0.5). Required when --model is not given.",
-    )
-    parser.add_argument(
-        "--model_seed", type=int, default=42000,
-        help="Seed of the trained model to load when building path from --experiment/--alpha",
+    batch.add_argument(
+        "--log_decisions", action="store_true", default=False,
+        help="Write decisions.csv (one row per real vehicle decision). Can be large for long runs.",
     )
 
     # Rollout tuning
     rollout = parser.add_argument_group("Rollout parameters")
     rollout.add_argument("--lookahead", type=float, default=60.0,
                          help="Rollout horizon in simulation minutes (default: 60)")
-    rollout.add_argument("--scenarios", type=int, default=5,
-                         help="Monte Carlo scenarios per action (default: 5)")
+    rollout.add_argument("--scenarios", type=int, default=10,
+                         help="Monte Carlo scenarios per action (default: 10)")
 
     # Simulation settings
     sim = parser.add_argument_group("Simulation settings")
@@ -316,7 +383,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    shared = dict(
+    shared_sim = dict(
         lookahead_minutes=args.lookahead,
         num_scenarios=args.scenarios,
         episodes=args.episodes,
@@ -327,6 +394,14 @@ if __name__ == "__main__":
     )
 
     if args.model:
-        run_single(model_path=args.model, features_override=args.features, **shared)
+        run_single(model_path=args.model, features_override=args.features, **shared_sim)
     else:
-        run_batch(**shared)
+        run_batch(
+            train_seeds=args.train_seeds,
+            train_alphas=args.train_alphas,
+            last_n=args.last_n,
+            base_dir=Path(args.base_dir),
+            log_decisions=args.log_decisions,
+            run_only=args.run_only,
+            **shared_sim,
+        )

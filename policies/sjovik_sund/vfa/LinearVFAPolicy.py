@@ -18,7 +18,10 @@ import sys
 import pickle
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    from policies.sjovik_sund.vfa.run_logger import RunLogger
 from collections import deque
 
 from policies import action
@@ -177,8 +180,11 @@ class LinearVFAPolicy(Policy):
         self.mini_batch_size = 64
 
         # logging for RL decisions (e.g., depot visits)
-        self.log_rl_decisions = True  
+        self.log_rl_decisions = True
         self.rl_logs = []
+
+        # Optional RunLogger — attach externally for structured per-run output
+        self.logger: Optional[RunLogger] = None
         
         # Cache for static fleet size to optimize VFA speed
         self.cached_fleet_size = None
@@ -574,7 +580,7 @@ class LinearVFAPolicy(Policy):
         # --- SMART LOGGING ---
         if reward < -0.01 or abs(td_error) > 1.0:
             target_value = reward + discount * v_next
-            print(f"    [TD Alert] Reward: {reward:6.3f} | V(S): {v_cur:6.3f} | Target: {target_value:6.3f} | TD Err: {td_error:6.3f}")
+            print(f"[TD] r={reward:.3f} vs={v_cur:.3f} tgt={target_value:.3f} err={td_error:.3f}")
 
         if getattr(self, 'use_experience_replay', False):
             # 1. Experience Replay Logging
@@ -867,17 +873,53 @@ class LinearVFAPolicy(Policy):
 
         # ── Step 5: select best action (epsilon-greedy) ──────────────────
         if self.learning_mode and self.epsilon > 0.0 and self._rng.random() < self.epsilon:
-            # Exploration: pick a random action from the candidate pool
             sel_idx = self._rng.integers(len(candidates))
-            print(f"4. Exploring: randomly selected action index {sel_idx} with value {values[sel_idx]:.4f}")
+            mode = "E"
         else:
-            # Exploitation: pick the action with maximum value
             sel_idx = int(np.argmax(values))
-            print(f"4. Exploiting: selected best action index {sel_idx} with value {values[sel_idx]:.4f}")
+            mode = "X"
 
         selected = candidates[sel_idx]
-        
-        print(f"4. Selected action: next station: {getattr(selected, 'next_location', getattr(selected, 'next_station', None))}, pickups: {len(getattr(selected, 'pick_ups', []))}, deliveries: {len(getattr(selected, 'delivery_bikes', []))}")
+        _ns = getattr(selected, 'next_location', getattr(selected, 'next_station', None))
+        _pk = len(getattr(selected, 'pick_ups', []))
+        _dl = len(getattr(selected, 'delivery_bikes', []))
+        print(f"[{mode}] {_ns} pk={_pk} dl={_dl} (idx={sel_idx}, v={values[sel_idx]:.4f})")
+
+        # ── Noon snapshot: ranked candidate table (once per simulated day) ───
+        if state.hour() == 12 and getattr(self, '_noon_log_day', -1) != state.day():
+            self._noon_log_day = state.day()
+            at_depot = vehicle.is_at_depot()
+
+            def _cls(a):
+                if len(getattr(a, 'onsite_repairs', [])) > 0: return "ONSITE_REP"
+                if at_depot and len(a.pick_ups) > 0:          return "DEPOT_PICK"
+                if at_depot and len(a.delivery_bikes) > 0:    return "DEPOT_DROP"
+                if len(a.pick_ups) > 0:                       return "PICKUP"
+                if len(a.delivery_bikes) > 0:                 return "DELIVER"
+                return "IDLE"
+
+            ranked = sorted(zip(values.tolist(), candidates), key=lambda x: -x[0])
+            v_best  = ranked[0][0]
+            v_worst = ranked[-1][0]
+            v_spread = v_best - v_worst
+            v_mean  = float(np.mean(values))
+            v_std   = float(np.std(values))
+            print(f"\n{'═'*62}")
+            print(f"NOON  day={state.day()}  t={state.time:.0f}min  {vehicle.id} @ {vehicle.location.id}  n={len(candidates)}")
+            print(f"  spread={v_spread:.4f}  best={v_best:.4f}  worst={v_worst:.4f}  mean={v_mean:.4f}  std={v_std:.4f}")
+            print(f"  {'#':<3} {'Type':<12} {'Next':<7} {'pk':>3} {'dl':>3} {'rep':>4}  {'V':>9}  {'Δbest':>7}")
+            print(f"  {'─'*57}")
+            for rank, (v, a) in enumerate(ranked, 1):
+                atype = _cls(a)
+                ns    = str(getattr(a, 'next_location', '?'))
+                pk    = len(a.pick_ups)
+                dl    = len(a.delivery_bikes)
+                rep   = len(getattr(a, 'onsite_repairs', []))
+                delta = v - v_best
+                mark  = "  ◄" if (a is selected) else ""
+                print(f"  {rank:<3} {atype:<12} {ns:<7} {pk:>3} {dl:>3} {rep:>4}  {v:>9.4f}  {delta:>+7.4f}{mark}")
+            print(f"  mode={'exploit' if mode == 'X' else 'explore'}  ε={self.epsilon:.3f}  α={self.alpha}")
+            print(f"{'═'*62}\n")
 
         # ── Step 6: Log depot decisions (optional) ────────────────────────
         self._log_depot_decision(state, vehicle, selected, phis[sel_idx], values[sel_idx])
@@ -888,9 +930,7 @@ class LinearVFAPolicy(Policy):
 
         # ── Step 8: Log the Brain's Decision (NEW) ────────────────────────
         if getattr(self, 'log_rl_decisions', False):
-            # Get the human-readable features for the winning action
             phi_dict = dict(zip(self.FEATURE_NAMES, phis[sel_idx].tolist()))
-            
             log_entry = {
                 'time': state.time,
                 'vehicle_id': vehicle.id,
@@ -899,13 +939,111 @@ class LinearVFAPolicy(Policy):
                 'action_pickups': len(getattr(selected, 'pick_ups', [])),
                 'action_deliveries': len(getattr(selected, 'delivery_bikes', [])),
                 'expected_value_V': values[sel_idx],
-                'td_error': float(td_err),  # We just use the safe variable from Step 4!
+                'td_error': float(td_err),
             }
-            # Merge the feature dictionary into the log entry
             log_entry.update(phi_dict)
             self.rl_logs.append(log_entry)
 
+        # ── Step 9: Forward to RunLogger if attached ──────────────────────
+        if self.logger is not None:
+            self._log_to_run_logger(state, vehicle, selected, phis[sel_idx], values[sel_idx])
+
         return selected
+
+    def _log_to_run_logger(self, state, vehicle, action, phi: np.ndarray, vfa_value: float) -> None:
+        """Build a RunLogger decision row for VFA-standalone evaluation."""
+        logger = self.logger
+        if logger is None:
+            return
+        current_time = state.time
+        clock_min  = current_time % (24 * 60)
+        day        = int(current_time // (24 * 60))
+        clock_hour = int(clock_min // 60)
+        minute     = int(clock_min % 60)
+
+        inv          = vehicle.get_bike_inventory()
+        func_before  = sum(1 for b in inv if getattr(b, "damage_status", None) not in ("depot", "onsite"))
+        depot_before = sum(1 for b in inv if getattr(b, "damage_status", None) == "depot")
+        total_before = len(inv)
+
+        raw_bikes     = getattr(vehicle.location, "bikes", {})
+        station_bikes = (raw_bikes if isinstance(raw_bikes, dict)
+                         else {getattr(b, "bike_id", getattr(b, "id")): b for b in raw_bikes})
+
+        func_pickups = depot_pickups = 0
+        for b_id in getattr(action, "pick_ups", []):
+            b = station_bikes.get(b_id)
+            if b and getattr(b, "damage_status", None) == "depot":
+                depot_pickups += 1
+            else:
+                func_pickups += 1
+
+        func_deliveries  = len(getattr(action, "delivery_bikes", []))
+        onsite_repairs   = len(getattr(action, "onsite_repairs", []))
+        is_at_depot      = vehicle.is_at_depot()
+        depot_deliveries = depot_before if is_at_depot else 0
+        load_from_queue  = int(getattr(action, "load_from_queue", 0))
+
+        if is_at_depot:
+            func_after  = func_before - func_deliveries + load_from_queue
+            depot_after = 0
+        else:
+            func_after  = func_before - func_deliveries + func_pickups
+            depot_after = depot_before + depot_pickups
+        total_after = max(func_after, 0) + max(depot_after, 0)
+
+        dest = getattr(action, "next_location", None)
+        try:
+            travel_time = state.get_vehicle_travel_time(vehicle.location.id, dest) if dest else 0.0
+        except Exception:
+            travel_time = 0.0
+
+        try:
+            action_duration = action.get_action_time(0.0) if hasattr(action, "get_action_time") else 0.0
+        except Exception:
+            action_duration = 0.0
+
+        n_damaged  = sum(1 for b in station_bikes.values() if getattr(b, "damage_status", None) is not None)
+        maint_flag = (n_damaged > 0) or is_at_depot
+        is_maint   = (onsite_repairs > 0) or (depot_pickups > 0) or is_at_depot
+
+        delivery_ids   = [getattr(b, "bike_id", str(b)) for b in getattr(action, "delivery_bikes", [])]
+        bikes_involved = str(list(getattr(action, "pick_ups", [])) + delivery_ids)
+
+        # Feature values: active features filled, inactive left absent → written as "" by restval
+        phi_dict = {f"phi_{name}": round(val, 6)
+                    for name, val in zip(self.FEATURE_NAMES, phi.tolist())}
+
+        logger.log_decision({
+            "day":    day,
+            "hour":   clock_hour,
+            "minute": minute,
+            "current_station_id":       vehicle.location.id,
+            "is_at_depot":              is_at_depot,
+            "functional_load_before":   func_before,
+            "depot_load_before":        depot_before,
+            "total_load_before":        total_before,
+            "functional_deliveries":    func_deliveries,
+            "functional_pickups":       func_pickups,
+            "onsite_repairs":           onsite_repairs,
+            "depot_pickups":            depot_pickups,
+            "depot_deliveries":         depot_deliveries,
+            "load_from_queue":          load_from_queue,
+            "bikes_involved":           bikes_involved,
+            "action_duration_min":      round(action_duration, 2),
+            "next_station_id":          str(dest) if dest else "",
+            "travel_time_min":          round(travel_time, 2),
+            "functional_load_after":    max(func_after, 0),
+            "depot_load_after":         max(depot_after, 0),
+            "total_load_after":         total_after,
+            "immediate_reward":         0.0,
+            "vfa_value":                round(float(vfa_value), 6),
+            # accumulated_rollout_reward and tail_value intentionally absent → empty cells
+            "final_decision_score":     round(float(vfa_value), 6),
+            "maintenance_flag_present": maint_flag,
+            "selected_action_is_maintenance": is_maint,
+            **phi_dict,
+        })
 
     # ─────────────────────────────────────────────────────────────────────────
     # Episode boundary reset  (called by EpisodeTrainingPolicy.__init__)

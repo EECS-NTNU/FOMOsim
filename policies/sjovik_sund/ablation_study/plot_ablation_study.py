@@ -76,6 +76,7 @@ def load_experiment(exp_dir: Path):
         final_episodes = ep_vals[:min_length]
         last_df = df
 
+    assert last_df is not None and final_episodes is not None
     all_sls = np.array(all_sls)
     all_weights = np.array(all_weights)
     feature_names = last_df.columns.drop(["episode", "service_level"])
@@ -91,8 +92,8 @@ def load_experiment(exp_dir: Path):
 
 
 def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
-    study_dir = WORKSPACE_ROOT / "models" / "ablation_study_solstorm_NEW_2"
-
+    #study_dir = WORKSPACE_ROOT / "models/ablation_study_batch_alpha_0.005_seed5000"
+    study_dir = WORKSPACE_ROOT / "models/results"
     if not study_dir.exists():
         print(f"Error: Could not find ablation study directory at {study_dir}")
         return
@@ -142,14 +143,14 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
                 episodes, sl_mean,
                 linewidth=2.5,
                 color=color,
-                label=f"α={alpha_str}  (peak={sl_mean.max():.4f}, final={sl_mean[-20:].mean():.4f})",
+                label=f"alpha={alpha_str}  (peak={sl_mean.max():.4f}, final={sl_mean[-20:].mean():.4f})",
             )
             ax.fill_between(episodes, sl_mean - sl_std, sl_mean + sl_std, color=color, alpha=0.15)
             any_plotted = True
 
             # Weight evolution plot: each feature gets its own tab10 color (independent of exp/alpha)
             fig_w, ax_w = plt.subplots(figsize=(12, 6))
-            weight_colors = plt.cm.tab10(np.linspace(0, 0.9, max(len(feature_names), 1)))
+            weight_colors = plt.get_cmap("tab10")(np.linspace(0, 0.9, max(len(feature_names), 1)))
             for i, feat in enumerate(feature_names):
                 ax_w.plot(episodes, weights_mean[:, i], linewidth=2, alpha=0.85,
                           color=weight_colors[i],

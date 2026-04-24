@@ -209,4 +209,11 @@ outputseed7000.txt
 outputseed8000.txt
 outputseed9000.txt
 outputseed10000.txt
-models/ablation_study/SGDMINIBATCH_NEWROUTES
+models/feature_study/
+models/ablation_study
+models/ablation_study_batch_alpha_0.005_seed5000
+models/ablation_study_solstorm_konvergeringskødd
+models/scaler_test
+models/overnight2104
+
+output/

@@ -58,6 +58,32 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 # ─────────────────────────────────────────────────────────────────────────────
  
 EXPERIMENTS = {
+    # ── Squared_Temporal ─────────────────────────────────────────────────────
+    # Hypothesis: Squared penalties capture current-state imbalance depth and
+    # symmetric temporal features cover both demand sides. Minimal and stable —
+    # serves as the primary baseline against all other experiments.
+    "Squared_Temporal": [
+        "squared_starvation_penalty",     # A3: mean squared starvation depth
+        "squared_congestion_penalty",     # A4: mean squared congestion depth
+        "gross_starvation_risk",      # D4: gross departure pressure
+        "gross_congestion_risk",      # D5: gross arrival pressure
+    ],
+
+    # ── Starvation_focused ────────────────────────────────────────────────────
+    # Hypothesis: Starvation is the dominant failure mode in this instance, so the
+    # VFA only needs to penalise starvation depth (A3/A9) and anticipate starvation
+    # demand (D4). Congestion features dilute the gradient signal by forcing the
+    # VFA to learn a trade-off that rarely matters in practice. Asymmetric by
+    # design — if this outperforms Squared_Temporal, it confirms that congestion
+    # features are noise rather than signal for this network.
+    "Starvation_focused": [
+        "squared_starvation_penalty",     # A3
+        "squared_congestion_penalty",     # A4
+        "starvation_severity_max",        # A9: Q95 starvation tail depth
+        "gross_starvation_risk",      # D4: gross departure pressure
+    ],
+
+
     # ── Short_term_only ───────────────────────────────────────────────────────
     # Hypothesis: Temporal anticipation (D4/D5) is unnecessary — current-state
     # global mass (A1) combined with Q95 tail severity on both sides already
@@ -77,19 +103,31 @@ EXPERIMENTS = {
     "Exponential_Temporal": [
         "exponential_starvation_penalty", # A5: exp penalty, emphasises tail states
         "exponential_congestion_penalty", # A6: symmetric
-        "projected_starvation_risk",      # D4: gross departure pressure
-        "projected_congestion_risk",      # D5: gross arrival pressure
+        "gross_starvation_risk",      # D4: gross departure pressure
+        "gross_congestion_risk",      # D5: gross arrival pressure
     ],
 
-    # ── Squared_Temporal ─────────────────────────────────────────────────────
-    # Hypothesis: Squared penalties capture current-state imbalance depth and
-    # symmetric temporal features cover both demand sides. Minimal and stable —
-    # serves as the primary baseline against all other experiments.
-    "Squared_Temporal": [
-        "squared_starvation_penalty",     # A3: mean squared starvation depth
-        "squared_congestion_penalty",     # A4: mean squared congestion depth
-        "projected_starvation_risk",      # D4: gross departure pressure
-        "projected_congestion_risk",      # D5: gross arrival pressure
+    # ── Count_Temporal ───────────────────────────────────────────────────────
+    # Hypothesis: Breadth (how many stations affected) carries equivalent signal
+    # to depth (how badly affected). Direct comparison to Squared_Temporal.
+    # If it matches, depth and breadth encode the same information for this network.
+    "Count_Temporal": [
+        "starvation_count",           # A15: fraction of stations severely starving
+        "congestion_count",           # A16: fraction of stations severely congested
+        "gross_starvation_risk",      # D4: gross departure pressure vs current inventory
+        "gross_congestion_risk",      # D5: gross arrival pressure vs current free docks
+    ],
+
+    # ── Net_Demand_Temporal ───────────────────────────────────────────────────
+    # Hypothesis: Net demand flow (departures minus arrivals) is more informative
+    # than gross flow, because arriving bikes partially offset departures.
+    # D6/D7 should outperform D4/D5 when arrivals meaningfully replenish
+    # inventory within the horizon.
+    "Net_Demand_Temporal": [
+        "squared_starvation_penalty", # A3: current depth anchor
+        "squared_congestion_penalty", # A4: symmetric
+        "net_starvation_shortfall",   # D6: net outflow pressure
+        "net_congestion_shortfall",   # D7: net inflow pressure
     ],
 
     # ── Severity_Temporal ────────────────────────────────────────────────────
@@ -100,11 +138,12 @@ EXPERIMENTS = {
     "Severity_Temporal": [
         "starvation_severity_max",        # A9: Q95 starvation tail depth
         "congestion_severity_max",        # A10: Q95 congestion tail depth
-        "projected_starvation_risk",      # D4: gross departure pressure
-        "projected_congestion_risk",      # D5: gross arrival pressure
+        "gross_starvation_risk",      # D4: gross departure pressure
+        "gross_congestion_risk",      # D5: gross arrival pressure
     ],
 
-    # ── Combined_Temporal ────────────────────────────────────────────────────
+
+        # ── Combined_Temporal ────────────────────────────────────────────────────
     # Hypothesis: Combining mean-penalty features (A3/A4) with tail-severity
     # features (A9/A10) gives the VFA both network-wide depth and worst-case
     # bottleneck signals simultaneously, outperforming either family alone.
@@ -114,22 +153,8 @@ EXPERIMENTS = {
         "squared_congestion_penalty",     # A4: mean squared congestion depth
         "starvation_severity_max",        # A9: Q95 starvation tail depth
         "congestion_severity_max",        # A10: Q95 congestion tail depth
-        "projected_starvation_risk",      # D4: gross departure pressure
-        "projected_congestion_risk",      # D5: gross arrival pressure
-    ],
-
-    # ── Starvation_focused ────────────────────────────────────────────────────
-    # Hypothesis: Starvation is the dominant failure mode in this instance, so the
-    # VFA only needs to penalise starvation depth (A3/A9) and anticipate starvation
-    # demand (D4). Congestion features dilute the gradient signal by forcing the
-    # VFA to learn a trade-off that rarely matters in practice. Asymmetric by
-    # design — if this outperforms Squared_Temporal, it confirms that congestion
-    # features are noise rather than signal for this network.
-    "Starvation_focused": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "starvation_severity_max",        # A9: Q95 starvation tail depth
-        "projected_starvation_risk",      # D4: gross departure pressure
+        "gross_starvation_risk",      # D4: gross departure pressure
+        "gross_congestion_risk",      # D5: gross arrival pressure
     ],
  
     # ── Disregarded experiments ───────────────────────────────────────────────
@@ -158,8 +183,8 @@ EXPERIMENTS = {
     #     "starvation_count",               # A15
     #     "congestion_count",               # A16
     #     "hotspot_imbalance_mass",         # A18
-    #     "projected_starvation_risk",      # D4
-    #     "projected_congestion_risk",      # D5
+    #     "gross_starvation_risk",      # D4
+    #     "gross_congestion_risk",      # D5
     # ],
 }
  
@@ -168,7 +193,7 @@ EXPERIMENTS = {
 # Runner
 # ─────────────────────────────────────────────────────────────────────────────
  
-def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: Optional[list[str]] = None, alphas: Optional[list[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -0.7):
+def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: Optional[list[str]] = None, alphas: Optional[list[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -232,7 +257,7 @@ if __name__ == "__main__":
         help="Seed offsets to run (one independent training run per seed)",
     )
     parser.add_argument(
-        "--episodes", type=int, default=200,
+        "--episodes", type=int, default=350,
         help="Training episodes per run",
     )
     parser.add_argument(
@@ -240,7 +265,7 @@ if __name__ == "__main__":
         help="Subset of experiments to run (default: all)",
     )
     parser.add_argument(
-        "--alphas", nargs="+", type=float, default=[0.1,0.05], metavar="ALPHA",
+        "--alphas", nargs="+", type=float, default=[0.1], metavar="ALPHA",
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
     )
 
@@ -252,8 +277,8 @@ if __name__ == "__main__":
         help="Reward weight for starvation events (default: -1.0)",
     )
     parser.add_argument(
-        "--weight_congestion", type=float, default=-0.7,
-        help="Reward weight for congestion events (default: -0.7)",
+        "--weight_congestion", type=float, default=-1.0,
+        help="Reward weight for congestion events (default: -1.0)",
     )
 
     args = parser.parse_args()

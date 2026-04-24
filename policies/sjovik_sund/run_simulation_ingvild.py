@@ -109,12 +109,12 @@ class SimulationConfig:
     default_duration_hours: int = 24*365*2 # 5 days (3mnd)
 
     # === Operational Debug Logging ===
-    operation_logging_enabled: bool = True
+    operation_logging_enabled: bool = False
     operation_logging_include_bike_ids: bool = True
     
     # === Target State ===
     # Options: "half_capacity", "equal_prob", "us"
-    target_state_type: str = "half_capacity"
+    target_state_type: str = "equal_prob"
     
     def get_start_stations(self, instance_name: str) -> List[int]:
         """Get start stations list based on instance name prefix."""
@@ -146,7 +146,7 @@ class SimulationConfig:
                 [self.maintenance_reward * alpha])
 
 
-def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instance_name=None, config=None):
+def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instance_name=None, config=None, run_logger=None):
     """Run a single simulation with given parameters.
     
     Args:
@@ -172,15 +172,12 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
 
     # Load initial state using workspace-relative path
     instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
-    state = init_state.read_initial_state(str(instance_path))
+    state: sim.State = init_state.read_initial_state(str(instance_path))
     state.set_seed(seed)
     
     FLEET_SIZE = state.get_all_bikes()
     print(f"Initialized state with {len(FLEET_SIZE)} bikes for instance '{INSTANCE}' and seed {seed}.")
 
-    # Initialize bike maintenance criticality AFTER setting seed for deterministic results
-    if MAINTENANCE_ENABLED:
-        state.initialize_bike_maintenance()
 
     # In the initialization section:
     """if ENABLE_COMPONENT_FAILURES:
@@ -229,10 +226,14 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
         verbose=True,
     )
     simulator.operation_logger = operation_logger
+    simulator.run_logger = run_logger
+
+    if run_logger is not None:
+        run_logger.capture_fleet_start(state)
 
     if operation_logger.enabled:
         print("[OPS] Operational logging enabled (step-by-step vehicle/action trace)")
- 
+
 
     print(
         f"Running simulation with duration {duration}, vehicles {num_vehicles}, "
@@ -241,9 +242,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
 
     if ENABLE_COMPONENT_FAILURES:
         print("Component failure simulation: ENABLED")
-  
+
     policy.maintenance_enabled = MAINTENANCE_ENABLED
-  
+
     simulator.run()
   
     if queue is not None:
@@ -251,7 +252,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
     return simulator
 
 
-def write_simulation_outputs(simulator, filename, seed, policy, duration, num_vehicles, append_to_results=False):
+def write_simulation_outputs(simulator, filename, seed, policy, duration, num_vehicles, append_to_results=False, run_logger=None):
     """Write all output files for a single simulation run.
     
     Args:
@@ -317,10 +318,13 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
     summary_filename = f"{base_filename}_summary_seed_{seed}.txt"
     #write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
     
+    if run_logger is not None:
+        run_logger.log_episode(simulator, seed, duration, solve_time)
+
     # Print completion info
     print(f"Seed {seed}: Completed in {solve_time:.2f}s")
 
-def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True, instance_name=None, config=None):
+def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True, instance_name=None, config=None, run_logger=None):
     """Test multiple seeds with the same policy.
     
     Args:
@@ -373,10 +377,12 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         # Run simulations sequentially (easier for debugging)
         for i, seed in enumerate(list_of_seeds):
             print(f"\nRunning seed {seed}...")
+            if run_logger is not None:
+                run_logger.set_seed(seed)
             start_solve = time.time()
-            simulator = run_simulation(seed, policy, duration, num_vehicles, instance_name=instance_name, config=config)
+            simulator = run_simulation(seed, policy, duration, num_vehicles, instance_name=instance_name, config=config, run_logger=run_logger)
             solve_time = time.time() - start_solve
-            
+
             write_simulation_outputs(
                 simulator=simulator,
                 filename=results_file,
@@ -384,13 +390,14 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
                 policy=policy,
                 duration=duration,
                 num_vehicles=num_vehicles,
-                append_to_results=(i > 0)
+                append_to_results=(i > 0),
+                run_logger=run_logger,
             )
   
     print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
  
  
-def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False, instance_name=None, config=None):
+def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False, instance_name=None, config=None, run_logger=None):
     """Test multiple policies with multiple seeds.
     
     Args:
@@ -412,7 +419,7 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
   
         # Test this policy with all seeds
         results_file = f'{policy_name}_results.csv'
-        test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing, instance_name, config)
+        test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing, instance_name, config, run_logger=run_logger)
  
  
 if __name__ == "__main__":

@@ -94,11 +94,18 @@ ADJUSTING_CRITICALITY = 1.2 #
 # ------- MANAGERIAL INSIGHTS ----------
 # Vehicle settings
 NUM_VEHICLES = 2
-SERVICE_TIME_FROM = 7   # Service starts at 7 AM
+SERVICE_TIME_FROM = 6   # Service starts at 6 AM
 SERVICE_TIME_TO = 20 # Service ends at 8 PM (20:00)
 
 BATTERY_LIMIT_TO_SWAP = 80 #
 MAINTENANCE_LIMIT_TO_CHECK = 0.2 #
+
+# System open hours (customer-facing). Used to skip overnight closure in TTV scoring.
+# TD_W34_old: demand is zero in hours 23, 0, 1, 2, 3 -> closed window is [23, 4)
+SYSTEM_CLOSE_HOUR = 23  # last operational hour; system closes at end of this hour
+SYSTEM_OPEN_HOUR = 4    # first operational hour; system opens at start of this hour
+TTV_MAX_OPERATIONAL_HOURS = 8  # TTV cap in operational (non-closed) hours
+LATE_SHIFT_HOURS = 2    # hours before SERVICE_TIME_TO when morning pre-positioning ramps in
 
 MINUTES_PER_ACTION = 0.5 # 1, 3, 6, 9 Minutes to load/unload/battery swaps/maintenance per action
 MAINTENANCE_FULL_FIX = 5 # Maintenance time for full fix per bike

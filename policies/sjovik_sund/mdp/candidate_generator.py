@@ -2,6 +2,7 @@ import sim
 from typing import List
 from policies.sjovik_sund.mdp.mdp_formulation import MdpAction
 from policies.sjovik_sund.mdp.action_bridge import mdp_action_to_sim_action
+from settings import SERVICE_TIME_FROM, SYSTEM_CLOSE_HOUR, SYSTEM_OPEN_HOUR, TTV_MAX_OPERATIONAL_HOURS, LATE_SHIFT_HOURS, SERVICE_TIME_TO
 
 def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
     """
@@ -39,12 +40,14 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
     vehicle_capacity = int(getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle)))
     free_cap = max(0, vehicle_capacity - n_vehicle)
     
-    # Maintenance items
+    # Maintenance items — split by repair type since they draw from different bike pools
     if maintenance_enabled:
-        repairable_bikes = vehicle.location.get_unusable_bikes()
-        num_repairable = len(repairable_bikes)
+        station_bikes = vehicle.location.get_bikes()
+        num_depot_broken = len([b for b in station_bikes if getattr(b, 'damage_status', None) == 'depot'])
+        num_onsite_broken = len([b for b in station_bikes if getattr(b, 'damage_status', None) == 'onsite'])
     else:
-        num_repairable = 0
+        num_depot_broken = 0
+        num_onsite_broken = 0
 
     # Calculate greedy rebalancing
     delta = len(functional_bikes) - target
@@ -58,7 +61,7 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
     station_spare_cap = getattr(vehicle.location, 'spare_capacity', lambda: 999)()
     max_pickup = -min(len(functional_bikes), free_cap)
     max_delivery = min(n_vehicle_func, station_spare_cap)
-    
+
     rebalancing_options = {rebalancing_qty, max_pickup, max_delivery, 0}
     if max_pickup < 0:
         rebalancing_options.add(int(max_pickup / 2))
@@ -68,18 +71,21 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
     # Create distinct profiles based on diverse rebalancing options
     for reb in rebalancing_options:
         profiles.append({'rebalancing': reb, 'onsite_repairs': 0, 'depot_removals': 0, 'load_from_queue': 0})
-        
+
         if maintenance_enabled:
-            # All on-site maintenance
-            profiles.append({'rebalancing': reb, 'onsite_repairs': num_repairable, 'depot_removals': 0, 'load_from_queue': 0})
-            
-            # Depot removals
-            depot_removals = min(num_repairable, free_cap)
-            reb_with_broken = reb
-            if reb < 0:  # If picking up bikes, share capacity with broken bikes
-                reb_with_broken = -min(abs(reb), max(0, free_cap - depot_removals))
-                
-            profiles.append({'rebalancing': reb_with_broken, 'onsite_repairs': 0, 'depot_removals': depot_removals, 'load_from_queue': 0})
+            # All on-site maintenance (draws from onsite-damaged bikes, not depot bikes)
+            if num_onsite_broken > 0:
+                profiles.append({'rebalancing': reb, 'onsite_repairs': num_onsite_broken, 'depot_removals': 0, 'load_from_queue': 0})
+
+            # Depot removals: when delivering (reb > 0), space is freed post-op so account for it
+            delivery_count = max(0, reb)
+            depot_removals = min(num_depot_broken, free_cap + delivery_count)
+            if depot_removals > 0:
+                reb_with_broken = reb
+                if reb < 0:  # Picking up bikes shares capacity with broken bikes
+                    reb_with_broken = -min(abs(reb), max(0, free_cap - depot_removals))
+
+                profiles.append({'rebalancing': reb_with_broken, 'onsite_repairs': 0, 'depot_removals': depot_removals, 'load_from_queue': 0})
         
     # Remove duplicates
     unique_profiles = []
@@ -109,10 +115,47 @@ def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled:
         functional = len([b for b in s.get_bikes() if getattr(b, 'is_available', True)])
         target = round(s.get_target_state(state.day(), state.hour()))
         delta = functional - target # > 0 means congested, < 0 means starving
-        
+
+        # Net demand over next hour (bikes/hour)
+        net_demand = (s.get_arrive_intensity(state.day(), state.hour())
+                      - s.get_leave_intensity(state.day(), state.hour()))
+
+        # Time to violation: how many calendar hours until station overflows or empties
+        if net_demand > 0:
+            ttv = (s.capacity - functional) / net_demand
+        elif net_demand < 0:
+            ttv = functional / (-net_demand)
+        else:
+            ttv = float(TTV_MAX_OPERATIONAL_HOURS)
+
+        # Skip overnight closure: if violation falls during or after the closed window,
+        # those hours are operationally free — add the closure duration to TTV.
+        # Closure window: [SYSTEM_CLOSE_HOUR, SYSTEM_OPEN_HOUR) wrapping midnight.
+        _closure_duration = (SYSTEM_OPEN_HOUR + 24 - SYSTEM_CLOSE_HOUR) % 24
+        _current_hour = state.hour()
+        _hours_until_close = (SYSTEM_CLOSE_HOUR - _current_hour) % 24
+        if 0 < _hours_until_close <= ttv:
+            ttv += _closure_duration
+
+        # Adjusted cap: calendar hours that cover TTV_MAX_OPERATIONAL_HOURS operational hours
+        _ttv_cap = TTV_MAX_OPERATIONAL_HOURS + (
+            _closure_duration if _hours_until_close < TTV_MAX_OPERATIONAL_HOURS else 0
+        )
+        ttv = min(ttv, _ttv_cap)
+        urgency = 1.0 - ttv / _ttv_cap  # 0 = no urgency, 1 = boundary imminent
+
+        # Late-shift morning pre-positioning: ramp in morning gap as shift end approaches.
+        # Uses tomorrow's target at SYSTEM_OPEN_HOUR (4am) — the state customers see first.
+        _hours_until_end = (SERVICE_TIME_TO - _current_hour) % 24
+        if _hours_until_end <= LATE_SHIFT_HOURS:
+            _morning_target = round(s.get_target_state((state.day() + 1) % 7, SERVICE_TIME_FROM))
+            _morning_gap = abs(functional - _morning_target) / max(1, s.capacity)
+            _shift_weight = 1.0 - (_hours_until_end / LATE_SHIFT_HOURS)  # 0→1 as shift ends
+            urgency = min(1.0, urgency + _shift_weight * _morning_gap)
+
         can_deliver = (delta < 0 and n_func_avail_post > 0)
         can_pickup = (delta > 0 and free_space_post > 0)
-        
+
         score = 0
         if free_ratio <= 0.2 and can_deliver:
             score = abs(delta) # Prioritize delivery
@@ -120,29 +163,40 @@ def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled:
             score = delta # Prioritize pickup
         elif 0.2 < free_ratio < 0.8 and (can_deliver or can_pickup):
             score = abs(delta) # Balanced / mixed
-        
+
         base_score = score
+
+        # Demand direction: amplify when demand worsens the imbalance, dampen when self-correcting
+        if score > 0:
+            demand_worsens = (delta < 0 and net_demand < 0) or (delta > 0 and net_demand > 0)
+            demand_corrects = (delta < 0 and net_demand > 0) or (delta > 0 and net_demand < 0)
+            if demand_worsens:
+                score *= (1.0 + urgency)
+            elif demand_corrects:
+                score *= max(0.1, 1.0 - urgency * 0.5)
+
         maint_score = 0
-        
+
         # Maintenance need
         if maintenance_enabled:
-            broken = len(s.get_unusable_bikes())
-            maint_score = broken * 1.5 # Arbitrary weight for broken bikes
+            broken = len([b for b in s.get_bikes() if getattr(b, 'damage_status', None) == 'depot'])
+            maint_score = broken * 1.5
             score += maint_score
-            
+
         # Distance penalty
         travel_time = state.get_vehicle_travel_time(vehicle.location.id, s.id)
         penalty_factor = 1.0
         if score > 0 and travel_time > 0:
             # Dampen criticality by root of travel time
-            penalty_factor = travel_time ** 0.5
+            penalty_factor = travel_time ** 0.35
             score = score / penalty_factor
-            
+
         # Temporarily store debug variables on the station object
         s._debug_score = {
             'total': score, 'base_delta': delta, 'maint': maint_score,
             'travel_time': travel_time, 'penalty': penalty_factor,
-            'functional': functional, 'target': target
+            'functional': functional, 'target': target,
+            'net_demand': net_demand, 'ttv': ttv, 'ttv_cap': _ttv_cap, 'urgency': urgency
         }
         return score
     
@@ -171,7 +225,7 @@ def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled:
             elif d.get('maint', 0) > 0 and base_delta == 0: is_valid = True # Maintenance overrides
             
             valid_str = " OK " if is_valid or d.get('total', 0) == 0 else "FAIL"
-            print(f"Station {s.id:<3} [{valid_str}]: Total={d.get('total', 0):.2f} | BaseDelta={base_delta:.0f} (Inv: {d.get('functional', 0)} / Tgt: {d.get('target', 0)}) | Maint={d.get('maint', 0):.2f} | Time={d.get('travel_time', 0):.1f} (Penalty=/{d.get('penalty', 1):.2f})")
+            print(f"Station {s.id:<3} [{valid_str}]: Total={d.get('total', 0):.2f} | BaseDelta={base_delta:.0f} (Inv: {d.get('functional', 0)} / Tgt: {d.get('target', 0)}) | NetDem={d.get('net_demand', 0):.2f} TTV={d.get('ttv', 8):.1f}h/Cap={d.get('ttv_cap', 8):.0f}h Urg={d.get('urgency', 0):.2f} | Maint={d.get('maint', 0):.2f} | Time={d.get('travel_time', 0):.1f} (Penalty=/{d.get('penalty', 1):.2f})")
     
     candidates.extend([s.id for s in all_stations[:n_candidates]])
     
@@ -190,16 +244,7 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool) -> List[sim.A
     Generates operational profiles and routing candidates dynamically based on post-operation inventory.
     """
     tabu_list = [v.location.id for v in state.get_vehicles() if v.id != vehicle.id]
-    
-    debug_mode = (state.hour() in [8, 10, 14, 16] and len(tabu_list) == 0 and state.day() == 0)
-    if debug_mode:
-        print(f"\n========== CANDIDATE GENERATION DEBUG (Hour 12, Vehicle {vehicle.id} at {vehicle.location.id}) ==========")
-        print(f"Current Vehicle Inventory: {sum(1 for b in vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])} functional, {sum(1 for b in vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) in ['depot', 'onsite'])} broken bicycles.")
-        
     op_profiles = _generate_operational_profiles(state, vehicle, maintenance_enabled)
-    
-    if debug_mode:
-        print(f"Total Base Operational Profiles Evaluated: {len(op_profiles)}")
     
     sim_actions = []
     cur_id = vehicle.location.id
@@ -216,22 +261,8 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool) -> List[sim.A
         total_after_op = broken_after_op + functional_after_op
         free_space_post = max(0, vehicle_capacity - total_after_op)
         
-        if debug_mode:
-            print(f"\n--- Operation: {op} ---")
-            print(f"Anticipated Post-Op Inventory -> Func: {functional_after_op} | Broken: {broken_after_op} | Free space: {free_space_post}")
-            fullness = free_space_post / max(1, vehicle_capacity)
-            if fullness <= 0.2:
-                print("  -> Expected Heuristic: Vehicle mostly FULL. Will focus strictly on delivering to STARVING stations.")
-            elif fullness >= 0.8:
-                print("  -> Expected Heuristic: Vehicle mostly EMPTY. Will focus strictly on picking up from CONGESTED stations.")
-            else:
-                print("  -> Expected Heuristic: Vehicle BALANCED. Will balance evaluation between pickups and deliveries.")
-        
         # GENERATE ROUTES SPECIFIC TO THIS OPERATION'S RESULTING INVENTORY!
-        routing_targets = _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled, n_func_avail_post=functional_after_op, free_space_post=free_space_post, debug_mode=debug_mode)
-
-        if debug_mode:
-            print(f"  -> Generated {len(routing_targets)} target routes: {routing_targets}")
+        routing_targets = _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled, n_func_avail_post=functional_after_op, free_space_post=free_space_post, debug_mode=True)
 
         for route in routing_targets:
             is_depot = any(d.id == route for d in state.get_depots())
@@ -266,10 +297,6 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool) -> List[sim.A
             next_station=fallback_route
         )
         sim_actions.append(mdp_action_to_sim_action(fallback_action, state, vehicle))
-
-    if debug_mode:
-        print(f"\n[Total valid candidate configurations assembled: {len(sim_actions)}]")
-        print("==========================================================================================================\n")
 
     return sim_actions
 

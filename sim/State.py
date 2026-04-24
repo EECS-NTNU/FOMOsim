@@ -1,6 +1,7 @@
 import sim
 from sim.LoadSave import LoadSave
 import numpy as np
+from typing import Any
 from settings import *
 import copy
 import json
@@ -35,6 +36,7 @@ class State(LoadSave):
         seed = None,
     ):
         self.time = 0
+        self.operation_logger: Any = None  # set externally by run_simulation after construction
 
         if rng is None:
             self.rng = np.random.default_rng(None)

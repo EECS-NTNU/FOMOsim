@@ -64,8 +64,10 @@ Category C  —  End-of-Day Timing  (appended if shift_timing_enabled)
 
 Category D  —  Temporal Demand  (appended if temporal_enabled)
 ──────────────────────────────────────────────────────────────────────────────
-  D4  projected_starvation_risk     (1/N) Σ_i max(0, λ_i^out − I_i) / T_i
-  D5  projected_congestion_risk     (1/N) Σ_i max(0, λ_i^in − free_i) / (C_i − T_i)
+  D4  gross_starvation_risk         (1/N) Σ_i max(0, λ_i^out − I_i) / T_i
+  D5  gross_congestion_risk         (1/N) Σ_i max(0, λ_i^in − free_i) / (C_i − T_i)
+  D6  net_starvation_shortfall      (1/N) Σ_i max(0, λ_i^out − λ_i^in) / T_i
+  D7  net_congestion_shortfall      (1/N) Σ_i max(0, λ_i^in − λ_i^out) / (C_i − T_i)
 ──────────────────────────────────────────────────────────────────────────────
 """
 
@@ -123,13 +125,10 @@ def get_feature_names(
     # Category D: Temporal Demand
     if temporal_enabled:
         names.extend([
-            # "sin_time_of_day",                # D1a
-            # "cos_time_of_day",                # D1b
-            # "sin_day_of_week",                # D2a
-            # "cos_day_of_week",                # D2b
-            # "hours_until_peak_fraction",      # D3
-            "projected_starvation_risk",      # D4
-            "projected_congestion_risk",      # D5
+            "gross_starvation_risk",          # D4: gross departure pressure vs current inventory
+            "gross_congestion_risk",          # D5: gross arrival pressure vs current free docks
+            "net_starvation_shortfall",       # D6: net outflow pressure (departures > arrivals)
+            "net_congestion_shortfall",       # D7: net inflow pressure (arrivals > departures)
         ])
 
     return names
@@ -347,18 +346,25 @@ def extract(
     # Category D: Temporal Demand Features
     # =========================================================================
     if temporal_enabled:
-        # D4: Projected Starvation Risk
-        # Gross departures that exceed current inventory, normalised by target (same scale as A3/A5).
-        starvation_shortfall = np.maximum(0.0, gross_outflow - func)
-        phi_projected_starv  = float(np.mean(starvation_shortfall / target_safe))
+        # D4 Gross Starvation Risk
+        starvation_shortfall  = np.maximum(0.0, gross_outflow + np.sqrt(gross_outflow) - func)
+        phi_gross_starv       = float(np.mean(starvation_shortfall / target_safe))
 
-        # D5: Projected Congestion Risk
-        # Gross arrivals that exceed free docks, normalised by remaining capacity above target (same scale as A4/A6).
-        free_docks_d         = np.maximum(0.0, capacities - func - onsite)
-        congestion_shortfall = np.maximum(0.0, gross_inflow - free_docks_d)
-        phi_projected_cong   = float(np.mean(congestion_shortfall / cap_rem_safe))
+        # D5 Gross Congestion Risk
+        free_docks_d          = np.maximum(0.0, capacities - func - onsite)
+        congestion_shortfall  = np.maximum(0.0, gross_inflow + np.sqrt(gross_inflow) - free_docks_d)
+        phi_gross_cong        = float(np.mean(congestion_shortfall / cap_rem_safe))
 
-        cat_d = [phi_projected_starv, phi_projected_cong]
+        # D6: Net Starvation Shortfall
+        # Stations where departures outpace arrivals — net outflow pressure relative to target.
+        # Unlike D4, accounts for replenishing arrivals offsetting departures.
+        net_std_dev = np.sqrt(gross_outflow + gross_inflow)
+        phi_net_starv_shortfall = float(np.mean(np.maximum(0.0, net_activity + net_std_dev) / target_safe))
+
+        # D7 Net Congestion Shortfall
+        phi_net_cong_shortfall  = float(np.mean(np.maximum(0.0, -net_activity + net_std_dev) / cap_rem_safe))
+
+        cat_d = [phi_gross_starv, phi_gross_cong, phi_net_starv_shortfall, phi_net_cong_shortfall]
         features.extend(cat_d)
 
     return np.array(features, dtype=np.float32)
