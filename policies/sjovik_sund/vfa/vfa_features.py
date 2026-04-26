@@ -13,6 +13,13 @@ LinearVFAPolicy imports this module as the single source of truth via:
     - extract(...)
     - as_dict(...)
 
+Features are organised around four Operational Pillars:
+
+  Pillar 1  Current System Imbalance  (CIM) — always active
+  Pillar 2  Future System Imbalance   (FIM) — demand_horizon_enabled
+  Pillar 3  Maintenance Pressure      (MP)  — maintenance_enabled
+  Pillar 4  Spatial & Logistic        (SLC) — logistics_enabled
+
 ──────────────────────────────────────────────────────────────────────────────
 Notation
 ────────
@@ -33,41 +40,44 @@ Notation
   N         number of stations
 
 ──────────────────────────────────────────────────────────────────────────────
-Category A  —  Base Rebalancing  (always active)
+Pillar 1  —  Current System Imbalance  (CIM, always active)
 ──────────────────────────────────────────────────────────────────────────────
-  A1  rebalancing_imbalance         Σ_i |I_i - T_i| / (0.5 * Σ_i C_i)
-  A3  squared_starvation_penalty    (1/N) Σ_i (max(0, T_i-I_i) / T_i)^2
-  A4  squared_congestion_penalty    (1/N) Σ_i (max(0, I_i-T_i) / (C_i-T_i))^2
-  A5  exponential_starvation_penalty (1/N) Σ_i (exp(3 * starv_ratio_i) - 1) / (exp(3) - 1)
-  A6  exponential_congestion_penalty (1/N) Σ_i (exp(3 * cong_ratio_i) - 1) / (exp(3) - 1)
-  A9  starvation_severity_max       E[starv_ratio_i | starv_ratio_i ≥ Q70]  (CVaR tail mean)
-  A10 congestion_severity_max       E[cong_ratio_i  | cong_ratio_i  ≥ Q70]  (CVaR tail mean)
-  A12 starvation_variance           variance of starvation ratios
-  A14 imbalance_hotspot_distance    distance to the worst-imbalance hotspot, normalised
-  A15 starvation_count              fraction of stations with severe starvation
-  A16 congestion_count              fraction of stations with severe congestion
+  CIM1  rebalancing_imbalance          Σ_i |I_i - T_i| / (0.5 * Σ_i C_i)
+  CIM2  squared_starvation_penalty     (1/N) Σ_i (max(0, T_i-I_i) / T_i)^2
+  CIM3  squared_congestion_penalty     (1/N) Σ_i (max(0, I_i-T_i) / (C_i-T_i))^2
+  CIM4  exponential_starvation_penalty (1/N) Σ_i (exp(3 * starv_ratio_i) - 1) / (exp(3) - 1)
+  CIM5  exponential_congestion_penalty (1/N) Σ_i (exp(3 * cong_ratio_i) - 1) / (exp(3) - 1)
+  CIM6  starvation_severity_max        Q95 of starvation ratio across stations
+  CIM7  congestion_severity_max        Q95 of congestion ratio across stations
+  CIM8  starvation_variance            variance of starvation ratios
+  CIM9  starvation_count               fraction of stations with starvation ratio ≥ 0.9
+  CIM10 congestion_count               fraction of stations with congestion ratio ≥ 0.9
 
-Category B  —  Maintenance  (appended if maintenance_enabled)
 ──────────────────────────────────────────────────────────────────────────────
-  B1  trailer_cannibalization       q_depot / K
-  B2  global_onsite_backlog         Σ_i onsite_i / F
-  B3  demand_weighted_depot_backlog Σ_i (depot_i * |λ_i^net|) / Λ_max
-  B4  depot_pull                    B1 * (dist_to_depot / 30)
-  B5  maintenance_urgency           B2 * A11    ← broken bikes AND starving stations
+Pillar 2  —  Future System Imbalance  (FIM, appended if demand_horizon_enabled)
+──────────────────────────────────────────────────────────────────────────────
+  FIM1  gross_starvation_risk          (1/N) Σ_i [λ_i^out + √λ_i^out − I_i]^+ / T_i
+  FIM2  gross_congestion_risk          (1/N) Σ_i [λ_i^in + √λ_i^in − free_i]^+ / (C_i − T_i)
+  FIM3  net_starvation_shortfall       (1/N) Σ_i [λ_i^out − λ_i^in + √(λ_i^out+λ_i^in)]^+ / T_i
+  FIM4  net_congestion_shortfall       (1/N) Σ_i [λ_i^in − λ_i^out + √(λ_i^out+λ_i^in)]^+ / (C_i − T_i)
 
-Category C  —  End-of-Day Timing  (appended if shift_timing_enabled)
 ──────────────────────────────────────────────────────────────────────────────
-  C1  time_remaining_fraction       t_rem / L
-  C2  functional_bikes_time_penalty (q_func / K) * (1 - C1)
-  C3  reachable_imbalance_fraction  Σ_i |I_i-T_i|*1[d_i≤t_rem] / Σ_i |I_i-T_i|
-  C4  recoverable_imbalance_fraction fraction of imbalance reachable and serviceable now
+Pillar 3  —  Maintenance Pressure  (MP, appended if maintenance_enabled)
+──────────────────────────────────────────────────────────────────────────────
+  MP1  trailer_cannibalization         q_depot / K
+  MP2  global_onsite_backlog           Σ_i onsite_i / F
+  MP3  demand_weighted_depot_backlog   Σ_i (depot_i * |λ_i^net|) / Λ_max
+  MP4  depot_pull                      MP1 * (dist_to_depot / 30)
+  MP5  maintenance_urgency             MP2 * CIM9  ← broken bikes AND starving stations
 
-Category D  —  Temporal Demand  (appended if temporal_enabled)
 ──────────────────────────────────────────────────────────────────────────────
-  D4  gross_starvation_risk         (1/N) Σ_i max(0, λ_i^out − I_i) / T_i
-  D5  gross_congestion_risk         (1/N) Σ_i max(0, λ_i^in − free_i) / (C_i − T_i)
-  D6  net_starvation_shortfall      (1/N) Σ_i max(0, λ_i^out − λ_i^in) / T_i
-  D7  net_congestion_shortfall      (1/N) Σ_i max(0, λ_i^in − λ_i^out) / (C_i − T_i)
+Pillar 4  —  Spatial & Logistic Constraints  (SLC, appended if logistics_enabled)
+──────────────────────────────────────────────────────────────────────────────
+  SLC1  time_remaining_fraction        t_rem / L
+  SLC2  functional_bikes_time_penalty  (q_func / K) * (1 - SLC1)
+  SLC3  reachable_imbalance_fraction   Σ_i |I_i-T_i|*1[d_i≤t_rem] / Σ_i |I_i-T_i|
+  SLC4  recoverable_imbalance_fraction fraction of imbalance reachable and serviceable now
+  SLC5  imbalance_hotspot_distance     distance to the worst-imbalance hotspot, normalised
 ──────────────────────────────────────────────────────────────────────────────
 """
 
@@ -83,52 +93,58 @@ import numpy as np
 
 def get_feature_names(
     maintenance_enabled: bool = True,
-    shift_timing_enabled: bool = False,
-    temporal_enabled: bool = False,
+    logistics_enabled: bool = False,
+    demand_horizon_enabled: bool = False,
 ) -> list:
-    """Returns the list of feature names based on active modules."""
+    """Returns the canonical feature name list for the active operational pillars.
 
-    # Category A: Base Rebalancing (always active)
+    Pillar 1 (Current System Imbalance) is always active.
+    Pillar 2 (Future System Imbalance)   — demand_horizon_enabled
+    Pillar 3 (Asset Health & Recovery)   — maintenance_enabled
+    Pillar 4 (Spatial & Logistic)        — logistics_enabled
+    """
+
+    # Pillar 1: Current System Imbalance (CIM, always active)
     names = [
-        "rebalancing_imbalance",          # A1
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "exponential_starvation_penalty", # A5
-        "exponential_congestion_penalty", # A6
-        "starvation_severity_max",        # A9
-        "congestion_severity_max",        # A10
-        "starvation_variance",            # A12
-        "imbalance_hotspot_distance",     # A14
-        "starvation_count",               # A15
-        "congestion_count",               # A16
+        "rebalancing_imbalance",          # CIM1
+        "squared_starvation_penalty",     # CIM2
+        "squared_congestion_penalty",     # CIM3
+        "exponential_starvation_penalty", # CIM4
+        "exponential_congestion_penalty", # CIM5
+        "starvation_severity_max",        # CIM6
+        "congestion_severity_max",        # CIM7
+        "starvation_variance",            # CIM8
+        "starvation_count",               # CIM9
+        "congestion_count",               # CIM10
     ]
 
-    # Category B: Maintenance
+    # Pillar 2: Future System Imbalance (FIM)
+    if demand_horizon_enabled:
+        names.extend([
+            "gross_starvation_risk",          # FIM1
+            "gross_congestion_risk",          # FIM2
+            "net_starvation_shortfall",       # FIM3
+            "net_congestion_shortfall",       # FIM4
+        ])
+
+    # Pillar 3: Maintenance Pressure (MP)
     if maintenance_enabled:
         names.extend([
-            "trailer_cannibalization",        # B1
-            "global_onsite_backlog",          # B2
-            "demand_weighted_depot_backlog",  # B3
-            "depot_pull",                     # B4
-            "maintenance_urgency",            # B5
+            "trailer_cannibalization",        # MP1
+            "global_onsite_backlog",          # MP2
+            "demand_weighted_depot_backlog",  # MP3
+            "depot_pull",                     # MP4
+            "maintenance_urgency",            # MP5
         ])
 
-    # Category C: End-of-Day Timing
-    if shift_timing_enabled:
+    # Pillar 4: Spatial & Logistic Constraints (SLC)
+    if logistics_enabled:
         names.extend([
-            "time_remaining_fraction",        # C1
-            "functional_bikes_time_penalty",  # C2
-            "reachable_imbalance_fraction",   # C3
-            "recoverable_imbalance_fraction", # C4
-        ])
-
-    # Category D: Temporal Demand
-    if temporal_enabled:
-        names.extend([
-            "gross_starvation_risk",          # D4: gross departure pressure vs current inventory
-            "gross_congestion_risk",          # D5: gross arrival pressure vs current free docks
-            "net_starvation_shortfall",       # D6: net outflow pressure (departures > arrivals)
-            "net_congestion_shortfall",       # D7: net inflow pressure (arrivals > departures)
+            "time_remaining_fraction",        # SLC1
+            "functional_bikes_time_penalty",  # SLC2
+            "reachable_imbalance_fraction",   # SLC3
+            "recoverable_imbalance_fraction", # SLC4
+            "imbalance_hotspot_distance",     # SLC5
         ])
 
     return names
@@ -159,10 +175,10 @@ def extract(
     fleet_size: float,
     total_stations: int,           # <-- NEW
     maintenance_enabled: bool = True,
-    shift_timing_enabled: bool = False,
+    logistics_enabled: bool = False,
     time_remaining: Optional[float] = None,
     shift_length: float = 1440.0,
-    temporal_enabled: bool = False,
+    demand_horizon_enabled: bool = True,
     current_time_minutes: float = 0.0,
     current_day_of_week: int = 0,
     target_matrix: Optional[np.ndarray] = None,  # shape (7, 24, N) — for multi-horizon look-ahead
@@ -206,13 +222,13 @@ def extract(
     cong_ratio   = np.maximum(0.0, func - target) / cap_rem_safe  # (I_i - T_i) / (C_i - T_i)
 
     # =========================================================================
-    # Category A: Base Rebalancing Features
+    # Pillar 1: Current System Imbalance (CIM)
     # =========================================================================
 
-    # A1: Rebalancing Imbalance — total L1 deviation from target, normalised by half capacity
+    # CIM1: Rebalancing Imbalance — total L1 deviation from target, normalised by half capacity
     phi_imbalance = total_imbalance / max(total_cap_half, 1.0)
 
-    # A3: Squared Starvation Penalty — mean squared starvation depth
+    # CIM3: Squared Starvation Penalty — mean squared starvation depth
     phi_starvation_sq = np.sum(starv_ratio**2) / N
 
     # ── Diagnostic: one-shot print if phi_starvation_sq is stuck at zero ──────
@@ -227,76 +243,79 @@ def extract(
             print("  -> Van post-decision state solved starvation, or city is over-saturated.")
         extract._printed_starv_diag = True
 
-    # A4: Squared Congestion Penalty — mean squared congestion depth
+    # CIM4: Squared Congestion Penalty — mean squared congestion depth
     phi_congestion_sq = np.sum(cong_ratio**2) / N
 
-    # A5: Exponential Starvation Penalty — empirical mapping to an exponential penalty to increase tail response
+    # CIM5: Exponential Starvation Penalty — exponential penalty to increase tail response
     phi_starvation_exp = np.sum((np.exp(3.0 * starv_ratio) - 1.0) / (np.exp(3.0) - 1.0)) / N
 
-    # A6: Exponential Congestion Penalty
+    # CIM6: Exponential Congestion Penalty
     phi_congestion_exp = np.sum((np.exp(3.0 * cong_ratio) - 1.0) / (np.exp(3.0) - 1.0)) / N
 
-    # A9: Starvation Severity (Q95) — severity at the 95th percentile of stations
-    # Robust to single persistent outliers while still tracking tail risk.
+    # CIM6: Starvation Severity (Q95) — 95th-percentile starvation ratio
     phi_starvation_max = float(np.quantile(starv_ratio, 0.95))
 
-    # A10: Congestion Severity (Q95) — symmetric 95th percentile congestion depth.
+    # CIM7: Congestion Severity (Q95) — 95th-percentile congestion ratio
     phi_congestion_max = float(np.quantile(cong_ratio, 0.95))
 
-    # A11: Unmet Starvation Deficit — is the van empty when the city is starving?
-    total_starvation = np.sum(np.maximum(0.0, target - func))
-    phi_unmet_starv = max(0.0, float(total_starvation - func_cargo_veh)) / max(total_cap_half, 1.0)
-
-    # A12: Starvation Variance — spread of the starvation problem
+    # CIM8: Starvation Variance — spread of the starvation problem
     phi_starv_var = float(np.var(starv_ratio))
 
-    # A14: Distance to the worst-imbalance hotspot.
-    # Uses the stations with the largest absolute deviation from target,
-    # so tiny above/below-target noise across the network does not dominate.
-    max_dist = max(float(np.max(dist_to_stations)), 1.0)
-    imbalance = np.abs(func - target)
-    if np.any(imbalance > 0.0):
-        hotspot_count = min(5, N)
-        hotspot_idx = np.argpartition(imbalance, -hotspot_count)[-hotspot_count:]
-        hotspot_weights = imbalance[hotspot_idx]
-        phi_imbalance_hotspot_dist = float(np.average(dist_to_stations[hotspot_idx], weights=hotspot_weights)) / max_dist
-    else:
-        phi_imbalance_hotspot_dist = 0.0
-
-    # A15: Severe Station Starvation Count
-    # Fraction of stations missing >= 90% of their target.
+    # CIM9: Severe Station Starvation Count — fraction with starvation ratio >= 0.9
     phi_starvation_cnt = float(np.sum(starv_ratio >= 0.9)) / N
 
-    # A16: Severe Station Congestion Count
-    # Fraction of stations exceeding target by >= 90% of remaining capacity.
+    # CIM10: Severe Station Congestion Count — fraction with congestion ratio >= 0.9
     phi_congestion_cnt = float(np.sum(cong_ratio >= 0.9)) / N
 
     cat_a = [
-        phi_imbalance, phi_starvation_sq, phi_congestion_sq, 
+        phi_imbalance, phi_starvation_sq, phi_congestion_sq,
         phi_starvation_exp, phi_congestion_exp,
         phi_starvation_max, phi_congestion_max, phi_starv_var,
-        phi_imbalance_hotspot_dist, phi_starvation_cnt, phi_congestion_cnt
+        phi_starvation_cnt, phi_congestion_cnt
     ]
     features.extend(cat_a)
 
     # =========================================================================
-    # Category B: Maintenance Features
+    # Pillar 2: Future System Imbalance (FIM)
+    # =========================================================================
+    if demand_horizon_enabled:
+        # FIM1: Gross Starvation Risk
+        starvation_shortfall  = np.maximum(0.0, gross_outflow + np.sqrt(gross_outflow) - func)
+        phi_gross_starv       = float(np.mean(starvation_shortfall / target_safe))
+
+        # FIM2: Gross Congestion Risk
+        free_docks_d          = np.maximum(0.0, capacities - func - onsite)
+        congestion_shortfall  = np.maximum(0.0, gross_inflow + np.sqrt(gross_inflow) - free_docks_d)
+        phi_gross_cong        = float(np.mean(congestion_shortfall / cap_rem_safe))
+
+        # FIM3: Net Starvation Shortfall — net outflow pressure with demand uncertainty
+        net_std_dev = np.sqrt(gross_outflow + gross_inflow)
+        phi_net_starv_shortfall = float(np.mean(np.maximum(0.0, net_activity + net_std_dev) / target_safe))
+
+        # FIM4: Net Congestion Shortfall — net inflow pressure with demand uncertainty
+        phi_net_cong_shortfall  = float(np.mean(np.maximum(0.0, -net_activity + net_std_dev) / cap_rem_safe))
+
+        cat_d = [phi_gross_starv, phi_gross_cong, phi_net_starv_shortfall, phi_net_cong_shortfall]
+        features.extend(cat_d)
+
+    # =========================================================================
+    # Pillar 3: Maintenance Pressure (MP)
     # =========================================================================
     if maintenance_enabled:
 
-        # B1: Trailer Cannibalization — fraction of van capacity used by broken bikes
+        # MP1: Trailer Cannibalization — fraction of van capacity used by broken bikes
         phi_cannibalization = float(depot_cargo_veh) / K
 
-        # B2: Global Onsite Backlog — broken bikes waiting at stations, normalised by fleet
+        # MP2: Global Onsite Backlog — broken bikes waiting at stations, normalised by fleet
         phi_onsite_backlog = float(np.sum(onsite)) / F_safe
 
-        # B3: Demand-Weighted Depot Backlog — broken bikes concentrated at high-activity stations
+        # MP3: Demand-Weighted Depot Backlog — broken bikes concentrated at high-activity stations
         phi_depot_backlog = float(np.sum(depot * np.abs(net_activity))) / lam_max_safe
 
-        # B4: Depot Pull — urgency to return grows as trailer fills and depot distance shrinks
+        # MP4: Depot Pull — urgency to return grows as trailer fills and depot distance shrinks
         phi_depot_pull = phi_cannibalization * (dist_to_depot / 30.0)
 
-        # B5: Maintenance Urgency — compound signal: onsite backlog × starvation breadth
+        # MP5: Maintenance Urgency — compound signal: onsite backlog × starvation breadth
         # High when many stations are BOTH below target AND have unrepaired bikes.
         phi_maint_urgency = phi_onsite_backlog * phi_starvation_cnt
 
@@ -307,24 +326,22 @@ def extract(
         features.extend(cat_b)
 
     # =========================================================================
-    # Category C: End-of-Day Timing Features
+    # Pillar 4: Spatial & Logistic Constraints (SLC)
     # =========================================================================
-    if shift_timing_enabled:
+    if logistics_enabled:
         if time_remaining is None:
             time_remaining = shift_length
         shift_length_safe = max(shift_length, 1.0)
 
         #NOTE! Doesnt work - time remaining is not being calculated correctly. If enabled, this must be fixed.
 
-        # C1: Time Remaining Fraction
+        # SLC1: Time Remaining Fraction
         phi_time_remaining = float(time_remaining) / shift_length_safe
 
-        # C2: Functional Bikes Time Penalty — urgency to flush bikes as shift ends
+        # SLC2: Functional Bikes Time Penalty — urgency to flush bikes as shift ends
         phi_time_penalty = veh_load * (1.0 - phi_time_remaining)
 
-        # C3: Reachable Imbalance Fraction
-        # Fraction of total imbalance at stations reachable before shift ends (dist ≤ t_rem).
-        # Low value late in the shift signals that the tail cost is largely unrecoverable.
+        # SLC3: Reachable Imbalance Fraction — fraction of imbalance at reachable stations
         phi_reachable = (
             float(np.sum(np.abs(func - target) * (dist_to_stations <= time_remaining))
                   / total_imbalance)
@@ -333,54 +350,40 @@ def extract(
 
         cat_c = [phi_time_remaining, phi_time_penalty, phi_reachable]
 
-        # C4: Recoverable Imbalance Fraction — how much current imbalance can
-        # still be reached and serviced by the vehicle's current remaining capacity.
+        # SLC4: Recoverable Imbalance Fraction — reachable imbalance vs serviceable capacity
         reachable_imbalance = float(np.sum(np.abs(func - target) * (dist_to_stations <= time_remaining)))
         serviceable_capacity = max(0.0, K_safe - float(depot_cargo_veh))
         phi_recoverable_imbalance = min(reachable_imbalance, serviceable_capacity) / max(total_imbalance, 1.0)
-
         cat_c.append(phi_recoverable_imbalance)
+
+        # SLC5: Imbalance Hotspot Distance — travel distance to worst-imbalance stations
+        max_dist = max(float(np.max(dist_to_stations)), 1.0)
+        imbalance = np.abs(func - target)
+        if np.any(imbalance > 0.0):
+            hotspot_count = min(5, N)
+            hotspot_idx = np.argpartition(imbalance, -hotspot_count)[-hotspot_count:]
+            hotspot_weights = imbalance[hotspot_idx]
+            phi_imbalance_hotspot_dist = float(np.average(dist_to_stations[hotspot_idx], weights=hotspot_weights)) / max_dist
+        else:
+            phi_imbalance_hotspot_dist = 0.0
+        cat_c.append(phi_imbalance_hotspot_dist)
+
         features.extend(cat_c)
-
-    # =========================================================================
-    # Category D: Temporal Demand Features
-    # =========================================================================
-    if temporal_enabled:
-        # D4 Gross Starvation Risk
-        starvation_shortfall  = np.maximum(0.0, gross_outflow + np.sqrt(gross_outflow) - func)
-        phi_gross_starv       = float(np.mean(starvation_shortfall / target_safe))
-
-        # D5 Gross Congestion Risk
-        free_docks_d          = np.maximum(0.0, capacities - func - onsite)
-        congestion_shortfall  = np.maximum(0.0, gross_inflow + np.sqrt(gross_inflow) - free_docks_d)
-        phi_gross_cong        = float(np.mean(congestion_shortfall / cap_rem_safe))
-
-        # D6: Net Starvation Shortfall
-        # Stations where departures outpace arrivals — net outflow pressure relative to target.
-        # Unlike D4, accounts for replenishing arrivals offsetting departures.
-        net_std_dev = np.sqrt(gross_outflow + gross_inflow)
-        phi_net_starv_shortfall = float(np.mean(np.maximum(0.0, net_activity + net_std_dev) / target_safe))
-
-        # D7 Net Congestion Shortfall
-        phi_net_cong_shortfall  = float(np.mean(np.maximum(0.0, -net_activity + net_std_dev) / cap_rem_safe))
-
-        cat_d = [phi_gross_starv, phi_gross_cong, phi_net_starv_shortfall, phi_net_cong_shortfall]
-        features.extend(cat_d)
 
     return np.array(features, dtype=np.float32)
 
 def as_dict(
     phi: np.ndarray,
     maintenance_enabled: bool = True,
-    shift_timing_enabled: bool = False,
-    temporal_enabled: bool = False,
+    logistics_enabled: bool = False,
+    demand_horizon_enabled: bool = False,
 ) -> dict:
     """Return a labelled dict of a computed feature vector."""
-    names = get_feature_names(maintenance_enabled, shift_timing_enabled, temporal_enabled)
+    names = get_feature_names(maintenance_enabled, logistics_enabled, demand_horizon_enabled)
     assert len(phi) == len(names), (
         f"phi has {len(phi)} elements but {len(names)} names are registered. "
         f"Check maintenance_enabled={maintenance_enabled}, "
-        f"shift_timing_enabled={shift_timing_enabled}, "
-        f"temporal_enabled={temporal_enabled}."
+        f"logistics_enabled={logistics_enabled}, "
+        f"demand_horizon_enabled={demand_horizon_enabled}."
     )
     return dict(zip(names, phi.tolist()))

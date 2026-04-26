@@ -50,7 +50,7 @@ from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, test_p
 # Single source of truth for experiment definitions
 from policies.sjovik_sund.ablation_study.run_ablation_study import EXPERIMENTS
 
-FINAL_ABLATION_DIR = Path("models/final_ablation_300ep")
+FINAL_ABLATION_DIR = Path("models/final_ablation_350ep")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -63,19 +63,32 @@ def _find_weights_csv(
     alpha: float,
     seed: int,
 ) -> Path | None:
-    """Locate vfa_*_weights_evolution.csv for one (exp, alpha, seed) combination."""
+    """Locate vfa_*_weights_evolution.csv for one (exp, alpha, seed) combination.
+
+    Supports two directory layouts:
+      - Nested:  base_dir/seed{seed}_alpha{alpha}_/{exp}_alpha_{alpha}_*/vfa_*_seed{seed}_*.csv
+      - Flat:    base_dir/{exp}_alpha_{alpha}_*/vfa_*_seed{seed}_*.csv
+    """
     alpha_str = str(alpha)
+    csv_name = f"vfa_{exp_name}_seed{seed}_weights_evolution.csv"
+    exp_prefix = f"{exp_name}_alpha_{alpha_str}_"
+
+    # Nested layout (final_ablation_300ep style)
     seed_alpha_dir = base_dir / f"seed{seed}_alpha{alpha_str}_"
-    if not seed_alpha_dir.exists():
-        return None
-    for exp_dir in seed_alpha_dir.iterdir():
-        if not exp_dir.is_dir():
-            continue
-        if not exp_dir.name.startswith(f"{exp_name}_alpha_{alpha_str}_"):
-            continue
-        csv = exp_dir / f"vfa_{exp_name}_seed{seed}_weights_evolution.csv"
-        if csv.exists():
-            return csv
+    if seed_alpha_dir.exists():
+        for exp_dir in seed_alpha_dir.iterdir():
+            if exp_dir.is_dir() and exp_dir.name.startswith(exp_prefix):
+                csv = exp_dir / csv_name
+                if csv.exists():
+                    return csv
+
+    # Flat layout (final_ablation_350ep style)
+    for exp_dir in base_dir.iterdir():
+        if exp_dir.is_dir() and exp_dir.name.startswith(exp_prefix):
+            csv = exp_dir / csv_name
+            if csv.exists():
+                return csv
+
     return None
 
 
@@ -103,6 +116,7 @@ def evaluate_model(
     duration_hours: int,
     instance: str,
     vehicles: int,
+    run_logger=None,
 ):
     print(f"\n{'='*60}")
     print(f"  {exp_name}  |  seed={seed}  |  {len(active_features)} features")
@@ -112,14 +126,20 @@ def evaluate_model(
     trained_vfa = LinearVFAPolicy.load(model_file, active_features=active_features)
     trained_vfa.learning_mode = False
 
+    alpha_match = re.search(r'alpha_([\d.]+)', str(model_file))
+    alpha_val = float(alpha_match.group(1)) if alpha_match else 0.0
+    alpha_str = f"_A{alpha_match.group(1)}" if alpha_match else ""
+
+    if run_logger is not None:
+        run_logger.set_run_label(exp_name, alpha_val, policy_type="Hybrid")
+        trained_vfa.logger = run_logger
+
     hybrid_policy = HybridRolloutPolicy(
         trained_vfa=trained_vfa,
         lookahead_minutes=lookahead_minutes,
         num_scenarios=num_scenarios,
+        logger=run_logger,
     )
-
-    alpha_match = re.search(r'alpha_([\d.]+)', str(model_file))
-    alpha_str = f"_A{alpha_match.group(1)}" if alpha_match else ""
 
     policy_dict = {
         # f"{exp_name}_seed{seed}{alpha_str}_VFA_Only": trained_vfa,
@@ -134,6 +154,8 @@ def evaluate_model(
         use_multiprocessing=False,
         instance_name=instance,
         config=SimulationConfig(),
+        run_logger=run_logger,
+        write_csv=False,
     )
 
 
@@ -156,23 +178,28 @@ def run_batch(
     vehicles: int,
     log_decisions: bool = False,
     run_only: list[str] | None = None,
+    run_donoting: bool = False,
+    run_vfa: bool = False,
 ):
     # One RunLogger for the entire batch — all experiments/alphas/seeds share it
     run_logger = RunLogger(log_decisions=log_decisions)
 
-    print(f"\n{'='*60}")
-    print("  RUNNING BASELINE: DoNothing")
-    print(f"{'='*60}")
-    test_policies(
-        list_of_seeds=list(range(start_seed, start_seed + episodes)),
-        policy_dict={"DoNothing_Baseline": DoNothing()},
-        num_vehicles=vehicles,
-        duration=duration_hours,
-        use_multiprocessing=False,
-        instance_name=instance,
-        config=SimulationConfig(),
-        # DoNothing has no VFA logger — omit run_logger intentionally
-    )
+    if run_donoting:
+        print(f"\n{'='*60}")
+        print("  RUNNING BASELINE: DoNothing")
+        print(f"{'='*60}")
+        run_logger.set_run_label("DoNothing_Baseline", 0.0, policy_type="DoNothing", results_only=True)
+        test_policies(
+            list_of_seeds=list(range(start_seed, start_seed + episodes)),
+            policy_dict={"DoNothing_Baseline": DoNothing()},
+            num_vehicles=vehicles,
+            duration=duration_hours,
+            use_multiprocessing=False,
+            instance_name=instance,
+            config=SimulationConfig(),
+            run_logger=run_logger,
+            write_csv=False,
+        )
 
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
@@ -223,37 +250,49 @@ def run_batch(
             vfa.theta = avg_theta.copy()
             vfa.weights = list(avg_theta)
 
+            tag = f"{exp_name}_A{alpha_str}_last{last_n}ep_{n_seeds}seeds"
+            eval_seeds = list(range(start_seed, start_seed + episodes))
+
+            if run_vfa:
+                run_logger.set_run_label(exp_name, alpha, policy_type="VFA")
+                vfa.logger = run_logger
+                test_policies(
+                    list_of_seeds=eval_seeds,
+                    policy_dict={f"{tag}_VFA": vfa},
+                    num_vehicles=vehicles,
+                    duration=duration_hours,
+                    use_multiprocessing=False,
+                    instance_name=instance,
+                    config=SimulationConfig(),
+                    run_logger=run_logger,
+                    write_csv=False,
+                )
+
             run_logger.set_run_label(exp_name, alpha, policy_type="Hybrid")
+            vfa.logger = run_logger
             hybrid = HybridRolloutPolicy(
                 trained_vfa=vfa,
                 lookahead_minutes=lookahead_minutes,
                 num_scenarios=num_scenarios,
                 logger=run_logger,
             )
-            vfa.logger = run_logger
-
-            tag = f"{exp_name}_A{alpha_str}_last{last_n}ep_{n_seeds}seeds"
-            policy_dict = {
-                f"{tag}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid,
-                # To also run VFA-only: call run_logger.set_run_label(exp_name, alpha, policy_type="VFA")
-                # in a separate test_policies call below, then add: f"{tag}_VFA": vfa
-            }
 
             test_policies(
-                list_of_seeds=list(range(start_seed, start_seed + episodes)),
-                policy_dict=policy_dict,
+                list_of_seeds=eval_seeds,
+                policy_dict={f"{tag}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid},
                 num_vehicles=vehicles,
                 duration=duration_hours,
                 use_multiprocessing=False,
                 instance_name=instance,
                 config=SimulationConfig(),
                 run_logger=run_logger,
+                write_csv=False,
             )
 
     run_logger.close()
     print(f"\n{'='*60}")
-    print(f"Batch complete ({run_idx} runs). Results written to simulation_results/csv/")
-    print(f"  Structured run logs: {run_logger.run_dir}")
+    print(f"Batch complete ({run_idx} runs).")
+    print(f"  Run logs: {run_logger.run_dir}")
     print(f"{'='*60}")
 
 
@@ -283,6 +322,7 @@ def run_single(
     duration_hours: int,
     instance: str,
     vehicles: int,
+    log_decisions: bool = False,
 ):
     model_file = Path(model_path)
     if not model_file.exists():
@@ -295,6 +335,7 @@ def run_single(
     else:
         active_features, exp_name = _detect_features(model_path)
 
+    run_logger = RunLogger(log_decisions=log_decisions)
     evaluate_model(
         model_file=model_file,
         active_features=active_features,
@@ -307,8 +348,10 @@ def run_single(
         duration_hours=duration_hours,
         instance=instance,
         vehicles=vehicles,
+        run_logger=run_logger,
     )
-    print("\nEvaluation complete. Check simulation_results/csv/ for output.")
+    run_logger.close()
+    print(f"\nRun logs written to: {run_logger.run_dir}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -360,6 +403,14 @@ if __name__ == "__main__":
         "--log_decisions", action="store_true", default=False,
         help="Write decisions.csv (one row per real vehicle decision). Can be large for long runs.",
     )
+    batch.add_argument(
+        "--run_donoting", action="store_true", default=False,
+        help="Also run the DoNothing baseline (results.csv only, no hourly/daily metrics).",
+    )
+    batch.add_argument(
+        "--run_vfa", action="store_true", default=False,
+        help="Also run the VFA-only policy for each experiment before the hybrid rollout.",
+    )
 
     # Rollout tuning
     rollout = parser.add_argument_group("Rollout parameters")
@@ -394,7 +445,7 @@ if __name__ == "__main__":
     )
 
     if args.model:
-        run_single(model_path=args.model, features_override=args.features, **shared_sim)
+        run_single(model_path=args.model, features_override=args.features, log_decisions=args.log_decisions, **shared_sim)
     else:
         run_batch(
             train_seeds=args.train_seeds,
@@ -403,5 +454,7 @@ if __name__ == "__main__":
             base_dir=Path(args.base_dir),
             log_decisions=args.log_decisions,
             run_only=args.run_only,
+            run_donoting=args.run_donoting,
+            run_vfa=args.run_vfa,
             **shared_sim,
         )

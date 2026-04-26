@@ -82,8 +82,8 @@ class LinearVFAPolicy(Policy):
         config: Optional[MDPConfig] = None,
         seed: int = 42,
         maintenance_enabled: bool = ENABLE_COMPONENT_FAILURES,
-        shift_timing_enabled: bool = False,
-        temporal_enabled: bool = False,
+        logistics_enabled: bool = False,
+        demand_horizon_enabled: bool = True,
         log_depot_visits: bool = False,
         depot_log_file: Optional[str] = None,
         reward_calculator: Optional[RewardCalculator] = None,
@@ -97,8 +97,8 @@ class LinearVFAPolicy(Policy):
         super().__init__(maintenance_enabled=maintenance_enabled)
 
         self.maintenance_enabled = maintenance_enabled
-        self.shift_timing_enabled = shift_timing_enabled
-        self.temporal_enabled = temporal_enabled
+        self.logistics_enabled = logistics_enabled
+        self.demand_horizon_enabled = demand_horizon_enabled
         self.log_depot_visits = log_depot_visits
         self.depot_log_file = depot_log_file
         # 1. Get the canonical list of ALL possible features
@@ -106,7 +106,7 @@ class LinearVFAPolicy(Policy):
 
         # 2. Determine which features we are actually using
         if active_features is None:
-            self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.shift_timing_enabled, self.temporal_enabled)
+            self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.logistics_enabled, self.demand_horizon_enabled)
         else:
             # --- FIXED: Force the user's active features into canonical mathematical order ---
             self.FEATURE_NAMES = [name for name in self.ALL_FEATURE_NAMES if name in active_features]
@@ -479,10 +479,10 @@ class LinearVFAPolicy(Policy):
             max_gravity=self._max_gravity,
             fleet_size=self.cached_fleet_size,
             maintenance_enabled=True,
-            shift_timing_enabled=True,
+            logistics_enabled=True,
             time_remaining=self._get_time_remaining(state, vehicle),
             shift_length=self._get_shift_length(state, vehicle),
-            temporal_enabled=True,
+            demand_horizon_enabled=True,
             current_time_minutes=float(state.time),
             current_day_of_week=int(state.day() % 7),
             target_matrix=self._target_matrix,
@@ -535,7 +535,7 @@ class LinearVFAPolicy(Policy):
         Returns:
             time_remaining : float (minutes) or None if shift_timing not enabled
         """
-        if not self.shift_timing_enabled:
+        if not self.logistics_enabled:
             return None
         
         if hasattr(vehicle, "shift_end_time") and vehicle.shift_end_time is not None:
@@ -735,7 +735,7 @@ class LinearVFAPolicy(Policy):
             f"V(S^x)={value:8.4f} | "
         )
         
-        if self.shift_timing_enabled:
+        if self.logistics_enabled:
             log_entry += f"t_rem={time_rem:.1f}min ({time_frac:.2%}) | "
         
         log_entry += f"φ_1={phi[0]:.4f} "  # rebalancing_imbalance
@@ -746,7 +746,7 @@ class LinearVFAPolicy(Policy):
         else:
             idx_time = 3
 
-        if self.shift_timing_enabled and len(phi) > idx_time:
+        if self.logistics_enabled and len(phi) > idx_time:
             log_entry += f"φ_time={phi[idx_time]:.4f} φ_penalty={phi[idx_time+1]:.4f}"
         
         # Print to console

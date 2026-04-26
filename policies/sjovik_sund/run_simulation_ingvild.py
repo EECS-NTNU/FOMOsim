@@ -252,9 +252,9 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
     return simulator
 
 
-def write_simulation_outputs(simulator, filename, seed, policy, duration, num_vehicles, append_to_results=False, run_logger=None):
+def write_simulation_outputs(simulator, filename, seed, policy, duration, num_vehicles, append_to_results=False, run_logger=None, write_csv=True):
     """Write all output files for a single simulation run.
-    
+
     Args:
         simulator: The completed simulator instance
         filename: Base filename for results (e.g., 'policy_results.csv')
@@ -263,70 +263,38 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
         duration: Simulation duration in hours
         num_vehicles: Number of vehicles used
         append_to_results: Whether to append to main results file (False for first seed)
+        write_csv: Whether to write simulation_results/csv/ files (set False when RunLogger is the primary output)
     """
-    # Determine solve time
     solve_time = simulator.state.time
-    
-    # Base filename without extension
-    base_filename = filename.replace('.csv', '')
-    
-    # Extract alpha from policy weights if available
-    weights = getattr(policy, "weights", None)
-    alpha_value = weights[3] if weights and len(weights) > 3 else None
-    
-    # Write main results file
-    write_results_to_file(filename, simulator, duration, solve_time, seed, append=append_to_results)
-    
-    # Write hourly metrics for this seed
-    hourly_filename = f"{base_filename}_hourly_seed_{seed}.csv"
-    #write_hourly_metrics_to_file(hourly_filename, simulator, seed)
-    
-    # Write vehicle visits for this seed
-    visits_filename = f"{base_filename}_vehicle_visits_seed_{seed}.csv"
-    #write_vehicle_visits_to_file(visits_filename, simulator, seed)
-    
-    # Write station hourly metrics for this seed
-    station_hourly_filename = f"{base_filename}_station_hourly_seed_{seed}.csv"
-    #write_station_hourly_metrics_to_file(station_hourly_filename, simulator, seed)
-    
-    # Write bike movements for this seed
-    bike_movements_filename = f"{base_filename}_bike_movements_seed_{seed}.csv"
-    write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
-    
-    # Write trip requests for this seed
-    trip_requests_filename = f"{base_filename}_trip_requests_seed_{seed}.csv"
-    #write_trip_requests_to_file(trip_requests_filename, simulator, seed, alpha_value)
-    
-    # Write Vehicle Decisions (currently commented out)
-    # decisions_filename = f"{base_filename}_vehicle_decisions_seed_{seed}.csv"
-    # write_vehicle_decisions_to_file(decisions_filename, simulator, seed)
 
-    # write component failures for this seed
-    if ENABLE_COMPONENT_FAILURES:
-        component_failures_filename = f"{base_filename}_component_failures_seed_{seed}.csv"
-        write_component_failures_to_file(component_failures_filename, simulator, seed, alpha_value)
-    
-    # 5. Vehicle Cargo & EOD Health
-    vehicle_health_log_filename = f"{base_filename}_vehicle_health_seed_{seed}.csv"
-    write_vehicle_and_health_logs(vehicle_health_log_filename, simulator, seed)
- 
-    # 6. RL Agent Brain Decisions
-    rl_decisions_filename = f"{base_filename}_rl_decisions_seed_{seed}.csv"
-    write_rl_decisions_to_file(rl_decisions_filename, simulator, seed)
- 
-    # Write summary for this seed
-    summary_filename = f"{base_filename}_summary_seed_{seed}.txt"
-    #write_simulation_summary(summary_filename, simulator, duration, policy, seed, num_vehicles)
-    
+    if write_csv:
+        base_filename = filename.replace('.csv', '')
+        weights = getattr(policy, "weights", None)
+        alpha_value = weights[3] if weights and len(weights) > 3 else None
+
+        write_results_to_file(filename, simulator, duration, solve_time, seed, append=append_to_results)
+
+        bike_movements_filename = f"{base_filename}_bike_movements_seed_{seed}.csv"
+        write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
+
+        if ENABLE_COMPONENT_FAILURES:
+            component_failures_filename = f"{base_filename}_component_failures_seed_{seed}.csv"
+            write_component_failures_to_file(component_failures_filename, simulator, seed, alpha_value)
+
+        vehicle_health_log_filename = f"{base_filename}_vehicle_health_seed_{seed}.csv"
+        write_vehicle_and_health_logs(vehicle_health_log_filename, simulator, seed)
+
+        rl_decisions_filename = f"{base_filename}_rl_decisions_seed_{seed}.csv"
+        write_rl_decisions_to_file(rl_decisions_filename, simulator, seed)
+
     if run_logger is not None:
         run_logger.log_episode(simulator, seed, duration, solve_time)
 
-    # Print completion info
     print(f"Seed {seed}: Completed in {solve_time:.2f}s")
 
-def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True, instance_name=None, config=None, run_logger=None):
+def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True, instance_name=None, config=None, run_logger=None, write_csv=True):
     """Test multiple seeds with the same policy.
-    
+
     Args:
         list_of_seeds: List of random seeds to test
         policy: Policy instance to use
@@ -336,6 +304,7 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         use_multiprocessing: Whether to run in parallel
         instance_name: Instance name
         config: SimulationConfig instance
+        write_csv: Whether to write simulation_results/csv/ files
     """
     if config is None:
         config = SimulationConfig()
@@ -370,9 +339,10 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
                 policy=policy,
                 duration=duration,
                 num_vehicles=num_vehicles,
-                append_to_results=(i > 0)
+                append_to_results=(i > 0),
+                write_csv=write_csv,
             )
-  
+
     else:
         # Run simulations sequentially (easier for debugging)
         for i, seed in enumerate(list_of_seeds):
@@ -392,14 +362,16 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
                 num_vehicles=num_vehicles,
                 append_to_results=(i > 0),
                 run_logger=run_logger,
+                write_csv=write_csv,
             )
-  
-    print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
+
+    if write_csv:
+        print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
  
  
-def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False, instance_name=None, config=None, run_logger=None):
+def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False, instance_name=None, config=None, run_logger=None, write_csv=True):
     """Test multiple policies with multiple seeds.
-    
+
     Args:
         list_of_seeds: List of random seeds to test
         policy_dict: Dictionary of policy_name -> policy instance
@@ -408,18 +380,18 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
         use_multiprocessing: Whether to run in parallel
         instance_name: Instance name
         config: SimulationConfig instance
+        write_csv: Whether to write simulation_results/csv/ files
     """
     if config is None:
         config = SimulationConfig()
-    
+
     for policy_name, policy in policy_dict.items():
         print(f"\n{'='*80}")
         print(f"Testing Policy: {policy_name}")
         print(f"{'='*80}\n")
-  
-        # Test this policy with all seeds
+
         results_file = f'{policy_name}_results.csv'
-        test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing, instance_name, config, run_logger=run_logger)
+        test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing, instance_name, config, run_logger=run_logger, write_csv=write_csv)
  
  
 if __name__ == "__main__":

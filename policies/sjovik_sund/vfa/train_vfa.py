@@ -65,8 +65,8 @@ EPSILON_END   : float = 0.01    # final exploration rate
 GAMMA         : float = 0.99      # discount factor
 
 # ── Feature configuration ──────────────────────────────────────────────────────
-SHIFT_TIMING_ENABLED : bool = False  # Enable end-of-shift anticipatory features
-N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, shift_timing_enabled=SHIFT_TIMING_ENABLED))  # auto-synced with vfa_features.py
+LOGISTICS_ENABLED : bool = False  # Enable Pillar 4: Spatial & Logistic Constraints features
+N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, logistics_enabled=LOGISTICS_ENABLED))  # auto-synced with vfa_features.py
 
 INSTANCE_NAME : str   = "TD_W34_old" #"OS_W31"
 NUM_VEHICLES  : int   = 1
@@ -186,7 +186,7 @@ def train(
         learning_mode = True,
         seed          = 42,
         maintenance_enabled=ENABLE_COMPONENT_FAILURES,
-        shift_timing_enabled=SHIFT_TIMING_ENABLED,
+        logistics_enabled=LOGISTICS_ENABLED,
         reward_calculator=RewardCalculator(config=reward_config, gamma=gamma),
     )
     

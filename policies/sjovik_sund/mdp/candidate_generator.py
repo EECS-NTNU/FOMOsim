@@ -239,7 +239,7 @@ def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled:
                 candidates.append(nearest_depot)
     return candidates
 
-def generate_candidates(state, vehicle, maintenance_enabled: bool) -> List[sim.Action]:
+def generate_candidates(state, vehicle, maintenance_enabled: bool, n_routing: int = 10) -> List[sim.Action]:
     """
     Generates operational profiles and routing candidates dynamically based on post-operation inventory.
     """
@@ -262,7 +262,7 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool) -> List[sim.A
         free_space_post = max(0, vehicle_capacity - total_after_op)
         
         # GENERATE ROUTES SPECIFIC TO THIS OPERATION'S RESULTING INVENTORY!
-        routing_targets = _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled, n_func_avail_post=functional_after_op, free_space_post=free_space_post, debug_mode=True)
+        routing_targets = _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled, n_func_avail_post=functional_after_op, free_space_post=free_space_post, n_candidates=n_routing, debug_mode=True)
 
         for route in routing_targets:
             is_depot = any(d.id == route for d in state.get_depots())

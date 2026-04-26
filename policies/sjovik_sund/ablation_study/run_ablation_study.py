@@ -19,19 +19,33 @@ Results are saved under:
  
 Feature reference  (see vfa_features.py for full definitions)
 --------------------------------------------------------------
-  Category A - Base Rebalancing (always available)
-    A1  rebalancing_imbalance          total L1 deviation from target
-    A3  squared_starvation_penalty     mean squared starvation depth
-    A4  squared_congestion_penalty     mean squared congestion depth
-        A9  starvation_severity_max        95th-percentile starvation ratio
-        A10 congestion_severity_max        95th-percentile congestion ratio
-    A11 unmet_starvation_deficit       unmet starvation normalized by half capacity
-    A12 starvation_variance            variance of starvation ratios
- 
-  Category D - Temporal Demand (requires temporal_enabled=True in train_vfa.py)
-    D1  time_of_day_fraction           where in the 24h cycle
-    D4  multi_horizon_starvation_risk  integrated starvation over next H hours
-    D5  multi_horizon_congestion_risk  integrated congestion over next H hours
+  Pillar 1 — Current System Imbalance (CIM, always active)
+    CIM1  rebalancing_imbalance          total L1 deviation from target
+    CIM2  squared_starvation_penalty     mean squared starvation ratio
+    CIM3  squared_congestion_penalty     mean squared congestion ratio
+    CIM4  exponential_starvation_penalty exponential starvation penalty, bounded [0,1]
+    CIM5  exponential_congestion_penalty exponential congestion penalty, bounded [0,1]
+    CIM6  starvation_severity_max        95th-percentile starvation ratio
+    CIM7  congestion_severity_max        95th-percentile congestion ratio
+    CIM8  starvation_variance            variance of starvation ratios
+    CIM9  starvation_count               fraction of stations with starvation ratio >= 0.9
+    CIM10 congestion_count               fraction of stations with congestion ratio >= 0.9
+
+  Pillar 2 — Future System Imbalance (FIM, demand_horizon_enabled)
+    FIM1  gross_starvation_risk          departure pressure vs current inventory (Poisson-adjusted)
+    FIM2  gross_congestion_risk          arrival pressure vs free docks (Poisson-adjusted)
+    FIM3  net_starvation_shortfall       net outflow pressure with demand uncertainty
+    FIM4  net_congestion_shortfall       net inflow pressure with demand uncertainty
+
+  Pillar 3 — Maintenance Pressure (MP, maintenance_enabled)
+    MP1   trailer_cannibalization        broken bike fraction of van capacity
+    MP2   global_onsite_backlog          onsite broken bikes normalised by fleet
+    MP3   demand_weighted_depot_backlog  broken bikes at high-activity stations
+    MP4   depot_pull                     urgency to return to depot
+    MP5   maintenance_urgency            onsite backlog × starvation breadth (CIM9)
+
+  Pillar 4 — Spatial & Logistic Constraints (SLC, logistics_enabled)
+    SLC5  imbalance_hotspot_distance     distance to worst-imbalance stations, normalised
 """
  
 import os
@@ -63,36 +77,36 @@ EXPERIMENTS = {
     # symmetric temporal features cover both demand sides. Minimal and stable -
     # serves as the primary baseline against all other experiments.
     "Squared_Temporal": [
-        "squared_starvation_penalty",     # A3: mean squared starvation depth
-        "squared_congestion_penalty",     # A4: mean squared congestion depth
-        "gross_starvation_risk",      # D4: gross departure pressure
-        "gross_congestion_risk",      # D5: gross arrival pressure
+        "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
+        "squared_congestion_penalty",     # CIM3: mean squared congestion ratio
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
 
     # -- Starvation_focused ----------------------------------------------------
     # Hypothesis: Starvation is the dominant failure mode in this instance, so the
-    # VFA only needs to penalise starvation depth (A3/A9) and anticipate starvation
-    # demand (D4). Congestion features dilute the gradient signal by forcing the
+    # VFA only needs to penalise starvation depth (CIM2/CIM6) and anticipate starvation
+    # demand (FIM1). Congestion features dilute the gradient signal by forcing the
     # VFA to learn a trade-off that rarely matters in practice. Asymmetric by
     # design - if this outperforms Squared_Temporal, it confirms that congestion
     # features are noise rather than signal for this network.
     "Starvation_focused": [
-        "squared_starvation_penalty",     # A3
-        "squared_congestion_penalty",     # A4
-        "starvation_severity_max",        # A9: Q95 starvation tail depth
-        "gross_starvation_risk",      # D4: gross departure pressure
+        "squared_starvation_penalty",     # CIM2
+        "squared_congestion_penalty",     # CIM3
+        "starvation_severity_max",        # CIM6: Q95 starvation tail depth
+        "gross_starvation_risk",          # FIM1: gross departure pressure
     ],
 
 
     # -- Short_term_only -------------------------------------------------------
-    # Hypothesis: Temporal anticipation (D4/D5) is unnecessary - current-state
-    # global mass (A1) combined with Q95 tail severity on both sides already
+    # Hypothesis: Temporal anticipation (FIM1/FIM2) is unnecessary - current-state
+    # global mass (CIM1) combined with Q95 tail severity on both sides already
     # captures everything the VFA needs. If this performs comparably to
     # Squared_Temporal, temporal features provide no net value.
     "Short_term_only": [
-        "rebalancing_imbalance",          # A1: total L1 imbalance across the network
-        "starvation_severity_max",        # A9: Q95 starvation tail depth
-        "congestion_severity_max",        # A10: Q95 congestion tail depth
+        "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
+        "starvation_severity_max",        # CIM6: Q95 starvation tail depth
+        "congestion_severity_max",        # CIM7: Q95 congestion tail depth
     ],
 
     # -- Exponential_Temporal -------------------------------------------------
@@ -101,10 +115,10 @@ EXPERIMENTS = {
     # penalties when combined with symmetric temporal anticipation. Directly
     # comparable to Squared_Temporal - same structure, different penalty form.
     "Exponential_Temporal": [
-        "exponential_starvation_penalty", # A5: exp penalty, emphasises tail states
-        "exponential_congestion_penalty", # A6: symmetric
-        "gross_starvation_risk",      # D4: gross departure pressure
-        "gross_congestion_risk",      # D5: gross arrival pressure
+        "exponential_starvation_penalty", # CIM4: exp penalty, emphasises tail states
+        "exponential_congestion_penalty", # CIM5: symmetric
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
 
     # -- Count_Temporal -------------------------------------------------------
@@ -112,22 +126,22 @@ EXPERIMENTS = {
     # to depth (how badly affected). Direct comparison to Squared_Temporal.
     # If it matches, depth and breadth encode the same information for this network.
     "Count_Temporal": [
-        "starvation_count",           # A15: fraction of stations severely starving
-        "congestion_count",           # A16: fraction of stations severely congested
-        "gross_starvation_risk",      # D4: gross departure pressure vs current inventory
-        "gross_congestion_risk",      # D5: gross arrival pressure vs current free docks
+        "starvation_count",               # CIM9: fraction of stations with starvation ratio >= 0.9
+        "congestion_count",               # CIM10: fraction of stations with congestion ratio >= 0.9
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
 
     # -- Net_Demand_Temporal ---------------------------------------------------
     # Hypothesis: Net demand flow (departures minus arrivals) is more informative
     # than gross flow, because arriving bikes partially offset departures.
-    # D6/D7 should outperform D4/D5 when arrivals meaningfully replenish
+    # FIM3/FIM4 should outperform FIM1/FIM2 when arrivals meaningfully replenish
     # inventory within the horizon.
     "Net_Demand_Temporal": [
-        "squared_starvation_penalty", # A3: current depth anchor
-        "squared_congestion_penalty", # A4: symmetric
-        "net_starvation_shortfall",   # D6: net outflow pressure
-        "net_congestion_shortfall",   # D7: net inflow pressure
+        "squared_starvation_penalty",     # CIM2: current depth anchor
+        "squared_congestion_penalty",     # CIM3: symmetric
+        "net_starvation_shortfall",       # FIM3: net outflow pressure
+        "net_congestion_shortfall",       # FIM4: net inflow pressure
     ],
 
     # -- Severity_Temporal ----------------------------------------------------
@@ -136,25 +150,25 @@ EXPERIMENTS = {
     # give them forward-looking context. If this matches Squared_Temporal,
     # tail depth and mean depth carry equivalent information for the VFA.
     "Severity_Temporal": [
-        "starvation_severity_max",        # A9: Q95 starvation tail depth
-        "congestion_severity_max",        # A10: Q95 congestion tail depth
-        "gross_starvation_risk",      # D4: gross departure pressure
-        "gross_congestion_risk",      # D5: gross arrival pressure
+        "starvation_severity_max",        # CIM6: Q95 starvation tail depth
+        "congestion_severity_max",        # CIM7: Q95 congestion tail depth
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
 
 
         # -- Combined_Temporal ----------------------------------------------------
-    # Hypothesis: Combining mean-penalty features (A3/A4) with tail-severity
-    # features (A9/A10) gives the VFA both network-wide depth and worst-case
+    # Hypothesis: Combining mean-penalty features (CIM2/CIM3) with tail-severity
+    # features (CIM6/CIM7) gives the VFA both network-wide depth and worst-case
     # bottleneck signals simultaneously, outperforming either family alone.
-    # If this does not beat Squared_Temporal, A9/A10 add no incremental value.
+    # If this does not beat Squared_Temporal, CIM6/CIM7 add no incremental value.
     "Combined_Temporal": [
-        "squared_starvation_penalty",     # A3: mean squared starvation depth
-        "squared_congestion_penalty",     # A4: mean squared congestion depth
-        "starvation_severity_max",        # A9: Q95 starvation tail depth
-        "congestion_severity_max",        # A10: Q95 congestion tail depth
-        "gross_starvation_risk",      # D4: gross departure pressure
-        "gross_congestion_risk",      # D5: gross arrival pressure
+        "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
+        "squared_congestion_penalty",     # CIM3: mean squared congestion ratio
+        "starvation_severity_max",        # CIM6: Q95 starvation tail depth
+        "congestion_severity_max",        # CIM7: Q95 congestion tail depth
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
  
     # -- Disregarded experiments -----------------------------------------------
@@ -193,7 +207,7 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: Optional[list[str]] = None, alphas: Optional[list[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0):
+def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: Optional[list[str]] = None, alphas: Optional[list[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, gamma: float = 0.99):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -238,6 +252,7 @@ def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: Optiona
                     seed_offset=seed_offset,
                     active_features=features,
                     alpha_start=alpha,
+                    gamma=gamma,
                     weight_starvation=weight_starvation,
                     weight_congestion=weight_congestion,
                 )
@@ -280,6 +295,10 @@ if __name__ == "__main__":
         "--weight_congestion", type=float, default=-1.0,
         help="Reward weight for congestion events (default: -1.0)",
     )
+    parser.add_argument(
+        "--gamma", type=float, default=0.99,
+        help="Discount factor (default: 0.99 per hour)",
+    )
 
     args = parser.parse_args()
     run_all_experiments(
@@ -290,6 +309,7 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         weight_starvation=args.weight_starvation,
         weight_congestion=args.weight_congestion,
+        gamma=args.gamma,
     )
  
     # -- Axis 2: Spatial Recoverability ---------------------------------------

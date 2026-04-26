@@ -156,8 +156,10 @@ class HybridRolloutPolicy(Policy):
         # Temporarily mute VFA operational logging so rollouts don't corrupt your CSVs
         old_log_rl = getattr(self.vfa, 'log_rl_decisions', False)
         old_log_depot = getattr(self.vfa, 'log_depot_visits', False)
+        old_vfa_logger = getattr(self.vfa, 'logger', None)
         self.vfa.log_rl_decisions = False
         self.vfa.log_depot_visits = False
+        self.vfa.logger = None  # prevent rollout VFA steps from accumulating into RunLogger
 
         # 2. Evaluate each candidate via Lookahead
         for action in candidates:
@@ -229,6 +231,7 @@ class HybridRolloutPolicy(Policy):
         # Restore VFA logging config for the real simulation step
         self.vfa.log_rl_decisions = old_log_rl
         self.vfa.log_depot_visits = old_log_depot
+        self.vfa.logger = old_vfa_logger
 
         if self.logger is not None and best_action is not None:
             self._log_decision(state, vehicle, best_action,
