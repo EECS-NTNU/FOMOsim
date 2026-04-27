@@ -394,7 +394,7 @@ class LoggingSimulator(sim.Simulator):
             self.run_logger.log_hour(rl_row)
         
        # Print summary for this hour
-        print(f"\n{'='*70}")
+        '''print(f"\n{'='*70}")
         print(f"HOUR {f'{clock_hour:02d}:00'} SUMMARY (Day {day})")
         print(f"{'='*70}")
         print(f"{'Metric':<35} {'This Hour':>12}")
@@ -415,7 +415,7 @@ class LoggingSimulator(sim.Simulator):
         #print(f"{'Bikes Low (<=0.30)':<35} {bikes_low:>12}")
         print(f"{'Total Component Failures':<35} {hourly_total_failures:>12}")
         print(f"{'  - Depot Fixes':<35} {hourly_depot_failures:>12}")
-        print(f"{'  - On-site Fixes':<35} {hourly_onsite_failures:>12}")
+        print(f"{'  - On-site Fixes':<35} {hourly_onsite_failures:>12}")'''
 
         # Print individual component failures with severity breakdown
         if hourly_total_failures > 0:
@@ -535,14 +535,14 @@ class LoggingSimulator(sim.Simulator):
             print(f"All {len(critical_bikes)} bikes have been reset to 0.0 criticality")
             print(f"{'='*60}\n")'''
  
-        print(f"\n{'='*40}")
+        '''print(f"\n{'='*40}")
         print(f"DAY {day} SUMMARY (23:00)")
         print(f"{'='*40}")
         print(f"Accumulated Starvations: {starvations} (+{daily_starvations} today)")
         print(f"Accumulated Congestions: {congestions} (+{daily_congestions} today)")
         print(f"Bike Pickups:            {pickups} (+{daily_pickups} today)")
         print(f"Bike Deliveries:         {deliveries} (+{daily_deliveries} today)")
-        print(f"{'='*40}\n")
+        print(f"{'='*40}\n")'''
 
         # --- Calculate Total City Health ---
         total_func = total_onsite = total_depot = 0

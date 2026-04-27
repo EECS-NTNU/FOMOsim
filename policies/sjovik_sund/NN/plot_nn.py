@@ -10,7 +10,7 @@ Usage:
     python policies/sjovik_sund/NN/plot_nn.py --checkpoint path/to/model.pt
 
 Panels:
-  1. TD Loss          — raw + smoothed + ±1σ band + target-net update markers
+  1. TD Loss          — raw + smoothed + ±1σ band + -net update markers
   2. Service Level    — raw + smoothed + best-episode annotation
   3. Value Spread     — mean max−min across candidates (NN discrimination signal)
   4. Fallback Rate    — % PostDecisionState.apply() failures (data quality)
@@ -147,8 +147,8 @@ def plot_training_results(csv_path: Path = None, checkpoint_path: Path = None):
     has_fallback = fallbacks is not None
     has_reward   = rewards  is not None and pct_zero is not None
 
-    target_update_freq = 10
-    update_eps = [e for e in episodes if e % target_update_freq == 0]
+    _update_freq = 10
+    update_eps = [e for e in episodes if e % _update_freq == 0]
 
     smoothed  = _smooth(losses)
     std_band  = _rolling_std(losses)
@@ -207,7 +207,7 @@ def plot_training_results(csv_path: Path = None, checkpoint_path: Path = None):
         ax.axvline(ue, color="grey", linestyle=":", linewidth=0.7, alpha=0.5)
     update_patch = mpatches.Patch(
         facecolor="none", edgecolor="grey", linestyle=":",
-        label=f"target net update (every {target_update_freq} ep)",
+        label=f" net update (every {_update_freq} ep)",
     )
     ax.annotate(f"{smoothed[0]:.4f}", xy=(episodes[0], smoothed[0]),
                 xytext=(6, 4), textcoords="offset points", fontsize=7.5, color="tab:red")

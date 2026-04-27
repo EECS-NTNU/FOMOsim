@@ -285,12 +285,12 @@ def extract(
         congestion_shortfall  = np.maximum(0.0, gross_inflow + np.sqrt(gross_inflow) - free_docks_d)
         phi_gross_cong        = float(np.mean(congestion_shortfall / cap_rem_safe))
 
-        # FIM3: Net Starvation Shortfall — net outflow pressure with demand uncertainty
+        # FIM3: Net Starvation Shortfall — net outflow pressure vs current inventory
         net_std_dev = np.sqrt(gross_outflow + gross_inflow)
-        phi_net_starv_shortfall = float(np.mean(np.maximum(0.0, net_activity + net_std_dev) / target_safe))
+        phi_net_starv_shortfall = float(np.mean(np.maximum(0.0, net_activity + net_std_dev - func) / target_safe))
 
-        # FIM4: Net Congestion Shortfall — net inflow pressure with demand uncertainty
-        phi_net_cong_shortfall  = float(np.mean(np.maximum(0.0, -net_activity + net_std_dev) / cap_rem_safe))
+        # FIM4: Net Congestion Shortfall — net inflow pressure vs current free docks
+        phi_net_cong_shortfall  = float(np.mean(np.maximum(0.0, -net_activity + net_std_dev - free_docks_d) / cap_rem_safe))
 
         cat_d = [phi_gross_starv, phi_gross_cong, phi_net_starv_shortfall, phi_net_cong_shortfall]
         features.extend(cat_d)

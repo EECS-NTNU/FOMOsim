@@ -4,7 +4,7 @@ evaluate_hybrid_rollout.py  —  Evaluate trained VFA models inside the Hybrid R
 
 Two modes of operation:
 
-  1. BATCH MODE (iterates over all experiment × alpha combinations):
+  1. BATCH MODE (iterates over all experiment x alpha combinations):
      For each combination, scans models/final_ablation_300ep/ for per-seed
      weights_evolution CSVs, averages the last --last_n episode rows across all
      available seeds, and evaluates the resulting averaged VFA inside a Hybrid
