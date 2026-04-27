@@ -18,7 +18,7 @@ import sys
 import pickle
 import numpy as np
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, cast
 
 if TYPE_CHECKING:
     from policies.sjovik_sund.vfa.run_logger import RunLogger
@@ -339,12 +339,24 @@ class LinearVFAPolicy(Policy):
                 else:
                     func[k] += 1
 
-        # --- FIXED DEBUG PRINT ---
-        # Print it once and then set a flag so it doesn't spam you forever
         if not hasattr(self, '_has_printed_vision'):
-            print(f"\n[DEBUG - VFA VISION] VFA sees {sum(func)} functional, {sum(onsite)} onsite, {sum(depot)} depot bikes in the city.")
             self._has_printed_vision = True
-
+            on_vehicles   = sum(len(v.get_bike_inventory()) for v in state.get_vehicles())
+            in_transit    = len(state.bikes_in_use)
+            at_stations   = sum(func) + sum(onsite) + sum(depot)
+            depot_available = sum(len(d.bikes) for d in state.get_depots())
+            depot_fixed_q   = sum(len(d.fixed_queue) for d in state.get_depots())
+            depot_in_repair = sum(len(bikes) for d in state.get_depots() for _, bikes in d.in_repair)
+            total_tracked   = at_stations + on_vehicles + in_transit + depot_available + depot_fixed_q + depot_in_repair
+            fleet = self.cached_fleet_size or 768
+            print(
+                f"\n[DEBUG - VFA VISION] Stations: {sum(func)} func, {sum(onsite)} onsite, {sum(depot)} depot-bound"
+                f" | Vehicles: {on_vehicles}"
+                f" | In-transit (customers): {in_transit}"
+                f" | Depot: {depot_available} available, {depot_fixed_q} fixed-queue, {depot_in_repair} in-repair"
+                f" | Total: {total_tracked} / {fleet}"
+            )
+    
         return func, onsite, depot
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -690,7 +702,7 @@ class LinearVFAPolicy(Policy):
         DECOUPLED CANDIDATE GENERATION:
         Delegated to candidate_generator.py to create combination of operations and routing.
         """
-        return generate_candidates(state, vehicle, self.maintenance_enabled)
+        return cast(List[sim.Action], generate_candidates(state, vehicle, self.maintenance_enabled))
 
     # ─────────────────────────────────────────────────────────────────────────
     # Logging
@@ -814,7 +826,7 @@ class LinearVFAPolicy(Policy):
             # --- DEBUG PRINT ---
             # Print only for the very first candidate of the decision epoch so it doesn't flood the console
             if k == 0 and len(action.pick_ups) > 0:
-                 print(f"[DEBUG - CARGO] Action wanted {len(action.pick_ups)} pickups. VFA correctly identified {functional_pickups} functional and {depot_pickups} depot bikes.")
+                pass  # debug print removed
 
             # Net change in functional bikes and vehicle depot cargo
             delta_func = len(action.delivery_bikes) - functional_pickups
@@ -883,7 +895,7 @@ class LinearVFAPolicy(Policy):
         _ns = getattr(selected, 'next_location', getattr(selected, 'next_station', None))
         _pk = len(getattr(selected, 'pick_ups', []))
         _dl = len(getattr(selected, 'delivery_bikes', []))
-        print(f"[{mode}] {_ns} pk={_pk} dl={_dl} (idx={sel_idx}, v={values[sel_idx]:.4f})")
+        #print(f"[{mode}] {_ns} pk={_pk} dl={_dl} (idx={sel_idx}, v={values[sel_idx]:.4f})")
 
         # ── Noon snapshot: ranked candidate table (once per simulated day) ───
         if state.hour() == 12 and getattr(self, '_noon_log_day', -1) != state.day():

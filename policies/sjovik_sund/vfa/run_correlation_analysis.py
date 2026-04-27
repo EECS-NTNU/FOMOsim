@@ -52,8 +52,8 @@ def run_analysis() -> None:
 
     # ── Build VFA policy with temporal features enabled ────────────────────────
     vfa = LinearVFAPolicy(
-        learning_mode       = True,
-        temporal_enabled    = True,
+        learning_mode       = False,
+        demand_horizon_enabled    = True,
         maintenance_enabled = ENABLE_COMPONENT_FAILURES,
         seed                = 42,
     )

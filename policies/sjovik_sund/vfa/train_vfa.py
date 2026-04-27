@@ -66,7 +66,7 @@ GAMMA         : float = 0.99      # discount factor
 
 # ── Feature configuration ──────────────────────────────────────────────────────
 LOGISTICS_ENABLED : bool = False  # Enable Pillar 4: Spatial & Logistic Constraints features
-N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, logistics_enabled=LOGISTICS_ENABLED))  # auto-synced with vfa_features.py
+N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, logistics_enabled=LOGISTICS_ENABLED, demand_horizon_enabled=True))  # auto-synced with vfa_features.py
 
 INSTANCE_NAME : str   = "TD_W34_old" #"OS_W31"
 NUM_VEHICLES  : int   = 1
@@ -120,7 +120,7 @@ def train(
     epsilon_start : float = EPSILON_START,
     epsilon_end   : float = EPSILON_END,
     weight_starvation : float = -1.0,
-    weight_congestion : float = -0.7,
+    weight_congestion : float = -1.0,
 ) -> LinearVFAPolicy:
     
     # BATCH SIZE configuration

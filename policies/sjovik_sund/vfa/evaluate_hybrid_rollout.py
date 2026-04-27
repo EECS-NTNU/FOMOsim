@@ -50,7 +50,7 @@ from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, test_p
 # Single source of truth for experiment definitions
 from policies.sjovik_sund.ablation_study.run_ablation_study import EXPERIMENTS
 
-FINAL_ABLATION_DIR = Path("models/final_ablation_350ep")
+FINAL_ABLATION_DIR = Path("models/final_ablation_500ep")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -111,12 +111,18 @@ def evaluate_model(
     seed: int,
     lookahead_minutes: float,
     num_scenarios: int,
+    n_rollout_candidates: int,
+    n_routing_candidates: int,
+    screening_mode: bool,
+    n_screening_scenarios: int,
+    n_survivors: int,
     episodes: int,
     start_seed: int,
     duration_hours: int,
     instance: str,
     vehicles: int,
     run_logger=None,
+    debug_print: bool = False,
 ):
     print(f"\n{'='*60}")
     print(f"  {exp_name}  |  seed={seed}  |  {len(active_features)} features")
@@ -138,7 +144,13 @@ def evaluate_model(
         trained_vfa=trained_vfa,
         lookahead_minutes=lookahead_minutes,
         num_scenarios=num_scenarios,
+        n_rollout_candidates=n_rollout_candidates,
+        n_routing_candidates=n_routing_candidates,
+        screening_mode=screening_mode,
+        n_screening_scenarios=n_screening_scenarios,
+        n_survivors=n_survivors,
         logger=run_logger,
+        debug_print=debug_print,
     )
 
     policy_dict = {
@@ -171,6 +183,11 @@ def run_batch(
     base_dir: Path,
     lookahead_minutes: float,
     num_scenarios: int,
+    n_rollout_candidates: int,
+    n_routing_candidates: int,
+    screening_mode: bool,
+    n_screening_scenarios: int,
+    n_survivors: int,
     episodes: int,
     start_seed: int,
     duration_hours: int,
@@ -180,6 +197,8 @@ def run_batch(
     run_only: list[str] | None = None,
     run_donoting: bool = False,
     run_vfa: bool = False,
+    run_hybrid: bool = True,
+    debug_print: bool = False,
 ):
     # One RunLogger for the entire batch — all experiments/alphas/seeds share it
     run_logger = RunLogger(log_decisions=log_decisions)
@@ -268,26 +287,33 @@ def run_batch(
                     write_csv=False,
                 )
 
-            run_logger.set_run_label(exp_name, alpha, policy_type="Hybrid")
-            vfa.logger = run_logger
-            hybrid = HybridRolloutPolicy(
-                trained_vfa=vfa,
-                lookahead_minutes=lookahead_minutes,
-                num_scenarios=num_scenarios,
-                logger=run_logger,
-            )
+            if run_hybrid:
+                run_logger.set_run_label(exp_name, alpha, policy_type="Hybrid")
+                vfa.logger = run_logger
+                hybrid = HybridRolloutPolicy(
+                    trained_vfa=vfa,
+                    lookahead_minutes=lookahead_minutes,
+                    num_scenarios=num_scenarios,
+                    n_rollout_candidates=n_rollout_candidates,
+                    n_routing_candidates=n_routing_candidates,
+                    screening_mode=screening_mode,
+                    n_screening_scenarios=n_screening_scenarios,
+                    n_survivors=n_survivors,
+                    logger=run_logger,
+                    debug_print=debug_print,
+                )
 
-            test_policies(
-                list_of_seeds=eval_seeds,
-                policy_dict={f"{tag}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid},
-                num_vehicles=vehicles,
-                duration=duration_hours,
-                use_multiprocessing=False,
-                instance_name=instance,
-                config=SimulationConfig(),
-                run_logger=run_logger,
-                write_csv=False,
-            )
+                test_policies(
+                    list_of_seeds=eval_seeds,
+                    policy_dict={f"{tag}_Hybrid_H{int(lookahead_minutes)}_S{num_scenarios}": hybrid},
+                    num_vehicles=vehicles,
+                    duration=duration_hours,
+                    use_multiprocessing=False,
+                    instance_name=instance,
+                    config=SimulationConfig(),
+                    run_logger=run_logger,
+                    write_csv=False,
+                )
 
     run_logger.close()
     print(f"\n{'='*60}")
@@ -317,12 +343,21 @@ def run_single(
     features_override: list[str] | None,
     lookahead_minutes: float,
     num_scenarios: int,
+    n_rollout_candidates: int,
+    n_routing_candidates: int,
+    screening_mode: bool,
+    n_screening_scenarios: int,
+    n_survivors: int,
     episodes: int,
     start_seed: int,
     duration_hours: int,
     instance: str,
     vehicles: int,
     log_decisions: bool = False,
+    run_donoting: bool = False,
+    run_vfa: bool = False,
+    run_hybrid: bool = True,
+    debug_print: bool = False,
 ):
     model_file = Path(model_path)
     if not model_file.exists():
@@ -335,21 +370,73 @@ def run_single(
     else:
         active_features, exp_name = _detect_features(model_path)
 
+    alpha_match = re.search(r'alpha_([\d.]+)', model_path)
+    alpha_val = float(alpha_match.group(1)) if alpha_match else 0.0
+
     run_logger = RunLogger(log_decisions=log_decisions)
-    evaluate_model(
-        model_file=model_file,
-        active_features=active_features,
-        exp_name=exp_name,
-        seed=0,
-        lookahead_minutes=lookahead_minutes,
-        num_scenarios=num_scenarios,
-        episodes=episodes,
-        start_seed=start_seed,
-        duration_hours=duration_hours,
-        instance=instance,
-        vehicles=vehicles,
-        run_logger=run_logger,
-    )
+    eval_seeds = list(range(start_seed, start_seed + episodes))
+
+    if run_donoting:
+        print(f"\n{'='*60}")
+        print("  RUNNING BASELINE: DoNothing")
+        print(f"{'='*60}")
+        run_logger.set_run_label("DoNothing_Baseline", 0.0, policy_type="DoNothing", results_only=True)
+        test_policies(
+            list_of_seeds=eval_seeds,
+            policy_dict={"DoNothing_Baseline": DoNothing()},
+            num_vehicles=vehicles,
+            duration=duration_hours,
+            use_multiprocessing=False,
+            instance_name=instance,
+            config=SimulationConfig(),
+            run_logger=run_logger,
+            write_csv=False,
+        )
+
+    if run_vfa or run_hybrid:
+        trained_vfa = LinearVFAPolicy.load(model_file, active_features=active_features)
+        trained_vfa.learning_mode = False
+
+        if run_vfa:
+            print(f"\n{'='*60}")
+            print(f"  RUNNING VFA-only: {exp_name}")
+            print(f"{'='*60}")
+            run_logger.set_run_label(exp_name, alpha_val, policy_type="VFA")
+            trained_vfa.logger = run_logger
+            test_policies(
+                list_of_seeds=eval_seeds,
+                policy_dict={f"{exp_name}_VFA": trained_vfa},
+                num_vehicles=vehicles,
+                duration=duration_hours,
+                use_multiprocessing=False,
+                instance_name=instance,
+                config=SimulationConfig(),
+                run_logger=run_logger,
+                write_csv=False,
+            )
+
+        if run_hybrid:
+            evaluate_model(
+                model_file=model_file,
+                active_features=active_features,
+                exp_name=exp_name,
+                seed=0,
+                lookahead_minutes=lookahead_minutes,
+                num_scenarios=num_scenarios,
+                n_rollout_candidates=n_rollout_candidates,
+                n_routing_candidates=n_routing_candidates,
+                screening_mode=screening_mode,
+                n_screening_scenarios=n_screening_scenarios,
+                n_survivors=n_survivors,
+                episodes=episodes,
+                start_seed=start_seed,
+                duration_hours=duration_hours,
+                instance=instance,
+                vehicles=vehicles,
+                run_logger=run_logger,
+                debug_print=debug_print,
+            )
+
     run_logger.close()
     print(f"\nRun logs written to: {run_logger.run_dir}")
 
@@ -379,15 +466,15 @@ if __name__ == "__main__":
     # Batch mode options
     batch = parser.add_argument_group("Batch mode options (ignored in single mode)")
     batch.add_argument(
-        "--train_seeds", nargs="+", type=int, default=[5000, 6000], metavar="SEED",
+        "--train_seeds", nargs="+", type=int, default=[1000], metavar="SEED",
         help="Training seeds whose weight CSVs to average (default: 5000 6000)",
     )
     batch.add_argument(
-        "--train_alphas", nargs="+", type=float, default=[0.1, 0.05], metavar="ALPHA",
-        help="Training alphas to evaluate (default: 0.1 0.05)",
+        "--train_alphas", nargs="+", type=float, default=[0.1], metavar="ALPHA",
+        help="Training alphas to evaluate (default: 0.1)",
     )
     batch.add_argument(
-        "--last_n", type=int, default=10, metavar="N",
+        "--last_n", type=int, default=5, metavar="N",
         help="Average weights over last N episodes per seed (default: 10)",
     )
     batch.add_argument(
@@ -404,6 +491,10 @@ if __name__ == "__main__":
         help="Write decisions.csv (one row per real vehicle decision). Can be large for long runs.",
     )
     batch.add_argument(
+        "--debug", action="store_true", default=False,
+        help="Print per-decision candidate tables: pre-pruning VFA ranking and post-screening survivors.",
+    )
+    batch.add_argument(
         "--run_donoting", action="store_true", default=False,
         help="Also run the DoNothing baseline (results.csv only, no hourly/daily metrics).",
     )
@@ -411,19 +502,33 @@ if __name__ == "__main__":
         "--run_vfa", action="store_true", default=False,
         help="Also run the VFA-only policy for each experiment before the hybrid rollout.",
     )
+    batch.add_argument(
+        "--no_hybrid", action="store_true", default=False,
+        help="Skip the hybrid rollout (useful for running baselines only).",
+    )
 
     # Rollout tuning
     rollout = parser.add_argument_group("Rollout parameters")
     rollout.add_argument("--lookahead", type=float, default=60.0,
                          help="Rollout horizon in simulation minutes (default: 60)")
-    rollout.add_argument("--scenarios", type=int, default=10,
-                         help="Monte Carlo scenarios per action (default: 10)")
+    rollout.add_argument("--scenarios", type=int, default=8,
+                         help="Monte Carlo scenarios per action (default: 8)")
+    rollout.add_argument("--n_candidates", type=int, default=999, #default 999 means no candidate pruning at all. 
+                         help="Top N candidates to evaluate via rollout (default: 8, use 999 to disable VFA pre-filtering)")
+    rollout.add_argument("--n_routing", type=int, default=10,
+                         help="Routing targets per operational profile for initial candidate generation (default: 10, VFA training always uses 10)")
+    rollout.add_argument("--screening", action="store_true", default=False,
+                         help="Enable two-stage OCBA screening (skips VFA pre-filter)")
+    rollout.add_argument("--n_screening", type=int, default=2,
+                         help="Stage-1 scenarios per candidate in screening mode (default: 2)")
+    rollout.add_argument("--n_survivors", type=int, default=10,
+                         help="Candidates advanced from stage-1 to stage-2 in screening mode (default: 10)")
 
     # Simulation settings
     sim = parser.add_argument_group("Simulation settings")
     sim.add_argument("--episodes", type=int, default=1,
                      help="Evaluation episodes per model (default: 1)")
-    sim.add_argument("--seed", type=int, default=9000,
+    sim.add_argument("--seed", type=int, default=42,
                      help="Starting evaluation seed (default: 9000, kept separate from training seeds)")
     sim.add_argument("--duration", type=int, default=24 * 14,
                      help="Simulation duration in hours (default: 336)")
@@ -437,6 +542,11 @@ if __name__ == "__main__":
     shared_sim = dict(
         lookahead_minutes=args.lookahead,
         num_scenarios=args.scenarios,
+        n_rollout_candidates=args.n_candidates,
+        n_routing_candidates=args.n_routing,
+        screening_mode=args.screening,
+        n_screening_scenarios=args.n_screening,
+        n_survivors=args.n_survivors,
         episodes=args.episodes,
         start_seed=args.seed,
         duration_hours=args.duration,
@@ -445,7 +555,10 @@ if __name__ == "__main__":
     )
 
     if args.model:
-        run_single(model_path=args.model, features_override=args.features, log_decisions=args.log_decisions, **shared_sim)
+        run_single(model_path=args.model, features_override=args.features,
+                   log_decisions=args.log_decisions, debug_print=args.debug,
+                   run_donoting=args.run_donoting, run_vfa=args.run_vfa,
+                   run_hybrid=not args.no_hybrid, **shared_sim)
     else:
         run_batch(
             train_seeds=args.train_seeds,
@@ -456,5 +569,7 @@ if __name__ == "__main__":
             run_only=args.run_only,
             run_donoting=args.run_donoting,
             run_vfa=args.run_vfa,
+            run_hybrid=not args.no_hybrid,
+            debug_print=args.debug,
             **shared_sim,
         )

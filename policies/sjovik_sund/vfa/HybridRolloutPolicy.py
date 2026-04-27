@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import copy
+import time
 import numpy as np
 import sim
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional, cast
 from policies.policy import Policy
 from policies.sjovik_sund.mdp.reward import RewardCalculator
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
 
 if TYPE_CHECKING:
     from policies.sjovik_sund.vfa.run_logger import RunLogger
@@ -16,8 +18,14 @@ class HybridRolloutPolicy(Policy):
         self,
         trained_vfa: LinearVFAPolicy,
         lookahead_minutes: float = 60.0,
-        num_scenarios: int = 5,
+        num_scenarios: int = 8,
+        n_rollout_candidates: int = 8,
+        n_routing_candidates: int = 10,
+        screening_mode: bool = False,
+        n_screening_scenarios: int = 2,
+        n_survivors: int = 10,
         logger: Optional[RunLogger] = None,
+        debug_print: bool = True,
     ):
         super().__init__(maintenance_enabled=trained_vfa.maintenance_enabled)
 
@@ -27,8 +35,14 @@ class HybridRolloutPolicy(Policy):
         self.num_scenarios = num_scenarios
         self._simulator = None
         self.weights = getattr(trained_vfa, "weights", [])
-        self.N_ROLLOUT_CANDIDATES = 5  # Number of top candidates to fully simulate
+        self.N_ROLLOUT_CANDIDATES = n_rollout_candidates
+        self.n_routing_candidates = n_routing_candidates
+        # OCBA-style two-stage screening
+        self.screening_mode = screening_mode
+        self.n_screening_scenarios = n_screening_scenarios  # stage-1 scenarios per candidate
+        self.n_survivors = n_survivors                      # candidates advanced to stage 2
         self.logger: Optional[RunLogger] = logger
+        self.debug_print = debug_print
 
 
     def __deepcopy__(self, memo):
@@ -64,7 +78,7 @@ class HybridRolloutPolicy(Policy):
         cutoff = rollout_sim.state.time + self.lookahead_minutes
         before = len(rollout_sim.event_queue)
         rollout_sim.event_queue = [e for e in rollout_sim.event_queue if e.time <= cutoff]
-        print(f"[Rollout] Event queue truncated: {before} -> {len(rollout_sim.event_queue)} events (cutoff={cutoff:.1f} min)")
+        #print(f"[Rollout] Event queue truncated: {before} -> {len(rollout_sim.event_queue)} events (cutoff={cutoff:.1f} min)")
 
         return rollout_sim
 
@@ -97,17 +111,180 @@ class HybridRolloutPolicy(Policy):
         sim_vehicle.eta = arrival_time
         return 0.0
 
+    def _run_single_scenario(self, state, vehicle, action,
+                             rng_seed: int, rng2_seed: int) -> tuple[float, float]:
+        """Run one rollout scenario. Returns (accumulated_reward, discounted_tail)."""
+        rollout_sim = self._clone_simulator()
+        sim_state = rollout_sim.state
+        sim_state.rng  = np.random.default_rng(rng_seed)
+        sim_state.rng2 = np.random.default_rng(rng2_seed)
+
+        sim_vehicle = sim_state.get_vehicle_by_id(vehicle.id)
+        reward_calc = self._make_rollout_reward_calculator(rollout_sim)
+
+        for v in sim_state.get_vehicles():
+            v.policy = self.vfa
+
+        self._apply_action_to_sim(rollout_sim, sim_vehicle, action)
+
+        target_time = sim_state.time + self.lookahead_minutes
+        accumulated_reward = 0.0
+
+        while rollout_sim.event_queue:
+            next_event = rollout_sim.event_queue[0]
+            if next_event.time > target_time:
+                sim_state.time = target_time
+                break
+            rollout_sim.single_step()
+            step_reward = reward_calc.compute_step_reward(sim_state.metrics)
+            time_elapsed = sim_state.time - state.time
+            discount = self.vfa.gamma ** max(time_elapsed / 60.0, 0.0)
+            accumulated_reward += discount * step_reward
+
+        terminal_vehicle = sim_state.get_vehicle_by_id(vehicle.id)
+        base_func, base_onsite, base_depot = self.vfa._extract_inventories(sim_state, terminal_vehicle)
+        terminal_phi = self.vfa.extract_features(
+            sim_state, terminal_vehicle, base_func, base_onsite, base_depot
+        )
+        terminal_value = self.vfa.value(terminal_phi)
+        discounted_tail = (self.vfa.gamma ** (self.lookahead_minutes / 60.0)) * terminal_value
+
+        return accumulated_reward, discounted_tail
+
+    @staticmethod
+    def _print_candidate_table(title: str, scored_candidates: list, metadata: list) -> None:
+        """Print a ranked candidate table for debug output."""
+        print(f"\n{'='*72}")
+        print(f"[DEBUG] {title}  ({len(scored_candidates)} candidates)")
+        print(f"  {'Rk':<4} {'Profile':<22} {'→ Station':<12} {'VFA Score':>10} {'Heur Score':>10}")
+        print(f"  {'-'*62}")
+        for rank, (vfa_score, orig_idx, action) in enumerate(scored_candidates):
+            dest = getattr(action, 'next_location', getattr(action, 'next_station', '?'))
+            meta = metadata[orig_idx] if metadata else {}
+            prof = meta.get('profile_type', '?')
+            heur = meta.get('heuristic_score', 0.0)
+            print(f"  {rank:<4} {prof:<22} {str(dest):<12} {vfa_score:>10.4f} {heur:>10.2f}")
+        print()
+
+    def _evaluate_standard(self, state, vehicle, candidates, crn_seeds):
+        """Full rollout on pre-filtered candidates. Returns (best_action, best_q, best_r, best_t, winning_rank)."""
+        best_action = None
+        best_q_value = -float('inf')
+        best_rollout_reward = 0.0
+        best_tail_value = 0.0
+
+        for action in candidates:
+            q_sum = r_sum = t_sum = 0.0
+            for rng_seed, rng2_seed in crn_seeds:
+                r, t = self._run_single_scenario(state, vehicle, action, rng_seed, rng2_seed)
+                q_sum += r + t
+                r_sum += r
+                t_sum += t
+            n = len(crn_seeds)
+            expected_q = q_sum / n
+            if expected_q > best_q_value:
+                best_q_value = expected_q
+                best_action = action
+                best_rollout_reward = r_sum / n
+                best_tail_value = t_sum / n
+
+        winning_rank = next((i for i, c in enumerate(candidates) if c is best_action), -1)
+        return best_action, best_q_value, best_rollout_reward, best_tail_value, winning_rank
+
+    def _evaluate_with_screening(self, state, vehicle, all_candidates, crn_seeds,
+                                  action_to_meta: dict | None = None, debug_print: bool = False):
+        """
+        Two-stage OCBA-style screening. Returns (best_action, best_q, best_r, best_t, winning_rank).
+
+        Stage 1: run n_screening_scenarios on all candidates → keep top n_survivors.
+        Stage 2: run remaining scenarios on survivors, combining with stage-1 results.
+        winning_rank is the survivor's position in the stage-1 ranking (0 = screening top-1).
+        """
+        n_screen = min(self.n_screening_scenarios, len(crn_seeds))
+        screen_seeds = crn_seeds[:n_screen]
+        full_seeds = crn_seeds[n_screen:]
+
+        # Stage 1: cheap screening on all candidates
+        screen_results: list[tuple[float, float, float, object]] = []  # (q, r, t, action)
+        for action in all_candidates:
+            q_sum = r_sum = t_sum = 0.0
+            for rng_seed, rng2_seed in screen_seeds:
+                r, t = self._run_single_scenario(state, vehicle, action, rng_seed, rng2_seed)
+                q_sum += r + t
+                r_sum += r
+                t_sum += t
+            screen_results.append((q_sum, r_sum, t_sum, action))
+
+        # Sort by stage-1 score, keep top n_survivors
+        screen_results.sort(key=lambda x: x[0], reverse=True)
+        survivors = screen_results[:self.n_survivors]
+
+        if debug_print and action_to_meta is not None:
+            n_show = len(survivors)
+            print(f"\n{'='*72}")
+            print(f"[DEBUG] Post-screening survivors ({n_show} of {len(all_candidates)} advanced to stage 2)")
+            print(f"  {'Rk':<4} {'Profile':<22} {'→ Station':<12} {'Stage-1 Q':>10} {'Heur Score':>10}")
+            print(f"  {'-'*62}")
+            for rank, (q_sum, _, _, action) in enumerate(survivors):
+                dest = getattr(action, 'next_location', getattr(action, 'next_station', '?'))
+                meta = action_to_meta.get(id(action), {})
+                prof = meta.get('profile_type', '?')
+                heur = meta.get('heuristic_score', 0.0)
+                stage1_q = q_sum / max(n_screen, 1)
+                print(f"  {rank:<4} {prof:<22} {str(dest):<12} {stage1_q:>10.4f} {heur:>10.2f}")
+            print()
+
+        # Stage 2: run remaining scenarios on survivors, accumulate into stage-1 totals
+        best_action = None
+        best_q_value = -float('inf')
+        best_rollout_reward = 0.0
+        best_tail_value = 0.0
+
+        for screen_rank, (q_sum, r_sum, t_sum, action) in enumerate(survivors):
+            for rng_seed, rng2_seed in full_seeds:
+                r, t = self._run_single_scenario(state, vehicle, action, rng_seed, rng2_seed)
+                q_sum += r + t
+                r_sum += r
+                t_sum += t
+            n = len(crn_seeds)
+            expected_q = q_sum / n
+            if expected_q > best_q_value:
+                best_q_value = expected_q
+                best_action = action
+                best_rollout_reward = r_sum / n
+                best_tail_value = t_sum / n
+                winning_rank = screen_rank  # rank in stage-1 sorted list
+
+        winning_rank = locals().get('winning_rank', -1)
+        return best_action, best_q_value, best_rollout_reward, best_tail_value, winning_rank
+
     def get_best_action(self, state, vehicle):
+        _t_start = time.perf_counter()
+
         if not self.vfa._initialized:
             self.vfa._lazy_init(state)
 
         # 1. Generate the immediate candidate actions
-        all_candidates = self.vfa._generate_candidates(state, vehicle)
-        
+        # Uses generate_candidates directly (not vfa._generate_candidates) so that
+        # n_routing_candidates can be set independently of the VFA's training action space.
+        if self.debug_print:
+            all_candidates, candidate_metadata = generate_candidates(
+                state, vehicle, self.maintenance_enabled,
+                n_routing=self.n_routing_candidates, return_metadata=True,
+            )
+            action_to_meta = {id(a): candidate_metadata[i] for i, a in enumerate(all_candidates)}
+        else:
+            all_candidates: List[sim.Action] = cast(List[sim.Action], generate_candidates(
+                state, vehicle, self.maintenance_enabled, n_routing=self.n_routing_candidates,
+            ))
+            candidate_metadata = []
+            action_to_meta = {}
+        n_total_candidates = len(all_candidates)
+
         # 1b. Pre-score using the frozen VFA and prune to N_ROLLOUT_CANDIDATES
         base_func, base_onsite, base_depot = self.vfa._extract_inventories(state, vehicle)
         candidate_scores = []
-        for action in all_candidates:
+        for idx, action in enumerate(all_candidates):
             functional_pickups = 0
             depot_pickups = 0
             station_bikes = getattr(vehicle.location, "bikes", {})
@@ -117,29 +294,38 @@ class HybridRolloutPolicy(Policy):
                     depot_pickups += 1
                 elif b:
                     functional_pickups += 1
-            
+
             delta_func = len(action.delivery_bikes) - functional_pickups
             delta_depot_cargo = depot_pickups
             delta_onsite_repairs = len(getattr(action, "onsite_repairs", []))
-            
+
             if vehicle.is_at_depot():
                 vehicle_depot_cargo = sum(1 for b in vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) == 'depot')
                 delta_depot_cargo = -vehicle_depot_cargo
-            
+
             dest_id = getattr(action, "next_location", getattr(action, "next_station", None))
-            
+
             phi = self.vfa.extract_features(
-                state, vehicle, 
-                base_func, base_onsite, base_depot, 
+                state, vehicle,
+                base_func, base_onsite, base_depot,
                 delta_func, delta_depot_cargo,
                 delta_onsite_repairs,
                 next_station_id=dest_id
             )
             vfa_score = self.vfa.value(phi)
-            candidate_scores.append((vfa_score, action))
-            
+            candidate_scores.append((vfa_score, idx, action))
+
         candidate_scores.sort(key=lambda x: x[0], reverse=True)
-        candidates = [item[1] for item in candidate_scores[:self.N_ROLLOUT_CANDIDATES]]
+
+
+        if self.debug_print:
+            self._print_candidate_table(
+                f"Pre-pruning VFA ranking (→ top {self.N_ROLLOUT_CANDIDATES} advance to rollout)",
+                candidate_scores, candidate_metadata,
+            )
+
+        candidates = [item[2] for item in candidate_scores[:self.N_ROLLOUT_CANDIDATES]]
+        vfa_top1 = candidates[0] if candidates else None
 
         best_action = None
         best_q_value = -float('inf')
@@ -159,88 +345,47 @@ class HybridRolloutPolicy(Policy):
         old_vfa_logger = getattr(self.vfa, 'logger', None)
         self.vfa.log_rl_decisions = False
         self.vfa.log_depot_visits = False
-        self.vfa.logger = None  # prevent rollout VFA steps from accumulating into RunLogger
+        self.vfa.logger = None
 
-        # 2. Evaluate each candidate via Lookahead
-        for action in candidates:
-            expected_q = 0.0
-            expected_rollout_only = 0.0  # accumulated reward without tail
-            expected_tail = 0.0          # discounted tail contribution
-
-            for omega in range(self.num_scenarios):
-                rollout_sim = self._clone_simulator()
-                sim_state = rollout_sim.state
-
-                # Pin this clone's RNGs to the shared scenario seed so all
-                # candidates experience the same demand/travel-time realisations.
-                rng_seed, rng2_seed = crn_seeds[omega]
-                sim_state.rng  = np.random.default_rng(rng_seed)
-                sim_state.rng2 = np.random.default_rng(rng2_seed)
-
-                sim_vehicle = sim_state.get_vehicle_by_id(vehicle.id)
-                reward_calc = self._make_rollout_reward_calculator(rollout_sim)
-
-                # -------------------------------------------------------------
-                # 🚨 CRITICAL FIX: PREVENT EXPONENTIAL RECURSION 🚨
-                # Force cloned vehicles to use the pure VFA! This delegates the
-                # rest of the lookahead directly to the native simulator engine.
-                # -------------------------------------------------------------
-                for v in sim_state.get_vehicles():
-                    v.policy = self.vfa
-
-                # Apply the candidate action to bridge the gap
-                self._apply_action_to_sim(rollout_sim, sim_vehicle, action)
-
-                # Rollout Phase: Fast-forward natively
-                target_time = sim_state.time + self.lookahead_minutes
-                accumulated_reward = 0.0
-
-                while rollout_sim.event_queue:
-                    next_event = rollout_sim.event_queue[0]
-                    if next_event.time > target_time:
-                        sim_state.time = target_time
-                        break
-
-                    rollout_sim.single_step()
-
-                    step_reward = reward_calc.compute_step_reward(sim_state.metrics)
-                    time_elapsed = sim_state.time - state.time
-                    discount = self.vfa.gamma ** max(time_elapsed / 60.0, 0.0)
-                    accumulated_reward += discount * step_reward
-
-                # Terminal Evaluation (The Tail Value)
-                terminal_vehicle = sim_state.get_vehicle_by_id(vehicle.id)
-                base_func, base_onsite, base_depot = self.vfa._extract_inventories(sim_state, terminal_vehicle)
-                terminal_phi = self.vfa.extract_features(
-                    sim_state, terminal_vehicle, base_func, base_onsite, base_depot
-                )
-                terminal_value = self.vfa.value(terminal_phi)
-                terminal_discount = self.vfa.gamma ** (self.lookahead_minutes / 60.0)
-                discounted_tail = terminal_discount * terminal_value
-
-                expected_q            += (accumulated_reward + discounted_tail) / self.num_scenarios
-                expected_rollout_only += accumulated_reward / self.num_scenarios
-                expected_tail         += discounted_tail / self.num_scenarios
-
-            if expected_q > best_q_value:
-                best_q_value = expected_q
-                best_action = action
-                best_rollout_reward = expected_rollout_only
-                best_tail_value = expected_tail
+        if self.screening_mode:
+            best_action, best_q_value, best_rollout_reward, best_tail_value, winning_rank = \
+                self._evaluate_with_screening(state, vehicle, all_candidates, crn_seeds,
+                                              action_to_meta=action_to_meta, debug_print=self.debug_print)
+            vfa_top1 = None
+            rollout_changed = False  # not applicable in screening mode
+        else:
+            best_action, best_q_value, best_rollout_reward, best_tail_value, winning_rank = \
+                self._evaluate_standard(state, vehicle, candidates, crn_seeds)
+            rollout_changed = (best_action is not vfa_top1)
 
         # Restore VFA logging config for the real simulation step
         self.vfa.log_rl_decisions = old_log_rl
         self.vfa.log_depot_visits = old_log_depot
         self.vfa.logger = old_vfa_logger
 
+        decision_runtime_s = time.perf_counter() - _t_start
+
         if self.logger is not None and best_action is not None:
+            winning_meta = action_to_meta.get(id(best_action), {}) if action_to_meta else {}
             self._log_decision(state, vehicle, best_action,
-                               best_rollout_reward, best_tail_value, best_q_value)
+                               best_rollout_reward, best_tail_value, best_q_value,
+                               n_total_candidates=n_total_candidates,
+                               winning_rank=winning_rank,
+                               rollout_changed=rollout_changed,
+                               vfa_top1=vfa_top1,
+                               decision_runtime_s=decision_runtime_s,
+                               winning_profile_type=winning_meta.get('profile_type', ''))
 
         return best_action
 
     def _log_decision(self, state, vehicle, action,
-                      rollout_reward: float, tail_value: float, final_score: float) -> None:
+                      rollout_reward: float, tail_value: float, final_score: float,
+                      n_total_candidates: int = 0,
+                      winning_rank: int = 0,
+                      rollout_changed: bool = False,
+                      vfa_top1=None,
+                      decision_runtime_s: float = 0.0,
+                      winning_profile_type: str = '') -> None:
         """Build a decision row and forward it to the RunLogger."""
         logger = self.logger
         if logger is None:
@@ -311,6 +456,8 @@ class HybridRolloutPolicy(Policy):
         ]
         bikes_involved = str(list(getattr(action, "pick_ups", [])) + delivery_ids)
 
+        vfa_top1_dest = getattr(vfa_top1, "next_location", None) if vfa_top1 is not None else None
+
         logger.log_decision({
             "day":    day,
             "hour":   clock_hour,
@@ -339,4 +486,10 @@ class HybridRolloutPolicy(Policy):
             "final_decision_score":     round(final_score, 6),
             "maintenance_flag_present": maintenance_flag_present,
             "selected_action_is_maintenance": selected_action_is_maintenance,
+            "n_total_candidates":       n_total_candidates,
+            "vfa_top1_next_station":    str(vfa_top1_dest) if vfa_top1_dest else "",
+            "rollout_changed_decision": rollout_changed,
+            "winning_candidate_rank":   winning_rank,
+            "decision_runtime_s":       round(decision_runtime_s, 4),
+            "winning_profile_type":     winning_profile_type,
         })

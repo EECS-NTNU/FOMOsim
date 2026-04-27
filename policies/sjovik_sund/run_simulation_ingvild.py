@@ -106,7 +106,7 @@ class SimulationConfig:
     default_seed: int = 1
     default_nsims: int = 1
     default_vehicles: int = 1
-    default_duration_hours: int = 24*365*2 # 5 days (3mnd)
+    default_duration_hours: int = 24*10 # 5 days (3mnd)
 
     # === Operational Debug Logging ===
     operation_logging_enabled: bool = False

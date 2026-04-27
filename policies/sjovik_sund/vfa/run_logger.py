@@ -137,7 +137,7 @@ class RunLogger:
             # Rollout diagnostics
             "n_total_candidates", "vfa_top1_next_station",
             "rollout_changed_decision", "winning_candidate_rank",
-            "decision_runtime_s",
+            "decision_runtime_s", "winning_profile_type",
         ]
         # Feature values — stable schema using full canonical list;
         # inactive features written as empty string for a given experiment.

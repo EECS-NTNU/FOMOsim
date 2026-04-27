@@ -75,7 +75,7 @@ class Simulator(LoadSave):
         if verbose:
             self.progress_bar = IncrementalBar(
                 "Running Sim",
-                check_tty=False,
+                check_tty=True,
                 max=round(duration / settings.ITERATION_LENGTH_MINUTES) + 1,
                 suffix="%(percent)d%% - ETA %(eta)ds",
             )

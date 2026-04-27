@@ -53,7 +53,7 @@ import sys
 import argparse
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
  
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
@@ -207,7 +207,7 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(seeds: list[int], episodes: int = 200, run_only: Optional[list[str]] = None, alphas: Optional[list[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, gamma: float = 0.99):
+def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, gamma: float = 0.99):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:

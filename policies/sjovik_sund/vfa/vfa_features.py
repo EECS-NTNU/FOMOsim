@@ -49,9 +49,8 @@ Pillar 1  —  Current System Imbalance  (CIM, always active)
   CIM5  exponential_congestion_penalty (1/N) Σ_i (exp(3 * cong_ratio_i) - 1) / (exp(3) - 1)
   CIM6  starvation_severity_max        Q95 of starvation ratio across stations
   CIM7  congestion_severity_max        Q95 of congestion ratio across stations
-  CIM8  starvation_variance            variance of starvation ratios
-  CIM9  starvation_count               fraction of stations with starvation ratio ≥ 0.9
-  CIM10 congestion_count               fraction of stations with congestion ratio ≥ 0.9
+  CIM8  starvation_count               fraction of stations with starvation ratio ≥ 0.9
+  CIM9 congestion_count               fraction of stations with congestion ratio ≥ 0.9
 
 ──────────────────────────────────────────────────────────────────────────────
 Pillar 2  —  Future System Imbalance  (FIM, appended if demand_horizon_enabled)
@@ -68,7 +67,7 @@ Pillar 3  —  Maintenance Pressure  (MP, appended if maintenance_enabled)
   MP2  global_onsite_backlog           Σ_i onsite_i / F
   MP3  demand_weighted_depot_backlog   Σ_i (depot_i * |λ_i^net|) / Λ_max
   MP4  depot_pull                      MP1 * (dist_to_depot / 30)
-  MP5  maintenance_urgency             MP2 * CIM9  ← broken bikes AND starving stations
+  MP5  maintenance_urgency             MP2 * CIM8  ← broken bikes AND starving stations
 
 ──────────────────────────────────────────────────────────────────────────────
 Pillar 4  —  Spatial & Logistic Constraints  (SLC, appended if logistics_enabled)
@@ -92,9 +91,9 @@ import numpy as np
 # ─────────────────────────────────────────────────────────────────────────────
 
 def get_feature_names(
-    maintenance_enabled: bool = True,
+    maintenance_enabled: bool = False,
     logistics_enabled: bool = False,
-    demand_horizon_enabled: bool = False,
+    demand_horizon_enabled: bool = True,
 ) -> list:
     """Returns the canonical feature name list for the active operational pillars.
 
@@ -113,9 +112,8 @@ def get_feature_names(
         "exponential_congestion_penalty", # CIM5
         "starvation_severity_max",        # CIM6
         "congestion_severity_max",        # CIM7
-        "starvation_variance",            # CIM8
-        "starvation_count",               # CIM9
-        "congestion_count",               # CIM10
+        "starvation_count",               # CIM8
+        "congestion_count",               # CIM9
     ]
 
     # Pillar 2: Future System Imbalance (FIM)
@@ -133,8 +131,7 @@ def get_feature_names(
             "trailer_cannibalization",        # MP1
             "global_onsite_backlog",          # MP2
             "demand_weighted_depot_backlog",  # MP3
-            "depot_pull",                     # MP4
-            "maintenance_urgency",            # MP5
+            # depot_pull and maintenance_urgency are disabled in extract()
         ])
 
     # Pillar 4: Spatial & Logistic Constraints (SLC)
@@ -258,19 +255,19 @@ def extract(
     # CIM7: Congestion Severity (Q95) — 95th-percentile congestion ratio
     phi_congestion_max = float(np.quantile(cong_ratio, 0.95))
 
-    # CIM8: Starvation Variance — spread of the starvation problem
-    phi_starv_var = float(np.var(starv_ratio))
+    # CIMx: Starvation Variance — spread of the starvation problem
+    #phi_starv_var = float(np.var(starv_ratio))
 
-    # CIM9: Severe Station Starvation Count — fraction with starvation ratio >= 0.9
+    # CIM8: Severe Station Starvation Count — fraction with starvation ratio >= 0.9
     phi_starvation_cnt = float(np.sum(starv_ratio >= 0.9)) / N
 
-    # CIM10: Severe Station Congestion Count — fraction with congestion ratio >= 0.9
+    # CIM9: Severe Station Congestion Count — fraction with congestion ratio >= 0.9
     phi_congestion_cnt = float(np.sum(cong_ratio >= 0.9)) / N
 
     cat_a = [
         phi_imbalance, phi_starvation_sq, phi_congestion_sq,
         phi_starvation_exp, phi_congestion_exp,
-        phi_starvation_max, phi_congestion_max, phi_starv_var,
+        phi_starvation_max, phi_congestion_max,
         phi_starvation_cnt, phi_congestion_cnt
     ]
     features.extend(cat_a)
@@ -309,19 +306,18 @@ def extract(
         # MP2: Global Onsite Backlog — broken bikes waiting at stations, normalised by fleet
         phi_onsite_backlog = float(np.sum(onsite)) / F_safe
 
-        # MP3: Demand-Weighted Depot Backlog — broken bikes concentrated at high-activity stations
-        phi_depot_backlog = float(np.sum(depot * np.abs(net_activity))) / lam_max_safe
+        # MP3: Global Depot Backlog 
+        phi_depot_backlog = float(np.sum(depot)) / F_safe
 
         # MP4: Depot Pull — urgency to return grows as trailer fills and depot distance shrinks
-        phi_depot_pull = phi_cannibalization * (dist_to_depot / 30.0)
+        #phi_depot_pull = phi_cannibalization * (dist_to_depot / 30.0)
 
         # MP5: Maintenance Urgency — compound signal: onsite backlog × starvation breadth
         # High when many stations are BOTH below target AND have unrepaired bikes.
-        phi_maint_urgency = phi_onsite_backlog * phi_starvation_cnt
+        #phi_maint_urgency = phi_onsite_backlog * phi_starvation_cnt
 
         cat_b = [
-            phi_cannibalization, phi_onsite_backlog, phi_depot_backlog,
-            phi_depot_pull, phi_maint_urgency
+            phi_cannibalization, phi_onsite_backlog, phi_depot_backlog
         ]
         features.extend(cat_b)
 
