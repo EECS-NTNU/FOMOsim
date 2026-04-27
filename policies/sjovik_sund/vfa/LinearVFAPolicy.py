@@ -829,11 +829,12 @@ class LinearVFAPolicy(Policy):
                 next_station_id=dest_id
             )
             phis.append(phi)
-            values[k] = self.value(phi)            
+            values[k] = self.value(phi)
+                       
         # --- DEBUG 2: SPATIAL PARALYSIS ---
         if not getattr(self, "_has_printed_spatial", False) and "proximity_to_demand_gravity" in self.FEATURE_NAMES:
             idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
-            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            #print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
             for k, action in enumerate(candidates):
                 dest = getattr(action, "next_location", getattr(action, "next_station", None))
                 print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
@@ -842,20 +843,10 @@ class LinearVFAPolicy(Policy):
         # --- DEBUG 2: SPATIAL PARALYSIS ---
         if "proximity_to_demand_gravity" in self.FEATURE_NAMES:
             idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
-            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            #print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
             for k, action in enumerate(candidates):
                 dest = getattr(action, "next_location", getattr(action, "next_station", None))
                 print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
-            
-
-        # --- DEBUG 2: SPATIAL PARALYSIS ---
-        if "proximity_to_demand_gravity" in self.FEATURE_NAMES:
-            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
-            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
-            for k, action in enumerate(candidates):
-                dest = getattr(action, "next_location", getattr(action, "next_station", None))
-                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
-            
 
         # ── Step 4: TD(0) update ──────────────────────────────────────────
         """# Bootstrap with the greedy (min-value) next post-decision state,

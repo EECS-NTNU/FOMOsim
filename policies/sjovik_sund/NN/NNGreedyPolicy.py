@@ -107,9 +107,14 @@ class NNGreedyPolicy(Policy):
             for mdp_action, sim_action in pairs:
                 try:
                     post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
-                    enc = encode_state(post_state)
+                    dest = mdp_action.next_station
+                    dest_tt = {
+                        sid: state.get_travel_time(dest, sid)
+                        for sid in mdp_state.stations
+                    }
+                    enc = encode_state(post_state, dest_travel_times=dest_tt)
                 except Exception:
-                    continue # <--- SKIP IT! Don't let the NN see impossible actions.
+                    continue
                 
                 v = self.nn_model(
                     enc["station_block"].to(self._device),

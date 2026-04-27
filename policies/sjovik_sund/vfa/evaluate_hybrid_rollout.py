@@ -65,9 +65,7 @@ def evaluate_model(
     duration_hours: int,
     instance: str,
     vehicles: int,
-    exp_name: str = None,
     alpha: str = None,
-    seed: int = 1000,
 ):
     print(f"\n{'='*60}")
     print(f"  {exp_name}  |  seed={seed}  |  {len(active_features)} features")

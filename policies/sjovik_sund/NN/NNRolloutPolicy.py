@@ -76,6 +76,13 @@ import copy
 import torch
 import sim
 
+# De-normalization scale: NN outputs are normalized by (max_1step_penalty * discount_sum).
+# Multiply by this to recover reward-scale values for rollout Q-value combination.
+_MAX_1STEP_PENALTY = 76.7
+_N_STEP            = 3
+_GAMMA_DEFAULT     = 0.99
+REWARD_DENORM_SCALE = _MAX_1STEP_PENALTY * sum(_GAMMA_DEFAULT ** i for i in range(_N_STEP))
+
 from policies.policy import Policy
 from policies.sjovik_sund.NN.NNGreedyPolicy import NNGreedyPolicy
 from policies.sjovik_sund.mdp.mdp_formulation import extract_mdp_state, PostDecisionState
@@ -85,6 +92,7 @@ from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
 from policies.sjovik_sund.NN.nn_model import NNValueNetwork
 from policies.sjovik_sund.NN.nn_state_encoder import encode_state
 from policies.sjovik_sund.NN.nn_debug_logger import MaintenanceDebugLogger
+from policies.sjovik_sund.NN.rollout_debug_logger import PruningDebugLogger
 
 
 class NNRolloutPolicy(Policy):
@@ -111,13 +119,14 @@ class NNRolloutPolicy(Policy):
         nn_model:            NNValueNetwork,
         lookahead_minutes:   float = 60.0,
         num_scenarios:       int   = 8,
-        n_rollout_candidates:int   = 5,    
+        n_rollout_candidates:int   = 8,    
         gamma:               float = 0.99,
         maintenance_enabled: bool  = True,
         depot_id:            str   = None,
-        congestion_weight:   float = -0.7,
+        congestion_weight:   float = -1.0,
         debug_logger:        "MaintenanceDebugLogger" = None,
         rollout_log_every:   int   = 1,   # log every N rollout decisions (use >1 to reduce volume)
+        pruning_logger:      "PruningDebugLogger" = None,
     ):
         super().__init__(maintenance_enabled=maintenance_enabled)
 
@@ -133,6 +142,7 @@ class NNRolloutPolicy(Policy):
         self.depot_id            = depot_id
         self._debug_logger       = debug_logger
         self._rollout_log_every  = rollout_log_every
+        self._pruning_logger     = pruning_logger
 
         # MDP config derived directly from maintenance flag — no VFA needed.
         self._mdp_config = (
@@ -297,7 +307,7 @@ class NNRolloutPolicy(Policy):
                 encoded["global_context"].to(device),
             )
 
-        raw_terminal_value = value_tensor.item() * 227.80667
+        raw_terminal_value = value_tensor.item() * REWARD_DENORM_SCALE
         return raw_terminal_value
         # Step 4: unwrap to a Python scalar
         #return value_tensor.item()
@@ -340,6 +350,7 @@ class NNRolloutPolicy(Policy):
             maintenance_enabled=self.maintenance_enabled,
             return_pairs=True,
             wide_search=True,
+            training_mode=False,
         )
 
         if not pairs:
@@ -352,7 +363,12 @@ class NNRolloutPolicy(Policy):
             for mdp_action, sim_action in pairs:
                 try:
                     post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
-                    enc = encode_state(post_state)
+                    dest = mdp_action.next_station
+                    dest_tt = {
+                        sid: state.get_travel_time(dest, sid)
+                        for sid in mdp_state.stations
+                    }
+                    enc = encode_state(post_state, dest_travel_times=dest_tt)
                 except Exception as e:
                     print(f"[NNRollout] pre-score failed: {e}")
                     continue
@@ -362,10 +378,17 @@ class NNRolloutPolicy(Policy):
                     enc["global_context"].to(device),
                 ).item()
 
-                raw_v = v * 227.80667
+                raw_v = v * REWARD_DENORM_SCALE
                 pre_scores.append((raw_v, mdp_action, sim_action))
 
         pre_scores.sort(key=lambda x: x[0], reverse=True)
+        
+        # Pruning diagnostic: log score spread
+        if pre_scores:
+            scores_only = [s for s, _, _ in pre_scores]
+            spread = max(scores_only) - min(scores_only)
+            print(f"[PRUNE] {len(pre_scores)} candidates → top {self.n_rollout_candidates} | score spread: {spread:.4f} | top: {scores_only[0]:.4f} | cutoff: {scores_only[min(self.n_rollout_candidates, len(scores_only))-1]:.4f}")
+
         candidates = [sim_action for _, _, sim_action in pre_scores[:self.n_rollout_candidates]]
 
         if not candidates:
@@ -373,6 +396,7 @@ class NNRolloutPolicy(Policy):
 
         best_action  = None
         best_q_value = -float("inf")
+        rollout_scores = []   # [(sim_action, mean_q), ...] — for pruning logger
 
         # --- Step 3: full Monte Carlo rollout on pruned candidates ---
         for action in candidates:
@@ -424,10 +448,21 @@ class NNRolloutPolicy(Policy):
 
             # Average Q-value across scenarios
             mean_q = total_q / self.num_scenarios
+            rollout_scores.append((action, mean_q))
 
             if mean_q > best_q_value:
                 best_q_value = mean_q
                 best_action  = action
+
+        if self._pruning_logger is not None:
+            self._pruning_logger.log_decision(
+                sim_time             = state.time,
+                vehicle_id           = vehicle.id,
+                pre_scores           = pre_scores,
+                n_rollout_candidates = self.n_rollout_candidates,
+                rollout_scores       = rollout_scores,
+                chosen_sim_action    = best_action,
+            )
 
         if self._debug_logger is not None:
             self._debug_logger.log_rollout_decision(

@@ -95,7 +95,7 @@ LR_END               : float = 5e-5  # Adam lr at episode N (linearly decayed)
 
 GAMMA                : float = 0.99  # discount factor (matches linear VFA)
 
-TARGET_UPDATE_FREQ   : int   = 10    # kept for CLI arg compatibility; not used when POLYAK > 0
+TARGET_UPDATE_FREQ   : int   = 25   # kept for CLI arg compatibility; not used when POLYAK > 0
 POLYAK               : float = 0.0005 # soft target update rate: θ_target ← (1-τ)θ_target + τθ_online
                                      # applied every episode instead of hard copy every N episodes.
                                      # Set to 0.0 to fall back to hard copies (original behaviour).
@@ -116,7 +116,7 @@ REWARD_NORM_EPS      : float = 1e-8  # avoid div-by-zero in reward normalizer
 # mann exploration temperature schedule (linear anneal over all episodes)
 # tau_start: high temperature early → broad exploration of action space
 # tau_end:   near-zero  late        → essentially greedy exploitation
-TAU_START : float = 0.05    # Decreased from 0.5
+TAU_START : float = 0.5    # Decreased from 0.5
 TAU_END   : float = 0.001   # Decreased from 0.02
 
 INSTANCE_NAME        : str   = "TD_W34_old"
@@ -140,6 +140,7 @@ VERBOSE_EPISODE: int = 0
 #                     Each eval adds ~1 episode worth of wall time.
 DEBUG_EVERY       : int = 5   # set to 0 to silence all diagnostic output
 EVAL_GREEDY_EVERY : int = 10   # set to 0 to skip greedy evaluation runs
+EVAL_GREEDY_SEED  : int = 42 # fixed seed for all greedy evals — keeps the convergence curve comparable across episodes
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -426,6 +427,7 @@ class NNLearningPolicy(Policy):
         verbose:           bool = False,
         reward_normalizer: Optional[RewardNormalizer] = None,
         debug_logger=None,                # MaintenanceDebugLogger — None disables logging
+        training_mode:     bool = True,   # False disables wildcard candidate injection
     ):
         super().__init__(maintenance_enabled=config.allow_onsite_repairs)
 
@@ -438,6 +440,7 @@ class NNLearningPolicy(Policy):
         self.tau                = tau
         self.verbose            = verbose
         self._debug_logger      = debug_logger
+        self.training_mode      = training_mode
 
         # RewardCalculator: initialized lazily on the first get_best_action call
         # because we need the simulator's initial metrics to set the baseline.
@@ -470,6 +473,7 @@ class NNLearningPolicy(Policy):
         self._candidate_count:        int  = 0    # total _encode_post_decision calls (denominator for fallback %)
         self._reward_values:          list = []
         self._shift_checked:          bool = False   # print shift_remaining once per episode
+        self._maintenance_chosen:     int  = 0    # decisions where chosen action had maintenance op
 
         # Reward normalizer — shared across episodes, passed in from training loop.
         self.reward_normalizer = reward_normalizer
@@ -508,7 +512,7 @@ class NNLearningPolicy(Policy):
             # Baseline sync: any starvations during warmup are not counted
             self._reward_calc.compute_step_reward(sim_state.metrics)
 
-    def _encode_post_decision(self, mdp_state: MDPState, mdp_action) -> dict:
+    def _encode_post_decision(self, mdp_state: MDPState, mdp_action, sim_state=None) -> dict:
         """
         Compute and encode the post-decision state S^x for a given MdpAction.
 
@@ -521,12 +525,14 @@ class NNLearningPolicy(Policy):
         self._candidate_count += 1
         try:
             post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
-            return encode_state(post_state)
+            dest_tt = None
+            if sim_state is not None:
+                dest = mdp_action.next_station
+                dest_tt = {sid: sim_state.get_travel_time(dest, sid) for sid in mdp_state.stations}
+            return encode_state(post_state, dest_travel_times=dest_tt)
         except Exception as _exc:
-            # Fallback: encode current state; slightly less accurate but safe.
-            # Tally the reason so we can diagnose which validation check fires.
             self._fallback_count += 1
-            reason = str(_exc)[:80]   # first 80 chars is enough to identify the check
+            reason = str(_exc)[:80]
             self._fallback_reasons[reason] = self._fallback_reasons.get(reason, 0) + 1
             return encode_state(mdp_state)
 
@@ -567,6 +573,7 @@ class NNLearningPolicy(Policy):
             maintenance_enabled=self.maintenance_enabled,
             return_pairs=True,
             wide_search=True,
+            training_mode=self.training_mode,
         )
 
         # --- Step 4: score each candidate's post-decision state ---
@@ -592,8 +599,10 @@ class NNLearningPolicy(Policy):
             for mdp_action, sim_action in pairs: # <-- Unpack sim_action here too
                 try:
                     post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
-                    post_encoded = encode_state(post_state)
-                    
+                    dest = mdp_action.next_station
+                    dest_tt = {sid: state.get_travel_time(dest, sid) for sid in mdp_state.stations}
+                    post_encoded = encode_state(post_state, dest_travel_times=dest_tt)
+
                     v = self.online_model(
                         post_encoded["station_block"].to(device),
                         post_encoded["vehicle_block"].to(device),
@@ -605,11 +614,10 @@ class NNLearningPolicy(Policy):
                     valid_pairs.append((mdp_action, sim_action))
                     
                 except Exception as _exc:
-                    # Log the failure for your diagnostics, but DO NOT add it to the pool
+                    self._candidate_count += 1   # count this as a candidate attempt
                     self._fallback_count += 1
                     reason = str(_exc)[:80]
                     self._fallback_reasons[reason] = self._fallback_reasons.get(reason, 0) + 1
-                    print(f"    [SKIP] Killed invalid action: {reason}")
                     continue
         # --- NEW YIELD DEBUG ---
         if self.verbose:
@@ -622,7 +630,7 @@ class NNLearningPolicy(Policy):
         # --- Debug: state representation and candidate scores ---
         if self.verbose:
             # make it print more regularly than just episode 0 — every 2nd decision epoch (since some episodes have very few decisions)
-            if self._decision_count % 2 == 0: 
+            if self._decision_count % 50 == 0:
                 # Full state encoding dump on the very first learning decision
                 #enc = post_encodings[0] if post_encodings else self._encode_post_decision(mdp_state, pairs[0][0])
                 enc = post_encodings[0] if post_encodings else self._encode_post_decision(mdp_state, valid_pairs[0][0])
@@ -672,7 +680,7 @@ class NNLearningPolicy(Policy):
 
         # --- Step 5: Action selection (Boltzmann if tau > 0, else greedy) ---
         idx = _boltzmann_select(values, self.tau)
-        chosen_sim_action    = pairs[idx][1]
+        chosen_sim_action    = valid_pairs[idx][1]
         chosen_post_encoded  = post_encodings[idx]
 
         if self.verbose:
@@ -680,6 +688,11 @@ class NNLearningPolicy(Policy):
 
         # Track which pool slot was chosen (0=nearest station, last=most critical).
         self._chosen_indices.append(idx)
+
+        # Track maintenance action frequency
+        chosen_mdp = valid_pairs[idx][0]
+        if chosen_mdp.depot_removals > 0 or chosen_mdp.onsite_repairs > 0:
+            self._maintenance_chosen += 1
 
         # Maintenance debug logger — log per-decision stats
         if self._debug_logger is not None:
@@ -919,6 +932,7 @@ def _run_greedy_eval(
         depot_id=depot_id,
         tau=0.0,       # <-- pure greedy: NN argmax only
         verbose=False,
+        training_mode=False,
     )
     greedy_policy  = GreedyPolicy()
     eval_episode   = NNEpisodeTrainingPolicy(
@@ -959,6 +973,9 @@ def train_nn_rollout(
     depot_id:           Optional[str] = None,
     reward_calc_config=None,  # RewardConfig used to build the step-reward calculator
     run_label:          Optional[str] = None,  # extra tag injected into all output filenames
+    value_hidden_dims:  list = None,
+    enable_logging:     bool = False,
+    maintenance_enabled: bool = None,   # None → falls back to ENABLE_COMPONENT_FAILURES from settings
 ) -> NNValueNetwork:
     """
     Run the full episodic NN training loop.
@@ -997,7 +1014,8 @@ def train_nn_rollout(
     # The target model starts as an exact copy of the online model.
     # It is NEVER updated by backprop; only by hard weight copies every
     # TARGET_UPDATE_FREQ episodes.
-    online_model = build_nn_value_network().to(device)
+    #online_model = build_nn_value_network().to(device)
+    online_model = build_nn_value_network(value_hidden_dims=value_hidden_dims).to(device)
     target_model = copy.deepcopy(online_model).to(device)
     for param in target_model.parameters():
         param.requires_grad = False   # no gradient tracking in target
@@ -1017,7 +1035,10 @@ def train_nn_rollout(
     sim_start_min   = timeInMinutes(hours=START_HOUR)
     warmup_end_time = sim_start_min + WARMUP_DAYS * 24 * 60
 
-    config = MDPConfig.full_maintenance() if ENABLE_COMPONENT_FAILURES else MDPConfig.no_maintenance()
+    _maintenance = ENABLE_COMPONENT_FAILURES if maintenance_enabled is None else maintenance_enabled
+    import settings as _settings_mod
+    _settings_mod.ENABLE_COMPONENT_FAILURES = _maintenance
+    config = MDPConfig.full_maintenance() if _maintenance else MDPConfig.no_maintenance()
 
     # ── Reward calculator config ──────────────────────────────────────────────
     # NNLearningPolicy needs a RewardConfig to build its step-reward calculator.
@@ -1027,7 +1048,7 @@ def train_nn_rollout(
         from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
         _tmp_vfa = LinearVFAPolicy(
             learning_mode=False,
-            maintenance_enabled=ENABLE_COMPONENT_FAILURES,
+            maintenance_enabled=_maintenance,
         )
         reward_calc_config = _tmp_vfa.reward_calc.config
 
@@ -1070,6 +1091,7 @@ def train_nn_rollout(
         "reward_norm_std",    # running std of all rewards seen so far; tracks normalization scale
         "pct_idx0",           # % decisions where NN picked pool slot 0 (nearest); ~100% = collapsed
         "mean_chosen_idx",    # mean pool index chosen; 0=always nearest, ~3.5=uniform
+        "pct_maintenance",    # % decisions where chosen action had depot_removals>0 or onsite_repairs>0
         "greedy_sl",          # tau=0 eval SL — true NN quality, unconfounded by exploration
     ]
     csv_file   = csv_path.open("w", newline="")
@@ -1078,7 +1100,7 @@ def train_nn_rollout(
     print(f"  CSV log           : {csv_path}")
 
     log_path     = csv_path.with_suffix(".log")
-    debug_logger = MaintenanceDebugLogger(log_path, log_detail_every=1)
+    debug_logger = MaintenanceDebugLogger(log_path, log_detail_every=1) if enable_logging else None
     print(f"  Maintenance log   : {log_path}")
 
     print("=" * 72)
@@ -1135,7 +1157,9 @@ def train_nn_rollout(
         print(f"\n{'='*50}")
         print(f"EPISODE {ep+1}/{num_episodes} | lr={current_lr:.5f}")
         print(f"{'='*50}")
-        debug_logger.log_episode_start(ep + 1, num_episodes, current_tau, current_lr)
+        if debug_logger is not None:
+            debug_logger.log_episode_start(ep + 1, num_episodes, current_tau, current_lr)
+    
 
         # --- Run the episode ---
         sim_config = SimulationConfig()
@@ -1352,7 +1376,7 @@ def train_nn_rollout(
                 reward_calc_config=reward_calc_config,
                 config=config,
                 depot_id=depot_id,
-                seed=seed_offset + num_episodes + ep,   # unseen seed
+                seed=EVAL_GREEDY_SEED,
                 instance_name=instance_name,
                 gamma=gamma,
                 warmup_end_time=warmup_end_time,
@@ -1382,12 +1406,13 @@ def train_nn_rollout(
                 print(f"  -> New best greedy SL={best_greedy_sl:.4f} — saved to {best_greedy_path.name}")
 
         # Maintenance debug log — episode summary
-        debug_logger.log_episode_summary(
-            sl=sl,
-            mean_loss=mean_loss,
-            buffer_size=len(replay_buffer),
-            greedy_sl=eval_sl,
-        )
+        if debug_logger is not None:
+            debug_logger.log_episode_summary(
+                sl=sl,
+                mean_loss=mean_loss,
+                buffer_size=len(replay_buffer),
+                greedy_sl=eval_sl,
+            )
 
         # --- Logging ---
         learning_curve.append({
@@ -1425,6 +1450,7 @@ def train_nn_rollout(
         _idxs             = nn_learning._chosen_indices
         pct_idx0          = round(sum(1 for i in _idxs if i == 0) / max(len(_idxs), 1) * 100, 1)
         mean_chosen_idx   = round(sum(_idxs) / max(len(_idxs), 1), 2)
+        pct_maintenance   = round(nn_learning._maintenance_chosen / max(len(_idxs), 1) * 100, 1)
 
         # Write one CSV row per episode (flushed immediately so partial runs are readable)
         csv_writer.writerow({
@@ -1444,6 +1470,7 @@ def train_nn_rollout(
             "reward_norm_std":   round(reward_normalizer.std, 4),
             "pct_idx0":          pct_idx0,
             "mean_chosen_idx":   mean_chosen_idx,
+            "pct_maintenance":   pct_maintenance,
             "greedy_sl":         round(eval_sl, 4) if eval_sl is not None else "",
         })
         csv_file.flush()
@@ -1463,7 +1490,8 @@ def train_nn_rollout(
             }, ck_path)
             print(f"  -> Checkpoint saved -> {ck_path}")
 
-    debug_logger.close()
+    if debug_logger is not None:
+        debug_logger.close()
 
     # ── Final save ────────────────────────────────────────────────────────────
     if save_path is None:
@@ -1477,6 +1505,7 @@ def train_nn_rollout(
         "station_feature_dim": online_model.station_feature_dim,
         "vehicle_feature_dim": online_model.vehicle_feature_dim,
         "global_feature_dim":  online_model.global_feature_dim,
+        "value_hidden_dims":   online_model.value_hidden_dims,
     }, save_path)
 
     csv_file.close()
@@ -1519,13 +1548,24 @@ def load_nn_model(checkpoint_path: str) -> NNValueNetwork:
         policy = NNRolloutPolicy(nn_model=nn, candidate_vfa=vfa, ...)
     """
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    state_dict = checkpoint["model_state"]
+
+    # Infer value_hidden_dims from weights when the key is absent or None
+    stored_dims = checkpoint.get("value_hidden_dims")
+    if not stored_dims:
+        keys = sorted(
+            (k for k in state_dict if k.startswith("value_mlp.net.") and k.endswith(".weight")),
+            key=lambda k: int(k.split(".")[2]),
+        )
+        stored_dims = [state_dict[k].shape[0] for k in keys[:-1]]
 
     model = NNValueNetwork(
         station_feature_dim=checkpoint["station_feature_dim"],
         vehicle_feature_dim=checkpoint["vehicle_feature_dim"],
         global_feature_dim=checkpoint["global_feature_dim"],
+        value_hidden_dims=stored_dims,
     )
-    model.load_state_dict(checkpoint["model_state"])
+    model.load_state_dict(state_dict)
     model.eval()
 
     print(f"Loaded NN model from {checkpoint_path} "
@@ -1561,42 +1601,63 @@ if __name__ == "__main__":
     parser.add_argument("--save",               type=str,   default=None)
     parser.add_argument("--depot_id",           type=str,   default='D0',
                         help="Depot station ID (e.g. 'D0'). Auto-resolved from instance if omitted.")
-    parser.add_argument("--congestion_weight",  type=float, default=-0.7,
-                        help="Reward penalty for congestions during training. Default: -0.7")
+    parser.add_argument("--congestion_weight",  type=float, default=-1.0,
+                        help="Reward penalty for congestions during training. Default: -1.0")
+    parser.add_argument("--maintenance",        action=argparse.BooleanOptionalAction,
+                        default=ENABLE_COMPONENT_FAILURES,
+                        help="Enable maintenance actions (depot removal, onsite repair). Default: from settings.py")
+    parser.add_argument("--valuehead_hidden_dims", type=int, nargs="+", default=None,
+                        help="Single architecture to run, e.g. --valuehead_hidden_dims 128 64 32. Omit to run all.")
     args = parser.parse_args()
-    
+
     # --- NEW: Build the custom reward config ---
     custom_reward = RewardConfig()
     custom_reward.weight_congestion = args.congestion_weight
-    
-    # ==========================================================
-    # ADD THIS PRINT BLOCK TO VERIFY
-    # ==========================================================
-    print("\n" + "="*50)
-    print("LAUNCHING NEURAL NETWORK TRAINING")
-    print("="*50)
-    print(f"  Model Instance:     {args.instance}")
-    print(f"  Episodes:           {args.episodes}")
-    print(f"  STARVATION PENALTY: {custom_reward.weight_starvation}")
-    print(f"  CONGESTION PENALTY: {custom_reward.weight_congestion}")
-    print("="*50 + "\n")
-    # ==========================================================
 
-    train_nn_rollout(
-        num_episodes        = args.episodes,
-        seed_offset         = args.seed,
-        instance_name       = args.instance,
-        gamma               = args.gamma,
-        lr_start            = args.lr_start,
-        lr_end              = args.lr_end,
-        tau_start           = args.tau_start,
-        tau_end             = args.tau_end,
-        target_update_freq  = args.target_update_freq,
-        polyak              = args.polyak,
-        batch_size          = args.batch_size,
-        buffer_size         = args.buffer_size,
-        save_path           = Path(args.save) if args.save else None,
-        depot_id            = args.depot_id,
-        reward_calc_config  = custom_reward,
-        run_label           = args.run_label,
-    )
+    # ── 1. DEFINE THE ARCHITECTURES TO TEST ──
+    architectures = [
+        [64],
+        [104, 52],
+        [128, 64, 32],
+        [256, 128, 64, 32],
+    ]
+    if args.valuehead_hidden_dims is not None:
+        architectures = [args.valuehead_hidden_dims]
+    
+    # ── 2. RUN THE LOOP ──
+    for arch in architectures:
+        # Create a unique tag for the CSV file so they don't overwrite each other
+        arch_str = "-".join(map(str, arch))
+        arch_label = f"{args.run_label}_arch_{arch_str}" if args.run_label else f"arch_{arch_str}"
+        
+        print("\n" + "="*50)
+        print(f"LAUNCHING NEURAL NETWORK TRAINING")
+        print("="*50)
+        print(f"  Architecture:       {arch}")
+        print(f"  Model Instance:     {args.instance}")
+        print(f"  Episodes:           {args.episodes}")
+        print(f"  STARVATION PENALTY: {custom_reward.weight_starvation}")
+        print(f"  CONGESTION PENALTY: {custom_reward.weight_congestion}")
+        print("="*50 + "\n")
+
+        train_nn_rollout(
+            num_episodes        = args.episodes,
+            seed_offset         = args.seed,
+            instance_name       = args.instance,
+            gamma               = args.gamma,
+            lr_start            = args.lr_start,
+            lr_end              = args.lr_end,
+            tau_start           = args.tau_start,
+            tau_end             = args.tau_end,
+            target_update_freq  = args.target_update_freq,
+            polyak              = args.polyak,
+            batch_size          = args.batch_size,
+            buffer_size         = args.buffer_size,
+            save_path           = None,  
+            depot_id            = args.depot_id,
+            reward_calc_config  = custom_reward,
+            run_label           = arch_label,       # Injects the arch label into the filename!
+            value_hidden_dims    = arch,
+            enable_logging       = False,
+            maintenance_enabled  = args.maintenance,
+        )

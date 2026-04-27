@@ -365,10 +365,13 @@ class PostDecisionState:
                     f"vehicle capacity {v.free_capacity()}"
                 )
         else:
-            if action.depot_removals > v.free_capacity():
+            # Delivery (rebalancing > 0) unloads bikes first, freeing that many slots
+            effective_free = v.free_capacity() + max(0, action.rebalancing)
+            if action.depot_removals > effective_free:
                 raise ValueError(
                     f"Cannot load {action.depot_removals} bikes; "
-                    f"vehicle only has {v.free_capacity()} free capacity"
+                    f"vehicle only has {effective_free} free capacity "
+                    f"(current={v.free_capacity()} + delivery={max(0, action.rebalancing)})"
                 )
 
         # Rebalancing delivery bounds

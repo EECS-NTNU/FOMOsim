@@ -150,7 +150,7 @@ class VehicleEncoder(nn.Module):
         return self.net(x)
 
 
-class ValueMLP(nn.Module):
+'''class ValueMLP(nn.Module):
     """
     Final value head: combined state embedding → scalar V(S^x).
 
@@ -183,9 +183,29 @@ class ValueMLP(nn.Module):
         Returns:
             value : [1]  or  [batch × 1]
         """
+        return self.net(x)'''
+
+class ValueMLP(nn.Module):
+    def __init__(self, input_dim: int, hidden_dims: list = None):
+        super().__init__()
+        
+        # Default to the original funnel if nothing is passed
+        if hidden_dims is None:
+            hidden_dims = [VALUE_HIDDEN_DIM, VALUE_HIDDEN_DIM // 2]
+            
+        layers = []
+        current_dim = input_dim
+        for h in hidden_dims:
+            layers.append(nn.Linear(current_dim, h))
+            layers.append(nn.ReLU())
+            current_dim = h
+            
+        # Final unconstrained scalar output
+        layers.append(nn.Linear(current_dim, 1))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
-
-
 # ═════════════════════════════════════════════════════════════════════════════
 # ATTENTION POOLING
 # ═════════════════════════════════════════════════════════════════════════════
@@ -304,7 +324,7 @@ class NNValueNetwork(nn.Module):
         global_feature_dim:  int,
         station_embed_dim:   int = STATION_EMBED_DIM,
         vehicle_embed_dim:   int = VEHICLE_EMBED_DIM,
-        value_hidden_dim:    int = VALUE_HIDDEN_DIM,
+        value_hidden_dims:   list = None,
     ):
         super().__init__()
 
@@ -318,14 +338,18 @@ class NNValueNetwork(nn.Module):
         self.station_cross_attn = CrossAttentionPool(station_embed_dim, vehicle_summary_dim)
 
         # Dual pooling: attention + max concatenated → 2× each embed dim.
-        # To revert to mean+max: remove station_attn/vehicle_attn above, restore this line unchanged.
-        combined_dim = 2 * station_embed_dim + 2 * vehicle_embed_dim + global_feature_dim
-        self.value_mlp = ValueMLP(combined_dim, value_hidden_dim)
+        # +station_feature_dim: destination station's raw features bypass pooling and feed
+        # directly into the ValueMLP so the NN cannot ignore destination-specific information.
+        combined_dim = (2 * station_embed_dim + 2 * vehicle_embed_dim
+                        + global_feature_dim + station_feature_dim)
+        self.value_mlp = ValueMLP(combined_dim, value_hidden_dims)
 
         # Store dims so checkpoints can be verified for compatibility.
         self.station_feature_dim = station_feature_dim
         self.vehicle_feature_dim = vehicle_feature_dim
         self.global_feature_dim  = global_feature_dim
+        self.value_hidden_dims   = value_hidden_dims
+
 
     def forward(
         self,
@@ -379,22 +403,29 @@ class NNValueNetwork(nn.Module):
         # --- 1. Vehicle branch (Process FIRST) ---
         vehicle_embeddings = self.vehicle_encoder(vehicle_block)
         vehicle_summary = torch.cat([
-            self.vehicle_attn(vehicle_embeddings),          
+            self.vehicle_attn(vehicle_embeddings),
             vehicle_embeddings.max(dim=0).values,
-        ], dim=0)  
+        ], dim=0)
 
         # --- 2. Station branch (Conditioned on Vehicle) ---
-        station_embeddings = self.station_encoder(station_block)   
-        
-        # The station pool now searches the map based on the vehicle's capacity!
+        station_embeddings = self.station_encoder(station_block)
         station_summary = torch.cat([
-            self.station_cross_attn(station_embeddings, vehicle_summary),          
+            self.station_cross_attn(station_embeddings, vehicle_summary),
             station_embeddings.max(dim=0).values,
-        ], dim=0)  
+        ], dim=0)
 
-        # --- 3. Combine ---
-        combined = torch.cat([station_summary, vehicle_summary, global_context], dim=0)
-        value = self.value_mlp(combined)   
+        # --- 3. Destination spotlight: raw features bypass pooling ---
+        # is_destination flag lives at station_block[:, -1]; extract that row directly.
+        # If no station is flagged (e.g. depot action), fall back to zeros.
+        dest_mask = station_block[:, -1] > 0.5
+        if dest_mask.any():
+            dest_raw = station_block[dest_mask][0]
+        else:
+            dest_raw = torch.zeros(self.station_feature_dim, device=station_block.device)
+
+        # --- 4. Combine ---
+        combined = torch.cat([station_summary, vehicle_summary, global_context, dest_raw], dim=0)
+        value = self.value_mlp(combined)
         return value
 
     '''def forward_batch(
@@ -460,25 +491,29 @@ class NNValueNetwork(nn.Module):
         Returns:
             values : [B, 1]
         """
+        B = station_blocks.shape[0]
+
         # --- 1. Vehicle branch (Process FIRST) ---
-        # [B, M, embed_dim] → attention+max over vehicles → [B, 2*embed_dim]
         vh_emb = self.vehicle_encoder(vehicle_blocks)
         vehicle_summary = torch.cat([
-            self.vehicle_attn.forward_batch(vh_emb),   
+            self.vehicle_attn.forward_batch(vh_emb),
             vh_emb.max(dim=1).values,
-        ], dim=1)
+        ], dim=1)   # [B, 2*vehicle_embed_dim]
 
         # --- 2. Station branch (Conditioned on Vehicle) ---
-        # [B, N, embed_dim] → cross-attention+max over stations → [B, 2*embed_dim]
         st_emb = self.station_encoder(station_blocks)
         station_summary = torch.cat([
-            self.station_cross_attn.forward_batch(st_emb, vehicle_summary),   
+            self.station_cross_attn.forward_batch(st_emb, vehicle_summary),
             st_emb.max(dim=1).values,
-        ], dim=1)
+        ], dim=1)   # [B, 2*station_embed_dim]
 
-        # --- 3. Combine ---
-        # [B, combined_dim]
-        combined = torch.cat([station_summary, vehicle_summary, global_contexts], dim=1)
+        # --- 3. Destination spotlight: raw features bypass pooling ---
+        # station_blocks[:, :, -1] is the is_destination flag; argmax gives the dest row index.
+        dest_idx = station_blocks[:, :, -1].argmax(dim=1)   # [B]
+        dest_raw = station_blocks[torch.arange(B, device=station_blocks.device), dest_idx, :]  # [B, station_feature_dim]
+
+        # --- 4. Combine ---
+        combined = torch.cat([station_summary, vehicle_summary, global_contexts, dest_raw], dim=1)
 
         return self.value_mlp(combined)   # [B, 1]
 
@@ -487,7 +522,7 @@ class NNValueNetwork(nn.Module):
 # FACTORY
 # ═════════════════════════════════════════════════════════════════════════════
 
-def build_nn_value_network() -> NNValueNetwork:
+'''def build_nn_value_network() -> NNValueNetwork:
     """
     Construct an NNValueNetwork with input dimensions that match nn_state_encoder.
 
@@ -508,4 +543,15 @@ def build_nn_value_network() -> NNValueNetwork:
         station_feature_dim=STATION_FEATURE_DIM,
         vehicle_feature_dim=VEHICLE_FEATURE_DIM,
         global_feature_dim=GLOBAL_FEATURE_DIM,
+    )'''
+    
+def build_nn_value_network(value_hidden_dims: list = None) -> NNValueNetwork:
+    from policies.sjovik_sund.NN.nn_state_encoder import (
+        STATION_FEATURE_DIM, VEHICLE_FEATURE_DIM, GLOBAL_FEATURE_DIM,
+    )
+    return NNValueNetwork(
+        station_feature_dim=STATION_FEATURE_DIM,
+        vehicle_feature_dim=VEHICLE_FEATURE_DIM,
+        global_feature_dim=GLOBAL_FEATURE_DIM,
+        value_hidden_dims=value_hidden_dims,
     )

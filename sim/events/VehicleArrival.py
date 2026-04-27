@@ -38,7 +38,7 @@ class VehicleArrival(Event):
             action, _ = action
 
         # 3. Check if this is an "idle" step (at D0, staying at D0)
-        is_idle_at_depot = (arrival_station_id == "D0" and action.next_location == "D0")
+        is_idle_at_depot = (arrival_station_id == "D0" and action is not None and action.next_location == "D0")
 
         # 4. Only log if NOT idle
         if operation_logger and operation_logger.enabled and not is_idle_at_depot:
