@@ -1,0 +1,14 @@
+,pearson_r_with_value
+rebalancing_imbalance,0.19127483743781468
+squared_starvation_penalty,0.1476123164492999
+squared_congestion_penalty,0.2755437272299855
+exponential_starvation_penalty,0.1525981792536567
+exponential_congestion_penalty,0.28957756876065616
+starvation_severity_max,0.09380359070120929
+congestion_severity_max,0.25496576928571923
+starvation_count,0.16974165916933978
+congestion_count,0.31638473628431285
+gross_starvation_risk,0.07916069598908212
+gross_congestion_risk,0.07986582409009753
+net_starvation_shortfall,0.15339978001659338
+net_congestion_shortfall,0.20375522714844305

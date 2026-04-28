@@ -72,6 +72,9 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 # -----------------------------------------------------------------------------
  
 EXPERIMENTS = {
+    # Baseline
+    "Squared_only": ["squared_starvation_penalty", "squared_congestion_penalty"],
+
     # -- Squared_Temporal -----------------------------------------------------
     # Hypothesis: Squared penalties capture current-state imbalance depth and
     # symmetric temporal features cover both demand sides. Minimal and stable -
@@ -114,6 +117,7 @@ EXPERIMENTS = {
     # starvation/congestion, produce a better-shaped value surface than squared
     # penalties when combined with symmetric temporal anticipation. Directly
     # comparable to Squared_Temporal - same structure, different penalty form.
+    # SCRAPPED because of correlation with squared_congestion
     "Exponential_Temporal": [
         "exponential_starvation_penalty", # CIM4: exp penalty, emphasises tail states
         "exponential_congestion_penalty", # CIM5: symmetric
@@ -132,7 +136,7 @@ EXPERIMENTS = {
         "net_starvation_shortfall",       # FIM3: net outflow pressure with demand uncertainty
         "net_congestion_shortfall",       # FIM4: net inflow pressure with demand uncertainty
     ],
-    
+
     # -- Count_Temporal -------------------------------------------------------
     # Hypothesis: Breadth (how many stations affected) carries equivalent signal
     # to depth (how badly affected). Direct comparison to Squared_Temporal.
