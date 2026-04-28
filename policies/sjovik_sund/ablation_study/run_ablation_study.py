@@ -121,6 +121,18 @@ EXPERIMENTS = {
         "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
 
+    # -- Gross_And_Net  ------------------------------------------------------
+    # Experiment using all FIM features simultaneously.
+    # [sq_starvation, sq_congestion, FIM1, FIM2, FIM3, FIM4]
+    "Gross_And_Net": [
+        "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
+        "squared_congestion_penalty",     # CIM3: mean squared congestion ratio
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
+        "net_starvation_shortfall",       # FIM3: net outflow pressure with demand uncertainty
+        "net_congestion_shortfall",       # FIM4: net inflow pressure with demand uncertainty
+    ],
+    
     # -- Count_Temporal -------------------------------------------------------
     # Hypothesis: Breadth (how many stations affected) carries equivalent signal
     # to depth (how badly affected). Direct comparison to Squared_Temporal.
@@ -288,11 +300,11 @@ if __name__ == "__main__":
                         help="Directory to save experiment results"
     )
     parser.add_argument(
-        "--weight_starvation", type=float, default=-1.0,
+        "--weight_starvation", type=float, default= -1.0,
         help="Reward weight for starvation events (default: -1.0)",
     )
     parser.add_argument(
-        "--weight_congestion", type=float, default=-1.0,
+        "--weight_congestion", type=float, default= -1.0,
         help="Reward weight for congestion events (default: -1.0)",
     )
     parser.add_argument(

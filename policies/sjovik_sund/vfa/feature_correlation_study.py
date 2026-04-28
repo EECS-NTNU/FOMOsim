@@ -41,7 +41,7 @@ class FeatureLoggingPolicy(LinearVFAPolicy):
         return phi
 
 def main():
-    num_episodes = 5
+    num_episodes = 50
     days_per_episode = 14
 
     print(f"Running {num_episodes} episodes × {days_per_episode}d with learning enabled...")
