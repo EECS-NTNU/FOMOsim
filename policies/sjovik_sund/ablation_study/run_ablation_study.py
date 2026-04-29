@@ -72,6 +72,13 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 # -----------------------------------------------------------------------------
  
 EXPERIMENTS = {
+    "Imbalance_Only": ["rebalancing_imbalance"], # CIM1: total L1 imbalance across the network
+
+
+    "Imbalance_Squared" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty"], # CIM1 + CIM2/CIM3: global mass + mean squared depth
+
+    "Imbalance_Squared_Temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + FIM1/FIM2: global mass + gross departure/arrival pressure
+
     # Baseline
     "Squared_only": ["squared_starvation_penalty", "squared_congestion_penalty"],
 

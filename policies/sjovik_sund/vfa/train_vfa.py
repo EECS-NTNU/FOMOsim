@@ -310,7 +310,7 @@ def train(
     greedy_policy = GreedyPolicy()
 
     stats_collector = _EpisodeStatsCollector()
-    vfa_policy.logger = stats_collector
+    vfa_policy.logger = stats_collector # type: ignore
 
     # Warm-up ends at this absolute simulation-time (minutes).
     sim_start_min   = timeInMinutes(hours=START_HOUR)
@@ -567,12 +567,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    selected_features = []
+    #IF training with specific features: wirte features inside list and pass to active_features
+
     train(
         num_episodes      = args.episodes,
         save_path         = Path(args.save) if args.save else None,
         seed_offset       = args.seed,
         instance_name     = args.instance,
-        active_features   = ACTIVE_FEATURES,
+        active_features   = None, #OR: selected_features
         gamma             = args.gamma,
         alpha_start       = args.alpha_start,
         epsilon_start     = args.epsilon_start,
