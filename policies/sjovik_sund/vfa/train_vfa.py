@@ -68,9 +68,16 @@ GAMMA         : float = 0.99      # discount factor
 LOGISTICS_ENABLED : bool = False  # Enable Pillar 4: Spatial & Logistic Constraints features
 N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, logistics_enabled=LOGISTICS_ENABLED, demand_horizon_enabled=True))  # auto-synced with vfa_features.py
 
+ACTIVE_FEATURES : list = [
+    "squared_starvation_penalty",
+    "squared_congestion_penalty",
+    "gross_starvation_risk",
+    "gross_congestion_risk",
+]
+
 INSTANCE_NAME : str   = "TD_W34_old" #"OS_W31"
 NUM_VEHICLES  : int   = 1
-START_HOUR    : int   = 5         # simulation clock starts at 00:00
+START_HOUR    : int   = 0         # simulation clock starts at 00:00
 
 # Where to save checkpoints and the final model
 SAVE_DIR = Path(__file__).parent / "models"
@@ -123,9 +130,6 @@ def train(
     weight_congestion : float = -1.0,
 ) -> LinearVFAPolicy:
     
-    # BATCH SIZE configuration
-    batch_size = 1  # Number of episodes to run before applying batch updates to θ
-    
     """
     Run the full episodic VFA training loop.
 
@@ -142,14 +146,18 @@ def train(
         The trained LinearVFAPolicy (θ frozen after training).
     """
     
+    # Total expected midnight updates across all episodes (one per learning day crossed).
+    # The last partial day of each episode is not flushed (expected trade-off).
+    total_update_steps = num_episodes * LEARNING_DAYS
+
     # Harmonic decay: α_t = α_0 / (1 + c·t)
     # Satisfies Robbins-Monro conditions (Σα→∞, Σα²<∞), unlike geometric decay.
-    # c chosen so α reaches ~10% of α_start by the final episode.
-    harmonic_c = 9.0 / max(num_episodes - 1, 1)
-    alpha_end  = alpha_start / (1.0 + harmonic_c * (num_episodes - 1))
+    # c chosen so α reaches ~10% of α_start by the final midnight update.
+    harmonic_c = 9.0 / max(total_update_steps - 1, 1)
+    alpha_end  = alpha_start / (1.0 + harmonic_c * (total_update_steps - 1))
 
-    # <-- Epsilon decay logic -->
-    epsilon_decay = (epsilon_end / epsilon_start) ** (1.0 / max(num_episodes - 1, 1)) if epsilon_start > 0 else 1.0
+    # Epsilon decay over total midnight update steps
+    epsilon_decay = (epsilon_end / epsilon_start) ** (1.0 / max(total_update_steps - 1, 1)) if epsilon_start > 0 else 1.0
     
     
     # ── Header ────────────────────────────────────────────────────────────────
@@ -161,8 +169,10 @@ def train(
         f"  Episode duration  : {EPISODE_DAYS} days  "
         f"(warm-up = {WARMUP_DAYS}d,  learning = {LEARNING_DAYS}d)"
     )
-    print(f"  alpha schedule      : {alpha_start:.5f} -> {alpha_end:.5f}")
-    print(f"  epsilon schedule    : {epsilon_start:.5f} -> {epsilon_end:.5f}")
+    print(f"  Batch updates       : every midnight (24h), ~{LEARNING_DAYS} updates/episode")
+    print(f"  Total update steps  : ~{total_update_steps}")
+    print(f"  alpha schedule      : {alpha_start:.5f} -> {alpha_end:.5f}  (per midnight step)")
+    print(f"  epsilon schedule    : {epsilon_start:.5f} -> {epsilon_end:.5f}  (per midnight step)")
     print(f"  gamma               : {gamma}")
     print(f"  Instance          : {instance_name}")
     print("=" * 72 + "\n")
@@ -207,43 +217,49 @@ def train(
     weights_history: list = []  # Collect θ vectors per episode
     t0 = time.time()
 
-    run_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    # Resolve both paths before the loop so incremental CSV writes always have a target
+    if save_path is None:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = SAVE_DIR / f"vfa_trained_baseline_features_alpha{alpha_start}_seed{seed_offset}_{ts}.pkl"
+    weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
 
-    # Prepare weights evolution CSV path
-    weights_csv_path = None
-    if save_path is not None:
-        weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
-    # If save_path is None, will be set at the end as before
+    # ── Global update step counter (incremented at each midnight batch flush) ──
+    global_update_step = 0
+
+    # Set initial hyperparameters (step 0 — before any midnight fires)
+    vfa_policy.alpha   = alpha_start
+    vfa_policy.epsilon = epsilon_start
+
+    # ── Midnight callback: called at each simulated midnight during learning ──
+    def midnight_callback() -> None:
+        nonlocal global_update_step
+        vfa_policy.apply_batch_update()
+        global_update_step += 1
+        new_alpha   = alpha_start / (1.0 + harmonic_c * global_update_step)
+        new_epsilon = max(epsilon_end, epsilon_start * (epsilon_decay ** global_update_step)) if epsilon_start > 0 else 0.0
+        vfa_policy.alpha   = new_alpha
+        vfa_policy.epsilon = new_epsilon
+        print(f"  [MIDNIGHT] step={global_update_step} | alpha={new_alpha:.5f} | epsilon={new_epsilon:.5f}")
 
     # ── Episode loop ──────────────────────────────────────────────────────────
     for ep in range(num_episodes):
         config        = SimulationConfig()
-        
-        ###########
-        # ── Calculate current dynamic parameters ─────────────────────────
-        current_alpha = alpha_start / (1.0 + harmonic_c * ep)
-        current_epsilon = max(epsilon_end, epsilon_start * (epsilon_decay ** ep)) if epsilon_start > 0 else 0.0
 
-        print(f"\n[DEBUG] Episode {ep+1}: Calculated alpha={current_alpha:.5f}, epsilon={current_epsilon:.5f}")
-        
-        # STRICT OVERRIDE: Force the policy to use this exact step-size
-        vfa_policy.alpha = current_alpha
-        vfa_policy.epsilon = current_epsilon
-        
         print(f"\n{'='*50}")
-        print(f"EPISODE {ep+1}/{num_episodes} | Alpha: {current_alpha:.5f} | Epsilon: {current_epsilon:.5f}")
+        print(f"EPISODE {ep+1}/{num_episodes} | Alpha: {vfa_policy.alpha:.5f} | Epsilon: {vfa_policy.epsilon:.5f}")
         print(f"{'='*50}")
-        ############
 
         # ── Build episode policy ───────────────────────────────────────────
         # EpisodeTrainingPolicy:
         #   • calls vfa_policy.reset_episode() to clear per-episode TD state
         #   • routes to GreedyPolicy  while  state.time < warmup_end_time
         #   • routes to VFAPolicy     once   state.time >= warmup_end_time
+        #   • calls midnight_callback() at each midnight crossing in learning phase
         episode_policy = EpisodeTrainingPolicy(
-            vfa_policy      = vfa_policy,
-            warmup_policy   = greedy_policy,
-            warmup_end_time = warmup_end_time,
+            vfa_policy        = vfa_policy,
+            warmup_policy     = greedy_policy,
+            warmup_end_time   = warmup_end_time,
+            midnight_callback = midnight_callback,
         )
 
         # ── Fresh simulator, same θ ────────────────────────────────────────
@@ -273,11 +289,6 @@ def train(
 
         sl = _service_level(simulator, vfa_policy)
         service_levels.append(sl)
-        
-        # Apply synchronous batch update every 'batch_size' episodes
-        if (ep + 1) % batch_size == 0 or (ep + 1) == num_episodes:
-            vfa_policy.apply_batch_update()
-            
         weights_history.append(vfa_policy.theta.copy())  # Store θ vector for this episode
 
     
@@ -298,13 +309,6 @@ def train(
 
         # ── Periodically update weights evolution CSV every 5 episodes ──
         if (ep + 1) % 5 == 0:
-            # Determine CSV path if not already set
-            if weights_csv_path is None and save_path is not None:
-                weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
-            elif weights_csv_path is None:
-                # If save_path is None, skip writing until final
-                continue
-
             feature_names = vfa_policy.FEATURE_NAMES
             # Get the last 5 episodes' weights and service levels
             start_idx = ep - 4 if ep >= 4 else 0
@@ -324,25 +328,16 @@ def train(
 
 
     # ── Final save ────────────────────────────────────────────────────────────
-    if save_path is None:
-        ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_path = SAVE_DIR / f"vfa_trained_baseline_features_alpha{alpha_start}_seed{seed_offset}_{ts}.pkl"
-        weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
-
     vfa_policy.save(save_path)
 
-    # Write any remaining weights not yet written (if num_episodes not divisible by 5)
-    if len(weights_history) % 5 != 0:
+    # Write any remaining weights not yet written (episodes after the last 5-episode flush)
+    remainder = num_episodes % 5
+    if remainder != 0:
         feature_names = vfa_policy.FEATURE_NAMES
-        start_idx = (num_episodes // 5) * 5
-        partial_weights = weights_history[start_idx:]
-        partial_service = service_levels[start_idx:]
-        partial_episodes = list(range(start_idx, num_episodes))
-        partial_df = pd.DataFrame(partial_weights, columns=feature_names)
-        partial_df.insert(0, 'episode', partial_episodes)
-        partial_df.insert(1, 'service_level', partial_service)
-        
-        assert weights_csv_path is not None
+        start_idx = num_episodes - remainder
+        partial_df = pd.DataFrame(weights_history[start_idx:], columns=feature_names)
+        partial_df.insert(0, 'episode', list(range(start_idx, num_episodes)))
+        partial_df.insert(1, 'service_level', service_levels[start_idx:])
         write_header = not weights_csv_path.exists()
         with open(weights_csv_path, 'a') as f:
             partial_df.to_csv(f, header=write_header, index=False)
@@ -439,7 +434,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--weight_congestion",
         type=float,
-        default=-0.7,
+        default=-1,
         help="Reward weight for congestion events (default: -0.7)",
     )
 
@@ -456,4 +451,5 @@ if __name__ == "__main__":
         epsilon_end       = args.epsilon_end,
         weight_starvation = args.weight_starvation,
         weight_congestion = args.weight_congestion,
+        active_features   = ACTIVE_FEATURES,
     )
