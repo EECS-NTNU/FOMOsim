@@ -70,7 +70,7 @@ N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, logist
 
 INSTANCE_NAME : str   = "TD_W34_old" #"OS_W31"
 NUM_VEHICLES  : int   = 1
-START_HOUR    : int   = 5         # simulation clock starts at 00:00
+START_HOUR    : int   = 0         # simulation clock starts at 00:00
 
 # Where to save checkpoints and the final model
 SAVE_DIR = Path(__file__).parent / "models"
@@ -449,8 +449,9 @@ def train(
 
     vfa_policy.save(save_path)
 
-    # Write any remaining weights not yet written (if num_episodes not divisible by 5)
-    if len(weights_history) % 5 != 0:
+    # Write any remaining weights not yet written (episodes after the last 5-episode flush)
+    remainder = num_episodes % 5
+    if remainder != 0:
         feature_names = vfa_policy.FEATURE_NAMES
         start_idx = (num_episodes // 5) * 5
         partial_weights   = weights_history[start_idx:]
