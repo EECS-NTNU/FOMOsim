@@ -671,7 +671,7 @@ class State(LoadSave):
                     # Pass to the 24-hour repair queue
                     vehicle.location.receive_bikes_for_repair(bikes=[delivery_bike], current_time=time, repair_duration_minutes=1440.0)
                 else:
-                    # Standard delivery (e.g. returning functional bikes to depot)
+                    # Standard delivery 
                     print(f"[DEPOT DROP-OFF] t={time:.1f} | Vehicle {vehicle.id} dropped FUNCTIONAL bike {delivery_bike.bike_id} at {origin_station_id} -> STANDARD INVENTORY")
                     vehicle.location.add_bike(delivery_bike)
                     self.metrics.add_aggregate_metric(self, "bike_deliveries", 1)
@@ -752,48 +752,8 @@ class State(LoadSave):
                         repair_bike.is_available = True
                         repair_bike.damage_status = None
 
-                for pick_up_bike_id in action.pick_ups:
-                    pick_up_bike = vehicle.location.get_bike_from_id(
-                        pick_up_bike_id
-                    )
-                    
-                    # Picking up bike and adding to vehicle inventory and swapping battery
-                    vehicle.pick_up(pick_up_bike)
-
-                    # Remove bike from current station
-                    vehicle.location.remove_bike(pick_up_bike)
-
-                    self.metrics.add_aggregate_metric(self, "bike_pickups", 1)
-
-                    '''if logger_enabled:
-                        operation_logger.log_bike_pickup(
-                            time=time,
-                            vehicle_id=vehicle.id,
-                            station_id=origin_station_id,
-                            bike_id=pick_up_bike.bike_id,
-                        )'''
-                
-                            
-                    # Log aggregate metric for pickup (consistent across all policies)
-                    self.metrics.add_aggregate_metric(self, 'num bike pickups', 1)
-                    
-                # Perform all battery swaps
-                for battery_swap_bike_id in action.battery_swaps:
-                    battery_swap_bike = vehicle.location.get_bike_from_id(
-                        battery_swap_bike_id
-                    )
-                    # Decreasing vehicle battery inventory
-                    vehicle.change_battery(battery_swap_bike)
-
-                    if logger_enabled:
-                        operation_logger.log_battery_swap(
-                            time=time,
-                            vehicle_id=vehicle.id,
-                            station_id=origin_station_id,
-                            bike_id=battery_swap_bike.bike_id,
-                        )
-
-                # Dropping of bikes
+                # Dropping of bikes (must happen before pick-ups so deliveries free
+                # vehicle capacity before the pick-up loop runs)
                 for delivery_bike_id in action.delivery_bikes:
                     # Removing bike from vehicle inventory
                     delivery_bike = vehicle.drop_off(delivery_bike_id)
@@ -812,6 +772,47 @@ class State(LoadSave):
                         )'''
                     # Log aggregate metric for delivery (consistent across all policies)
                     self.metrics.add_aggregate_metric(self, 'num bike deliveries', 1)
+
+                for pick_up_bike_id in action.pick_ups:
+                    pick_up_bike = vehicle.location.get_bike_from_id(
+                        pick_up_bike_id
+                    )
+
+                    # Picking up bike and adding to vehicle inventory and swapping battery
+                    vehicle.pick_up(pick_up_bike)
+
+                    # Remove bike from current station
+                    vehicle.location.remove_bike(pick_up_bike)
+
+                    self.metrics.add_aggregate_metric(self, "bike_pickups", 1)
+
+                    '''if logger_enabled:
+                        operation_logger.log_bike_pickup(
+                            time=time,
+                            vehicle_id=vehicle.id,
+                            station_id=origin_station_id,
+                            bike_id=pick_up_bike.bike_id,
+                        )'''
+
+
+                    # Log aggregate metric for pickup (consistent across all policies)
+                    self.metrics.add_aggregate_metric(self, 'num bike pickups', 1)
+
+                # Perform all battery swaps
+                for battery_swap_bike_id in action.battery_swaps:
+                    battery_swap_bike = vehicle.location.get_bike_from_id(
+                        battery_swap_bike_id
+                    )
+                    # Decreasing vehicle battery inventory
+                    vehicle.change_battery(battery_swap_bike)
+
+                    if logger_enabled:
+                        operation_logger.log_battery_swap(
+                            time=time,
+                            vehicle_id=vehicle.id,
+                            station_id=origin_station_id,
+                            bike_id=battery_swap_bike.bike_id,
+                        )
 
                 for helping_pickup_id in action.helping_pickup:
                     helping_pickup_bike = action.helping_cluster.get_bike_from_id(

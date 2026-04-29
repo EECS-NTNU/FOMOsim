@@ -70,10 +70,121 @@ N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, logist
 
 INSTANCE_NAME : str   = "TD_W34_old" #"OS_W31"
 NUM_VEHICLES  : int   = 1
-START_HOUR    : int   = 5         # simulation clock starts at 00:00
+START_HOUR    : int   = 0         # simulation clock starts at 00:00
 
 # Where to save checkpoints and the final model
 SAVE_DIR = Path(__file__).parent / "models"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lightweight per-episode stats collector (duck-types RunLogger.log_decision)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class _EpisodeStatsCollector:
+    """Accumulates per-episode operational stats from LinearVFAPolicy decision logs."""
+
+    def __init__(self) -> None:
+        self._fleet_total_start   = 0
+        self._fleet_func_start    = 0
+        self._fleet_onsite_start  = 0
+        self._fleet_depot_start   = 0
+        self.reset()
+
+    def reset(self) -> None:
+        self._ep_func_pickups     = 0
+        self._ep_func_deliveries  = 0
+        self._ep_onsite_repairs   = 0
+        self._ep_depot_pickups    = 0
+        self._ep_depot_deliveries = 0
+        self._ep_depot_visits     = 0
+        self._ep_restored_onsite  = 0
+        self._ep_restored_depot   = 0
+
+    def capture_fleet_start(self, state) -> None:
+        all_bikes = list(state.get_all_bikes())
+        n_onsite  = sum(1 for b in all_bikes if getattr(b, "damage_status", None) == "onsite")
+        n_depot   = sum(1 for b in all_bikes if getattr(b, "damage_status", None) == "depot")
+        depot_q   = sum(len(bl) for d in state.get_depots() for _, bl in d.in_repair)
+        n_depot  += depot_q
+        total     = len(all_bikes) + depot_q
+        self._fleet_total_start  = total
+        self._fleet_onsite_start = n_onsite
+        self._fleet_depot_start  = n_depot
+        self._fleet_func_start   = max(total - n_onsite - n_depot, 0)
+
+    def log_decision(self, row: dict) -> None:
+        """Called by LinearVFAPolicy._log_to_run_logger() at every VFA decision."""
+        self._ep_func_pickups     += int(row.get("functional_pickups", 0))
+        self._ep_func_deliveries  += int(row.get("functional_deliveries", 0))
+        self._ep_onsite_repairs   += int(row.get("onsite_repairs", 0))
+        self._ep_depot_pickups    += int(row.get("depot_pickups", 0))
+        self._ep_depot_deliveries += int(row.get("depot_deliveries", 0))
+        self._ep_depot_visits     += 1 if row.get("is_at_depot", False) else 0
+        lfq = int(row.get("load_from_queue", 0))
+        self._ep_restored_onsite  += int(row.get("onsite_repairs", 0))
+        self._ep_restored_depot   += lfq
+
+
+def _collect_episode_stats(
+    simulator,
+    stats: _EpisodeStatsCollector,
+    vfa_policy,
+    alpha: float,
+    alpha_start: float,
+    epsilon: float,
+    epsilon_start: float,
+) -> dict:
+    """Build the per-episode stats row — all counts are VFA-phase only (warmup subtracted)."""
+    m  = simulator.state.metrics
+    ag = lambda key: m.get_aggregate_value(key) or 0
+
+    # Warmup snapshots (zeroed by reset_episode, set at first VFA decision)
+    wu_starv   = getattr(vfa_policy, "warmup_starvations_snapshot",       0)
+    wu_cong    = getattr(vfa_policy, "warmup_congestions_snapshot",        0)
+    wu_trips   = getattr(vfa_policy, "warmup_trips_snapshot",              0)
+    wu_short   = getattr(vfa_policy, "warmup_short_congestions_snapshot",  0)
+    wu_dep     = getattr(vfa_policy, "warmup_bike_departures_snapshot",    0)
+    wu_arr     = getattr(vfa_policy, "warmup_bike_arrivals_snapshot",      0)
+    wu_onsite_f = getattr(vfa_policy, "warmup_onsite_failures_snapshot",   0)
+    wu_depot_f  = getattr(vfa_policy, "warmup_depot_failures_snapshot",    0)
+
+    all_bikes  = list(simulator.state.get_all_bikes())
+    depot_q    = sum(len(bl) for d in simulator.state.get_depots() for _, bl in d.in_repair)
+    total_end  = len(all_bikes) + depot_q
+    n_onsite_e = sum(1 for b in all_bikes if getattr(b, "damage_status", None) == "onsite")
+    n_depot_e  = sum(1 for b in all_bikes if getattr(b, "damage_status", None) == "depot") + depot_q
+    n_func_e   = max(total_end - n_onsite_e - n_depot_e, 0)
+    t_end      = total_end or 1
+    t_start    = stats._fleet_total_start or 1
+
+    return {
+        "alpha":                       round(alpha, 6),
+        "alpha_initial":               alpha_start,
+        "epsilon":                     round(epsilon, 6),
+        "epsilon_initial":             epsilon_start,
+        "starvations":                 max(0, ag("starvations")      - wu_starv),
+        "long_congestions":            max(0, ag("long congestions") - wu_cong),
+        "short_congestions":           max(0, ag("short congestions")- wu_short),
+        "total_trips":                 max(0, ag("trips")            - wu_trips),
+        "bike_departures":             max(0, ag("bike departure")   - wu_dep),
+        "bike_arrivals":               max(0, ag("bike arrival")     - wu_arr),
+        "total_onsite_repairs":        stats._ep_onsite_repairs,
+        "total_depot_pickups":         stats._ep_depot_pickups,
+        "total_depot_deliveries":      stats._ep_depot_deliveries,
+        "total_depot_visits":          stats._ep_depot_visits,
+        "total_functional_pickups":    stats._ep_func_pickups,
+        "total_functional_deliveries": stats._ep_func_deliveries,
+        "broken_ratio_start_onsite":   round(stats._fleet_onsite_start / t_start, 4),
+        "broken_ratio_start_depot":    round(stats._fleet_depot_start  / t_start, 4),
+        "functional_ratio_start":      round(stats._fleet_func_start   / t_start, 4),
+        "broken_ratio_end_onsite":     round(n_onsite_e / t_end, 4),
+        "broken_ratio_end_depot":      round(n_depot_e  / t_end, 4),
+        "functional_ratio_end":        round(n_func_e   / t_end, 4),
+        "new_breakdowns_onsite":       max(0, ag("onsite_failures") - wu_onsite_f),
+        "new_breakdowns_depot":        max(0, ag("depot_failures")  - wu_depot_f),
+        "restored_onsite":             stats._ep_restored_onsite,
+        "restored_depot":              stats._ep_restored_depot,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -198,27 +309,33 @@ def train(
     ###############################################################################
     greedy_policy = GreedyPolicy()
 
+    stats_collector = _EpisodeStatsCollector()
+    vfa_policy.logger = stats_collector
+
     # Warm-up ends at this absolute simulation-time (minutes).
     sim_start_min   = timeInMinutes(hours=START_HOUR)
     warmup_end_time = sim_start_min + WARMUP_DAYS * 24 * 60   # e.g. 420 + 5760
 
 
     service_levels: list = []
+    episode_stats:  list = []
     weights_history: list = []  # Collect θ vectors per episode
     t0 = time.time()
 
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
 
-    # Prepare weights evolution CSV path
-    weights_csv_path = None
+    # Resolve weights CSV path before the episode loop so incremental writes
+    # always work, even when no --save path was given.
     if save_path is not None:
         weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
-    # If save_path is None, will be set at the end as before
+    else:
+        weights_csv_path = SAVE_DIR / f"vfa_training_{instance_name}_{run_timestamp}_weights_evolution.csv"
 
     # ── Episode loop ──────────────────────────────────────────────────────────
     for ep in range(num_episodes):
         config        = SimulationConfig()
-        
+        stats_collector.reset()
+
         ###########
         # ── Calculate current dynamic parameters ─────────────────────────
         current_alpha = alpha_start / (1.0 + harmonic_c * ep)
@@ -273,7 +390,13 @@ def train(
 
         sl = _service_level(simulator, vfa_policy)
         service_levels.append(sl)
-        
+
+        ep_stat = _collect_episode_stats(
+            simulator, stats_collector, vfa_policy,
+            current_alpha, alpha_start, current_epsilon, epsilon_start,
+        )
+        episode_stats.append(ep_stat)
+
         # Apply synchronous batch update every 'batch_size' episodes
         if (ep + 1) % batch_size == 0 or (ep + 1) == num_episodes:
             vfa_policy.apply_batch_update()
@@ -298,26 +421,22 @@ def train(
 
         # ── Periodically update weights evolution CSV every 5 episodes ──
         if (ep + 1) % 5 == 0:
-            # Determine CSV path if not already set
-            if weights_csv_path is None and save_path is not None:
-                weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
-            elif weights_csv_path is None:
-                # If save_path is None, skip writing until final
-                continue
-
             feature_names = vfa_policy.FEATURE_NAMES
-            # Get the last 5 episodes' weights and service levels
+            # Get the last 5 episodes' weights, service levels, and stats
             start_idx = ep - 4 if ep >= 4 else 0
             end_idx = ep + 1
-            partial_weights = weights_history[start_idx:end_idx]
-            partial_service = service_levels[start_idx:end_idx]
+            partial_weights  = weights_history[start_idx:end_idx]
+            partial_service  = service_levels[start_idx:end_idx]
+            partial_stats_ep = episode_stats[start_idx:end_idx]
             partial_episodes = list(range(start_idx, end_idx))
             partial_df = pd.DataFrame(partial_weights, columns=feature_names)
             partial_df.insert(0, 'episode', partial_episodes)
             partial_df.insert(1, 'service_level', partial_service)
+            stats_df = pd.DataFrame(partial_stats_ep)
+            for col in stats_df.columns:
+                partial_df[col] = stats_df[col].values
 
             # Append to CSV, write header only if file does not exist
-            assert weights_csv_path is not None
             write_header = not weights_csv_path.exists()
             with open(weights_csv_path, 'a') as f:
                 partial_df.to_csv(f, header=write_header, index=False)
@@ -327,22 +446,25 @@ def train(
     if save_path is None:
         ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
         save_path = SAVE_DIR / f"vfa_trained_baseline_features_alpha{alpha_start}_seed{seed_offset}_{ts}.pkl"
-        weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
 
     vfa_policy.save(save_path)
 
-    # Write any remaining weights not yet written (if num_episodes not divisible by 5)
-    if len(weights_history) % 5 != 0:
+    # Write any remaining weights not yet written (episodes after the last 5-episode flush)
+    remainder = num_episodes % 5
+    if remainder != 0:
         feature_names = vfa_policy.FEATURE_NAMES
         start_idx = (num_episodes // 5) * 5
-        partial_weights = weights_history[start_idx:]
-        partial_service = service_levels[start_idx:]
-        partial_episodes = list(range(start_idx, num_episodes))
+        partial_weights   = weights_history[start_idx:]
+        partial_service   = service_levels[start_idx:]
+        partial_stats_ep  = episode_stats[start_idx:]
+        partial_episodes  = list(range(start_idx, num_episodes))
         partial_df = pd.DataFrame(partial_weights, columns=feature_names)
         partial_df.insert(0, 'episode', partial_episodes)
         partial_df.insert(1, 'service_level', partial_service)
-        
-        assert weights_csv_path is not None
+        stats_df = pd.DataFrame(partial_stats_ep)
+        for col in stats_df.columns:
+            partial_df[col] = stats_df[col].values
+
         write_header = not weights_csv_path.exists()
         with open(weights_csv_path, 'a') as f:
             partial_df.to_csv(f, header=write_header, index=False)
@@ -439,8 +561,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--weight_congestion",
         type=float,
-        default=-0.7,
-        help="Reward weight for congestion events (default: -0.7)",
+        default=-1,
+        help="Reward weight for congestion events (default: -1.0)",
     )
 
     args = parser.parse_args()
@@ -450,6 +572,7 @@ if __name__ == "__main__":
         save_path         = Path(args.save) if args.save else None,
         seed_offset       = args.seed,
         instance_name     = args.instance,
+        active_features   = ACTIVE_FEATURES,
         gamma             = args.gamma,
         alpha_start       = args.alpha_start,
         epsilon_start     = args.epsilon_start,

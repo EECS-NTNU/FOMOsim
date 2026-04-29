@@ -376,10 +376,14 @@ class LinearVFAPolicy(Policy):
         time_remaining: Optional[float] = None,
         shift_length: float = 1440.0,
         next_station_id: Optional[str] = None,
+        eval_time: Optional[float] = None, 
     ) -> np.ndarray:
         """
         Compute φ(S^x) for the post-decision state.
         """
+        t         = eval_time if eval_time is not None else float(state.time)
+        eval_day  = int(t // (24 * 60)) % 7
+        eval_hour = int((t // 60) % 24)
         # Explicitly tell Pylance the lazy caches are populated
         assert self._target_matrix is not None
         assert self._leave_profile is not None
@@ -418,7 +422,7 @@ class LinearVFAPolicy(Policy):
         # ── Anticipate the inventory change at the DESTINATION ─────────────
         if next_station_id and next_station_id in self._sid_to_idx:
             nxt_idx = self._sid_to_idx[next_station_id]
-            d, h = state.day() % 7, state.hour() % 24
+            d, h = eval_day % 7, eval_hour % 24
             target_nxt = self._target_matrix[d, h, nxt_idx]
             cur_nxt = func_post[nxt_idx]
             delta_nxt = target_nxt - cur_nxt
@@ -434,11 +438,11 @@ class LinearVFAPolicy(Policy):
                 func_cargo_veh += pickup
         
         # ── Rolling 3-Hour Demand Anticipation ─────────────────────────────
-        d = state.day() % 7
+        d = eval_day % 7
         day_type = 1 if d in [5, 6] else 0  # 0 = weekday, 1 = weekend
 
-        current_minute = int(state.time % 60)
-        hours   = [(int((state.time // 60) % 24) + k) % 24 for k in range(4)]
+        current_minute = int(t % 60)
+        hours   = [(eval_hour + k) % 24 for k in range(4)]
         weights = np.array([
             (60 - current_minute) / 60.0,  # remaining fraction of current hour
             1.0,                            # full next hour
@@ -450,7 +454,7 @@ class LinearVFAPolicy(Policy):
         dynamic_arrive = np.array([self._arrive_profile[day_type, h] * w for h, w in zip(hours, weights)])
 
         # ── Time-indexed target inventory (N,) ─────────────────────────────
-        d, h   = state.day() % 7, state.hour() % 24
+        d, h   = eval_day % 7, eval_hour % 24
         target = self._target_matrix[d, h]              
 
         # ── Anticipated Distances (from Destination) ────────────────
@@ -495,8 +499,8 @@ class LinearVFAPolicy(Policy):
             time_remaining=self._get_time_remaining(state, vehicle),
             shift_length=self._get_shift_length(state, vehicle),
             demand_horizon_enabled=True,
-            current_time_minutes=float(state.time),
-            current_day_of_week=int(state.day() % 7),
+            current_time_minutes=t,
+            current_day_of_week=eval_day,
             target_matrix=self._target_matrix,
             total_stations=self._N_stations
         )
@@ -840,17 +844,33 @@ class LinearVFAPolicy(Policy):
             
             dest_id = getattr(action, "next_location", getattr(action, "next_station", None))
 
+            try:
+                svc = action.get_action_time(0.0) if hasattr(action, "get_action_time") else 0.0
+            except Exception:
+                svc = 0.0
+            try:
+                travel = state.get_vehicle_travel_time(vehicle.location.id, dest_id) if dest_id else 0.0
+            except Exception:
+                travel = 0.0
+            action_eval_time = state.time + svc + travel
+
+            '''if not getattr(self, "_has_printed_eval_time", False):
+                print(f"[EVAL_TIME] t_now={state.time:.1f}  dest={dest_id}  svc={svc:.1f}  travel={travel:.1f}  eval_t={action_eval_time:.1f}  shift={(action_eval_time - state.time):.1f}min")
+                if k == len(candidates) - 1:
+                    self._has_printed_eval_time = True'''
+
             time_rem = self._get_time_remaining(state, vehicle)
             shift_len = self._get_shift_length(state, vehicle)
 
             phi = self.extract_features(
-                state, vehicle, 
-                base_func, base_onsite, base_depot, 
+                state, vehicle,
+                base_func, base_onsite, base_depot,
                 delta_func, delta_depot_cargo,
                 delta_onsite_repairs,
                 time_remaining=time_rem,
                 shift_length=shift_len,
-                next_station_id=dest_id
+                next_station_id=dest_id,
+                eval_time=action_eval_time,
             )
             phis.append(phi)
             values[k] = self.value(phi)    
