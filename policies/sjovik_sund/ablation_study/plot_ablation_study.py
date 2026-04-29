@@ -40,13 +40,23 @@ def discover_runs(study_dir: Path, filter_alphas=None, filter_experiments=None):
 
 def load_experiment(exp_dir: Path):
     """
-    Load all seed CSVs in exp_dir.
-    Returns (final_episodes, sl_mean, sl_std, weights_mean, feature_names, found_seeds)
-    or None if no data found.
+    Load all seed CSVs in exp_dir while ignoring specific metadata/metric columns.
     """
     csv_files = sorted(exp_dir.glob("*_weights_evolution.csv"))
     if not csv_files:
         return None
+
+    # Define the columns you want to ignore
+    cols_to_ignore = [
+        "alpha", "alpha_initial", "epsilon", "epsilon_initial", "starvations",
+        "long_congestions", "short_congestions", "total_trips", "bike_departures",
+        "bike_arrivals", "total_onsite_repairs", "total_depot_pickups",
+        "total_depot_deliveries", "total_depot_visits", "total_functional_pickups",
+        "total_functional_deliveries", "broken_ratio_start_onsite",
+        "broken_ratio_start_depot", "functional_ratio_start",
+        "broken_ratio_end_onsite", "broken_ratio_end_depot", "functional_ratio_end",
+        "new_breakdowns_onsite", "new_breakdowns_depot", "restored_onsite", "restored_depot"
+    ]
 
     loaded_data = []
     found_seeds = []
@@ -57,11 +67,17 @@ def load_experiment(exp_dir: Path):
         found_seeds.append(seed_match.group(1) if seed_match else "?")
 
         df = pd.read_csv(csv_file)
+        
+        # Drop the unwanted columns here
+        df = df.drop(columns=cols_to_ignore, errors="ignore")
+
         episodes = df["episode"].values
         service_levels = df["service_level"].values
 
         window = min(20, len(episodes))
         sl_smoothed = pd.Series(service_levels).rolling(window=window, min_periods=1).mean().values
+        
+        # w_vals now only contains the actual weight features
         w_vals = df.drop(columns=["episode", "service_level"]).values
 
         loaded_data.append((sl_smoothed, w_vals, episodes, df))
@@ -93,7 +109,7 @@ def load_experiment(exp_dir: Path):
 
 def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
     #study_dir = WORKSPACE_ROOT / "models/ablation_study_batch_alpha_0.005_seed5000"
-    study_dir = WORKSPACE_ROOT / "models/final_ablation_500ep"
+    study_dir = WORKSPACE_ROOT / "models/Convergencemethods/LSTD"
     if not study_dir.exists():
         print(f"Error: Could not find ablation study directory at {study_dir}")
         return
