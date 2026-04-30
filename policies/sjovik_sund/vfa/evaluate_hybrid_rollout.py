@@ -540,8 +540,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     shared_sim = dict(
+    shared_sim = dict(
         lookahead_minutes=args.lookahead,
         num_scenarios=args.scenarios,
+        n_rollout_candidates=args.n_candidates,
+        n_routing_candidates=args.n_routing,
+        screening_mode=args.screening,
+        n_screening_scenarios=args.n_screening,
+        n_survivors=args.n_survivors,
         n_rollout_candidates=args.n_candidates,
         n_routing_candidates=args.n_routing,
         screening_mode=args.screening,
@@ -555,6 +561,10 @@ if __name__ == "__main__":
     )
 
     if args.model:
+        run_single(model_path=args.model, features_override=args.features,
+                   log_decisions=args.log_decisions, debug_print=args.debug,
+                   run_donoting=args.run_donoting, run_vfa=args.run_vfa,
+                   run_hybrid=not args.no_hybrid, **shared_sim)
         run_single(model_path=args.model, features_override=args.features,
                    log_decisions=args.log_decisions, debug_print=args.debug,
                    run_donoting=args.run_donoting, run_vfa=args.run_vfa,

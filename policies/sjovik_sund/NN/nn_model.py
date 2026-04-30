@@ -69,9 +69,9 @@ import torch.nn as nn
 # after confirming the small model is clearly underfitting on learning curves.
 # ─────────────────────────────────────────────────────────────────────────────
 
-STATION_EMBED_DIM = 32   # StationEncoder output dimension
+STATION_EMBED_DIM = 64   # StationEncoder output dimension
 VEHICLE_EMBED_DIM = 16   # VehicleEncoder output dimension
-VALUE_HIDDEN_DIM  = 64   # hidden dimension in the final ValueMLP
+VALUE_HIDDEN_DIM  = 128   # hidden dimension in the final ValueMLP
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -150,7 +150,7 @@ class VehicleEncoder(nn.Module):
         return self.net(x)
 
 
-class ValueMLP(nn.Module):
+'''class ValueMLP(nn.Module):
     """
     Final value head: combined state embedding → scalar V(S^x).
 
@@ -183,7 +183,101 @@ class ValueMLP(nn.Module):
         Returns:
             value : [1]  or  [batch × 1]
         """
+        return self.net(x)'''
+
+class ValueMLP(nn.Module):
+    def __init__(self, input_dim: int, hidden_dims: list = None):
+        super().__init__()
+        
+        # Default to the original funnel if nothing is passed
+        if hidden_dims is None:
+            hidden_dims = [VALUE_HIDDEN_DIM, VALUE_HIDDEN_DIM // 2]
+            
+        layers = []
+        current_dim = input_dim
+        for h in hidden_dims:
+            layers.append(nn.Linear(current_dim, h))
+            layers.append(nn.ReLU())
+            current_dim = h
+            
+        # Final unconstrained scalar output
+        layers.append(nn.Linear(current_dim, 1))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
+# ═════════════════════════════════════════════════════════════════════════════
+# ATTENTION POOLING
+# ═════════════════════════════════════════════════════════════════════════════
+
+class AttentionPool(nn.Module):
+    """
+    Learned weighted sum over a set of embeddings.
+
+    score_i  = w · embedding_i          (single linear, no bias)
+    weight_i = softmax(scores)
+    summary  = Σ weight_i · embedding_i
+
+    Replaces mean pooling so the network can focus on critical stations
+    (e.g., near-starving) rather than weighting all equally.
+    """
+
+    def __init__(self, embed_dim: int):
+        super().__init__()
+        self.score = nn.Linear(embed_dim, 1, bias=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """x: [N, D] → [D]"""
+        w = torch.softmax(self.score(x), dim=0)   # [N, 1]
+        return (w * x).sum(dim=0)                  # [D]
+
+    def forward_batch(self, x: torch.Tensor) -> torch.Tensor:
+        """x: [B, N, D] → [B, D]"""
+        w = torch.softmax(self.score(x), dim=1)   # [B, N, 1]
+        return (w * x).sum(dim=1)                  # [B, D]
+    
+   
+# ═════════════════════════════════════════════════════════════════════════════
+# Cross-Attention Pooling (Conditioned on Vehicle State)
+# ═════════════════════════════════════════════════════════════════════════════
+class CrossAttentionPool(nn.Module):
+    """
+    Learned weighted sum over stations, conditioned dynamically on the vehicle state.
+    query = Vehicle Summary
+    keys/values = Station Embeddings
+    """
+    def __init__(self, station_dim: int, vehicle_dim: int):
+        super().__init__()
+        # Projects the vehicle summary into the station dimension to compute a dot-product
+        self.query_proj = nn.Linear(vehicle_dim, station_dim)
+
+    def forward(self, station_emb: torch.Tensor, vehicle_summary: torch.Tensor) -> torch.Tensor:
+        """
+        station_emb: [N, station_dim]
+        vehicle_summary: [vehicle_dim] (Already pooled)
+        """
+        # 1. Create a search query based on what the vehicle currently needs
+        query = self.query_proj(vehicle_summary)  # [station_dim]
+        
+        # 2. Score stations based on how well they match the vehicle's query (Dot Product)
+        scores = (station_emb * query).sum(dim=1) # [N]
+        
+        # 3. Softmax to get normalized attention weights
+        w = torch.softmax(scores, dim=0)          # [N]
+        
+        # 4. Apply weights to create the final contextual summary
+        return (w.unsqueeze(1) * station_emb).sum(dim=0) # [station_dim]
+        
+    def forward_batch(self, station_emb: torch.Tensor, vehicle_summary: torch.Tensor) -> torch.Tensor:
+        """Batched version for _compute_td_loss"""
+        # vehicle_summary: [B, vehicle_dim] -> [B, station_dim] -> [B, station_dim, 1]
+        query = self.query_proj(vehicle_summary).unsqueeze(2) 
+        
+        # Matrix multiplication: [B, N, station_dim] @ [B, station_dim, 1] -> [B, N, 1]
+        scores = torch.bmm(station_emb, query)
+        w = torch.softmax(scores, dim=1) 
+        
+        return (w * station_emb).sum(dim=1) # [B, station_dim]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -204,11 +298,11 @@ class NNValueNetwork(nn.Module):
 
     Architecture:
 
-        station_block  [N × 5] ──► StationEncoder ──► mean-pool ──► [32]
-                                                                       │
-        vehicle_block  [M × 5] ──► VehicleEncoder ──► mean-pool ──► [16]  ──► cat ──► [55]
-                                                                       │
-        global_context     [7] ──────────────────────────────────── [7]
+        station_block  [N × 8] ──► StationEncoder ──► attn+max-pool ──► [64]
+                                                                          │
+        vehicle_block  [M × 6] ──► VehicleEncoder ──► attn+max-pool ──► [32]  ──► cat ──► [104]
+                                                                          │
+        global_context     [8] ─────────────────────────────────────── [8]
                                                                        │
                                                                   ValueMLP
                                                                        │
@@ -230,21 +324,31 @@ class NNValueNetwork(nn.Module):
         global_feature_dim:  int,
         station_embed_dim:   int = STATION_EMBED_DIM,
         vehicle_embed_dim:   int = VEHICLE_EMBED_DIM,
-        value_hidden_dim:    int = VALUE_HIDDEN_DIM,
+        value_hidden_dims:   list = None,
     ):
         super().__init__()
 
         self.station_encoder = StationEncoder(station_feature_dim, station_embed_dim)
         self.vehicle_encoder = VehicleEncoder(vehicle_feature_dim, vehicle_embed_dim)
+        #self.station_attn    = AttentionPool(station_embed_dim)
+        self.vehicle_attn    = AttentionPool(vehicle_embed_dim)
+        
+        # NEW: Station pooling is now conditioned on the finalized vehicle summary
+        vehicle_summary_dim = 2 * vehicle_embed_dim
+        self.station_cross_attn = CrossAttentionPool(station_embed_dim, vehicle_summary_dim)
 
-        # The ValueMLP input is the concatenation of the three pooled representations.
-        combined_dim = station_embed_dim + vehicle_embed_dim + global_feature_dim
-        self.value_mlp = ValueMLP(combined_dim, value_hidden_dim)
+        # Dual pooling: attention + max concatenated → 2× each embed dim.
+        # +2*station_feature_dim: destination raw bypass + max-deficit station raw bypass.
+        combined_dim = (2 * station_embed_dim + 2 * vehicle_embed_dim
+                        + global_feature_dim + 2 * station_feature_dim)
+        self.value_mlp = ValueMLP(combined_dim, value_hidden_dims)
 
         # Store dims so checkpoints can be verified for compatibility.
         self.station_feature_dim = station_feature_dim
         self.vehicle_feature_dim = vehicle_feature_dim
         self.global_feature_dim  = global_feature_dim
+        self.value_hidden_dims   = value_hidden_dims
+
 
     def forward(
         self,
@@ -274,28 +378,164 @@ class NNValueNetwork(nn.Module):
         Concatenate the two pooled summaries with the global context vector
         and pass through the ValueMLP to get the scalar estimate.
         """
-        # --- Station branch ---
-        station_embeddings = self.station_encoder(station_block)  # [N, station_embed_dim]
-        station_summary    = station_embeddings.mean(dim=0)        # [station_embed_dim]
+        '''# --- Station branch ---
+        station_embeddings = self.station_encoder(station_block)   # [N, station_embed_dim]
+        station_summary = torch.cat([
+            self.station_attn(station_embeddings),          # attention pool  ← revert: station_embeddings.mean(dim=0)
+            station_embeddings.max(dim=0).values,
+        ], dim=0)  # [2 * station_embed_dim]
 
         # --- Vehicle branch ---
         vehicle_embeddings = self.vehicle_encoder(vehicle_block)   # [M, vehicle_embed_dim]
-        vehicle_summary    = vehicle_embeddings.mean(dim=0)        # [vehicle_embed_dim]
+        vehicle_summary = torch.cat([
+            self.vehicle_attn(vehicle_embeddings),          # attention pool  ← revert: vehicle_embeddings.mean(dim=0)
+            vehicle_embeddings.max(dim=0).values,
+        ], dim=0)  # [2 * vehicle_embed_dim]
 
         # --- Combine all three representations ---
-        # cat produces [station_embed_dim + vehicle_embed_dim + global_feature_dim]
         combined = torch.cat([station_summary, vehicle_summary, global_context], dim=0)
 
         # --- Scalar value estimate ---
         value = self.value_mlp(combined)   # [1]
+        return value'''
+        
+        # --- 1. Vehicle branch (Process FIRST) ---
+        vehicle_embeddings = self.vehicle_encoder(vehicle_block)
+        vehicle_summary = torch.cat([
+            self.vehicle_attn(vehicle_embeddings),
+            vehicle_embeddings.max(dim=0).values,
+        ], dim=0)
+
+        # --- 2. Station branch (Conditioned on Vehicle) ---
+        station_embeddings = self.station_encoder(station_block)
+        station_summary = torch.cat([
+            self.station_cross_attn(station_embeddings, vehicle_summary),
+            station_embeddings.max(dim=0).values,
+        ], dim=0)
+
+        # --- 3. Destination spotlight: raw features bypass pooling ---
+        dest_mask = station_block[:, -1] > 0.5
+        if dest_mask.any():
+            dest_raw = station_block[dest_mask][0]
+        else:
+            dest_raw = torch.zeros(self.station_feature_dim, device=station_block.device)
+
+        # --- 3b. Max-deficit spotlight: worst non-destination station bypasses pooling ---
+        # CrossAttentionPool is vehicle-conditioned and may down-weight a critically starved
+        # station that is far from the destination. This bypass guarantees the NN always
+        # sees the worst station regardless of attention routing.
+        non_dest_mask = station_block[:, -1] < 0.5
+        if non_dest_mask.any():
+            non_dest = station_block[non_dest_mask]
+            max_deficit_raw = non_dest[non_dest[:, 5].argmax()]  # deficit_ratio at index 5
+        else:
+            max_deficit_raw = torch.zeros(self.station_feature_dim, device=station_block.device)
+
+        # --- 4. Combine ---
+        combined = torch.cat([station_summary, vehicle_summary, global_context, dest_raw, max_deficit_raw], dim=0)
+        value = self.value_mlp(combined)
         return value
+
+    '''def forward_batch(
+        self,
+        station_blocks:  torch.Tensor,
+        vehicle_blocks:  torch.Tensor,
+        global_contexts: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Batched forward pass over B states simultaneously.
+
+        Used by _compute_td_loss to replace the Python loop over 128 samples
+        with a single GPU kernel call — ~30-50x faster on MPS.
+
+        Args:
+            station_blocks  : [B, N_stations, station_feature_dim]
+            vehicle_blocks  : [B, M_vehicles, vehicle_feature_dim]
+            global_contexts : [B, global_feature_dim]
+
+        Returns:
+            values : [B, 1]
+
+        nn.Linear broadcasts over leading batch dimensions naturally, so the
+        shared-weight station/vehicle encoders apply identically to each of
+        the B states without any explicit looping.
+        """
+        # [B, N, embed_dim] → attention+max over stations → [B, 2*embed_dim]
+        st_emb = self.station_encoder(station_blocks)
+        station_summary = torch.cat([
+            self.station_attn.forward_batch(st_emb),   # ← revert: st_emb.mean(dim=1)
+            st_emb.max(dim=1).values,
+        ], dim=1)
+
+        # [B, M, embed_dim] → attention+max over vehicles → [B, 2*embed_dim]
+        vh_emb = self.vehicle_encoder(vehicle_blocks)
+        vehicle_summary = torch.cat([
+            self.vehicle_attn.forward_batch(vh_emb),   # ← revert: vh_emb.mean(dim=1)
+            vh_emb.max(dim=1).values,
+        ], dim=1)
+
+        # [B, combined_dim]
+        combined = torch.cat([station_summary, vehicle_summary, global_contexts], dim=1)
+
+        return self.value_mlp(combined)   # [B, 1]'''
+        
+    def forward_batch(
+        self,
+        station_blocks:  torch.Tensor,
+        vehicle_blocks:  torch.Tensor,
+        global_contexts: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Batched forward pass over B states simultaneously.
+
+        Used by _compute_td_loss to replace the Python loop over 128 samples
+        with a single GPU kernel call — ~30-50x faster on MPS.
+
+        Args:
+            station_blocks  : [B, N_stations, station_feature_dim]
+            vehicle_blocks  : [B, M_vehicles, vehicle_feature_dim]
+            global_contexts : [B, global_feature_dim]
+
+        Returns:
+            values : [B, 1]
+        """
+        B = station_blocks.shape[0]
+
+        # --- 1. Vehicle branch (Process FIRST) ---
+        vh_emb = self.vehicle_encoder(vehicle_blocks)
+        vehicle_summary = torch.cat([
+            self.vehicle_attn.forward_batch(vh_emb),
+            vh_emb.max(dim=1).values,
+        ], dim=1)   # [B, 2*vehicle_embed_dim]
+
+        # --- 2. Station branch (Conditioned on Vehicle) ---
+        st_emb = self.station_encoder(station_blocks)
+        station_summary = torch.cat([
+            self.station_cross_attn.forward_batch(st_emb, vehicle_summary),
+            st_emb.max(dim=1).values,
+        ], dim=1)   # [B, 2*station_embed_dim]
+
+        # --- 3. Destination spotlight ---
+        dest_idx = station_blocks[:, :, -1].argmax(dim=1)   # [B]
+        dest_raw = station_blocks[torch.arange(B, device=station_blocks.device), dest_idx, :]  # [B, station_feature_dim]
+
+        # --- 3b. Max-deficit spotlight (non-destination) ---
+        deficit_scores = station_blocks[:, :, 5].clone()  # deficit_ratio at index 5, [B, N]
+        deficit_scores[station_blocks[:, :, -1] > 0.5] = -float('inf')  # mask out destination
+        max_def_idx = deficit_scores.argmax(dim=1)   # [B]
+        max_deficit_raw = station_blocks[torch.arange(B, device=station_blocks.device), max_def_idx, :]  # [B, station_feature_dim]
+
+        # --- 4. Combine ---
+        combined = torch.cat([station_summary, vehicle_summary, global_contexts, dest_raw, max_deficit_raw], dim=1)
+
+        return self.value_mlp(combined)   # [B, 1]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # FACTORY
 # ═════════════════════════════════════════════════════════════════════════════
 
-def build_nn_value_network() -> NNValueNetwork:
+'''def build_nn_value_network() -> NNValueNetwork:
     """
     Construct an NNValueNetwork with input dimensions that match nn_state_encoder.
 
@@ -316,4 +556,15 @@ def build_nn_value_network() -> NNValueNetwork:
         station_feature_dim=STATION_FEATURE_DIM,
         vehicle_feature_dim=VEHICLE_FEATURE_DIM,
         global_feature_dim=GLOBAL_FEATURE_DIM,
+    )'''
+    
+def build_nn_value_network(value_hidden_dims: list = None) -> NNValueNetwork:
+    from policies.sjovik_sund.NN.nn_state_encoder import (
+        STATION_FEATURE_DIM, VEHICLE_FEATURE_DIM, GLOBAL_FEATURE_DIM,
+    )
+    return NNValueNetwork(
+        station_feature_dim=STATION_FEATURE_DIM,
+        vehicle_feature_dim=VEHICLE_FEATURE_DIM,
+        global_feature_dim=GLOBAL_FEATURE_DIM,
+        value_hidden_dims=value_hidden_dims,
     )

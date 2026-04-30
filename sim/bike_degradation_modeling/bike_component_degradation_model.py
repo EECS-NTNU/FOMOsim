@@ -1,5 +1,6 @@
 import numpy as np
-from settings import ENABLE_COMPONENT_FAILURES, SAMPLE_BIKES_TO_TRACK
+import settings as _settings
+from settings import SAMPLE_BIKES_TO_TRACK
 from .damage_configuration import DAMAGE_CATEGORIES
 
 class ComponentFailureModel:
@@ -104,7 +105,7 @@ class ComponentFailureModel:
         Returns:
             dict: Failed components with their details, or empty dict if no failures
         """
-        if not ENABLE_COMPONENT_FAILURES:
+        if not _settings.ENABLE_COMPONENT_FAILURES:
             return {}
         
         failed_components = {}

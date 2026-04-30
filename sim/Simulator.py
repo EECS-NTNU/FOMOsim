@@ -124,6 +124,7 @@ class Simulator(LoadSave):
                 h = int((event.time // 60) % 24)
                 # self.demand.update_demands(self.state, d, h)
                 if self.target_state is not None:
+                    #print(f"Target state: {self.target_state}")
                     self.target_state.update_target_state(self.state, d, h)
                 self.single_step()
                 break
@@ -138,14 +139,14 @@ class Simulator(LoadSave):
         It then pops events from this queue. The queue is always sorted in by the time of the events.
         """
         # Print all stations and depots for verification
-        print("\n=== Stations and Depots ===")
+        #print("\n=== Stations and Depots ===")
         for station in self.state.get_stations():
             is_depot = isinstance(station, sim.Depot)
-            marker = "[DEPOT]" if is_depot else "[STATION]"
-            print(f"{marker} {station.id:4s} | capacity={station.capacity:3d} | bikes_available={station.number_of_bikes():3d}")
+            #marker = "[DEPOT]" if is_depot else "[STATION]"
+            #print(f"{marker} {station.id:4s} | capacity={station.capacity:3d} | bikes_available={station.number_of_bikes():3d}")
         for depot in self.state.get_depots():
-            print(f"[DEPOT] {depot.id:4s} | capacity={depot.capacity:3d} | bikes_available={depot.number_of_bikes():3d}")
-        print()
+            #print(f"[DEPOT] {depot.id:4s} | capacity={depot.capacity:3d} | bikes_available={depot.number_of_bikes():3d}")
+            print()
         
         while self.state.time < self.end_time:
             self.full_step()

@@ -8,6 +8,7 @@ import csv
 import sim
 import pandas as pd
 from typing import Any
+from typing import Any
 from pathlib import Path
 from settings import MAINTENANCE_INCREASE_PER_MINUTE
 from sim.bike_degradation_modeling import damage_configuration
@@ -235,6 +236,10 @@ class LoggingSimulator(sim.Simulator):
         current_trips      = self.state.metrics.get_aggregate_value("trips") or 0
         current_departures = self.state.metrics.get_aggregate_value("bike departure") or 0
         current_arrivals   = self.state.metrics.get_aggregate_value("bike arrival") or 0
+        # Trips / demand
+        current_trips      = self.state.metrics.get_aggregate_value("trips") or 0
+        current_departures = self.state.metrics.get_aggregate_value("bike departure") or 0
+        current_arrivals   = self.state.metrics.get_aggregate_value("bike arrival") or 0
 
         # Calculate hourly deltas (difference from last hour)
         hourly_starvations = current_starvations - getattr(self, 'last_hour_starvations', 0)
@@ -246,6 +251,20 @@ class LoggingSimulator(sim.Simulator):
         hourly_total_failures = current_total_failures - getattr(self, 'last_hour_total_failures', 0)
         hourly_depot_failures = current_depot_failures - getattr(self, 'last_hour_depot_failures', 0)
         hourly_onsite_failures = current_onsite_failures - getattr(self, 'last_hour_onsite_failures', 0)
+        hourly_trips      = current_trips      - getattr(self, 'last_hour_trips', 0)
+        hourly_departures = current_departures - getattr(self, 'last_hour_departures', 0)
+        hourly_arrivals   = current_arrivals   - getattr(self, 'last_hour_arrivals', 0)
+
+        # Fleet fraction snapshot at this hour
+        all_bikes_now = list(self.state.get_all_bikes())
+        fleet_total_now = len(all_bikes_now)
+        if fleet_total_now > 0:
+            n_onsite_now = sum(1 for b in all_bikes_now if getattr(b, 'damage_status', None) == 'onsite')
+            n_depot_now  = sum(1 for b in all_bikes_now if getattr(b, 'damage_status', None) == 'depot')
+            damaged_fraction_onsite = round(n_onsite_now / fleet_total_now, 4)
+            damaged_fraction_depot  = round(n_depot_now  / fleet_total_now, 4)
+        else:
+            damaged_fraction_onsite = damaged_fraction_depot = 0.0
         hourly_trips      = current_trips      - getattr(self, 'last_hour_trips', 0)
         hourly_departures = current_departures - getattr(self, 'last_hour_departures', 0)
         hourly_arrivals   = current_arrivals   - getattr(self, 'last_hour_arrivals', 0)

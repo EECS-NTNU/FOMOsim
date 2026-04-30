@@ -365,10 +365,13 @@ class PostDecisionState:
                     f"vehicle capacity {v.free_capacity()}"
                 )
         else:
-            if action.depot_removals > v.free_capacity():
+            # Delivery (rebalancing > 0) unloads bikes first, freeing that many slots
+            effective_free = v.free_capacity() + max(0, action.rebalancing)
+            if action.depot_removals > effective_free:
                 raise ValueError(
                     f"Cannot load {action.depot_removals} bikes; "
-                    f"vehicle only has {v.free_capacity()} free capacity"
+                    f"vehicle only has {effective_free} free capacity "
+                    f"(current={v.free_capacity()} + delivery={max(0, action.rebalancing)})"
                 )
 
         # Rebalancing delivery bounds
@@ -425,10 +428,27 @@ class PostDecisionState:
         if not cfg.track_damage:
             new_depot_cargo = 0
 
+        # ── compute action duration ────────────────────────────────────────
+        # Time = unload depot bikes + move functional bikes (either direction) + on-site repairs
+        #NOTE: names are a bit misleading since depot is pickup 
+        time_unload_depot = depot_rem * PostDecisionState.MINUTES_PER_ACTION
+        time_rebalancing = abs(action.rebalancing) * PostDecisionState.MINUTES_PER_ACTION
+        time_onsite_repairs = onsite_rep * PostDecisionState.MAINTENANCE_REPAIR
+        action_duration = time_unload_depot + time_rebalancing + time_onsite_repairs
+
+        # ── compute travel time to next station
+        travel_time_to_next = state.travel_times.get(action.next_station, 0.0) if state.travel_times else 0.0
+        new_eta = state.time + action_duration + travel_time_to_next
+
+        # DEBUG: Print ETA calculation for normal station
+        '''print(f"DEBUG: apply_at_normal_station - current_time: {state.time:.1f}, "
+              f"action_duration: {action_duration:.1f}, "
+              f"travel_time_to_next: {travel_time_to_next:.1f}, "
+              f"calculated new_eta: {new_eta:.1f}")'''
         new_vehicle = VehicleStatus(
             vehicle_id=v.vehicle_id,
             destination_station=action.next_station,
-            eta=state.time,  # will be updated by caller
+            eta=new_eta,
             functional_cargo=new_func_cargo,
             depot_cargo=new_depot_cargo,
             capacity=v.capacity,
@@ -441,6 +461,26 @@ class PostDecisionState:
         time_rebalancing = abs(action.rebalancing) * PostDecisionState.MINUTES_PER_ACTION
         time_onsite_repairs = onsite_rep * PostDecisionState.MAINTENANCE_REPAIR
         action_duration = time_unload_depot + time_rebalancing + time_onsite_repairs
+
+        # ── compute travel time to next station
+        travel_time_to_next = state.travel_times.get(action.next_station, 0.0) if state.travel_times else 0.0
+        new_eta = state.time + action_duration + travel_time_to_next
+
+        # DEBUG: Print ETA calculation for normal station
+        '''print(f"DEBUG: apply_at_normal_station - current_time: {state.time:.1f}, "
+              f"action_duration: {action_duration:.1f}, "
+              f"travel_time_to_next: {travel_time_to_next:.1f}, "
+              f"calculated new_eta: {new_eta:.1f}")'''
+
+        new_vehicle = VehicleStatus(
+            vehicle_id=v.vehicle_id,
+            destination_station=action.next_station,
+            eta=new_eta,
+            functional_cargo=new_func_cargo,
+            depot_cargo=new_depot_cargo,
+            capacity=v.capacity,
+        )
+
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
             bikes_repaired_onsite=onsite_rep,
@@ -527,15 +567,6 @@ class PostDecisionState:
         new_func_cargo = v.functional_cargo + action.load_from_queue
         new_depot_cargo = 0  # all broken bikes unloaded
 
-        new_vehicle = VehicleStatus(
-            vehicle_id=v.vehicle_id,
-            destination_station=action.next_station,
-            eta=state.time,  # will be updated by caller
-            functional_cargo=new_func_cargo,
-            depot_cargo=new_depot_cargo,
-            capacity=v.capacity,
-        )
-
         # ── compute action duration ────────────────────────────────────────
         # Time = unload all broken bikes + load bikes from queue
         time_unload_broken = v.depot_cargo * PostDecisionState.MINUTES_PER_ACTION
@@ -543,6 +574,26 @@ class PostDecisionState:
         action_duration = time_unload_broken + time_load_from_queue
         # NOTE: Repair duration (24h cycle) is not added here—it's exogenous,
         # managed by the simulator between decision epochs.
+
+        # ── compute travel time to next station
+        travel_time_to_next = state.travel_times.get(action.next_station, 0.0) if state.travel_times else 0.0
+        new_eta = state.time + action_duration + travel_time_to_next
+
+        # DEBUG: Print ETA calculation for depot
+        print(f"DEBUG: apply_at_depot - current_time: {state.time:.1f}, "
+              f"action_duration: {action_duration:.1f}, "
+              f"travel_time_to_next: {travel_time_to_next:.1f}, "
+              f"calculated new_eta: {new_eta:.1f}")
+
+        new_vehicle = VehicleStatus(
+            vehicle_id=v.vehicle_id,
+            destination_station=action.next_station,
+            eta=new_eta,
+            functional_cargo=new_func_cargo,
+            depot_cargo=new_depot_cargo,
+            capacity=v.capacity,
+        )
+
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
             bikes_unloaded_for_repair=v.depot_cargo,
@@ -623,7 +674,7 @@ def _count_bikes(station, config: Optional[MDPConfig] = None) -> Tuple[int, int,
         return len(station.bikes), 0, 0
 
     functional = onsite = depot = 0
-    for bike in station.bikes:
+    for bike in station.bikes.values():
         ds = getattr(bike, "damage_status", None)
         if ds == "depot":
             depot += 1
@@ -778,11 +829,12 @@ def extract_mdp_state(
             expected_arrival_rate=s.get_arrive_intensity(sim_day, sim_hour),
         )
 
-    if depot_id is not None:
-        for d in sim_state.get_depots():
-            if d.id == depot_id:
-                depot = extract_depot_inventory(d, cfg)
-                break
+    for d in sim_state.get_depots():
+        if depot_id is None or d.id == depot_id:
+            depot = extract_depot_inventory(d, cfg)
+            if depot_id is None:
+                depot_id = d.id  # use first depot found
+            break
 
     vehicles = {
         v.id: extract_vehicle_status(v, sim_state.time, cfg)
@@ -799,7 +851,10 @@ def extract_mdp_state(
             for sid in stations
         }
         if depot_id is not None:
-            travel_times[depot_id] = sim_state.get_travel_time(active_loc, depot_id)
+            try:
+                travel_times[depot_id] = sim_state.get_travel_time(active_loc, depot_id)
+            except (KeyError, Exception):
+                pass  # depot not in locations dict for this sim instance
 
     return MDPState(
         time=sim_state.time,

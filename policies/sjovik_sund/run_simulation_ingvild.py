@@ -31,6 +31,7 @@ import policies.sjovik_sund.XPILOT_policy
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.sjovik_sund.mdp.reward import RewardCalculator, RewardConfig
 from policies.do_nothing_policy import DoNothing
+from policies.greedy_policy_maintenance import GreedyMaintenancePolicy
 from policies.greedy_policy import GreedyPolicy
 
 import sim
@@ -41,7 +42,7 @@ from settings import *
 import time
 import multiprocessing as mp
 
-MAINTENANCE_ENABLED = False
+MAINTENANCE_ENABLED = ENABLE_COMPONENT_FAILURES
  
 
 # Import logging utilities
@@ -60,6 +61,7 @@ from policies.sjovik_sund.simulation_logging import (
     write_vehicle_and_health_logs
 )
 from policies.sjovik_sund.operational_logging import OperationalLogger
+from policies.sjovik_sund.run_logger import RunLogger
 
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -97,7 +99,7 @@ class SimulationConfig:
     # === MILP Policy Parameters ===
     tau: int = 5  # Time discretization in minutes
     default_time_horizon: int = 5  # Number of periods to look ahead
-    policy_hour_from: int = 6  # Policy active from 6 AM
+    policy_hour_from: int = SERVICE_TIME_FROM  # Policy active from 6 AM
     policy_hour_to: int = 20  # Policy active until 8 PM
     roaming: bool = False
     
@@ -116,6 +118,7 @@ class SimulationConfig:
     
     # === Target State ===
     # Options: "half_capacity", "equal_prob", "us"
+    target_state_type: str = "equal_prob"
     target_state_type: str = "equal_prob"
     
     def get_start_stations(self, instance_name: str) -> List[int]:
@@ -139,6 +142,8 @@ class SimulationConfig:
             return target_state.EqualProbTargetState()
         elif self.target_state_type == "us":
             return target_state.USTargetState()
+        elif self.target_state_type == "sjovik_sund":
+            return target_state.SjovikSundTargetState()
         else:
             return target_state.HalfCapacityTargetState()  # Default
     
@@ -230,7 +235,15 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
     simulator.operation_logger = operation_logger
     simulator.run_logger = run_logger
 
+    if run_logger is not None: 
+        run_logger.capture_fleet_start(state)
+
     if run_logger is not None:
+        simulator.run_logger = run_logger
+        run_logger.capture_fleet_start(state)
+
+    if run_logger is not None:
+        simulator.run_logger = run_logger
         run_logger.capture_fleet_start(state)
 
     if operation_logger.enabled:
@@ -250,7 +263,8 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
     simulator.run()
   
     if queue is not None:
-        queue.put(simulator)
+        # queue.put(simulator)  # OLD: no seed tag — results came back in completion order, not submission order
+        queue.put((seed, simulator))  # NEW: tag with seed so receiver can match regardless of order
     return simulator
 
 
@@ -276,6 +290,9 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
 
         write_results_to_file(filename, simulator, duration, solve_time, seed, append=append_to_results)
 
+    if run_logger is not None:
+        run_logger.log_episode(simulator, seed, duration, solve_time)
+
         bike_movements_filename = f"{base_filename}_bike_movements_seed_{seed}.csv"
         write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
 
@@ -288,7 +305,6 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
 
         rl_decisions_filename = f"{base_filename}_rl_decisions_seed_{seed}.csv"
         write_rl_decisions_to_file(rl_decisions_filename, simulator, seed)
-
     if run_logger is not None:
         run_logger.log_episode(simulator, seed, duration, solve_time)
 
@@ -324,20 +340,38 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             p.start()
   
         # Wait for all processes to complete and collect results
-        returned_simulators = []
-        for process in processes:
-            simulator = queue.get()  # Will block until result available
-            returned_simulators.append(simulator)
-  
+        # OLD: results came back in completion order but were indexed by submission order — seed mismatch bug
+        # returned_simulators = []
+        # for process in processes:
+        #     simulator = queue.get()  # Will block until result available
+        #     returned_simulators.append(simulator)
+        # for process in processes:
+        #     process.join()
+        # for i, simulator in enumerate(returned_simulators):
+        #     write_simulation_outputs(
+        #         simulator=simulator,
+        #         filename=results_file,
+        #         seed=list_of_seeds[i],  # BUG: index i != completion order
+        #         policy=policy,
+        #         duration=duration,
+        #         num_vehicles=num_vehicles,
+        #         append_to_results=(i > 0)
+        #     )
+
+        # NEW: collect (seed, simulator) tuples — order-independent
+        seed_to_sim = {}
+        for _ in processes:
+            seed, simulator = queue.get()
+            seed_to_sim[seed] = simulator
+
         for process in processes:
             process.join()
-  
-        # Write all results
-        for i, simulator in enumerate(returned_simulators):
+
+        for i, seed in enumerate(list_of_seeds):
             write_simulation_outputs(
-                simulator=simulator,
+                simulator=seed_to_sim[seed],
                 filename=results_file,
-                seed=list_of_seeds[i],
+                seed=seed,
                 policy=policy,
                 duration=duration,
                 num_vehicles=num_vehicles,
@@ -351,9 +385,12 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             print(f"\nRunning seed {seed}...")
             if run_logger is not None:
                 run_logger.set_seed(seed)
+            if run_logger is not None:
+                run_logger.set_seed(seed)
             start_solve = time.time()
-            simulator = run_simulation(seed, policy, duration, num_vehicles, instance_name=instance_name, config=config, run_logger=run_logger)
+            simulator = run_simulation(seed, policy, duration, num_vehicles, instance_name=instance_name, config=config, run_logger=run_logger, run_logger=run_logger)
             solve_time = time.time() - start_solve
+
 
             write_simulation_outputs(
                 simulator=simulator,
@@ -392,8 +429,17 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
         print(f"Testing Policy: {policy_name}")
         print(f"{'='*80}\n")
 
+        if run_logger is not None:
+            weights = getattr(policy, "weights", None)
+            alpha_val = weights[3] if weights and len(weights) > 3 else 0.0
+            run_logger.set_run_label(policy_name, alpha=alpha_val)
+
+        # Test this policy with all seeds
         results_file = f'{policy_name}_results.csv'
         test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing, instance_name, config, run_logger=run_logger, write_csv=write_csv)
+
+    if run_logger is not None:
+        run_logger.close()
  
  
 if __name__ == "__main__":

@@ -34,7 +34,7 @@ FLOW OVERVIEW
 
   MDPState
       │
-      ├─ mdp_state.stations  ──►  encode_station_block()  ──►  [N × 3]
+      ├─ mdp_state.stations  ──►  encode_station_block()  ──►  [N × 8]
       │       (N StationInventory objects, sorted by ID for determinism)
       │
       ├─ mdp_state.vehicles  ──►  encode_vehicle_block()  ──►  [M × 5]
@@ -62,17 +62,17 @@ _SHIFT_LENGTH_MIN = _SHIFT_END_MIN - _SHIFT_START_MIN              # 780
 # Dimension constants — imported by nn_model.py to keep shapes in sync
 # ─────────────────────────────────────────────────────────────────────────────
 
-STATION_FEATURE_DIM = 6   # features per station row (functional, onsite, depot, time sin/cos, target_travel_time)
-VEHICLE_FEATURE_DIM = 5   # features per vehicle row  (func_cargo, depot_cargo, dest_func, eta, dest_id)
+STATION_FEATURE_DIM = 10  # features per station row (functional, onsite, depot, eta_from_dest, target_ratio, deficit_ratio, departure_rate, arrival_rate, net_flow_ratio, is_destination)
+VEHICLE_FEATURE_DIM = 6   # features per vehicle row  (func_cargo, depot_cargo, dest_func, eta, dest_id)
 GLOBAL_FEATURE_DIM  = 8   # entries in the global context vector
 
 # ═════════════════════════════════════════════════════════════════════════════
 # STATION BLOCK  [N_stations × STATION_FEATURE_DIM]
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _encode_station(inv: StationInventory, hour_of_day: float, target_travel_time: float) -> list:
+def _encode_station(inv: StationInventory, eta_from_dest: float, is_destination: bool) -> list:
     """
-    Encode one StationInventory as a 6-element feature vector.
+    Encode one StationInventory as a 9-element feature vector.
 
     All quantities are normalized by station capacity so the values are in
     [0, 1] regardless of how large or small the station is.  This lets the
@@ -82,64 +82,80 @@ def _encode_station(inv: StationInventory, hour_of_day: float, target_travel_tim
       [0] functional_ratio  : rentable bikes / capacity
       [1] onsite_ratio      : bikes repairable on-site / capacity
       [2] depot_ratio       : bikes requiring depot removal / capacity
-      [3] time_sin          : sin(2π · hour_of_day / 24) — cyclic time-of-day,
-      [4] time_cos          : cos(2π · hour_of_day / 24)   shared per station so
-                             the NN can learn per-station demand patterns by time.
-      [5] target_travel_time: normalized travel time to this station if it is 
-                              the destination of the active vehicle, else 0.0.
-                              This gives the network explicit spatial distance.
-
-    Note — empty_dock_ratio is intentionally omitted.
-    free_docks = capacity - functional - onsite - depot, so
-    functional_ratio + onsite_ratio + depot_ratio + empty_dock_ratio = 1 always.
-    Including it adds a perfectly linearly dependent fourth column — the network
-    can always derive it, and including it wastes a dimension while forcing the
-    encoder weights to compensate for the constant-sum constraint.
+      [3] eta_from_dest     : travel time from the vehicle's DESTINATION to THIS
+                              station, normalized by 60 min.
+                              Using destination (not current position) means each
+                              candidate action produces a distinct station block,
+                              enabling the NN to learn gravity-like spatial patterns
+                              (e.g. "how reachable are starved stations from here?").
+      [4] target_ratio      : target inventory / capacity — optimal fill level
+                              for this station at the current time-of-day.
+      [5] deficit_ratio     : (target - functional) / capacity — signed imbalance.
+                              > 0: station is starving, < 0: station is congested.
+      [6] departure_rate    : expected_departure_rate / capacity — capped at 2.0.
+      [7] arrival_rate      : expected_arrival_rate / capacity — capped at 2.0.
+      [8] net_flow_ratio  : (arrival_rate - departure_rate) / capacity, clamped [-2, 2].
+                              >0: inventory growing (heading toward congestion),
+                              <0: inventory shrinking (heading toward starvation).
+                              The NN could compute this from [6] and [7], but providing
+                              it directly removes the need to learn the subtraction.
+      [9] is_destination    : 1.0 if this station is the vehicle's next destination,
+                              0.0 otherwise. Allows cross-attention to explicitly
+                              focus on the chosen destination station.
     """
-    cap = inv.capacity if inv.capacity > 0 else 1  # guard zero-capacity stations
+    cap = inv.capacity if inv.capacity > 0 else 1
+
+    target_ratio   = inv.target / cap
+    deficit_ratio  = (inv.target - inv.functional) / cap
+    departure_rate = min(2.0, inv.expected_departure_rate / cap)
+    arrival_rate   = min(2.0, inv.expected_arrival_rate   / cap)
+    net_flow_ratio = max(-2.0, min(2.0, (inv.expected_arrival_rate - inv.expected_departure_rate) / cap))
 
     return [
-        inv.functional / cap,                           # [0] functional_ratio
-        inv.onsite     / cap,                           # [1] onsite_ratio
-        inv.depot      / cap,                           # [2] depot_ratio
-        math.sin(2 * math.pi * hour_of_day / 24),      # [3] time_sin
-        math.cos(2 * math.pi * hour_of_day / 24),      # [4] time_cos
-        target_travel_time,                            # [5] explicit travel time to destination
+        inv.functional / cap,   # [0] functional_ratio
+        inv.onsite     / cap,   # [1] onsite_ratio
+        inv.depot      / cap,   # [2] depot_ratio
+        eta_from_dest,          # [3] travel time from destination (normalized by 60 min)
+        target_ratio,           # [4] optimal fill level at current time-of-day
+        deficit_ratio,          # [5] signed gap: >0 starving, <0 congested
+        departure_rate,         # [6] expected outflow rate / capacity
+        arrival_rate,           # [7] expected inflow rate / capacity
+        net_flow_ratio,         # [8] net inventory trend: >0 filling, <0 draining
+        float(is_destination),  # [9] 1.0 if this is the vehicle's next destination
     ]
 
 
-def encode_station_block(mdp_state: MDPState) -> torch.Tensor:
+def encode_station_block(mdp_state: MDPState, dest_travel_times: dict = None) -> torch.Tensor:
     """
     Build the station feature matrix.
 
-    Stations are sorted by ID to guarantee a consistent layout across calls.
-    Ordering does not need to be semantically meaningful: the StationEncoder
-    in nn_model.py applies the same shared weights to every row, and the
-    result is then mean-pooled across stations — so permutation order does
-    not affect the value estimate.  Sorting is only for determinism.
-
     Args:
-        mdp_state : MDPState at the current decision epoch.
+        mdp_state         : MDPState at the current decision epoch.
+        dest_travel_times : {station_id: minutes} from the vehicle's DESTINATION.
+                            If provided, feature [3] encodes distances from the
+                            destination (unique per candidate action). Falls back
+                            to mdp_state.travel_times (from current position) when
+                            None — used for terminal-state evaluation where the
+                            vehicle has already arrived.
 
     Returns:
         Float32 tensor of shape [N_stations, STATION_FEATURE_DIM].
     """
-    hour_of_day = (mdp_state.time % (24 * 60)) / 60.0
-    
-    active_vehicle = mdp_state.vehicles.get(mdp_state.active_vehicle_id)
-    target_station_id = None
-    target_travel_time = 0.0
-    
-    if active_vehicle:
-        target_station_id = active_vehicle.destination_station
-        time_until_arrival = max(0.0, active_vehicle.eta - mdp_state.time)
-        target_travel_time = min(1.0, time_until_arrival / 1440.0)
+    tt = dest_travel_times if dest_travel_times is not None else (mdp_state.travel_times or {})
+
+    destination_station = None
+    if mdp_state.active_vehicle_id is not None:
+        v = mdp_state.vehicles.get(mdp_state.active_vehicle_id)
+        if v is not None:
+            destination_station = v.destination_station
 
     rows = []
     for sid in sorted(mdp_state.stations.keys()):
-        tt_val = target_travel_time if sid == target_station_id else 0.0
-        rows.append(_encode_station(mdp_state.stations[sid], hour_of_day, tt_val))
-        
+        raw_tt = tt.get(sid, 0.0)
+        eta = min(1.0, raw_tt / 60.0)
+        is_dest = (sid == destination_station)
+        rows.append(_encode_station(mdp_state.stations[sid], eta, is_dest))
+
     return torch.tensor(rows, dtype=torch.float32)   # [N, STATION_FEATURE_DIM]
 
 
@@ -147,78 +163,43 @@ def encode_station_block(mdp_state: MDPState) -> torch.Tensor:
 # VEHICLE BLOCK  [M_vehicles × VEHICLE_FEATURE_DIM]
 # ═════════════════════════════════════════════════════════════════════════════
 
+    
 def _encode_vehicle(
     status: VehicleStatus,
     stations: dict,
     shift_end_time: Optional[float],
     current_time: float,
-    sorted_station_ids: list,
+    # sorted_station_ids is no longer needed
 ) -> list:
-    """
-    Encode one VehicleStatus as a 5-element feature vector.
-
-    Features (index → meaning):
-      [0] functional_cargo_ratio   : functional bikes on board / capacity
-      [1] depot_cargo_ratio        : depot-damaged bikes on board / capacity
-
-      Note — remaining_capacity_ratio is intentionally omitted.
-      free_capacity = capacity - functional_cargo - depot_cargo, so
-      features [0]+[1]+[2] would always sum to 1 — a perfect linear dependency.
-      The two cargo ratios already fully describe vehicle load state.
-
-      [2] dest_functional_ratio    : functional bikes / capacity at the
-                                     destination station, i.e. how full the
-                                     target station currently is.
-                                     Falls back to 0.0 for depot destinations
-                                     or unknown station IDs.
-
-      [3] eta_normalized           : time until arrival / shift_length (1440 min).
-                                     0.0 = vehicle already arrived,
-                                     ~1.0 = vehicle just departed near shift start.
-                                     Falls back to a fixed 8-hour window if no
-                                     shift_end_time is defined.
-
-      [4] dest_id_normalized       : sorted index of destination station / n_stations.
-                                     Gives the NN a stable identity signal so it can
-                                     learn station-specific value differences.
-                                     0.0 for depot or unknown destinations.
-    """
+    
     cap = status.capacity if status.capacity > 0 else 1
-
-    # --- cargo composition (two independent values; third is 1 - these two) ---
     functional_cargo_ratio = status.functional_cargo / cap
     depot_cargo_ratio      = status.depot_cargo      / cap
 
-    # --- destination station's current fill level ---
+    # --- Destination station's full context ---
     dest_inv = stations.get(status.destination_station)
     if dest_inv is not None:
         dest_cap              = dest_inv.capacity if dest_inv.capacity > 0 else 1
         dest_functional_ratio = dest_inv.functional / dest_cap
+        dest_target_ratio     = dest_inv.target / dest_cap
+        dest_deficit_ratio    = (dest_inv.target - dest_inv.functional) / dest_cap
     else:
-        # Depot or unknown destination
+        # Depot or unknown destination fallback
         dest_functional_ratio = 0.0
+        dest_target_ratio     = 0.0
+        dest_deficit_ratio    = 0.0
 
-    # --- normalized ETA ---
-    # Normalized against the standard 24-hour shift length (1440 min), matching
-    # the reference used by LinearVFAPolicy._get_shift_length().
-    # This gives a consistent scale across all decision epochs.
+    # --- Normalized ETA (Fixed denominator to 60.0 instead of 1440.0) ---
     time_until_arrival = max(0.0, status.eta - current_time)
-    eta_normalized = min(1.0, time_until_arrival / 1440.0)
-
-    # --- normalized destination station identity ---
-    n_stations = max(len(sorted_station_ids), 1)
-    if status.destination_station in stations:
-        dest_idx = sorted_station_ids.index(status.destination_station)
-        dest_id_normalized = dest_idx / n_stations
-    else:
-        dest_id_normalized = 0.0   # depot or unknown
+    eta_normalized = min(1.0, time_until_arrival / 60.0)
 
     return [
-        functional_cargo_ratio,   # [0]
-        depot_cargo_ratio,        # [1]
-        dest_functional_ratio,    # [2]
-        eta_normalized,           # [3]
-        dest_id_normalized,       # [4]
+        functional_cargo_ratio,   # [0] 
+        depot_cargo_ratio,        # [1] 
+        dest_functional_ratio,    # [2] Destination current fill
+        dest_target_ratio,        # [3] NEW: Destination optimal fill
+        dest_deficit_ratio,       # [4] NEW: Destination starvation/congestion gap
+        eta_normalized,           # [5] Fixed ETA scale
     ]
 
 
@@ -235,18 +216,18 @@ def encode_vehicle_block(mdp_state: MDPState) -> torch.Tensor:
     Returns:
         Float32 tensor of shape [M_vehicles, VEHICLE_FEATURE_DIM].
     """
-    sorted_station_ids = sorted(mdp_state.stations.keys())
+    #sorted_station_ids = sorted(mdp_state.stations.keys())
     rows = [
         _encode_vehicle(
             mdp_state.vehicles[vid],
             mdp_state.stations,
             mdp_state.shift_end_time,
             mdp_state.time,
-            sorted_station_ids,
+            #sorted_station_ids,
         )
         for vid in sorted(mdp_state.vehicles.keys())
     ]
-    return torch.tensor(rows, dtype=torch.float32)   # [M, 5]
+    return torch.tensor(rows, dtype=torch.float32)   # [M, VEHICLE_FEATURE_DIM]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -332,7 +313,7 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
     # making the ratio near-zero for any episode past minute ~1440.
     # Shift runs SERVICE_TIME_FROM–SERVICE_TIME_TO each day (7:00–20:00 = 780 min).
     time_of_day     = mdp_state.time % 1440.0
-    shift_remaining = max(0.0, (_SHIFT_END_MIN - time_of_day) / _SHIFT_LENGTH_MIN)
+    shift_remaining = min(1.0, max(0.0, (_SHIFT_END_MIN - time_of_day) / _SHIFT_LENGTH_MIN))
 
     # --- mean functional cargo ratio across fleet ---
     if mdp_state.vehicles:
@@ -354,35 +335,21 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
 # PUBLIC INTERFACE
 # ═════════════════════════════════════════════════════════════════════════════
 
-def encode_state(mdp_state: MDPState) -> Dict[str, torch.Tensor]:
+def encode_state(mdp_state: MDPState, dest_travel_times: dict = None) -> Dict[str, torch.Tensor]:
     """
     Convert an MDPState into the three tensor blocks consumed by NNValueNetwork.
 
-    This is the single entry point used by NNRolloutPolicy and train_nn_rollout.
-    Do not call the individual encode_* helpers directly from outside this module.
-
-    Flow:
-        MDPState
-            ├─ stations  →  encode_station_block()   →  "station_block"  [N × 5]
-            ├─ vehicles  →  encode_vehicle_block()   →  "vehicle_block"  [M × 5]
-            └─ (whole)   →  encode_global_context()  →  "global_context"    [7]
-
     Args:
-        mdp_state : MDPState snapshot at the current decision epoch.
+        mdp_state         : MDPState snapshot at the current decision epoch.
+        dest_travel_times : optional {station_id: minutes} from the vehicle's
+                            destination — passed through to encode_station_block.
+                            Pass None for terminal-state evaluation.
 
     Returns:
         dict with three float32 tensors.
-
-    Downstream usage (NNRolloutPolicy):
-        encoded = encode_state(post_decision_state)
-        value   = nn_model(
-            encoded["station_block"],
-            encoded["vehicle_block"],
-            encoded["global_context"],
-        )
     """
     return {
-        "station_block":  encode_station_block(mdp_state),
+        "station_block":  encode_station_block(mdp_state, dest_travel_times),
         "vehicle_block":  encode_vehicle_block(mdp_state),
         "global_context": encode_global_context(mdp_state),
     }

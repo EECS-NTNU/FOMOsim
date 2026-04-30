@@ -333,7 +333,7 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool, n_routing: in
                 rebalancing=int(op['rebalancing']),
                 onsite_repairs=int(op['onsite_repairs']),
                 depot_removals=int(op['depot_removals']),
-                load_from_queue=int(op['load_from_queue']),
+                load_from_queue=int(op.get('load_from_queue', 0)),
                 next_station=route
             )
             sim_actions.append(mdp_action_to_sim_action(mdp_action, state, vehicle))

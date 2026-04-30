@@ -376,9 +376,9 @@ class LinearVFAPolicy(Policy):
         self,
         state,
         vehicle,
-        func: np.ndarray,      
-        onsite: np.ndarray,    
-        depot: np.ndarray,     
+        func: np.ndarray,
+        onsite: np.ndarray,
+        depot: np.ndarray,
         delta_func: int = 0,
         delta_depot_cargo: int = 0,
         delta_onsite_repairs: int = 0,
@@ -386,6 +386,7 @@ class LinearVFAPolicy(Policy):
         shift_length: float = 1440.0,
         next_station_id: Optional[str] = None,
         eval_time: Optional[float] = None, 
+        projected_time: float = None,
     ) -> np.ndarray:
         """
         Compute φ(S^x) for the post-decision state.
@@ -403,6 +404,10 @@ class LinearVFAPolicy(Policy):
         assert self._max_gravity is not None
         assert self._N_stations is not None
         assert self.cached_fleet_size is not None
+
+        # Use the projected arrival time for all time-indexed features so that
+        # candidates with long travel times are evaluated at t_{k+1}, not t_k.
+        _time = projected_time if projected_time is not None else state.time
 
         func_post = func.copy()
         onsite_post = onsite.copy()
@@ -889,12 +894,15 @@ class LinearVFAPolicy(Policy):
             phi = self.extract_features(
                 state, vehicle,
                 base_func, base_onsite, base_depot,
+                state, vehicle,
+                base_func, base_onsite, base_depot,
                 delta_func, delta_depot_cargo,
                 delta_onsite_repairs,
                 time_remaining=time_rem,
                 shift_length=shift_len,
                 next_station_id=dest_id,
-                eval_time=action_eval_time,
+                eval_time=action_eval_time,,
+                projected_time=projected_time,
             )
             phis.append(phi)
             values[k] = self.value(phi)    
@@ -902,7 +910,7 @@ class LinearVFAPolicy(Policy):
         # --- DEBUG 2: SPATIAL PARALYSIS ---
         if not getattr(self, "_has_printed_spatial", False) and "proximity_to_demand_gravity" in self.FEATURE_NAMES:
             idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
-            print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
+            #print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
             for k, action in enumerate(candidates):
                 dest = getattr(action, "next_location", getattr(action, "next_station", None))
                 print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
