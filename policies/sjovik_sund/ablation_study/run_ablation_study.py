@@ -79,6 +79,10 @@ EXPERIMENTS = {
 
     "Imbalance_Squared_Temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + FIM1/FIM2: global mass + gross departure/arrival pressure
 
+    "Imbalance_Squared_Temporal_nocongestion" : ["rebalancing_imbalance", "squared_starvation_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM2 + FIM1: global mass + mean squared starvation depth + gross departure pressure
+    
+    "Imbalanced_Starvation" : ["rebalancing_imbalance", "squared_starvation_penalty"],
+
     # Baseline
     "Squared_only": ["squared_starvation_penalty", "squared_congestion_penalty"],
 
@@ -125,12 +129,12 @@ EXPERIMENTS = {
     # penalties when combined with symmetric temporal anticipation. Directly
     # comparable to Squared_Temporal - same structure, different penalty form.
     # SCRAPPED because of correlation with squared_congestion
-    "Exponential_Temporal": [
-        "exponential_starvation_penalty", # CIM4: exp penalty, emphasises tail states
-        "exponential_congestion_penalty", # CIM5: symmetric
-        "gross_starvation_risk",          # FIM1: gross departure pressure
-        "gross_congestion_risk",          # FIM2: gross arrival pressure
-    ],
+    # "Exponential_Temporal": [
+    #     "exponential_starvation_penalty", # CIM4
+    #     "exponential_congestion_penalty", # CIM5
+    #     "gross_starvation_risk",          # FIM1
+    #     "gross_congestion_risk",          # FIM2
+    # ],
 
     # -- Gross_And_Net  ------------------------------------------------------
     # Experiment using all FIM features simultaneously.

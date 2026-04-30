@@ -519,18 +519,18 @@ if __name__ == "__main__":
                          help="Routing targets per operational profile for initial candidate generation (default: 10, VFA training always uses 10)")
     rollout.add_argument("--screening", action="store_true", default=False,
                          help="Enable two-stage OCBA screening (skips VFA pre-filter)")
-    rollout.add_argument("--n_screening", type=int, default=2,
+    rollout.add_argument("--n_screening", type=int, default=3,
                          help="Stage-1 scenarios per candidate in screening mode (default: 2)")
-    rollout.add_argument("--n_survivors", type=int, default=10,
+    rollout.add_argument("--n_survivors", type=int, default=7,
                          help="Candidates advanced from stage-1 to stage-2 in screening mode (default: 10)")
 
     # Simulation settings
     sim = parser.add_argument_group("Simulation settings")
-    sim.add_argument("--episodes", type=int, default=1,
+    sim.add_argument("--episodes", type=int, default=5,
                      help="Evaluation episodes per model (default: 1)")
     sim.add_argument("--seed", type=int, default=42,
                      help="Starting evaluation seed (default: 9000, kept separate from training seeds)")
-    sim.add_argument("--duration", type=int, default=24 * 14,
+    sim.add_argument("--duration", type=int, default=24 * 7,
                      help="Simulation duration in hours (default: 336)")
     sim.add_argument("--instance", type=str, default="TD_W34_old",
                      help="Simulator instance name")

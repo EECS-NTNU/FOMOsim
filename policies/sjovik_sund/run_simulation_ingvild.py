@@ -31,6 +31,8 @@ import policies.sjovik_sund.XPILOT_policy
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.sjovik_sund.mdp.reward import RewardCalculator, RewardConfig
 from policies.do_nothing_policy import DoNothing
+from policies.greedy_policy import GreedyPolicy
+
 import sim
 import demand
 import output
@@ -458,7 +460,17 @@ if __name__ == "__main__":
         "--vfa-model",
         type=str,
         default=None,
-        help="Path to trained VFA model (.pkl file). If provided, enables RolloutPolicy.",
+        help="Path to trained VFA model (.pkl file).",
+    )
+    parser.add_argument(
+        "--active-features",
+        type=str,
+        nargs="+",
+        default= None,
+        help=(
+            "Feature names the pkl was trained with. Required for old pkls that "
+            "predate feature_names storage. New pkls load features automatically."
+        ),
     )
     parser.add_argument(
         "--num-scenarios",
@@ -490,45 +502,24 @@ if __name__ == "__main__":
 
     timestamp = datetime.now().strftime("%m%d%H%M")
 
-    policy_dict = {}
-    
-    # Add DoNothing baseline policy
-    policy_name_baseline = (
-        f"DoNothing_baseline_{args.instance}_V{num_vehicles}_D{duration}h_"
-        f"{timestamp}_seed{start_seed}"
-    )
-    policy_dict[policy_name_baseline] = DoNothing()
-    
-    
-    for alpha in alpha_values:
-        weights = config.calculate_weights(alpha)
-        
-        # Include instance, vehicles, duration, time horizon, timestamp, and seed in filename
-        policy_name = (
-            f"sjovik_sund_{args.instance}_V{num_vehicles}_D{duration}h_T{args.time_horizon}_"
-            f"{timestamp}_seed{start_seed}_alpha{alpha:.3f}"
-        )
-        
-        policy_dict[policy_name] = policies.sjovik_sund.sjovik_sund_policy.SjovikSundPolicy(
-            roaming=config.roaming,
-            time_horizon=args.time_horizon,
-            tau=config.tau,
-            weights=weights,
-            hour_from=config.policy_hour_from,
-            hour_to=config.policy_hour_to,
-        )
-        
-        # 2. Add the clean PILOT Benchmark (No Neighborhoods)
-        policy_name_pilot = (
-            f"XPILOT_benchmark_{args.instance}_V{num_vehicles}_D{duration}h_"
+    policy_dict = {
+        f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": DoNothing(),
+        f"Greedy_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": GreedyPolicy(),
+        f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
+            time_horizon=40, max_depth=2, num_successors=5, number_of_scenarios=100
+        ),
+    }
+
+    if args.vfa_model:
+        load_kwargs = {}
+        if args.active_features:
+            load_kwargs["active_features"] = args.active_features
+        vfa_policy = LinearVFAPolicy.load(Path(args.vfa_model), **load_kwargs)
+        policy_name_vfa = (
+            f"VFA_{args.instance}_V{num_vehicles}_D{duration}h_"
             f"{timestamp}_seed{start_seed}"
         )
-        policy_dict[policy_name_pilot] = policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
-            time_horizon=40, # Usually 40 or 60 min lookup
-            max_depth=2,     # Keep low to avoid massive execution time
-            num_successors=5, # Keep low for quick testing, can increase for final runs
-            number_of_scenarios=100 # Restore to 100 for final runs, but keep lower for quick testing
-        )
+        policy_dict[policy_name_vfa] = vfa_policy
 
  
     # Start timing

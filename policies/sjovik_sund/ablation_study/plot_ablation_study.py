@@ -66,7 +66,7 @@ def load_experiment(exp_dir: Path):
         seed_match = re.search(r"seed(\d+)", csv_file.name)
         found_seeds.append(seed_match.group(1) if seed_match else "?")
 
-        df = pd.read_csv(csv_file)
+        df = pd.read_csv(csv_file, skiprows=[1])
         
         # Drop the unwanted columns here
         df = df.drop(columns=cols_to_ignore, errors="ignore")
@@ -108,8 +108,9 @@ def load_experiment(exp_dir: Path):
 
 
 def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
-    #study_dir = WORKSPACE_ROOT / "models/ablation_study_batch_alpha_0.005_seed5000"
-    study_dir = WORKSPACE_ROOT / "models/Convergencemethods/LSTD"
+    #study_dir = WORKSPACE_ROOT / "models/final_ablation_500ep"
+    #study_dir = WORKSPACE_ROOT / "models/Convergencemethods/Rewardshaping"
+    study_dir = WORKSPACE_ROOT / "models/Convergencemethods/TDlambda"
     if not study_dir.exists():
         print(f"Error: Could not find ablation study directory at {study_dir}")
         return
