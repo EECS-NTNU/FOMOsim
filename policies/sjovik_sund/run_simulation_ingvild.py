@@ -29,6 +29,7 @@ import policies
 import policies.sjovik_sund.sjovik_sund_policy
 import policies.sjovik_sund.XPILOT_policy
 from policies.do_nothing_policy import DoNothing
+from policies.greedy_policy_maintenance import GreedyMaintenancePolicy
 import sim
 import demand
 import output
@@ -536,12 +537,12 @@ if __name__ == "__main__":
 
     policy_dict = {}
     
-    # Add DoNothing baseline policy
+    # Add GreedyMaintenance baseline policy
     policy_name_baseline = (
-        f"DoNothing_baseline_{args.instance}_V{num_vehicles}_D{duration}h_"
+        f"GreedyMaintenance_baseline_{args.instance}_V{num_vehicles}_D{duration}h_"
         f"{timestamp}_seed{start_seed}"
     )
-    policy_dict[policy_name_baseline] = DoNothing()
+    policy_dict[policy_name_baseline] = GreedyMaintenancePolicy()
     
     '''
     for alpha in alpha_values:

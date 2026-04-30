@@ -62,7 +62,7 @@ _SHIFT_LENGTH_MIN = _SHIFT_END_MIN - _SHIFT_START_MIN              # 780
 # Dimension constants — imported by nn_model.py to keep shapes in sync
 # ─────────────────────────────────────────────────────────────────────────────
 
-STATION_FEATURE_DIM = 9   # features per station row (functional, onsite, depot, eta_from_dest, target_ratio, deficit_ratio, departure_rate, arrival_rate, is_destination)
+STATION_FEATURE_DIM = 10  # features per station row (functional, onsite, depot, eta_from_dest, target_ratio, deficit_ratio, departure_rate, arrival_rate, net_flow_ratio, is_destination)
 VEHICLE_FEATURE_DIM = 6   # features per vehicle row  (func_cargo, depot_cargo, dest_func, eta, dest_id)
 GLOBAL_FEATURE_DIM  = 8   # entries in the global context vector
 
@@ -94,7 +94,12 @@ def _encode_station(inv: StationInventory, eta_from_dest: float, is_destination:
                               > 0: station is starving, < 0: station is congested.
       [6] departure_rate    : expected_departure_rate / capacity — capped at 2.0.
       [7] arrival_rate      : expected_arrival_rate / capacity — capped at 2.0.
-      [8] is_destination    : 1.0 if this station is the vehicle's next destination,
+      [8] net_flow_ratio  : (arrival_rate - departure_rate) / capacity, clamped [-2, 2].
+                              >0: inventory growing (heading toward congestion),
+                              <0: inventory shrinking (heading toward starvation).
+                              The NN could compute this from [6] and [7], but providing
+                              it directly removes the need to learn the subtraction.
+      [9] is_destination    : 1.0 if this station is the vehicle's next destination,
                               0.0 otherwise. Allows cross-attention to explicitly
                               focus on the chosen destination station.
     """
@@ -104,6 +109,7 @@ def _encode_station(inv: StationInventory, eta_from_dest: float, is_destination:
     deficit_ratio  = (inv.target - inv.functional) / cap
     departure_rate = min(2.0, inv.expected_departure_rate / cap)
     arrival_rate   = min(2.0, inv.expected_arrival_rate   / cap)
+    net_flow_ratio = max(-2.0, min(2.0, (inv.expected_arrival_rate - inv.expected_departure_rate) / cap))
 
     return [
         inv.functional / cap,   # [0] functional_ratio
@@ -114,7 +120,8 @@ def _encode_station(inv: StationInventory, eta_from_dest: float, is_destination:
         deficit_ratio,          # [5] signed gap: >0 starving, <0 congested
         departure_rate,         # [6] expected outflow rate / capacity
         arrival_rate,           # [7] expected inflow rate / capacity
-        float(is_destination),  # [8] 1.0 if this is the vehicle's next destination
+        net_flow_ratio,         # [8] net inventory trend: >0 filling, <0 draining
+        float(is_destination),  # [9] 1.0 if this is the vehicle's next destination
     ]
 
 
@@ -306,7 +313,7 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
     # making the ratio near-zero for any episode past minute ~1440.
     # Shift runs SERVICE_TIME_FROM–SERVICE_TIME_TO each day (7:00–20:00 = 780 min).
     time_of_day     = mdp_state.time % 1440.0
-    shift_remaining = max(0.0, (_SHIFT_END_MIN - time_of_day) / _SHIFT_LENGTH_MIN)
+    shift_remaining = min(1.0, max(0.0, (_SHIFT_END_MIN - time_of_day) / _SHIFT_LENGTH_MIN))
 
     # --- mean functional cargo ratio across fleet ---
     if mdp_state.vehicles:

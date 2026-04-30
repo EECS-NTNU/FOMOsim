@@ -37,6 +37,7 @@ from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.sjovik_sund.NN.NNGreedyPolicy import NNGreedyPolicy
 from policies.sjovik_sund.mdp.mdp_config import MDPConfig
 from policies.sjovik_sund.NN.rollout_debug_logger import PruningDebugLogger
+from policies.greedy_policy_maintenance import GreedyMaintenancePolicy
 
 NN_MODELS_DIR = Path(__file__).parent / "models"
 
@@ -70,6 +71,8 @@ def evaluate_model(
     depot_id: str = None,
     debug_log_every: int = 0,
     maintenance_enabled: bool = False,
+    n_screening_scenarios: int = 3,
+    n_survivors: int = 4,
 ):
     model_name = model_file.stem
     lr, tau, freq = _parse_model_hyperparams(model_name)
@@ -108,6 +111,8 @@ def evaluate_model(
         lookahead_minutes=lookahead_minutes,
         num_scenarios=num_scenarios,
         n_rollout_candidates=n_rollout_candidates,
+        n_screening_scenarios=n_screening_scenarios,
+        n_survivors=n_survivors,
         maintenance_enabled=maintenance_enabled,
         depot_id=depot_id,
         congestion_weight=congestion_weight,
@@ -118,9 +123,10 @@ def evaluate_model(
 
     policy_dict = {
         #"DoNothing": DoNothing(),
-        eval_key:    nn_rollout,
-        "NN_Greedy": NNGreedyPolicy(nn_model=nn_model, config=mdp_config, depot_id=depot_id),
-        "LinearVFA": LinearVFAPolicy(learning_mode=False, maintenance_enabled=maintenance_enabled),
+        #eval_key:    nn_rollout,
+        #"NN_Greedy": NNGreedyPolicy(nn_model=nn_model, config=mdp_config, depot_id=depot_id),
+        #"LinearVFA": LinearVFAPolicy(learning_mode=False, maintenance_enabled=maintenance_enabled),
+        "GreedyMaintenance": GreedyMaintenancePolicy(),
     }
 
     test_policies(
@@ -159,7 +165,7 @@ if __name__ == "__main__":
 
     mode = parser.add_argument_group("Mode (omit --model for batch mode)")
     mode.add_argument(
-        "--model", type=str, default="nn_model_best_greedy_seed1000_arch_128-64-32_20260427_174802.pt",
+        "--model", type=str, default="nn_model_best_greedy_seed1000_arch_128-64-32_20260429_181934.pt",
         help="Path to a single .pt file (activates single mode)",
     )
     mode.add_argument(
@@ -170,15 +176,19 @@ if __name__ == "__main__":
     rollout = parser.add_argument_group("Rollout parameters")
     rollout.add_argument("--lookahead", type=float, default=60.0,
                          help="Rollout horizon in simulation minutes (default: 60)")
-    rollout.add_argument("--scenarios", type=int, default=3,
+    rollout.add_argument("--scenarios", type=int, default=8,
                          help="Monte Carlo scenarios per action (default: 3)")
     # --- NEW ARGUMENT ---
-    rollout.add_argument("--candidates", type=int, default=8,
+    rollout.add_argument("--candidates", type=int, default=999,
                          help="Number of candidates to run full rollout on (default: 8)")
     
     # --- NEW ARGUMENT ---
-    rollout.add_argument("--congestion_weight", type=float, default=-0.7,
-                         help="Reward penalty for congestions. Default: -0.7. Use -1.0 for strict 1:1.")
+    rollout.add_argument("--congestion_weight", type=float, default=-1.0,
+                         help="Reward penalty for congestions. Default: -1.0. Use -1.0 for strict 1:1.")
+    rollout.add_argument("--n_screening", type=int, default=3,
+                         help="Stage-1 scenarios per candidate in two-stage screening (default: 3)")
+    rollout.add_argument("--n_survivors", type=int, default=7,
+                         help="Candidates advanced from stage-1 to stage-2 (default: 4)")
 
     debug = parser.add_argument_group("Debug / tracing")
     debug.add_argument("--debug", type=int, default=0, metavar="N",
@@ -189,10 +199,10 @@ if __name__ == "__main__":
     sim = parser.add_argument_group("Simulation settings")
     sim.add_argument("--episodes",  type=int,   default=5,
                      help="Evaluation episodes per model (default: 5)")
-    sim.add_argument("--seed",      type=int,   default=9000,
-                     help="Starting evaluation seed (default: 9000)")
-    sim.add_argument("--duration",  type=int,   default=24 * 5,
-                     help="Simulation duration in hours (default: 120)")
+    sim.add_argument("--seed",      type=int,   default=42,
+                     help="Starting evaluation seed (default: 42)")
+    sim.add_argument("--duration",  type=int,   default=24 * 7,
+                     help="Simulation duration in hours (default: 336)")
     sim.add_argument("--instance",  type=str,   default="TD_W34_old",
                      help="Simulator instance name")
     sim.add_argument("--vehicles",  type=int,   default=1,
@@ -207,6 +217,8 @@ if __name__ == "__main__":
         num_scenarios=args.scenarios,
         n_rollout_candidates=args.candidates,
         congestion_weight=args.congestion_weight,
+        n_screening_scenarios=args.n_screening,
+        n_survivors=args.n_survivors,
         episodes=args.episodes,
         start_seed=args.seed,
         duration_hours=args.duration,

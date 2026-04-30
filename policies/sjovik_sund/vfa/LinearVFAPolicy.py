@@ -343,17 +343,22 @@ class LinearVFAPolicy(Policy):
         self,
         state,
         vehicle,
-        func: np.ndarray,      
-        onsite: np.ndarray,    
-        depot: np.ndarray,     
+        func: np.ndarray,
+        onsite: np.ndarray,
+        depot: np.ndarray,
         delta_func: int = 0,
         delta_depot_cargo: int = 0,
         delta_onsite_repairs: int = 0,
         next_station_id: str = None,
+        projected_time: float = None,
     ) -> np.ndarray:
         """
         Compute φ(S^x) for the post-decision state.
         """
+        # Use the projected arrival time for all time-indexed features so that
+        # candidates with long travel times are evaluated at t_{k+1}, not t_k.
+        _time = projected_time if projected_time is not None else state.time
+
         func_post = func.copy()
         onsite_post = onsite.copy()
 
@@ -376,7 +381,7 @@ class LinearVFAPolicy(Policy):
         # ── Anticipate the inventory change at the DESTINATION ─────────────
         if next_station_id and next_station_id in self._sid_to_idx:
             nxt_idx = self._sid_to_idx[next_station_id]
-            d, h = state.day() % 7, state.hour() % 24
+            d, h = int(_time // 1440) % 7, int((_time // 60) % 24)
             target_nxt = self._target_matrix[d, h, nxt_idx]
             cur_nxt = func_post[nxt_idx]
             delta_nxt = target_nxt - cur_nxt
@@ -392,12 +397,12 @@ class LinearVFAPolicy(Policy):
                 func_cargo_veh += pickup
         
         # ── Rolling 2-Hour Demand Anticipation ─────────────────────────────
-        # 1. Determine time indices
-        d = state.day() % 7
+        # 1. Determine time indices (all derived from _time = projected arrival time)
+        d = int(_time // 1440) % 7
         day_type = 1 if d in [5, 6] else 0  # 1 if Weekend, 0 if Weekday
-        
-        current_minute = int(state.time % 60)
-        h0 = int((state.time // 60) % 24)
+
+        current_minute = int(_time % 60)
+        h0 = int((_time // 60) % 24)
         h1 = (h0 + 1) % 24
         h2 = (h0 + 2) % 24
         
@@ -420,8 +425,9 @@ class LinearVFAPolicy(Policy):
         )
 
         # ── Time-indexed target inventory (N,) ─────────────────────────────
-        d, h   = state.day() % 7, state.hour() % 24
-        target = self._target_matrix[d, h]              
+        d = int(_time // 1440) % 7
+        h = int((_time // 60) % 24)
+        target = self._target_matrix[d, h]
 
         # ── Anticipated Distances (from Destination) ────────────────
         # Evaluate spatial gravity from where the vehicle is GOING, not where it is!
@@ -461,10 +467,14 @@ class LinearVFAPolicy(Policy):
             fleet_size=self.cached_fleet_size,
             maintenance_enabled=True,
             shift_timing_enabled=True,
-            time_remaining=self._get_time_remaining(state, vehicle),
+            time_remaining=(
+                max(0.0, vehicle.shift_end_time - _time)
+                if self.shift_timing_enabled and getattr(vehicle, "shift_end_time", None) is not None
+                else None
+            ),
             shift_length=self._get_shift_length(state, vehicle),
             temporal_enabled=True,
-            current_time_minutes=float(state.time),
+            current_time_minutes=_time,
             current_day_of_week=int(state.day() % 7),
             target_matrix=self._target_matrix,
         )
@@ -820,13 +830,19 @@ class LinearVFAPolicy(Policy):
             
             dest_id = getattr(action, "next_location", getattr(action, "next_station", None))
 
-            #phi = self.extract_features(state, vehicle, delta_func, delta_depot_cargo)
+            # Project time forward to the moment of arrival at dest_id so that
+            # all time-indexed features (target, demand profile, shift remaining)
+            # are evaluated at t_{k+1}, not t_k.
+            travel_time = state.get_travel_time(vehicle.location.id, dest_id) if dest_id else 0.0
+            projected_time = state.time + action.get_action_time(travel_time)
+
             phi = self.extract_features(
-                state, vehicle, 
-                base_func, base_onsite, base_depot, 
+                state, vehicle,
+                base_func, base_onsite, base_depot,
                 delta_func, delta_depot_cargo,
                 delta_onsite_repairs,
-                next_station_id=dest_id
+                next_station_id=dest_id,
+                projected_time=projected_time,
             )
             phis.append(phi)
             values[k] = self.value(phi)

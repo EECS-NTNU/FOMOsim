@@ -75,6 +75,7 @@ ROLLOUT FLOW  (per call to get_best_action)
 import copy
 import torch
 import sim
+import numpy as np
 
 # De-normalization scale: NN outputs are normalized by (max_1step_penalty * discount_sum).
 # Multiply by this to recover reward-scale values for rollout Q-value combination.
@@ -116,17 +117,19 @@ class NNRolloutPolicy(Policy):
 
     def __init__(
         self,
-        nn_model:            NNValueNetwork,
-        lookahead_minutes:   float = 60.0,
-        num_scenarios:       int   = 8,
-        n_rollout_candidates:int   = 8,    
-        gamma:               float = 0.99,
-        maintenance_enabled: bool  = True,
-        depot_id:            str   = None,
-        congestion_weight:   float = -1.0,
-        debug_logger:        "MaintenanceDebugLogger" = None,
-        rollout_log_every:   int   = 1,   # log every N rollout decisions (use >1 to reduce volume)
-        pruning_logger:      "PruningDebugLogger" = None,
+        nn_model:              NNValueNetwork,
+        lookahead_minutes:     float = 60.0,
+        num_scenarios:         int   = 8,
+        n_rollout_candidates:  int   = 8,
+        n_screening_scenarios: int   = 3,   # stage-1 cheap screen (subset of num_scenarios)
+        n_survivors:           int   = 4,   # candidates that advance to stage-2 full rollout
+        gamma:                 float = 0.99,
+        maintenance_enabled:   bool  = True,
+        depot_id:              str   = None,
+        congestion_weight:     float = -1.0,
+        debug_logger:          "MaintenanceDebugLogger" = None,
+        rollout_log_every:     int   = 1,
+        pruning_logger:        "PruningDebugLogger" = None,
     ):
         super().__init__(maintenance_enabled=maintenance_enabled)
 
@@ -135,10 +138,12 @@ class NNRolloutPolicy(Policy):
         self.nn_model = nn_model
         self.nn_model.eval()
 
-        self.lookahead_minutes   = lookahead_minutes
-        self.num_scenarios       = num_scenarios
-        self.n_rollout_candidates = n_rollout_candidates
-        self.gamma               = gamma
+        self.lookahead_minutes        = lookahead_minutes
+        self.num_scenarios            = num_scenarios
+        self.n_rollout_candidates     = n_rollout_candidates
+        self.n_screening_scenarios    = min(n_screening_scenarios, num_scenarios)
+        self.n_survivors              = min(n_survivors, n_rollout_candidates)
+        self.gamma                    = gamma
         self.depot_id            = depot_id
         self._debug_logger       = debug_logger
         self._rollout_log_every  = rollout_log_every
@@ -311,6 +316,113 @@ class NNRolloutPolicy(Policy):
         return raw_terminal_value
         # Step 4: unwrap to a Python scalar
         #return value_tensor.item()
+        
+        
+    
+
+    def _run_single_scenario(self, state, vehicle, action, rng_seed=None, rng2_seed=None):
+        """
+        Run one rollout scenario for a candidate action.
+        Returns (accumulated_reward, discounted_terminal_value).
+        rng_seed / rng2_seed: if provided, reseed the clone's RNGs for CRN.
+        """
+        clone_sim   = self._clone_simulator()
+        clone_state = clone_sim.state
+
+        if rng_seed is not None:
+            clone_state.rng  = np.random.default_rng(rng_seed)
+        if rng2_seed is not None:
+            clone_state.rng2 = np.random.default_rng(rng2_seed)
+
+        clone_vehicle = clone_state.get_vehicle_by_id(vehicle.id)
+        reward_calc   = self._make_reward_calculator(clone_sim)
+
+        for v in clone_state.get_vehicles():
+            v.policy = self._base_policy
+
+        self._apply_action_to_clone(clone_sim, clone_vehicle, action)
+
+        target_time        = clone_state.time + self.lookahead_minutes
+        accumulated_reward = 0.0
+
+        while clone_sim.event_queue:
+            if clone_sim.event_queue[0].time > target_time:
+                clone_state.time = target_time
+                break
+            clone_sim.single_step()
+            step_reward  = (reward_calc.compute_step_reward(clone_state.metrics)
+                            + reward_calc.compute_fleet_penalty(clone_state))
+            time_elapsed = clone_state.time - state.time
+            discount     = self.gamma ** max(time_elapsed / 60.0, 0.0)
+            accumulated_reward += discount * step_reward
+
+        terminal_value    = self._estimate_terminal_value(clone_state, vehicle.id)
+        terminal_discount = self.gamma ** (self.lookahead_minutes / 60.0)
+        return accumulated_reward, terminal_discount * terminal_value
+
+    def _evaluate_with_screening(self, state, vehicle, candidates, crn_seeds,
+                                  action_to_pre_score=None, debug_print=False):
+        """
+        Two-stage OCBA-style screening over rollout candidates.
+
+        Stage 1: run n_screening_scenarios on all candidates → keep top n_survivors.
+        Stage 2: run remaining scenarios on survivors, combining with stage-1 totals.
+
+        Returns (best_action, best_q, best_r, best_t, winning_rank) where
+        winning_rank is the survivor's position in the stage-1 sorted list (0 = top).
+        """
+        n_screen     = min(self.n_screening_scenarios, len(crn_seeds))
+        screen_seeds = crn_seeds[:n_screen]
+        full_seeds   = crn_seeds[n_screen:]
+
+        # Stage 1: cheap screen on all candidates
+        screen_results = []   # (q_sum, r_sum, t_sum, action)
+        for action in candidates:
+            q_sum = r_sum = t_sum = 0.0
+            for rng_seed, rng2_seed in screen_seeds:
+                r, t = self._run_single_scenario(state, vehicle, action, rng_seed, rng2_seed)
+                q_sum += r + t
+                r_sum += r
+                t_sum += t
+            screen_results.append((q_sum, r_sum, t_sum, action))
+
+        screen_results.sort(key=lambda x: x[0], reverse=True)
+        survivors = screen_results[:self.n_survivors]
+
+        if debug_print:
+            print(f"\n{'='*72}")
+            print(f"[SCREEN] {len(survivors)}/{len(candidates)} advanced to stage 2")
+            print(f"  {'Rk':<4} {'→ dest':<14} {'stage-1 Q':>10} {'pre-score':>10}")
+            print(f"  {'-'*42}")
+            for rank, (q_sum, _, _, action) in enumerate(survivors):
+                dest      = getattr(action, 'next_location', '?')
+                pre_score = action_to_pre_score.get(id(action), 0.0) if action_to_pre_score else 0.0
+                print(f"  {rank:<4} {str(dest):<14} {q_sum/max(n_screen,1):>10.4f} {pre_score:>10.4f}")
+            print()
+
+        # Stage 2: full rollout on survivors
+        best_action       = None
+        best_q_value      = -float("inf")
+        best_rollout_r    = 0.0
+        best_tail_v       = 0.0
+        winning_rank      = -1
+
+        for screen_rank, (q_sum, r_sum, t_sum, action) in enumerate(survivors):
+            for rng_seed, rng2_seed in full_seeds:
+                r, t   = self._run_single_scenario(state, vehicle, action, rng_seed, rng2_seed)
+                q_sum += r + t
+                r_sum += r
+                t_sum += t
+            n          = len(crn_seeds)
+            expected_q = q_sum / n
+            if expected_q > best_q_value:
+                best_q_value   = expected_q
+                best_action    = action
+                best_rollout_r = r_sum / n
+                best_tail_v    = t_sum / n
+                winning_rank   = screen_rank
+
+        return best_action, best_q_value, best_rollout_r, best_tail_v, winning_rank
 
     # ─────────────────────────────────────────────────────────────────────────
     # Main decision method
@@ -394,65 +506,26 @@ class NNRolloutPolicy(Policy):
         if not candidates:
             return None
 
-        best_action  = None
-        best_q_value = -float("inf")
-        rollout_scores = []   # [(sim_action, mean_q), ...] — for pruning logger
+        # Build seed pairs for CRN — one per scenario, shared across all candidates
+        rng = self._simulator.state.rng
+        crn_seeds = [(int(rng.integers(0, 2**31)), int(rng.integers(0, 2**31)))
+                     for _ in range(self.num_scenarios)]
 
-        # --- Step 3: full Monte Carlo rollout on pruned candidates ---
-        for action in candidates:
-            total_q = 0.0
+        # Build pre-score lookup for debug print (id(sim_action) → raw_v)
+        action_to_pre_score = {id(sa): rv for rv, _, sa in pre_scores}
 
-            for _omega in range(self.num_scenarios):
+        # --- Step 3: two-stage screened rollout on pruned candidates ---
+        best_action, best_q_value, _, _, winning_rank = self._evaluate_with_screening(
+            state=state,
+            vehicle=vehicle,
+            candidates=candidates,
+            crn_seeds=crn_seeds,
+            action_to_pre_score=action_to_pre_score,
+        )
 
-                # 1. Create a disposable simulator clone for this scenario
-                clone_sim     = self._clone_simulator()
-                clone_state   = clone_sim.state
-                clone_vehicle = clone_state.get_vehicle_by_id(vehicle.id)
-                reward_calc   = self._make_reward_calculator(clone_sim)
-
-                # 2. Assign DoNothing as the base policy for cloned vehicles.
-                #    This prevents recursive rollout (NNRolloutPolicy calling itself)
-                #    while still letting the simulator advance through demand events.
-                for v in clone_state.get_vehicles():
-                    v.policy = self._base_policy
-
-                # 3. Apply the candidate action and register the next arrival event
-                self._apply_action_to_clone(clone_sim, clone_vehicle, action)
-
-                # 4. Fast-forward the clone until the lookahead horizon is reached,
-                #    accumulating discounted step rewards along the way
-                target_time        = clone_state.time + self.lookahead_minutes
-                accumulated_reward = 0.0
-
-                while clone_sim.event_queue:
-                    next_event = clone_sim.event_queue[0]
-                    if next_event.time > target_time:
-                        clone_state.time = target_time
-                        break
-                    clone_sim.single_step()
-
-                    step_reward   = (reward_calc.compute_step_reward(clone_state.metrics)
-                                     + reward_calc.compute_fleet_penalty(clone_state))
-                    time_elapsed  = clone_state.time - state.time
-                    # Discount grows with elapsed time; each 60-minute unit = one γ step
-                    discount      = self.gamma ** max(time_elapsed / 60.0, 0.0)
-                    accumulated_reward += discount * step_reward
-
-                # 5. Estimate terminal value using the NN (replaces the VFA call
-                #    θᵀ φ(S^x_terminal) in HybridRolloutPolicy)
-                terminal_value    = self._estimate_terminal_value(clone_state, vehicle.id)
-                terminal_discount = self.gamma ** (self.lookahead_minutes / 60.0)
-
-                scenario_q = accumulated_reward + terminal_discount * terminal_value
-                total_q   += scenario_q
-
-            # Average Q-value across scenarios
-            mean_q = total_q / self.num_scenarios
-            rollout_scores.append((action, mean_q))
-
-            if mean_q > best_q_value:
-                best_q_value = mean_q
-                best_action  = action
+        # Rebuild rollout_scores for loggers: re-evaluate survivors isn't cheap,
+        # so we approximate with (action, best_q_value) for the winner only.
+        rollout_scores = [(action, 0.0) for action in candidates]
 
         if self._pruning_logger is not None:
             self._pruning_logger.log_decision(

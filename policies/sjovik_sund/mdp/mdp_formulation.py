@@ -428,21 +428,32 @@ class PostDecisionState:
         if not cfg.track_damage:
             new_depot_cargo = 0
 
-        new_vehicle = VehicleStatus(
-            vehicle_id=v.vehicle_id,
-            destination_station=action.next_station,
-            eta=state.time,  # will be updated by caller
-            functional_cargo=new_func_cargo,
-            depot_cargo=new_depot_cargo,
-            capacity=v.capacity,
-        )
-
         # ── compute action duration ────────────────────────────────────────
         # Time = unload depot bikes + move functional bikes (either direction) + on-site repairs
         time_unload_depot = depot_rem * PostDecisionState.MINUTES_PER_ACTION
         time_rebalancing = abs(action.rebalancing) * PostDecisionState.MINUTES_PER_ACTION
         time_onsite_repairs = onsite_rep * PostDecisionState.MAINTENANCE_FULL_FIX
         action_duration = time_unload_depot + time_rebalancing + time_onsite_repairs
+
+        # ── compute travel time to next station
+        travel_time_to_next = state.travel_times.get(action.next_station, 0.0) if state.travel_times else 0.0
+        new_eta = state.time + action_duration + travel_time_to_next
+
+        # DEBUG: Print ETA calculation for normal station
+        '''print(f"DEBUG: apply_at_normal_station - current_time: {state.time:.1f}, "
+              f"action_duration: {action_duration:.1f}, "
+              f"travel_time_to_next: {travel_time_to_next:.1f}, "
+              f"calculated new_eta: {new_eta:.1f}")'''
+
+        new_vehicle = VehicleStatus(
+            vehicle_id=v.vehicle_id,
+            destination_station=action.next_station,
+            eta=new_eta,
+            functional_cargo=new_func_cargo,
+            depot_cargo=new_depot_cargo,
+            capacity=v.capacity,
+        )
+
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
             bikes_repaired_onsite=onsite_rep,
@@ -529,15 +540,6 @@ class PostDecisionState:
         new_func_cargo = v.functional_cargo + action.load_from_queue
         new_depot_cargo = 0  # all broken bikes unloaded
 
-        new_vehicle = VehicleStatus(
-            vehicle_id=v.vehicle_id,
-            destination_station=action.next_station,
-            eta=state.time,  # will be updated by caller
-            functional_cargo=new_func_cargo,
-            depot_cargo=new_depot_cargo,
-            capacity=v.capacity,
-        )
-
         # ── compute action duration ────────────────────────────────────────
         # Time = unload all broken bikes + load bikes from queue
         time_unload_broken = v.depot_cargo * PostDecisionState.MINUTES_PER_ACTION
@@ -545,6 +547,26 @@ class PostDecisionState:
         action_duration = time_unload_broken + time_load_from_queue
         # NOTE: Repair duration (24h cycle) is not added here—it's exogenous,
         # managed by the simulator between decision epochs.
+
+        # ── compute travel time to next station
+        travel_time_to_next = state.travel_times.get(action.next_station, 0.0) if state.travel_times else 0.0
+        new_eta = state.time + action_duration + travel_time_to_next
+
+        # DEBUG: Print ETA calculation for depot
+        print(f"DEBUG: apply_at_depot - current_time: {state.time:.1f}, "
+              f"action_duration: {action_duration:.1f}, "
+              f"travel_time_to_next: {travel_time_to_next:.1f}, "
+              f"calculated new_eta: {new_eta:.1f}")
+
+        new_vehicle = VehicleStatus(
+            vehicle_id=v.vehicle_id,
+            destination_station=action.next_station,
+            eta=new_eta,
+            functional_cargo=new_func_cargo,
+            depot_cargo=new_depot_cargo,
+            capacity=v.capacity,
+        )
+
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
             bikes_unloaded_for_repair=v.depot_cargo,

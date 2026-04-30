@@ -338,10 +338,9 @@ class NNValueNetwork(nn.Module):
         self.station_cross_attn = CrossAttentionPool(station_embed_dim, vehicle_summary_dim)
 
         # Dual pooling: attention + max concatenated → 2× each embed dim.
-        # +station_feature_dim: destination station's raw features bypass pooling and feed
-        # directly into the ValueMLP so the NN cannot ignore destination-specific information.
+        # +2*station_feature_dim: destination raw bypass + max-deficit station raw bypass.
         combined_dim = (2 * station_embed_dim + 2 * vehicle_embed_dim
-                        + global_feature_dim + station_feature_dim)
+                        + global_feature_dim + 2 * station_feature_dim)
         self.value_mlp = ValueMLP(combined_dim, value_hidden_dims)
 
         # Store dims so checkpoints can be verified for compatibility.
@@ -415,16 +414,25 @@ class NNValueNetwork(nn.Module):
         ], dim=0)
 
         # --- 3. Destination spotlight: raw features bypass pooling ---
-        # is_destination flag lives at station_block[:, -1]; extract that row directly.
-        # If no station is flagged (e.g. depot action), fall back to zeros.
         dest_mask = station_block[:, -1] > 0.5
         if dest_mask.any():
             dest_raw = station_block[dest_mask][0]
         else:
             dest_raw = torch.zeros(self.station_feature_dim, device=station_block.device)
 
+        # --- 3b. Max-deficit spotlight: worst non-destination station bypasses pooling ---
+        # CrossAttentionPool is vehicle-conditioned and may down-weight a critically starved
+        # station that is far from the destination. This bypass guarantees the NN always
+        # sees the worst station regardless of attention routing.
+        non_dest_mask = station_block[:, -1] < 0.5
+        if non_dest_mask.any():
+            non_dest = station_block[non_dest_mask]
+            max_deficit_raw = non_dest[non_dest[:, 5].argmax()]  # deficit_ratio at index 5
+        else:
+            max_deficit_raw = torch.zeros(self.station_feature_dim, device=station_block.device)
+
         # --- 4. Combine ---
-        combined = torch.cat([station_summary, vehicle_summary, global_context, dest_raw], dim=0)
+        combined = torch.cat([station_summary, vehicle_summary, global_context, dest_raw, max_deficit_raw], dim=0)
         value = self.value_mlp(combined)
         return value
 
@@ -507,13 +515,18 @@ class NNValueNetwork(nn.Module):
             st_emb.max(dim=1).values,
         ], dim=1)   # [B, 2*station_embed_dim]
 
-        # --- 3. Destination spotlight: raw features bypass pooling ---
-        # station_blocks[:, :, -1] is the is_destination flag; argmax gives the dest row index.
+        # --- 3. Destination spotlight ---
         dest_idx = station_blocks[:, :, -1].argmax(dim=1)   # [B]
         dest_raw = station_blocks[torch.arange(B, device=station_blocks.device), dest_idx, :]  # [B, station_feature_dim]
 
+        # --- 3b. Max-deficit spotlight (non-destination) ---
+        deficit_scores = station_blocks[:, :, 5].clone()  # deficit_ratio at index 5, [B, N]
+        deficit_scores[station_blocks[:, :, -1] > 0.5] = -float('inf')  # mask out destination
+        max_def_idx = deficit_scores.argmax(dim=1)   # [B]
+        max_deficit_raw = station_blocks[torch.arange(B, device=station_blocks.device), max_def_idx, :]  # [B, station_feature_dim]
+
         # --- 4. Combine ---
-        combined = torch.cat([station_summary, vehicle_summary, global_contexts, dest_raw], dim=1)
+        combined = torch.cat([station_summary, vehicle_summary, global_contexts, dest_raw, max_deficit_raw], dim=1)
 
         return self.value_mlp(combined)   # [B, 1]
 
