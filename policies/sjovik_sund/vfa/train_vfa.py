@@ -302,7 +302,7 @@ def train(
     )
     
     # --- TD(λ) ---
-    vfa_policy.use_td_lambda = True
+    vfa_policy.use_td_lambda = False
     vfa_policy.td_lambda = 0.8
 
     # --- EXPERIENCE REPLAY TOGGLE ---

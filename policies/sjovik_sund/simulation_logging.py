@@ -1010,7 +1010,7 @@ def write_bike_movements_to_file(filename, simulator, seed, alpha=None):
         seed: Random seed used for the simulation
         alpha: Alpha parameter value (optional)
     """
-    print(f"DEBUG write_bike_movements: simulator_id={id(simulator)}, list_id={id(simulator.bike_movements)}, len={len(simulator.bike_movements)}")
+    '''print(f"DEBUG write_bike_movements: simulator_id={id(simulator)}, list_id={id(simulator.bike_movements)}, len={len(simulator.bike_movements)}")
     try:
         os.makedirs(RESULTS_DIR, exist_ok=True)
         filepath = RESULTS_DIR / filename
@@ -1062,7 +1062,7 @@ def write_bike_movements_to_file(filename, simulator, seed, alpha=None):
     except Exception as e:
         print(f"ERROR writing bike movements: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.print_exc()'''
  
  
 def write_trip_requests_to_file(filename, simulator, seed, alpha=None):
@@ -1190,16 +1190,16 @@ def write_vehicle_and_health_logs(filename_prefix, simulator, seed):
     os.makedirs(RESULTS_DIR, exist_ok=True)
     
     # 1. Vehicle Cargo
-    if simulator.hourly_vehicle_metrics:
+    '''if simulator.hourly_vehicle_metrics:
         df_veh = pd.DataFrame(simulator.hourly_vehicle_metrics)
         df_veh.insert(0, 'Seed', seed)
-        df_veh.to_csv(RESULTS_DIR / f"{filename_prefix}_vehicle_cargo_seed_{seed}.csv", index=False)
+        df_veh.to_csv(RESULTS_DIR / f"{filename_prefix}_vehicle_cargo_seed_{seed}.csv", index=False)'''
         
     # 2. Daily Health
-    if simulator.daily_health_metrics:
+    '''if simulator.daily_health_metrics:
         df_health = pd.DataFrame(simulator.daily_health_metrics)
         df_health.insert(0, 'Seed', seed)
-        df_health.to_csv(RESULTS_DIR / f"{filename_prefix}_daily_health_seed_{seed}.csv", index=False)
+        df_health.to_csv(RESULTS_DIR / f"{filename_prefix}_daily_health_seed_{seed}.csv", index=False)'''
 
 def write_rl_decisions_to_file(filename_prefix, simulator, seed):
     """Extracts the RL logs from the policy and writes them to CSV."""
