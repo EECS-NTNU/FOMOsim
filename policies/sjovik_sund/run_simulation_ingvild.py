@@ -56,7 +56,7 @@ from policies.sjovik_sund.simulation_logging import (
     #write_bike_movements_to_file,
     #write_trip_requests_to_file,
     write_component_failures_to_file,
-    write_rl_decisions_to_file,
+    #write_rl_decisions_to_file,
     write_vehicle_and_health_logs
 )
 from policies.sjovik_sund.operational_logging import OperationalLogger
@@ -286,8 +286,8 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
         vehicle_health_log_filename = f"{base_filename}_vehicle_health_seed_{seed}.csv"
         write_vehicle_and_health_logs(vehicle_health_log_filename, simulator, seed)
 
-        rl_decisions_filename = f"{base_filename}_rl_decisions_seed_{seed}.csv"
-        write_rl_decisions_to_file(rl_decisions_filename, simulator, seed)
+        # rl_decisions_filename = f"{base_filename}_rl_decisions_seed_{seed}.csv"
+        # write_rl_decisions_to_file(rl_decisions_filename, simulator, seed)
 
     if run_logger is not None:
         run_logger.log_episode(simulator, seed, duration, solve_time)
@@ -503,11 +503,11 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%m%d%H%M")
 
     policy_dict = {
-        f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": DoNothing(),
-        f"Greedy_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": GreedyPolicy(),
-        f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
-            time_horizon=40, max_depth=2, num_successors=5, number_of_scenarios=100
-        ),
+        #f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": DoNothing(),
+        #f"Greedy_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": GreedyPolicy(),
+        #f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
+         #   time_horizon=40, max_depth=2, num_successors=5, number_of_scenarios=100
+        #),
     }
 
     if args.vfa_model:
@@ -515,8 +515,11 @@ if __name__ == "__main__":
         if args.active_features:
             load_kwargs["active_features"] = args.active_features
         vfa_policy = LinearVFAPolicy.load(Path(args.vfa_model), **load_kwargs)
+        import re
+        stem = Path(args.vfa_model).stem          # e.g. "vfa_Squared_Temporal_seed1000"
+        exp_name = re.sub(r"^vfa_|_seed\d+$", "", stem)  # e.g. "Squared_Temporal"
         policy_name_vfa = (
-            f"VFA_{args.instance}_V{num_vehicles}_D{duration}h_"
+            f"VFA_{exp_name}_{args.instance}_V{num_vehicles}_D{duration}h_"
             f"{timestamp}_seed{start_seed}"
         )
         policy_dict[policy_name_vfa] = vfa_policy
