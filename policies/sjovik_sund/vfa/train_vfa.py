@@ -301,8 +301,12 @@ def train(
         reward_calculator=RewardCalculator(config=reward_config, gamma=gamma),
     )
     
+    # --- TD(λ) ---
+    vfa_policy.use_td_lambda = True
+    vfa_policy.td_lambda = 0.8
+
     # --- EXPERIENCE REPLAY TOGGLE ---
-    # Set to True to use Mini-Batch SGD at every timestep 
+    # Set to True to use Mini-Batch SGD at every timestep
     # Set to False to keep your well-working Episodic Synchronous Batching
     vfa_policy.use_experience_replay = False
     vfa_policy.mini_batch_size = 32
@@ -561,7 +565,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--weight_congestion",
         type=float,
-        default=-1,
+        default=-1.0,
         help="Reward weight for congestion events (default: -1.0)",
     )
 

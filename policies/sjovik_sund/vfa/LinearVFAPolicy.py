@@ -171,6 +171,15 @@ class LinearVFAPolicy(Policy):
         # ── Per-episode TD tracking ───────────────────────────────────────────
         self._prev_phi:          Optional[np.ndarray] = None
 
+        # ── Potential-based reward shaping (off by default) ──────────────────
+        self.use_reward_shaping:  bool = False
+        self.shaping_feature_idx: int  = 0
+
+        # ── TD(λ) with eligibility traces (online, replaces batch buffer) ─────
+        self.use_td_lambda:       bool  = False
+        self.td_lambda:           float = 0.8
+        self._eligibility_trace: np.ndarray = np.zeros(n_features, dtype=np.float64)
+
         # Buffer for Synchronous Batch Learning
         self.batch_buffer: List[Tuple[np.ndarray, float, np.ndarray, float]] = []
         
@@ -591,6 +600,10 @@ class LinearVFAPolicy(Policy):
         
         # Apply continuous time discounting
         discount = self.gamma ** (elapsed_minutes / 60.0)
+
+        if self.use_reward_shaping:
+            reward += self._prev_phi[self.shaping_feature_idx] - discount * phi_next[self.shaping_feature_idx]
+
         td_error = reward + (discount * v_next) - v_cur
 
         # --- SMART LOGGING ---
@@ -598,16 +611,27 @@ class LinearVFAPolicy(Policy):
             target_value = reward + discount * v_next
             print(f"[TD] r={reward:.3f} vs={v_cur:.3f} tgt={target_value:.3f} err={td_error:.3f}")
 
-        if getattr(self, 'use_experience_replay', False):
-            # 1. Experience Replay Logging
+        if self.use_td_lambda:
+            # Accumulating eligibility trace: e = γλe + φ_cur, then online θ update
+            self._eligibility_trace = discount * self.td_lambda * self._eligibility_trace + self._prev_phi
+            self.theta += self.alpha * td_error * self._eligibility_trace
+            self.weights = list(self.theta)
+
+            if not getattr(self, '_td_lambda_step_count', None):
+                self._td_lambda_step_count = 0
+            self._td_lambda_step_count += 1
+            if self._td_lambda_step_count % 500 == 1:
+                print(
+                    f" [TDλ] step={self._td_lambda_step_count} | "
+                    f"δ={td_error:+.4f} | "
+                    f"|e|={np.linalg.norm(self._eligibility_trace):.3f} | "
+                    f"|θ|={np.linalg.norm(self.theta):.3f}"
+                )
+        elif getattr(self, 'use_experience_replay', False):
             self.replay_buffer.append((self._prev_phi.copy(), reward, phi_next.copy(), elapsed_minutes))
-            
-            # 2. Trigger mini batch update if buffer has enough experiences (Warmup phase)
-            # Typically wait until we have a decent number of samples to break initial correlation
             if len(self.replay_buffer) >= max(1000, self.mini_batch_size):
                 self.apply_mini_batch_update()
         else:
-            # 1. Store transition for synchronous batch update
             self.batch_buffer.append((self._prev_phi.copy(), reward, phi_next.copy(), elapsed_minutes))
 
         return td_error
@@ -1083,7 +1107,9 @@ class LinearVFAPolicy(Policy):
 
     def reset_episode(self) -> None:
         self._prev_phi = None
-        self._prev_time = None  # New line
+        self._prev_time = None
+        self._eligibility_trace[:] = 0.0
+        self._td_lambda_step_count = 0
         self.reward_calc.reset_episode()
     # ─────────────────────────────────────────────────────────────────────────
     # Serialisation
@@ -1092,10 +1118,11 @@ class LinearVFAPolicy(Policy):
     def save(self, path: Path) -> None:
         """Persist θ and hyper-parameters to disk."""
         payload = {
-            "theta":       self.theta,
-            "n_features":  self.n_features,
-            "alpha":       self.alpha,
-            "gamma":       self.gamma,
+            "theta":         self.theta,
+            "n_features":    self.n_features,
+            "alpha":         self.alpha,
+            "gamma":         self.gamma,
+            "feature_names": self.FEATURE_NAMES,
         }
         with open(path, "wb") as f:
             pickle.dump(payload, f)
@@ -1106,6 +1133,9 @@ class LinearVFAPolicy(Policy):
         #Load a trained model from disk (learning_mode=False by default).
         with open(path, "rb") as f:
             payload = pickle.load(f)
+        # Use stored feature names if available and not overridden by caller
+        if "active_features" not in kwargs and payload.get("feature_names") is not None:
+            kwargs["active_features"] = payload["feature_names"]
         policy         = cls(
             n_features   = payload["n_features"],
             alpha        = payload["alpha"],
