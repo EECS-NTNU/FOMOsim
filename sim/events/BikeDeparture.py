@@ -159,7 +159,6 @@ class BikeDeparture(Event):
                 # --- THE FIX: Safety check for absolute starvation ---
                 if not closest_neighbours:
                     # Treat as standard lost trip, bail out early
-                    simul.state.metrics.add_aggregate_metric(simul.state, "bike starvations", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "events", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "starvations", 1)
                     simul.state.metrics.add_aggregate_metric(simul.state, "failed events", 1)
@@ -277,7 +276,7 @@ class BikeDeparture(Event):
                     #if departure_station.number_of_bikes() <= 0:
                     if total_bikes_at_station <= 0:
                         #print(f"  LOST TRIP: No bikes at {departure_station.id} (bike starvation, t={self.time:.1f})")
-                        simul.state.metrics.add_aggregate_metric(simul.state, "bike starvations", 1)
+                        #simul.state.metrics.add_aggregate_metric(simul.state, "bike starvations", 1)
                         
                         # Log failed trip - bike starvation
                         if hasattr(simul, 'log_trip_request'):
@@ -293,18 +292,6 @@ class BikeDeparture(Event):
                         #print(f"  LOST TRIP: No usable bikes at {departure_station.id}, unusabe bikes are {departure_station.get_unusable_bikes()}, total_bikes_at_station are {departure_station.number_of_bikes()} (t={self.time:.1f})")
 
                         if unusable_count == total_bikes_at_station:
-                            #print(f"  LOST TRIP: All bikes at {departure_station.id} require maintenance "
-                            #      f"(maintenance starvation, t={self.time:.1f})")
-                            
-                            # Log failed trip - maintenance starvation
-                            if hasattr(simul, 'log_trip_request'):
-                                simul.log_trip_request(
-                                    time=self.time,
-                                    station_id=departure_station.id,
-                                    success=False,
-                                    failure_reason='maintenance_starvation',
-                                    did_roam=False
-                                )
                             
                             all_stations = simul.state.get_stations()
 
@@ -336,7 +323,7 @@ class BikeDeparture(Event):
                             print()
                             
                             simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
-                            simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_starvation", 1)
+                            #simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_starvation", 1)
                         else:
                             #print(f"  LOST TRIP: No usable bikes at {departure_station.id} "
                                  # f"({unusable_count} unusable, t={self.time:.1f})")

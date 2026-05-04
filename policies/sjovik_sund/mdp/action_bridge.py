@@ -14,6 +14,7 @@ from sim.Action import Action
 
 from .mdp_formulation import MdpAction
 
+from settings import MAINTENANCE_REPAIR
 
 def _bike_id(bike) -> int:
     return getattr(bike, "bike_id", getattr(bike, "id"))
@@ -46,7 +47,7 @@ def mdp_action_to_sim_action(
     mdp_action: MdpAction,
     state,
     vehicle,
-    maintenance_minutes_per_onsite_repair: float = 5.0,
+    maintenance_minutes_per_onsite_repair= MAINTENANCE_REPAIR,
 ) -> Action:
     """
     Convert a canonical MdpAction into a simulator Action.
@@ -56,6 +57,7 @@ def mdp_action_to_sim_action(
     - rebalancing < 0 : pick_ups (functional bikes from station)
     - depot_removals  : additional pick_ups (depot-damaged bikes from station)
     - onsite_repairs  : battery_swaps + maintenance_time proxy
+    - depot_dropoffs  : delivery_bikes when current station is depot
     - load_from_queue : pick_ups when current station is depot
     """
     station = vehicle.location
@@ -68,6 +70,7 @@ def mdp_action_to_sim_action(
     ]
     station_onsite = [
         b for b in station_bikes if getattr(b, "damage_status", None) == "onsite"
+        and not getattr(b, "onsite_repair_in_progress", False)
     ]
     station_depot = [
         b for b in station_bikes if getattr(b, "damage_status", None) == "depot"
@@ -88,8 +91,8 @@ def mdp_action_to_sim_action(
             depot_pickups = _take_bike_ids(fixed_queue_bikes, mdp_action.load_from_queue)
         else:
             depot_pickups = []
-        # NEW: Automatically unload ALL broken bikes at depot
-        depot_dropoffs = _take_bike_ids(vehicle_depot, len(vehicle_depot))
+        depot_dropoff_count = int(getattr(mdp_action, "depot_dropoffs", 0) or 0)
+        depot_dropoffs = _take_bike_ids(vehicle_depot, depot_dropoff_count)
     else:
         depot_pickups = []
         depot_dropoffs = []
@@ -113,6 +116,8 @@ def mdp_action_to_sim_action(
         print(f"[WARNING - BRIDGE] MDP wanted to pick up {pickup_depot_count} broken bikes, but station only has {len(station_depot)}. Truncating!")
     if onsite_repair_count > len(station_onsite):
         print(f"[WARNING - BRIDGE] MDP wanted to repair {onsite_repair_count} bikes onsite, but station only has {len(station_onsite)}. Truncating!")
+    if getattr(vehicle, "is_at_depot")() and depot_dropoff_count > len(vehicle_depot):
+        print(f"[WARNING - BRIDGE] MDP wanted to drop off {depot_dropoff_count} broken bikes at depot, but vehicle only has {len(vehicle_depot)}. Truncating!")
 
     return Action(
         battery_swaps=[], # Add empty list as we do not consider battery swaps in this policy

@@ -52,6 +52,8 @@ from typing import Dict, List, Optional, Tuple
 
 from .mdp_config import MDPConfig
 
+from settings import MINUTES_PER_ACTION, MAINTENANCE_REPAIR, MINUTES_CONSTANT_PER_ACTION
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Station inventory
@@ -249,7 +251,8 @@ class MdpAction:
     At depot:
         rebalancing    : must be 0 (no delivery/pickup at depot)
         onsite_repairs : must be 0
-        depot_removals : must be 0 (broken bikes auto-unload on arrival)
+        depot_removals : must be 0 (station removals only)
+        depot_dropoffs : depot-damaged cargo to unload for repair
         load_from_queue: bikes to pick from fixed_queue (repair-finished bikes)
     """
     current_station:  str
@@ -258,6 +261,7 @@ class MdpAction:
     depot_removals:   int  # m_rem^x  (normal station only)
     load_from_queue:  int  # bikes from fixed_queue (depot only)
     next_station:     str  # ρ^x
+    depot_dropoffs:   int = 0  # broken cargo unloaded at depot
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -299,8 +303,8 @@ class PostDecisionState:
     """
 
     # Settings constants (import from settings module)
-    MINUTES_PER_ACTION = 0.5      # time to load/unload per bike
-    MAINTENANCE_REPAIR = 3      # time to fully repair one bike on-site
+    MINUTES_PER_ACTION = MINUTES_PER_ACTION      # time to load/unload per bike
+    MAINTENANCE_REPAIR = MAINTENANCE_REPAIR      # time to fully repair one bike on-site
 
     @staticmethod
     def apply(state: MDPState, action: MdpAction) -> Tuple[MDPState, float, ExecutedAction]:
@@ -332,6 +336,11 @@ class PostDecisionState:
             raise ValueError(
                 f"At normal station {action.current_station}: "
                 f"load_from_queue must be 0 (only used at depot)"
+            )
+        if action.depot_dropoffs != 0:
+            raise ValueError(
+                f"At normal station {action.current_station}: "
+                f"depot_dropoffs must be 0 (only used at depot)"
             )
         if action.onsite_repairs < 0:
             raise ValueError("onsite_repairs must be ≥ 0")
@@ -437,10 +446,10 @@ class PostDecisionState:
         # ── compute action duration ────────────────────────────────────────
         # Time = unload depot bikes + move functional bikes (either direction) + on-site repairs
         #NOTE: names are a bit misleading since depot is pickup 
-        time_unload_depot = depot_rem * PostDecisionState.MINUTES_PER_ACTION
-        time_rebalancing = abs(action.rebalancing) * PostDecisionState.MINUTES_PER_ACTION
-        time_onsite_repairs = onsite_rep * PostDecisionState.MAINTENANCE_REPAIR
-        action_duration = time_unload_depot + time_rebalancing + time_onsite_repairs
+        time_unload_depot = depot_rem * MINUTES_PER_ACTION
+        time_rebalancing = abs(action.rebalancing) * MINUTES_PER_ACTION
+        time_onsite_repairs = onsite_rep * MAINTENANCE_REPAIR
+        action_duration = MINUTES_CONSTANT_PER_ACTION + time_unload_depot + time_rebalancing + time_onsite_repairs
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
             bikes_repaired_onsite=onsite_rep,
@@ -471,7 +480,7 @@ class PostDecisionState:
         Apply action at the depot station.
         
         At depot:
-        - All broken bikes (depot_cargo) are automatically unloaded for repair
+        - All depot-damaged cargo must be unloaded for repair
         - Functional bikes (if any) remain on vehicle
         - Vehicle can load bikes from fixed_queue (repair-finished bikes)
         
@@ -480,6 +489,8 @@ class PostDecisionState:
         v = state.get_active_vehicle()
         depot = state.depot
         cfg = state.config
+        if depot is None:
+            raise ValueError("Cannot apply depot action: state has no depot configured")
 
         # ── validate ──────────────────────────────────────────────────────
         if action.rebalancing != 0:
@@ -503,15 +514,23 @@ class PostDecisionState:
                 f"Cannot load {action.load_from_queue} bikes from fixed_queue; "
                 f"only {depot.fixed_queue} available"
             )
-        if action.load_from_queue > v.free_capacity():
+        depot_dropoffs = action.depot_dropoffs
+        if depot_dropoffs != v.depot_cargo:
+            raise ValueError(
+                f"At depot {depot.station_id}: depot_dropoffs must unload all "
+                f"depot cargo ({v.depot_cargo}); got {depot_dropoffs}"
+            )
+        free_capacity_after_unload = max(0, v.capacity - v.functional_cargo - (v.depot_cargo - depot_dropoffs))
+        if action.load_from_queue > free_capacity_after_unload:
             raise ValueError(
                 f"Cannot load {action.load_from_queue} bikes; "
-                f"after unloading depot cargo, vehicle capacity is {v.capacity}"
+                f"after unloading depot cargo, vehicle has "
+                f"{free_capacity_after_unload} free slots"
             )
 
         # ── build new depot inventory ──────────────────────────────────────
-        # Broken bikes (depot_cargo) are moved to in-repair
-        bikes_entering_repair = v.depot_cargo
+        # Broken bikes are moved to in-repair
+        bikes_entering_repair = depot_dropoffs
         new_in_repair = depot.in_repair + bikes_entering_repair
         new_fixed_queue = depot.fixed_queue - action.load_from_queue
 
@@ -525,7 +544,7 @@ class PostDecisionState:
         # ── build new vehicle status ───────────────────────────────────────
         # After unload: vehicle only has functional_cargo + newly loaded bikes from queue
         new_func_cargo = v.functional_cargo + action.load_from_queue
-        new_depot_cargo = 0  # all broken bikes unloaded
+        new_depot_cargo = v.depot_cargo - depot_dropoffs
 
         new_vehicle = VehicleStatus(
             vehicle_id=v.vehicle_id,
@@ -538,14 +557,14 @@ class PostDecisionState:
 
         # ── compute action duration ────────────────────────────────────────
         # Time = unload all broken bikes + load bikes from queue
-        time_unload_broken = v.depot_cargo * PostDecisionState.MINUTES_PER_ACTION
-        time_load_from_queue = action.load_from_queue * PostDecisionState.MINUTES_PER_ACTION
-        action_duration = time_unload_broken + time_load_from_queue
+        time_unload_broken = depot_dropoffs * MINUTES_PER_ACTION
+        time_load_from_queue = action.load_from_queue * MINUTES_PER_ACTION
+        action_duration = MINUTES_CONSTANT_PER_ACTION + time_unload_broken + time_load_from_queue
         # NOTE: Repair duration (24h cycle) is not added here—it's exogenous,
         # managed by the simulator between decision epochs.
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
-            bikes_unloaded_for_repair=v.depot_cargo,
+            bikes_unloaded_for_repair=depot_dropoffs,
             bikes_loaded_from_queue=action.load_from_queue,
             labor_minutes=action_duration,
         )
@@ -725,13 +744,18 @@ def extract_vehicle_status(
             functional_cargo += 1
 
     # destination_station: use the vehicle's current location id
-    dest = getattr(vehicle.location, "id", None) or getattr(vehicle, "current_station", None)
-    if hasattr(dest, "id"):   # unwrap if it's a Station object
-        dest = dest.id
+    location = getattr(vehicle, "location", None)
+    dest = getattr(location, "id", None)
+    if dest is None:
+        current_station = getattr(vehicle, "current_station", None)
+        dest = getattr(current_station, "id", current_station)
+    if dest is None:
+        raise ValueError(f"Cannot extract vehicle {vehicle.id}: missing current location")
+    dest_id = str(dest)
 
     return VehicleStatus(
         vehicle_id=vehicle.id,
-        destination_station=dest,
+        destination_station=dest_id,
         eta=current_time,
         functional_cargo=functional_cargo,
         depot_cargo=depot_cargo if cfg.track_damage else 0,

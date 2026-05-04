@@ -25,6 +25,13 @@ def timeInHoursAndMinutes(seconds):
     h, m = divmod(m, 60)
     return str(h) + ":" + str(m)
 
+def format_sim_time(minutes):
+    day = int(minutes // (24 * 60))
+    minute_of_day = int(minutes % (24 * 60))
+    hour = minute_of_day // 60
+    minute = minute_of_day % 60
+    return f"day {day} {hour:02d}.{minute:02d}"
+
 def printTime():
     print("Time =", datetime.now().strftime("%H:%M:%S"))
 

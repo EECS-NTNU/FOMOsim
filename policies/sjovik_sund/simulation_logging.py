@@ -7,10 +7,12 @@ import os
 import csv
 import sim
 import pandas as pd
+from datetime import datetime
 from typing import Any
 from pathlib import Path
 from settings import MAINTENANCE_INCREASE_PER_MINUTE
 from sim.bike_degradation_modeling import damage_configuration
+from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_all_feature_names
 #from sim.bike_degradation_modeling.utils import haversine_distance
  
  
@@ -19,6 +21,503 @@ _LOGGING_FILE_DIR = Path(__file__).parent
 print(f"Logging output directory: {_LOGGING_FILE_DIR}")
 RESULTS_DIR = _LOGGING_FILE_DIR / 'simulation_results' / 'csv'
 print(f"Full results directory: {RESULTS_DIR}")
+
+_FAILURE_CATS = list(damage_configuration.DAMAGE_CATEGORIES.keys())
+_ALL_FEATURE_NAMES = _get_all_feature_names(
+    maintenance_enabled=True,
+    logistics_enabled=True,
+    demand_horizon_enabled=True,
+)
+
+
+def _cat_key(cat: str) -> str:
+    return cat.lower().replace(" & ", "_").replace(" ", "_")
+
+
+def _get_final_system_bikes(simulator):
+    """Return the unique bikes visible in the final system snapshot."""
+    final_bikes = {}
+
+    def add_bike(bike):
+        bike_id = getattr(bike, "bike_id", None)
+        if bike_id is None:
+            return
+        final_bikes[bike_id] = bike
+
+    for bike in simulator.state.get_all_bikes():
+        add_bike(bike)
+
+    for depot in simulator.state.get_depots():
+        for bike in getattr(depot, "fixed_queue", {}).values():
+            add_bike(bike)
+        for _, bikes in getattr(depot, "in_repair", []):
+            for bike in bikes:
+                add_bike(bike)
+
+    return list(final_bikes.values())
+
+
+class SimulationRunLogger:
+    """
+    Centralized per-run CSV logger.
+
+    LoggingSimulator owns simulator-side event collection. SimulationRunLogger
+    owns run directories, CSV schemas, file handles, decision accumulators, and
+    episode/hour/day writes. Policies may attach this logger and call
+    log_decision(row), but they do not own file output.
+    """
+
+    _VALID_LOG_FILES = {"results", "hourly", "daily", "decisions", "debug"}
+
+    @staticmethod
+    def _results_columns() -> list[str]:
+        return [
+            "seed", "exp_name", "alpha", "duration_hours", "total_runtime_s",
+            "service_level",
+            "avg_bike_km_driven",
+            "starvations", "congestions", "total_trips",
+            "bike_departures", "bike_arrivals",
+            "total_onsite_repairs", "total_depot_pickups",
+            "total_depot_deliveries", "total_depot_visits",
+            "total_fixed_on_site", "total_picked_up_to_depot",
+            "total_depot_fixes", "total_bikes_redistributed_from_depot",
+            "total_functional_pickups", "total_functional_deliveries",
+            "broken_ratio_start_onsite", "broken_ratio_start_depot",
+            "functional_ratio_start",
+            "broken_ratio_end_onsite", "broken_ratio_end_depot",
+            "functional_ratio_end",
+            "broken_bikes_end_onsite", "broken_bikes_end_depot",
+            "new_breakdowns_onsite", "new_breakdowns_depot",
+            "restored_onsite", "restored_depot",
+        ]
+
+    @staticmethod
+    def _hourly_columns() -> list[str]:
+        base = [
+            "seed", "day", "hour",
+            "functional_pickups", "functional_deliveries",
+            "onsite_repairs", "depot_pickups", "depot_visits", "depot_deliveries",
+            "unique_stations_visited",
+            "breakdowns_onsite", "breakdowns_depot",
+            "damaged_fraction_onsite", "damaged_fraction_depot",
+            "restored_onsite", "restored_depot",
+            "total_breakdowns", "total_restored",
+            "starvations", "congestions",
+            "bike_departures", "bike_arrivals", "total_trips",
+        ]
+        for cat in _FAILURE_CATS:
+            base.append(f"new_failures_{_cat_key(cat)}")
+        return base
+
+    @staticmethod
+    def _daily_columns() -> list[str]:
+        return [
+            "seed", "day",
+            "shift_hour_start", "shift_hour_end",
+            "daily_functional_pickups", "daily_functional_deliveries",
+            "daily_onsite_repairs", "daily_depot_pickups",
+            "daily_depot_visits", "daily_depot_deliveries",
+            "daily_starvations", "daily_congestions",
+            "daily_trips", "daily_bike_departures", "daily_bike_arrivals",
+            "daily_breakdowns_onsite", "daily_breakdowns_depot",
+            "daily_total_breakdowns",
+            "daily_restored_onsite", "daily_restored_depot",
+            "daily_total_restored",
+            "eod_damaged_fraction_onsite", "eod_damaged_fraction_depot",
+        ]
+
+    @staticmethod
+    def _decisions_columns() -> list[str]:
+        cols = [
+            "seed", "day", "hour", "minute",
+            "current_station_id", "is_at_depot",
+            "functional_load_before", "depot_load_before", "total_load_before",
+            "functional_deliveries", "functional_pickups",
+            "onsite_repairs", "depot_pickups",
+            "depot_deliveries", "load_from_queue",
+            "bikes_involved", "action_duration_min",
+            "next_station_id", "travel_time_min",
+            "functional_load_after", "depot_load_after", "total_load_after",
+            "immediate_reward",
+            "vfa_value",
+            "accumulated_rollout_reward", "tail_value",
+            "final_decision_score",
+            "maintenance_flag_present", "selected_action_is_maintenance",
+            "n_total_candidates", "vfa_top1_next_station",
+            "rollout_changed_decision", "winning_candidate_rank",
+            "decision_runtime_s", "winning_profile_type",
+        ]
+        cols += [f"phi_{name}" for name in _ALL_FEATURE_NAMES]
+        return cols
+
+    def __init__(
+        self,
+        base_dir: str | Path = "run_logs",
+        log_files: list[str] | set[str] | tuple[str, ...] | None = None,
+        log_decisions: bool = False,
+        run_label: str = "",
+    ):
+        selected = self._normalize_log_files(log_files)
+        if log_decisions:
+            selected.add("decisions")
+        self.log_files = selected
+        self.log_decisions = "decisions" in selected
+
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        suffix = f"_{run_label}" if run_label else ""
+        self.run_dir = Path(base_dir) / f"run_{ts}{suffix}"
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+
+        self._exp_name: str = ""
+        self._alpha: float = 0.0
+        self._policy_type: str = "Hybrid"
+        self._current_seed: int = 0
+        self._shift_hour_start: int = 5
+        self._results_only: bool = False
+
+        self._fleet_total_start: int = 0
+        self._fleet_func_start: int = 0
+        self._fleet_onsite_start: int = 0
+        self._fleet_depot_start: int = 0
+
+        self._ep_func_pickups = 0
+        self._ep_func_deliveries = 0
+        self._ep_onsite_repairs = 0
+        self._ep_depot_pickups = 0
+        self._ep_depot_deliveries = 0
+        self._ep_depot_visits = 0
+        self._ep_restored_onsite = 0
+        self._ep_restored_depot = 0
+
+        self._hour_func_pickups = 0
+        self._hour_func_deliveries = 0
+        self._hour_onsite_repairs = 0
+        self._hour_depot_pickups = 0
+        self._hour_depot_deliveries = 0
+        self._hour_depot_visits = 0
+        self._hour_restored_onsite = 0
+        self._hour_restored_depot = 0
+        self._hour_stations: set[str] = set()
+
+        self._day_hourly_rows: list[dict] = []
+
+        self._results_fh: Any = None
+        self._hourly_fh: Any = None
+        self._daily_fh: Any = None
+        self._decisions_fh: Any = None
+        self._debug_fh: Any = None
+        self._results_w: Any = None
+        self._hourly_w: Any = None
+        self._daily_w: Any = None
+        self._decisions_w: Any = None
+
+        if "debug" in self.log_files:
+            self._debug_fh = open(self.run_dir / "debug_log.txt", "w", encoding="utf-8")
+        self.debug(f"SimulationRunLogger ready -> {self.run_dir}")
+
+    @classmethod
+    def _normalize_log_files(cls, log_files) -> set[str]:
+        if log_files is None:
+            return {"results", "hourly", "daily"}
+        selected = set(log_files)
+        if "none" in selected:
+            return set()
+        if "all" in selected:
+            return set(cls._VALID_LOG_FILES)
+        unknown = selected - cls._VALID_LOG_FILES
+        if unknown:
+            raise ValueError(f"Unknown log file option(s): {sorted(unknown)}")
+        return selected
+
+    def set_run_label(
+        self,
+        exp_name: str,
+        alpha: float,
+        policy_type: str = "Hybrid",
+        shift_hour_start: int = 5,
+        results_only: bool = False,
+    ) -> None:
+        self._exp_name = exp_name
+        self._alpha = alpha
+        self._policy_type = policy_type
+        self._shift_hour_start = shift_hour_start
+        self._results_only = results_only
+        self.debug(
+            f"Run label: exp={exp_name} alpha={alpha} policy={policy_type} "
+            f"results_only={results_only} log_files={sorted(self.log_files)}"
+        )
+
+    def set_seed(self, seed: int) -> None:
+        self._close_seed_files()
+
+        self._current_seed = seed
+        self._reset_episode_totals()
+        self._reset_hour_accumulators()
+
+        alpha_str = str(self._alpha)
+        subdir_name = f"{self._exp_name}_alpha_{alpha_str}_seed_{seed}_{self._policy_type}"
+        subdir = self.run_dir / subdir_name
+        subdir.mkdir(parents=True, exist_ok=True)
+
+        active_files = {"results"} if self._results_only else self.log_files
+
+        if "results" in active_files:
+            self._results_fh = open(subdir / "results.csv", "w", newline="", encoding="utf-8")
+            self._results_w = csv.DictWriter(
+                self._results_fh, fieldnames=self._results_columns(), extrasaction="ignore"
+            )
+            self._results_w.writeheader()
+
+        if "hourly" in active_files:
+            self._hourly_fh = open(subdir / "hourly_metrics.csv", "w", newline="", encoding="utf-8")
+            self._hourly_w = csv.DictWriter(
+                self._hourly_fh, fieldnames=self._hourly_columns(), extrasaction="ignore"
+            )
+            self._hourly_w.writeheader()
+
+        if "daily" in active_files:
+            self._daily_fh = open(subdir / "daily_metrics.csv", "w", newline="", encoding="utf-8")
+            self._daily_w = csv.DictWriter(
+                self._daily_fh, fieldnames=self._daily_columns(), extrasaction="ignore"
+            )
+            self._daily_w.writeheader()
+
+        if "decisions" in active_files:
+            self._decisions_fh = open(subdir / "decisions.csv", "w", newline="", encoding="utf-8")
+            self._decisions_w = csv.DictWriter(
+                self._decisions_fh,
+                fieldnames=self._decisions_columns(),
+                extrasaction="ignore",
+                restval="",
+            )
+            self._decisions_w.writeheader()
+
+        self.debug(f"Seed {seed} -> {subdir_name}/")
+
+    def _reset_episode_totals(self) -> None:
+        self._ep_func_pickups = 0
+        self._ep_func_deliveries = 0
+        self._ep_onsite_repairs = 0
+        self._ep_depot_pickups = 0
+        self._ep_depot_deliveries = 0
+        self._ep_depot_visits = 0
+        self._ep_restored_onsite = 0
+        self._ep_restored_depot = 0
+        self._day_hourly_rows = []
+
+    def _close_seed_files(self) -> None:
+        for fh in (self._results_fh, self._hourly_fh, self._daily_fh, self._decisions_fh):
+            if fh is not None:
+                try:
+                    fh.close()
+                except Exception:
+                    pass
+        self._results_fh = self._hourly_fh = self._daily_fh = self._decisions_fh = None
+        self._results_w = self._hourly_w = self._daily_w = self._decisions_w = None
+
+    def capture_fleet_start(self, state) -> None:
+        all_bikes = list(state.get_all_bikes())
+        n_onsite = sum(1 for b in all_bikes if getattr(b, "damage_status", None) == "onsite")
+        n_depot = sum(1 for b in all_bikes if getattr(b, "damage_status", None) == "depot")
+        depot_queue = sum(
+            len(bl) for d in state.get_depots() for _, bl in getattr(d, "in_repair", [])
+        )
+        n_depot += depot_queue
+        total = len(all_bikes) + depot_queue
+        self._fleet_total_start = total
+        self._fleet_onsite_start = n_onsite
+        self._fleet_depot_start = n_depot
+        self._fleet_func_start = max(total - n_onsite - n_depot, 0)
+
+    def log_decision(self, row: dict) -> None:
+        fp = int(row.get("functional_pickups", 0))
+        fd = int(row.get("functional_deliveries", 0))
+        orr = int(row.get("onsite_repairs", 0))
+        dp = int(row.get("depot_pickups", 0))
+        dd = int(row.get("depot_deliveries", 0))
+        dv = 1 if row.get("is_at_depot", False) else 0
+        lfq = int(row.get("load_from_queue", 0))
+
+        self._ep_func_pickups += fp
+        self._ep_func_deliveries += fd
+        self._ep_onsite_repairs += orr
+        self._ep_depot_pickups += dp
+        self._ep_depot_deliveries += dd
+        self._ep_depot_visits += dv
+        self._ep_restored_onsite += orr
+        self._ep_restored_depot += lfq
+
+        self._hour_func_pickups += fp
+        self._hour_func_deliveries += fd
+        self._hour_onsite_repairs += orr
+        self._hour_depot_pickups += dp
+        self._hour_depot_deliveries += dd
+        self._hour_depot_visits += dv
+        self._hour_restored_onsite += orr
+        self._hour_restored_depot += lfq
+        station = row.get("current_station_id")
+        if station:
+            self._hour_stations.add(str(station))
+
+        if self._decisions_w is not None:
+            row["seed"] = self._current_seed
+            self._decisions_w.writerow(row)
+            self._decisions_fh.flush()
+
+    def log_hour(self, row: dict) -> None:
+        row.update({
+            "seed": self._current_seed,
+            "functional_pickups": self._hour_func_pickups,
+            "functional_deliveries": self._hour_func_deliveries,
+            "onsite_repairs": self._hour_onsite_repairs,
+            "depot_pickups": self._hour_depot_pickups,
+            "depot_visits": self._hour_depot_visits,
+            "depot_deliveries": self._hour_depot_deliveries,
+            "unique_stations_visited": len(self._hour_stations),
+            "restored_onsite": self._hour_restored_onsite,
+            "restored_depot": self._hour_restored_depot,
+            "total_restored": self._hour_restored_onsite + self._hour_restored_depot,
+        })
+        self._day_hourly_rows.append(dict(row))
+        if self._hourly_w is not None:
+            self._hourly_w.writerow(row)
+            self._hourly_fh.flush()
+        self._reset_hour_accumulators()
+
+    def _reset_hour_accumulators(self) -> None:
+        self._hour_func_pickups = 0
+        self._hour_func_deliveries = 0
+        self._hour_onsite_repairs = 0
+        self._hour_depot_pickups = 0
+        self._hour_depot_deliveries = 0
+        self._hour_depot_visits = 0
+        self._hour_restored_onsite = 0
+        self._hour_restored_depot = 0
+        self._hour_stations = set()
+
+    def log_day(self, day: int) -> None:
+        rows = [r for r in self._day_hourly_rows if r.get("day") == day]
+        if not rows:
+            return
+
+        def _sum(key: str) -> float:
+            return sum(r.get(key, 0) for r in rows)
+
+        eod = rows[-1]
+        daily_row = {
+            "seed": self._current_seed,
+            "day": day,
+            "shift_hour_start": self._shift_hour_start,
+            "shift_hour_end": (self._shift_hour_start + 24) % 24,
+            "daily_functional_pickups": _sum("functional_pickups"),
+            "daily_functional_deliveries": _sum("functional_deliveries"),
+            "daily_onsite_repairs": _sum("onsite_repairs"),
+            "daily_depot_pickups": _sum("depot_pickups"),
+            "daily_depot_visits": _sum("depot_visits"),
+            "daily_depot_deliveries": _sum("depot_deliveries"),
+            "daily_starvations": _sum("starvations"),
+            "daily_congestions": _sum("congestions"),
+            "daily_trips": _sum("total_trips"),
+            "daily_bike_departures": _sum("bike_departures"),
+            "daily_bike_arrivals": _sum("bike_arrivals"),
+            "daily_breakdowns_onsite": _sum("breakdowns_onsite"),
+            "daily_breakdowns_depot": _sum("breakdowns_depot"),
+            "daily_total_breakdowns": _sum("total_breakdowns"),
+            "daily_restored_onsite": _sum("restored_onsite"),
+            "daily_restored_depot": _sum("restored_depot"),
+            "daily_total_restored": _sum("total_restored"),
+            "eod_damaged_fraction_onsite": eod.get("damaged_fraction_onsite", 0.0),
+            "eod_damaged_fraction_depot": eod.get("damaged_fraction_depot", 0.0),
+        }
+        if self._daily_w is not None:
+            self._daily_w.writerow(daily_row)
+            self._daily_fh.flush()
+        self._day_hourly_rows = [r for r in self._day_hourly_rows if r.get("day") != day]
+
+    def log_episode(self, simulator, seed: int, duration: float, solve_time: float) -> None:
+        m = simulator.state.metrics
+
+        def ag(key: str):
+            return m.get_aggregate_value(key) or 0
+
+        total_trips = ag("trips")
+        failed_events = ag("failed events")
+        service_level = (1 - failed_events / total_trips) if total_trips > 0 else 0.0
+
+        final_bikes = _get_final_system_bikes(simulator)
+        final_bike_count = len(final_bikes)
+        total_end = final_bike_count or 1
+        n_onsite_end = sum(1 for b in final_bikes if getattr(b, "damage_status", None) == "onsite")
+        n_depot_end = sum(1 for b in final_bikes if getattr(b, "damage_status", None) == "depot")
+        n_func_end = max(final_bike_count - n_onsite_end - n_depot_end, 0)
+        avg_bike_km_driven = (
+            sum(getattr(bike, "total_distance_km", 0.0) for bike in final_bikes) / len(final_bikes)
+            if final_bikes else 0.0
+        )
+        t_start = self._fleet_total_start or 1
+
+        row = {
+            "seed": seed,
+            "exp_name": self._exp_name,
+            "alpha": self._alpha,
+            "duration_hours": duration,
+            "total_runtime_s": round(solve_time, 2),
+            "service_level": round(service_level, 4),
+            "avg_bike_km_driven": round(avg_bike_km_driven, 4),
+            "starvations": ag("starvations"),
+            "congestions": ag("long congestions"),
+            "total_trips": total_trips,
+            "bike_departures": ag("bike departure"),
+            "bike_arrivals": ag("bike arrival"),
+            "total_onsite_repairs": ag("onsite_repairs"),
+            "total_depot_pickups": ag("depot_pickups"),
+            "total_depot_deliveries": ag("depot_fixes"),
+            "total_depot_visits": self._ep_depot_visits,
+            "total_fixed_on_site": ag("onsite_repairs"),
+            "total_picked_up_to_depot": ag("depot_pickups"),
+            "total_depot_fixes": ag("depot_fixes"),
+            "total_bikes_redistributed_from_depot": ag("depot_redistributions"),
+            "total_functional_pickups": self._ep_func_pickups,
+            "total_functional_deliveries": self._ep_func_deliveries,
+            "broken_ratio_start_onsite": round(self._fleet_onsite_start / t_start, 4),
+            "broken_ratio_start_depot": round(self._fleet_depot_start / t_start, 4),
+            "functional_ratio_start": round(self._fleet_func_start / t_start, 4),
+            "broken_ratio_end_onsite": round(n_onsite_end / total_end, 4),
+            "broken_ratio_end_depot": round(n_depot_end / total_end, 4),
+            "functional_ratio_end": round(n_func_end / total_end, 4),
+            "broken_bikes_end_onsite": n_onsite_end,
+            "broken_bikes_end_depot": n_depot_end,
+            "new_breakdowns_onsite": ag("onsite_failures"),
+            "new_breakdowns_depot": ag("depot_failures"),
+            "restored_onsite": self._ep_restored_onsite,
+            "restored_depot": self._ep_restored_depot,
+        }
+        if self._results_w is not None:
+            self._results_w.writerow(row)
+            self._results_fh.flush()
+        self.debug(
+            f"Episode done: seed={seed} service_level={row['service_level']} "
+            f"starvations={row['starvations']} congestions={row['congestions']}"
+        )
+
+    def debug(self, msg: str) -> None:
+        if self._debug_fh is None:
+            return
+        ts = datetime.now().strftime("%H:%M:%S")
+        self._debug_fh.write(f"[{ts}] {msg}\n")
+        self._debug_fh.flush()
+
+    def close(self) -> None:
+        self._close_seed_files()
+        if self._debug_fh is not None:
+            try:
+                self._debug_fh.close()
+            except Exception:
+                pass
+        print(f"[SimulationRunLogger] Output written to: {self.run_dir}")
+
+
+RunLogger = SimulationRunLogger
  
  
 class LoggingSimulator(sim.Simulator):
@@ -207,7 +706,6 @@ class LoggingSimulator(sim.Simulator):
         
         # Get current cumulative values
         current_starvations = self.state.metrics.get_aggregate_value("starvations")
-        current_bike_starvations = self.state.metrics.get_aggregate_value("bike starvations")
         current_long_congestions = self.state.metrics.get_aggregate_value("long congestions")
         current_short_congestions = self.state.metrics.get_aggregate_value("short congestions")
         current_failed_events = self.state.metrics.get_aggregate_value("failed events")
@@ -238,7 +736,6 @@ class LoggingSimulator(sim.Simulator):
 
         # Calculate hourly deltas (difference from last hour)
         hourly_starvations = current_starvations - getattr(self, 'last_hour_starvations', 0)
-        hourly_bike_starvations = current_bike_starvations - getattr(self, 'last_hour_bike_starvations', 0)
         hourly_long_congestions = current_long_congestions - getattr(self, 'last_hour_long_congestions', 0)
         hourly_short_congestions = current_short_congestions - getattr(self, 'last_hour_short_congestions', 0)
         hourly_bike_pickups = current_bike_pickups - getattr(self, 'last_hour_bike_pickups', 0)
@@ -313,7 +810,6 @@ class LoggingSimulator(sim.Simulator):
             'hour_index': hour,
             'time_minutes': current_time,
             'starvations': hourly_starvations,
-            'bike_starvations': hourly_bike_starvations,
             'long_congestions': hourly_long_congestions,
             'short_congestions': hourly_short_congestions,
             'bike_pickups': hourly_bike_pickups,
@@ -356,7 +852,6 @@ class LoggingSimulator(sim.Simulator):
 
         # Update last-hour baselines for next delta calculation
         self.last_hour_starvations      = current_starvations
-        self.last_hour_bike_starvations = current_bike_starvations
         self.last_hour_long_congestions = current_long_congestions
         self.last_hour_short_congestions = current_short_congestions
         self.last_hour_bike_pickups     = current_bike_pickups
@@ -400,7 +895,6 @@ class LoggingSimulator(sim.Simulator):
         print(f"{'Metric':<35} {'This Hour':>12}")
         print(f"{'-'*70}")
         print(f"{'Starvations':<35} {hourly_starvations:>12}")
-        print(f"{'Bike Starvations':<35} {hourly_bike_starvations:>12}")
         print(f"{'Long Congestions':<35} {hourly_long_congestions:>12}")
         print(f"{'Short Congestions':<35} {hourly_short_congestions:>12}")
        # # print(f"{'Maintenance Violations':<35} {hourly_maintenance_violations:>12}")
@@ -535,14 +1029,62 @@ class LoggingSimulator(sim.Simulator):
             print(f"All {len(critical_bikes)} bikes have been reset to 0.0 criticality")
             print(f"{'='*60}\n")'''
  
-        '''print(f"\n{'='*40}")
-        print(f"DAY {day} SUMMARY (23:00)")
-        print(f"{'='*40}")
-        print(f"Accumulated Starvations: {starvations} (+{daily_starvations} today)")
-        print(f"Accumulated Congestions: {congestions} (+{daily_congestions} today)")
-        print(f"Bike Pickups:            {pickups} (+{daily_pickups} today)")
-        print(f"Bike Deliveries:         {deliveries} (+{daily_deliveries} today)")
-        print(f"{'='*40}\n")'''
+        # Aggregate today's hourly rows — mirrors run_logger.py log_day() aggregation
+        day_hours = [h for h in self.hourly_metrics if h['day'] == day]
+        daily_trips           = sum(h.get('total_trips', 0)    for h in day_hours)
+        daily_bike_departures = sum(h.get('bike_departures', 0) for h in day_hours)
+        daily_bike_arrivals   = sum(h.get('bike_arrivals', 0)   for h in day_hours)
+        daily_breakdowns_onsite  = sum(h.get('onsite_failures', 0) for h in day_hours)
+        daily_breakdowns_depot   = sum(h.get('depot_failures', 0)  for h in day_hours)
+        daily_total_breakdowns   = sum(h.get('total_failures', 0)  for h in day_hours)
+        eod_h = day_hours[-1] if day_hours else {}
+        eod_damaged_fraction_onsite = eod_h.get('damaged_fraction_onsite', 0.0)
+        eod_damaged_fraction_depot  = eod_h.get('damaged_fraction_depot',  0.0)
+
+        # Decision-side fields from run_logger (only available when attached)
+        daily_func_pickups = daily_func_deliveries = 0
+        daily_onsite_repairs = daily_depot_pickups = daily_depot_visits = daily_depot_deliveries = 0
+        daily_restored_onsite = daily_restored_depot = daily_total_restored = 0
+        if self.run_logger is not None:
+            rl_rows = [r for r in self.run_logger._day_hourly_rows if r.get('day') == day]
+            def _rl_sum(key):
+                return sum(r.get(key, 0) for r in rl_rows)
+            daily_func_pickups     = _rl_sum('functional_pickups')
+            daily_func_deliveries  = _rl_sum('functional_deliveries')
+            daily_onsite_repairs   = _rl_sum('onsite_repairs')
+            daily_depot_pickups    = _rl_sum('depot_pickups')
+            daily_depot_visits     = _rl_sum('depot_visits')
+            daily_depot_deliveries = _rl_sum('depot_deliveries')
+            daily_restored_onsite  = _rl_sum('restored_onsite')
+            daily_restored_depot   = _rl_sum('restored_depot')
+            daily_total_restored   = _rl_sum('total_restored')
+
+        print(f"\n{'='*70}")
+        print(f"DAY {day} SUMMARY")
+        print(f"{'='*70}")
+        print(f"  {'Metric':<42} {'Value':>10}")
+        print(f"  {'-'*54}")
+        print(f"  {'Starvations':<42} {daily_starvations:>10}")
+        print(f"  {'Congestions':<42} {daily_congestions:>10}")
+        print(f"  {'Total Trips':<42} {daily_trips:>10}")
+        print(f"  {'Bike Departures':<42} {daily_bike_departures:>10}")
+        print(f"  {'Bike Arrivals':<42} {daily_bike_arrivals:>10}")
+        print(f"  {'Breakdowns (On-site)':<42} {daily_breakdowns_onsite:>10}")
+        print(f"  {'Breakdowns (Depot)':<42} {daily_breakdowns_depot:>10}")
+        print(f"  {'Total Breakdowns':<42} {daily_total_breakdowns:>10}")
+        print(f"  {'EoD Damaged Fraction (On-site)':<42} {eod_damaged_fraction_onsite:>10.4f}")
+        print(f"  {'EoD Damaged Fraction (Depot)':<42} {eod_damaged_fraction_depot:>10.4f}")
+        if self.run_logger is not None:
+            print(f"  {'Functional Pickups':<42} {daily_func_pickups:>10}")
+            print(f"  {'Functional Deliveries':<42} {daily_func_deliveries:>10}")
+            print(f"  {'On-site Repairs':<42} {daily_onsite_repairs:>10}")
+            print(f"  {'Depot Pickups':<42} {daily_depot_pickups:>10}")
+            print(f"  {'Depot Visits':<42} {daily_depot_visits:>10}")
+            print(f"  {'Depot Deliveries':<42} {daily_depot_deliveries:>10}")
+            print(f"  {'Restored (On-site)':<42} {daily_restored_onsite:>10}")
+            print(f"  {'Restored (Depot)':<42} {daily_restored_depot:>10}")
+            print(f"  {'Total Restored':<42} {daily_total_restored:>10}")
+        print(f"{'='*70}\n")
 
         # --- Calculate Total City Health ---
         total_func = total_onsite = total_depot = 0
@@ -586,7 +1128,7 @@ class LoggingSimulator(sim.Simulator):
             self.log_hourly_metrics(final_hour, final_time)
  
  
-def write_results_to_file(filename, simulator, duration, solve_time, seed, append=False):
+def write_results_to_file(filename, simulator, duration, solve_time, seed, append=False, run_logger=None):
     """
     Write simulation results to a CSV file.
     """
@@ -610,7 +1152,6 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
                 'Total Runtime (s)',
                 'Failed Events',
                 'Starvations',
-                'Bike Starvations',
                 'Long Congestions',
                 'Short Congestions',
                 'Total Trips',
@@ -620,6 +1161,13 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
                 'Bike Deliveries',
                 'Bike Pickups',
                 'Service Level',
+                'Average Bike Km Driven',
+                'Broken Bikes Depot',
+                'Broken Bikes On-site',
+                'Total Fixed On-site',
+                'Total Picked Up To Go To Depot',
+                'Total Depot Fixes',
+                'Total Bikes Redistributed From Depot',
                 # #'Maintenance Time (minutes)',
                 # #'Maintenance Violations',
                 # #'Maintenance Starvations',
@@ -630,6 +1178,17 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
         total_trips = simulator.state.metrics.get_aggregate_value('trips')
         failed_events = simulator.state.metrics.get_aggregate_value('failed events')
         service_level = 1 - (failed_events / total_trips) if total_trips > 0 else 0.0
+        final_bikes = _get_final_system_bikes(simulator)
+        avg_bike_km_driven = (
+            sum(getattr(bike, 'total_distance_km', 0.0) for bike in final_bikes) / len(final_bikes)
+            if final_bikes else 0.0
+        )
+        broken_bikes_depot = sum(1 for bike in final_bikes if getattr(bike, 'damage_status', None) == 'depot')
+        broken_bikes_onsite = sum(1 for bike in final_bikes if getattr(bike, 'damage_status', None) == 'onsite')
+        total_fixed_onsite = simulator.state.metrics.get_aggregate_value('onsite_repairs') or 0
+        total_picked_up_to_go_to_depot = simulator.state.metrics.get_aggregate_value('depot_pickups') or 0
+        total_depot_fixes = simulator.state.metrics.get_aggregate_value('depot_fixes') or 0
+        total_bikes_redistributed_from_depot = simulator.state.metrics.get_aggregate_value('depot_redistributions') or 0
         
         # Write data row
         writer.writerow([
@@ -638,7 +1197,6 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
             round(solve_time, 2),
             failed_events,
             simulator.state.metrics.get_aggregate_value('starvations'),
-            simulator.state.metrics.get_aggregate_value('bike starvations'),
             simulator.state.metrics.get_aggregate_value('long congestions'),
             simulator.state.metrics.get_aggregate_value('short congestions'),
             total_trips,
@@ -648,6 +1206,13 @@ def write_results_to_file(filename, simulator, duration, solve_time, seed, appen
             simulator.state.metrics.get_aggregate_value('bike_deliveries'),
             simulator.state.metrics.get_aggregate_value('bike_pickups'),
             round(service_level, 4),
+            round(avg_bike_km_driven, 4),
+            broken_bikes_depot,
+            broken_bikes_onsite,
+            total_fixed_onsite,
+            total_picked_up_to_go_to_depot,
+            total_depot_fixes,
+            total_bikes_redistributed_from_depot,
             # simulator.state.metrics.get_aggregate_value('maintenance time'),
             # #simulator.state.metrics.get_aggregate_value('maintenance violations'),
            # # simulator.state.metrics.get_aggregate_value('maintenance_starvation'),
@@ -693,7 +1258,6 @@ def write_simulation_summary(filename, simulator, duration, policy, seed, num_ve
         # Get aggregate metrics
         # Regner bare med long congestions her
         starvations = simulator.state.metrics.get_aggregate_value('starvations')
-        bike_starvations = simulator.state.metrics.get_aggregate_value('bike starvations')
         congestions_long = simulator.state.metrics.get_aggregate_value('long congestions') # + simulator.state.metrics.get_aggregate_value('short congestions')
         # #maintenance_time = simulator.state.metrics.get_aggregate_value('maintenance time')
         # #maintenance_violations = simulator.state.metrics.get_aggregate_value('maintenance_violations')
@@ -722,7 +1286,6 @@ def write_simulation_summary(filename, simulator, duration, policy, seed, num_ve
         f.write(f"\n--- TRIP ACCOUNTING VERIFICATION ---\n")
         f.write(f"Attempted Bike Departures (trips metric): {trips}\n")
         f.write(f"Successful Bike Departures: {bike_departures}\n")
-        f.write(f"Bike Starvations: {bike_starvations}\n")
         #f.write(f"Maintenance Starvations: {maintenance_starvation}\n")
         #f.write(f"\nVerification: {bike_departures} + {bike_starvations} + {maintenance_starvation} = {bike_departures + bike_starvations + maintenance_starvation}\n")
         #if trips == bike_departures + bike_starvations + maintenance_starvation:
@@ -806,7 +1369,6 @@ def write_hourly_metrics_to_file(filename, simulator, seed):
             'Hour',
             'Time (minutes)',
             'Starvations',
-            'Bike Starvations',
             'Long Congestions',
             'Short Congestions',
             ## 'Maintenance Violations',
@@ -1201,6 +1763,41 @@ def write_vehicle_and_health_logs(filename_prefix, simulator, seed):
         df_health.insert(0, 'Seed', seed)
         df_health.to_csv(RESULTS_DIR / f"{filename_prefix}_daily_health_seed_{seed}.csv", index=False)'''
 
+def write_daily_metrics_to_file(filename, simulator, seed):
+    """Write per-day aggregated metrics to CSV (sim-side fields, no RunLogger required)."""
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    filepath = RESULTS_DIR / filename
+
+    days = sorted(set(h['day'] for h in simulator.hourly_metrics))
+    fieldnames = [
+        'seed', 'day',
+        'daily_starvations', 'daily_congestions',
+        'daily_trips', 'daily_bike_departures', 'daily_bike_arrivals',
+        'daily_breakdowns_onsite', 'daily_breakdowns_depot', 'daily_total_breakdowns',
+        'eod_damaged_fraction_onsite', 'eod_damaged_fraction_depot',
+    ]
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for day in days:
+            day_hours = [h for h in simulator.hourly_metrics if h['day'] == day]
+            eod = day_hours[-1] if day_hours else {}
+            writer.writerow({
+                'seed':                        seed,
+                'day':                         day,
+                'daily_starvations':           sum(h.get('starvations', 0)       for h in day_hours),
+                'daily_congestions':           sum(h.get('long_congestions', 0)  for h in day_hours),
+                'daily_trips':                 sum(h.get('total_trips', 0)        for h in day_hours),
+                'daily_bike_departures':       sum(h.get('bike_departures', 0)   for h in day_hours),
+                'daily_bike_arrivals':         sum(h.get('bike_arrivals', 0)     for h in day_hours),
+                'daily_breakdowns_onsite':     sum(h.get('onsite_failures', 0)   for h in day_hours),
+                'daily_breakdowns_depot':      sum(h.get('depot_failures', 0)    for h in day_hours),
+                'daily_total_breakdowns':      sum(h.get('total_failures', 0)    for h in day_hours),
+                'eod_damaged_fraction_onsite': eod.get('damaged_fraction_onsite', 0.0),
+                'eod_damaged_fraction_depot':  eod.get('damaged_fraction_depot',  0.0),
+            })
+
+
 def write_rl_decisions_to_file(filename_prefix, simulator, seed):
     """Extracts the RL logs from the policy and writes them to CSV."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -1222,5 +1819,4 @@ def write_rl_decisions_to_file(filename_prefix, simulator, seed):
         df_rl.to_csv(RESULTS_DIR / f"{filename_prefix}_rl_decisions_seed_{seed}.csv", index=False)
         # Clear the log to save memory for the next run
         vfa_policy.rl_logs = []
-
 

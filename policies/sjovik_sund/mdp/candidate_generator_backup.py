@@ -3,7 +3,6 @@ from typing import List
 from policies.sjovik_sund.mdp.mdp_formulation import MdpAction
 from policies.sjovik_sund.mdp.action_bridge import mdp_action_to_sim_action
 from settings import SERVICE_TIME_FROM, SYSTEM_CLOSE_HOUR, SYSTEM_OPEN_HOUR, TTV_MAX_OPERATIONAL_HOURS, LATE_SHIFT_HOURS, SERVICE_TIME_TO
-from helpers import format_sim_time
 
 
 def _rebalancing_options_range_based(functional_bikes, target, free_cap, n_vehicle_func, station_spare_cap):
@@ -46,9 +45,7 @@ def _rebalancing_options_target_centered(functional_bikes, target, free_cap, n_v
 def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
     """
     Returns discrete sets of operational actions for the current location.
-    Each profile is a dict:
-    {'rebalancing': x, 'onsite_repairs': y, 'depot_removals': z,
-     'depot_dropoffs': u, 'load_from_queue': w}
+    Each profile is a dict: {'rebalancing': x, 'onsite_repairs': y, 'depot_removals': z, 'load_from_queue': w}
     """
     profiles = []
 
@@ -58,31 +55,19 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
         free_cap = max(0, vehicle_capacity - n_vehicle)
 
         repaired_available = len(getattr(vehicle.location, "fixed_queue", {}))
-        in_repair_count = sum(len(bikes) for _, bikes in getattr(vehicle.location, "in_repair", []))
-        # Depot-damaged cargo is dropped off first, so it frees up space for repaired bikes.
-        n_depot_on_vehicle = sum(1 for b in vehicle.get_bike_inventory()
-                                 if getattr(b, 'damage_status', None) == 'depot')
-        n_func_on_vehicle = sum(1 for b in vehicle.get_bike_inventory()
-                                if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])
-        effective_free_cap = free_cap + n_depot_on_vehicle
-        will_load = min(repaired_available, effective_free_cap)
-
-        print(
-            f"[DEPOT VISIT] {format_sim_time(state.time)} "
-            f"| fixed_queue={repaired_available} in_repair={in_repair_count} "
-            f"| vehicle: {n_func_on_vehicle} func + {n_depot_on_vehicle} depot-broken / cap={vehicle_capacity} "
-            f"| eff_free={effective_free_cap} → will_load={will_load}"
-        )
+        # Broken bikes on vehicle are dropped off first, so they free up space for repaired bikes
+        n_broken_on_vehicle = sum(1 for b in vehicle.get_bike_inventory()
+                                  if getattr(b, 'damage_status', None) in ['depot', 'onsite'])
+        effective_free_cap = free_cap + n_broken_on_vehicle
 
         profiles.append({
             'rebalancing': 0, 'onsite_repairs': 0, 'depot_removals': 0,
-            'depot_dropoffs': n_depot_on_vehicle,
-            'load_from_queue': will_load
+            'load_from_queue': min(repaired_available, effective_free_cap)
         })
-        '''profiles.append({
+        profiles.append({
             'rebalancing': 0, 'onsite_repairs': 0, 'depot_removals': 0,
             'load_from_queue': 0
-        })'''
+        })
         return profiles
 
     # --- STATION LOGIC ---
@@ -98,11 +83,7 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
     if maintenance_enabled:
         station_bikes = vehicle.location.get_bikes()
         num_depot_broken = len([b for b in station_bikes if getattr(b, 'damage_status', None) == 'depot'])
-        num_onsite_broken = len([
-            b for b in station_bikes
-            if getattr(b, 'damage_status', None) == 'onsite'
-            and not getattr(b, "onsite_repair_in_progress", False)
-        ])
+        num_onsite_broken = len([b for b in station_bikes if getattr(b, 'damage_status', None) == 'onsite'])
     else:
         num_depot_broken = 0
         num_onsite_broken = 0
@@ -139,7 +120,6 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
                         'rebalancing': reb,
                         'onsite_repairs': onsite,
                         'depot_removals': valid_depot_removal,
-                        'depot_dropoffs': 0,
                         'load_from_queue': 0,
                         'label': label
                     })
@@ -235,14 +215,7 @@ def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled:
 
         # Maintenance need — count both depot and onsite broken bikes
         if maintenance_enabled:
-            broken = len([
-                b for b in s.get_bikes()
-                if getattr(b, 'damage_status', None) == 'depot'
-                or (
-                    getattr(b, 'damage_status', None) == 'onsite'
-                    and not getattr(b, "onsite_repair_in_progress", False)
-                )
-            ])
+            broken = len([b for b in s.get_bikes() if getattr(b, 'damage_status', None) in ('depot', 'onsite')])
             maint_score = broken * 1.5
             score += maint_score
 
@@ -320,17 +293,16 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool, n_routing: in
     cur_id = vehicle.location.id
     at_depot = vehicle.is_at_depot()
 
+    broken_inventory = sum(1 for b in vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) in ['depot', 'onsite'])
     n_vehicle = len(vehicle.get_bike_inventory())
     n_vehicle_func = sum(1 for b in vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) not in ['depot', 'onsite'])
-    n_vehicle_depot = sum(1 for b in vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) == 'depot')
-    n_vehicle_other = n_vehicle - n_vehicle_func - n_vehicle_depot
     vehicle_capacity = int(getattr(vehicle, "bike_inventory_capacity", getattr(vehicle, "capacity", n_vehicle)))
 
     for op in op_profiles:
-        depot_cargo_after_op = n_vehicle_depot + op['depot_removals'] - op['depot_dropoffs']
+        broken_after_op = broken_inventory + op['depot_removals']
         # Note: rebalancing < 0 means pickup (vehicle gains bikes), rebalancing > 0 means delivery (vehicle loses bikes)
         functional_after_op = n_vehicle_func - op['rebalancing'] + op['load_from_queue']
-        total_after_op = depot_cargo_after_op + n_vehicle_other + functional_after_op
+        total_after_op = broken_after_op + functional_after_op
         free_space_post = max(0, vehicle_capacity - total_after_op)
 
         if total_after_op > vehicle_capacity:
@@ -348,14 +320,13 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool, n_routing: in
         for route in routing_targets:
             is_depot = any(d.id == route for d in state.get_depots())
 
-            '''# Pruning 1: Only go to depot if we have broken bikes (skip if strictly moving functional bikes there)
+            # Pruning 1: Only go to depot if we have broken bikes (skip if strictly moving functional bikes there)
             if is_depot and broken_after_op == 0 and op['load_from_queue'] == 0:
                 continue
 
-            # Pruning 2: If carrying enough broken bikes, ONLY route to depot
-            depot_force_threshold = 0.8  # mirrors GreedyMaintenancePolicy.depot_load_threshold
-            if broken_after_op >= depot_force_threshold * vehicle_capacity and not is_depot:
-                continue'''
+            # Pruning 2: If we are fully loaded with broken bikes, ONLY go to depot
+            if broken_after_op >= vehicle_capacity and not is_depot:
+                continue
 
             mdp_action = MdpAction(
                 current_station=cur_id,
@@ -363,8 +334,7 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool, n_routing: in
                 onsite_repairs=int(op['onsite_repairs']),
                 depot_removals=int(op['depot_removals']),
                 load_from_queue=int(op['load_from_queue']),
-                next_station=route,
-                depot_dropoffs=int(op['depot_dropoffs']),
+                next_station=route
             )
             sim_actions.append(mdp_action_to_sim_action(mdp_action, state, vehicle))
             if return_metadata:
@@ -381,8 +351,7 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool, n_routing: in
         fallback_action = MdpAction(
             current_station=cur_id,
             rebalancing=0, onsite_repairs=0, depot_removals=0, load_from_queue=0,
-            next_station=fallback_route,
-            depot_dropoffs=0,
+            next_station=fallback_route
         )
         sim_actions.append(mdp_action_to_sim_action(fallback_action, state, vehicle))
         if return_metadata:
@@ -391,3 +360,4 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool, n_routing: in
     if return_metadata:
         return sim_actions, metadata
     return sim_actions
+

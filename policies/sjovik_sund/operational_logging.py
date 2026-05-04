@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterable, Optional
+from helpers import format_sim_time
 
 
 @dataclass
@@ -20,12 +21,7 @@ class OperationalLogger:
     prefix: str = "[OPS]"
 
     def _fmt_time(self, minutes: float) -> str:
-        total = int(minutes)
-        day = total // (24 * 60)
-        rem = total % (24 * 60)
-        hour = rem // 60
-        minute = rem % 60
-        return f"day={day} {hour:02d}:{minute:02d} (t={minutes:.2f})"
+        return format_sim_time(minutes)
 
     def _emit(self, message: str) -> None:
         if self.enabled:

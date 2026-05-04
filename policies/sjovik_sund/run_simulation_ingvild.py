@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
- 
-#mkdir -p policies/sjovik_sund/output && python policies/sjovik_sund/run_simulation.py --duration 24 > policies/sjovik_sund/output/output.txt
- 
+
+# python policies/sjovik_sund/run_simulation_ingvild.py --vfa-model models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl --active-features rebalancing_imbalance squared_starvation_penalty squared_congestion_penalty gross_starvation_risk gross_congestion_risk --duration 672
+
+
 ######################################################
 import os
 import sys
@@ -29,9 +30,12 @@ import policies
 import policies.sjovik_sund.sjovik_sund_policy
 import policies.sjovik_sund.XPILOT_policy
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+from policies.sjovik_sund.vfa.HybridRolloutPolicy import HybridRolloutPolicy
 from policies.sjovik_sund.mdp.reward import RewardCalculator, RewardConfig
 from policies.do_nothing_policy import DoNothing
 from policies.greedy_policy import GreedyPolicy
+from policies.greedy_policy_V2 import GreedyPolicyV2
+from policies.greedy_policy_maintenance import GreedyMaintenancePolicy
 
 import sim
 import demand
@@ -41,15 +45,18 @@ from settings import *
 import time
 import multiprocessing as mp
 
-MAINTENANCE_ENABLED = False
+# Maintenance is enabled iff component failures are enabled in settings
+MAINTENANCE_ENABLED = ENABLE_COMPONENT_FAILURES
  
 
 # Import logging utilities
 from policies.sjovik_sund.simulation_logging import (
     LoggingSimulator,
+    SimulationRunLogger,
     write_bike_movements_to_file,
     #write_hourly_metrics_to_file,
     write_results_to_file,
+    write_daily_metrics_to_file,
     #write_simulation_summary,
     #write_vehicle_visits_to_file,
     #write_station_hourly_metrics_to_file,
@@ -71,8 +78,6 @@ class SimulationConfig:
     
     # === Time Settings ===
     start_hour: int = 5  # 5 AM start time
-    
-    
     
     # === Instance Settings ===
     default_instance: str = "TD_W34_old"
@@ -105,10 +110,10 @@ class SimulationConfig:
     default_maintenance_limit: float = 0.2
     
     # === CLI Defaults ===
-    default_seed: int = 1
+    default_seed: int = 42
     default_nsims: int = 1
     default_vehicles: int = 1
-    default_duration_hours: int = 24*10 # 5 days (3mnd)
+    default_duration_hours: int = 1344 
 
     # === Operational Debug Logging ===
     operation_logging_enabled: bool = False
@@ -274,14 +279,25 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
         weights = getattr(policy, "weights", None)
         alpha_value = weights[3] if weights and len(weights) > 3 else None
 
-        write_results_to_file(filename, simulator, duration, solve_time, seed, append=append_to_results)
+        write_results_to_file(
+            filename,
+            simulator,
+            duration,
+            solve_time,
+            seed,
+            append=append_to_results,
+            run_logger=run_logger,
+        )
+
+        daily_metrics_filename = f"{base_filename}_daily_metrics_seed_{seed}.csv"
+        write_daily_metrics_to_file(daily_metrics_filename, simulator, seed)
 
         bike_movements_filename = f"{base_filename}_bike_movements_seed_{seed}.csv"
         write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
 
         if ENABLE_COMPONENT_FAILURES:
             component_failures_filename = f"{base_filename}_component_failures_seed_{seed}.csv"
-            write_component_failures_to_file(component_failures_filename, simulator, seed, alpha_value)
+            #write_component_failures_to_file(component_failures_filename, simulator, seed, alpha_value)
 
         vehicle_health_log_filename = f"{base_filename}_vehicle_health_seed_{seed}.csv"
         write_vehicle_and_health_logs(vehicle_health_log_filename, simulator, seed)
@@ -405,6 +421,13 @@ if __name__ == "__main__":
         description="Run Sjovik & Sund simulation with different alpha values."
     )
     parser.add_argument(
+        "--policy",
+        type=str,
+        choices=["vfa", "hybrid", "greedy-maintenance", "greedy-v2", "greedy", "do-nothing", "xpilot"],
+        default="vfa",
+        help="Policy to run (default: vfa). Use 'hybrid' for HybridRolloutPolicy.",
+    )
+    parser.add_argument(
         "--alphas",
         type=float,
         nargs="+",
@@ -459,24 +482,90 @@ if __name__ == "__main__":
     parser.add_argument(
         "--vfa-model",
         type=str,
-        default=None,
+        default="models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl",
         help="Path to trained VFA model (.pkl file).",
     )
     parser.add_argument(
         "--active-features",
         type=str,
         nargs="+",
-        default= None,
+        default=[
+            "rebalancing_imbalance",
+            "squared_starvation_penalty",
+            "squared_congestion_penalty",
+            "gross_starvation_risk",
+            "gross_congestion_risk",
+        ],
         help=(
             "Feature names the pkl was trained with. Required for old pkls that "
             "predate feature_names storage. New pkls load features automatically."
         ),
     )
     parser.add_argument(
-        "--num-scenarios",
+        "--num-scenarios", "--scenarios",
+        dest="num_scenarios",
         type=int,
-        default=50,
-        help="Number of stochastic scenarios per candidate in RolloutPolicy (default: 50).",
+        default=8,
+        help="Number of stochastic scenarios per candidate in HybridRolloutPolicy (default: 8).",
+    )
+    parser.add_argument(
+        "--lookahead",
+        type=float,
+        default=60.0,
+        help="Hybrid rollout horizon in minutes (default: 60).",
+    )
+    parser.add_argument(
+        "--n-time-steps",
+        type=int,
+        default=12,
+        help="Number of analytical demand sub-steps in the rollout horizon (default: 12).",
+    )
+    parser.add_argument(
+        "--n-routing",
+        type=int,
+        default=10,
+        help="Routing candidates per operational profile in candidate generation (default: 10).",
+    )
+    parser.add_argument(
+        "--rollout-degradation",
+        action="store_true",
+        default=False,
+        help="Sample component failures inside the analytical rollout horizon.",
+    )
+    parser.add_argument(
+        "--hybrid-debug",
+        action="store_true",
+        default=False,
+        help="Print Hybrid rollout candidate tables at each decision.",
+    )
+    parser.add_argument(
+        "--log-files",
+        nargs="+",
+        choices=["results", "hourly", "daily", "decisions", "debug", "all", "none"],
+        default=None,
+        help=(
+            "Centralized run_logs outputs to write. Examples: "
+            "'--log-files results daily', '--log-files all', '--log-files none'. "
+            "Default: results."
+        ),
+    )
+    parser.add_argument(
+        "--run-logger",
+        action="store_true",
+        default=False,
+        help="Deprecated alias for '--log-files results hourly daily debug'.",
+    )
+    parser.add_argument(
+        "--log-decisions",
+        action="store_true",
+        default=False,
+        help="Deprecated alias that adds 'decisions' to --log-files.",
+    )
+    parser.add_argument(
+        "--no-csv",
+        action="store_true",
+        default=False,
+        help="Skip legacy simulation_results/csv writers and rely on centralized run_logs output.",
     )
 
     args = parser.parse_args()
@@ -502,29 +591,91 @@ if __name__ == "__main__":
 
     timestamp = datetime.now().strftime("%m%d%H%M")
 
-    policy_dict = {
-        #f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": DoNothing(),
-        #f"Greedy_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": GreedyPolicy(),
-        #f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
-         #   time_horizon=40, max_depth=2, num_successors=5, number_of_scenarios=100
-        #),
-    }
+    def _resolve_log_files() -> list[str]:
+        if args.log_files is not None:
+            selected = list(args.log_files)
+        elif args.run_logger:
+            selected = ["results", "hourly", "daily", "debug"]
+        else:
+            selected = ["results"]
 
-    if args.vfa_model:
+        if args.log_decisions:
+            if "none" in selected:
+                selected = ["decisions"]
+            elif "all" not in selected and "decisions" not in selected:
+                selected.append("decisions")
+        return selected
+
+    log_files = _resolve_log_files()
+    run_logger = None if "none" in log_files else SimulationRunLogger(log_files=log_files)
+
+    policy_dict = {}
+
+    def _load_vfa_policy() -> tuple[LinearVFAPolicy, str]:
         load_kwargs = {}
         if args.active_features:
             load_kwargs["active_features"] = args.active_features
         vfa_policy = LinearVFAPolicy.load(Path(args.vfa_model), **load_kwargs)
+        vfa_policy.learning_mode = False
         import re
         stem = Path(args.vfa_model).stem          # e.g. "vfa_Squared_Temporal_seed1000"
         exp_name = re.sub(r"^vfa_|_seed\d+$", "", stem)  # e.g. "Squared_Temporal"
+        return vfa_policy, exp_name
+
+    if args.policy == "do-nothing":
+        policy_name = f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+        policy_dict[policy_name] = DoNothing()
+
+    elif args.policy == "greedy":
+        policy_name = f"Greedy_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+        policy_dict[policy_name] = GreedyPolicy()
+
+    elif args.policy == "greedy-v2":
+        policy_name = f"GreedyV2_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+        policy_dict[policy_name] = GreedyPolicyV2()
+
+    elif args.policy == "greedy-maintenance":
+        policy_name = f"GreedyMaintenance_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+        policy_dict[policy_name] = GreedyMaintenancePolicy()
+
+    elif args.policy == "xpilot":
+        policy_name = f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+        policy_dict[policy_name] = policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
+            time_horizon=40, max_depth=2, num_successors=5, number_of_scenarios=100
+        )
+
+    elif args.policy == "vfa":
+        vfa_policy, exp_name = _load_vfa_policy()
+        if run_logger is not None:
+            run_logger.set_run_label(exp_name, 0.0, policy_type="VFA")
+            vfa_policy.logger = run_logger
         policy_name_vfa = (
             f"VFA_{exp_name}_{args.instance}_V{num_vehicles}_D{duration}h_"
             f"{timestamp}_seed{start_seed}"
         )
         policy_dict[policy_name_vfa] = vfa_policy
 
- 
+    elif args.policy == "hybrid":
+        vfa_policy, exp_name = _load_vfa_policy()
+        if run_logger is not None:
+            run_logger.set_run_label(exp_name, 0.0, policy_type="Hybrid")
+            vfa_policy.logger = run_logger
+        hybrid_policy = HybridRolloutPolicy(
+            trained_vfa=vfa_policy,
+            lookahead_minutes=args.lookahead,
+            num_scenarios=args.num_scenarios,
+            n_routing_candidates=args.n_routing,
+            n_time_steps=args.n_time_steps,
+            use_degradation=args.rollout_degradation,
+            logger=run_logger,
+            debug_print=args.hybrid_debug,
+        )
+        policy_name_hybrid = (
+            f"Hybrid_{exp_name}_H{int(args.lookahead)}_S{args.num_scenarios}_"
+            f"{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+        )
+        policy_dict[policy_name_hybrid] = hybrid_policy
+
     # Start timing
     start_time = time.time()
  
@@ -537,7 +688,13 @@ if __name__ == "__main__":
         use_multiprocessing=False,
         instance_name=args.instance,
         config=config,
+        run_logger=run_logger,
+        write_csv=not args.no_csv,
     )
+
+    if run_logger is not None:
+        run_logger.close()
+        print(f"Centralized logging output written to: {run_logger.run_dir}")
  
     # End timing
     total_duration = time.time() - start_time
