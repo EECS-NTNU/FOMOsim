@@ -312,12 +312,12 @@ def train(
     )
     
     # --- TD(λ) ---
-    vfa_policy.use_td_lambda = False
+    vfa_policy.use_td_lambda = True
     vfa_policy.td_lambda = 0.8
 
     # --- Greedy comparison diagnostic ---
     # Set to True to produce greedy_vs_vfa_decision_comparison.csv alongside the model.
-    GREEDY_COMPARISON_LOG = True
+    GREEDY_COMPARISON_LOG = False
     vfa_policy.log_greedy_comparison = GREEDY_COMPARISON_LOG
 
     # --- EXPERIENCE REPLAY TOGGLE ---

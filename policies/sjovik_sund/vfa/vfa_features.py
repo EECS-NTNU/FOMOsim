@@ -342,10 +342,10 @@ def extract(
         phi_cannibalization = float(depot_cargo_veh) / K
 
         # MP2: Global Onsite Backlog — normalised by expected max onsite broken (≈15% of fleet)
-        phi_onsite_backlog = float(np.sum(onsite)) / (F_safe * 0.15)
+        phi_onsite_backlog = float(np.sum(onsite)) / (F_safe * 0.30)
 
         # MP2b: Global Depot Backlog — normalised by expected max depot broken (≈15% of fleet)
-        phi_depot_backlog = float(np.sum(depot)) / (F_safe * 0.15)
+        phi_depot_backlog = float(np.sum(depot)) / (F_safe * 0.30)
 
         # MP3: Demand-Weighted Depot Backlog (FIXED)
         phi_dw_depot_backlog = float(np.dot(depot, gross_outflow)) / dw_denom
