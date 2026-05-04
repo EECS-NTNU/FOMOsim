@@ -135,7 +135,14 @@ def evaluate_model(
     alpha_str = f"_A{alpha_match.group(1)}" if alpha_match else ""
 
     if run_logger is not None:
-        run_logger.set_run_label(exp_name, alpha_val, policy_type="Hybrid")
+        run_logger.set_run_label(
+            exp_name,
+            alpha_val,
+            policy_type="hybrid",
+            duration_hours=duration_hours,
+            num_vehicles=vehicles,
+            instance_name=instance,
+        )
         trained_vfa.logger = run_logger
 
     hybrid_policy = HybridRolloutPolicy(
@@ -201,7 +208,15 @@ def run_batch(
         print(f"\n{'='*60}")
         print("  RUNNING BASELINE: DoNothing")
         print(f"{'='*60}")
-        run_logger.set_run_label("DoNothing_Baseline", 0.0, policy_type="DoNothing", results_only=True)
+        run_logger.set_run_label(
+            "DoNothing_Baseline",
+            0.0,
+            policy_type="do-nothing",
+            duration_hours=duration_hours,
+            num_vehicles=vehicles,
+            instance_name=instance,
+            results_only=True,
+        )
         test_policies(
             list_of_seeds=list(range(start_seed, start_seed + episodes)),
             policy_dict={"DoNothing_Baseline": DoNothing()},
@@ -267,7 +282,14 @@ def run_batch(
             eval_seeds = list(range(start_seed, start_seed + episodes))
 
             if run_vfa:
-                run_logger.set_run_label(exp_name, alpha, policy_type="VFA")
+                run_logger.set_run_label(
+                    exp_name,
+                    alpha,
+                    policy_type="vfa",
+                    duration_hours=duration_hours,
+                    num_vehicles=vehicles,
+                    instance_name=instance,
+                )
                 vfa.logger = run_logger
                 test_policies(
                     list_of_seeds=eval_seeds,
@@ -282,7 +304,14 @@ def run_batch(
                 )
 
             if run_hybrid:
-                run_logger.set_run_label(exp_name, alpha, policy_type="Hybrid")
+                run_logger.set_run_label(
+                    exp_name,
+                    alpha,
+                    policy_type="hybrid",
+                    duration_hours=duration_hours,
+                    num_vehicles=vehicles,
+                    instance_name=instance,
+                )
                 vfa.logger = run_logger
                 hybrid = HybridRolloutPolicy(
                     trained_vfa=vfa,
@@ -370,7 +399,15 @@ def run_single(
         print(f"\n{'='*60}")
         print("  RUNNING BASELINE: DoNothing")
         print(f"{'='*60}")
-        run_logger.set_run_label("DoNothing_Baseline", 0.0, policy_type="DoNothing", results_only=True)
+        run_logger.set_run_label(
+            "DoNothing_Baseline",
+            0.0,
+            policy_type="do-nothing",
+            duration_hours=duration_hours,
+            num_vehicles=vehicles,
+            instance_name=instance,
+            results_only=True,
+        )
         test_policies(
             list_of_seeds=eval_seeds,
             policy_dict={"DoNothing_Baseline": DoNothing()},
@@ -391,7 +428,14 @@ def run_single(
             print(f"\n{'='*60}")
             print(f"  RUNNING VFA-only: {exp_name}")
             print(f"{'='*60}")
-            run_logger.set_run_label(exp_name, alpha_val, policy_type="VFA")
+            run_logger.set_run_label(
+                exp_name,
+                alpha_val,
+                policy_type="vfa",
+                duration_hours=duration_hours,
+                num_vehicles=vehicles,
+                instance_name=instance,
+            )
             trained_vfa.logger = run_logger
             test_policies(
                 list_of_seeds=eval_seeds,
