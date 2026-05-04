@@ -9,12 +9,12 @@ Hybrid "Horizontal" ADP (Ulmer 2020 / Brinkmann 2019-2020):
   - Once frozen, the VFA acts as a tail-value estimator inside an online
     Rollout Algorithm (implemented separately).
 
-Episode structure  (14-day simulation per episode)
+Episode structure  (28-day simulation per episode)
 ──────────────────────────────────────────────────
-  Days 1 - 4   Warm-up   : GreedyPolicy drives the system.
+  Days 1 - 7   Warm-up   : GreedyPolicy drives the system.
                             No TD updates → builds up a realistic
                             "messy" state without biasing θ.
-  Days 5 - 14  Learning  : LinearVFAPolicy.
+  Days 8 - 28  Learning  : LinearVFAPolicy.
                             TD(0) updates occur at every vehicle decision.
 
 Usage
@@ -55,9 +55,9 @@ from settings import ENABLE_COMPONENT_FAILURES
 
 NUM_EPISODES  : int   = 300      # total training episodes
 
-EPISODE_DAYS  : int   = 42       # days per episode (total)
-WARMUP_DAYS   : int   = 28         # greedy warm-up, no TD updates
-LEARNING_DAYS : int   = 14        # VFA + TD(0)  (days 5 – 14)
+EPISODE_DAYS  : int   = 28        # days per episode (total)
+WARMUP_DAYS   : int   = 7         # greedy warm-up, no TD updates
+LEARNING_DAYS : int   = 21        # VFA + TD(0) 
 
 # --- Learning Rate (Alpha) & Exploration (Epsilon) ---
 ALPHA_START   : float = 0.05   # initial alpha for TD updates, will be overwritten in case of argument passing

@@ -384,11 +384,11 @@ if __name__ == "__main__":
         epilog=f"Available experiments: {', '.join(EXPERIMENTS)}",
     )
     parser.add_argument(
-        "--seeds", nargs="+", type=int, default= [42], metavar="SEED",
+        "--seeds", nargs="+", type=int, default= [1000], metavar="SEED",
         help="Seed offsets to run (one independent training run per seed)",
     )
     parser.add_argument(
-        "--episodes", type=int, default=350,
+        "--episodes", type=int, default=300,
         help="Training episodes per run",
     )
     parser.add_argument(
