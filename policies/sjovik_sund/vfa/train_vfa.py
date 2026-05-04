@@ -317,7 +317,7 @@ def train(
 
     # --- Greedy comparison diagnostic ---
     # Set to True to produce greedy_vs_vfa_decision_comparison.csv alongside the model.
-    GREEDY_COMPARISON_LOG = True
+    GREEDY_COMPARISON_LOG = False
     vfa_policy.log_greedy_comparison = GREEDY_COMPARISON_LOG
 
     # --- EXPERIENCE REPLAY TOGGLE ---
