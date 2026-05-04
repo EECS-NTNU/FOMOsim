@@ -353,3 +353,98 @@ def encode_state(mdp_state: MDPState, dest_travel_times: dict = None) -> Dict[st
         "vehicle_block":  encode_vehicle_block(mdp_state),
         "global_context": encode_global_context(mdp_state),
     }
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# VFA FEATURES MODE  — flat hand-crafted feature vector
+# ═════════════════════════════════════════════════════════════════════════════
+# Drop-in replacement for encode_state() when USE_VFA_FEATURES=True in
+# train_nn_rollout.py.  Returns the same dict shape so _compute_td_loss
+# and NNLearningPolicy need zero changes.  station_block and vehicle_block
+# are dummy [1,1] zeros; global_context carries the full VFA feature vector.
+# FlatNNValueNetwork (nn_model.py) ignores the dummies and reads global_context.
+
+VFA_FEATURE_DIM = 40  # must match vfa_features.extract() output
+
+def encode_state_vfa(mdp_state: MDPState, dest_travel_times: dict = None) -> Dict[str, torch.Tensor]:
+    """
+    Encode post-decision MDPState using the hand-crafted VFA features from
+    vfa_features.py — the same features LinearVFAPolicy uses.
+
+    The signature matches encode_state() so it can be swapped in by aliasing:
+        from nn_state_encoder import encode_state_vfa as encode_state
+    dest_travel_times is accepted but unused (kept for interface compatibility).
+    """
+    import numpy as np
+    from policies.sjovik_sund.vfa.vfa_features import extract as _vfa_extract
+
+    sorted_sids = sorted(mdp_state.stations.keys())
+    N = len(sorted_sids)
+
+    func     = np.array([mdp_state.stations[s].functional            for s in sorted_sids], dtype=np.float64)
+    onsite   = np.array([mdp_state.stations[s].onsite                for s in sorted_sids], dtype=np.float64)
+    depot_st = np.array([mdp_state.stations[s].depot                 for s in sorted_sids], dtype=np.float64)
+    target   = np.array([mdp_state.stations[s].target                for s in sorted_sids], dtype=np.float64)
+    caps     = np.array([mdp_state.stations[s].capacity              for s in sorted_sids], dtype=np.float64)
+    leave_a  = np.array([mdp_state.stations[s].expected_departure_rate for s in sorted_sids], dtype=np.float64)
+    arrive_a = np.array([mdp_state.stations[s].expected_arrival_rate   for s in sorted_sids], dtype=np.float64)
+
+    tt = mdp_state.travel_times or {}
+    dist_to_stations = np.array([tt.get(s, 0.0) for s in sorted_sids], dtype=np.float64)
+
+    v = mdp_state.vehicles.get(mdp_state.active_vehicle_id) if mdp_state.active_vehicle_id else None
+    func_cargo  = float(v.functional_cargo) if v else 0.0
+    depot_cargo = float(v.depot_cargo)      if v else 0.0
+    veh_cap     = int(v.capacity)           if v else 1
+
+    fleet_size = float(func.sum() + onsite.sum() + depot_st.sum() + func_cargo + depot_cargo)
+
+    if mdp_state.depot is not None:
+        _ir = mdp_state.depot.in_repair
+        _fq = mdp_state.depot.fixed_queue
+        depot_in_repair = float(len(_ir) if hasattr(_ir, '__len__') else _ir)
+        depot_fixed_q   = float(len(_fq) if hasattr(_fq, '__len__') else _fq)
+    else:
+        depot_in_repair = 0.0
+        depot_fixed_q   = 0.0
+
+    time_of_day     = mdp_state.time % 1440.0
+    shift_remaining = max(0.0, _SHIFT_END_MIN - time_of_day)
+    lambda_max      = max(float(leave_a.max()), 1.0)  # proxy for lambda_max_system
+
+    # Positional args for params 0-15 to avoid name mismatches across vfa_features versions.
+    # Keyword args start at param 16 (all have defaults) — these names are stable.
+    feats = _vfa_extract(
+        func,               # 0  func
+        onsite,             # 1  onsite
+        depot_st,           # 2  depot
+        target,             # 3  target
+        caps,               # 4  capacities
+        leave_a,            # 5  leave_activity / activity (name varies across versions)
+        arrive_a,           # 6  arrive_activity (name varies; omit in old single-activity versions)
+        dist_to_stations,   # 7  dist_to_stations
+        func_cargo,         # 8  func_cargo_veh
+        depot_cargo,        # 9  depot_cargo_veh
+        veh_cap,            # 10 vehicle_capacity
+        0.0,                # 11 dist_to_depot
+        lambda_max,         # 12 lambda_max_system
+        1.0,                # 13 max_gravity (unnormalized; only scales gravity features)
+        fleet_size,         # 14 fleet_size
+        N,                  # 15 total_stations
+        depot_in_repair=depot_in_repair,
+        depot_fixed_queue=depot_fixed_q,
+        maintenance_enabled=True,
+        logistics_enabled=True,   # SLC(5) gives total 28 features
+        time_remaining=shift_remaining,
+        shift_length=_SHIFT_LENGTH_MIN,
+        demand_horizon_enabled=True,
+        current_time_minutes=mdp_state.time,
+        current_day_of_week=int(mdp_state.time // 1440) % 7,
+    )
+
+    feat_tensor = torch.tensor(feats, dtype=torch.float32)  # [VFA_FEATURE_DIM]
+    return {
+        "station_block":  torch.zeros(1, 1, dtype=torch.float32),   # dummy — FlatNNValueNetwork ignores this
+        "vehicle_block":  torch.zeros(1, 1, dtype=torch.float32),   # dummy
+        "global_context": feat_tensor,                               # [28] — the actual signal
+    }

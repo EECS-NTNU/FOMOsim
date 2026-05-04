@@ -568,3 +568,64 @@ def build_nn_value_network(value_hidden_dims: list = None) -> NNValueNetwork:
         global_feature_dim=GLOBAL_FEATURE_DIM,
         value_hidden_dims=value_hidden_dims,
     )
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# FLAT MLP — for VFA features mode (USE_VFA_FEATURES=True)
+# ═════════════════════════════════════════════════════════════════════════════
+
+class FlatNNValueNetwork(nn.Module):
+    """
+    Simple MLP value network for flat VFA feature inputs.
+
+    Drop-in replacement for NNValueNetwork when USE_VFA_FEATURES=True.
+    Accepts the same (station_block, vehicle_block, global_context) call
+    signature so _compute_td_loss needs zero changes. station_block and
+    vehicle_block are dummies and ignored; global_context holds the 28
+    hand-crafted VFA features from encode_state_vfa().
+
+    Why simpler is better here: the 28 features are already domain-engineered
+    aggregates (imbalance, demand risk, maintenance pressure, etc.). The Deep
+    Sets architecture is designed to discover these aggregates from raw per-
+    station inputs — we no longer need it.
+    """
+
+    def __init__(self, input_dim: int, hidden_dims: list = None):
+        super().__init__()
+        if hidden_dims is None:
+            hidden_dims = [128, 64, 32]
+        layers = []
+        cur = input_dim
+        for h in hidden_dims:
+            layers += [nn.Linear(cur, h), nn.ReLU()]
+            cur = h
+        layers.append(nn.Linear(cur, 1))
+        self.net = nn.Sequential(*layers)
+
+        # Stored for checkpoint compatibility with the training loop
+        self.station_feature_dim = input_dim
+        self.vehicle_feature_dim = 1
+        self.global_feature_dim  = input_dim
+        self.value_hidden_dims   = hidden_dims
+
+    def forward(
+        self,
+        station_block:  torch.Tensor,   # dummy [1, 1] — ignored
+        vehicle_block:  torch.Tensor,   # dummy [1, 1] — ignored
+        global_context: torch.Tensor,   # [VFA_FEATURE_DIM] — the actual input
+    ) -> torch.Tensor:
+        return self.net(global_context)
+
+    def forward_batch(
+        self,
+        station_blocks:  torch.Tensor,  # dummy [B, 1, 1] — ignored
+        vehicle_blocks:  torch.Tensor,  # dummy [B, 1, 1] — ignored
+        global_contexts: torch.Tensor,  # [B, VFA_FEATURE_DIM] — the actual input
+    ) -> torch.Tensor:
+        return self.net(global_contexts)
+
+
+def build_vfa_nn_value_network(hidden_dims: list = None, value_hidden_dims: list = None) -> FlatNNValueNetwork:
+    """Factory for the VFA-features flat MLP. Use when USE_VFA_FEATURES=True."""
+    from policies.sjovik_sund.NN.nn_state_encoder import VFA_FEATURE_DIM
+    return FlatNNValueNetwork(input_dim=VFA_FEATURE_DIM, hidden_dims=value_hidden_dims or hidden_dims)

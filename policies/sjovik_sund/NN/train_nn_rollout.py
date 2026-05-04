@@ -62,9 +62,19 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 from helpers import timeInMinutes
 from policies.policy import Policy
 from policies.greedy_policy import GreedyPolicy
-from policies.sjovik_sund.NN.nn_model import NNValueNetwork, build_nn_value_network
-from policies.sjovik_sund.NN.nn_state_encoder import encode_state
-from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
+# ── State encoding mode ───────────────────────────────────────────────────────
+# USE_VFA_FEATURES=True  → 28-dim hand-crafted features (same as LinearVFAPolicy)
+#                          Uses FlatNNValueNetwork (simple MLP, no Deep Sets).
+# USE_VFA_FEATURES=False → raw per-station/vehicle blocks (Deep Sets architecture).
+USE_VFA_FEATURES: bool = False
+
+if USE_VFA_FEATURES:
+    from policies.sjovik_sund.NN.nn_model import FlatNNValueNetwork, build_vfa_nn_value_network as build_nn_value_network
+    from policies.sjovik_sund.NN.nn_state_encoder import encode_state_vfa as encode_state
+else:
+    from policies.sjovik_sund.NN.nn_model import NNValueNetwork, build_nn_value_network
+    from policies.sjovik_sund.NN.nn_state_encoder import encode_state
+from policies.sjovik_sund.mdp.candidate_generator_nn import generate_candidates
 #from policies.sjovik_sund.mdp.candidate_generator_nn import generate_candidates
 #from policies.sjovik_sund.mdp.candidate_generator_nn import generate_candidates
 from policies.sjovik_sund.mdp.mdp_formulation import (
@@ -73,7 +83,7 @@ from policies.sjovik_sund.mdp.mdp_formulation import (
     MDPState,
 )
 from policies.sjovik_sund.mdp.mdp_config import MDPConfig
-from policies.sjovik_sund.mdp.reward import RewardCalculator, RewardConfig
+from policies.sjovik_sund.mdp.reward_nn import RewardCalculator, RewardConfig
 from policies.sjovik_sund.NN.nn_debug_logger import MaintenanceDebugLogger
 from policies.sjovik_sund.run_simulation_ingvild import run_simulation, SimulationConfig
 from settings import ENABLE_COMPONENT_FAILURES
@@ -86,10 +96,10 @@ print(f"Using device: {device}")
 # Hyperparameters
 # ─────────────────────────────────────────────────────────────────────────────
 
-NUM_EPISODES         : int   = 800
-EPISODE_DAYS         : int   = 14
-WARMUP_DAYS          : int   = 2     # GreedyPolicy for days 1–2
-LEARNING_DAYS        : int   = 12    # NNLearningPolicy for days 3–14
+NUM_EPISODES         : int   = 500
+EPISODE_DAYS         : int   = 35
+WARMUP_DAYS          : int   = 21     # GreedyPolicy for days 1–21
+LEARNING_DAYS        : int   = 14   # NNLearningPolicy for days 22–35 (none in this case)
 
 LR_START             : float = 5e-4  # Adam lr at episode 0
 LR_END               : float = 5e-5  # Adam lr at episode N (linearly decayed)
@@ -107,7 +117,7 @@ N_STEP_RETURN        : int   = 3    # n-step TD return length.
                                      # Previous attempt hurt greedy_sl (0.947→0.940) due to inflated
                                      # targets from dividing by the 1-step max regardless of n.
 
-BUFFER_SIZE          : int   = 25_000  # max transitions in replay buffer; small buffer flushes stale exploration data faster
+BUFFER_SIZE          : int   = 50_000  # max transitions in replay buffer; small buffer flushes stale exploration data faster
 BATCH_SIZE           : int   = 128     # mini-batch size per gradient update
 MIN_BUFFER_SIZE      : int   = 256     # start learning only after this many transitions
 
@@ -119,7 +129,16 @@ REWARD_NORM_EPS      : float = 1e-8  # avoid div-by-zero in reward normalizer
 # tau_end:   near-zero  late        → essentially greedy exploitation
 TAU_START          : float = 0.5    # Decreased from 0.5
 TAU_END            : float = 0.001  # Decreased from 0.02
-TAU_ANNEAL_EPISODES: int   = 400    # anneal tau over this many eps, then hold at TAU_END
+TAU_ANNEAL_EPISODES: int   = NUM_EPISODES    # anneal tau over this many eps, then hold at TAU_END
+
+# ── Experiment switches (flip one at a time for ablations) ────────────────────
+# All four are threaded through train_nn_rollout() and encoded in output filenames.
+# Gemini-recommended fixes — change defaults here OR pass via CLI args.
+#   N_STEP_RETURN = 1     → kill deadly triad (was 3)
+#   BUFFER_SIZE   = 5_000 → force near-on-policy data (was 50_000)
+#   POLYAK        = 0.0   → hard target copy every TARGET_UPDATE_FREQ eps (was 0.0005)
+#   TAU_END       = 0.1   → constant exploration, no collapse (was 0.001)
+USE_MAINTENANCE_SHAPING : bool  = False  # True=+10/+5/+5 shaping, False=base reward only
 
 INSTANCE_NAME        : str   = "TD_W34_old"
 NUM_VEHICLES         : int   = 1
@@ -181,9 +200,6 @@ class ReplayBuffer:
     def push(self, encoded_cur: dict, reward: float, encoded_next: dict, n_steps: int, done: bool):
         """Add one (S^x_cur, G_n, S^x_{cur+n}, n_steps, done) transition."""
         self._buffer.append((encoded_cur, reward, encoded_next, n_steps, done))
-    def push(self, encoded_cur: dict, reward: float, encoded_next: dict, n_steps: int, done: bool):
-        """Add one (S^x_cur, G_n, S^x_{cur+n}, n_steps, done) transition."""
-        self._buffer.append((encoded_cur, reward, encoded_next, n_steps, done))
 
     def sample(self, batch_size: int) -> list:
         """
@@ -210,7 +226,6 @@ class ReplayBuffer:
 class RewardNormalizer:
     """
     EMA normalizer for step rewards.
-    EMA normalizer for step rewards.
 
     Rewards range from -76.7 to 0.0 (mean ≈ -2.7, std ≈ 5.6).
     Without normalization, a single bad step produces a TD target of -76.5,
@@ -218,36 +233,13 @@ class RewardNormalizer:
 
     Uses exponential moving averages (EMA) for mean and variance so the
     normalizer tracks the *current policy's* reward distribution rather
-    than the all-time average. The Welford approach froze after ~5 episodes
-    because the infinite window made new samples negligible — by ep 800 the
-    statistics still reflected episode-1 behavior regardless of policy improvement.
+    than the all-time average.
 
     alpha controls the adaptation speed (half-life ≈ ln(2)/alpha samples):
       alpha=0.005 → half-life ≈ 139 samples ≈ ~0.15 episodes  (fast adapt)
       alpha=0.001 → half-life ≈ 693 samples ≈ ~0.7 episodes   (moderate)
-
-    The first update seeds mean=reward and var=1 to avoid a cold-start at 0.
-    Without normalization, a single bad step produces a TD target of -76.5,
-    creating a gradient ≈5900× larger than a typical step.
-
-    Uses exponential moving averages (EMA) for mean and variance so the
-    normalizer tracks the *current policy's* reward distribution rather
-    than the all-time average. The Welford approach froze after ~5 episodes
-    because the infinite window made new samples negligible — by ep 800 the
-    statistics still reflected episode-1 behavior regardless of policy improvement.
-
-    alpha controls the adaptation speed (half-life ≈ ln(2)/alpha samples):
-      alpha=0.005 → half-life ≈ 139 samples ≈ ~0.15 episodes  (fast adapt)
-      alpha=0.001 → half-life ≈ 693 samples ≈ ~0.7 episodes   (moderate)
-
-    The first update seeds mean=reward and var=1 to avoid a cold-start at 0.
     """
 
-    def __init__(self, alpha: float = 0.005):
-        self._alpha = alpha
-        self._mean  = 0.0
-        self._var   = 1.0    # start with unit variance (no scaling until first update)
-        self._n     = 0      # counts updates; used only for the CSV log field
     def __init__(self, alpha: float = 0.005):
         self._alpha = alpha
         self._mean  = 0.0
@@ -277,7 +269,7 @@ class RewardNormalizer:
     _NORM_PRINT_EVERY: int = 500   # print one line every N normalize() calls
     _norm_first_call: bool = True  # print a detailed one-shot comparison on first call
 
-    def normalize(self, reward: float, n_steps: int = 1, gamma: float = 0.99) -> float:
+    '''def normalize(self, reward: float, n_steps: int = 1, gamma: float = 0.99) -> float:
         # EMA-based normalization using fitted single-step reward statistics.
         #
         # WHY: the old fixed-range approach divided by 76.7 * discount_sum (≈228
@@ -293,10 +285,14 @@ class RewardNormalizer:
         discount_sum   = sum(gamma ** i for i in range(n_steps))
         sq_discount_sum = sum((gamma ** i) ** 2 for i in range(n_steps))
 
-        expected_mean = self._mean * discount_sum
         expected_std  = math.sqrt(max(self._var * sq_discount_sum, REWARD_NORM_EPS))
 
-        normalized = (reward - expected_mean) / expected_std
+        # Scale only — do NOT subtract expected mean.
+        # Mean subtraction zeroed out the reward term (≈ 0 when mean ≈ actual reward),
+        # leaving the bootstrap term γ^n·V_next as 100% of the TD signal and causing
+        # V to spiral negative. Dividing by std only preserves the sign/magnitude so
+        # the reward anchors V toward the true normalized value (≈ μ/σ / (1−γ^n)).
+        normalized = reward / expected_std
 
         # ── One-shot first-call print ─────────────────────────────────────────
         if RewardNormalizer._norm_first_call:
@@ -306,26 +302,51 @@ class RewardNormalizer:
                 f"\n  [REWARD NORM — FIRST CALL]"
                 f"\n    raw G_{n_steps}          = {reward:.4f}"
                 f"\n    EMA 1-step μ         = {self._mean:.4f}   σ={self.std:.4f}"
-                f"\n    expected n-step μ    = {expected_mean:.4f}   σ={expected_std:.4f}"
-                f"\n    NEW normalized       = {normalized:.4f}   (O(1) ✓)"
-                f"\n    OLD fixed-range      = {old_norm:.6f}  (was crushing signal to {abs(old_norm):.2%} of range)"
+                f"\n    expected n-step σ    = {expected_std:.4f}  (mean NOT subtracted)"
+                f"\n    normalized (÷σ only) = {normalized:.4f}   (O(1) ✓)"
+                f"\n    OLD fixed-range      = {old_norm:.6f}  (was crushing signal)"
                 f"\n    bootstrap γ^{n_steps}       = {gamma**n_steps:.4f}"
-                f"\n    → reward now ~{abs(normalized)/(abs(normalized)+abs(gamma**n_steps)*max(abs(self._mean),0.1))*100:.0f}% of TD signal (was ~{abs(old_norm)/(abs(old_norm)+abs(gamma**n_steps)*0.1)*100:.0f}%)\n"
+                f"\n    → V converges toward {self._mean/self.std:.2f}/(1-γ^n) ≈ {self._mean/self.std/(1-gamma**n_steps):.1f} (not 0)\n"
             )
 
         # ── Periodic diagnostic print ─────────────────────────────────────────
         RewardNormalizer._norm_call_count += 1
         if RewardNormalizer._norm_call_count % RewardNormalizer._NORM_PRINT_EVERY == 0:
-            bootstrap_scale = gamma ** n_steps   # γ^n multiplies V_next in TD target
+            bootstrap_scale = gamma ** n_steps
             print(
                 f"  [REWARD NORM #{RewardNormalizer._norm_call_count}]"
                 f"  raw_G{n_steps}={reward:.4f}"
                 f"  EMA_1step: μ={self._mean:.4f} σ={self.std:.4f}"
-                f"  expected_nstep: μ={expected_mean:.4f} σ={expected_std:.4f}"
+                f"  nstep_std={expected_std:.4f}"
                 f"  normalized={normalized:.4f}"
                 f"  bootstrap_γ^n={bootstrap_scale:.4f}"
-                f"  → reward is {abs(normalized)/(abs(normalized)+abs(bootstrap_scale)*0.1+1e-8)*100:.1f}% of signal"
-                f"  (OLD fixed-range would give {reward/(76.7*discount_sum):.5f})"
+                f"  → reward is {abs(normalized)/(abs(normalized)+abs(bootstrap_scale)*abs(self._mean/self.std)+1e-8)*100:.1f}% of signal"
+            )
+
+        return max(-5.0, min(5.0, normalized))'''
+        
+    def normalize(self, reward: float, n_steps: int = 1, gamma: float = 0.99) -> float:
+        # Calculate N-step discounts
+        discount_sum   = sum(gamma ** i for i in range(n_steps))
+        sq_discount_sum = sum((gamma ** i) ** 2 for i in range(n_steps))
+
+        expected_std  = math.sqrt(max(self._var * sq_discount_sum, REWARD_NORM_EPS))
+        
+        # 🔴 THE CURE: Subtract the expected N-step mean.
+        # This makes the "average" reward exactly 0.0, so the infinite-horizon 
+        # baseline V(S) stays anchored at 0.0. The network only learns the variance (good vs bad).
+        expected_mean = self._mean * discount_sum
+        
+        # Divide by expected_std
+        normalized = (reward - expected_mean) / expected_std
+
+        # ── Periodic diagnostic print ─────────────────────────────────────────
+        RewardNormalizer._norm_call_count += 1
+        if RewardNormalizer._norm_call_count % RewardNormalizer._NORM_PRINT_EVERY == 0:
+            print(
+                f"  [REWARD NORM] raw={reward:.4f}  "
+                f"expected_mean={expected_mean:.4f}  "
+                f"normalized={normalized:.4f}"
             )
 
         return max(-5.0, min(5.0, normalized))
@@ -440,71 +461,7 @@ def _compute_td_loss(online_model, target_model, batch, gamma,
         td_targets = r_t + (1.0 - done_t) * gn_t * v_nexts  # [B, 1]
 
     loss = torch.nn.functional.huber_loss(v_curs, td_targets, delta=1.0)
-    """
-    Compute the mean Huber TD loss over a mini-batch in a single batched
-    forward pass through each model.
 
-    Previously: 128 separate forward() calls per gradient step (one per sample).
-    Now: one forward_batch() call each for online and target model.
-
-    The batch tuple layout is (enc_cur, reward, enc_next, n_steps, done) where
-    reward is the accumulated n-step return G_n and n_steps is used to apply
-    the correct γ^n discount when bootstrapping from the target network.
-    """
-    global _BATCH_FORWARD_VERIFIED
-
-    # ── Unpack batch into column tensors ─────────────────────────────────────
-    enc_curs   = [t[0] for t in batch]
-    rewards    = [t[1] for t in batch]
-    enc_nexts  = [t[2] for t in batch]
-    n_steps_l  = [t[3] for t in batch]
-    dones      = [t[4] for t in batch]
-
-    # Stack encoded states: each field goes from [N, D] → [B, N, D]
-    def _stack(enc_list, key):
-        return torch.stack([e[key] for e in enc_list]).to(device)
-
-    cur_station  = _stack(enc_curs,  "station_block")    # [B, N, station_feature_dim]
-    cur_vehicle  = _stack(enc_curs,  "vehicle_block")    # [B, M, vehicle_feature_dim]
-    cur_global   = _stack(enc_curs,  "global_context")   # [B, global_feature_dim]
-
-    next_station = _stack(enc_nexts, "station_block")
-    next_vehicle = _stack(enc_nexts, "vehicle_block")
-    next_global  = _stack(enc_nexts, "global_context")
-
-    if not _BATCH_FORWARD_VERIFIED:
-        print(
-            f"  [BATCH FORWARD] first call — "
-            f"station {list(cur_station.shape)}  "
-            f"vehicle {list(cur_vehicle.shape)}  "
-            f"global {list(cur_global.shape)}  "
-            f"| {len(batch)} samples in one forward pass"
-        )
-        _BATCH_FORWARD_VERIFIED = True
-
-    # ── Online forward (needs grad) ───────────────────────────────────────────
-    v_curs = online_model.forward_batch(cur_station, cur_vehicle, cur_global)  # [B, 1]
-
-    # ── Target forward + TD targets (no grad) ────────────────────────────────
-    with torch.no_grad():
-        v_nexts = target_model.forward_batch(next_station, next_vehicle, next_global)  # [B, 1]
-
-        norm_rewards = [
-            reward_normalizer.normalize(r, n_steps=n, gamma=gamma) if reward_normalizer is not None else r
-            for r, n in zip(rewards, n_steps_l)
-        ]
-        r_t    = torch.tensor(norm_rewards, dtype=torch.float32, device=device).unsqueeze(1)   # [B, 1]
-        done_t = torch.tensor(dones,        dtype=torch.float32, device=device).unsqueeze(1)   # [B, 1]
-        gn_t   = torch.tensor(
-            [gamma ** n for n in n_steps_l], dtype=torch.float32, device=device
-        ).unsqueeze(1)  # [B, 1]  — γ^n varies per sample (n=N_STEP_RETURN or shorter at episode end)
-
-        # TD target: G_n + γ^n · V_target(S^x_next)  (bootstrap skipped when done)
-        td_targets = r_t + (1.0 - done_t) * gn_t * v_nexts  # [B, 1]
-
-    loss = torch.nn.functional.huber_loss(v_curs, td_targets, delta=1.0)
-
-    debug_info = None
     debug_info = None
     if collect_debug:
         import statistics
@@ -525,8 +482,6 @@ def _compute_td_loss(online_model, target_model, batch, gamma,
             "reward_max":       max(rewards),
             "n_done":           sum(dones),
         }
-
-    return loss, debug_info
 
     return loss, debug_info
 
@@ -571,7 +526,7 @@ class NNLearningPolicy(Policy):
 
     def __init__(
         self,
-        online_model:      NNValueNetwork,
+        online_model:      nn.Module,
         reward_calc_config,               # reward.RewardConfig — passed from the training loop
         replay_buffer:     ReplayBuffer,
         gamma:             float,
@@ -582,6 +537,7 @@ class NNLearningPolicy(Policy):
         reward_normalizer: Optional[RewardNormalizer] = None,
         debug_logger=None,                # MaintenanceDebugLogger — None disables logging
         training_mode:     bool = True,   # False disables wildcard candidate injection
+        n_step_return:     int  = N_STEP_RETURN,  # n-step return length; 1=TD(0), 3=default
     ):
         super().__init__(maintenance_enabled=config.allow_onsite_repairs)
 
@@ -595,6 +551,7 @@ class NNLearningPolicy(Policy):
         self.verbose            = verbose
         self._debug_logger      = debug_logger
         self.training_mode      = training_mode
+        self.n_step_return      = n_step_return
 
         # RewardCalculator: initialized lazily on the first get_best_action call
         # because we need the simulator's initial metrics to set the baseline.
@@ -643,6 +600,16 @@ class NNLearningPolicy(Policy):
         self._bypass_deficit_values: list = []
         self._bypass_same_as_dest:   int  = 0
         self._v_pred_values:         list = []   # mean V across candidates, per decision
+
+        # Candidate pool quality audit
+        # _pool_sizes         : valid candidate count per decision (after PDS filter)
+        # _nn_top1_chosen     : decisions where Boltzmann chose the NN argmax
+        # _forced_decisions   : decisions with only 1 valid candidate (no real choice)
+        # _pool_has_both      : decisions where pool contained ≥1 maintenance AND ≥1 rebalancing action
+        self._pool_sizes:       list = []
+        self._nn_top1_chosen:   int  = 0
+        self._forced_decisions: int  = 0
+        self._pool_has_both:    int  = 0
 
         # n-step return buffer: sliding window of (enc_state, scaled_reward) pairs.
         # Transitions are not pushed to the replay buffer immediately; instead they
@@ -709,7 +676,13 @@ class NNLearningPolicy(Policy):
         # --- Step 1: measure reward since last decision ---
         # compute_step_reward computes the Δ in (starvations + 0.7·congestions)
         # since the last time it was called, giving r_k for the interval [t_{k-1}, t_k].
-        r_k = (self._reward_calc.compute_step_reward(state.metrics)
+        #r_k = (self._reward_calc.compute_step_reward(state.metrics)
+               #+ self._reward_calc.compute_fleet_penalty(state))
+               
+        r_k = (self._reward_calc.compute_step_reward(
+                   state.metrics, 
+                   executed_action=getattr(self, '_prev_executed_action', None)
+               )
                + self._reward_calc.compute_fleet_penalty(state))
 
         # --- Step 2: snapshot MDP state from live simulator ---
@@ -733,7 +706,7 @@ class NNLearningPolicy(Policy):
             vehicle=vehicle,
             maintenance_enabled=self.maintenance_enabled,
             return_pairs=True,
-            wide_search=True,
+            wide_search=False,
             training_mode=self.training_mode,
         )
 
@@ -785,16 +758,19 @@ class NNLearningPolicy(Policy):
             print(f"  [DEBUG] PDS Yield: {len(valid_pairs)} valid states out of {len(pairs)} proposed candidates.")
             
         if not valid_pairs:
-            if self.verbose:
-                print("  [WARNING] ZERO valid actions this epoch! Forcing DoNothing.")
-            
+            print(f"  [WARNING] ZERO valid actions this epoch at t={mdp_state.time:.0f} — falling back to greedy.")
+            from policies.greedy_policy_maintenance import GreedyMaintenancePolicy
+            return GreedyMaintenancePolicy().get_best_action(state, vehicle)
+
         # --- Debug: state representation and candidate scores ---
         if self.verbose:
             # make it print more regularly than just episode 0 — every 2nd decision epoch (since some episodes have very few decisions)
             if self._decision_count % 50 == 0:
                 # Full state encoding dump on the very first learning decision
                 #enc = post_encodings[0] if post_encodings else self._encode_post_decision(mdp_state, pairs[0][0])
-                enc = post_encodings[0] if post_encodings else self._encode_post_decision(mdp_state, valid_pairs[0][0])
+                enc = post_encodings[0] if post_encodings else (self._encode_post_decision(mdp_state, valid_pairs[0][0]) if valid_pairs else None)
+                if enc is None:
+                    return GreedyPolicy().get_best_action(state, vehicle)
                 sb = enc["station_block"]   # [N, 4]
                 vb = enc["vehicle_block"]   # [M, 5]
                 gc = enc["global_context"]  # [8]
@@ -822,6 +798,8 @@ class NNLearningPolicy(Policy):
                     print(f"    {label:<15s}: {val:.4f}")
                 print("-" * 60)
             # Every decision: brief candidate-value summary
+            if not values:
+                return GreedyPolicy().get_best_action(state, vehicle)
             v_min, v_max = min(values), max(values)
             print(
                 f"  [DEBUG] decision {self._decision_count:4d} | "
@@ -851,6 +829,25 @@ class NNLearningPolicy(Policy):
 
         # Track which pool slot was chosen (0=nearest station, last=most critical).
         self._chosen_indices.append(idx)
+
+        # --- Candidate pool quality audit ---
+        n_pool = len(valid_pairs)
+        self._pool_sizes.append(n_pool)
+        if n_pool == 1:
+            self._forced_decisions += 1
+        nn_top1_idx = int(max(range(len(values)), key=lambda i: values[i]))
+        if idx == nn_top1_idx:
+            self._nn_top1_chosen += 1
+        has_maint = any(
+            a.depot_removals > 0 or a.onsite_repairs > 0
+            for a, _ in valid_pairs
+        )
+        has_rebal = any(
+            a.rebalancing != 0
+            for a, _ in valid_pairs
+        )
+        if has_maint and has_rebal:
+            self._pool_has_both += 1
 
         # --- Max-deficit bypass diagnostics ---
         best_def_val, best_def_sid = -float('inf'), None
@@ -910,17 +907,17 @@ class NNLearningPolicy(Policy):
             #   push (S^x_0, G_n, S^x_n, n, done=False)
             # Then slide the window by popping the oldest entry.
             self._nstep_pending.append((self._prev_post_encoded, scaled_r))
-            if len(self._nstep_pending) >= N_STEP_RETURN:
+            if len(self._nstep_pending) >= self.n_step_return:
                 accum_r = sum(
                     self.gamma ** i * self._nstep_pending[i][1]
-                    for i in range(N_STEP_RETURN)
+                    for i in range(self.n_step_return)
                 )
                 enc_0 = self._nstep_pending[0][0]
                 self.replay_buffer.push(
                     encoded_cur=enc_0,
                     reward=accum_r,
                     encoded_next=chosen_post_encoded,
-                    n_steps=N_STEP_RETURN,
+                    n_steps=self.n_step_return,
                     done=False,
                 )
                 self._nstep_pushed += 1
@@ -929,6 +926,11 @@ class NNLearningPolicy(Policy):
         # --- Step 7: store chosen post-decision state for next epoch ---
         self._prev_post_encoded = chosen_post_encoded
         self._prev_time         = mdp_state.time
+        
+        # 🔴 NEW: Save what action we actually took, so we can get rewarded for it next epoch
+        # PostDecisionState.apply returns (new_state, duration, executed_action)
+        _, _, executed = PostDecisionState.apply(mdp_state, valid_pairs[idx][0])
+        self._prev_executed_action = executed
 
         return chosen_sim_action
 
@@ -941,7 +943,7 @@ class NNLearningPolicy(Policy):
         by pushing a terminal transition with done=True so the TD target is
         just r (no bootstrap). Call this after run_simulation returns.
         """
-        if self._prev_post_encoded is not None and self._reward_calc is not None:
+        '''if self._prev_post_encoded is not None and self._reward_calc is not None:
             final_r = (self._reward_calc.compute_step_reward(sim_state.metrics)
                        + self._reward_calc.compute_fleet_penalty(sim_state))
 
@@ -983,7 +985,7 @@ class NNLearningPolicy(Policy):
                 f"full pushes={self._nstep_pushed} | "
                 f"terminal flush={self._nstep_terminal} | "
                 f"total={self._nstep_pushed + self._nstep_terminal}"
-            )
+            )'''
 
         # Reset for the next episode
         self._prev_post_encoded = None
@@ -992,6 +994,7 @@ class NNLearningPolicy(Policy):
         self._nstep_pending.clear()
         self._nstep_pushed   = 0
         self._nstep_terminal = 0
+        self._prev_executed_action = None  # 🔴 NEW: Clear the stored action
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -1081,7 +1084,7 @@ def _service_level(simulator, episode_policy) -> float:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _run_greedy_eval(
-    online_model:    NNValueNetwork,
+    online_model:    nn.Module,
     reward_calc_config,
     config:          MDPConfig,
     depot_id:        Optional[str],
@@ -1134,27 +1137,29 @@ def _run_greedy_eval(
 # ═════════════════════════════════════════════════════════════════════════════
 
 def train_nn_rollout(
-    num_episodes:       int   = NUM_EPISODES,
-    save_path:          Path  = None,
-    seed_offset:        int   = 0,
-    instance_name:      str   = INSTANCE_NAME,
-    gamma:              float = GAMMA,
-    lr_start:           float = LR_START,
-    lr_end:             float = LR_END,
-    tau_start:          float = TAU_START,
-    tau_end:            float = TAU_END,
-    tau_anneal_episodes: int  = TAU_ANNEAL_EPISODES,
-    target_update_freq: int   = TARGET_UPDATE_FREQ,
-    polyak:             float = POLYAK,
-    batch_size:         int   = BATCH_SIZE,
-    buffer_size:        int   = BUFFER_SIZE,
-    depot_id:           Optional[str] = None,
-    reward_calc_config=None,  # RewardConfig used to build the step-reward calculator
-    run_label:          Optional[str] = None,  # extra tag injected into all output filenames
-    value_hidden_dims:  list = None,
-    enable_logging:     bool = False,
-    maintenance_enabled: bool = None,   # None → falls back to ENABLE_COMPONENT_FAILURES from settings
-) -> NNValueNetwork:
+    num_episodes:           int   = NUM_EPISODES,
+    save_path:              Path  = None,
+    seed_offset:            int   = 0,
+    instance_name:          str   = INSTANCE_NAME,
+    gamma:                  float = GAMMA,
+    lr_start:               float = LR_START,
+    lr_end:                 float = LR_END,
+    tau_start:              float = TAU_START,
+    tau_end:                float = TAU_END,
+    tau_anneal_episodes:    int   = TAU_ANNEAL_EPISODES,
+    target_update_freq:     int   = TARGET_UPDATE_FREQ,
+    polyak:                 float = POLYAK,
+    batch_size:             int   = BATCH_SIZE,
+    buffer_size:            int   = BUFFER_SIZE,
+    n_step_return:          int   = N_STEP_RETURN,           # 1=TD(0) kills deadly triad
+    use_maintenance_shaping: bool = USE_MAINTENANCE_SHAPING, # False=base reward only
+    depot_id:               Optional[str] = None,
+    reward_calc_config=None,
+    run_label:              Optional[str] = None,
+    value_hidden_dims:      list = None,
+    enable_logging:         bool = False,
+    maintenance_enabled:    bool = None,
+) -> nn.Module:
     """
     Run the full episodic NN training loop.
 
@@ -1230,6 +1235,9 @@ def train_nn_rollout(
         )
         reward_calc_config = _tmp_vfa.reward_calc.config
 
+    # Apply experiment switch: override shaping flag regardless of how config was created.
+    reward_calc_config.use_maintenance_shaping = use_maintenance_shaping
+
     # ── Resolve depot_id from instance if not supplied ────────────────────────
     # LinearVFAPolicy resolves this in init_sim via state.get_closest_depot().
     # We do the same here with a 1-step probe so every episode gets the correct
@@ -1257,7 +1265,9 @@ def train_nn_rollout(
     # Open CSV log — one row per episode, written incrementally so a partial
     # run is still readable if training is interrupted on the cluster.
     ts_run    = datetime.now().strftime("%Y%m%d_%H%M%S")
-    _label    = f"_{run_label}" if run_label else f"_tau{tau_start}_freq{target_update_freq}_lr{lr_start}_poly{polyak}"
+    _label    = (f"_{run_label}" if run_label else
+                 f"_n{n_step_return}_buf{buffer_size}_poly{polyak}"
+                 f"_taue{tau_end}_maint{'1' if use_maintenance_shaping else '0'}")
     csv_path  = SAVE_DIR / f"training_log_seed{seed_offset}{_label}_{ts_run}.csv"
     CSV_FIELDS = [
         "episode", "mean_loss", "lr", "tau", "polyak",
@@ -1277,6 +1287,10 @@ def train_nn_rollout(
         "n_step_terminal",    # short terminal transitions at episode end; high = many partial n-steps
         "reward_ema_mean",    # EMA running mean of step rewards; confirm it updates each episode
         "grad_norm",          # mean gradient norm per update; rising = unstable learning
+        "mean_pool_size",     # avg valid candidates per decision; <2 = NN has no real choice
+        "pct_forced",         # % decisions with exactly 1 valid candidate (forced)
+        "pct_nn_top1_chosen", # % decisions where Boltzmann picked NN argmax (agreement w/ greedy)
+        "pct_pool_mixed",     # % decisions where pool had ≥1 maintenance AND ≥1 rebalancing action
     ]
     csv_file   = csv_path.open("w", newline="")
     csv_writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
@@ -1331,6 +1345,7 @@ def train_nn_rollout(
             verbose=(ep == VERBOSE_EPISODE),
             reward_normalizer=reward_normalizer,
             debug_logger=debug_logger,
+            n_step_return=n_step_return,
         )
         greedy_policy  = GreedyPolicy()
         episode_policy = NNEpisodeTrainingPolicy(
@@ -1706,6 +1721,13 @@ def train_nn_rollout(
         _vpreds           = nn_learning._v_pred_values
         mean_v_pred       = round(_stat.mean(_vpreds), 5) if _vpreds else 0.0
 
+        _psizes           = nn_learning._pool_sizes
+        _n_dec            = max(len(_psizes), 1)
+        mean_pool_size    = round(_stat.mean(_psizes), 2) if _psizes else 0.0
+        pct_forced        = round(nn_learning._forced_decisions / _n_dec * 100, 1)
+        pct_nn_top1       = round(nn_learning._nn_top1_chosen   / _n_dec * 100, 1)
+        pct_pool_mixed    = round(nn_learning._pool_has_both     / _n_dec * 100, 1)
+
         # Write one CSV row per episode (flushed immediately so partial runs are readable)
         csv_writer.writerow({
             "episode":          ep + 1,
@@ -1732,6 +1754,10 @@ def train_nn_rollout(
             "n_step_terminal":   nn_learning._nstep_terminal,
             "reward_ema_mean":   round(reward_normalizer.mean, 4),
             "grad_norm":         mean_grad_norm,
+            "mean_pool_size":    mean_pool_size,
+            "pct_forced":        pct_forced,
+            "pct_nn_top1_chosen": pct_nn_top1,
+            "pct_pool_mixed":    pct_pool_mixed,
         })
         csv_file.flush()
 
@@ -1789,7 +1815,7 @@ def train_nn_rollout(
 # MODEL LOADING
 # ═════════════════════════════════════════════════════════════════════════════
 
-def load_nn_model(checkpoint_path: str) -> NNValueNetwork:
+def load_nn_model(checkpoint_path: str) -> nn.Module:
     """
     Reconstruct and load a trained NNValueNetwork from a checkpoint file.
 
@@ -1819,12 +1845,20 @@ def load_nn_model(checkpoint_path: str) -> NNValueNetwork:
         )
         stored_dims = [state_dict[k].shape[0] for k in keys[:-1]]
 
-    model = NNValueNetwork(
-        station_feature_dim=checkpoint["station_feature_dim"],
-        vehicle_feature_dim=checkpoint["vehicle_feature_dim"],
-        global_feature_dim=checkpoint["global_feature_dim"],
-        value_hidden_dims=stored_dims,
-    )
+    if USE_VFA_FEATURES:
+        from policies.sjovik_sund.NN.nn_model import FlatNNValueNetwork
+        model = FlatNNValueNetwork(
+            input_dim=checkpoint["global_feature_dim"],
+            hidden_dims=stored_dims,
+        )
+    else:
+        from policies.sjovik_sund.NN.nn_model import NNValueNetwork
+        model = NNValueNetwork(
+            station_feature_dim=checkpoint["station_feature_dim"],
+            vehicle_feature_dim=checkpoint["vehicle_feature_dim"],
+            global_feature_dim=checkpoint["global_feature_dim"],
+            value_hidden_dims=stored_dims,
+        )
     model.load_state_dict(state_dict)
     model.eval()
 
@@ -1883,38 +1917,37 @@ if __name__ == "__main__":
         description="Offline episodic TD(0) training of a neural network value function",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--episodes",           type=int,   default=NUM_EPISODES)
-    parser.add_argument("--seed",               type=int,   default=0)
-    parser.add_argument("--instance",           type=str,   default=INSTANCE_NAME)
-    parser.add_argument("--gamma",              type=float, default=GAMMA)
-    parser.add_argument("--lr_start",           type=float, default=LR_START)
-    parser.add_argument("--lr_end",             type=float, default=LR_END)
-    parser.add_argument("--tau_start",           type=float, default=TAU_START)
-    parser.add_argument("--tau_end",             type=float, default=TAU_END)
-    parser.add_argument("--tau_anneal_episodes", type=int,   default=TAU_ANNEAL_EPISODES)
-    parser.add_argument("--target_update_freq",  type=int,   default=TARGET_UPDATE_FREQ)
-    parser.add_argument("--polyak", type=float, default=POLYAK, help="Soft target update rate (tau)")
-    parser.add_argument("--batch_size",         type=int,   default=BATCH_SIZE)
-    parser.add_argument("--buffer_size",        type=int,   default=BUFFER_SIZE)
-    parser.add_argument("--run_label",           type=str,   default=None,
-                        help="Tag injected into output filenames (auto-generated from tau/freq if omitted).")
-    parser.add_argument("--save",               type=str,   default=None)
-    parser.add_argument("--depot_id",           type=str,   default='D0',
-                        help="Depot station ID (e.g. 'D0'). Auto-resolved from instance if omitted.")
-    parser.add_argument("--congestion_weight",  type=float, default=-1.0,
-                        help="Reward penalty for congestions during training. Default: -1.0")
-    parser.add_argument("--maintenance",        action=argparse.BooleanOptionalAction,
-                        default=ENABLE_COMPONENT_FAILURES,
-                        help="Enable maintenance actions (depot removal, onsite repair). Default: from settings.py")
-    parser.add_argument("--valuehead_hidden_dims", type=int, nargs="+", default=None,
-                        help="Single architecture to run, e.g. --valuehead_hidden_dims 128 64 32. Omit to run all.")
+    parser.add_argument("--episodes",              type=int,   default=NUM_EPISODES)
+    parser.add_argument("--seed",                  type=int,   default=1000)
+    parser.add_argument("--instance",              type=str,   default=INSTANCE_NAME)
+    parser.add_argument("--gamma",                 type=float, default=GAMMA)
+    parser.add_argument("--lr_start",              type=float, default=LR_START)
+    parser.add_argument("--lr_end",                type=float, default=LR_END)
+    parser.add_argument("--tau_start",             type=float, default=TAU_START)
+    parser.add_argument("--tau_end",               type=float, default=TAU_END)
+    parser.add_argument("--tau_anneal_episodes",   type=int,   default=TAU_ANNEAL_EPISODES)
+    parser.add_argument("--target_update_freq",    type=int,   default=TARGET_UPDATE_FREQ)
+    parser.add_argument("--polyak",                type=float, default=POLYAK)
+    parser.add_argument("--batch_size",            type=int,   default=BATCH_SIZE)
+    parser.add_argument("--buffer_size",           type=int,   default=BUFFER_SIZE)
+    parser.add_argument("--n_step",                type=int,   default=N_STEP_RETURN,
+                        help="n-step return length. 1=TD(0) kills deadly triad.")
+    parser.add_argument("--maintenance_shaping",   action=argparse.BooleanOptionalAction,
+                        default=USE_MAINTENANCE_SHAPING,
+                        help="Enable +10/+5/+5 maintenance reward shaping.")
+    parser.add_argument("--run_label",             type=str,   default=None)
+    parser.add_argument("--save",                  type=str,   default=None)
+    parser.add_argument("--depot_id",              type=str,   default='D0')
+    parser.add_argument("--congestion_weight",     type=float, default=-1.0)
+    parser.add_argument("--maintenance",           action=argparse.BooleanOptionalAction,
+                        default=ENABLE_COMPONENT_FAILURES)
+    parser.add_argument("--valuehead_hidden_dims", type=int,   nargs="+", default=None,
+                        help="Single arch, e.g. --valuehead_hidden_dims 128 64 32. Omit to run all.")
     args = parser.parse_args()
 
-    # --- NEW: Build the custom reward config ---
     custom_reward = RewardConfig()
     custom_reward.weight_congestion = args.congestion_weight
 
-    # ── 1. DEFINE THE ARCHITECTURES TO TEST ──
     architectures = [
         [64],
         [104, 52],
@@ -1923,72 +1956,45 @@ if __name__ == "__main__":
     ]
     if args.valuehead_hidden_dims is not None:
         architectures = [args.valuehead_hidden_dims]
-    
-    # ── 2. RUN THE LOOP ──
+
     for arch in architectures:
-        # Create a unique tag for the CSV file so they don't overwrite each other
-        arch_str = "-".join(map(str, arch))
+        arch_str   = "-".join(map(str, arch))
         arch_label = f"{args.run_label}_arch_{arch_str}" if args.run_label else f"arch_{arch_str}"
-        
+
         print("\n" + "="*50)
         print(f"LAUNCHING NEURAL NETWORK TRAINING")
         print("="*50)
-        print(f"  Architecture:       {arch}")
-        print(f"  Model Instance:     {args.instance}")
-        print(f"  Episodes:           {args.episodes}")
-        print(f"  STARVATION PENALTY: {custom_reward.weight_starvation}")
-        print(f"  CONGESTION PENALTY: {custom_reward.weight_congestion}")
+        print(f"  Architecture:        {arch}")
+        print(f"  Instance:            {args.instance}")
+        print(f"  Episodes:            {args.episodes}")
+        print(f"  n_step:              {args.n_step}")
+        print(f"  buffer_size:         {args.buffer_size}")
+        print(f"  polyak:              {args.polyak}")
+        print(f"  tau_end:             {args.tau_end}")
+        print(f"  maintenance_shaping: {args.maintenance_shaping}")
         print("="*50 + "\n")
 
-    # --- NEW: Build the custom reward config ---
-    custom_reward = RewardConfig()
-    custom_reward.weight_congestion = args.congestion_weight
-
-    # ── 1. DEFINE THE ARCHITECTURES TO TEST ──
-    architectures = [
-        [64],
-        [104, 52],
-        [128, 64, 32],
-        [256, 128, 64, 32],
-    ]
-    if args.valuehead_hidden_dims is not None:
-        architectures = [args.valuehead_hidden_dims]
-    
-    # ── 2. RUN THE LOOP ──
-    for arch in architectures:
-        # Create a unique tag for the CSV file so they don't overwrite each other
-        arch_str = "-".join(map(str, arch))
-        arch_label = f"{args.run_label}_arch_{arch_str}" if args.run_label else f"arch_{arch_str}"
-        
-        print("\n" + "="*50)
-        print(f"LAUNCHING NEURAL NETWORK TRAINING")
-        print("="*50)
-        print(f"  Architecture:       {arch}")
-        print(f"  Model Instance:     {args.instance}")
-        print(f"  Episodes:           {args.episodes}")
-        print(f"  STARVATION PENALTY: {custom_reward.weight_starvation}")
-        print(f"  CONGESTION PENALTY: {custom_reward.weight_congestion}")
-        print("="*50 + "\n")
-
-    train_nn_rollout(
-            num_episodes        = args.episodes,
-            seed_offset         = args.seed,
-            instance_name       = args.instance,
-            gamma               = args.gamma,
-            lr_start            = args.lr_start,
-            lr_end              = args.lr_end,
-            tau_start            = args.tau_start,
-            tau_end              = args.tau_end,
-            tau_anneal_episodes  = args.tau_anneal_episodes,
-            target_update_freq   = args.target_update_freq,
-            polyak              = args.polyak,
-            batch_size          = args.batch_size,
-            buffer_size         = args.buffer_size,
-            save_path           = None,  
-            depot_id            = args.depot_id,
-            reward_calc_config  = custom_reward,
-            run_label           = arch_label,       # Injects the arch label into the filename!
-            value_hidden_dims    = arch,
-            enable_logging       = False,
-            maintenance_enabled  = args.maintenance,
+        train_nn_rollout(
+            num_episodes             = args.episodes,
+            seed_offset              = args.seed,
+            instance_name            = args.instance,
+            gamma                    = args.gamma,
+            lr_start                 = args.lr_start,
+            lr_end                   = args.lr_end,
+            tau_start                = args.tau_start,
+            tau_end                  = args.tau_end,
+            tau_anneal_episodes      = args.tau_anneal_episodes,
+            target_update_freq       = args.target_update_freq,
+            polyak                   = args.polyak,
+            batch_size               = args.batch_size,
+            buffer_size              = args.buffer_size,
+            n_step_return            = args.n_step,
+            use_maintenance_shaping  = args.maintenance_shaping,
+            save_path                = None,
+            depot_id                 = args.depot_id,
+            reward_calc_config       = custom_reward,
+            run_label                = arch_label,
+            value_hidden_dims        = arch,
+            enable_logging           = False,
+            maintenance_enabled      = args.maintenance,
         )
