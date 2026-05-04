@@ -19,17 +19,18 @@ class GenerateBikeTrips(Event):
 
         #super().perform(simul)
         super().perform(simul)
+        demand_rng = getattr(simul.state, "rng_demand", simul.state.rng)
 
         for departure_station in simul.state.get_stations():
             # poisson process to select number of trips in a iteration
             number_of_trips = 2*round(
-                simul.state.rng.poisson(departure_station.get_leave_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
+                demand_rng.poisson(departure_station.get_leave_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
             )
 
             # generate trip departure times (can be implemented with np.random.uniform if we want decimal times)
             # both functions generate numbers from a discrete uniform distribution
             trips_departure_time = sorted(
-                simul.state.rng.integers(
+                demand_rng.integers(
                     self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                 )
             )
@@ -52,13 +53,13 @@ class GenerateBikeTrips(Event):
             for arrival_station in simul.state.get_stations():
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(
-                    simul.state.rng.poisson(arrival_station.get_arrive_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
+                    demand_rng.poisson(arrival_station.get_arrive_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
                 )
 
                 # generate trip arrival times (can be implemented with np.random.uniform if we want decimal times)
                 # both functions generate numbers from a discrete uniform distribution
                 trips_arrival_time = sorted(
-                    simul.state.rng.integers(
+                    demand_rng.integers(
                         self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                     )
                 )
