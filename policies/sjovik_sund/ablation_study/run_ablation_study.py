@@ -72,6 +72,7 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 # -----------------------------------------------------------------------------
  
 EXPERIMENTS = {
+    #BASELINES
     "Imbalance": ["rebalancing_imbalance"], # CIM1: total L1 imbalance across the network
     "Squared": ["squared_starvation_penalty", "squared_congestion_penalty"], # CIM2/CIM3: mean squared starvation/congestion ratio
     "Imbalance_squared" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty"], # CIM1 + CIM2/CIM3: global mass + mean squared depth
@@ -93,6 +94,13 @@ EXPERIMENTS = {
         ③ vs ⑥: does FIM add value at all?
         ① vs ④: does FIM improve CIM1 alone?
         ④ vs ⑥: is depth redundant once you have CIM1 + FIM?'''
+
+    #REBALNACING EXTENSIONS
+    "Imbalance_squared_temporal_MP2": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "global_onsite_backlog"], # CIM1 + FIM1/FIM2 + MP2: global mass + gross departure/arrival pressure + global onsite backlog 
+    "Imbalance_squared_temporal_MP3": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "global_depot_backlog"], # CIM1 + FIM1/FIM2 + MP3: global mass + gross departure/arrival pressure + global depot backlog
+    "Imbalance_squared_temporal_MP1": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization"], # CIM1 + FIM1/FIM2 + MP1: global mass + gross departure/arrival pressure + trailer cannibalization ratio
+    "Imbalance_squared_temporal_MP6": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + MP6: global mass + gross departure/arrival pressure + depot idle fraction
+    "Imbalance_squared_temporal_fullMP" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization", "global_onsite_backlog", "global_depot_backlog", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + all MP features 
 
     "Maintenance_full_test": [
         "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
@@ -143,6 +151,7 @@ EXPERIMENTS = {
         "squared_starvation_penalty",
         "squared_congestion_penalty",
     ],
+
     "Debug_E_maint_TD0": [
         "rebalancing_imbalance",
         "squared_starvation_penalty",
