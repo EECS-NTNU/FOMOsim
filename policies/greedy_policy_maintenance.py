@@ -46,6 +46,7 @@ class GreedyMaintenancePolicy(Policy):
         self.depot_load_threshold = depot_load_threshold
         self.depot_return_buffer_minutes = depot_return_buffer_minutes
         self.swap_threshold = swap_threshold
+        self.logger = None
         # per-vehicle tabu lists  {vehicle_id: [loc_id, ...]}
         self._tabu: dict = {}
         super().__init__()
@@ -67,12 +68,14 @@ class GreedyMaintenancePolicy(Policy):
         else:
             onsite_repairs, bikes_to_pickup, bikes_to_deliver, batteries_to_swap = \
                 self._station_actions(state, vehicle)
- 
+
+        maintenance_time = len(onsite_repairs) * MAINTENANCE_REPAIR
         service_time = sim.Action(
             batteries_to_swap,
             bikes_to_pickup,
             bikes_to_deliver,
             vehicle.location.id,
+            maintenance_time=maintenance_time,
             onsite_repairs=onsite_repairs,
         ).get_action_time(0.0)
 
@@ -85,13 +88,16 @@ class GreedyMaintenancePolicy(Policy):
         )
         self._update_tabu(vehicle, vehicle.location.id)
  
-        return sim.Action(
+        action = sim.Action(
             batteries_to_swap,
             bikes_to_pickup,
             bikes_to_deliver,
             next_loc,
+            maintenance_time=maintenance_time,
             onsite_repairs=onsite_repairs,
         )
+        self._log_to_run_logger(state, vehicle, action)
+        return action
  
     # ------------------------------------------------------------------
     # Action building
@@ -126,6 +132,7 @@ class GreedyMaintenancePolicy(Policy):
         onsite_bikes = [
             b for b in loc.bikes.values()
             if getattr(b, "damage_status", None) == "onsite"
+            and not getattr(b, "onsite_repair_in_progress", False)
         ]
         depot_bikes = [
             b for b in loc.bikes.values()
@@ -252,6 +259,7 @@ class GreedyMaintenancePolicy(Policy):
             onsite_count = sum(
                 1 for b in loc.bikes.values()
                 if getattr(b, "damage_status", None) == "onsite"
+                and not getattr(b, "onsite_repair_in_progress", False)
             )
             depot_count = sum(
                 1 for b in loc.bikes.values()
@@ -307,6 +315,118 @@ class GreedyMaintenancePolicy(Policy):
             + self.depot_return_buffer_minutes
         )
         return time_remaining >= required_time
+
+    def _log_to_run_logger(self, state, vehicle, action) -> None:
+        """Write one greedy-maintenance vehicle decision to the centralized run logger."""
+        logger = self.logger
+        if logger is None:
+            return
+
+        current_time = state.time
+        clock_min = current_time % (24 * 60)
+        day = int(current_time // (24 * 60))
+        clock_hour = int(clock_min // 60)
+        minute = int(clock_min % 60)
+
+        inv = vehicle.get_bike_inventory()
+        func_before = sum(1 for b in inv if getattr(b, "damage_status", None) not in ("depot", "onsite"))
+        depot_before = sum(1 for b in inv if getattr(b, "damage_status", None) == "depot")
+        total_before = len(inv)
+
+        raw_bikes = getattr(vehicle.location, "bikes", {})
+        station_bikes = (
+            raw_bikes if isinstance(raw_bikes, dict)
+            else {getattr(b, "bike_id", getattr(b, "id")): b for b in raw_bikes}
+        )
+
+        is_at_depot = vehicle.is_at_depot()
+        pick_up_ids = list(getattr(action, "pick_ups", []) or [])
+        delivery_ids = list(getattr(action, "delivery_bikes", []) or [])
+
+        func_pickups = 0
+        depot_pickups = 0
+        load_from_queue = 0
+        if is_at_depot:
+            fixed_queue = getattr(vehicle.location, "fixed_queue", {})
+            load_from_queue = sum(1 for b_id in pick_up_ids if b_id in fixed_queue)
+        else:
+            for b_id in pick_up_ids:
+                bike = station_bikes.get(b_id)
+                if bike and getattr(bike, "damage_status", None) == "depot":
+                    depot_pickups += 1
+                elif bike:
+                    func_pickups += 1
+
+        vehicle_bikes = {getattr(b, "bike_id", getattr(b, "id")): b for b in inv}
+        if is_at_depot:
+            depot_deliveries = sum(
+                1 for b_id in delivery_ids
+                if getattr(vehicle_bikes.get(b_id), "damage_status", None) == "depot"
+            )
+            func_deliveries = 0
+        else:
+            depot_deliveries = 0
+            func_deliveries = len(delivery_ids)
+
+        onsite_repairs = len(getattr(action, "onsite_repairs", []) or [])
+        if is_at_depot:
+            func_after = func_before + load_from_queue
+            depot_after = max(depot_before - depot_deliveries, 0)
+        else:
+            func_after = func_before - func_deliveries + func_pickups
+            depot_after = depot_before + depot_pickups
+        total_after = max(func_after, 0) + max(depot_after, 0)
+
+        dest = getattr(action, "next_location", None)
+        try:
+            travel_time = state.get_vehicle_travel_time(vehicle.location.id, dest) if dest else 0.0
+        except Exception:
+            travel_time = 0.0
+        try:
+            action_duration = action.get_action_time(0.0) if hasattr(action, "get_action_time") else 0.0
+        except Exception:
+            action_duration = 0.0
+
+        n_damaged = sum(1 for b in station_bikes.values() if getattr(b, "damage_status", None) is not None)
+        maint_flag = (n_damaged > 0) or is_at_depot
+        is_maint = (onsite_repairs > 0) or (depot_pickups > 0) or (depot_deliveries > 0) or (load_from_queue > 0)
+
+        logger.log_decision({
+            "day": day,
+            "hour": clock_hour,
+            "minute": minute,
+            "current_station_id": vehicle.location.id,
+            "is_at_depot": is_at_depot,
+            "functional_load_before": func_before,
+            "depot_load_before": depot_before,
+            "total_load_before": total_before,
+            "functional_deliveries": func_deliveries,
+            "functional_pickups": func_pickups,
+            "onsite_repairs": onsite_repairs,
+            "depot_pickups": depot_pickups,
+            "depot_deliveries": depot_deliveries,
+            "load_from_queue": load_from_queue,
+            "bikes_involved": str(pick_up_ids + delivery_ids + list(getattr(action, "onsite_repairs", []) or [])),
+            "action_duration_min": round(action_duration, 3),
+            "next_station_id": dest,
+            "travel_time_min": round(travel_time, 3),
+            "functional_load_after": func_after,
+            "depot_load_after": depot_after,
+            "total_load_after": total_after,
+            "immediate_reward": "",
+            "vfa_value": "",
+            "accumulated_rollout_reward": "",
+            "tail_value": "",
+            "final_decision_score": "",
+            "maintenance_flag_present": maint_flag,
+            "selected_action_is_maintenance": is_maint,
+            "n_total_candidates": "",
+            "vfa_top1_next_station": "",
+            "rollout_changed_decision": "",
+            "winning_candidate_rank": "",
+            "decision_runtime_s": "",
+            "winning_profile_type": "greedy-maintenance",
+        })
  
     # ------------------------------------------------------------------
     # Tabu helpers
@@ -339,7 +459,7 @@ import sim
 from settings import *
  
  
-class GreedyMaintenancePolicy(Policy):
+class _GreedyMaintenancePolicyWithoutDepotReturn(Policy):
     """
     Strong greedy baseline that aggressively handles maintenance
     while still rebalancing toward target state.

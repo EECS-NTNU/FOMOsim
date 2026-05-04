@@ -122,7 +122,8 @@ class LinearVFAPolicy(Policy):
         self.log_depot_visits = log_depot_visits
         self.depot_log_file = depot_log_file
         # 1. Get the canonical list of ALL possible features
-        self.ALL_FEATURE_NAMES = _get_feature_names(True, True, True)
+
+        self.ALL_FEATURE_NAMES = _get_feature_names(True, True, True, True)
 
         # 2. Determine which features we are actually using
         if active_features is None:
@@ -573,6 +574,7 @@ class LinearVFAPolicy(Policy):
             dist_to_next=dist_to_next,
             max_travel_time=self._max_travel_time,
             next_is_depot=bool(next_station_id and next_station_id == self._depot_id),
+            destination_features_enabled=True,
         )
     
         # 4. Slice the full feature vector to only include active features

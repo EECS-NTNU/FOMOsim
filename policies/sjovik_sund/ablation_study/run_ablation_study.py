@@ -72,7 +72,36 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 # -----------------------------------------------------------------------------
  
 EXPERIMENTS = {
+    #BASELINES
+    "Imbalance": ["rebalancing_imbalance"], # CIM1: total L1 imbalance across the network
+    "Squared": ["squared_starvation_penalty", "squared_congestion_penalty"], # CIM2/CIM3: mean squared starvation/congestion ratio
+    "Imbalance_squared" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty"], # CIM1 + CIM2/CIM3: global mass + mean squared depth
+    "Squared_temporal": [
+        "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
+        "squared_congestion_penalty",     # CIM3: mean squared congestion ratio
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
+    ],
+    "Imbalance_temporal": [
+        "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
+    ],
+    "Imbalance_squared_temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + FIM1/FIM2: global mass + gross departure/arrival pressure
     
+    # ① vs ③: does depth add value on top of CIM1?
+    # ② vs ③: does CIM1 add value on top of depth?
+    # ③ vs ⑥: does FIM add value at all?
+    # ① vs ④: does FIM improve CIM1 alone?
+    # ④ vs ⑥: is depth redundant once you have CIM1 + FIM?
+
+    #REBALNACING EXTENSIONS
+    "Imbalance_squared_temporal_MP2": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "global_onsite_backlog"], # CIM1 + FIM1/FIM2 + MP2: global mass + gross departure/arrival pressure + global onsite backlog 
+    "Imbalance_squared_temporal_MP3": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "global_depot_backlog"], # CIM1 + FIM1/FIM2 + MP3: global mass + gross departure/arrival pressure + global depot backlog
+    "Imbalance_squared_temporal_MP1": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization"], # CIM1 + FIM1/FIM2 + MP1: global mass + gross departure/arrival pressure + trailer cannibalization ratio
+    "Imbalance_squared_temporal_MP6": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + MP6: global mass + gross departure/arrival pressure + depot idle fraction
+    "Imbalance_squared_temporal_fullMP" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization", "global_onsite_backlog", "global_depot_backlog", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + all MP features 
+
     "Maintenance_full_test": [
         "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
         "squared_starvation_penalty",
@@ -122,6 +151,7 @@ EXPERIMENTS = {
         "squared_starvation_penalty",
         "squared_congestion_penalty",
     ],
+
     "Debug_E_maint_TD0": [
         "rebalancing_imbalance",
         "squared_starvation_penalty",
@@ -130,13 +160,7 @@ EXPERIMENTS = {
         "undistributed_depot_inventory",
     ],
 
-    "Imbalance_Only": ["rebalancing_imbalance"], # CIM1: total L1 imbalance across the network
-
-
-    "Imbalance_Squared" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty"], # CIM1 + CIM2/CIM3: global mass + mean squared depth
-
-    "Imbalance_Squared_Temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + FIM1/FIM2: global mass + gross departure/arrival pressure
-
+    
     # End-of-shift awareness: temporal base + depot feasibility and late-shift route/cargo interactions
     "Imbalance_Squared_Temporal_ShiftAware": [
         "rebalancing_imbalance",
@@ -153,13 +177,8 @@ EXPERIMENTS = {
         "late_depot_return",
     ],
 
-    "Imbalance_Squared_Temporal_nocongestion" : ["rebalancing_imbalance", "squared_starvation_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM2 + FIM1: global mass + mean squared starvation depth + gross departure pressure
     
     "Imbalanced_Starvation" : ["rebalancing_imbalance", "squared_starvation_penalty"],
-
-    # Baseline
-    "Squared_only": ["squared_starvation_penalty", "squared_congestion_penalty"],
-
 
     # -- Squared_Temporal -----------------------------------------------------
     # Hypothesis: Squared penalties capture current-state imbalance depth and
@@ -374,11 +393,11 @@ if __name__ == "__main__":
         epilog=f"Available experiments: {', '.join(EXPERIMENTS)}",
     )
     parser.add_argument(
-        "--seeds", nargs="+", type=int, default= [42], metavar="SEED",
+        "--seeds", nargs="+", type=int, default= [1000], metavar="SEED",
         help="Seed offsets to run (one independent training run per seed)",
     )
     parser.add_argument(
-        "--episodes", type=int, default=350,
+        "--episodes", type=int, default=300,
         help="Training episodes per run",
     )
     parser.add_argument(
@@ -386,7 +405,7 @@ if __name__ == "__main__":
         help="Subset of experiments to run (default: all)",
     )
     parser.add_argument(
-        "--alphas", nargs="+", type=float, default=[0.2], metavar="ALPHA",
+        "--alphas", nargs="+", type=float, default=[0.05], metavar="ALPHA",
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
     )
 
@@ -402,7 +421,7 @@ if __name__ == "__main__":
         help="Reward weight for congestion events (default: -1.0)",
     )
     parser.add_argument(
-        "--weight_fleet_degradation", type=float, default=-5.0,
+        "--weight_fleet_degradation", type=float, default=-0.0,
         help="Reward weight for fleet degradation/maintenance penalty (default: 0.0)",
     )
     parser.add_argument(

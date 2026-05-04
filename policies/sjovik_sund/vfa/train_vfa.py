@@ -9,12 +9,12 @@ Hybrid "Horizontal" ADP (Ulmer 2020 / Brinkmann 2019-2020):
   - Once frozen, the VFA acts as a tail-value estimator inside an online
     Rollout Algorithm (implemented separately).
 
-Episode structure
+Episode structure  (28-day simulation per episode)
 ──────────────────────────────────────────────────
-  Days 1 - 7    Warm-up  : GreedyPolicy drives the system.
-                            No TD updates; station inventories and repair
-                            queues settle after the steady-state odometer draw.
-  Days 8 - 35   Learning : LinearVFAPolicy.
+  Days 1 - 7   Warm-up   : GreedyPolicy drives the system.
+                            No TD updates → builds up a realistic
+                            "messy" state without biasing θ.
+  Days 8 - 28  Learning  : LinearVFAPolicy.
                             TD(0) updates occur at every vehicle decision.
 
 Usage
@@ -53,20 +53,21 @@ from settings import ENABLE_COMPONENT_FAILURES
 # Hyperparameters  (all subject to change)
 # ─────────────────────────────────────────────────────────────────────────────
 
-NUM_EPISODES  : int   = 200      # total training episodes
+NUM_EPISODES  : int   = 300      # total training episodes
 
-WARMUP_DAYS   : int   = 7       # greedy settling period after odometer warm-start
-LEARNING_DAYS : int   = 28      # VFA + TD(0) updates
-EPISODE_DAYS  : int   = WARMUP_DAYS + LEARNING_DAYS
+
+WARMUP_DAYS   : int   = 7         # greedy warm-up, no TD updates
+LEARNING_DAYS : int   = 21        # VFA + TD(0) 
+EPISODE_DAYS  : int   = WARMUP_DAYS + LEARNING_DAYS        # days per episode (total)
 
 # --- Learning Rate (Alpha) & Exploration (Epsilon) ---
-ALPHA_START   : float = 0.1   # initial alpha for TD updates, will be overwritten in case of argument passing
+ALPHA_START   : float = 0.05   # initial alpha for TD updates, will be overwritten in case of argument passing
 EPSILON_START : float = 0.2     # initial exploration rate
 EPSILON_END   : float = 0.01    # final exploration rate
 
 GAMMA         : float = 0.99      # discount factor
 
-# ── Feature configuration ──────────────────────────────────────────────────────
+# ── Feature configuration ───────────────────────────────────────────────────────
 LOGISTICS_ENABLED : bool = False  # Enable Pillar 4: Spatial & Logistic Constraints features
 N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, logistics_enabled=LOGISTICS_ENABLED, demand_horizon_enabled=True))  # auto-synced with vfa_features.py
 

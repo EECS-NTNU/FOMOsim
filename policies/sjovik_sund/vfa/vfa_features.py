@@ -99,6 +99,7 @@ def get_feature_names(
     maintenance_enabled: bool = False,
     logistics_enabled: bool = False,
     demand_horizon_enabled: bool = True,
+    destination_features_enabled: bool = True,
 ) -> list:
     """Returns the canonical feature name list for the active operational pillars.
 
@@ -139,8 +140,7 @@ def get_feature_names(
             "demand_weighted_depot_backlog",     # MP3 — demand-weighted (fixed)
             "demand_weighted_onsite_backlog",    # MP4 — new
             "fleet_broken_fraction",             # MP5 — 0=good, positive=bad
-            "undistributed_depot_inventory",     # MP6 — fixed-queue pressure; 0=good, negative=worse
-            "depot_idle_fraction",               # MP7 — 0=good, positive=bad
+            "depot_idle_fraction",               # MP6 — 0=good, positive=bad
             "recoverable_starvation",            # MP8 — new
             "maintenance_urgency",               # MP9 — restored
             "rush_hour_onsite_backlog",          # MP10 — time-aware penalty
@@ -156,23 +156,24 @@ def get_feature_names(
             "imbalance_hotspot_distance",     # SLC5
         ])
 
-    # Pillar 5: Destination-Local Features (always active — routing discrimination)
-    names.extend([
-        "destination_starv_ratio",        # max(0, T_nxt - I_nxt) / T_nxt
-        "destination_cong_ratio",         # max(0, I_nxt - T_nxt) / (C_nxt - T_nxt)
-        "destination_onsite_fraction",    # onsite[nxt] / C_nxt
-        "destination_travel_penalty",     # dist_to_next / max_system_travel_time
-        "destination_roi_starvation",     # Starvation / Travel Penalty
-        "cur_station_onsite_fraction",    # onsite[cur] / C_cur  (post-decision)
-        "cur_station_func_deficit",       # max(0, T_cur - I_cur) / C_cur  (post-decision)
-        "functional_load_late_pressure",  # (q_func/K) * (1 - shift_remaining)
-        "depot_load_late_pressure",       # (q_depot/K) * (1 - shift_remaining)
-        "non_depot_late_load_pressure",   # 1[next not depot] * ((q_func+q_depot)/K) * late
-        "late_depot_return",              # 1[next is depot] * late
-        "depot_slack_fraction",           # (t_rem - d_depot) / L, clamped [-1, 1]
-        "can_return_to_depot",            # 1.0 if t_rem > d_depot else 0.0
-        "depot_return_urgency",           # d_depot / max(t_rem, 1), clamped [0, 1]
-    ])
+    # Pillar 5: Destination-Local Features
+    if destination_features_enabled:
+        names.extend([
+            "destination_starv_ratio",        # max(0, T_nxt - I_nxt) / T_nxt
+            "destination_cong_ratio",         # max(0, I_nxt - T_nxt) / (C_nxt - T_nxt)
+            "destination_onsite_fraction",    # onsite[nxt] / C_nxt
+            "destination_travel_penalty",     # dist_to_next / max_system_travel_time
+            "destination_roi_starvation",     # Starvation / Travel Penalty
+            "cur_station_onsite_fraction",    # onsite[cur] / C_cur  (post-decision)
+            "cur_station_func_deficit",       # max(0, T_cur - I_cur) / C_cur  (post-decision)
+            "functional_load_late_pressure",  # (q_func/K) * (1 - shift_remaining)
+            "depot_load_late_pressure",       # (q_depot/K) * (1 - shift_remaining)
+            "non_depot_late_load_pressure",   # 1[next not depot] * ((q_func+q_depot)/K) * late
+            "late_depot_return",              # 1[next is depot] * late
+            "depot_slack_fraction",           # (t_rem - d_depot) / L, clamped [-1, 1]
+            "can_return_to_depot",            # 1.0 if t_rem > d_depot else 0.0
+            "depot_return_urgency",           # d_depot / max(t_rem, 1), clamped [0, 1]
+        ])
 
     return names
 
@@ -217,6 +218,7 @@ def extract(
     dist_to_next: float = 0.0,        # travel time (minutes) from current location to destination
     max_travel_time: float = 60.0,    # system-wide max travel time for normalisation
     next_is_depot: bool = False,
+    destination_features_enabled: bool = False,
 ) -> np.ndarray:
 
     features = []
@@ -356,17 +358,11 @@ def extract(
         # MP5: Fleet Broken Fraction — normalised by expected max total broken (≈20% of fleet)
         phi_fleet_broken = (float(np.sum(onsite)) + float(np.sum(depot)) + depot_in_repair) / (F_safe * 0.20)
 
-        # MP6: Fixed-Queue Pressure — repaired bikes sitting idle at depot.
-        # Keep the historical feature name for CSV/model compatibility, but make it
-        # candidate-relevant: going to depot can reduce this by loading repaired bikes.
-        phi_depot_in_repair_f = -depot_fixed_queue / (F_safe * 0.07)
-
-        # MP7: Depot Idle Fraction — bikes repaired but not yet picked up.
+        # MP6: Depot Idle Fraction — bikes repaired but not yet picked up.
         # Negative: more bikes sitting idle at depot = worse state (capacity wasted).
         # Normalised by fleet (raw fraction), not 3% cap — 3% was too tight and caused divergence.
-        phi_depot_idle = -depot_fixed_queue / F_safe
-
-
+        phi_depot_idle = -depot_fixed_queue / (F_safe*0.30)
+        
         # MP8: Recoverable Starvation — normalised by expected max recoverable (≈10% of fleet)
         is_starving = (func < target).astype(np.float64)
         phi_rec_starvation = float(np.dot(is_starving, onsite)) / (F_safe * 0.10)
@@ -382,8 +378,7 @@ def extract(
 
         cat_b = [
             phi_cannibalization, phi_onsite_backlog, phi_depot_backlog, phi_dw_depot_backlog,
-            phi_dw_onsite_backlog, phi_fleet_broken,
-            phi_depot_in_repair_f, phi_depot_idle,
+            phi_dw_onsite_backlog, phi_fleet_broken, phi_depot_idle,
             phi_rec_starvation, phi_maint_urgency,
             phi_rush_hour_onsite,
         ]
@@ -437,8 +432,11 @@ def extract(
         features.extend(cat_c)
 
     # =========================================================================
-    # Pillar 5: Destination-Local Features (always active)
+    # Pillar 5: Destination-Local Features
     # =========================================================================
+    if not destination_features_enabled:
+        return np.array(features, dtype=np.float32)
+
     if next_station_idx >= 0 and next_station_idx < N:
         nxt_func   = float(func[next_station_idx])
         nxt_onsite = float(onsite[next_station_idx])
@@ -508,9 +506,10 @@ def as_dict(
     maintenance_enabled: bool = True,
     logistics_enabled: bool = False,
     demand_horizon_enabled: bool = False,
+    destination_features_enabled: bool = True,
 ) -> dict:
     """Return a labelled dict of a computed feature vector."""
-    names = get_feature_names(maintenance_enabled, logistics_enabled, demand_horizon_enabled)
+    names = get_feature_names(maintenance_enabled, logistics_enabled, demand_horizon_enabled, destination_features_enabled)
     assert len(phi) == len(names), (
         f"phi has {len(phi)} elements but {len(names)} names are registered. "
         f"Check maintenance_enabled={maintenance_enabled}, "

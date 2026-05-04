@@ -87,7 +87,7 @@ def main():
     )
 
     # ── Save results ──────────────────────────────────────────────────────────
-    output_dir = Path("models/feature_study_maint")
+    output_dir = Path("models/feature_study_maintenanceenabled")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     stats_path  = output_dir / "feature_statistics.csv"
