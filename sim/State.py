@@ -34,6 +34,8 @@ class State(LoadSave):
         traveltime_vehicle_matrix_stddev=None, 
         rng = None,
         rng2 = None,
+        rng_demand = None,
+        rng_degradation = None,
         seed = None,
     ):
         self.time = 0
@@ -48,6 +50,16 @@ class State(LoadSave):
             self.rng2 = np.random.default_rng(None)
         else:
             self.rng2 = rng2
+
+        if rng_demand is None:
+            self.rng_demand = np.random.default_rng(None)
+        else:
+            self.rng_demand = rng_demand
+
+        if rng_degradation is None:
+            self.rng_degradation = np.random.default_rng(None)
+        else:
+            self.rng_degradation = rng_degradation
 
         '''self.vehicles = vehicles
         self.bikes_in_use = bikes_in_use
@@ -137,6 +149,8 @@ class State(LoadSave):
             traveltime_vehicle_matrix_stddev = self.traveltime_vehicle_matrix_stddev,
             rng = copy.deepcopy(self.rng),
             rng2 = copy.deepcopy(self.rng2),
+            rng_demand = copy.deepcopy(self.rng_demand),
+            rng_degradation = copy.deepcopy(self.rng_degradation),
         )
 
         # 5. Re-link vehicles to cloned locations.
@@ -489,6 +503,8 @@ class State(LoadSave):
     def set_seed(self, seed):
         self.rng = np.random.default_rng(seed)
         self.rng2 = np.random.default_rng(seed + 9999)
+        self.rng_demand = np.random.default_rng(seed + 20000)
+        self.rng_degradation = np.random.default_rng(seed + 30000)
         self.seed = seed
 
     def set_vehicles(self, policies):

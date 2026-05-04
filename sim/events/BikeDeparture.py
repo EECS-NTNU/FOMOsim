@@ -352,9 +352,10 @@ class BikeDeparture(Event):
         Evaluate component failure risk using ComponentFailureModel.
         """
         verbose = VERBOSE_FAILURE_TRACKING or (bike.bike_id in SAMPLE_BIKES_TO_TRACK)
+        degradation_rng = getattr(simul.state, "rng_degradation", simul.state.rng)
         
         failed_components = ComponentFailureModel.check_component_failures_on_trip(
-            bike, trip_distance_km, simul.state.rng, verbose=verbose
+            bike, trip_distance_km, degradation_rng, verbose=verbose
         )
         
         # Process any failures
@@ -376,7 +377,8 @@ class BikeDeparture(Event):
         """
         
         # === SIMPLIFIED: 50/50 DEPOT vs ON-SITE ===
-        damage_label = assign_damage_severity(simul.state.rng, category)
+        degradation_rng = getattr(simul.state, "rng_degradation", simul.state.rng)
+        damage_label = assign_damage_severity(degradation_rng, category)
         
         # Increment failure counter
         if 'total_failures' not in bike.component_failures[category]:
