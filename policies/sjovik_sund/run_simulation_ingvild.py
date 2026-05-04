@@ -659,7 +659,10 @@ if __name__ == "__main__":
         if policy_type == "greedy-maintenance":
             _set_run_logger_context(policy_type)
             policy_name = f"GreedyMaintenance_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
-            return policy_name, GreedyMaintenancePolicy()
+            policy = GreedyMaintenancePolicy()
+            if run_logger is not None:
+                policy.logger = run_logger
+            return policy_name, policy
 
         if policy_type == "xpilot":
             _set_run_logger_context(policy_type)
