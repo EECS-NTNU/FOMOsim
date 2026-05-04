@@ -10,6 +10,46 @@ from settings import (
     LATE_SHIFT_HOURS
 )
 
+DEPOT_RETURN_BUFFER_MINUTES = 10.0
+
+
+def _nearest_depot_id(state, vehicle):
+    depots = state.get_depots()
+    if not depots:
+        return None
+    return min(depots, key=lambda d: state.get_vehicle_travel_time(vehicle.location.id, d.id)).id
+
+
+def _violates_depot_return_guard(state, vehicle, action, depot_id, buffer_minutes=DEPOT_RETURN_BUFFER_MINUTES):
+    """True if a non-depot destination would make returning to depot infeasible before close."""
+    if depot_id is None:
+        return False
+
+    next_station = getattr(action, "next_location", getattr(action, "next_station", None))
+    if next_station == depot_id:
+        return False
+
+    close_min = SERVICE_TIME_TO * 60.0
+    clock_min = state.time % 1440.0
+    time_remaining = max(0.0, close_min - clock_min)
+
+    try:
+        travel_to_next = state.get_vehicle_travel_time(vehicle.location.id, next_station)
+    except Exception:
+        travel_to_next = 0.0
+    try:
+        travel_next_to_depot = state.get_vehicle_travel_time(next_station, depot_id)
+    except Exception:
+        travel_next_to_depot = 0.0
+    try:
+        service_time = action.get_action_time(0.0) if hasattr(action, "get_action_time") else 0.0
+    except Exception:
+        service_time = 0.0
+
+    required_time = travel_to_next + service_time + travel_next_to_depot + buffer_minutes
+    return time_remaining < required_time
+
+
 def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool, verbose: bool):
     if verbose:
         print("HEI jeg genererer operasjonelle profiler")
@@ -56,7 +96,11 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool, ve
     
     if maintenance_enabled:
         all_station_bikes = vehicle.location.get_bikes()
-        num_onsite = sum(1 for b in all_station_bikes if getattr(b, 'damage_status', None) == 'onsite')
+        num_onsite = sum(
+            1 for b in all_station_bikes
+            if getattr(b, 'damage_status', None) == 'onsite'
+            and not getattr(b, "onsite_repair_in_progress", False)
+        )
         num_depot  = sum(1 for b in all_station_bikes if getattr(b, 'damage_status', None) == 'depot')
     else:
         num_onsite, num_depot = 0, 0
@@ -86,13 +130,10 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool, ve
         rebalancing_options.add(-min(delta_minus, free_cap))
         
     # --- B. Fractional Maintenance Options ---
-    '''fractions = [0.0, 0.25, 0.50, 0.75, 1.0]
+    fractions = [0.0, 0.25, 0.50, 0.75, 1.0]
     
     onsite_options = {round(num_onsite * f) for f in fractions} if num_onsite > 0 else {0}
-    depot_options  = {round(num_depot * f) for f in fractions} if num_depot > 0 else {0}'''
-    
-    onsite_options = {num_onsite} if maintenance_enabled else {0}
-    depot_options  = {num_depot} if maintenance_enabled else {0}
+    depot_options  = {round(num_depot * f) for f in fractions} if num_depot > 0 else {0}
 
     #max_pickup = -min(len(functional_bikes), free_cap)
     #max_delivery = min(n_vehicle_func, station_spare_cap)
@@ -100,6 +141,8 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool, ve
 
     seen = set() # To track unique combinations of rebalancing and maintenance
     for reb in rebalancing_options:
+        if reb > 0 and reb > station_spare_cap:
+            continue # Impossible action
         for onsite in onsite_options:
             for depot in depot_options:
                 
@@ -111,11 +154,6 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool, ve
                 # If the chosen depot fraction wants to load more broken bikes than we have space for,
                 # clip it to the maximum allowable space so it becomes a valid action.
                 valid_depot_removal = min(depot, max(0, space_available_for_broken))
-                
-                # 2: Total delivery cannot exceed station spare capacity
-                # Delivering functional bikes (reb > 0) takes up station space.
-                if reb > 0 and reb > station_spare_cap:
-                    continue # Impossible action
                 
                 tup = (reb, onsite, valid_depot_removal, 0)
                 if tup not in seen:
@@ -253,7 +291,14 @@ def _generate_routing_targets(
                 score *= max(0.1, 1.0 - urgency * 0.5)
 
         if maintenance_enabled and _free_space > 0:
-            broken = sum(1 for b in s.get_bikes() if getattr(b, 'damage_status', None) in ('depot', 'onsite'))
+            broken = sum(
+                1 for b in s.get_bikes()
+                if getattr(b, 'damage_status', None) == 'depot'
+                or (
+                    getattr(b, 'damage_status', None) == 'onsite'
+                    and not getattr(b, "onsite_repair_in_progress", False)
+                )
+            )
             score += broken * 1.5
 
         # --- TRAVEL TIME DISCOUNT ---
@@ -336,7 +381,7 @@ def generate_candidates(
     
     sim_actions = []
     mdp_actions = []
-    depot_ids = {d.id for d in state.get_depots()}
+    depot_id = _nearest_depot_id(state, vehicle) if maintenance_enabled else None
 
     for op in op_profiles:
         # 1. Calculate exactly what the vehicle will look like AFTER this specific operation
@@ -366,16 +411,6 @@ def generate_candidates(
         )
 
         for route in routing_targets:
-            is_depot = route in depot_ids
-           
-            # Pruning logic: Don't go to depot if we have nothing to drop off or pick up
-            if is_depot and broken_after_op == 0 and op.get('load_from_queue', 0) == 0:
-                continue
-               
-            # Pruning logic: If fully loaded with broken bikes, ONLY go to depot
-            if broken_after_op >= vehicle_capacity and not is_depot:
-                continue
-               
             mdp_action = MdpAction(
                 current_station=cur_id,
                 rebalancing=int(op['rebalancing']),
@@ -386,11 +421,15 @@ def generate_candidates(
                 depot_dropoffs=int(op.get('depot_dropoffs', 0)),
             )
             sim_action = mdp_action_to_sim_action(mdp_action, state, vehicle)
+            if _violates_depot_return_guard(state, vehicle, sim_action, depot_id):
+                continue
             sim_actions.append(sim_action)
             mdp_actions.append(mdp_action)
  
     if not sim_actions:
-        fallback_target = sorted(state.get_stations(), key=lambda s: state.get_vehicle_travel_time(cur_id, s.id))[1].id
+        fallback_target = depot_id
+        if fallback_target is None:
+            fallback_target = sorted(state.get_stations(), key=lambda s: state.get_vehicle_travel_time(cur_id, s.id))[1].id
         fallback_mdp = MdpAction(
             current_station=cur_id,
             rebalancing=0, onsite_repairs=0, depot_removals=0, load_from_queue=0,

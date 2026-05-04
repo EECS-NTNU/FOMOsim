@@ -13,7 +13,6 @@ from typing import Any
 from pathlib import Path
 from settings import MAINTENANCE_INCREASE_PER_MINUTE
 from sim.bike_degradation_modeling import damage_configuration
-from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_all_feature_names
 #from sim.bike_degradation_modeling.utils import haversine_distance
  
  
@@ -24,11 +23,20 @@ RESULTS_DIR = _LOGGING_FILE_DIR / 'simulation_results' / 'csv'
 print(f"Full results directory: {RESULTS_DIR}")
 
 _FAILURE_CATS = list(damage_configuration.DAMAGE_CATEGORIES.keys())
-_ALL_FEATURE_NAMES = _get_all_feature_names(
-    maintenance_enabled=True,
-    logistics_enabled=True,
-    demand_horizon_enabled=True,
-)
+
+
+def _decision_feature_names() -> list[str]:
+    """Load VFA feature names only when decision-level logging is enabled."""
+    from policies.sjovik_sund.vfa.vfa_features import get_feature_names
+
+    try:
+        return get_feature_names(
+            maintenance_enabled=True,
+            logistics_enabled=True,
+            demand_horizon_enabled=True,
+        )
+    except TypeError:
+        return get_feature_names(maintenance_enabled=True)
 
 
 def _safe_path_part(value: object) -> str:
@@ -155,7 +163,7 @@ class SimulationRunLogger:
             "rollout_changed_decision", "winning_candidate_rank",
             "decision_runtime_s", "winning_profile_type",
         ]
-        cols += [f"phi_{name}" for name in _ALL_FEATURE_NAMES]
+        cols += [f"phi_{name}" for name in _decision_feature_names()]
         return cols
 
     def __init__(

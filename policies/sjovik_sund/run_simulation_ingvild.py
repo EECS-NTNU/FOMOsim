@@ -17,6 +17,14 @@ from datetime import datetime
 
 # Get workspace root (2 levels up from this file)
 WORKSPACE_ROOT = Path(__file__).parents[2]
+STEADY_STATE_ODOMETER_DIR = (
+    WORKSPACE_ROOT
+    / "policies"
+    / "sjovik_sund"
+    / "simulation_results"
+    / "steady_state_odometers"
+)
+AUTO_ODOMETER_STATS = "auto"
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, '')
 
@@ -38,7 +46,7 @@ from policies.sjovik_sund.vfa.HybridRolloutPolicy import HybridRolloutPolicy
 from policies.sjovik_sund.mdp.reward import RewardCalculator, RewardConfig
 from policies.do_nothing_policy import DoNothing
 from policies.greedy_policy import GreedyPolicy
-from policies.greedy_policy_V2 import GreedyPolicyV2
+#from policies.greedy_policy_V2 import GreedyPolicyV2
 from policies.greedy_policy_maintenance import GreedyMaintenancePolicy
 
 import sim
@@ -72,6 +80,14 @@ from policies.sjovik_sund.simulation_logging import (
     write_vehicle_and_health_logs
 )
 from policies.sjovik_sund.operational_logging import OperationalLogger
+from sim.bike_degradation_modeling.steady_state_odometer import (
+    aggregate_seed_summaries,
+    apply_component_odometer_initialization,
+    collect_component_odometer_samples,
+    iter_unique_bikes,
+    summarize_component_odometers,
+    write_csv_rows,
+)
 
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -118,11 +134,18 @@ class SimulationConfig:
     default_seed: int = 42
     default_nsims: int = 1
     default_vehicles: int = 1
-    default_duration_hours: int = 1344 # 5 days (3mnd)
+    default_duration_hours: int = 1344 # 56 days / 8 weeks
 
     # === Operational Debug Logging ===
     operation_logging_enabled: bool = False
     operation_logging_include_bike_ids: bool = True
+
+    # === Initial Component Wear ===
+    # If set, run_simulation samples component odometers from this CSV at startup.
+    odometer_stats_path: str = AUTO_ODOMETER_STATS
+    odometer_sampling_method: str = "triangular"
+    odometer_sampling_bounds: str = "p05-p95"
+    odometer_debug_bike_ids: List[str] = field(default_factory=lambda: ["B54"])
     
     # === Target State ===
     # Options: "half_capacity", "equal_prob", "us"
@@ -158,7 +181,85 @@ class SimulationConfig:
                 [self.maintenance_reward * alpha])
 
 
-def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instance_name=None, config=None, run_logger=None):
+def _resolve_odometer_stats_path(stats_path, instance_name: str) -> Path | None:
+    """Resolve a concrete odometer stats CSV path.
+
+    The default "auto" mode picks the newest aggregate CSV generated for the
+    current instance under policies/sjovik_sund/simulation_results.
+    """
+    if stats_path is None:
+        return None
+
+    stats_path_str = str(stats_path)
+    if stats_path_str.strip().lower() in {"", "none", "off", "false", "disabled"}:
+        return None
+
+    if stats_path_str.strip().lower() != AUTO_ODOMETER_STATS:
+        return Path(stats_path_str)
+
+    candidates = list(
+        STEADY_STATE_ODOMETER_DIR.glob(
+            f"{instance_name}_*/component_odometer_stats_aggregated.csv"
+        )
+    )
+    if not candidates:
+        candidates = list(
+            STEADY_STATE_ODOMETER_DIR.glob("**/component_odometer_stats_aggregated.csv")
+        )
+    if not candidates:
+        return None
+
+    return max(candidates, key=lambda path: path.stat().st_mtime)
+
+
+def _log_debug_bike_odometer_initialization(
+    state,
+    seed,
+    bike_ids: List[str],
+    stats_path: Path,
+    sampling_method: str,
+    sampling_bounds: str,
+) -> None:
+    if not bike_ids:
+        return
+
+    wanted_ids = set(bike_ids)
+    found_ids = set()
+    for bike in iter_unique_bikes(state):
+        bike_id = getattr(bike, "bike_id", None)
+        if bike_id not in wanted_ids:
+            continue
+
+        found_ids.add(bike_id)
+        component_odometers = getattr(bike, "component_odometers", {}) or {}
+        print(
+            f"[ODOMETER INIT] seed={seed} bike={bike_id}\n"
+            f"  stats={stats_path}\n"
+            f"  method={sampling_method} bounds={sampling_bounds}\n"
+            f"  total_distance_km={getattr(bike, 'total_distance_km', 0.0):.6f}"
+        )
+        for component, odometer in sorted(component_odometers.items()):
+            print(f"  {component}: {odometer:.6f}")
+
+    missing_ids = wanted_ids - found_ids
+    for bike_id in sorted(missing_ids):
+        print(f"[ODOMETER INIT] seed={seed} bike={bike_id} not_found=true")
+
+
+def run_simulation(
+    seed,
+    policy,
+    duration=24,
+    num_vehicles=2,
+    queue=None,
+    instance_name=None,
+    config=None,
+    run_logger=None,
+    odometer_stats_path=None,
+    odometer_sampling_method="triangular",
+    odometer_sampling_bounds="p05-p95",
+    verbose=True,
+):
     """Run a single simulation with given parameters.
     
     Args:
@@ -186,6 +287,40 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
     instance_path = WORKSPACE_ROOT / "instances" / INSTANCE
     state: sim.State = init_state.read_initial_state(str(instance_path))
     state.set_seed(seed)
+
+    if odometer_stats_path is None:
+        odometer_stats_path = config.odometer_stats_path
+    if odometer_sampling_method is None:
+        odometer_sampling_method = config.odometer_sampling_method
+    if odometer_sampling_bounds is None:
+        odometer_sampling_bounds = config.odometer_sampling_bounds
+
+    resolved_odometer_stats_path = _resolve_odometer_stats_path(
+        odometer_stats_path,
+        instance_name=INSTANCE,
+    )
+    if resolved_odometer_stats_path is not None:
+        initialized_bikes = apply_component_odometer_initialization(
+            state,
+            stats_path=resolved_odometer_stats_path,
+            rng=state.rng_degradation,
+            method=odometer_sampling_method,
+            bounds=odometer_sampling_bounds,
+        )
+        print(
+            f"Initialized component odometers for {initialized_bikes} bikes from "
+            f"{resolved_odometer_stats_path} ({odometer_sampling_method}, {odometer_sampling_bounds})."
+        )
+        _log_debug_bike_odometer_initialization(
+            state=state,
+            seed=seed,
+            bike_ids=config.odometer_debug_bike_ids,
+            stats_path=resolved_odometer_stats_path,
+            sampling_method=odometer_sampling_method,
+            sampling_bounds=odometer_sampling_bounds,
+        )
+    elif str(odometer_stats_path).lower() == AUTO_ODOMETER_STATS:
+        print("No steady-state odometer stats found; starting component odometers at zero.")
     
     FLEET_SIZE = state.get_all_bikes()
     print(f"Initialized state with {len(FLEET_SIZE)} bikes for instance '{INSTANCE}' and seed {seed}.")
@@ -229,7 +364,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
         demand=d,
         start_time=START_TIME,
         duration=DURATION,
-        verbose=True,
+        verbose=verbose,
     )
     simulator.operation_logger = operation_logger
     simulator.run_logger = run_logger
@@ -313,7 +448,21 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
 
     print(f"Seed {seed}: Completed in {solve_time:.2f}s")
 
-def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, use_multiprocessing=True, instance_name=None, config=None, run_logger=None, write_csv=True):
+def test_seeds(
+    list_of_seeds,
+    policy,
+    filename,
+    num_vehicles=1,
+    duration=24*5,
+    use_multiprocessing=True,
+    instance_name=None,
+    config=None,
+    run_logger=None,
+    write_csv=True,
+    odometer_stats_path=None,
+    odometer_sampling_method="triangular",
+    odometer_sampling_bounds="p05-p95",
+):
     """Test multiple seeds with the same policy.
 
     Args:
@@ -338,7 +487,15 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         processes = []
   
         for seed in list_of_seeds:
-            p = mp.Process(target=run_simulation, args=(seed, policy, duration, num_vehicles, queue, instance_name, config))
+            p = mp.Process(
+                target=run_simulation,
+                args=(seed, policy, duration, num_vehicles, queue, instance_name, config),
+                kwargs={
+                    "odometer_stats_path": odometer_stats_path,
+                    "odometer_sampling_method": odometer_sampling_method,
+                    "odometer_sampling_bounds": odometer_sampling_bounds,
+                },
+            )
             processes.append(p)
             p.start()
   
@@ -371,7 +528,18 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             if run_logger is not None:
                 run_logger.set_seed(seed)
             start_solve = time.time()
-            simulator = run_simulation(seed, policy, duration, num_vehicles, instance_name=instance_name, config=config, run_logger=run_logger)
+            simulator = run_simulation(
+                seed,
+                policy,
+                duration,
+                num_vehicles,
+                instance_name=instance_name,
+                config=config,
+                run_logger=run_logger,
+                odometer_stats_path=odometer_stats_path,
+                odometer_sampling_method=odometer_sampling_method,
+                odometer_sampling_bounds=odometer_sampling_bounds,
+            )
             solve_time = time.time() - start_solve
 
             write_simulation_outputs(
@@ -390,7 +558,20 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
         print(f"\nResults written to: policies/sjovik_sund/simulation_results/{results_file}")
  
  
-def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use_multiprocessing=False, instance_name=None, config=None, run_logger=None, write_csv=True):
+def test_policies(
+    list_of_seeds,
+    policy_dict,
+    num_vehicles=1,
+    duration=24*5,
+    use_multiprocessing=False,
+    instance_name=None,
+    config=None,
+    run_logger=None,
+    write_csv=True,
+    odometer_stats_path=None,
+    odometer_sampling_method="triangular",
+    odometer_sampling_bounds="p05-p95",
+):
     """Test multiple policies with multiple seeds.
 
     Args:
@@ -412,7 +593,83 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
         print(f"{'='*80}\n")
 
         results_file = f'{policy_name}_results.csv'
-        test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing, instance_name, config, run_logger=run_logger, write_csv=write_csv)
+        test_seeds(
+            list_of_seeds,
+            policy,
+            results_file,
+            num_vehicles,
+            duration,
+            use_multiprocessing,
+            instance_name,
+            config,
+            run_logger=run_logger,
+            write_csv=write_csv,
+            odometer_stats_path=odometer_stats_path,
+            odometer_sampling_method=odometer_sampling_method,
+            odometer_sampling_bounds=odometer_sampling_bounds,
+        )
+
+
+def generate_steady_state_odometer_stats(
+    list_of_seeds,
+    duration,
+    num_vehicles=1,
+    instance_name=None,
+    config=None,
+    output_dir=None,
+):
+    """Run GreedyMaintenancePolicy and export steady-state component odometer stats."""
+    if config is None:
+        config = SimulationConfig()
+    if instance_name is None:
+        instance_name = config.default_instance
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if output_dir is None:
+        output_dir = (
+            WORKSPACE_ROOT
+            / "policies"
+            / "sjovik_sund"
+            / "simulation_results"
+            / "steady_state_odometers"
+            / f"{instance_name}_D{duration}h_V{num_vehicles}_{timestamp}"
+        )
+    output_dir = Path(output_dir)
+
+    all_seed_rows = []
+    all_sample_rows = []
+    for seed in list_of_seeds:
+        print(
+            f"\n[steady-state odometers] seed={seed}, policy=GreedyMaintenancePolicy, "
+            f"duration={duration}h"
+        )
+        simulator = run_simulation(
+            seed=seed,
+            policy=GreedyMaintenancePolicy(),
+            duration=duration,
+            num_vehicles=num_vehicles,
+            instance_name=instance_name,
+            config=config,
+            run_logger=None,
+            verbose=False,
+        )
+        all_seed_rows.extend(summarize_component_odometers(simulator.state, seed=seed))
+        all_sample_rows.extend(collect_component_odometer_samples(simulator.state, seed=seed))
+
+    aggregate_rows = aggregate_seed_summaries(all_seed_rows)
+
+    per_seed_path = output_dir / "component_odometer_stats_by_seed.csv"
+    aggregate_path = output_dir / "component_odometer_stats_aggregated.csv"
+    sample_path = output_dir / "component_odometer_samples.csv"
+
+    write_csv_rows(per_seed_path, all_seed_rows)
+    write_csv_rows(aggregate_path, aggregate_rows)
+    write_csv_rows(sample_path, all_sample_rows)
+
+    print(f"\nWrote per-seed odometer stats to: {per_seed_path}")
+    print(f"Wrote aggregated odometer stats to: {aggregate_path}")
+    print(f"Wrote raw odometer samples to: {sample_path}")
+    return aggregate_path
  
  
 if __name__ == "__main__":
@@ -478,7 +735,7 @@ if __name__ == "__main__":
         "--duration",
         type=int,
         default=config.default_duration_hours,
-        help=f"Simulation duration in hours (default: {config.default_duration_hours} hours = 5 days).",
+        help=f"Simulation duration in hours (default: {config.default_duration_hours} hours = 56 days / 8 weeks).",
     )
     parser.add_argument(
         "--maintenance_limit",
@@ -574,6 +831,47 @@ if __name__ == "__main__":
         default=True,
         help="Skip legacy simulation_results/csv writers and rely on centralized run_logs output.",
     )
+    parser.add_argument(
+        "--generate-odometer-stats",
+        action="store_true",
+        default=False,
+        help=(
+            "Run GreedyMaintenancePolicy for the selected seeds and write steady-state "
+            "component odometer CSVs, then exit."
+        ),
+    )
+    parser.add_argument(
+        "--odometer-stats-out",
+        type=str,
+        default=None,
+        help="Output directory for --generate-odometer-stats CSVs.",
+    )
+    parser.add_argument(
+        "--odometer-stats-in",
+        type=str,
+        default=None,
+        help=(
+            "CSV with aggregated component odometer stats used to warm-start bikes "
+            "before a normal simulation run."
+        ),
+    )
+    parser.add_argument(
+        "--odometer-sampling-method",
+        type=str,
+        choices=["triangular", "uniform", "truncated-normal"],
+        default="triangular",
+        help="Sampling method used with --odometer-stats-in (default: triangular).",
+    )
+    parser.add_argument(
+        "--odometer-sampling-bounds",
+        type=str,
+        choices=["p05-p95", "min-max"],
+        default="p05-p95",
+        help=(
+            "Bounds used when sampling warm-start odometers. p05-p95 is more robust; "
+            "min-max uses the full observed range."
+        ),
+    )
 
     args = parser.parse_args()
  
@@ -595,6 +893,17 @@ if __name__ == "__main__":
     # Determine seeds: start at args.seed, run nsims seeds
     start_seed = args.seed
     list_of_seeds = list(range(start_seed, start_seed + args.nsims))
+
+    if args.generate_odometer_stats:
+        generate_steady_state_odometer_stats(
+            list_of_seeds=list_of_seeds,
+            duration=duration,
+            num_vehicles=num_vehicles,
+            instance_name=args.instance,
+            config=config,
+            output_dir=args.odometer_stats_out,
+        )
+        sys.exit(0)
 
     timestamp = datetime.now().strftime("%m%d%H%M")
 
@@ -719,6 +1028,9 @@ if __name__ == "__main__":
             config=config,
             run_logger=run_logger,
             write_csv=not args.no_csv,
+            odometer_stats_path=args.odometer_stats_in,
+            odometer_sampling_method=args.odometer_sampling_method,
+            odometer_sampling_bounds=args.odometer_sampling_bounds,
         )
 
     if run_logger is not None:

@@ -88,6 +88,30 @@ class RewardCalculator:
         ratio = total_broken / total_bikes
         return self.config.weight_fleet_degradation * ratio * self._scale_factor
 
+    def compute_late_shift_penalty(self, vehicle, state) -> float:
+        """Continuous penalty in final 2 hours of shift when vehicle is away from depot with cargo."""
+        if (self.config.not_at_depot_at_end_penalty == 0.0 and
+                self.config.functional_bikes_at_end_penalty == 0.0):
+            return 0.0
+        if vehicle.is_at_depot():
+            return 0.0
+        from settings import SERVICE_TIME_TO
+        close_min = SERVICE_TIME_TO * 60.0
+        clock_min = state.time % 1440.0
+        time_remaining = max(0.0, close_min - clock_min)
+        penalty_window = 120.0
+        if time_remaining >= penalty_window:
+            return 0.0
+        urgency = 1.0 - (time_remaining / penalty_window)
+        penalty = self.config.not_at_depot_at_end_penalty * urgency
+        if self.config.functional_bikes_at_end_penalty != 0.0:
+            n_func = sum(
+                1 for b in vehicle.get_bike_inventory()
+                if getattr(b, "damage_status", None) not in ("depot", "onsite")
+            )
+            penalty += self.config.functional_bikes_at_end_penalty * n_func * urgency
+        return penalty * self._scale_factor
+
     def compute_step_reward(self, simulator_metrics, executed_action=None) -> float:
         """Calculates the reward since the last decision epoch."""
         cur_s = simulator_metrics.get_aggregate_value("starvations") or 0
