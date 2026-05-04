@@ -9,12 +9,12 @@ Hybrid "Horizontal" ADP (Ulmer 2020 / Brinkmann 2019-2020):
   - Once frozen, the VFA acts as a tail-value estimator inside an online
     Rollout Algorithm (implemented separately).
 
-Episode structure  (14-day simulation per episode)
+Episode structure
 ──────────────────────────────────────────────────
-  Days 1 - 4   Warm-up   : GreedyPolicy drives the system.
-                            No TD updates → builds up a realistic
-                            "messy" state without biasing θ.
-  Days 5 - 14  Learning  : LinearVFAPolicy.
+  Days 1 - 7    Warm-up  : GreedyPolicy drives the system.
+                            No TD updates; station inventories and repair
+                            queues settle after the steady-state odometer draw.
+  Days 8 - 35   Learning : LinearVFAPolicy.
                             TD(0) updates occur at every vehicle decision.
 
 Usage
@@ -55,9 +55,9 @@ from settings import ENABLE_COMPONENT_FAILURES
 
 NUM_EPISODES  : int   = 200      # total training episodes
 
-EPISODE_DAYS  : int   = 49       # days per episode (total)
-WARMUP_DAYS   : int   = 21         # greedy warm-up, no TD updates
-LEARNING_DAYS : int   = 28        # VFA + TD(0)  (days 5 – 14)
+WARMUP_DAYS   : int   = 7       # greedy settling period after odometer warm-start
+LEARNING_DAYS : int   = 28      # VFA + TD(0) updates
+EPISODE_DAYS  : int   = WARMUP_DAYS + LEARNING_DAYS
 
 # --- Learning Rate (Alpha) & Exploration (Epsilon) ---
 ALPHA_START   : float = 0.1   # initial alpha for TD updates, will be overwritten in case of argument passing
@@ -341,7 +341,7 @@ def train(
 
     # Warm-up ends at this absolute simulation-time (minutes).
     sim_start_min   = timeInMinutes(hours=START_HOUR)
-    warmup_end_time = sim_start_min + WARMUP_DAYS * 24 * 60   # e.g. 420 + 5760
+    warmup_end_time = sim_start_min + WARMUP_DAYS * 24 * 60
 
 
     service_levels: list = []

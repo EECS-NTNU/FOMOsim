@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from sim.bike_degradation_modeling.steady_state_odometer import iter_unique_bikes
+
 @dataclass
 class RewardConfig:
     # --- Operational Components ---
@@ -68,19 +70,18 @@ class RewardCalculator:
         """
         Penalize total_broken / total_fleet ratio at this moment.
         Call once per decision epoch alongside compute_step_reward.
-        Returns a negative float (or 0.0 if weight is 0 or no stations).
+        Returns a negative float (or 0.0 if weight is 0 or no bikes).
         """
         if self.config.weight_fleet_degradation == 0.0:
             return 0.0
         
         total_bikes  = 0
         total_broken = 0
-        for s in sim_state.get_stations():
-            for bike in s.get_bikes():
-                total_bikes += 1
-                ds = getattr(bike, "damage_status", None)
-                if ds in ("depot", "onsite"):
-                    total_broken += 1
+        for bike in iter_unique_bikes(sim_state):
+            total_bikes += 1
+            ds = getattr(bike, "damage_status", None)
+            if ds in ("depot", "onsite"):
+                total_broken += 1
                     
         if total_bikes == 0:
             return 0.0

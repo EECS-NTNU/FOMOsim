@@ -41,12 +41,12 @@ class FeatureLoggingPolicy(LinearVFAPolicy):
         return phi
 
 def main():
-    num_episodes = 50
+    num_episodes = 20
     days_per_episode = 14
 
     print(f"Running {num_episodes} episodes × {days_per_episode}d with learning enabled...")
     policy = FeatureLoggingPolicy(
-        maintenance_enabled=False,    # Pillar 3 off
+        maintenance_enabled=True,    # Pillar 3 on
         logistics_enabled=False,      # Pillar 4 off
         demand_horizon_enabled=True,  # Pillar 2 (FIM features) on
         learning_mode=True,
@@ -87,7 +87,7 @@ def main():
     )
 
     # ── Save results ──────────────────────────────────────────────────────────
-    output_dir = Path("models/feature_study")
+    output_dir = Path("models/feature_study_maint")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     stats_path  = output_dir / "feature_statistics.csv"

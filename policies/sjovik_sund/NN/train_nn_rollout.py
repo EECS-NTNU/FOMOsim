@@ -8,11 +8,11 @@ a target network for stability, and an experience replay buffer.
 EPISODE STRUCTURE  (mirrors train_vfa.py)
 ─────────────────────────────────────────────────────────────────────────────
 
-  Days 1 – 2    Warm-up  : GreedyPolicy drives the system.
-                           No TD updates — builds up a realistic "messy"
-                           state without biasing the NN weights early on.
+  Days 1 – 7    Warm-up  : GreedyPolicy drives the system.
+                           No TD updates — lets station inventories and repair
+                           queues settle after the steady-state odometer draw.
 
-  Days 3 – 14   Learning : NNLearningPolicy with Boltzmann exploration.
+  Days 8 – 21   Learning : NNLearningPolicy with Boltzmann exploration.
                            At each vehicle arrival:
                              • generate (MdpAction, sim.Action) pairs
                              • encode each post-decision state via encode_state()
@@ -97,9 +97,9 @@ print(f"Using device: {device}")
 # ─────────────────────────────────────────────────────────────────────────────
 
 NUM_EPISODES         : int   = 800
-EPISODE_DAYS         : int   = 42
-WARMUP_DAYS          : int   = 28     # GreedyPolicy for days 1–21
-LEARNING_DAYS        : int   = 14  # NNLearningPolicy for days 22–35 (none in this case)
+WARMUP_DAYS          : int   = 7   # GreedyPolicy settling period after odometer warm-start
+LEARNING_DAYS        : int   = 21 # NNLearningPolicy records transitions after warmup
+EPISODE_DAYS         : int   = WARMUP_DAYS + LEARNING_DAYS
 
 LR_START             : float = 5e-4  # Adam lr at episode 0
 LR_END               : float = 5e-5  # Adam lr at episode N (linearly decayed)
@@ -1229,7 +1229,7 @@ def train_nn_rollout(
     # ── Warmup end time (absolute simulation minutes) ─────────────────────────
     # Mirrors the calculation in train_vfa.py:
     #   sim_start_min = 5h × 60 = 300 min
-    #   warmup_end_time = 300 + 2 × 1440 = 3180 min (end of day 2)
+    #   warmup_end_time = 300 + WARMUP_DAYS × 1440
     sim_start_min   = timeInMinutes(hours=START_HOUR)
     warmup_end_time = sim_start_min + WARMUP_DAYS * 24 * 60
 
@@ -1965,6 +1965,8 @@ if __name__ == "__main__":
     parser.add_argument("--save",                  type=str,   default=None)
     parser.add_argument("--depot_id",              type=str,   default='D0')
     parser.add_argument("--congestion_weight",     type=float, default=-1.0)
+    parser.add_argument("--fleet_degradation_weight", type=float, default=-0.5,
+                        help="Penalty weight for broken_bikes / total_fleet at each decision.")
     parser.add_argument("--maintenance",           action=argparse.BooleanOptionalAction,
                         default=ENABLE_COMPONENT_FAILURES)
     parser.add_argument("--valuehead_hidden_dims", type=int,   nargs="+", default=None,
@@ -1981,6 +1983,7 @@ if __name__ == "__main__":
 
     custom_reward = RewardConfig()
     custom_reward.weight_congestion = args.congestion_weight
+    custom_reward.weight_fleet_degradation = args.fleet_degradation_weight
 
     architectures = [
         [64],
@@ -2006,6 +2009,7 @@ if __name__ == "__main__":
         print(f"  polyak:              {args.polyak}")
         print(f"  tau_end:             {args.tau_end}")
         print(f"  maintenance_shaping: {args.maintenance_shaping}")
+        print(f"  fleet_degradation:   {args.fleet_degradation_weight}")
         print(f"  odometer_stats:      {args.odometer_stats}")
         print("="*50 + "\n")
 
