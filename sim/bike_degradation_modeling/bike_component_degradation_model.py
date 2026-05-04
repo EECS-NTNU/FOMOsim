@@ -110,13 +110,13 @@ class ComponentFailureModel:
         
         failed_components = {}
         
-        if verbose and (bike.bike_id in SAMPLE_BIKES_TO_TRACK):
-            print(f"\n{'='*100}")
-            print(f"[FAILURE RISK EVALUATION] Bike {bike.bike_id}")
-            print(f"  Total bike odometer: {bike.total_distance_km:.2f}km | Trip distance: {trip_distance_km:.2f}km")
-            print(f"{'='*100}")
-            print(f"  {'Component':<30} {'Comp.Odo(km)':<15} {'Hazard z(t)':<15} {'P(fail)':<12} {'u~U(0,1)':<12} {'Result':<15}")
-            print(f"  {'-'*100}")
+        #if verbose and (bike.bike_id in SAMPLE_BIKES_TO_TRACK):
+            #print(f"\n{'='*100}")
+            #print(f"[FAILURE RISK EVALUATION] Bike {bike.bike_id}")
+            #print(f"  Total bike odometer: {bike.total_distance_km:.2f}km | Trip distance: {trip_distance_km:.2f}km")
+            #print(f"{'='*100}")
+            #print(f"  {'Component':<30} {'Comp.Odo(km)':<15} {'Hazard z(t)':<15} {'P(fail)':<12} {'u~U(0,1)':<12} {'Result':<15}")
+            #print(f"  {'-'*100}")
         
         for category, failure_data in bike.component_failures.items():
             # Use component-specific odometer

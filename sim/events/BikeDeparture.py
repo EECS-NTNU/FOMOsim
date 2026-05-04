@@ -336,7 +336,7 @@ class BikeDeparture(Event):
                             print()
                             
                             simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
-                            simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_starvation", 1)
+                            #simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_starvation", 1)
                         else:
                             #print(f"  LOST TRIP: No usable bikes at {departure_station.id} "
                                  # f"({unusable_count} unusable, t={self.time:.1f})")

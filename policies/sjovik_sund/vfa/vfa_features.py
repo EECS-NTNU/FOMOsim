@@ -65,9 +65,13 @@ Pillar 3  —  Maintenance Pressure  (MP, appended if maintenance_enabled)
 ──────────────────────────────────────────────────────────────────────────────
   MP1  trailer_cannibalization         q_depot / K
   MP2  global_onsite_backlog           Σ_i onsite_i / F
-  MP3  demand_weighted_depot_backlog   Σ_i (depot_i * |λ_i^net|) / Λ_max
-  MP4  depot_pull                      MP1 * (dist_to_depot / 30)
-  MP5  maintenance_urgency             MP2 * CIM8  ← broken bikes AND starving stations
+  MP3  demand_weighted_depot_backlog   Σ_i (depot_i * λ_i^out) / (Λ_max * F)  [FIXED]
+  MP4  demand_weighted_onsite_backlog  Σ_i (onsite_i * λ_i^out) / (Λ_max * F) [NEW]
+  MP5  fleet_broken_fraction           (Σ onsite + Σ depot + in_repair) / F     [NEW — 0=good]
+  MP6  undistributed_depot_inventory   -depot.fixed_queue / (0.07F)             [fixed-queue pressure]
+  MP7  depot_idle_fraction             depot.fixed_queue / F                    [NEW — 0=good]
+  MP8  recoverable_starvation          Σ_i onsite_i * 1[func_i < T_i] / F      [NEW]
+  MP9  maintenance_urgency             MP2 * CIM8  (RESTORED)
 
 ──────────────────────────────────────────────────────────────────────────────
 Pillar 4  —  Spatial & Logistic Constraints  (SLC, appended if logistics_enabled)
@@ -84,6 +88,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+from settings import SERVICE_TIME_FROM, SERVICE_TIME_TO
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -128,10 +133,17 @@ def get_feature_names(
     # Pillar 3: Maintenance Pressure (MP)
     if maintenance_enabled:
         names.extend([
-            "trailer_cannibalization",        # MP1
-            "global_onsite_backlog",          # MP2
-            "demand_weighted_depot_backlog",  # MP3
-            # depot_pull and maintenance_urgency are disabled in extract()
+            "trailer_cannibalization",           # MP1
+            "global_onsite_backlog",             # MP2
+            "global_depot_backlog",              # MP2b
+            "demand_weighted_depot_backlog",     # MP3 — demand-weighted (fixed)
+            "demand_weighted_onsite_backlog",    # MP4 — new
+            "fleet_broken_fraction",             # MP5 — 0=good, positive=bad
+            "undistributed_depot_inventory",     # MP6 — fixed-queue pressure; 0=good, negative=worse
+            "depot_idle_fraction",               # MP7 — 0=good, positive=bad
+            "recoverable_starvation",            # MP8 — new
+            "maintenance_urgency",               # MP9 — restored
+            "rush_hour_onsite_backlog",          # MP10 — time-aware penalty
         ])
 
     # Pillar 4: Spatial & Logistic Constraints (SLC)
@@ -144,10 +156,28 @@ def get_feature_names(
             "imbalance_hotspot_distance",     # SLC5
         ])
 
+    # Pillar 5: Destination-Local Features (always active — routing discrimination)
+    names.extend([
+        "destination_starv_ratio",        # max(0, T_nxt - I_nxt) / T_nxt
+        "destination_cong_ratio",         # max(0, I_nxt - T_nxt) / (C_nxt - T_nxt)
+        "destination_onsite_fraction",    # onsite[nxt] / C_nxt
+        "destination_travel_penalty",     # dist_to_next / max_system_travel_time
+        "destination_roi_starvation",     # Starvation / Travel Penalty
+        "cur_station_onsite_fraction",    # onsite[cur] / C_cur  (post-decision)
+        "cur_station_func_deficit",       # max(0, T_cur - I_cur) / C_cur  (post-decision)
+        "functional_load_late_pressure",  # (q_func/K) * (1 - shift_remaining)
+        "depot_load_late_pressure",       # (q_depot/K) * (1 - shift_remaining)
+        "non_depot_late_load_pressure",   # 1[next not depot] * ((q_func+q_depot)/K) * late
+        "late_depot_return",              # 1[next is depot] * late
+        "depot_slack_fraction",           # (t_rem - d_depot) / L, clamped [-1, 1]
+        "can_return_to_depot",            # 1.0 if t_rem > d_depot else 0.0
+        "depot_return_urgency",           # d_depot / max(t_rem, 1), clamped [0, 1]
+    ])
+
     return names
 
 
-_MORNING_PEAK_HOUR: int = 8  # 08:00 — bike-sharing morning rush anchor
+#_MORNING_PEAK_HOUR: int = 8  # 08:00 — bike-sharing morning rush anchor
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -170,7 +200,9 @@ def extract(
     lambda_max_system: float,
     max_gravity: float,
     fleet_size: float,
-    total_stations: int,           # <-- NEW
+    total_stations: int,
+    depot_in_repair: float = 0.0,
+    depot_fixed_queue: float = 0.0,
     maintenance_enabled: bool = True,
     logistics_enabled: bool = False,
     time_remaining: Optional[float] = None,
@@ -180,6 +212,11 @@ def extract(
     current_day_of_week: int = 0,
     target_matrix: Optional[np.ndarray] = None,  # shape (7, 24, N) — for multi-horizon look-ahead
     horizon_hours: int = 4,
+    next_station_idx: int = -1,       # index into func/onsite/target arrays for destination station
+    cur_station_idx: int = -1,        # index into func/onsite/target arrays for CURRENT station
+    dist_to_next: float = 0.0,        # travel time (minutes) from current location to destination
+    max_travel_time: float = 60.0,    # system-wide max travel time for normalisation
+    next_is_depot: bool = False,
 ) -> np.ndarray:
 
     features = []
@@ -299,27 +336,60 @@ def extract(
     # Pillar 3: Maintenance Pressure (MP)
     # =========================================================================
     if maintenance_enabled:
+        dw_denom = max(lam_max_safe, 1.0)  # normalise by peak demand only — *F was 50x over-scaled
 
-        # MP1: Trailer Cannibalization — fraction of van capacity used by broken bikes
+        # MP1: Trailer Cannibalization
         phi_cannibalization = float(depot_cargo_veh) / K
 
-        # MP2: Global Onsite Backlog — broken bikes waiting at stations, normalised by fleet
-        phi_onsite_backlog = float(np.sum(onsite)) / F_safe
+        # MP2: Global Onsite Backlog — normalised by expected max onsite broken (≈15% of fleet)
+        phi_onsite_backlog = float(np.sum(onsite)) / (F_safe * 0.15)
 
-        # MP3: Global Depot Backlog 
-        phi_depot_backlog = float(np.sum(depot)) / F_safe
+        # MP2b: Global Depot Backlog — normalised by expected max depot broken (≈15% of fleet)
+        phi_depot_backlog = float(np.sum(depot)) / (F_safe * 0.15)
 
-        # MP4: Depot Pull — urgency to return grows as trailer fills and depot distance shrinks
-        #phi_depot_pull = phi_cannibalization * (dist_to_depot / 30.0)
+        # MP3: Demand-Weighted Depot Backlog (FIXED)
+        phi_dw_depot_backlog = float(np.dot(depot, gross_outflow)) / dw_denom
 
-        # MP5: Maintenance Urgency — compound signal: onsite backlog × starvation breadth
-        # High when many stations are BOTH below target AND have unrepaired bikes.
-        #phi_maint_urgency = phi_onsite_backlog * phi_starvation_cnt
+        # MP4: Demand-Weighted Onsite Backlog
+        phi_dw_onsite_backlog = float(np.dot(onsite, gross_outflow)) / dw_denom
+
+        # MP5: Fleet Broken Fraction — normalised by expected max total broken (≈20% of fleet)
+        phi_fleet_broken = (float(np.sum(onsite)) + float(np.sum(depot)) + depot_in_repair) / (F_safe * 0.20)
+
+        # MP6: Fixed-Queue Pressure — repaired bikes sitting idle at depot.
+        # Keep the historical feature name for CSV/model compatibility, but make it
+        # candidate-relevant: going to depot can reduce this by loading repaired bikes.
+        phi_depot_in_repair_f = -depot_fixed_queue / (F_safe * 0.07)
+
+        # MP7: Depot Idle Fraction — bikes repaired but not yet picked up.
+        # Negative: more bikes sitting idle at depot = worse state (capacity wasted).
+        # Normalised by fleet (raw fraction), not 3% cap — 3% was too tight and caused divergence.
+        phi_depot_idle = -depot_fixed_queue / F_safe
+
+
+        # MP8: Recoverable Starvation — normalised by expected max recoverable (≈10% of fleet)
+        is_starving = (func < target).astype(np.float64)
+        phi_rec_starvation = float(np.dot(is_starving, onsite)) / (F_safe * 0.10)
+
+        # MP9: Maintenance Urgency — onsite backlog × starving station count
+        phi_maint_urgency = phi_onsite_backlog * phi_starvation_cnt
+
+        # MP10: Rush Hour Onsite Backlog
+        # Is it during peak hours where immediate functional bikes are needed? (e.g. 07:00-09:00 or 15:00-17:00)
+        hour_of_day = (current_time_minutes // 60) % 24
+        is_rush_hour = 1.0 if (6 <= hour_of_day < 10) or (15 <= hour_of_day < 18) else 0.0
+        phi_rush_hour_onsite = is_rush_hour * phi_dw_onsite_backlog
 
         cat_b = [
-            phi_cannibalization, phi_onsite_backlog, phi_depot_backlog
+            phi_cannibalization, phi_onsite_backlog, phi_depot_backlog, phi_dw_depot_backlog,
+            phi_dw_onsite_backlog, phi_fleet_broken,
+            phi_depot_in_repair_f, phi_depot_idle,
+            phi_rec_starvation, phi_maint_urgency,
+            phi_rush_hour_onsite,
         ]
         features.extend(cat_b)
+
+
 
     # =========================================================================
     # Pillar 4: Spatial & Logistic Constraints (SLC)
@@ -366,7 +436,72 @@ def extract(
 
         features.extend(cat_c)
 
+    # =========================================================================
+    # Pillar 5: Destination-Local Features (always active)
+    # =========================================================================
+    if next_station_idx >= 0 and next_station_idx < N:
+        nxt_func   = float(func[next_station_idx])
+        nxt_onsite = float(onsite[next_station_idx])
+        nxt_tgt    = float(target_safe[next_station_idx])
+        nxt_cap    = float(max(capacities[next_station_idx], 1.0))
+        nxt_cap_rem = float(max(capacities[next_station_idx] - target_safe[next_station_idx], 1.0))
+        phi_dest_starv  = max(0.0, (nxt_tgt - nxt_func) / nxt_tgt)
+        phi_dest_cong   = max(0.0, (nxt_func - nxt_tgt) / nxt_cap_rem)
+        phi_dest_onsite = nxt_onsite / nxt_cap
+    else:
+        phi_dest_starv = phi_dest_cong = phi_dest_onsite = 0.0
+
+    phi_dest_travel = dist_to_next / max(max_travel_time, 1.0)
+
+    phi_roi_starv = (phi_dest_starv / max(phi_dest_travel, 0.05)) / 20.0
+
+    # Current-station local features (post-decision).
+    # These change 0.1–0.5 between candidates (vs ~0.004 for global features),
+    # giving the VFA 50x better discrimination for maintenance and rebalancing decisions.
+    if cur_station_idx >= 0 and cur_station_idx < N:
+        cur_cap    = float(max(capacities[cur_station_idx], 1.0))
+        cur_onsite = float(onsite[cur_station_idx])
+        cur_func   = float(func[cur_station_idx])
+        cur_tgt    = float(target_safe[cur_station_idx])
+        phi_cur_onsite_frac  = cur_onsite / cur_cap
+        phi_cur_func_deficit = max(0.0, cur_tgt - cur_func) / cur_cap
+    else:
+        phi_cur_onsite_frac  = 0.0
+        phi_cur_func_deficit = 0.0
+
+    # End-of-shift interactions. Raw time alone is not actionable, so expose it
+    # through cargo and route terms instead.
+    _service_window_min = max((SERVICE_TIME_TO - SERVICE_TIME_FROM) * 60.0, 1.0)
+    _clock_min = current_time_minutes % 1440.0
+    _close_min = SERVICE_TIME_TO * 60.0
+    phi_shift_remaining = max(0.0, _close_min - _clock_min) / _service_window_min
+    phi_late = 1.0 - phi_shift_remaining
+    phi_func_late_pressure = veh_load * phi_late
+    phi_depot_late_pressure = (depot_cargo_veh / K_safe) * phi_late
+    phi_total_cargo_frac = (func_cargo_veh + depot_cargo_veh) / K_safe
+    phi_non_depot_late_load_pressure = (0.0 if next_is_depot else phi_total_cargo_frac) * phi_late
+    phi_late_depot_return = (1.0 if next_is_depot else 0.0) * phi_late
+
+    # End-of-shift depot feasibility features.
+    # dist_to_depot is travel time (minutes) from the candidate destination to the depot.
+    # These let the VFA learn to avoid actions that strand cargo overnight.
+    time_remaining_abs = max(0.0, _close_min - _clock_min)
+    _depot_slack = time_remaining_abs - dist_to_depot
+    phi_depot_slack = max(-1.0, min(1.0, _depot_slack / _service_window_min))
+    phi_can_return = 1.0 if time_remaining_abs > dist_to_depot else 0.0
+    phi_depot_urgency = min(1.0, dist_to_depot / max(time_remaining_abs, 1.0))
+
+    features.extend([
+        phi_dest_starv, phi_dest_cong, phi_dest_onsite, phi_dest_travel, phi_roi_starv,
+        phi_cur_onsite_frac, phi_cur_func_deficit,
+        phi_func_late_pressure, phi_depot_late_pressure,
+        phi_non_depot_late_load_pressure, phi_late_depot_return,
+        phi_depot_slack, phi_can_return, phi_depot_urgency,
+    ])
+
     return np.array(features, dtype=np.float32)
+
+
 
 def as_dict(
     phi: np.ndarray,

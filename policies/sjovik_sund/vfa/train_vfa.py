@@ -39,11 +39,13 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 
 from helpers import timeInMinutes
 from policies.greedy_policy import GreedyPolicy
+from policies.greedy_policy_maintenance import GreedyMaintenancePolicy
 from policies.do_nothing_policy import DoNothing
-from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy
+from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy, EpisodeTrainingPolicy, VFA_DEBUG_FLAGS
 from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_feature_names
 from policies.sjovik_sund.run_simulation_ingvild import run_simulation, SimulationConfig, write_simulation_outputs
 from policies.sjovik_sund.mdp.reward import RewardConfig, RewardCalculator
+from policies.sjovik_sund.mdp.action_bridge import reset_truncation_counts, get_truncation_summary
 from settings import ENABLE_COMPONENT_FAILURES
 
 
@@ -53,9 +55,9 @@ from settings import ENABLE_COMPONENT_FAILURES
 
 NUM_EPISODES  : int   = 200      # total training episodes
 
-EPISODE_DAYS  : int   = 14       # days per episode (total)
-WARMUP_DAYS   : int   = 2         # greedy warm-up, no TD updates
-LEARNING_DAYS : int   = 12        # VFA + TD(0)  (days 5 – 14)
+EPISODE_DAYS  : int   = 49       # days per episode (total)
+WARMUP_DAYS   : int   = 21         # greedy warm-up, no TD updates
+LEARNING_DAYS : int   = 28        # VFA + TD(0)  (days 5 – 14)
 
 # --- Learning Rate (Alpha) & Exploration (Epsilon) ---
 ALPHA_START   : float = 0.1   # initial alpha for TD updates, will be overwritten in case of argument passing
@@ -161,29 +163,29 @@ def _collect_episode_stats(
         "alpha":                       round(alpha, 6),
         "alpha_initial":               alpha_start,
         "epsilon":                     round(epsilon, 6),
-        "epsilon_initial":             epsilon_start,
-        "starvations":                 max(0, ag("starvations")      - wu_starv),
-        "long_congestions":            max(0, ag("long congestions") - wu_cong),
-        "short_congestions":           max(0, ag("short congestions")- wu_short),
-        "total_trips":                 max(0, ag("trips")            - wu_trips),
-        "bike_departures":             max(0, ag("bike departure")   - wu_dep),
-        "bike_arrivals":               max(0, ag("bike arrival")     - wu_arr),
-        "total_onsite_repairs":        stats._ep_onsite_repairs,
-        "total_depot_pickups":         stats._ep_depot_pickups,
-        "total_depot_deliveries":      stats._ep_depot_deliveries,
-        "total_depot_visits":          stats._ep_depot_visits,
-        "total_functional_pickups":    stats._ep_func_pickups,
-        "total_functional_deliveries": stats._ep_func_deliveries,
-        "broken_ratio_start_onsite":   round(stats._fleet_onsite_start / t_start, 4),
-        "broken_ratio_start_depot":    round(stats._fleet_depot_start  / t_start, 4),
-        "functional_ratio_start":      round(stats._fleet_func_start   / t_start, 4),
-        "broken_ratio_end_onsite":     round(n_onsite_e / t_end, 4),
-        "broken_ratio_end_depot":      round(n_depot_e  / t_end, 4),
-        "functional_ratio_end":        round(n_func_e   / t_end, 4),
-        "new_breakdowns_onsite":       max(0, ag("onsite_failures") - wu_onsite_f),
-        "new_breakdowns_depot":        max(0, ag("depot_failures")  - wu_depot_f),
-        "restored_onsite":             stats._ep_restored_onsite,
-        "restored_depot":              stats._ep_restored_depot,
+        #"epsilon_initial":             epsilon_start,
+        #"starvations":                 max(0, ag("starvations")      - wu_starv),
+        #"long_congestions":            max(0, ag("long congestions") - wu_cong),
+        #"short_congestions":           max(0, ag("short congestions")- wu_short),
+        #"total_trips":                 max(0, ag("trips")            - wu_trips),
+        #"bike_departures":             max(0, ag("bike departure")   - wu_dep),
+        #"bike_arrivals":               max(0, ag("bike arrival")     - wu_arr),
+        #"total_onsite_repairs":        stats._ep_onsite_repairs,
+       # "total_depot_pickups":         stats._ep_depot_pickups,
+        #"total_depot_deliveries":      stats._ep_depot_deliveries,
+        #"total_depot_visits":          stats._ep_depot_visits,
+        #"total_functional_pickups":    stats._ep_func_pickups,
+        #"total_functional_deliveries": stats._ep_func_deliveries,
+        #"broken_ratio_start_onsite":   round(stats._fleet_onsite_start / t_start, 4),
+       # "broken_ratio_start_depot":    round(stats._fleet_depot_start  / t_start, 4),
+        #"functional_ratio_start":      round(stats._fleet_func_start   / t_start, 4),
+        #"broken_ratio_end_onsite":     round(n_onsite_e / t_end, 4),
+        #"broken_ratio_end_depot":      round(n_depot_e  / t_end, 4),
+        #"functional_ratio_end":        round(n_func_e   / t_end, 4),
+        #"new_breakdowns_onsite":       max(0, ag("onsite_failures") - wu_onsite_f),
+        #"new_breakdowns_depot":        max(0, ag("depot_failures")  - wu_depot_f),
+        #"restored_onsite":             stats._ep_restored_onsite,
+        #"restored_depot":              stats._ep_restored_depot,
     }
 
 
@@ -232,6 +234,10 @@ def train(
     epsilon_end   : float = EPSILON_END,
     weight_starvation : float = -1.0,
     weight_congestion : float = -1.0,
+    weight_fleet_degradation : float = -0.0,
+    weight_trip_served : float = 0.0,
+    not_at_depot_at_end_penalty : float = 0.0,
+    functional_bikes_at_end_penalty : float = 0.0,
 ) -> LinearVFAPolicy:
     
     # BATCH SIZE configuration
@@ -285,9 +291,13 @@ def train(
     reward_config = RewardConfig(
         weight_starvation=weight_starvation,
         weight_congestion=weight_congestion,
+        weight_fleet_degradation=weight_fleet_degradation,
+        weight_trip_served=weight_trip_served,
+        not_at_depot_at_end_penalty=not_at_depot_at_end_penalty,
+        functional_bikes_at_end_penalty=functional_bikes_at_end_penalty,
     )
-    
-    print(f" RewardConfig: weight_starvation={reward_config.weight_starvation}, weight_congestion={reward_config.weight_congestion}")
+
+    print(f" RewardConfig: weight_starvation={reward_config.weight_starvation}, weight_congestion={reward_config.weight_congestion}, weight_fleet_degradation={reward_config.weight_fleet_degradation}, weight_trip_served={reward_config.weight_trip_served}")
 
     vfa_policy = LinearVFAPolicy(
         active_features=active_features,
@@ -305,13 +315,26 @@ def train(
     vfa_policy.use_td_lambda = True
     vfa_policy.td_lambda = 0.8
 
+    # --- Greedy comparison diagnostic ---
+    # Set to True to produce greedy_vs_vfa_decision_comparison.csv alongside the model.
+    GREEDY_COMPARISON_LOG = True
+    vfa_policy.log_greedy_comparison = GREEDY_COMPARISON_LOG
+
     # --- EXPERIENCE REPLAY TOGGLE ---
     # Set to True to use Mini-Batch SGD at every timestep
     # Set to False to keep your well-working Episodic Synchronous Batching
     vfa_policy.use_experience_replay = False
     vfa_policy.mini_batch_size = 32
     ###############################################################################
-    greedy_policy = GreedyPolicy()
+    # [Check 1] Feature ↔ theta mapping at startup
+    print("\n[CHK1] Feature-Theta Mapping:")
+    for i, name in enumerate(vfa_policy.FEATURE_NAMES):
+        print(f"  {i:2d}  {name:<40}  θ_init={vfa_policy.theta[i]:+.6f}")
+    print(f"  phi_len={vfa_policy.N_FEATURES}  theta_len={len(vfa_policy.theta)}")
+    assert vfa_policy.N_FEATURES == len(vfa_policy.theta), "[CHK1] MISMATCH: phi length != theta length!"
+
+    #greedy_policy = GreedyPolicy()
+    greedy_policy = GreedyMaintenancePolicy()
 
     stats_collector = _EpisodeStatsCollector()
     vfa_policy.logger = stats_collector # type: ignore
@@ -339,6 +362,7 @@ def train(
     for ep in range(num_episodes):
         config        = SimulationConfig()
         stats_collector.reset()
+        reset_truncation_counts()
 
         ###########
         # ── Calculate current dynamic parameters ─────────────────────────
@@ -392,8 +416,15 @@ def train(
         )'''
         # ----------------------------
 
+        # Pass episode number to comparison rows before flushing
+        vfa_policy._comparison_episode = ep + 1
+
         sl = _service_level(simulator, vfa_policy)
         service_levels.append(sl)
+
+        if GREEDY_COMPARISON_LOG:
+            cmp_path = str(save_path).replace(".pkl", "_greedy_vs_vfa_comparison.csv") if save_path else str(SAVE_DIR / "greedy_vs_vfa_comparison.csv")
+            vfa_policy.flush_comparison_log(cmp_path)
 
         ep_stat = _collect_episode_stats(
             simulator, stats_collector, vfa_policy,
@@ -403,17 +434,40 @@ def train(
 
         # Apply synchronous batch update every 'batch_size' episodes
         if (ep + 1) % batch_size == 0 or (ep + 1) == num_episodes:
+            # Collect phis for correlation analysis BEFORE the buffer clears
+            if not hasattr(vfa_policy, '_all_phis_for_corr'):
+                vfa_policy._all_phis_for_corr = []
+            if getattr(vfa_policy, 'batch_buffer', None):
+                vfa_policy._all_phis_for_corr.extend([item[0] for item in vfa_policy.batch_buffer])
+                
             vfa_policy.apply_batch_update()
+
+            # --- MID-RUN DIAGNOSTIC LOGGING ---
+            if (ep + 1) % 5 == 0 and len(vfa_policy._all_phis_for_corr) > 0:
+                recent_phis = vfa_policy._all_phis_for_corr[-10000:] 
+                temp_df = pd.DataFrame(recent_phis, columns=vfa_policy.FEATURE_NAMES)
+                corr = temp_df.corr(method='pearson')
+                
+                print(f"\n  [DEBUG Ep {ep + 1}] Pearson Correlation with 'squared_starvation_penalty':")
+                if 'squared_starvation_penalty' in corr.columns:
+                    target_col = corr['squared_starvation_penalty']
+                    # Print features with high absolute correlation
+                    high_corr = target_col[abs(target_col) > 0.3].sort_values()
+                    for f, c in high_corr.items():
+                        print(f"      {f:<35} : {c:+.3f}")
+                print()
             
         weights_history.append(vfa_policy.theta.copy())  # Store θ vector for this episode
 
     
         formatted_theta = np.array2string(vfa_policy.theta, formatter={'float_kind':lambda x: f"{x:+.3f}"})
-        
+        trunc_summary = get_truncation_summary()
+
         print(
             f"  Ep {ep + 1:3d}/{num_episodes} | "
             f"SL={sl:.4f} | "
             f"Weights: {formatted_theta} | "
+            f"bridge={trunc_summary} | "
             f"t={time.time() - t0:.0f}s"
         )
 
@@ -490,6 +544,27 @@ def train(
     print(f"  Model saved       : {save_path}")
     print(f"  Weight evolution  : {weights_csv_path}")
     print("=" * 72 + "\n")
+
+    # Log the Feature Matrix Correlation
+    if hasattr(vfa_policy, '_all_phis_for_corr') and len(vfa_policy._all_phis_for_corr) > 0:
+        print("  --- FINAL FEATURE CORRELATION MATRIX ---  ")
+        phi_df = pd.DataFrame(vfa_policy._all_phis_for_corr, columns=vfa_policy.FEATURE_NAMES)
+        corr_matrix = phi_df.corr(method='pearson')
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.width', 1000)
+        
+        # We selectively print correlations against negative performance features 
+        # to diagnose multicollinearity with starvation.
+        features_of_interest = []
+        for feature in ['squared_starvation_penalty', 'fleet_broken_fraction', 'global_onsite_backlog']:
+            if feature in corr_matrix.columns:
+                features_of_interest.append(feature)
+        
+        if features_of_interest:
+            print(corr_matrix[features_of_interest].round(3))
+        else:
+            print(corr_matrix.round(3))
+        print("=" * 72 + "\n")
 
     return vfa_policy
 

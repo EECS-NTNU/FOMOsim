@@ -14,6 +14,29 @@ from sim.Action import Action
 
 from .mdp_formulation import MdpAction
 
+from settings import MAINTENANCE_REPAIR, MINUTES_PER_ACTION
+
+# Episode-level truncation counters. Reset via reset_truncation_counts() each episode.
+truncation_counts: dict = {
+    "deliver": 0, "pickup_func": 0, "pickup_depot": 0, "onsite_repair": 0
+}
+depot_stats: dict = {
+    "visits": 0, "loaded_bikes": 0, "unloaded_bikes": 0, "skipped_loads": 0
+}
+
+def reset_truncation_counts() -> None:
+    for k in truncation_counts:
+        truncation_counts[k] = 0
+    for k in depot_stats:
+        depot_stats[k] = 0
+
+def get_truncation_summary() -> str:
+    total = sum(truncation_counts.values())
+    trunc = "no truncations" if total == 0 else "truncations: " + ", ".join(f"{k}={v}" for k, v in truncation_counts.items() if v > 0) + f" (total={total})"
+    ds = depot_stats
+    depot = f"depot: visits={ds['visits']} loaded={ds['loaded_bikes']} unloaded={ds['unloaded_bikes']} skipped_loads={ds['skipped_loads']}"
+    return f"{trunc} | {depot}"
+
 
 def _bike_id(bike) -> int:
     return getattr(bike, "bike_id", getattr(bike, "id"))
@@ -42,11 +65,31 @@ def _take_bike_ids(bikes: list, n: int) -> List[int]:
     return [_bike_id(b) for b in bikes[:n]]
 
 
+def record_depot_action_stats(action: Action, vehicle) -> None:
+    """Record depot stats for the selected action only."""
+    if not getattr(vehicle, "is_at_depot")():
+        return
+
+    depot_stats["visits"] += 1
+
+    loaded = len(getattr(action, "pick_ups", []))
+    depot_stats["loaded_bikes"] += loaded
+    if loaded == 0:
+        depot_stats["skipped_loads"] += 1
+
+    vehicle_bikes_by_id = {_bike_id(b): b for b in _vehicle_bikes(vehicle)}
+    depot_stats["unloaded_bikes"] += sum(
+        1 for b_id in getattr(action, "delivery_bikes", [])
+        if getattr(vehicle_bikes_by_id.get(b_id), "damage_status", None) == "depot"
+    )
+
+
 def mdp_action_to_sim_action(
     mdp_action: MdpAction,
     state,
     vehicle,
-    maintenance_minutes_per_onsite_repair: float = 5.0,
+    maintenance_minutes_per_onsite_repair: float = MAINTENANCE_REPAIR,
+    depot_unload_minutes_per_bike: float = MINUTES_PER_ACTION,
 ) -> Action:
     """
     Convert a canonical MdpAction into a simulator Action.
@@ -88,8 +131,8 @@ def mdp_action_to_sim_action(
             depot_pickups = _take_bike_ids(fixed_queue_bikes, mdp_action.load_from_queue)
         else:
             depot_pickups = []
-        # NEW: Automatically unload ALL broken bikes at depot
-        depot_dropoffs = _take_bike_ids(vehicle_depot, len(vehicle_depot))
+        depot_droppoff_count = int(getattr(mdp_action, "depot_dropoffs", 0)or 0)
+        depot_dropoffs = _take_bike_ids(vehicle_depot, depot_droppoff_count)
     else:
         depot_pickups = []
         depot_dropoffs = []
@@ -104,21 +147,22 @@ def mdp_action_to_sim_action(
     pick_up_depot = _take_bike_ids(station_depot, pickup_depot_count)
     onsite_repairs = _take_bike_ids(station_onsite, onsite_repair_count)
 
-    # --- NEW: Catch Silent Truncations ---
+    # Catch silent truncations and accumulate into episode counters.
     if deliver_count > len(vehicle_functional):
-        print(f"[WARNING - BRIDGE] MDP wanted to deliver {deliver_count} bikes, but vehicle only has {len(vehicle_functional)} functional. Truncating!")
+        truncation_counts["deliver"] += 1
     if pickup_functional_count > len(station_functional):
-        print(f"[WARNING - BRIDGE] MDP wanted to pick up {pickup_functional_count} functional bikes, but station only has {len(station_functional)}. Truncating!")
+        truncation_counts["pickup_func"] += 1
     if pickup_depot_count > len(station_depot):
-        print(f"[WARNING - BRIDGE] MDP wanted to pick up {pickup_depot_count} broken bikes, but station only has {len(station_depot)}. Truncating!")
+        truncation_counts["pickup_depot"] += 1
     if onsite_repair_count > len(station_onsite):
-        print(f"[WARNING - BRIDGE] MDP wanted to repair {onsite_repair_count} bikes onsite, but station only has {len(station_onsite)}. Truncating!")
+        truncation_counts["onsite_repair"] += 1
 
+    unload_time = len(depot_dropoffs) * depot_unload_minutes_per_bike
     return Action(
-        battery_swaps=[], # Add empty list as we do not consider battery swaps in this policy
+        battery_swaps=[],
         onsite_repairs=onsite_repairs,
         pick_ups=pick_up_functional + pick_up_depot + depot_pickups,
         delivery_bikes=delivery_bikes,
         next_location=mdp_action.next_station,
-        maintenance_time=onsite_repair_count * maintenance_minutes_per_onsite_repair,
+        maintenance_time=onsite_repair_count * maintenance_minutes_per_onsite_repair + unload_time,
     )

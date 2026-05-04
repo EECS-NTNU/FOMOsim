@@ -72,6 +72,64 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 # -----------------------------------------------------------------------------
  
 EXPERIMENTS = {
+    
+    "Maintenance_full_test": [
+        "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+        #"trailer_cannibalization",           # MP1
+        #"global_onsite_backlog",             # MP2
+        #"global_depot_backlog",              # MP2b — unweighted depot backlog
+        #"demand_weighted_depot_backlog",     # MP3 — demand-weighted (fixed)
+        #"demand_weighted_onsite_backlog",    # MP4 — new
+        #"fleet_broken_fraction",             # MP5 — 0=good, positive=bad
+        #"undistributed_depot_inventory",          # MP6 — 0=good, positive=bad
+        # Pillar 5: Destination-local (routing discrimination)
+        #"destination_starv_ratio",
+        #"destination_cong_ratio",
+        #"destination_onsite_fraction",
+        #"destination_travel_penalty",
+        #"cur_station_onsite_fraction",
+        #"cur_station_func_deficit",
+        #"functional_load_late_pressure",
+        #"depot_load_late_pressure",
+        "late_depot_return",
+    ],
+
+    # Same as Maintenance_full_test but WITHOUT destination features — isolates their impact
+    "Maintenance_full_test_no_dest": [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+        "global_onsite_backlog",
+        "global_depot_backlog",
+        "undistributed_depot_inventory",
+        "recoverable_starvation",
+    ],
+    
+    # --- Check 12: Minimal debug experiment matrix ---
+    # Run these SHORT (50–100 ep) before full runs to isolate root cause.
+    # A/B/C share same features — toggle use_td_lambda + batch_size manually in train_vfa.py:
+    #   Debug_A: use_td_lambda=False, batch_size=1,  alpha=0.1  (TD(0) mean batch)
+    #   Debug_B: use_td_lambda=True,  batch_size=1,  alpha=0.1  (TD(λ) online)
+    #   Debug_C: use_td_lambda=True,  batch_size=1,  alpha=0.01 (TD(λ) tiny alpha)
+    "Debug_D_no_maintenance": [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+    ],
+    "Debug_E_maint_TD0": [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "global_onsite_backlog",
+        "undistributed_depot_inventory",
+    ],
+
     "Imbalance_Only": ["rebalancing_imbalance"], # CIM1: total L1 imbalance across the network
 
 
@@ -79,12 +137,29 @@ EXPERIMENTS = {
 
     "Imbalance_Squared_Temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + FIM1/FIM2: global mass + gross departure/arrival pressure
 
+    # End-of-shift awareness: temporal base + depot feasibility and late-shift route/cargo interactions
+    "Imbalance_Squared_Temporal_ShiftAware": [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+        "depot_slack_fraction",
+        #"can_return_to_depot",
+        "depot_return_urgency",
+        #"functional_load_late_pressure",
+        "depot_load_late_pressure",
+        #"non_depot_late_load_pressure",
+        "late_depot_return",
+    ],
+
     "Imbalance_Squared_Temporal_nocongestion" : ["rebalancing_imbalance", "squared_starvation_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM2 + FIM1: global mass + mean squared starvation depth + gross departure pressure
     
     "Imbalanced_Starvation" : ["rebalancing_imbalance", "squared_starvation_penalty"],
 
     # Baseline
     "Squared_only": ["squared_starvation_penalty", "squared_congestion_penalty"],
+
 
     # -- Squared_Temporal -----------------------------------------------------
     # Hypothesis: Squared penalties capture current-state imbalance depth and
@@ -234,7 +309,7 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, gamma: float = 0.99):
+def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -282,6 +357,10 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
                     gamma=gamma,
                     weight_starvation=weight_starvation,
                     weight_congestion=weight_congestion,
+                    weight_fleet_degradation=weight_fleet_degradation,
+                    weight_trip_served=weight_trip_served,
+                    not_at_depot_at_end_penalty=not_at_depot_at_end_penalty,
+                    functional_bikes_at_end_penalty=functional_bikes_at_end_penalty,
                 )
  
 # -----------------------------------------------------------------------------
@@ -295,7 +374,7 @@ if __name__ == "__main__":
         epilog=f"Available experiments: {', '.join(EXPERIMENTS)}",
     )
     parser.add_argument(
-        "--seeds", nargs="+", type=int, default= [1000], metavar="SEED",
+        "--seeds", nargs="+", type=int, default= [42], metavar="SEED",
         help="Seed offsets to run (one independent training run per seed)",
     )
     parser.add_argument(
@@ -307,7 +386,7 @@ if __name__ == "__main__":
         help="Subset of experiments to run (default: all)",
     )
     parser.add_argument(
-        "--alphas", nargs="+", type=float, default=[0.1], metavar="ALPHA",
+        "--alphas", nargs="+", type=float, default=[0.2], metavar="ALPHA",
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
     )
 
@@ -323,8 +402,24 @@ if __name__ == "__main__":
         help="Reward weight for congestion events (default: -1.0)",
     )
     parser.add_argument(
+        "--weight_fleet_degradation", type=float, default=-5.0,
+        help="Reward weight for fleet degradation/maintenance penalty (default: 0.0)",
+    )
+    parser.add_argument(
+        "--weight_trip_served", type=float, default=0.0,
+        help="Positive reward per successful trip served (default: 0.0)",
+    )
+    parser.add_argument(
         "--gamma", type=float, default=0.99,
         help="Discount factor (default: 0.99 per hour)",
+    )
+    parser.add_argument(
+        "--not_at_depot_at_end_penalty", type=float, default=0.0,
+        help="Per-step penalty (ramped) for being away from depot near shift end (default: 0.0, suggested: -2.0)",
+    )
+    parser.add_argument(
+        "--functional_bikes_at_end_penalty", type=float, default=0.0,
+        help="Per-bike per-step penalty for functional cargo near shift end (default: 0.0, suggested: -0.2)",
     )
 
     args = parser.parse_args()
@@ -336,7 +431,11 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         weight_starvation=args.weight_starvation,
         weight_congestion=args.weight_congestion,
+        weight_fleet_degradation=args.weight_fleet_degradation,
+        weight_trip_served=args.weight_trip_served,
         gamma=args.gamma,
+        not_at_depot_at_end_penalty=args.not_at_depot_at_end_penalty,
+        functional_bikes_at_end_penalty=args.functional_bikes_at_end_penalty,
     )
  
     # -- Axis 2: Spatial Recoverability ---------------------------------------

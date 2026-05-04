@@ -6,8 +6,9 @@ class RewardConfig:
     # --- Operational Components ---
     weight_starvation: float = -1.0
     weight_congestion: float = -1.0
+    weight_trip_served: float = 0.0           # Positive reward per successful trip (trips - starv - cong)
     weight_maintenance_violation: float = 0.0  # Set to >0 to penalize broken bikes left alone
-    weight_fleet_degradation: float = -0.5     # Penalizes total_broken / total_fleet ratio each step
+    weight_fleet_degradation: float = 0.0     # Penalizes total_broken / total_fleet ratio each step
 
     # --- End-of-Day Components (from your existing code) ---
     not_at_depot_at_end_penalty: float = 0.0 #-1000.0
@@ -23,20 +24,38 @@ class RewardConfig:
             functional_bikes_at_end_penalty=0.0
         )
 
+    @staticmethod
+    def benchmark_with_maintenance() -> "RewardConfig":
+        """Starvation + congestion + fleet degradation penalty (active maintenance signal)."""
+        return RewardConfig(
+            weight_starvation=-1.0,
+            weight_congestion=-1.0,
+            weight_fleet_degradation=-0.0,
+            not_at_depot_at_end_penalty=0.0,
+            functional_bikes_at_end_penalty=0.0,
+        )
+
+    @staticmethod
+    def benchmark_with_shift_penalty() -> "RewardConfig":
+        """Starvation + congestion + late-shift depot-return penalty.
+        Penalizes the vehicle for being away from depot with cargo in the last 2 hours of shift.
+        """
+        return RewardConfig(
+            weight_starvation=-1.0,
+            weight_congestion=-1.0,
+            not_at_depot_at_end_penalty=-2.0,
+            functional_bikes_at_end_penalty=-0.2,
+        )
+
 class RewardCalculator:
     def __init__(self, config: Optional[RewardConfig] = None, gamma: float = 0.99):
         self.config = config or RewardConfig()
         self.gamma = gamma
-        self._scale_factor = 1.0 - gamma  # Will be 0.01 when gamma=0.99
-       
-        # Move the state tracking out of the policy and into the calculator
-        self._prev_starvations = 0
-        self._prev_congestions = 0
-        self._prev_trips = 0  # <--- NEW: Track trips for exact service level'''
+        #self._scale_factor = 1.0 - gamma  # Will be 0.01 when gamma=0.99
 
         # --- FIXED: Set to 1.0. Stop crushing the reward signal! ---
         #self._scale_factor = 1.0  - self.gamma  # This will be 0.01 when gamma=0.99
-        #self._scale_factor = 1.0 # Have removed scaling due to it cerushing the reward signal and causing instability. The gamma discounting will still be applied during learning updates, so we can afford to keep the raw reward values intact for better learning dynamics.
+        self._scale_factor = 0.1 # Have removed scaling due to it cerushing the reward signal and causing instability. The gamma discounting will still be applied during learning updates, so we can afford to keep the raw reward values intact for better learning dynamics.
         # Articles reagarding this:
         # https://www.nature.com/articles/nature14236 but it is deep RL, but they seem to do discouted rewards with gamma, but no immediate reward dampening?
         # 
@@ -73,6 +92,33 @@ class RewardCalculator:
         ratio = total_broken / total_bikes
         return self.config.weight_fleet_degradation * ratio * self._scale_factor
 
+    def compute_late_shift_penalty(self, vehicle, state) -> float:
+        """Continuous penalty in final 2 hours of shift when vehicle is away from depot with cargo.
+        Ramps linearly from 0 at 120 min remaining to full penalty at shift end.
+        Enable by setting not_at_depot_at_end_penalty and/or functional_bikes_at_end_penalty != 0.
+        """
+        if (self.config.not_at_depot_at_end_penalty == 0.0 and
+                self.config.functional_bikes_at_end_penalty == 0.0):
+            return 0.0
+        if vehicle.is_at_depot():
+            return 0.0
+        from settings import SERVICE_TIME_TO  # avoid circular import at module level
+        _close_min = SERVICE_TIME_TO * 60.0
+        _clock_min = state.time % 1440.0
+        time_remaining = max(0.0, _close_min - _clock_min)
+        _penalty_window = 120.0  # minutes from shift end where penalty activates
+        if time_remaining >= _penalty_window:
+            return 0.0
+        urgency = 1.0 - (time_remaining / _penalty_window)  # 0 at 120 min, 1 at shift end
+        penalty = self.config.not_at_depot_at_end_penalty * urgency
+        if self.config.functional_bikes_at_end_penalty != 0.0:
+            n_func = sum(
+                1 for b in vehicle.get_bike_inventory()
+                if getattr(b, "damage_status", None) not in ("depot", "onsite")
+            )
+            penalty += self.config.functional_bikes_at_end_penalty * n_func * urgency
+        return penalty * self._scale_factor
+
     def compute_step_reward(self, simulator_metrics) -> float:
         """Calculates the reward since the last decision epoch."""
         cur_s = simulator_metrics.get_aggregate_value("starvations") or 0
@@ -81,14 +127,18 @@ class RewardCalculator:
 
         delta_s = cur_s - self._prev_starvations
         delta_c = cur_c - self._prev_congestions
+        delta_t = cur_t - self._prev_trips
 
         reward = 0.0
         reward += self.config.weight_starvation * delta_s
         reward += self.config.weight_congestion * delta_c
+        if self.config.weight_trip_served != 0.0:
+            served = max(0, delta_t - delta_s - delta_c)
+            reward += self.config.weight_trip_served * served
 
         # Update trackers for the next step
         self._prev_starvations = cur_s
         self._prev_congestions = cur_c
-        self._prev_trips = cur_t  # <--- NEW: Store the trips snapshot
- 
+        self._prev_trips = cur_t
+
         return reward * self._scale_factor

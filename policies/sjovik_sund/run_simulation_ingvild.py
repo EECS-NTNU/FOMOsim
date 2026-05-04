@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
- 
-#mkdir -p policies/sjovik_sund/output && python policies/sjovik_sund/run_simulation.py --duration 24 > policies/sjovik_sund/output/output.txt
- 
+
+# python policies/sjovik_sund/run_simulation_ingvild.py --vfa-model models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl --active-features rebalancing_imbalance squared_starvation_penalty squared_congestion_penalty gross_starvation_risk gross_congestion_risk --duration 672
+
+
 ######################################################
 import os
 import sys
@@ -31,8 +32,9 @@ import policies.sjovik_sund.XPILOT_policy
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.sjovik_sund.mdp.reward import RewardCalculator, RewardConfig
 from policies.do_nothing_policy import DoNothing
-from policies.greedy_policy_maintenance import GreedyMaintenancePolicy
 from policies.greedy_policy import GreedyPolicy
+#from policies.greedy_policy_V2 import GreedyPolicyV2
+from policies.greedy_policy_maintenance import GreedyMaintenancePolicy
 
 import sim
 import demand
@@ -42,6 +44,7 @@ from settings import *
 import time
 import multiprocessing as mp
 
+# Maintenance is enabled iff component failures are enabled in settings
 MAINTENANCE_ENABLED = ENABLE_COMPONENT_FAILURES
  
 
@@ -51,17 +54,17 @@ from policies.sjovik_sund.simulation_logging import (
     write_bike_movements_to_file,
     #write_hourly_metrics_to_file,
     write_results_to_file,
+    write_daily_metrics_to_file,
     #write_simulation_summary,
     #write_vehicle_visits_to_file,
     #write_station_hourly_metrics_to_file,
     #write_bike_movements_to_file,
     #write_trip_requests_to_file,
     write_component_failures_to_file,
-    write_rl_decisions_to_file,
+    #write_rl_decisions_to_file,
     write_vehicle_and_health_logs
 )
 from policies.sjovik_sund.operational_logging import OperationalLogger
-from policies.sjovik_sund.run_logger import RunLogger
 
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -99,7 +102,7 @@ class SimulationConfig:
     # === MILP Policy Parameters ===
     tau: int = 5  # Time discretization in minutes
     default_time_horizon: int = 5  # Number of periods to look ahead
-    policy_hour_from: int = SERVICE_TIME_FROM  # Policy active from 6 AM
+    policy_hour_from: int = 6  # Policy active from 6 AM
     policy_hour_to: int = 20  # Policy active until 8 PM
     roaming: bool = False
     
@@ -107,10 +110,10 @@ class SimulationConfig:
     default_maintenance_limit: float = 0.2
     
     # === CLI Defaults ===
-    default_seed: int = 1
+    default_seed: int = 42
     default_nsims: int = 1
     default_vehicles: int = 1
-    default_duration_hours: int = 24*10 # 5 days (3mnd)
+    default_duration_hours: int = 1344 # 5 days (3mnd)
 
     # === Operational Debug Logging ===
     operation_logging_enabled: bool = False
@@ -118,7 +121,6 @@ class SimulationConfig:
     
     # === Target State ===
     # Options: "half_capacity", "equal_prob", "us"
-    target_state_type: str = "equal_prob"
     target_state_type: str = "equal_prob"
     
     def get_start_stations(self, instance_name: str) -> List[int]:
@@ -142,8 +144,6 @@ class SimulationConfig:
             return target_state.EqualProbTargetState()
         elif self.target_state_type == "us":
             return target_state.USTargetState()
-        elif self.target_state_type == "sjovik_sund":
-            return target_state.SjovikSundTargetState()
         else:
             return target_state.HalfCapacityTargetState()  # Default
     
@@ -235,15 +235,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
     simulator.operation_logger = operation_logger
     simulator.run_logger = run_logger
 
-    if run_logger is not None: 
-        run_logger.capture_fleet_start(state)
-
     if run_logger is not None:
-        simulator.run_logger = run_logger
-        run_logger.capture_fleet_start(state)
-
-    if run_logger is not None:
-        simulator.run_logger = run_logger
         run_logger.capture_fleet_start(state)
 
     if operation_logger.enabled:
@@ -263,8 +255,7 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
     simulator.run()
   
     if queue is not None:
-        # queue.put(simulator)  # OLD: no seed tag — results came back in completion order, not submission order
-        queue.put((seed, simulator))  # NEW: tag with seed so receiver can match regardless of order
+        queue.put(simulator)
     return simulator
 
 
@@ -288,23 +279,32 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
         weights = getattr(policy, "weights", None)
         alpha_value = weights[3] if weights and len(weights) > 3 else None
 
-        write_results_to_file(filename, simulator, duration, solve_time, seed, append=append_to_results)
+        write_results_to_file(
+            filename,
+            simulator,
+            duration,
+            solve_time,
+            seed,
+            append=append_to_results,
+            run_logger=run_logger,
+        )
 
-    if run_logger is not None:
-        run_logger.log_episode(simulator, seed, duration, solve_time)
+        daily_metrics_filename = f"{base_filename}_daily_metrics_seed_{seed}.csv"
+        write_daily_metrics_to_file(daily_metrics_filename, simulator, seed)
 
         bike_movements_filename = f"{base_filename}_bike_movements_seed_{seed}.csv"
         write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
 
         if ENABLE_COMPONENT_FAILURES:
             component_failures_filename = f"{base_filename}_component_failures_seed_{seed}.csv"
-            write_component_failures_to_file(component_failures_filename, simulator, seed, alpha_value)
+            #write_component_failures_to_file(component_failures_filename, simulator, seed, alpha_value)
 
         vehicle_health_log_filename = f"{base_filename}_vehicle_health_seed_{seed}.csv"
         write_vehicle_and_health_logs(vehicle_health_log_filename, simulator, seed)
 
-        rl_decisions_filename = f"{base_filename}_rl_decisions_seed_{seed}.csv"
-        write_rl_decisions_to_file(rl_decisions_filename, simulator, seed)
+        # rl_decisions_filename = f"{base_filename}_rl_decisions_seed_{seed}.csv"
+        # write_rl_decisions_to_file(rl_decisions_filename, simulator, seed)
+
     if run_logger is not None:
         run_logger.log_episode(simulator, seed, duration, solve_time)
 
@@ -340,38 +340,20 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             p.start()
   
         # Wait for all processes to complete and collect results
-        # OLD: results came back in completion order but were indexed by submission order — seed mismatch bug
-        # returned_simulators = []
-        # for process in processes:
-        #     simulator = queue.get()  # Will block until result available
-        #     returned_simulators.append(simulator)
-        # for process in processes:
-        #     process.join()
-        # for i, simulator in enumerate(returned_simulators):
-        #     write_simulation_outputs(
-        #         simulator=simulator,
-        #         filename=results_file,
-        #         seed=list_of_seeds[i],  # BUG: index i != completion order
-        #         policy=policy,
-        #         duration=duration,
-        #         num_vehicles=num_vehicles,
-        #         append_to_results=(i > 0)
-        #     )
-
-        # NEW: collect (seed, simulator) tuples — order-independent
-        seed_to_sim = {}
-        for _ in processes:
-            seed, simulator = queue.get()
-            seed_to_sim[seed] = simulator
-
+        returned_simulators = []
+        for process in processes:
+            simulator = queue.get()  # Will block until result available
+            returned_simulators.append(simulator)
+  
         for process in processes:
             process.join()
-
-        for i, seed in enumerate(list_of_seeds):
+  
+        # Write all results
+        for i, simulator in enumerate(returned_simulators):
             write_simulation_outputs(
-                simulator=seed_to_sim[seed],
+                simulator=simulator,
                 filename=results_file,
-                seed=seed,
+                seed=list_of_seeds[i],
                 policy=policy,
                 duration=duration,
                 num_vehicles=num_vehicles,
@@ -385,12 +367,9 @@ def test_seeds(list_of_seeds, policy, filename, num_vehicles=1, duration=24*5, u
             print(f"\nRunning seed {seed}...")
             if run_logger is not None:
                 run_logger.set_seed(seed)
-            if run_logger is not None:
-                run_logger.set_seed(seed)
             start_solve = time.time()
-            simulator = run_simulation(seed, policy, duration, num_vehicles, instance_name=instance_name, config=config, run_logger=run_logger, run_logger=run_logger)
+            simulator = run_simulation(seed, policy, duration, num_vehicles, instance_name=instance_name, config=config, run_logger=run_logger)
             solve_time = time.time() - start_solve
-
 
             write_simulation_outputs(
                 simulator=simulator,
@@ -429,17 +408,8 @@ def test_policies(list_of_seeds, policy_dict, num_vehicles=1, duration=24*5, use
         print(f"Testing Policy: {policy_name}")
         print(f"{'='*80}\n")
 
-        if run_logger is not None:
-            weights = getattr(policy, "weights", None)
-            alpha_val = weights[3] if weights and len(weights) > 3 else 0.0
-            run_logger.set_run_label(policy_name, alpha=alpha_val)
-
-        # Test this policy with all seeds
         results_file = f'{policy_name}_results.csv'
         test_seeds(list_of_seeds, policy, results_file, num_vehicles, duration, use_multiprocessing, instance_name, config, run_logger=run_logger, write_csv=write_csv)
-
-    if run_logger is not None:
-        run_logger.close()
  
  
 if __name__ == "__main__":
@@ -505,14 +475,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--vfa-model",
         type=str,
-        default=None,
+        default="models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl",
         help="Path to trained VFA model (.pkl file).",
     )
     parser.add_argument(
         "--active-features",
         type=str,
         nargs="+",
-        default= None,
+        default= "rebalancing_imbalance squared_starvation_penalty squared_congestion_penalty gross_starvation_risk gross_congestion_risk",
         help=(
             "Feature names the pkl was trained with. Required for old pkls that "
             "predate feature_names storage. New pkls load features automatically."
@@ -549,11 +519,12 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%m%d%H%M")
 
     policy_dict = {
-        f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": DoNothing(),
-        f"Greedy_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": GreedyPolicy(),
-        f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
-            time_horizon=40, max_depth=2, num_successors=5, number_of_scenarios=100
-        ),
+        #f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": DoNothing(),
+        #f"GreedyV2_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": GreedyPolicyV2(),
+        #f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
+         #   time_horizon=40, max_depth=2, num_successors=5, number_of_scenarios=100
+        #),
+        f"GreedyMaintenance_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}": GreedyMaintenancePolicy(),
     }
 
     if args.vfa_model:
@@ -561,8 +532,11 @@ if __name__ == "__main__":
         if args.active_features:
             load_kwargs["active_features"] = args.active_features
         vfa_policy = LinearVFAPolicy.load(Path(args.vfa_model), **load_kwargs)
+        import re
+        stem = Path(args.vfa_model).stem          # e.g. "vfa_Squared_Temporal_seed1000"
+        exp_name = re.sub(r"^vfa_|_seed\d+$", "", stem)  # e.g. "Squared_Temporal"
         policy_name_vfa = (
-            f"VFA_{args.instance}_V{num_vehicles}_D{duration}h_"
+            f"VFA_{exp_name}_{args.instance}_V{num_vehicles}_D{duration}h_"
             f"{timestamp}_seed{start_seed}"
         )
         policy_dict[policy_name_vfa] = vfa_policy

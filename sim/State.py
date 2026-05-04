@@ -730,10 +730,10 @@ class State(LoadSave):
 
                         print(f"[DEBUG] BEFORE repair: Bike {repair_bike.bike_id} pending_failure_category = {component}")
                         print(f"\n[ONSITE REPAIR] Bike {repair_bike.bike_id} - Repairing {component} (on-site) at {origin_station_id} (t={time:.1f})")
-                        if odometers:
-                            print(f"  Component odometers for Bike {repair_bike.bike_id}:")
-                            for cat, odo in odometers.items():
-                                print(f"    {cat}: {odo:.2f} km")
+                        #if odometers:
+                            #print(f"  Component odometers for Bike {repair_bike.bike_id}:")
+                            #for cat, odo in odometers.items():
+                                #print(f"    {cat}: {odo:.2f} km")
 
                         if logger_enabled:
                             operation_logger.log_onsite_repair(
