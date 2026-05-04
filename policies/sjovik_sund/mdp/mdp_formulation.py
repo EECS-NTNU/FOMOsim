@@ -527,27 +527,16 @@ class PostDecisionState:
                 f"At depot {depot.station_id}: depot_dropoffs must unload all "
                 f"depot cargo ({v.depot_cargo}); got {depot_dropoffs}"
             )
-        free_capacity_after_unload = max(0, v.capacity - v.functional_cargo - (v.depot_cargo - depot_dropoffs))
-        if action.load_from_queue > free_capacity_after_unload:
-        depot_dropoffs = action.depot_dropoffs
-        if depot_dropoffs != v.depot_cargo:
-            raise ValueError(
-                f"At depot {depot.station_id}: depot_dropoffs must unload all "
-                f"depot cargo ({v.depot_cargo}); got {depot_dropoffs}"
-            )
+
         free_capacity_after_unload = max(0, v.capacity - v.functional_cargo - (v.depot_cargo - depot_dropoffs))
         if action.load_from_queue > free_capacity_after_unload:
             raise ValueError(
                 f"Cannot load {action.load_from_queue} bikes; "
                 f"after unloading depot cargo, vehicle has "
                 f"{free_capacity_after_unload} free slots"
-                f"after unloading depot cargo, vehicle has "
-                f"{free_capacity_after_unload} free slots"
             )
  
         # ── build new depot inventory ──────────────────────────────────────
-        # Broken bikes are moved to in-repair
-        bikes_entering_repair = depot_dropoffs
         # Broken bikes are moved to in-repair
         bikes_entering_repair = depot_dropoffs
         new_in_repair = depot.in_repair + bikes_entering_repair
@@ -583,7 +572,6 @@ class PostDecisionState:
         # managed by the simulator between decision epochs.
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
-            bikes_unloaded_for_repair=depot_dropoffs,
             bikes_unloaded_for_repair=depot_dropoffs,
             bikes_loaded_from_queue=action.load_from_queue,
             labor_minutes=action_duration,

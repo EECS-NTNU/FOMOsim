@@ -443,7 +443,6 @@ class LinearVFAPolicy(Policy):
         func_post = func.copy()
         onsite_post = onsite.copy()
         depot_post = depot.copy()
-        depot_post = depot.copy()
 
         #TODO: Fix so that the values on car is always integer
         cur_loc_id = explicit_vehicle_loc_id if explicit_vehicle_loc_id is not None else vehicle.location.id
@@ -545,7 +544,6 @@ class LinearVFAPolicy(Policy):
         phi_full = _extract_phi(
             func=func_post.astype(np.float64),
             onsite=onsite_post.astype(np.float64),
-            depot=depot_post.astype(np.float64),
             depot=depot_post.astype(np.float64),
             target=target.astype(np.float64),
             capacities=self._capacities,
@@ -668,51 +666,6 @@ class LinearVFAPolicy(Policy):
     # TD(0) update
     # ─────────────────────────────────────────────────────────────────────────
         
-    '''def td_update(self, reward: float, phi_next: np.ndarray, elapsed_minutes: float) -> float:
-        if self._prev_phi is None:
-            return 0.0
-
-        # Compute pre-update values for logging
-        v_cur = self.value(self._prev_phi)
-        v_next = self.value(phi_next)
-        
-        # Apply continuous time discounting
-        discount = self.gamma ** (elapsed_minutes / 60.0)
-
-        if self.use_reward_shaping:
-            reward += self._prev_phi[self.shaping_feature_idx] - discount * phi_next[self.shaping_feature_idx]
-
-        td_error = reward + (discount * v_next) - v_cur
-
-        # --- SMART LOGGING ---
-        if reward < -0.01 or abs(td_error) > 1.0:
-            target_value = reward + discount * v_next
-            print(f"[TD] r={reward:.3f} vs={v_cur:.3f} tgt={target_value:.3f} err={td_error:.3f}")
-
-        if self.use_td_lambda:
-            # Accumulating eligibility trace: e = γλe + φ_cur, then online θ update
-            self._eligibility_trace = discount * self.td_lambda * self._eligibility_trace + self._prev_phi
-            self.theta += self.alpha * td_error * self._eligibility_trace
-            self.weights = list(self.theta)
-
-            if not getattr(self, '_td_lambda_step_count', None):
-                self._td_lambda_step_count = 0
-            self._td_lambda_step_count += 1
-            if self._td_lambda_step_count % 500 == 1:
-                print(
-                    f" [TDλ] step={self._td_lambda_step_count} | "
-                    f"δ={td_error:+.4f} | "
-                    f"|e|={np.linalg.norm(self._eligibility_trace):.3f} | "
-                    f"|θ|={np.linalg.norm(self.theta):.3f}"
-                )
-        elif getattr(self, 'use_experience_replay', False):
-            self.replay_buffer.append((self._prev_phi.copy(), reward, phi_next.copy(), elapsed_minutes))
-            if len(self.replay_buffer) >= max(1000, self.mini_batch_size):
-                self.apply_mini_batch_update()
-        else:
-            self.batch_buffer.append((self._prev_phi.copy(), reward, phi_next.copy(), elapsed_minutes))
-
-        return td_error'''
     
     def td_update(self, reward: float, phi_next: np.ndarray, elapsed_minutes: float) -> float:
         if self._prev_phi is None:
@@ -793,61 +746,6 @@ class LinearVFAPolicy(Policy):
         # Note: We omit logging here to avoid spamming the console
         # since this triggers at EVERY decision step.
 
-    '''def apply_batch_update(self) -> None:
-        """
-        Aggregate accumulated TD errors over frozen trajectories
-        and update the value function weights.
-        """
-        if not self.batch_buffer:
-            return
-
-        n_transitions = len(self.batch_buffer)
-        total_gradient = np.zeros_like(self.theta)
-        total_td = 0.0
-
-       # Compute gradient over the entire buffered batch
-        for phi_cur, reward, phi_next, elapsed_minutes in self.batch_buffer:
-            v_cur = self.value(phi_cur)
-            v_next = self.value(phi_next)
-            
-            # Apply continuous time discounting based on an hourly rate
-            discount = self.gamma ** (elapsed_minutes / 60.0)
-            
-            # REMOVED CLIPPING: Let the raw reward signal flow through!
-            td_error = reward + (discount * v_next) - v_cur
-
-            total_td += td_error
-            total_gradient += td_error * phi_cur
-
-        mean_td = total_td / n_transitions
-
-        old_theta = self.theta.copy()
-
-        # FIXED: Use mean gradient to prevent effective lr scaling with episode length
-        # # FIXED: Accumulate the trajectory's gradient (Sum, not Average)
-        #sum_gradient = total_gradient
-        #step = self.alpha * sum_gradient
-        mean_gradient = total_gradient / n_transitions
-        step = self.alpha * mean_gradient
-        self.theta += step
-
-        # Save the updated weights
-        self.weights = list(self.theta)
-
-        # --- CONCISE BATCH LOGGING ---
-        #grad_norm = np.linalg.norm(sum_gradient)
-        grad_norm = np.linalg.norm(mean_gradient)
-        weight_diff = np.linalg.norm(self.theta - old_theta)
-        step_norm = np.linalg.norm(step)
-
-        print(f"    [BATCH UPDATE] Processed {n_transitions} transitions | Mean TD Error: {mean_td:.4f} | Grad Norm: {grad_norm:.4f} | Theta Diff: {weight_diff:.4f} | Step Norm: {step_norm:.4f}")
-
-        self._batch_update_count = getattr(self, '_batch_update_count', 0) + 1
-        if self._batch_update_count % 5 == 0:
-            self.log_weight_diagnostics()
-
-        # Dump buffer for the next trajectory sync phase
-        self.batch_buffer.clear()'''
         
     def apply_batch_update(self) -> None:
         """
@@ -1046,272 +944,6 @@ class LinearVFAPolicy(Policy):
     # Main decision entry point
     # ─────────────────────────────────────────────────────────────────────────
 
-    '''def get_best_action(self, state, vehicle) -> sim.Action:
-    #def get_best_action(self, state, vehicle) -> sim.Action:
-        """
-        Called by VehicleArrival event at each decision epoch.
-
-        Decision flow
-        ─────────────
-        1. Lazy-initialise caches from sim.State (first call only).
-        2. Generate N_CANDIDATES candidate actions.
-        3. Compute φ(S^x_a) and V(S^x_a) = θᵀφ for each candidate.
-        4. (If learning) run TD(0) update using reward since last decision
-           and the greedy next post-decision state as the bootstrap target.
-        5. Select action greedy (exploitation).
-        6. Cache the selected action's post-decision features for step 4
-           of the next call.
-        """
-        # ── Step 1: lazy init ─────────────────────────────────────────────
-        if not self._initialized:
-            self._lazy_init(state)
-
-        # ── Step 2: generate candidate actions ────────────────────────────
-        candidates = self._generate_candidates(state, vehicle)
-
-        base_func, base_onsite, base_depot = self._extract_inventories(state, vehicle)
-        
-        # ── Step 3: score each candidate ──────────────────────────────────
-        phis: List[np.ndarray] = []
-        values = np.empty(len(candidates), dtype=np.float64)
-        
-        for k, action in enumerate(candidates):
-            # --- FIXED: Safely map bike IDs to objects for fast lookup ---
-            raw_bikes = getattr(vehicle.location, "bikes", [])
-            if isinstance(raw_bikes, dict):
-                station_bikes = raw_bikes
-            else:
-                station_bikes = {getattr(b, 'bike_id', getattr(b, 'id')): b for b in raw_bikes}
-                
-            functional_pickups = 0
-            depot_pickups = 0
-
-            if vehicle.is_at_depot():
-                # pick_ups at depot come from fixed_queue (repaired bikes), not depot.bikes.
-                # delivery_bikes are broken bikes being dropped off — not functional deliveries.
-                fq = getattr(vehicle.location, "fixed_queue", {})
-                vehicle_bikes = {
-                    getattr(b, 'bike_id', getattr(b, 'id')): b
-                    for b in vehicle.get_bike_inventory()
-                }
-                for b_id in action.pick_ups:
-                    if b_id in fq:
-                        functional_pickups += 1
-                depot_dropoffs = sum(
-                    1 for b_id in action.delivery_bikes
-                    if getattr(vehicle_bikes.get(b_id), 'damage_status', None) == 'depot'
-                )
-                delta_func = -functional_pickups   # vehicle GAINS repaired bikes; no functional deliveries
-                delta_depot_cargo = -depot_dropoffs
-            else:
-                for b_id in action.pick_ups:
-                    b = station_bikes.get(b_id)
-                    if b and getattr(b, 'damage_status', None) == 'depot':
-                        depot_pickups += 1
-                    elif b:
-                        functional_pickups += 1
-                delta_func = len(action.delivery_bikes) - functional_pickups
-                delta_depot_cargo = depot_pickups
-            delta_onsite_repairs = len(getattr(action, "onsite_repairs", []))
-            
-            dest_id = getattr(action, "next_location", getattr(action, "next_station", None))
-
-            try:
-                svc = action.get_action_time(0.0) if hasattr(action, "get_action_time") else 0.0
-            except Exception:
-                svc = 0.0
-            try:
-                travel = state.get_vehicle_travel_time(vehicle.location.id, dest_id) if dest_id else 0.0
-            except Exception:
-                travel = 0.0
-            action_eval_time = state.time + svc + travel
-
-            """if not getattr(self, "_has_printed_eval_time", False):
-                print(f"[EVAL_TIME] t_now={state.time:.1f}  dest={dest_id}  svc={svc:.1f}  travel={travel:.1f}  eval_t={action_eval_time:.1f}  shift={(action_eval_time - state.time):.1f}min")
-                if k == len(candidates) - 1:
-                    self._has_printed_eval_time = True"""
-
-            time_rem = self._get_time_remaining(state, vehicle)
-            shift_len = self._get_shift_length(state, vehicle)
-
-            phi = self.extract_features(
-                state, vehicle,
-                base_func, base_onsite, base_depot,
-                delta_func, delta_depot_cargo,
-                delta_onsite_repairs,
-                time_remaining=time_rem,
-                shift_length=shift_len,
-                next_station_id=dest_id,
-                eval_time=action_eval_time,
-                projected_time=action_eval_time,
-                dist_to_next=travel,
-            )
-            phis.append(phi)
-            values[k] = self.value(phi)    
-                    
-        # --- DEBUG 2: SPATIAL PARALYSIS ---
-        if not getattr(self, "_has_printed_spatial", False) and "proximity_to_demand_gravity" in self.FEATURE_NAMES:
-            idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
-            #print(f"\n[DEBUG - SPATIAL] Gravity values for 8 candidates from {vehicle.location.id}:")
-            for k, action in enumerate(candidates):
-                dest = getattr(action, "next_location", getattr(action, "next_station", None))
-                print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
-            self._has_printed_spatial = True
-
-        # ── Step 4: TD(0) update ──────────────────────────────────────────
-        td_err = 0.0
-        if self.learning_mode and self._prev_phi is not None:
-            # Consume the reward signal safely
-            reward = self.reward_calc.compute_step_reward(state.metrics)
-            reward += self.reward_calc.compute_fleet_penalty(state)
-            reward += self.reward_calc.compute_late_shift_penalty(vehicle, state)
-            # Backfill realized reward into the pending comparison row for the previous decision.
-            if getattr(self, "log_greedy_comparison", False):
-                pending = getattr(self, "_pending_comparison_row", None)
-                if pending is not None:
-                    pending["realized_reward"] = round(reward, 6)
-
-            elapsed_minutes = state.time - self._prev_time
-            
-            # FIXED: We expect to take the BEST action next, so use argmax!
-            phi_next = phis[int(np.argmax(values))]
-            td_err = self.td_update(reward, phi_next, elapsed_minutes)
-            
-        elif self.learning_mode and self._prev_phi is None:
-            _ = self.reward_calc.compute_step_reward(state.metrics)
-            # Freeze warmup totals at the first VFA decision (transition point)
-            self.warmup_starvations_snapshot       = self.reward_calc._prev_starvations
-            self.warmup_congestions_snapshot       = self.reward_calc._prev_congestions
-            self.warmup_trips_snapshot             = self.reward_calc._prev_trips
-            self.warmup_short_congestions_snapshot = state.metrics.get_aggregate_value("short congestions") or 0
-            self.warmup_bike_departures_snapshot   = state.metrics.get_aggregate_value("bike departure") or 0
-            self.warmup_bike_arrivals_snapshot     = state.metrics.get_aggregate_value("bike arrival") or 0
-            self.warmup_onsite_failures_snapshot   = state.metrics.get_aggregate_value("onsite_failures") or 0
-            self.warmup_depot_failures_snapshot    = state.metrics.get_aggregate_value("depot_failures") or 0
-            # Snapshot depot_stats at warmup-end so comparison log shows VFA-phase only.
-            from policies.sjovik_sund.mdp.action_bridge import depot_stats as _ds  # noqa: PLC0415
-            self._warmup_depot_snapshot = {k: v for k, v in _ds.items()}
-            # [Check 10] Warmup-end state distribution
-            if VFA_DEBUG_FLAGS.get("check10_warmup"):
-                dep_in_rep = float(sum(len(bs) for d in state.get_depots() for _, bs in d.in_repair))
-                print(f"  [CHK10 WARMUP END] t={state.time:.0f} "
-                      f"func={int(np.sum(base_func))} onsite_broken={int(np.sum(base_onsite))} "
-                      f"depot_bound={int(np.sum(base_depot))} depot_in_repair={dep_in_rep:.0f} "
-                      f"warmup_starv={self.warmup_starvations_snapshot} "
-                      f"warmup_cong={self.warmup_congestions_snapshot}")
-
-        # ── Step 5: select best action (epsilon-greedy) ──────────────────
-        if self.learning_mode and self.epsilon > 0.0 and self._rng.random() < self.epsilon:
-            sel_idx = self._rng.integers(len(candidates))
-            mode = "E"
-        else:
-            sel_idx = int(np.argmax(values))
-            mode = "X"
-
-        selected = candidates[sel_idx]
-        _ns = getattr(selected, 'next_location', getattr(selected, 'next_station', None))
-        _pk = len(getattr(selected, 'pick_ups', []))
-        _dl = len(getattr(selected, 'delivery_bikes', []))
-        #print(f"[{mode}] {_ns} pk={_pk} dl={_dl} (idx={sel_idx}, v={values[sel_idx]:.4f})")
-
-        # ── Noon snapshot: ranked candidate table (once per simulated day) ───
-        if state.hour() == 12 and getattr(self, '_noon_log_day', -1) != state.day():
-            self._noon_log_day = state.day()
-            at_depot = vehicle.is_at_depot()
-
-            def _cls(a):
-                if len(getattr(a, 'onsite_repairs', [])) > 0: return "ONSITE_REP"
-                if at_depot and len(a.pick_ups) > 0:          return "DEPOT_PICK"
-                if at_depot and len(a.delivery_bikes) > 0:    return "DEPOT_DROP"
-                if len(a.pick_ups) > 0:                       return "PICKUP"
-                if len(a.delivery_bikes) > 0:                 return "DELIVER"
-                return "IDLE"
-
-            ranked = sorted(zip(values.tolist(), candidates), key=lambda x: -x[0])
-            v_best  = ranked[0][0]
-            v_worst = ranked[-1][0]
-            v_spread = v_best - v_worst
-            v_mean  = float(np.mean(values))
-            v_std   = float(np.std(values))
-            print(f"\n{'═'*62}")
-            print(f"NOON  day={state.day()}  t={state.time:.0f}min  {vehicle.id} @ {vehicle.location.id}  n={len(candidates)}")
-            print(f"  spread={v_spread:.4f}  best={v_best:.4f}  worst={v_worst:.4f}  mean={v_mean:.4f}  std={v_std:.4f}")
-            print(f"  {'#':<3} {'Type':<12} {'Next':<7} {'pk':>3} {'dl':>3} {'rep':>4}  {'V':>9}  {'Δbest':>7}")
-            print(f"  {'─'*57}")
-            for rank, (v, a) in enumerate(ranked, 1):
-                atype = _cls(a)
-                ns    = str(getattr(a, 'next_location', '?'))
-                pk    = len(a.pick_ups)
-                dl    = len(a.delivery_bikes)
-                rep   = len(getattr(a, 'onsite_repairs', []))
-                delta = v - v_best
-                mark  = "  ◄" if (a is selected) else ""
-                print(f"  {rank:<3} {atype:<12} {ns:<7} {pk:>3} {dl:>3} {rep:>4}  {v:>9.4f}  {delta:>+7.4f}{mark}")
-            print(f"  mode={'exploit' if mode == 'X' else 'explore'}  ε={self.epsilon:.3f}  α={self.alpha}")
-            # Maintenance vs rebalancing value comparison
-            maint_vals = [v for v, a in ranked if _cls(a) in ("ONSITE_REP", "DEPOT_PICK", "DEPOT_DROP")]
-            rebal_vals  = [v for v, a in ranked if _cls(a) in ("PICKUP", "DELIVER")]
-            if maint_vals and rebal_vals:
-                gap = max(maint_vals) - max(rebal_vals)
-                print(f"  MAINT_BEST={max(maint_vals):.4f}  REBAL_BEST={max(rebal_vals):.4f}  gap={gap:+.4f}  {'VFA prefers MAINT' if gap > 0 else 'VFA prefers REBAL'}")
-            # Top-5 weights by magnitude
-            w_top = sorted(zip(self.FEATURE_NAMES, self.theta.tolist()), key=lambda x: -abs(x[1]))[:5]
-            print(f"  TOP WEIGHTS: " + "  ".join(f"{n[:14]}={w:+.3f}" for n, w in w_top))
-            print(f"{'═'*62}\n")
-
-        # [Check 11] Candidate type breakdown (first 20 decisions per episode)
-        if VFA_DEBUG_FLAGS.get("check11_candidates") and self._ep_decision_count < 20:
-            at_dep = vehicle.is_at_depot()
-            n_onsite_rep = sum(1 for a in candidates if len(getattr(a, 'onsite_repairs', [])) > 0)
-            n_depot_pick = sum(1 for a in candidates if at_dep and len(a.pick_ups) > 0)
-            n_depot_drop = sum(1 for a in candidates if at_dep and len(a.delivery_bikes) > 0)
-            n_rebal      = len(candidates) - n_onsite_rep - n_depot_pick - n_depot_drop
-            sel_a = candidates[sel_idx]
-            if   len(getattr(sel_a, 'onsite_repairs', [])) > 0:       sel_type = "ONSITE_REP"
-            elif at_dep and len(sel_a.pick_ups) > 0:                  sel_type = "DEPOT_PICK"
-            elif at_dep and len(sel_a.delivery_bikes) > 0:            sel_type = "DEPOT_DROP"
-            elif len(sel_a.pick_ups) > 0:                             sel_type = "PICKUP"
-            elif len(sel_a.delivery_bikes) > 0:                       sel_type = "DELIVER"
-            else:                                                      sel_type = "IDLE"
-            print(f"  [CHK11 dec#{self._ep_decision_count+1}] n={len(candidates)} "
-                  f"rebal={n_rebal} onsite={n_onsite_rep} depot_pick={n_depot_pick} "
-                  f"depot_drop={n_depot_drop} → selected={sel_type}")
-        self._ep_decision_count += 1
-
-        # ── Step 6: Log depot decisions (optional) ────────────────────────
-        self._log_depot_decision(state, vehicle, selected, phis[sel_idx], values[sel_idx])
-
-        # ── Step 7: cache post-decision features for next TD update ───────
-        self._prev_phi = phis[sel_idx]
-        self._prev_time = state.time
-
-        # ── Step 8: Log the Brain's Decision (NEW) ────────────────────────
-        if getattr(self, 'log_rl_decisions', False):
-            phi_dict = dict(zip(self.FEATURE_NAMES, phis[sel_idx].tolist()))
-            log_entry = {
-                'time': state.time,
-                'vehicle_id': vehicle.id,
-                'station_id': vehicle.location.id,
-                'action_next_station': getattr(selected, 'next_location', 'N/A'),
-                'action_pickups': len(getattr(selected, 'pick_ups', [])),
-                'action_deliveries': len(getattr(selected, 'delivery_bikes', [])),
-                'expected_value_V': values[sel_idx],
-                'td_error': float(td_err),
-            }
-            log_entry.update(phi_dict)
-            self.rl_logs.append(log_entry)
-
-        # ── Step 9: Forward to RunLogger if attached ──────────────────────
-        if self.logger is not None:
-            self._log_to_run_logger(state, vehicle, selected, phis[sel_idx], values[sel_idx])
-
-        record_depot_action_stats(selected, vehicle)
-
-        # ── Step 10: Greedy comparison diagnostic (opt-in) ────────────────
-        if getattr(self, 'log_greedy_comparison', False):
-            self._log_greedy_comparison(state, vehicle, candidates, values, sel_idx)
-
-        return selected'''
     
     def get_best_action(self, state, vehicle) -> sim.Action:
     #def get_best_action(self, state, vehicle) -> sim.Action:
@@ -1595,8 +1227,7 @@ class LinearVFAPolicy(Policy):
         if is_at_depot:
             func_after  = func_before + load_from_queue
             depot_after = max(depot_before - depot_deliveries, 0)
-            func_after  = func_before + load_from_queue
-            depot_after = max(depot_before - depot_deliveries, 0)
+            
         else:
             func_after  = func_before - func_deliveries + func_pickups
             depot_after = depot_before + depot_pickups

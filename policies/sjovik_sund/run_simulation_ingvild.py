@@ -51,8 +51,6 @@ import multiprocessing as mp
 
 # Maintenance is enabled iff component failures are enabled in settings
 MAINTENANCE_ENABLED = ENABLE_COMPONENT_FAILURES
-# Maintenance is enabled iff component failures are enabled in settings
-MAINTENANCE_ENABLED = ENABLE_COMPONENT_FAILURES
  
 
 # Import logging utilities
@@ -62,7 +60,6 @@ from policies.sjovik_sund.simulation_logging import (
     write_bike_movements_to_file,
     #write_hourly_metrics_to_file,
     write_results_to_file,
-    write_daily_metrics_to_file,
     write_daily_metrics_to_file,
     #write_simulation_summary,
     #write_vehicle_visits_to_file,
@@ -118,7 +115,6 @@ class SimulationConfig:
     default_maintenance_limit: float = 0.2
     
     # === CLI Defaults ===
-    default_seed: int = 42
     default_seed: int = 42
     default_nsims: int = 1
     default_vehicles: int = 1
@@ -195,12 +191,6 @@ def run_simulation(seed, policy, duration=24, num_vehicles=2, queue=None, instan
     print(f"Initialized state with {len(FLEET_SIZE)} bikes for instance '{INSTANCE}' and seed {seed}.")
 
 
-    # In the initialization section:
-    """if ENABLE_COMPONENT_FAILURES:
-        all_bikes = state.get_all_bikes()
-        print(f"\nInitializing component failure tracking for {len(all_bikes)} bikes...")
-        
-        print("Component failure tracking initialized.\n")"""
 
     # Ensure the simulator state clears any existing vehicles first
     if hasattr(state, 'vehicles'):
@@ -300,18 +290,7 @@ def write_simulation_outputs(simulator, filename, seed, policy, duration, num_ve
 
         daily_metrics_filename = f"{base_filename}_daily_metrics_seed_{seed}.csv"
         write_daily_metrics_to_file(daily_metrics_filename, simulator, seed)
-        write_results_to_file(
-            filename,
-            simulator,
-            duration,
-            solve_time,
-            seed,
-            append=append_to_results,
-            run_logger=run_logger,
-        )
-
-        daily_metrics_filename = f"{base_filename}_daily_metrics_seed_{seed}.csv"
-        write_daily_metrics_to_file(daily_metrics_filename, simulator, seed)
+    
 
         bike_movements_filename = f"{base_filename}_bike_movements_seed_{seed}.csv"
         write_bike_movements_to_file(bike_movements_filename, simulator, seed, alpha_value)
@@ -507,7 +486,6 @@ if __name__ == "__main__":
         "--vfa-model",
         type=str,
         default="models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl",
-        default="models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl",
         help="Path to trained VFA model (.pkl file).",
     )
     parser.add_argument(
@@ -678,7 +656,6 @@ if __name__ == "__main__":
         stem = Path(args.vfa_model).stem          # e.g. "vfa_Squared_Temporal_seed1000"
         exp_name = re.sub(r"^vfa_|_seed\d+$", "", stem)  # e.g. "Squared_Temporal"
         policy_name_vfa = (
-            f"VFA_{exp_name}_{args.instance}_V{num_vehicles}_D{duration}h_"
             f"VFA_{exp_name}_{args.instance}_V{num_vehicles}_D{duration}h_"
             f"{timestamp}_seed{start_seed}"
         )
