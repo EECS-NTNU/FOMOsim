@@ -99,6 +99,7 @@ def mdp_action_to_sim_action(
     - rebalancing < 0 : pick_ups (functional bikes from station)
     - depot_removals  : additional pick_ups (depot-damaged bikes from station)
     - onsite_repairs  : battery_swaps + maintenance_time proxy
+    - depot_dropoffs  : delivery_bikes when current station is depot
     - load_from_queue : pick_ups when current station is depot
     """
     station = vehicle.location
@@ -111,6 +112,7 @@ def mdp_action_to_sim_action(
     ]
     station_onsite = [
         b for b in station_bikes if getattr(b, "damage_status", None) == "onsite"
+        and not getattr(b, "onsite_repair_in_progress", False)
     ]
     station_depot = [
         b for b in station_bikes if getattr(b, "damage_status", None) == "depot"
@@ -131,8 +133,8 @@ def mdp_action_to_sim_action(
             depot_pickups = _take_bike_ids(fixed_queue_bikes, mdp_action.load_from_queue)
         else:
             depot_pickups = []
-        depot_droppoff_count = int(getattr(mdp_action, "depot_dropoffs", 0)or 0)
-        depot_dropoffs = _take_bike_ids(vehicle_depot, depot_droppoff_count)
+        depot_dropoff_count = int(getattr(mdp_action, "depot_dropoffs", 0) or 0)
+        depot_dropoffs = _take_bike_ids(vehicle_depot, depot_dropoff_count)
     else:
         depot_pickups = []
         depot_dropoffs = []
@@ -156,6 +158,8 @@ def mdp_action_to_sim_action(
         truncation_counts["pickup_depot"] += 1
     if onsite_repair_count > len(station_onsite):
         truncation_counts["onsite_repair"] += 1
+    if getattr(vehicle, "is_at_depot")() and depot_dropoff_count > len(vehicle_depot):
+        print(f"[WARNING - BRIDGE] MDP wanted to drop off {depot_dropoff_count} broken bikes at depot, but vehicle only has {len(vehicle_depot)}. Truncating!")
 
     unload_time = len(depot_dropoffs) * depot_unload_minutes_per_bike
     return Action(

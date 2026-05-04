@@ -52,7 +52,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .mdp_config import MDPConfig
 
-from settings import MINUTES_PER_ACTION, MAINTENANCE_REPAIR
+from settings import MINUTES_PER_ACTION, MAINTENANCE_REPAIR, MINUTES_CONSTANT_PER_ACTION
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -337,6 +337,11 @@ class PostDecisionState:
                 f"At normal station {action.current_station}: "
                 f"load_from_queue must be 0 (only used at depot)"
             )
+        if action.depot_dropoffs != 0:
+            raise ValueError(
+                f"At normal station {action.current_station}: "
+                f"depot_dropoffs must be 0 (only used at depot)"
+            )
         if action.onsite_repairs < 0:
             raise ValueError("onsite_repairs must be ≥ 0")
         if action.depot_removals < 0:
@@ -524,13 +529,25 @@ class PostDecisionState:
             )
         free_capacity_after_unload = max(0, v.capacity - v.functional_cargo - (v.depot_cargo - depot_dropoffs))
         if action.load_from_queue > free_capacity_after_unload:
+        depot_dropoffs = action.depot_dropoffs
+        if depot_dropoffs != v.depot_cargo:
+            raise ValueError(
+                f"At depot {depot.station_id}: depot_dropoffs must unload all "
+                f"depot cargo ({v.depot_cargo}); got {depot_dropoffs}"
+            )
+        free_capacity_after_unload = max(0, v.capacity - v.functional_cargo - (v.depot_cargo - depot_dropoffs))
+        if action.load_from_queue > free_capacity_after_unload:
             raise ValueError(
                 f"Cannot load {action.load_from_queue} bikes; "
+                f"after unloading depot cargo, vehicle has "
+                f"{free_capacity_after_unload} free slots"
                 f"after unloading depot cargo, vehicle has "
                 f"{free_capacity_after_unload} free slots"
             )
  
         # ── build new depot inventory ──────────────────────────────────────
+        # Broken bikes are moved to in-repair
+        bikes_entering_repair = depot_dropoffs
         # Broken bikes are moved to in-repair
         bikes_entering_repair = depot_dropoffs
         new_in_repair = depot.in_repair + bikes_entering_repair
@@ -561,11 +578,12 @@ class PostDecisionState:
         # Time = unload all broken bikes + load bikes from queue
         time_unload_broken = depot_dropoffs * MINUTES_PER_ACTION
         time_load_from_queue = action.load_from_queue * MINUTES_PER_ACTION
-        action_duration = time_unload_broken + time_load_from_queue
+        action_duration = MINUTES_CONSTANT_PER_ACTION + time_unload_broken + time_load_from_queue
         # NOTE: Repair duration (24h cycle) is not added here—it's exogenous,
         # managed by the simulator between decision epochs.
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
+            bikes_unloaded_for_repair=depot_dropoffs,
             bikes_unloaded_for_repair=depot_dropoffs,
             bikes_loaded_from_queue=action.load_from_queue,
             labor_minutes=action_duration,
@@ -749,13 +767,18 @@ def extract_vehicle_status(
             functional_cargo += 1
 
     # destination_station: use the vehicle's current location id
-    dest = getattr(vehicle.location, "id", None) or getattr(vehicle, "current_station", None)
-    if hasattr(dest, "id"):   # unwrap if it's a Station object
-        dest = dest.id
+    location = getattr(vehicle, "location", None)
+    dest = getattr(location, "id", None)
+    if dest is None:
+        current_station = getattr(vehicle, "current_station", None)
+        dest = getattr(current_station, "id", current_station)
+    if dest is None:
+        raise ValueError(f"Cannot extract vehicle {vehicle.id}: missing current location")
+    dest_id = str(dest)
 
     return VehicleStatus(
         vehicle_id=vehicle.id,
-        destination_station=dest,
+        destination_station=dest_id,
         eta=current_time,
         functional_cargo=functional_cargo,
         depot_cargo=depot_cargo if cfg.track_damage else 0,

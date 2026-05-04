@@ -52,9 +52,11 @@ class Action:
         """
 
         operation_duration = (
-            len(self.battery_swaps) + len(self.pick_ups) + len(self.delivery_bikes) + len(self.onsite_repairs) + len(self.helping_pickup) + len(self.helping_delivery)
+            len(self.battery_swaps) + len(self.pick_ups) + len(self.delivery_bikes) + len(self.helping_pickup) + len(self.helping_delivery)
         ) * MINUTES_PER_ACTION
         maintenance_duration = self.maintenance_time
+        if self.onsite_repairs and maintenance_duration <= 0:
+            maintenance_duration = len(self.onsite_repairs) * MAINTENANCE_REPAIR
         travel_duration = (
             travel_time
             + MINUTES_CONSTANT_PER_ACTION

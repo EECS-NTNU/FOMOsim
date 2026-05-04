@@ -4,6 +4,8 @@ from sim.Location import Location
 import sim
 from settings import *
 import copy
+from helpers import format_sim_time
+from sim.bike_degradation_modeling.bike_component_maintenance_model import ComponentMaintenanceManager
 
 class Station(Location):
     """
@@ -59,6 +61,7 @@ class Station(Location):
             self.target_state = [[0 for hour in range(24)] for day in range(7)]
             
         self.metrics = sim.Metric()
+        self.onsite_repair_queue = []
 
         if len(self.bikes) > self.capacity:
             self.capacity = len(self.bikes)
@@ -93,7 +96,7 @@ class Station(Location):
                 bike_map[bike.bike_id] = copy.copy(bike)
             cloned_bikes.append(bike_map[bike.bike_id])
 
-        return Station(
+        new_station = Station(
             self.id,
             cloned_bikes,
             leave_intensities=self.leave_intensities,
@@ -110,6 +113,14 @@ class Station(Location):
             area=self.area,
             is_station_based=self.is_station_based,
         )
+        new_station.onsite_repair_queue = []
+        for ready_time, bike, vehicle_id, component, odometers in getattr(self, "onsite_repair_queue", []):
+            if bike.bike_id not in bike_map:
+                bike_map[bike.bike_id] = copy.copy(bike)
+            new_station.onsite_repair_queue.append(
+                (ready_time, bike_map[bike.bike_id], vehicle_id, component, dict(odometers or {}))
+            )
+        return new_station
 
     def is_depot(self):
         return False
@@ -187,6 +198,69 @@ class Station(Location):
         return [
             bike for bike in self.bikes.values() if bike.usable()
         ]
+
+    def queue_onsite_repair(
+        self,
+        bike,
+        current_time: float,
+        repair_duration_minutes: float,
+        vehicle_id=None,
+        component=None,
+        component_odometers=None,
+    ) -> float:
+        if not hasattr(self, "onsite_repair_queue"):
+            self.onsite_repair_queue = []
+
+        ready_time = current_time + repair_duration_minutes
+        bike.is_available = False
+        bike.onsite_repair_in_progress = True
+        bike.onsite_repair_ready_time = ready_time
+        self.onsite_repair_queue.append(
+            (ready_time, bike, vehicle_id, component, dict(component_odometers or {}))
+        )
+        print(
+            f"[ONSITE REPAIR QUEUED] {format_sim_time(current_time)} | Bike {bike.bike_id} "
+            f"at {self.id} ready at {format_sim_time(ready_time)}"
+        )
+        return ready_time
+
+    def tick_onsite_repair_queue(self, state) -> int:
+        if not hasattr(self, "onsite_repair_queue"):
+            self.onsite_repair_queue = []
+
+        completed = 0
+        remaining = []
+        for ready_time, bike, vehicle_id, component, odometers in self.onsite_repair_queue:
+            if state.time >= ready_time:
+                category = (
+                    component
+                    or getattr(bike, "pending_failure_category", None)
+                    or getattr(bike, "last_failure_category", None)
+                )
+                if category:
+                    ComponentMaintenanceManager.repair_component(
+                        bike,
+                        category,
+                        repair_type="onsite",
+                        verbose=False,
+                    )
+                ComponentMaintenanceManager.clear_damage_status(bike)
+                if hasattr(bike, "onsite_repair_in_progress"):
+                    bike.onsite_repair_in_progress = False
+                if hasattr(bike, "onsite_repair_ready_time"):
+                    bike.onsite_repair_ready_time = None
+
+                state.metrics.add_aggregate_metric(state, "onsite_repairs", 1)
+                completed += 1
+                print(
+                    f"[ONSITE REPAIR DONE] {format_sim_time(state.time)} | Bike {bike.bike_id} "
+                    f"finished onsite repair at {self.id} (status={getattr(bike, 'damage_status', None)})"
+                )
+            else:
+                remaining.append((ready_time, bike, vehicle_id, component, odometers))
+
+        self.onsite_repair_queue = remaining
+        return completed
     
     def get_unusable_bikes(self):
         return [

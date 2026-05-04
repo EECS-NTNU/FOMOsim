@@ -2,6 +2,7 @@ import copy
 
 from sim.Station import Station
 from settings import *
+from helpers import format_sim_time
 from sim.bike_degradation_modeling.bike_component_maintenance_model import ComponentMaintenanceManager
 
 
@@ -193,7 +194,10 @@ class Depot(Station):
         self.in_repair.append((ready_time, bikes))
 
         for b in bikes:
-            print(f"[DEPOT REPAIR QUEUED] t={current_time:.1f} | Bike {b.bike_id} will be ready for pickup at t={ready_time:.1f}")
+            print(
+                f"[DEPOT REPAIR QUEUED] {format_sim_time(current_time)} | "
+                f"Bike {b.bike_id} will be ready for pickup at {format_sim_time(ready_time)}"
+            )
     
     
     def tick_repair_queue(self, current_time: float) -> int:
@@ -221,7 +225,11 @@ class Depot(Station):
                     # Move to fixed_queue, ready for vehicle pickup
                     self.fixed_queue[bike.bike_id] = bike
 
-                    print(f"[DEPOT REPAIR DONE] t={current_time:.1f} | Bike {bike.bike_id} finished 24h repair for '{category_to_fix}'. Moved to fixed_queue. (Status: {bike.damage_status})")
+                    print(
+                        f"[DEPOT REPAIR DONE] {format_sim_time(current_time)} | "
+                        f"Bike {bike.bike_id} finished 24h repair for '{category_to_fix}'. "
+                        f"Moved to fixed_queue. (Status: {bike.damage_status})"
+                    )
 
                 bikes_completed += len(bikes_list)
             else:

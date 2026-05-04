@@ -107,7 +107,9 @@ class Bike(Location):
 
     def usable(self):
         """Check if bike can be rented."""
-        if hasattr(self, 'damage_status') and self.damage_status == "depot":
+        if not getattr(self, "is_available", True):
+            return False
+        if getattr(self, "damage_status", None) is not None:
             return False
         return True
 

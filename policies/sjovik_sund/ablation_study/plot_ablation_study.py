@@ -7,14 +7,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from pathlib import Path
- 
+
 # Update configuration to match the .sty file
 plt.rcParams.update({
     "text.usetex": True,
     "font.family": "serif",
     "text.latex.preamble": r"\usepackage[T1]{fontenc} \usepackage{mlmodern}"
 })
- 
+
 # --- PATHING ---
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
@@ -80,7 +80,7 @@ def load_experiment(exp_dir: Path):
  
         episodes = df["episode"].values
         service_levels = df["service_level"].values
- 
+
         window = min(30, len(episodes))
         sl_smoothed = pd.Series(service_levels).rolling(window=window, min_periods=1).mean().values
         
@@ -115,7 +115,7 @@ def load_experiment(exp_dir: Path):
  
  
 def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
-    study_dir = WORKSPACE_ROOT / "models/results"
+    study_dir = WORKSPACE_ROOT / "models/final_ablation_500ep_timefix"
     #study_dir = WORKSPACE_ROOT / "models/Convergencemethods/Rewardshaping"
     #study_dir = WORKSPACE_ROOT / "models/Convergencemethods/TDlambda"
     if not study_dir.exists():
@@ -131,7 +131,7 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
     all_alphas = sorted({a for exps in runs.values() for a in exps})
     print(f"Found experiments : {sorted(runs.keys())}")
     print(f"Found alphas      : {all_alphas}\n")
- 
+
     # ── Shared style config ────────────────────────────────────────────────────
     # 20+ distinct colors inspired by the project palette
     COLORS = [
@@ -158,19 +158,20 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
         "#8B4513",  # Saddle Brown
         "#6C757D",  # Cool Grey
     ]
- 
+
     exp_list  = sorted(runs.keys())
     color_map = {exp: COLORS[i % len(COLORS)] for i, exp in enumerate(exp_list)}
- 
+
     def get_color(exp, alpha=None):
         return color_map[exp]
- 
+
     # ── 1. Per-experiment plots (one line per alpha) ────────────────────────────
     for exp_name, alpha_dict in sorted(runs.items()):
         fig, ax = plt.subplots(figsize=(12, 6))
         any_plotted = False
  
         for alpha_str, exp_dir in sorted(alpha_dict.items()):
+            alpha_label = re.sub(r"_\d{8}_\d{6}$", "", alpha_str)
             alpha_label = re.sub(r"_\d{8}_\d{6}$", "", alpha_str)
             result = load_experiment(exp_dir)
             if result is None:
@@ -183,16 +184,23 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
             ax.plot(
                 episodes, sl_mean,
                 linestyle="-", linewidth=2.0, alpha=0.7,
+                linestyle="-", linewidth=2.0, alpha=0.7,
                 color=color,
+                label=rf"$\alpha$={alpha_label}  (peak SL={sl_mean.max():.4f}, final={sl_mean[-30:].mean():.4f})",
                 label=rf"$\alpha$={alpha_label}  (peak SL={sl_mean.max():.4f}, final={sl_mean[-30:].mean():.4f})",
             )
             ax.fill_between(episodes, sl_mean - sl_std, sl_mean + sl_std, color=color, alpha=0.15)
             trend = np.poly1d(np.polyfit(episodes, sl_mean, 1))(episodes)
             ax.plot(episodes, trend, linestyle="--", linewidth=3.0, color=color, alpha=0.3)
+            trend = np.poly1d(np.polyfit(episodes, sl_mean, 1))(episodes)
+            ax.plot(episodes, trend, linestyle="--", linewidth=3.0, color=color, alpha=0.3)
             any_plotted = True
+
+            # Weight evolution plot: each feature gets its own palette color
  
             # Weight evolution plot: each feature gets its own palette color
             fig_w, ax_w = plt.subplots(figsize=(12, 6))
+            weight_colors = [COLORS[i % len(COLORS)] for i in range(len(feature_names))]
             weight_colors = [COLORS[i % len(COLORS)] for i in range(len(feature_names))]
             for i, feat in enumerate(feature_names):
                 ax_w.plot(episodes, weights_mean[:, i], linewidth=2, alpha=0.85,
@@ -201,11 +209,15 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
             ax_w.set_title(
                 rf"Weight evolution: {exp_name} ($\alpha$={alpha_label})",
                 #f"Seeds: {', '.join(found_seeds)}",
+                rf"Weight evolution: {exp_name} ($\alpha$={alpha_label})",
+                #f"Seeds: {', '.join(found_seeds)}",
                 fontsize=13, fontweight="bold"
             )
             ax_w.set_xlabel("Episode", fontsize=12)
             ax_w.set_ylabel(r"Weight ($\theta$)", fontsize=12)
+            ax_w.set_ylabel(r"Weight ($\theta$)", fontsize=12)
             ax_w.grid(True, alpha=0.3)
+            ax_w.legend(loc="center left", bbox_to_anchor=(1, 0.5), fontsize=11)
             ax_w.legend(loc="center left", bbox_to_anchor=(1, 0.5), fontsize=11)
             plt.tight_layout()
             fig_w.savefig(exp_dir / f"{exp_name}_alpha{alpha_str}_mean_weights.png", dpi=200, bbox_inches="tight")
@@ -213,7 +225,7 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
  
             print(f"  {exp_name}  α={alpha_str}  seeds={found_seeds}  "
                   f"peak={sl_mean.max():.4f}  final={sl_mean[-30:].mean():.4f}")
- 
+
         if not any_plotted:
             plt.close(fig)
             continue
@@ -225,7 +237,10 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
         )
         ax.set_xlabel("Training episode", fontsize=12)
         ax.set_ylabel("Service level (30-ep moving avg)", fontsize=12)
+        ax.set_xlabel("Training episode", fontsize=12)
+        ax.set_ylabel("Service level (30-ep moving avg)", fontsize=12)
         ax.grid(True, alpha=0.3)
+        ax.legend(loc="lower right", fontsize=11)
         ax.legend(loc="lower right", fontsize=11)
         fig.tight_layout()
  
@@ -241,17 +256,23 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
     for exp_name, alpha_dict in sorted(runs.items()):
         for alpha_str, exp_dir in sorted(alpha_dict.items()):
             alpha_label = re.sub(r"_\d{8}_\d{6}$", "", alpha_str)
+            alpha_label = re.sub(r"_\d{8}_\d{6}$", "", alpha_str)
             result = load_experiment(exp_dir)
             if result is None:
                 continue
             episodes, sl_mean, sl_std, *_ = result
             color = get_color(exp_name)
+            color = get_color(exp_name)
             ax_master.plot(
                 episodes, sl_mean,
                 linestyle="-", linewidth=2.0, alpha=1, color=color,
                 label=rf"{exp_name}  $\alpha$={alpha_label}  (peak={sl_mean.max():.4f})"
+                linestyle="-", linewidth=2.0, alpha=1, color=color,
+                label=rf"{exp_name}  $\alpha$={alpha_label}  (peak={sl_mean.max():.4f})"
             )
             ax_master.fill_between(episodes, sl_mean - sl_std, sl_mean + sl_std, color=color, alpha=0.08)
+            trend = np.poly1d(np.polyfit(episodes, sl_mean, 1))(episodes)
+            ax_master.plot(episodes, trend, linestyle="--", linewidth=3.0, color=color, alpha=0.7)
             trend = np.poly1d(np.polyfit(episodes, sl_mean, 1))(episodes)
             ax_master.plot(episodes, trend, linestyle="--", linewidth=3.0, color=color, alpha=0.7)
             any_master = True
@@ -259,13 +280,18 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
     if any_master:
         alpha_label = "_".join(all_alphas) if filter_alphas else "all"
         title_alphas = rf"$\alpha$ ∈ {{{', '.join(all_alphas)}}}" if filter_alphas else "All Alphas"
+        title_alphas = rf"$\alpha$ ∈ {{{', '.join(all_alphas)}}}" if filter_alphas else "All Alphas"
         ax_master.set_title(
+            rf"Ablation study: Service level evolution across experiments",
             rf"Ablation study: Service level evolution across experiments",
             fontsize=13, fontweight="bold"
         )
         ax_master.set_xlabel("Training episode", fontsize=12)
         ax_master.set_ylabel(r"Service level ($30$-ep moving avg)", fontsize=12)
+        ax_master.set_xlabel("Training episode", fontsize=12)
+        ax_master.set_ylabel(r"Service level ($30$-ep moving avg)", fontsize=12)
         ax_master.grid(True, alpha=0.3)
+        ax_master.legend(loc="lower right", fontsize=11, ncol=2)
         ax_master.legend(loc="lower right", fontsize=11, ncol=2)
         fig_master.tight_layout()
         out = study_dir / f"ablation_comparison_alpha_{alpha_label}.png"

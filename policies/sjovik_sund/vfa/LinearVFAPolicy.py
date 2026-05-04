@@ -21,12 +21,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, cast
 
 if TYPE_CHECKING:
-    from policies.sjovik_sund.vfa.run_logger import RunLogger
+    from policies.sjovik_sund.simulation_logging import SimulationRunLogger as RunLogger
 from collections import deque
 
 from policies import action
 from policies.sjovik_sund.mdp.reward import RewardCalculator
 from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
+from helpers import format_sim_time
 
 
 WORKSPACE_ROOT = Path(__file__).parents[3]
@@ -110,6 +111,8 @@ class LinearVFAPolicy(Policy):
         and creates the weight vector (theta) which represents the
         agent's learned knowledge.
         """
+
+        print(f"Initializing LinearVFAPolicy with maintenance_enabled={maintenance_enabled}, ")
 
         super().__init__(maintenance_enabled=maintenance_enabled)
 
@@ -409,11 +412,17 @@ class LinearVFAPolicy(Policy):
         eval_time: Optional[float] = None,
         projected_time: float = None,
         dist_to_next: float = 0.0,
+        explicit_vehicle_loc_id: Optional[str] = None,
+        explicit_functional_cargo: Optional[int] = None,
+        explicit_depot_cargo: Optional[int] = None,
+        explicit_capacity: Optional[int] = None,
+        explicit_dist_to_depot: Optional[float] = None,
+        explicit_dist_to_stations: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """
         Compute φ(S^x) for the post-decision state.
         """
-        t         = eval_time if eval_time is not None else float(state.time)
+        t         = eval_time if eval_time is not None else (float(state.time) if state else 0.0)
         eval_day  = int(t // (24 * 60)) % 7
         eval_hour = int((t // 60) % 24)
         # Explicitly tell Pylance the lazy caches are populated
@@ -434,12 +443,14 @@ class LinearVFAPolicy(Policy):
         func_post = func.copy()
         onsite_post = onsite.copy()
         depot_post = depot.copy()
+        depot_post = depot.copy()
 
         #TODO: Fix so that the values on car is always integer
+        cur_loc_id = explicit_vehicle_loc_id if explicit_vehicle_loc_id is not None else vehicle.location.id
         
         # ── Apply post-decision delta at the vehicle's current station ─────
-        if vehicle.location.id in self._sid_to_idx:
-            cur_idx = self._sid_to_idx[vehicle.location.id]
+        if cur_loc_id in self._sid_to_idx:
+            cur_idx = self._sid_to_idx[cur_loc_id]
             func_post[cur_idx] = max(0, func_post[cur_idx] + delta_func)
             if delta_onsite_repairs:
                 repairs = max(0, int(delta_onsite_repairs))
@@ -450,13 +461,17 @@ class LinearVFAPolicy(Policy):
                 depot_post[cur_idx] = max(0, depot_post[cur_idx] - delta_depot_cargo)
 
         # ── Vehicle cargo in post-decision state ───────────────────────────
-        vehicle_status = extract_vehicle_status(vehicle, state.time, self.config)
-        # Note: delta_func is (deliveries - pickups), so it represents the change to the STATION's inventory.
-        # Therefore, we MUST SUBTRACT it to get the change to the VEHICLE's inventory.
-        func_cargo_veh = vehicle_status.functional_cargo - delta_func
-        
-        depot_cargo_veh = vehicle_status.depot_cargo + delta_depot_cargo
-        K = max(int(vehicle_status.capacity), 1)
+        if explicit_functional_cargo is not None and explicit_depot_cargo is not None and explicit_capacity is not None:
+            func_cargo_veh = explicit_functional_cargo - delta_func
+            depot_cargo_veh = explicit_depot_cargo + delta_depot_cargo
+            K = max(int(explicit_capacity), 1)
+        else:
+            vehicle_status = extract_vehicle_status(vehicle, state.time, self.config)
+            # Note: delta_func is (deliveries - pickups), so it represents the change to the STATION's inventory.
+            # Therefore, we MUST SUBTRACT it to get the change to the VEHICLE's inventory.
+            func_cargo_veh = vehicle_status.functional_cargo - delta_func
+            depot_cargo_veh = vehicle_status.depot_cargo + delta_depot_cargo
+            K = max(int(vehicle_status.capacity), 1)
 
         # ── Anticipate the inventory change at the DESTINATION ─────────────
         if next_station_id and next_station_id in self._sid_to_idx:
@@ -498,23 +513,29 @@ class LinearVFAPolicy(Policy):
 
         # ── Anticipated Distances (from Destination) ────────────────
         # Evaluate spatial gravity from where the vehicle is GOING, not where it is!
-        routing_target = next_station_id if next_station_id else vehicle.location.id
+        routing_target = next_station_id if next_station_id else cur_loc_id
         
-        dist_to_depot = (
-            state.get_travel_time(routing_target, self._depot_id)
-            if self._depot_id and self._depot_id != routing_target
-            else 0.0
-        )
-        
-        # Fast spatial slice from cached matrix using the routing target
-        if routing_target in self._sid_to_idx:
-            v_idx = self._sid_to_idx[routing_target]
-            dist_to_stations = self._travel_time_matrix[v_idx]
+        if explicit_dist_to_depot is not None:
+            dist_to_depot = explicit_dist_to_depot
         else:
-            dist_to_stations = np.array([
-                state.get_travel_time(routing_target, sid) 
-                for sid in self._station_ids
-            ], dtype=np.float32)
+            dist_to_depot = (
+                state.get_travel_time(routing_target, self._depot_id)
+                if state and self._depot_id and self._depot_id != routing_target
+                else 0.0
+            )
+        
+        if explicit_dist_to_stations is not None:
+            dist_to_stations = explicit_dist_to_stations
+        else:
+            # Fast spatial slice from cached matrix using the routing target
+            if routing_target in self._sid_to_idx:
+                v_idx = self._sid_to_idx[routing_target]
+                dist_to_stations = self._travel_time_matrix[v_idx]
+            else:
+                dist_to_stations = np.array([
+                    state.get_travel_time(routing_target, sid) if state else 0.0
+                    for sid in self._station_ids
+                ], dtype=np.float32)
 
         # ── Depot queue state ──────────────────────────────────────────────
         depot_in_repair   = float(sum(len(bikes) for d in state.get_depots() for _, bikes in d.in_repair))
@@ -524,6 +545,7 @@ class LinearVFAPolicy(Policy):
         phi_full = _extract_phi(
             func=func_post.astype(np.float64),
             onsite=onsite_post.astype(np.float64),
+            depot=depot_post.astype(np.float64),
             depot=depot_post.astype(np.float64),
             target=target.astype(np.float64),
             capacities=self._capacities,
@@ -541,8 +563,8 @@ class LinearVFAPolicy(Policy):
             depot_fixed_queue=depot_fixed_queue,
             maintenance_enabled=True,
             logistics_enabled=True,
-            time_remaining=self._get_time_remaining(state, vehicle),
-            shift_length=self._get_shift_length(state, vehicle),
+            time_remaining=time_remaining,
+            shift_length=shift_length,
             demand_horizon_enabled=True,
             current_time_minutes=t,
             current_day_of_week=eval_day,
@@ -989,7 +1011,7 @@ class LinearVFAPolicy(Policy):
         time_frac = time_rem / 1440.0 if time_rem is not None else None
         
         log_entry = (
-            f"[DEPOT] t={state.time:7.1f}min | "
+            f"[DEPOT] {format_sim_time(state.time)} | "
             f"vehicle={vehicle.id} | "
             f"from={vehicle.location.id} → to={destination_id} | "
             f"cargo_func={len(vehicle.get_bike_inventory())} | "
@@ -1063,29 +1085,34 @@ class LinearVFAPolicy(Policy):
                 
             functional_pickups = 0
             depot_pickups = 0
-            
-            
-            for b_id in action.pick_ups:
-                b = station_bikes.get(b_id)
-                if b and getattr(b, 'damage_status', None) == 'depot':
-                    depot_pickups += 1
-                elif b:
-                    functional_pickups += 1
-            
-            # --- DEBUG PRINT ---
-            # Print only for the very first candidate of the decision epoch so it doesn't flood the console
-            if k == 0 and len(action.pick_ups) > 0:
-                pass  # debug print removed
 
-            # Net change in functional bikes and vehicle depot cargo
-            delta_func = len(action.delivery_bikes) - functional_pickups
-            delta_depot_cargo = depot_pickups
-            delta_onsite_repairs = len(getattr(action, "onsite_repairs", []))
-            
-            # If vehicle is at depot, ALL depot cargo is unloaded
             if vehicle.is_at_depot():
-                vehicle_depot_cargo = sum(1 for b in vehicle.get_bike_inventory() if getattr(b, 'damage_status', None) == 'depot')
-                delta_depot_cargo = -vehicle_depot_cargo
+                # pick_ups at depot come from fixed_queue (repaired bikes), not depot.bikes.
+                # delivery_bikes are broken bikes being dropped off — not functional deliveries.
+                fq = getattr(vehicle.location, "fixed_queue", {})
+                vehicle_bikes = {
+                    getattr(b, 'bike_id', getattr(b, 'id')): b
+                    for b in vehicle.get_bike_inventory()
+                }
+                for b_id in action.pick_ups:
+                    if b_id in fq:
+                        functional_pickups += 1
+                depot_dropoffs = sum(
+                    1 for b_id in action.delivery_bikes
+                    if getattr(vehicle_bikes.get(b_id), 'damage_status', None) == 'depot'
+                )
+                delta_func = -functional_pickups   # vehicle GAINS repaired bikes; no functional deliveries
+                delta_depot_cargo = -depot_dropoffs
+            else:
+                for b_id in action.pick_ups:
+                    b = station_bikes.get(b_id)
+                    if b and getattr(b, 'damage_status', None) == 'depot':
+                        depot_pickups += 1
+                    elif b:
+                        functional_pickups += 1
+                delta_func = len(action.delivery_bikes) - functional_pickups
+                delta_depot_cargo = depot_pickups
+            delta_onsite_repairs = len(getattr(action, "onsite_repairs", []))
             
             dest_id = getattr(action, "next_location", getattr(action, "next_station", None))
 
@@ -1285,7 +1312,7 @@ class LinearVFAPolicy(Policy):
             self._log_greedy_comparison(state, vehicle, candidates, values, sel_idx)
 
         return selected'''
-        
+    
     def get_best_action(self, state, vehicle) -> sim.Action:
     #def get_best_action(self, state, vehicle) -> sim.Action:
         """
@@ -1356,7 +1383,7 @@ class LinearVFAPolicy(Policy):
             delta_onsite_repairs = len(getattr(action, "onsite_repairs", []))
             
             dest_id = getattr(action, "next_location", getattr(action, "next_station", None))
- 
+
             try:
                 svc = action.get_action_time(0.0) if hasattr(action, "get_action_time") else 0.0
             except Exception:
@@ -1458,7 +1485,7 @@ class LinearVFAPolicy(Policy):
             v_mean  = float(np.mean(values))
             v_std   = float(np.std(values))
             print(f"\n{'═'*62}")
-            print(f"NOON  day={state.day()}  t={state.time:.0f}min  {vehicle.id} @ {vehicle.location.id}  n={len(candidates)}")
+            print(f"NOON  {format_sim_time(state.time)}  {vehicle.id} @ {vehicle.location.id}  n={len(candidates)}")
             print(f"  spread={v_spread:.4f}  best={v_best:.4f}  worst={v_worst:.4f}  mean={v_mean:.4f}  std={v_std:.4f}")
             print(f"  {'#':<3} {'Type':<12} {'Next':<7} {'pk':>3} {'dl':>3} {'rep':>4}  {'V':>9}  {'Δbest':>7}")
             print(f"  {'─'*57}")
@@ -1537,7 +1564,7 @@ class LinearVFAPolicy(Policy):
  
         func_pickups = depot_pickups = 0
         load_from_queue = 0
- 
+
         if is_at_depot:
             # sim.Action does not carry load_from_queue. At the simulator
             # boundary, repaired depot loads are encoded as pick_ups whose
@@ -1551,7 +1578,7 @@ class LinearVFAPolicy(Policy):
                     depot_pickups += 1
                 elif b:
                     func_pickups += 1
- 
+
         vehicle_bikes = {getattr(b, "bike_id", getattr(b, "id")): b for b in inv}
         if is_at_depot:
             depot_deliveries = sum(
@@ -1562,10 +1589,12 @@ class LinearVFAPolicy(Policy):
         else:
             depot_deliveries = 0
             func_deliveries = len(delivery_ids)
- 
+
         onsite_repairs = len(getattr(action, "onsite_repairs", []))
- 
+
         if is_at_depot:
+            func_after  = func_before + load_from_queue
+            depot_after = max(depot_before - depot_deliveries, 0)
             func_after  = func_before + load_from_queue
             depot_after = max(depot_before - depot_deliveries, 0)
         else:

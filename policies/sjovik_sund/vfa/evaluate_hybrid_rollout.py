@@ -111,11 +111,9 @@ def evaluate_model(
     seed: int,
     lookahead_minutes: float,
     num_scenarios: int,
-    n_rollout_candidates: int,
     n_routing_candidates: int,
-    screening_mode: bool,
-    n_screening_scenarios: int,
-    n_survivors: int,
+    n_time_steps: int,
+    use_degradation: bool,
     episodes: int,
     start_seed: int,
     duration_hours: int,
@@ -144,11 +142,9 @@ def evaluate_model(
         trained_vfa=trained_vfa,
         lookahead_minutes=lookahead_minutes,
         num_scenarios=num_scenarios,
-        n_rollout_candidates=n_rollout_candidates,
         n_routing_candidates=n_routing_candidates,
-        screening_mode=screening_mode,
-        n_screening_scenarios=n_screening_scenarios,
-        n_survivors=n_survivors,
+        n_time_steps=n_time_steps,
+        use_degradation=use_degradation,
         logger=run_logger,
         debug_print=debug_print,
     )
@@ -183,11 +179,9 @@ def run_batch(
     base_dir: Path,
     lookahead_minutes: float,
     num_scenarios: int,
-    n_rollout_candidates: int,
     n_routing_candidates: int,
-    screening_mode: bool,
-    n_screening_scenarios: int,
-    n_survivors: int,
+    n_time_steps: int,
+    use_degradation: bool,
     episodes: int,
     start_seed: int,
     duration_hours: int,
@@ -294,11 +288,9 @@ def run_batch(
                     trained_vfa=vfa,
                     lookahead_minutes=lookahead_minutes,
                     num_scenarios=num_scenarios,
-                    n_rollout_candidates=n_rollout_candidates,
                     n_routing_candidates=n_routing_candidates,
-                    screening_mode=screening_mode,
-                    n_screening_scenarios=n_screening_scenarios,
-                    n_survivors=n_survivors,
+                    n_time_steps=n_time_steps,
+                    use_degradation=use_degradation,
                     logger=run_logger,
                     debug_print=debug_print,
                 )
@@ -343,11 +335,9 @@ def run_single(
     features_override: list[str] | None,
     lookahead_minutes: float,
     num_scenarios: int,
-    n_rollout_candidates: int,
     n_routing_candidates: int,
-    screening_mode: bool,
-    n_screening_scenarios: int,
-    n_survivors: int,
+    n_time_steps: int,
+    use_degradation: bool,
     episodes: int,
     start_seed: int,
     duration_hours: int,
@@ -423,11 +413,9 @@ def run_single(
                 seed=0,
                 lookahead_minutes=lookahead_minutes,
                 num_scenarios=num_scenarios,
-                n_rollout_candidates=n_rollout_candidates,
                 n_routing_candidates=n_routing_candidates,
-                screening_mode=screening_mode,
-                n_screening_scenarios=n_screening_scenarios,
-                n_survivors=n_survivors,
+                n_time_steps=n_time_steps,
+                use_degradation=use_degradation,
                 episodes=episodes,
                 start_seed=start_seed,
                 duration_hours=duration_hours,
@@ -511,18 +499,14 @@ if __name__ == "__main__":
     rollout = parser.add_argument_group("Rollout parameters")
     rollout.add_argument("--lookahead", type=float, default=60.0,
                          help="Rollout horizon in simulation minutes (default: 60)")
-    rollout.add_argument("--scenarios", type=int, default=8,
-                         help="Monte Carlo scenarios per action (default: 8)")
-    rollout.add_argument("--n_candidates", type=int, default=999, #default 999 means no candidate pruning at all. 
-                         help="Top N candidates to evaluate via rollout (default: 8, use 999 to disable VFA pre-filtering)")
+    rollout.add_argument("--scenarios", type=int, default=10,
+                         help="Monte Carlo scenarios per action (default: 10)")
     rollout.add_argument("--n_routing", type=int, default=10,
-                         help="Routing targets per operational profile for initial candidate generation (default: 10, VFA training always uses 10)")
-    rollout.add_argument("--screening", action="store_true", default=False,
-                         help="Enable two-stage OCBA screening (skips VFA pre-filter)")
-    rollout.add_argument("--n_screening", type=int, default=3,
-                         help="Stage-1 scenarios per candidate in screening mode (default: 2)")
-    rollout.add_argument("--n_survivors", type=int, default=7,
-                         help="Candidates advanced from stage-1 to stage-2 in screening mode (default: 10)")
+                         help="Routing targets per operational profile for initial candidate generation (default: 10)")
+    rollout.add_argument("--n_time_steps", type=int, default=4,
+                         help="Sub-intervals per rollout horizon for demand sampling (default: 4 × 15 min for H=60)")
+    rollout.add_argument("--use_degradation", action="store_true", default=False,
+                         help="Enable Weibull component-failure sampling during rollout (default: off)")
 
     # Simulation settings
     sim = parser.add_argument_group("Simulation settings")
@@ -540,7 +524,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     shared_sim = dict(
-    shared_sim = dict(
         lookahead_minutes=args.lookahead,
         num_scenarios=args.scenarios,
         n_rollout_candidates=args.n_candidates,
@@ -550,9 +533,8 @@ if __name__ == "__main__":
         n_survivors=args.n_survivors,
         n_rollout_candidates=args.n_candidates,
         n_routing_candidates=args.n_routing,
-        screening_mode=args.screening,
-        n_screening_scenarios=args.n_screening,
-        n_survivors=args.n_survivors,
+        n_time_steps=args.n_time_steps,
+        use_degradation=args.use_degradation,
         episodes=args.episodes,
         start_seed=args.seed,
         duration_hours=args.duration,

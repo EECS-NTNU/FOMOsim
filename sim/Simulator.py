@@ -94,6 +94,15 @@ class Simulator(LoadSave):
             loggTime(event.time)
             loggLocations(self.state)
 
+        if self.state.time <= event.time:
+            self.state.time = event.time
+        else:
+            raise ValueError(
+                f"{event.__class__.__name__} object tries to move the simul backwards in time. "
+                f"Event time: {event.time}, World time: {self.state.time}"
+            )
+        self._tick_repair_queues()
+
         event.perform(self)
 
         if settings.TRAFFIC_LOGGING:
@@ -102,8 +111,8 @@ class Simulator(LoadSave):
         #self.metrics.add_analysis_metrics(self)
         self.state.metrics.add_analysis_metrics(self.state)
         
-        # ── Tick repair queues at depot ────────────────────────────────────
-        self._tick_depot_repair_queues()
+        # ── Tick repair queues ─────────────────────────────────────────────
+        self._tick_repair_queues()
 
         monotonic = time.monotonic()
         if self.cluster:
@@ -164,6 +173,17 @@ class Simulator(LoadSave):
         """
         for depot in self.state.get_depots():
             depot.tick_repair_queue(self.state.time)
+
+    def _tick_onsite_repair_queues(self) -> None:
+        """Complete station on-site repairs whose service time has elapsed."""
+        for station in self.state.get_stations():
+            if hasattr(station, "tick_onsite_repair_queue"):
+                station.tick_onsite_repair_queue(self.state)
+
+    def _tick_repair_queues(self) -> None:
+        """Process all maintenance queues that can complete at the current time."""
+        self._tick_depot_repair_queues()
+        self._tick_onsite_repair_queues()
 
     def add_event(self, event: sim.Event) -> None:
         """
