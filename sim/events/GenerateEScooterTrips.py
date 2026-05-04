@@ -17,19 +17,20 @@ class GenerateEScooterTrips(Event):
     def perform(self, simul) -> None:
 
         super().perform(simul)
+        demand_rng = getattr(simul.state, "rng_demand", simul.state.rng)
 
         #print("Time:", simul.state.time)
 
         for departure_area in simul.state.get_areas():
             # poisson process to select number of trips in a iteration
             number_of_trips = round(
-                simul.state.rng.poisson(departure_area.get_leave_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
+                demand_rng.poisson(departure_area.get_leave_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
             )
 
             # generate trip departure times (can be implemented with np.random.uniform if we want decimal times)
             # both functions generate numbers from a discrete uniform distribution
             trips_departure_time = sorted(
-                simul.state.rng.integers(
+                demand_rng.integers(
                     self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                 )
             )
@@ -49,13 +50,13 @@ class GenerateEScooterTrips(Event):
             for arrival_area in simul.state.get_areas():
                 # poisson process to select number of trips in a iteration
                 number_of_trips = round(
-                    simul.state.rng.poisson(arrival_area.get_arrive_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
+                    demand_rng.poisson(arrival_area.get_arrive_intensity(simul.state.day(), simul.state.hour()) / (60/ITERATION_LENGTH_MINUTES))
                 )
 
                 # generate trip arrival times (can be implemented with np.random.uniform if we want decimal times)
                 # both functions generate numbers from a discrete uniform distribution
                 trips_arrival_time = sorted(
-                    simul.state.rng.integers(
+                    demand_rng.integers(
                         self.time, self.time + ITERATION_LENGTH_MINUTES, number_of_trips
                     )
                 )

@@ -5,6 +5,7 @@ Simulation logging utilities for tracking hourly and daily metrics.
  
 import os
 import csv
+import re
 import sim
 import pandas as pd
 from datetime import datetime
@@ -28,6 +29,13 @@ _ALL_FEATURE_NAMES = _get_all_feature_names(
     logistics_enabled=True,
     demand_horizon_enabled=True,
 )
+
+
+def _safe_path_part(value: object) -> str:
+    text = str(value).strip()
+    text = re.sub(r"[^A-Za-z0-9_.-]+", "_", text)
+    text = re.sub(r"_+", "_", text).strip("._")
+    return text or "unknown"
 
 
 def _cat_key(cat: str) -> str:
@@ -171,9 +179,15 @@ class SimulationRunLogger:
         self._exp_name: str = ""
         self._alpha: float = 0.0
         self._policy_type: str = "Hybrid"
+        self._duration_hours: int | float | None = None
+        self._num_vehicles: int | None = None
+        self._instance_name: str = ""
         self._current_seed: int = 0
         self._shift_hour_start: int = 5
         self._results_only: bool = False
+        self._policy_dir: Path | None = None
+        self._current_seed_dir: Path | None = None
+        self._active_files: set[str] = set(self.log_files)
 
         self._fleet_total_start: int = 0
         self._fleet_func_start: int = 0
@@ -200,6 +214,7 @@ class SimulationRunLogger:
         self._hour_stations: set[str] = set()
 
         self._day_hourly_rows: list[dict] = []
+        self._daily_days_written: set[int] = set()
 
         self._results_fh: Any = None
         self._hourly_fh: Any = None
@@ -214,6 +229,33 @@ class SimulationRunLogger:
         if "debug" in self.log_files:
             self._debug_fh = open(self.run_dir / "debug_log.txt", "w", encoding="utf-8")
         self.debug(f"SimulationRunLogger ready -> {self.run_dir}")
+
+    @staticmethod
+    def _format_duration(duration_hours: int | float | None) -> str | None:
+        if duration_hours is None:
+            return None
+        if isinstance(duration_hours, float) and duration_hours.is_integer():
+            duration_hours = int(duration_hours)
+        return f"D{duration_hours}h"
+
+    def _policy_folder_name(self) -> str:
+        policy_type = _safe_path_part(self._policy_type)
+        parts = [policy_type]
+
+        if self._policy_type.lower() in {"vfa", "hybrid"} and self._exp_name:
+            parts.append(_safe_path_part(self._exp_name))
+
+        if self._instance_name:
+            parts.append(_safe_path_part(self._instance_name))
+
+        duration = self._format_duration(self._duration_hours)
+        if duration:
+            parts.append(duration)
+
+        if self._num_vehicles is not None:
+            parts.append(f"V{self._num_vehicles}")
+
+        return "_".join(parts)
 
     @classmethod
     def _normalize_log_files(cls, log_files) -> set[str]:
@@ -234,17 +276,42 @@ class SimulationRunLogger:
         exp_name: str,
         alpha: float,
         policy_type: str = "Hybrid",
+        duration_hours: int | float | None = None,
+        num_vehicles: int | None = None,
+        instance_name: str | None = None,
         shift_hour_start: int = 5,
         results_only: bool = False,
     ) -> None:
+        self._close_seed_files()
+        self._close_policy_files()
+
         self._exp_name = exp_name
         self._alpha = alpha
         self._policy_type = policy_type
+        self._duration_hours = duration_hours
+        self._num_vehicles = num_vehicles
+        self._instance_name = instance_name or ""
         self._shift_hour_start = shift_hour_start
         self._results_only = results_only
+
+        self._active_files = {"results"} if self._results_only else set(self.log_files)
+        self._policy_dir = self.run_dir / self._policy_folder_name()
+        self._policy_dir.mkdir(parents=True, exist_ok=True)
+
+        if "results" in self._active_files:
+            results_path = self._policy_dir / "results.csv"
+            has_rows = results_path.exists() and results_path.stat().st_size > 0
+            self._results_fh = open(results_path, "a", newline="", encoding="utf-8")
+            self._results_w = csv.DictWriter(
+                self._results_fh, fieldnames=self._results_columns(), extrasaction="ignore"
+            )
+            if not has_rows:
+                self._results_w.writeheader()
+
         self.debug(
             f"Run label: exp={exp_name} alpha={alpha} policy={policy_type} "
-            f"results_only={results_only} log_files={sorted(self.log_files)}"
+            f"folder={self._policy_dir.name} results_only={results_only} "
+            f"log_files={sorted(self.log_files)}"
         )
 
     def set_seed(self, seed: int) -> None:
@@ -254,36 +321,32 @@ class SimulationRunLogger:
         self._reset_episode_totals()
         self._reset_hour_accumulators()
 
-        alpha_str = str(self._alpha)
-        subdir_name = f"{self._exp_name}_alpha_{alpha_str}_seed_{seed}_{self._policy_type}"
-        subdir = self.run_dir / subdir_name
-        subdir.mkdir(parents=True, exist_ok=True)
+        if self._policy_dir is None:
+            self.set_run_label(self._exp_name, self._alpha, policy_type=self._policy_type)
 
-        active_files = {"results"} if self._results_only else self.log_files
+        seed_files = self._active_files & {"hourly", "daily", "decisions"}
+        if seed_files:
+            self._current_seed_dir = self._policy_dir / f"seed_{seed}"
+            self._current_seed_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            self._current_seed_dir = None
 
-        if "results" in active_files:
-            self._results_fh = open(subdir / "results.csv", "w", newline="", encoding="utf-8")
-            self._results_w = csv.DictWriter(
-                self._results_fh, fieldnames=self._results_columns(), extrasaction="ignore"
-            )
-            self._results_w.writeheader()
-
-        if "hourly" in active_files:
-            self._hourly_fh = open(subdir / "hourly_metrics.csv", "w", newline="", encoding="utf-8")
+        if "hourly" in seed_files:
+            self._hourly_fh = open(self._current_seed_dir / "hourly_metrics.csv", "w", newline="", encoding="utf-8")
             self._hourly_w = csv.DictWriter(
                 self._hourly_fh, fieldnames=self._hourly_columns(), extrasaction="ignore"
             )
             self._hourly_w.writeheader()
 
-        if "daily" in active_files:
-            self._daily_fh = open(subdir / "daily_metrics.csv", "w", newline="", encoding="utf-8")
+        if "daily" in seed_files:
+            self._daily_fh = open(self._current_seed_dir / "daily_metrics.csv", "w", newline="", encoding="utf-8")
             self._daily_w = csv.DictWriter(
                 self._daily_fh, fieldnames=self._daily_columns(), extrasaction="ignore"
             )
             self._daily_w.writeheader()
 
-        if "decisions" in active_files:
-            self._decisions_fh = open(subdir / "decisions.csv", "w", newline="", encoding="utf-8")
+        if "decisions" in seed_files:
+            self._decisions_fh = open(self._current_seed_dir / "decisions.csv", "w", newline="", encoding="utf-8")
             self._decisions_w = csv.DictWriter(
                 self._decisions_fh,
                 fieldnames=self._decisions_columns(),
@@ -292,7 +355,8 @@ class SimulationRunLogger:
             )
             self._decisions_w.writeheader()
 
-        self.debug(f"Seed {seed} -> {subdir_name}/")
+        seed_target = self._current_seed_dir.relative_to(self.run_dir) if self._current_seed_dir else self._policy_dir.relative_to(self.run_dir)
+        self.debug(f"Seed {seed} -> {seed_target}/")
 
     def _reset_episode_totals(self) -> None:
         self._ep_func_pickups = 0
@@ -304,16 +368,28 @@ class SimulationRunLogger:
         self._ep_restored_onsite = 0
         self._ep_restored_depot = 0
         self._day_hourly_rows = []
+        self._daily_days_written = set()
 
     def _close_seed_files(self) -> None:
-        for fh in (self._results_fh, self._hourly_fh, self._daily_fh, self._decisions_fh):
+        self.flush_days()
+        for fh in (self._hourly_fh, self._daily_fh, self._decisions_fh):
             if fh is not None:
                 try:
                     fh.close()
                 except Exception:
                     pass
-        self._results_fh = self._hourly_fh = self._daily_fh = self._decisions_fh = None
-        self._results_w = self._hourly_w = self._daily_w = self._decisions_w = None
+        self._hourly_fh = self._daily_fh = self._decisions_fh = None
+        self._hourly_w = self._daily_w = self._decisions_w = None
+        self._current_seed_dir = None
+
+    def _close_policy_files(self) -> None:
+        if self._results_fh is not None:
+            try:
+                self._results_fh.close()
+            except Exception:
+                pass
+        self._results_fh = None
+        self._results_w = None
 
     def capture_fleet_start(self, state) -> None:
         all_bikes = list(state.get_all_bikes())
@@ -365,6 +441,8 @@ class SimulationRunLogger:
             self._decisions_fh.flush()
 
     def log_hour(self, row: dict) -> None:
+        absolute_hour = int(row.get("day", 0)) * 24 + int(row.get("hour", 0))
+        row["operational_day"] = (absolute_hour - self._shift_hour_start) // 24
         row.update({
             "seed": self._current_seed,
             "functional_pickups": self._hour_func_pickups,
@@ -396,7 +474,31 @@ class SimulationRunLogger:
         self._hour_stations = set()
 
     def log_day(self, day: int) -> None:
-        rows = [r for r in self._day_hourly_rows if r.get("day") == day]
+        self.debug(f"Calendar day {day} completed; operational daily rows flush at episode end.")
+
+    def flush_days(self) -> None:
+        if self._daily_w is None:
+            self._day_hourly_rows = []
+            return
+
+        pending_days = sorted({
+            int(r.get("operational_day", -1))
+            for r in self._day_hourly_rows
+            if int(r.get("operational_day", -1)) >= 0
+        })
+        for day in pending_days:
+            if day in self._daily_days_written:
+                continue
+            rows = [r for r in self._day_hourly_rows if r.get("operational_day") == day]
+            self._write_daily_row(day, rows)
+            self._daily_days_written.add(day)
+
+        self._day_hourly_rows = [
+            r for r in self._day_hourly_rows
+            if int(r.get("operational_day", -1)) not in self._daily_days_written
+        ]
+
+    def _write_daily_row(self, day: int, rows: list[dict]) -> None:
         if not rows:
             return
 
@@ -432,9 +534,9 @@ class SimulationRunLogger:
         if self._daily_w is not None:
             self._daily_w.writerow(daily_row)
             self._daily_fh.flush()
-        self._day_hourly_rows = [r for r in self._day_hourly_rows if r.get("day") != day]
 
     def log_episode(self, simulator, seed: int, duration: float, solve_time: float) -> None:
+        self.flush_days()
         m = simulator.state.metrics
 
         def ag(key: str):
@@ -509,6 +611,7 @@ class SimulationRunLogger:
 
     def close(self) -> None:
         self._close_seed_files()
+        self._close_policy_files()
         if self._debug_fh is not None:
             try:
                 self._debug_fh.close()
@@ -1123,8 +1226,9 @@ class LoggingSimulator(sim.Simulator):
         final_time = self.state.time
         final_hour = int(final_time // 60)
        
-        # Log the final hour's data (the hour we're currently in when simulation ends)
-        if final_hour >= 0:
+        # If the simulation stops exactly on an hour boundary, that completed
+        # hour was already logged when the boundary event was processed.
+        if final_hour >= 0 and (final_hour > self.last_logged_hour or final_time % 60 != 0):
             self.log_hourly_metrics(final_hour, final_time)
  
  
@@ -1819,4 +1923,3 @@ def write_rl_decisions_to_file(filename_prefix, simulator, seed):
         df_rl.to_csv(RESULTS_DIR / f"{filename_prefix}_rl_decisions_seed_{seed}.csv", index=False)
         # Clear the log to save memory for the next run
         vfa_policy.rl_logs = []
-

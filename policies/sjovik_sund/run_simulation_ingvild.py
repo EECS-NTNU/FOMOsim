@@ -423,9 +423,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--policy",
         type=str,
+        nargs="+",
         choices=["vfa", "hybrid", "greedy-maintenance", "greedy-v2", "greedy", "do-nothing", "xpilot"],
-        default="vfa",
-        help="Policy to run (default: vfa). Use 'hybrid' for HybridRolloutPolicy.",
+        default=["vfa"],
+        help=(
+            "Policy or policies to run sequentially (default: vfa). "
+            "Example: --policy vfa greedy-maintenance."
+        ),
     )
     parser.add_argument(
         "--alphas",
@@ -564,7 +568,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--no-csv",
         action="store_true",
-        default=False,
+        default=True,
         help="Skip legacy simulation_results/csv writers and rely on centralized run_logs output.",
     )
 
@@ -609,7 +613,18 @@ if __name__ == "__main__":
     log_files = _resolve_log_files()
     run_logger = None if "none" in log_files else SimulationRunLogger(log_files=log_files)
 
-    policy_dict = {}
+    def _set_run_logger_context(policy_type: str, exp_name: str = "", alpha: float = 0.0, results_only: bool = False) -> None:
+        if run_logger is None:
+            return
+        run_logger.set_run_label(
+            exp_name,
+            alpha,
+            policy_type=policy_type,
+            duration_hours=duration,
+            num_vehicles=num_vehicles,
+            instance_name=args.instance,
+            results_only=results_only,
+        )
 
     def _load_vfa_policy() -> tuple[LinearVFAPolicy, str]:
         load_kwargs = {}
@@ -622,75 +637,86 @@ if __name__ == "__main__":
         exp_name = re.sub(r"^vfa_|_seed\d+$", "", stem)  # e.g. "Squared_Temporal"
         return vfa_policy, exp_name
 
-    if args.policy == "do-nothing":
-        policy_name = f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
-        policy_dict[policy_name] = DoNothing()
+    def _build_policy(policy_type: str):
+        if policy_type == "do-nothing":
+            _set_run_logger_context(policy_type)
+            policy_name = f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            return policy_name, DoNothing()
 
-    elif args.policy == "greedy":
-        policy_name = f"Greedy_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
-        policy_dict[policy_name] = GreedyPolicy()
+        if policy_type == "greedy":
+            _set_run_logger_context(policy_type)
+            policy_name = f"Greedy_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            return policy_name, GreedyPolicy()
 
-    elif args.policy == "greedy-v2":
-        policy_name = f"GreedyV2_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
-        policy_dict[policy_name] = GreedyPolicyV2()
+        if policy_type == "greedy-v2":
+            _set_run_logger_context(policy_type)
+            policy_name = f"GreedyV2_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            return policy_name, GreedyPolicyV2()
 
-    elif args.policy == "greedy-maintenance":
-        policy_name = f"GreedyMaintenance_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
-        policy_dict[policy_name] = GreedyMaintenancePolicy()
+        if policy_type == "greedy-maintenance":
+            _set_run_logger_context(policy_type)
+            policy_name = f"GreedyMaintenance_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            return policy_name, GreedyMaintenancePolicy()
 
-    elif args.policy == "xpilot":
-        policy_name = f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
-        policy_dict[policy_name] = policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
-            time_horizon=40, max_depth=2, num_successors=5, number_of_scenarios=100
-        )
+        if policy_type == "xpilot":
+            _set_run_logger_context(policy_type)
+            policy_name = f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            policy = policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
+                time_horizon=40, max_depth=2, num_successors=5, number_of_scenarios=100
+            )
+            return policy_name, policy
 
-    elif args.policy == "vfa":
-        vfa_policy, exp_name = _load_vfa_policy()
-        if run_logger is not None:
-            run_logger.set_run_label(exp_name, 0.0, policy_type="VFA")
-            vfa_policy.logger = run_logger
-        policy_name_vfa = (
-            f"VFA_{exp_name}_{args.instance}_V{num_vehicles}_D{duration}h_"
-            f"{timestamp}_seed{start_seed}"
-        )
-        policy_dict[policy_name_vfa] = vfa_policy
+        if policy_type == "vfa":
+            vfa_policy, exp_name = _load_vfa_policy()
+            _set_run_logger_context(policy_type, exp_name=exp_name)
+            if run_logger is not None:
+                vfa_policy.logger = run_logger
+            policy_name = (
+                f"VFA_{exp_name}_{args.instance}_V{num_vehicles}_D{duration}h_"
+                f"{timestamp}_seed{start_seed}"
+            )
+            return policy_name, vfa_policy
 
-    elif args.policy == "hybrid":
-        vfa_policy, exp_name = _load_vfa_policy()
-        if run_logger is not None:
-            run_logger.set_run_label(exp_name, 0.0, policy_type="Hybrid")
-            vfa_policy.logger = run_logger
-        hybrid_policy = HybridRolloutPolicy(
-            trained_vfa=vfa_policy,
-            lookahead_minutes=args.lookahead,
-            num_scenarios=args.num_scenarios,
-            n_routing_candidates=args.n_routing,
-            n_time_steps=args.n_time_steps,
-            use_degradation=args.rollout_degradation,
-            logger=run_logger,
-            debug_print=args.hybrid_debug,
-        )
-        policy_name_hybrid = (
-            f"Hybrid_{exp_name}_H{int(args.lookahead)}_S{args.num_scenarios}_"
-            f"{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
-        )
-        policy_dict[policy_name_hybrid] = hybrid_policy
+        if policy_type == "hybrid":
+            vfa_policy, exp_name = _load_vfa_policy()
+            _set_run_logger_context(policy_type, exp_name=exp_name)
+            if run_logger is not None:
+                vfa_policy.logger = run_logger
+            hybrid_policy = HybridRolloutPolicy(
+                trained_vfa=vfa_policy,
+                lookahead_minutes=args.lookahead,
+                num_scenarios=args.num_scenarios,
+                n_routing_candidates=args.n_routing,
+                n_time_steps=args.n_time_steps,
+                use_degradation=args.rollout_degradation,
+                logger=run_logger,
+                debug_print=args.hybrid_debug,
+            )
+            policy_name = (
+                f"Hybrid_{exp_name}_H{int(args.lookahead)}_S{args.num_scenarios}_"
+                f"{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            )
+            return policy_name, hybrid_policy
+
+        raise ValueError(f"Unknown policy type: {policy_type}")
 
     # Start timing
     start_time = time.time()
  
-    # Test policies (no multiprocessing for debugging)
-    test_policies(
-        list_of_seeds=list_of_seeds,
-        policy_dict=policy_dict,
-        num_vehicles=num_vehicles,
-        duration=duration,
-        use_multiprocessing=False,
-        instance_name=args.instance,
-        config=config,
-        run_logger=run_logger,
-        write_csv=not args.no_csv,
-    )
+    # Test policies sequentially so each policy gets its own run_logger folder.
+    for policy_type in args.policy:
+        policy_name, policy = _build_policy(policy_type)
+        test_policies(
+            list_of_seeds=list_of_seeds,
+            policy_dict={policy_name: policy},
+            num_vehicles=num_vehicles,
+            duration=duration,
+            use_multiprocessing=False,
+            instance_name=args.instance,
+            config=config,
+            run_logger=run_logger,
+            write_csv=not args.no_csv,
+        )
 
     if run_logger is not None:
         run_logger.close()
