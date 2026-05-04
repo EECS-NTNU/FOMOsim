@@ -12,9 +12,9 @@ plt.rcParams.update({
 })
 
 def main():
-    stats_path = "models/feature_study_results_1/feature_statistics.csv"
-    corr_path = "models/feature_study_results_1/feature_correlations.csv"
-    out_dir = "models/feature_study_results_1"
+    stats_path = "models/feature_study_maintenanceenabled/feature_statistics.csv"
+    corr_path = "models/feature_study_maintenanceenabled/feature_correlations.csv"
+    out_dir = "models/feature_study_maintenanceenabled"
 
     if not os.path.exists(stats_path) or not os.path.exists(corr_path):
         print(f"Could not find the CSV files at {stats_path} or {corr_path}.")

@@ -53,20 +53,20 @@ from settings import ENABLE_COMPONENT_FAILURES
 # Hyperparameters  (all subject to change)
 # ─────────────────────────────────────────────────────────────────────────────
 
-NUM_EPISODES  : int   = 200      # total training episodes
+NUM_EPISODES  : int   = 300      # total training episodes
 
-EPISODE_DAYS  : int   = 49       # days per episode (total)
-WARMUP_DAYS   : int   = 21         # greedy warm-up, no TD updates
-LEARNING_DAYS : int   = 28        # VFA + TD(0)  (days 5 – 14)
+EPISODE_DAYS  : int   = 42       # days per episode (total)
+WARMUP_DAYS   : int   = 28         # greedy warm-up, no TD updates
+LEARNING_DAYS : int   = 14        # VFA + TD(0)  (days 5 – 14)
 
 # --- Learning Rate (Alpha) & Exploration (Epsilon) ---
-ALPHA_START   : float = 0.1   # initial alpha for TD updates, will be overwritten in case of argument passing
+ALPHA_START   : float = 0.05   # initial alpha for TD updates, will be overwritten in case of argument passing
 EPSILON_START : float = 0.2     # initial exploration rate
 EPSILON_END   : float = 0.01    # final exploration rate
 
 GAMMA         : float = 0.99      # discount factor
 
-# ── Feature configuration ──────────────────────────────────────────────────────
+# ── Feature configuration ───────────────────────────────────────────────────────
 LOGISTICS_ENABLED : bool = False  # Enable Pillar 4: Spatial & Logistic Constraints features
 N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, logistics_enabled=LOGISTICS_ENABLED, demand_horizon_enabled=True))  # auto-synced with vfa_features.py
 
@@ -312,7 +312,7 @@ def train(
     )
     
     # --- TD(λ) ---
-    vfa_policy.use_td_lambda = False
+    vfa_policy.use_td_lambda = True
     vfa_policy.td_lambda = 0.8
 
     # --- Greedy comparison diagnostic ---
