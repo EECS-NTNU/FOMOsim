@@ -109,7 +109,7 @@ class NNGreedyPolicy(Policy):
                     post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
                     dest = mdp_action.next_station
                     dest_tt = {
-                        sid: state.get_travel_time(dest, sid)
+                        sid: state.get_vehicle_travel_time(dest, sid)
                         for sid in mdp_state.stations
                     }
                     enc = encode_state(post_state, dest_travel_times=dest_tt)

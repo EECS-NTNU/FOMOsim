@@ -831,12 +831,12 @@ def extract_mdp_state(
     active_loc = vehicles[active_vehicle_id].destination_station if active_vehicle_id in vehicles else None
     if active_loc is not None:
         travel_times = {
-            sid: sim_state.get_travel_time(active_loc, sid)
+            sid: sim_state.get_vehicle_travel_time(active_loc, sid)
             for sid in stations
         }
         if depot_id is not None:
             try:
-                travel_times[depot_id] = sim_state.get_travel_time(active_loc, depot_id)
+                travel_times[depot_id] = sim_state.get_vehicle_travel_time(active_loc, depot_id)
             except (KeyError, Exception):
                 pass  # depot not in locations dict for this sim instance
 

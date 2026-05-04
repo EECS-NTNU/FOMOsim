@@ -96,10 +96,10 @@ print(f"Using device: {device}")
 # Hyperparameters
 # ─────────────────────────────────────────────────────────────────────────────
 
-NUM_EPISODES         : int   = 500
-EPISODE_DAYS         : int   = 35
-WARMUP_DAYS          : int   = 21     # GreedyPolicy for days 1–21
-LEARNING_DAYS        : int   = 14   # NNLearningPolicy for days 22–35 (none in this case)
+NUM_EPISODES         : int   = 800
+EPISODE_DAYS         : int   = 42
+WARMUP_DAYS          : int   = 28     # GreedyPolicy for days 1–21
+LEARNING_DAYS        : int   = 14  # NNLearningPolicy for days 22–35 (none in this case)
 
 LR_START             : float = 5e-4  # Adam lr at episode 0
 LR_END               : float = 5e-5  # Adam lr at episode N (linearly decayed)
@@ -594,9 +594,9 @@ class NNLearningPolicy(Policy):
         # Distributed picks → NN is making state-dependent choices.
         self._chosen_indices: list = []
 
-        # Max-deficit bypass diagnostics:
-        # _bypass_deficit_values : deficit_ratio of the max-deficit (non-dest) station each decision.
-        # _bypass_same_as_dest   : how often max-deficit station == chosen destination (bypass redundant).
+        # Max-deficit diagnostics:
+        # _bypass_deficit_values : deficit_ratio of the max-deficit station each decision.
+        # _bypass_same_as_dest   : how often max-deficit station == chosen destination.
         self._bypass_deficit_values: list = []
         self._bypass_same_as_dest:   int  = 0
         self._v_pred_values:         list = []   # mean V across candidates, per decision
@@ -683,7 +683,8 @@ class NNLearningPolicy(Policy):
                    state.metrics, 
                    executed_action=getattr(self, '_prev_executed_action', None)
                )
-               + self._reward_calc.compute_fleet_penalty(state))
+               + self._reward_calc.compute_fleet_penalty(state)
+               + self._reward_calc.compute_late_shift_penalty(vehicle, state))
 
         # --- Step 2: snapshot MDP state from live simulator ---
         # Read shift_end_time from the vehicle object — same pattern as
@@ -732,9 +733,15 @@ class NNLearningPolicy(Policy):
         
         with torch.no_grad():
             for mdp_action, sim_action in pairs: # <-- Unpack sim_action here too
+                self._candidate_count += 1
                 try:
                     post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
-                    post_encoded = encode_state(post_state)
+                    dest = mdp_action.next_station
+                    dest_tt = {
+                        sid: state.get_vehicle_travel_time(dest, sid)
+                        for sid in mdp_state.stations
+                    }
+                    post_encoded = encode_state(post_state, dest_travel_times=dest_tt)
                     
                     v = self.online_model(
                         post_encoded["station_block"].to(device),
@@ -849,12 +856,10 @@ class NNLearningPolicy(Policy):
         if has_maint and has_rebal:
             self._pool_has_both += 1
 
-        # --- Max-deficit bypass diagnostics ---
+        # --- Max-deficit diagnostics ---
         best_def_val, best_def_sid = -float('inf'), None
         chosen_dest = valid_pairs[idx][0].next_station if valid_pairs else None
         for sid, inv in mdp_state.stations.items():
-            if sid == chosen_dest:
-                continue
             d = (inv.target - inv.functional) / max(inv.capacity, 1)
             if d > best_def_val:
                 best_def_val, best_def_sid = d, sid
@@ -1092,6 +1097,9 @@ def _run_greedy_eval(
     instance_name:   str,
     gamma:           float,
     warmup_end_time: float,
+    odometer_stats_path: Optional[str] = None,
+    odometer_sampling_method: str = "triangular",
+    odometer_sampling_bounds: str = "p05-p95",
 ) -> float:
     """
     Run one evaluation episode with tau=0 (pure greedy NN) and no buffer writes.
@@ -1121,6 +1129,10 @@ def _run_greedy_eval(
         warmup_end_time=warmup_end_time,
     )
     sim_config = SimulationConfig()
+    if odometer_stats_path is not None:
+        sim_config.odometer_stats_path = odometer_stats_path
+    sim_config.odometer_sampling_method = odometer_sampling_method
+    sim_config.odometer_sampling_bounds = odometer_sampling_bounds
     eval_sim   = run_simulation(
         seed          = seed,
         policy        = eval_episode,
@@ -1159,6 +1171,9 @@ def train_nn_rollout(
     value_hidden_dims:      list = None,
     enable_logging:         bool = False,
     maintenance_enabled:    bool = None,
+    odometer_stats_path:    Optional[str] = None,
+    odometer_sampling_method: str = "triangular",
+    odometer_sampling_bounds: str = "p05-p95",
 ) -> nn.Module:
     """
     Run the full episodic NN training loop.
@@ -1223,6 +1238,14 @@ def train_nn_rollout(
     _settings_mod.ENABLE_COMPONENT_FAILURES = _maintenance
     config = MDPConfig.full_maintenance() if _maintenance else MDPConfig.no_maintenance()
 
+    def _make_sim_config() -> SimulationConfig:
+        sim_config = SimulationConfig()
+        if odometer_stats_path is not None:
+            sim_config.odometer_stats_path = odometer_stats_path
+        sim_config.odometer_sampling_method = odometer_sampling_method
+        sim_config.odometer_sampling_bounds = odometer_sampling_bounds
+        return sim_config
+
     # ── Reward calculator config ──────────────────────────────────────────────
     # NNLearningPolicy needs a RewardConfig to build its step-reward calculator.
     # If none is provided, borrow one from a throw-away LinearVFAPolicy instance
@@ -1250,7 +1273,7 @@ def train_nn_rollout(
             duration=1,
             num_vehicles=NUM_VEHICLES,
             instance_name=instance_name,
-            config=SimulationConfig(),
+            config=_make_sim_config(),
         )
         _probe_vehicles = _probe.state.get_vehicles()
         depot_id = _probe.state.get_closest_depot(_probe_vehicles[0]) if _probe_vehicles else None
@@ -1281,8 +1304,8 @@ def train_nn_rollout(
         "mean_chosen_idx",    # mean pool index chosen; 0=always nearest, ~3.5=uniform
         "pct_maintenance",    # % decisions where chosen action had depot_removals>0 or onsite_repairs>0
         "greedy_sl",          # tau=0 eval SL — true NN quality, unconfounded by exploration
-        "bypass_mean_deficit",  # mean deficit_ratio of worst non-dest station; >0 = real starvation signal
-        "bypass_pct_same",      # % decisions where chosen dest == max-deficit station; high = bypass redundant
+        "bypass_mean_deficit",  # mean deficit_ratio of worst station; >0 = real starvation signal
+        "bypass_pct_same",      # % decisions where chosen dest == max-deficit station
         "mean_v_pred",        # mean V(S^x) across all candidate evaluations; should stabilize
         "n_step_terminal",    # short terminal transitions at episode end; high = many partial n-steps
         "reward_ema_mean",    # EMA running mean of step rewards; confirm it updates each episode
@@ -1362,7 +1385,7 @@ def train_nn_rollout(
     
 
         # --- Run the episode ---
-        sim_config = SimulationConfig()
+        sim_config = _make_sim_config()
         simulator  = run_simulation(
             seed          = seed_offset + ep,
             policy        = episode_policy,
@@ -1522,10 +1545,10 @@ def train_nn_rollout(
                 pct_pos  = sum(1 for v in bypass_vals if v > 0) / len(bypass_vals) * 100
                 print(
                     f"  Max-deficit bypass:"
-                    f"  mean_deficit={mean_def:.3f}  {pct_pos:.0f}% decisions had a starving non-dest station"
+                    f"  mean_deficit={mean_def:.3f}  {pct_pos:.0f}% decisions had a starving max-deficit station"
                     f"  | {pct_same:.0f}% times chosen dest == max-deficit (bypass redundant those times)"
-                    f"\n  -> If pct_same < 50%: bypass is regularly surfacing a DIFFERENT station than dest — useful"
-                    f"\n  -> If mean_deficit < 0: no non-dest station is starving — bypass signal is weak"
+                    f"\n  -> If pct_same is low: routing is often not selecting the most starved station"
+                    f"\n  -> If mean_deficit < 0: no station is starving — bypass signal is weak"
                 )
 
             '''# 4. TD loss internals — full reward chain breakdown
@@ -1644,6 +1667,9 @@ def train_nn_rollout(
                 instance_name=instance_name,
                 gamma=gamma,
                 warmup_end_time=warmup_end_time,
+                odometer_stats_path=odometer_stats_path,
+                odometer_sampling_method=odometer_sampling_method,
+                odometer_sampling_bounds=odometer_sampling_bounds,
             )
             online_model.train()
             print(
@@ -1943,6 +1969,14 @@ if __name__ == "__main__":
                         default=ENABLE_COMPONENT_FAILURES)
     parser.add_argument("--valuehead_hidden_dims", type=int,   nargs="+", default=None,
                         help="Single arch, e.g. --valuehead_hidden_dims 128 64 32. Omit to run all.")
+    parser.add_argument("--odometer_stats",        type=str,   default=None,
+                        help="Aggregated steady-state odometer CSV used to initialize every episode.")
+    parser.add_argument("--odometer_sampling_method", type=str,
+                        choices=["triangular", "uniform", "truncated-normal"],
+                        default="triangular")
+    parser.add_argument("--odometer_sampling_bounds", type=str,
+                        choices=["p05-p95", "min-max"],
+                        default="p05-p95")
     args = parser.parse_args()
 
     custom_reward = RewardConfig()
@@ -1972,6 +2006,7 @@ if __name__ == "__main__":
         print(f"  polyak:              {args.polyak}")
         print(f"  tau_end:             {args.tau_end}")
         print(f"  maintenance_shaping: {args.maintenance_shaping}")
+        print(f"  odometer_stats:      {args.odometer_stats}")
         print("="*50 + "\n")
 
         train_nn_rollout(
@@ -1997,4 +2032,7 @@ if __name__ == "__main__":
             value_hidden_dims        = arch,
             enable_logging           = False,
             maintenance_enabled      = args.maintenance,
+            odometer_stats_path      = args.odometer_stats,
+            odometer_sampling_method = args.odometer_sampling_method,
+            odometer_sampling_bounds = args.odometer_sampling_bounds,
         )

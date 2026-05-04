@@ -423,7 +423,7 @@ def train(
         service_levels.append(sl)
 
         if GREEDY_COMPARISON_LOG:
-            cmp_path = str(save_path).replace(".pkl", "_greedy_vs_vfa_comparison.csv") if save_path else str(SAVE_DIR / "greedy_vs_vfa_comparison.csv")
+            cmp_path = str(save_path).replace(".pkl", "__vfa_comparison.csv") if save_path else str(SAVE_DIR / "greedy_vs_vfa_comparison.csv")
             vfa_policy.flush_comparison_log(cmp_path)
 
         ep_stat = _collect_episode_stats(
