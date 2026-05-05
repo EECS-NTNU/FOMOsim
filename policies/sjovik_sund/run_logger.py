@@ -56,7 +56,6 @@ class RunLogger:
             "starvations", "congestions", "total_trips",
             "bike_departures", "bike_arrivals",
             # Maintenance operations
-            "total_onsite_repairs", "total_depot_pickups",
             "total_depot_deliveries", "total_depot_visits",
             # Operational movements
             "total_functional_pickups", "total_functional_deliveries",
@@ -78,7 +77,7 @@ class RunLogger:
             "seed", "day", "hour",
             # Operational
             "functional_pickups", "functional_deliveries",
-            "onsite_repairs", "depot_pickups", "depot_visits", "depot_deliveries",
+            "depot_visits", "depot_deliveries",
             "unique_stations_visited",
             # Fleet degradation
             "breakdowns_onsite", "breakdowns_depot",
@@ -99,7 +98,6 @@ class RunLogger:
             "seed", "day",
             "shift_hour_start", "shift_hour_end",
             "daily_functional_pickups", "daily_functional_deliveries",
-            "daily_onsite_repairs", "daily_depot_pickups",
             "daily_depot_visits", "daily_depot_deliveries",
             "daily_starvations", "daily_congestions",
             "daily_trips", "daily_bike_departures", "daily_bike_arrivals",
@@ -367,8 +365,6 @@ class RunLogger:
             "seed":                    self._current_seed,
             "functional_pickups":      self._hour_func_pickups,
             "functional_deliveries":   self._hour_func_deliveries,
-            "onsite_repairs":          self._hour_onsite_repairs,
-            "depot_pickups":           self._hour_depot_pickups,
             "depot_visits":            self._hour_depot_visits,
             "depot_deliveries":        self._hour_depot_deliveries,
             "unique_stations_visited": len(self._hour_stations),
@@ -413,8 +409,6 @@ class RunLogger:
             "shift_hour_end":               (self._shift_hour_start + 24) % 24,
             "daily_functional_pickups":     _sum("functional_pickups"),
             "daily_functional_deliveries":  _sum("functional_deliveries"),
-            "daily_onsite_repairs":         _sum("onsite_repairs"),
-            "daily_depot_pickups":          _sum("depot_pickups"),
             "daily_depot_visits":           _sum("depot_visits"),
             "daily_depot_deliveries":       _sum("depot_deliveries"),
             "daily_starvations":            _sum("starvations"),
@@ -475,8 +469,6 @@ class RunLogger:
             "total_trips":      total_trips,
             "bike_departures":  ag("bike departure"),
             "bike_arrivals":    ag("bike arrival"),
-            "total_onsite_repairs":        self._ep_onsite_repairs,
-            "total_depot_pickups":         self._ep_depot_pickups,
             "total_depot_deliveries":      self._ep_depot_deliveries,
             "total_depot_visits":          self._ep_depot_visits,
             "total_functional_pickups":    self._ep_func_pickups,

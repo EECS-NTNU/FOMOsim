@@ -206,6 +206,7 @@ class LinearVFAPolicy(Policy):
 
         # Buffer for Synchronous Batch Learning
         self.batch_buffer: List[Tuple[np.ndarray, float, np.ndarray, float]] = []
+        self.update_every_transitions: Optional[int] = None
         
         # Buffer for Experience Replay (Mini-Batch SGD)
         self.use_experience_replay = False
@@ -710,6 +711,16 @@ class LinearVFAPolicy(Policy):
 
         return td_error
 
+    def _maybe_apply_transition_batch(self) -> None:
+        """Apply a mean TD batch update once enough transitions have accumulated."""
+        cadence = getattr(self, "update_every_transitions", None)
+        if not cadence or cadence <= 0:
+            return
+        if len(self.batch_buffer) >= cadence:
+            if hasattr(self, '_all_phis_for_corr'):
+                self._all_phis_for_corr.extend([item[0] for item in self.batch_buffer])
+            self.apply_batch_update()
+
     def apply_mini_batch_update(self) -> None:
         """
         Randomly samples exactly 'mini_batch_size' transitions from the replay buffer
@@ -1141,6 +1152,9 @@ class LinearVFAPolicy(Policy):
         # ── Step 7: cache post-decision features for next TD update ───────
         self._prev_phi = phis[sel_idx]
         self._prev_time = state.time
+
+        if self.learning_mode and not getattr(self, 'use_experience_replay', False):
+            self._maybe_apply_transition_batch()
  
         # ── Step 8: Log the Brain's Decision (NEW) ────────────────────────
         if getattr(self, 'log_rl_decisions', False):
