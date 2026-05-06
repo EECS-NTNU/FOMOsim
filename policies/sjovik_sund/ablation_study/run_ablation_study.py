@@ -59,7 +59,13 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, str(WORKSPACE_ROOT))
  
-from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START, UPDATE_EVERY_TRANSITIONS, TD_LAMBDA
+from policies.sjovik_sund.vfa.train_vfa import (
+    train,
+    ALPHA_START,
+    UPDATE_EVERY_TRANSITIONS,
+    TD_LAMBDA,
+    BIAS_FEATURE_ENABLED,
+)
  
  
 # -----------------------------------------------------------------------------
@@ -101,6 +107,8 @@ EXPERIMENTS = {
     "Imbalance_squared_temporal_MP1": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization"], # CIM1 + FIM1/FIM2 + MP1: global mass + gross departure/arrival pressure + trailer cannibalization ratio
     "Imbalance_squared_temporal_MP6": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + MP6: global mass + gross departure/arrival pressure + depot idle fraction
     "Imbalance_squared_temporal_fullMP" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization", "global_onsite_backlog", "global_depot_backlog", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + all MP features 
+    "Imbalance_squared_temporal_MP326" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "global_onsite_backlog", "global_depot_backlog", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + MP2/MP3/MP6: global mass + gross departure/arrival pressure + global onsite/depot backlog + depot idle fraction
+
 
     "Maintenance_full_test": [
         "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
@@ -328,7 +336,7 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, update_every_transitions: Optional[int] = UPDATE_EVERY_TRANSITIONS, td_lambda: float = TD_LAMBDA, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0):
+def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, update_every_transitions: Optional[int] = UPDATE_EVERY_TRANSITIONS, td_lambda: float = TD_LAMBDA, include_bias: bool = BIAS_FEATURE_ENABLED, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -376,6 +384,7 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
                     gamma=gamma,
                     update_every_transitions=update_every_transitions,
                     td_lambda=td_lambda,
+                    include_bias=include_bias,
                     weight_starvation=weight_starvation,
                     weight_congestion=weight_congestion,
                     weight_fleet_degradation=weight_fleet_degradation,
@@ -450,6 +459,19 @@ if __name__ == "__main__":
         help="TD(lambda) eligibility trace parameter. Use 0.0 for TD(0).",
     )
     parser.add_argument(
+        "--include_bias",
+        dest="include_bias",
+        action="store_true",
+        default=BIAS_FEATURE_ENABLED,
+        help="Include the constant bias/intercept feature.",
+    )
+    parser.add_argument(
+        "--no_bias",
+        dest="include_bias",
+        action="store_false",
+        help="Disable the constant bias/intercept feature.",
+    )
+    parser.add_argument(
         "--not_at_depot_at_end_penalty", type=float, default=0.0,
         help="Per-step penalty (ramped) for being away from depot near shift end (default: 0.0, suggested: -2.0)",
     )
@@ -472,6 +494,7 @@ if __name__ == "__main__":
         gamma=args.gamma,
         update_every_transitions=args.update_every_transitions if args.update_every_transitions > 0 else None,
         td_lambda=args.td_lambda,
+        include_bias=args.include_bias,
         not_at_depot_at_end_penalty=args.not_at_depot_at_end_penalty,
         functional_bikes_at_end_penalty=args.functional_bikes_at_end_penalty,
     )
