@@ -436,11 +436,28 @@ def generate_candidates(state, vehicle, maintenance_enabled: bool, n_routing: in
         fallback_route = depot_id
         if fallback_route is None:
             fallback_route = sorted(state.get_stations(), key=lambda s: state.get_vehicle_travel_time(cur_id, s.id))[1].id
+
+        # Preserve the depot operation on fallback. Near shift end, the return
+        # guard may prune every outbound route while the vehicle is already at
+        # the depot. A zero-operation fallback would leave depot cargo onboard.
+        fallback_op = {
+            'rebalancing': 0,
+            'onsite_repairs': 0,
+            'depot_removals': 0,
+            'load_from_queue': 0,
+            'depot_dropoffs': 0,
+        }
+        if at_depot and op_profiles:
+            fallback_op = op_profiles[0]
+
         fallback_action = MdpAction(
             current_station=cur_id,
-            rebalancing=0, onsite_repairs=0, depot_removals=0, load_from_queue=0,
+            rebalancing=int(fallback_op.get('rebalancing', 0)),
+            onsite_repairs=int(fallback_op.get('onsite_repairs', 0)),
+            depot_removals=int(fallback_op.get('depot_removals', 0)),
+            load_from_queue=int(fallback_op.get('load_from_queue', 0)),
             next_station=fallback_route,
-            depot_dropoffs=0,
+            depot_dropoffs=int(fallback_op.get('depot_dropoffs', 0)),
         )
         sim_actions.append(mdp_action_to_sim_action(fallback_action, state, vehicle))
         if return_metadata:
