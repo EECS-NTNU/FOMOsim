@@ -7,6 +7,43 @@ from helpers import format_sim_time
  
 DEPOT_RETURN_BUFFER_MINUTES = 10.0
 
+candidate_debug_counts = {
+    "decisions": 0,
+    "swap_capacity_opportunities": 0,
+    "total_extra_delivery_capacity": 0,
+    "max_extra_delivery_capacity": 0,
+}
+candidate_debug_examples = []
+
+
+def reset_candidate_debug_counts() -> None:
+    for key in candidate_debug_counts:
+        candidate_debug_counts[key] = 0
+    candidate_debug_examples.clear()
+
+
+def get_candidate_debug_summary() -> str:
+    decisions = candidate_debug_counts["decisions"]
+    opportunities = candidate_debug_counts["swap_capacity_opportunities"]
+    if opportunities == 0:
+        return f"swap-capacity opportunities=0/{decisions}"
+
+    avg_extra = candidate_debug_counts["total_extra_delivery_capacity"] / opportunities
+    summary = (
+        f"swap-capacity opportunities={opportunities}/{decisions} "
+        f"avg_extra_delivery={avg_extra:.2f} "
+        f"max_extra_delivery={candidate_debug_counts['max_extra_delivery_capacity']}"
+    )
+    if candidate_debug_examples:
+        rendered = "; ".join(
+            f"{e['time']} {e['station']} spare={e['spare']} depot={e['depot_broken']} "
+            f"truck_func={e['truck_func']} truck_free={e['truck_free']} "
+            f"desired={e['desired_delivery']} needs_removal={e['needed_removal']}"
+            for e in candidate_debug_examples
+        )
+        summary += f" examples=[{rendered}]"
+    return summary
+
 
 def _nearest_depot_id(state, vehicle):
     depots = state.get_depots()
@@ -80,6 +117,65 @@ def _rebalancing_options_target_centered(functional_bikes, target, free_cap, n_v
     if delta_minus > 0:
         options.add(-min(delta_minus, free_cap))
     return options
+
+
+def _record_swap_capacity_opportunity(
+    state,
+    vehicle,
+    functional_count: int,
+    target: int,
+    station_spare_cap: int,
+    num_depot_broken: int,
+    n_vehicle_func: int,
+    free_cap: int,
+) -> None:
+    """Track delivery options blocked only because removals cannot free docks in this model."""
+    candidate_debug_counts["decisions"] += 1
+
+    if num_depot_broken <= 0 or n_vehicle_func <= 0:
+        return
+
+    desired_deliveries = set()
+    exact_to_target = target - functional_count
+    if exact_to_target > 0:
+        desired_deliveries.add(min(exact_to_target, n_vehicle_func))
+
+    target_plus = round(target * 1.25)
+    plus_to_target = target_plus - functional_count
+    if plus_to_target > 0:
+        desired_deliveries.add(min(plus_to_target, n_vehicle_func))
+
+    feasible_blocked = []
+    for desired in desired_deliveries:
+        if desired <= 0 or desired <= station_spare_cap:
+            continue
+        needed_removal = desired - station_spare_cap
+        if needed_removal <= num_depot_broken and needed_removal <= free_cap + desired:
+            feasible_blocked.append((desired, needed_removal))
+
+    if not feasible_blocked:
+        return
+
+    best_desired, needed_removal = max(feasible_blocked, key=lambda item: item[0] - station_spare_cap)
+    extra_capacity = best_desired - station_spare_cap
+    candidate_debug_counts["swap_capacity_opportunities"] += 1
+    candidate_debug_counts["total_extra_delivery_capacity"] += extra_capacity
+    candidate_debug_counts["max_extra_delivery_capacity"] = max(
+        candidate_debug_counts["max_extra_delivery_capacity"],
+        extra_capacity,
+    )
+
+    if len(candidate_debug_examples) < 5:
+        candidate_debug_examples.append({
+            "time": format_sim_time(state.time),
+            "station": vehicle.location.id,
+            "spare": station_spare_cap,
+            "depot_broken": num_depot_broken,
+            "truck_func": n_vehicle_func,
+            "truck_free": free_cap,
+            "desired_delivery": best_desired,
+            "needed_removal": needed_removal,
+        })
  
  
 def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
@@ -145,6 +241,17 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
     else:
         num_depot_broken = 0
         num_onsite_broken = 0
+
+    _record_swap_capacity_opportunity(
+        state=state,
+        vehicle=vehicle,
+        functional_count=len(functional_bikes),
+        target=target,
+        station_spare_cap=station_spare_cap,
+        num_depot_broken=num_depot_broken,
+        n_vehicle_func=n_vehicle_func,
+        free_cap=free_cap,
+    )
  
     rebalancing_options = _rebalancing_options_target_centered(
         functional_bikes, target, free_cap, n_vehicle_func, station_spare_cap

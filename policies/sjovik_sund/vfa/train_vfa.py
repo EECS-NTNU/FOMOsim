@@ -46,6 +46,7 @@ from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_feat
 from policies.sjovik_sund.run_simulation_ingvild import run_simulation, SimulationConfig, write_simulation_outputs
 from policies.sjovik_sund.mdp.reward import RewardConfig, RewardCalculator
 from policies.sjovik_sund.mdp.action_bridge import reset_truncation_counts, get_truncation_summary
+from policies.sjovik_sund.mdp.candidate_generator import reset_candidate_debug_counts, get_candidate_debug_summary
 from settings import ENABLE_COMPONENT_FAILURES
 
 
@@ -238,6 +239,7 @@ def train(
     epsilon_end   : float = EPSILON_END,
     update_every_transitions: Optional[int] = UPDATE_EVERY_TRANSITIONS,
     td_lambda     : float = TD_LAMBDA,
+    include_bias  : bool = BIAS_FEATURE_ENABLED,
     weight_starvation : float = -1.0,
     weight_congestion : float = -1.0,
     weight_fleet_degradation : float = -0.0,
@@ -288,6 +290,7 @@ def train(
     else:
         print("  batch update cadence: once per episode")
     print(f"  TD(lambda)          : {td_lambda:.3f}")
+    print(f"  bias feature        : {'enabled' if include_bias else 'disabled'}")
     print(f"  gamma               : {gamma}")
     print(f"  Instance          : {instance_name}")
     print("=" * 72 + "\n")
@@ -296,8 +299,10 @@ def train(
 
     if active_features is not None:
         active_features = list(active_features)
-        if BIAS_FEATURE_ENABLED and "bias" not in active_features:
+        if include_bias and "bias" not in active_features:
             active_features = ["bias"] + active_features
+        elif not include_bias:
+            active_features = [f for f in active_features if f != "bias"]
 
     # ── Initialise VFA policy  (θ persists across ALL episodes) ───────────────
     reward_config = RewardConfig(
@@ -377,6 +382,7 @@ def train(
         config        = SimulationConfig()
         stats_collector.reset()
         reset_truncation_counts()
+        reset_candidate_debug_counts()
 
         ###########
         # ── Calculate current dynamic parameters ─────────────────────────
@@ -474,12 +480,14 @@ def train(
     
         formatted_theta = np.array2string(vfa_policy.theta, formatter={'float_kind':lambda x: f"{x:+.3f}"})
         trunc_summary = get_truncation_summary()
+        candidate_summary = get_candidate_debug_summary()
 
         print(
             f"  Ep {ep + 1:3d}/{num_episodes} | "
             f"SL={sl:.4f} | "
             f"Weights: {formatted_theta} | "
             f"bridge={trunc_summary} | "
+            f"candidate_debug={candidate_summary} | "
             f"t={time.time() - t0:.0f}s"
         )
 
@@ -659,6 +667,19 @@ if __name__ == "__main__":
         help="TD(lambda) eligibility trace parameter. Use 0.0 for TD(0).",
     )
     parser.add_argument(
+        "--include_bias",
+        dest="include_bias",
+        action="store_true",
+        default=BIAS_FEATURE_ENABLED,
+        help="Include the constant bias/intercept feature.",
+    )
+    parser.add_argument(
+        "--no_bias",
+        dest="include_bias",
+        action="store_false",
+        help="Disable the constant bias/intercept feature.",
+    )
+    parser.add_argument(
         "--weight_starvation",
         type=float,
         default=-1.0,
@@ -688,6 +709,7 @@ if __name__ == "__main__":
         epsilon_end       = args.epsilon_end,
         update_every_transitions = args.update_every_transitions if args.update_every_transitions > 0 else None,
         td_lambda         = args.td_lambda,
+        include_bias      = args.include_bias,
         weight_starvation = args.weight_starvation,
         weight_congestion = args.weight_congestion,
     )
