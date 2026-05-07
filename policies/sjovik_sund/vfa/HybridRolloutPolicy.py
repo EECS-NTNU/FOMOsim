@@ -664,7 +664,9 @@ class HybridRolloutPolicy(Policy):
                 cfg.weight_starvation  * starvations
                 + cfg.weight_congestion * congestions
             ) * sf
-            time_elapsed = step_start - t0
+            # Step rewards summarize events over [step_start, step_end); use the
+            # interval midpoint as a simple quadrature convention for discounting.
+            time_elapsed = (step_start + 0.5 * dt) - t0
             discount = gamma ** max(time_elapsed / 60.0, 0.0)
             accumulated_reward += discount * step_reward
 
@@ -912,8 +914,13 @@ class HybridRolloutPolicy(Policy):
             else {getattr(b, "bike_id", getattr(b, "id")): b for b in raw_bikes}
         )
 
-        func_pickups = depot_pickups = 0
+        is_at_depot  = vehicle.is_at_depot()
+        fixed_queue  = getattr(vehicle.location, "fixed_queue", {})
+        func_pickups = depot_pickups = load_from_queue = 0
         for b_id in getattr(action, "pick_ups", []):
+            if is_at_depot and b_id in fixed_queue:
+                load_from_queue += 1
+                continue
             b = station_bikes.get(b_id)
             if b and getattr(b, "damage_status", None) == "depot":
                 depot_pickups += 1
@@ -922,9 +929,7 @@ class HybridRolloutPolicy(Policy):
 
         func_deliveries  = len(getattr(action, "delivery_bikes", []))
         onsite_repairs   = len(getattr(action, "onsite_repairs", []))
-        is_at_depot      = vehicle.is_at_depot()
         depot_deliveries = depot_before if is_at_depot else 0
-        load_from_queue  = int(getattr(action, "load_from_queue", 0))
 
         if is_at_depot:
             func_after  = func_before - func_deliveries + load_from_queue

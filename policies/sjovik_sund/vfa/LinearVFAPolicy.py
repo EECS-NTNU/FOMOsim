@@ -255,6 +255,7 @@ class LinearVFAPolicy(Policy):
         self.batch_buffer: List[Tuple[np.ndarray, float, np.ndarray, float]] = []
         self._online_update_count: int = 0
         self._transition_batch_update_count: int = 0
+        self._all_phis_for_corr: Optional[List[np.ndarray]] = None
         
         # Buffer for Experience Replay (Mini-Batch SGD)
         self.use_experience_replay = False
@@ -937,7 +938,8 @@ class LinearVFAPolicy(Policy):
         v_cur = self.value(self._prev_phi)
         v_next = self.value(phi_next)
         discount = self.gamma ** (elapsed_minutes / 60.0)
-        td_error = reward + (discount * v_next) - v_cur
+        midpoint_discount = self.gamma ** ((elapsed_minutes / 2.0) / 60.0)
+        td_error = (reward * midpoint_discount) + (discount * v_next) - v_cur
 
         self._eligibility_trace = (
             discount * self.td_lambda * self._eligibility_trace
@@ -948,7 +950,7 @@ class LinearVFAPolicy(Policy):
         self.weights = list(self.theta)
         self._td_lambda_step_count += 1
 
-        if hasattr(self, "_all_phis_for_corr"):
+        if self._all_phis_for_corr is not None:
             self._all_phis_for_corr.append(self._prev_phi.copy())
 
         if VFA_DEBUG_FLAGS.get("check2_td_updates") and self._ep_update_count < 5:
@@ -981,10 +983,13 @@ class LinearVFAPolicy(Policy):
         v_cur = self.value(self._prev_phi)
         v_next = self.value(phi_next)
         
-        # Apply continuous time discounting
+        # Apply continuous time discounting.
+        # The aggregate reward is treated as occurring at the interval midpoint,
+        # while the continuation value is discounted over the full interval.
         discount = self.gamma ** (elapsed_minutes / 60.0)
+        midpoint_discount = self.gamma ** ((elapsed_minutes / 2.0) / 60.0)
 
-        td_error = reward + (discount * v_next) - v_cur
+        td_error = (reward * midpoint_discount) + (discount * v_next) - v_cur
         raw_td_error = td_error
         if self.use_batch_td_clip:
             td_error = float(np.clip(td_error, -self.batch_td_clip_value, self.batch_td_clip_value))
@@ -1000,7 +1005,7 @@ class LinearVFAPolicy(Policy):
 
         # --- SMART LOGGING ---
         if reward < -0.01 or abs(td_error) > 1.0:
-            target_value = reward + discount * v_next
+            target_value = (reward * midpoint_discount) + discount * v_next
             # print(f"[TD] r={reward:.3f} vs={v_cur:.3f} tgt={target_value:.3f} err={td_error:.3f}")
 
         if self.use_online_td_updates:
@@ -1038,7 +1043,7 @@ class LinearVFAPolicy(Policy):
         if not cadence or cadence <= 0:
             return
         if len(self.batch_buffer) >= cadence:
-            if hasattr(self, '_all_phis_for_corr'):
+            if self._all_phis_for_corr is not None:
                 self._all_phis_for_corr.extend([item[0] for item in self.batch_buffer])
             self.apply_batch_update()
 
@@ -1064,9 +1069,11 @@ class LinearVFAPolicy(Policy):
             v_cur = self.value(phi_cur)
             v_next = self.value(phi_next)
             
-            # Apply continuous time discounting based on an hourly rate
+            # Midpoint discount for aggregate interval reward; full interval
+            # discount for continuation value.
             discount = self.gamma ** (elapsed_minutes / 60.0)
-            td_error = np.clip(reward + (discount * v_next) - v_cur, -5.0, 5.0)
+            midpoint_discount = self.gamma ** ((elapsed_minutes / 2.0) / 60.0)
+            td_error = np.clip((reward * midpoint_discount) + (discount * v_next) - v_cur, -5.0, 5.0)
 
             total_td += td_error
             total_gradient += td_error * phi_cur
@@ -1102,14 +1109,15 @@ class LinearVFAPolicy(Policy):
             v_cur = self.value(phi_cur)
             v_next = self.value(phi_next)
             discount = self.gamma ** (elapsed_minutes / 60.0)
-            td_error = reward + (discount * v_next) - v_cur
+            midpoint_discount = self.gamma ** ((elapsed_minutes / 2.0) / 60.0)
+            td_error = (reward * midpoint_discount) + (discount * v_next) - v_cur
             raw_td_error = td_error
             if self.use_batch_td_clip:
                 td_error = float(np.clip(td_error, -self.batch_td_clip_value, self.batch_td_clip_value))
             total_td += td_error
 
             _dbg_rewards.append(reward)
-            _dbg_targets.append(reward + discount * v_next)
+            _dbg_targets.append((reward * midpoint_discount) + discount * v_next)
             _dbg_preds.append(v_cur)
             _dbg_tderrs.append(td_error)
             _dbg_raw_tderrs.append(raw_td_error)

@@ -3,12 +3,29 @@ import sys
 import re
 import argparse
 import shutil
+import shutil
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from dataclasses import dataclass
+from dataclasses import dataclass
 from pathlib import Path
+ 
+# Use LaTeX styling when the local machine has LaTeX installed; otherwise keep
+# math labels working through Matplotlib's built-in mathtext renderer.
+if shutil.which("latex"):
+    plt.rcParams.update({
+        "text.usetex": True,
+        "font.family": "serif",
+        "text.latex.preamble": r"\usepackage[T1]{fontenc} \usepackage{mlmodern}"
+    })
+else:
+    plt.rcParams.update({
+        "text.usetex": False,
+        "font.family": "serif",
+    })
+ 
  
 # Use LaTeX styling when the local machine has LaTeX installed; otherwise keep
 # math labels working through Matplotlib's built-in mathtext renderer.
@@ -144,10 +161,17 @@ def load_experiment(exp_dir: Path):
         feature_df = df.drop(columns=["episode", "service_level"])
         feature_df = feature_df.apply(pd.to_numeric, errors="coerce").dropna(axis=1, how="all")
         w_vals = feature_df.values
+        feature_df = df.drop(columns=["episode", "service_level"])
+        feature_df = feature_df.apply(pd.to_numeric, errors="coerce").dropna(axis=1, how="all")
+        w_vals = feature_df.values
  
+        loaded_data.append((sl_smoothed, w_vals, episodes, list(feature_df.columns)))
         loaded_data.append((sl_smoothed, w_vals, episodes, list(feature_df.columns)))
         if len(episodes) < min_length:
             min_length = len(episodes)
+
+    if not loaded_data:
+        return None
 
     if not loaded_data:
         return None
@@ -155,19 +179,26 @@ def load_experiment(exp_dir: Path):
     all_sls, all_weights, final_episodes = [], [], None
     feature_names = list(dict.fromkeys(feat for *_, features in loaded_data for feat in features))
     for sl_smoothed, w_vals, ep_vals, features in loaded_data:
+    feature_names = list(dict.fromkeys(feat for *_, features in loaded_data for feat in features))
+    for sl_smoothed, w_vals, ep_vals, features in loaded_data:
         all_sls.append(sl_smoothed[:min_length])
+        weight_df = pd.DataFrame(w_vals[:min_length, :], columns=features)
+        all_weights.append(weight_df.reindex(columns=feature_names).values)
         weight_df = pd.DataFrame(w_vals[:min_length, :], columns=features)
         all_weights.append(weight_df.reindex(columns=feature_names).values)
         final_episodes = ep_vals[:min_length]
  
     assert final_episodes is not None
+    assert final_episodes is not None
     all_sls = np.array(all_sls)
+    all_weights = np.array(all_weights, dtype=float)
     all_weights = np.array(all_weights, dtype=float)
  
     return (
         final_episodes,
         all_sls.mean(axis=0),
         all_sls.std(axis=0),
+        np.nanmean(all_weights, axis=0),
         np.nanmean(all_weights, axis=0),
         feature_names,
         found_seeds,
@@ -195,6 +226,7 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
     all_alphas = sorted({run.alpha for run in runs}, key=_alpha_sort_key)
     print(f"Found experiments : {sorted(runs_by_exp.keys())}")
     print(f"Found alphas      : {all_alphas}\n")
+ 
  
     # ── Shared style config ────────────────────────────────────────────────────
     # 20+ distinct colors inspired by the project palette

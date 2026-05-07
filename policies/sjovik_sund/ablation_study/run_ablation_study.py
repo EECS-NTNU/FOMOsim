@@ -72,6 +72,28 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START, EPSILON_START
 # -----------------------------------------------------------------------------
  
 EXPERIMENTS = {
+    # -- KS_Filtered -----------------------------------------------------------
+    # Derived from kitchen-sink analysis (38-feature run, 300 ep).
+    # Drops features that were: near-zero weight (maintenance_urgency),
+    # r>0.98 duplicates (exponential_*/net_*_shortfall, starvation/congestion_count,
+    # destination_starv/cong_ratio, destination_roi_starvation, recoverable_starvation),
+    # or purely noisy (trailer_cannibalization, destination_cong_ratio).
+    # Keeps one representative per correlated cluster and the best-signal
+    # maintenance feature from each sub-group.
+    "KS_Filtered": [
+        "rebalancing_imbalance",          # CIM1: total L1 imbalance
+        "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
+        "squared_congestion_penalty",     # CIM3: mean squared congestion ratio
+        "starvation_severity_max",        # CIM6: Q95 starvation tail depth
+        "congestion_severity_max",        # CIM7: Q95 congestion tail depth
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
+        "demand_weighted_onsite_backlog", # MP: onsite backlog weighted by demand
+        "demand_weighted_depot_backlog",  # MP: depot backlog weighted by demand
+        "fleet_broken_fraction",          # MP: overall fleet health
+        "depot_idle_fraction",            # MP: depot throughput signal
+    ],
+
     #BASELINES
     "Imbalance": ["rebalancing_imbalance"], # CIM1: total L1 imbalance across the network
     "Imbalance_squared" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty"], # CIM1 + CIM2/CIM3: global mass + mean squared depth
