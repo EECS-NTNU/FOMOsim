@@ -9,6 +9,8 @@ class RewardConfig:
     weight_trip_served: float = 0.0           # Positive reward per successful trip (trips - starv - cong)
     weight_maintenance_violation: float = 0.0  # Set to >0 to penalize broken bikes left alone
     weight_fleet_degradation: float = 0.0     # Penalizes total_broken / total_fleet ratio each step
+    use_reward_centering: bool = False
+    reward_centering_beta: float = 0.01
 
     # --- End-of-Day Components (from your existing code) ---
     not_at_depot_at_end_penalty: float = 0.0 #-1000.0
@@ -64,12 +66,32 @@ class RewardCalculator:
         self._prev_starvations = 0
         self._prev_congestions = 0
         self._prev_trips = 0
+        self._running_reward_mean = 0.0
+        self._reward_mean_initialized = False
 
     def reset_episode(self):
         """Must be called at the start of every 14-day episode."""
         self._prev_starvations = 0
         self._prev_congestions = 0
         self._prev_trips = 0  # <--- NEW
+
+    def center_reward(self, reward: float) -> float:
+        """Subtract a running reward baseline for TD stability when enabled."""
+        if not self.config.use_reward_centering:
+            return reward
+
+        beta = min(max(float(self.config.reward_centering_beta), 0.0), 1.0)
+        if not self._reward_mean_initialized:
+            self._running_reward_mean = reward
+            self._reward_mean_initialized = True
+            return 0.0
+
+        centered = reward - self._running_reward_mean
+        self._running_reward_mean = (
+            (1.0 - beta) * self._running_reward_mean
+            + beta * reward
+        )
+        return centered
 
     def compute_fleet_penalty(self, sim_state) -> float:
         """

@@ -48,6 +48,8 @@ Feature reference  (see vfa_features.py for full definitions)
     SLC5  imbalance_hotspot_distance     distance to worst-imbalance stations, normalised
 """
  
+from __future__ import annotations
+
 import os
 import sys
 import argparse
@@ -62,7 +64,9 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 from policies.sjovik_sund.vfa.train_vfa import (
     train,
     ALPHA_START,
-    UPDATE_EVERY_TRANSITIONS,
+    EPSILON_START,
+    EPSILON_END,
+    TRANSITION_UPDATE_INTERVAL,
     TD_LAMBDA,
     BIAS_FEATURE_ENABLED,
 )
@@ -78,9 +82,30 @@ from policies.sjovik_sund.vfa.train_vfa import (
 # -----------------------------------------------------------------------------
  
 EXPERIMENTS = {
+    # -- KS_Filtered -----------------------------------------------------------
+    # Derived from kitchen-sink analysis (38-feature run, 300 ep).
+    # Drops features that were: near-zero weight (maintenance_urgency),
+    # r>0.98 duplicates (exponential_*/net_*_shortfall, starvation/congestion_count,
+    # destination_starv/cong_ratio, destination_roi_starvation, recoverable_starvation),
+    # or purely noisy (trailer_cannibalization, destination_cong_ratio).
+    # Keeps one representative per correlated cluster and the best-signal
+    # maintenance feature from each sub-group.
+    "KS_Filtered": [
+        "rebalancing_imbalance",          # CIM1: total L1 imbalance
+        "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
+        "squared_congestion_penalty",     # CIM3: mean squared congestion ratio
+        "starvation_severity_max",        # CIM6: Q95 starvation tail depth
+        "congestion_severity_max",        # CIM7: Q95 congestion tail depth
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
+        "demand_weighted_onsite_backlog", # MP: onsite backlog weighted by demand
+        "demand_weighted_depot_backlog",  # MP: depot backlog weighted by demand
+        "fleet_broken_fraction",          # MP: overall fleet health
+        "depot_idle_fraction",            # MP: depot throughput signal
+    ],
+
     #BASELINES
     "Imbalance": ["rebalancing_imbalance"], # CIM1: total L1 imbalance across the network
-    "Squared": ["squared_starvation_penalty", "squared_congestion_penalty"], # CIM2/CIM3: mean squared starvation/congestion ratio
     "Imbalance_squared" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty"], # CIM1 + CIM2/CIM3: global mass + mean squared depth
     "Squared_temporal": [
         "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
@@ -94,6 +119,10 @@ EXPERIMENTS = {
         "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
     "Imbalance_squared_temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + FIM1/FIM2: global mass + gross departure/arrival pressure
+    "Imbalance_severity": ["rebalancing_imbalance", "starvation_severity_max", "congestion_severity_max"], # CIM1 + CIM6/CIM7: global mass + Q95 tail severity      
+    "Imbalance_severity_temporal": ["rebalancing_imbalance", "starvation_severity_max", "congestion_severity_max", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM6/CIM7 + FIM1/FIM2: global mass + Q95 tail severity + gross departure/arrival pressure    
+    "Imbalance_severity_squared_temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "starvation_severity_max", "congestion_severity_max", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM2/CIM3 + CIM6/CIM7 + FIM1/FIM2: global mass + mean squared depth + Q95 tail severity + gross departure/arrival pressure
+    
     
     # ① vs ③: does depth add value on top of CIM1?
     # ② vs ③: does CIM1 add value on top of depth?
@@ -108,6 +137,42 @@ EXPERIMENTS = {
     "Imbalance_squared_temporal_MP6": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + MP6: global mass + gross departure/arrival pressure + depot idle fraction
     "Imbalance_squared_temporal_fullMP" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization", "global_onsite_backlog", "global_depot_backlog", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + all MP features 
     "Imbalance_squared_temporal_MP326" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "global_onsite_backlog", "global_depot_backlog", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + MP2/MP3/MP6: global mass + gross departure/arrival pressure + global onsite/depot backlog + depot idle fraction
+
+    "Imbalance_squared_temporal_healthMP" : [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+        "fleet_health_deficit",
+        "depot_bound_health_deficit",
+        "onsite_health_deficit",
+        "maintenance_restoration_value",
+    ],
+    "Imbalance_squared_temporal_MP3_dest_local" : [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+        "global_depot_backlog",
+        "destination_onsite_fraction",
+        "destination_depot_fraction",
+    ],
+    
+    "Imbalance_squared_temporal_MP3_full_dest" : [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+        "global_depot_backlog",
+        "destination_onsite_fraction",
+        "destination_depot_fraction",
+        "destination_starv_ratio",
+        "destination_cong_ratio",
+    ],
+    "Imbalance_squared_temporal_destination_station_aware": ["rebalancing_imbalance","squared_starvation_penalty","squared_congestion_penalty", "gross_starvation_risk","gross_congestion_risk", "destination_onsite_fraction","destination_depot_fraction",], # CIM1 + FIM1/FIM2 + destination-local station health/imbalance features
 
 
     "Maintenance_full_test": [
@@ -150,10 +215,8 @@ EXPERIMENTS = {
     
     # --- Check 12: Minimal debug experiment matrix ---
     # Run these SHORT (50–100 ep) before full runs to isolate root cause.
-    # A/B/C share same features — toggle use_td_lambda + batch_size manually in train_vfa.py:
-    #   Debug_A: use_td_lambda=False, batch_size=1,  alpha=0.1  (TD(0) mean batch)
-    #   Debug_B: use_td_lambda=True,  batch_size=1,  alpha=0.1  (TD(λ) online)
-    #   Debug_C: use_td_lambda=True,  batch_size=1,  alpha=0.01 (TD(λ) tiny alpha)
+    # A/B/C share same features — toggle TD(lambda), alpha, and
+    # transition_update_interval in train_vfa.py/CLI for short debug runs.
     "Debug_D_no_maintenance": [
         "rebalancing_imbalance",
         "squared_starvation_penalty",
@@ -336,7 +399,38 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, update_every_transitions: Optional[int] = UPDATE_EVERY_TRANSITIONS, td_lambda: float = TD_LAMBDA, include_bias: bool = BIAS_FEATURE_ENABLED, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0):
+def run_all_experiments(
+    seeds: List[int],
+    episodes: int = 300,
+    run_only: Optional[List[str]] = None,
+    alphas: Optional[List[float]] = None,
+    output_dir: str = "maintenance_feature_sets",
+    weight_starvation: float = -1.0,
+    weight_congestion: float = -1.0,
+    weight_fleet_degradation: float = 0.0,
+    weight_trip_served: float = 0.0,
+    gamma: float = 0.97,
+    td_lambda: float = TD_LAMBDA,
+    include_bias: bool = BIAS_FEATURE_ENABLED,
+    not_at_depot_at_end_penalty: float = 0.0,
+    functional_bikes_at_end_penalty: float = 0.0,
+    epsilon_start: float = EPSILON_START,
+    epsilon_end: float = EPSILON_END,
+    use_reward_centering: bool = False,
+    reward_centering_beta: float = 0.01,
+    use_terminal_update: bool = True,
+    use_batch_td_clip: bool = False,
+    batch_td_clip_value: float = 10.0,
+    use_online_td_updates: bool = False,
+    transition_update_interval: int = TRANSITION_UPDATE_INTERVAL,
+    use_feature_scale_diagnostics: bool = True,
+    diagnostic_every_n_episodes: int = 25,
+    initial_bias: float | None = -2.5,
+    use_feature_centering: bool = False,
+    feature_centering_beta: float = 0.01,
+    log_candidate_diagnostics: bool = False,
+    log_greedy_comparison: bool = False,
+):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -348,6 +442,38 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
     experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
  
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    config_parts = []
+    if include_bias:
+        config_parts.append("bias")
+    if use_reward_centering:
+        config_parts.append(f"rc{reward_centering_beta:g}")
+    if use_terminal_update:
+        config_parts.append("term")
+    if td_lambda > 0.0:
+        config_parts.append(f"lam{td_lambda:g}")
+    if use_batch_td_clip:
+        config_parts.append(f"clip{batch_td_clip_value:g}")
+    if use_online_td_updates:
+        config_parts.append("online")
+    if transition_update_interval > 0:
+        config_parts.append(f"trans{transition_update_interval}")
+    if use_feature_scale_diagnostics:
+        config_parts.append(f"fsdiag{diagnostic_every_n_episodes}")
+    if gamma != 0.99:
+        config_parts.append(f"g{gamma:g}")
+    if epsilon_start == 0.0 and epsilon_end == 0.0:
+        config_parts.append("eps0")
+    elif epsilon_start != EPSILON_START or epsilon_end != EPSILON_END:
+        config_parts.append(f"eps{epsilon_start:g}-{epsilon_end:g}")
+    if initial_bias not in (None, 0.0):
+        config_parts.append(f"initb{str(initial_bias).replace('-', 'm').replace('.', 'p')}")
+    if use_feature_centering:
+        config_parts.append(f"fcenter{feature_centering_beta:g}")
+    if log_candidate_diagnostics:
+        config_parts.append("canddiag")
+    if log_greedy_comparison:
+        config_parts.append("gcmp")
+    config_suffix = ("_" + "_".join(config_parts)) if config_parts else ""
  
     # 1. OUTERMOST LOOP: Seeds
     for run_id, seed_offset in enumerate(seeds):
@@ -369,7 +495,7 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
 
                 # Force 'models' to be the root, and add your custom folder name inside it
                 base_dir = Path("models") / output_dir
-                exp_dir = base_dir / f"{exp_name}_alpha_{alpha}_{timestamp}"
+                exp_dir = base_dir / f"{exp_name}_alpha_{alpha}{config_suffix}_{timestamp}"
                 
                 # Safely create the whole chain (models -> custom_name -> exp_name)
                 # exist_ok=True ensures subsequent seeds peacefully reuse this folder
@@ -377,12 +503,13 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
  
                 train(
                     num_episodes=episodes,
-                    save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}.pkl",
+                    save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}{config_suffix}.pkl",
                     seed_offset=seed_offset,
                     active_features=features,
                     alpha_start=alpha,
+                    epsilon_start=epsilon_start,
+                    epsilon_end=epsilon_end,
                     gamma=gamma,
-                    update_every_transitions=update_every_transitions,
                     td_lambda=td_lambda,
                     include_bias=include_bias,
                     weight_starvation=weight_starvation,
@@ -391,6 +518,20 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
                     weight_trip_served=weight_trip_served,
                     not_at_depot_at_end_penalty=not_at_depot_at_end_penalty,
                     functional_bikes_at_end_penalty=functional_bikes_at_end_penalty,
+                    use_reward_centering=use_reward_centering,
+                    reward_centering_beta=reward_centering_beta,
+                    use_terminal_update=use_terminal_update,
+                    use_batch_td_clip=use_batch_td_clip,
+                    batch_td_clip_value=batch_td_clip_value,
+                    use_online_td_updates=use_online_td_updates,
+                    transition_update_interval=transition_update_interval,
+                    use_feature_scale_diagnostics=use_feature_scale_diagnostics,
+                    diagnostic_every_n_episodes=diagnostic_every_n_episodes,
+                    initial_bias=initial_bias,
+                    use_feature_centering=use_feature_centering,
+                    feature_centering_beta=feature_centering_beta,
+                    log_candidate_diagnostics=log_candidate_diagnostics,
+                    log_greedy_comparison=log_greedy_comparison,
                 )
  
 # -----------------------------------------------------------------------------
@@ -416,11 +557,11 @@ if __name__ == "__main__":
         help="Subset of experiments to run (default: all)",
     )
     parser.add_argument(
-        "--alphas", nargs="+", type=float, default=[0.05], metavar="ALPHA",
+        "--alphas", nargs="+", type=float, default=[0.01], metavar="ALPHA",
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
     )
 
-    parser.add_argument("--output_dir", type=str, default="results",
+    parser.add_argument("--output_dir", type=str, default="maintenance_feature_sets",
                         help="Directory to save experiment results"
     )
     parser.add_argument(
@@ -440,17 +581,8 @@ if __name__ == "__main__":
         help="Positive reward per successful trip served (default: 0.0)",
     )
     parser.add_argument(
-        "--gamma", type=float, default=0.99,
-        help="Discount factor (default: 0.99 per hour)",
-    )
-    parser.add_argument(
-        "--update_every_transitions",
-        type=int,
-        default=UPDATE_EVERY_TRANSITIONS,
-        help=(
-            "Apply a mean TD batch update after this many decision transitions. "
-            "Use 0 to recover once-per-episode updates."
-        ),
+        "--gamma", type=float, default=0.97,
+        help="Discount factor (default: 0.97 per hour)",
     )
     parser.add_argument(
         "--td_lambda",
@@ -459,17 +591,11 @@ if __name__ == "__main__":
         help="TD(lambda) eligibility trace parameter. Use 0.0 for TD(0).",
     )
     parser.add_argument(
-        "--include_bias",
+        "--use_bias_feature",
         dest="include_bias",
         action="store_true",
         default=BIAS_FEATURE_ENABLED,
-        help="Include the constant bias/intercept feature.",
-    )
-    parser.add_argument(
-        "--no_bias",
-        dest="include_bias",
-        action="store_false",
-        help="Disable the constant bias/intercept feature.",
+        help="Use the constant bias/intercept feature. Enabled by default.",
     )
     parser.add_argument(
         "--not_at_depot_at_end_penalty", type=float, default=0.0,
@@ -479,8 +605,112 @@ if __name__ == "__main__":
         "--functional_bikes_at_end_penalty", type=float, default=0.0,
         help="Per-bike per-step penalty for functional cargo near shift end (default: 0.0, suggested: -0.2)",
     )
+    parser.add_argument(
+        "--epsilon_start",
+        type=float,
+        default=EPSILON_START,
+        help="Initial epsilon for epsilon-greedy exploration.",
+    )
+    parser.add_argument(
+        "--epsilon_end",
+        type=float,
+        default=EPSILON_END,
+        help="Final epsilon for epsilon-greedy exploration.",
+    )
+    parser.add_argument(
+        "--use_reward_centering",
+        action="store_true",
+        help="Subtract a running reward mean before TD updates",
+    )
+    parser.add_argument(
+        "--reward_centering_beta",
+        type=float,
+        default=0.01,
+        help="EMA step size for reward centering baseline (default: 0.01)",
+    )
+    parser.add_argument(
+        "--use_terminal_update",
+        action="store_true",
+        default=True,
+        help="Append terminal transition with zero bootstrap at the end of each episode",
+    )
+    parser.add_argument(
+        "--use_batch_td_clip",
+        action="store_true",
+        help="Clip TD errors inside the episode batch update",
+    )
+    parser.add_argument(
+        "--batch_td_clip_value",
+        type=float,
+        default=5.0,
+        help="Absolute TD error clip used when --use_batch_td_clip is set",
+    )
+    parser.add_argument(
+        "--use_online_td_updates",
+        action="store_true",
+        help="Apply TD updates immediately at every transition instead of episode-batch updates.",
+    )
+    parser.add_argument(
+        "--transition_update_interval",
+        type=int,
+        default=TRANSITION_UPDATE_INTERVAL,
+        help="Apply one mean-gradient TD update every N buffered transitions. 0 keeps episode-batch updates.",
+    )
+    parser.add_argument(
+        "--use_feature_scale_diagnostics",
+        action="store_true",
+        default=True,
+        help="Print per-feature scale diagnostics during batch updates",
+    )
+    parser.add_argument(
+        "--diagnostic_every_n_episodes",
+        type=int,
+        default=25,
+        help="Frequency for heavy diagnostics such as feature scale reports",
+    )
+    parser.add_argument(
+        "--initial_bias",
+        type=float,
+        default=-2.5,
+        help="Initial value for the bias/intercept weight. Requires the bias feature to be enabled.",
+    )
+    parser.add_argument(
+        "--use_feature_centering",
+        action="store_true",
+        help="Center non-bias VFA features with a running candidate-set mean before value/TD updates.",
+    )
+    parser.add_argument(
+        "--feature_centering_beta",
+        type=float,
+        default=0.01,
+        help="EMA step size for feature centering when --use_feature_centering is set.",
+    )
+    parser.add_argument(
+        "--log_candidate_diagnostics",
+        action="store_true",
+        help="Write per-decision candidate value spread diagnostics to CSV.",
+    )
+    parser.add_argument(
+        "--log_greedy_comparison",
+        action="store_true",
+        help="Write VFA-vs-greedy-maintenance decision comparison diagnostics to CSV.",
+    )
 
     args = parser.parse_args()
+    if args.epsilon_start < 0.0 or args.epsilon_end < 0.0:
+        raise ValueError(
+            f"--epsilon_start and --epsilon_end must be non-negative, "
+            f"got {args.epsilon_start}, {args.epsilon_end}"
+        )
+    if args.transition_update_interval < 0:
+        raise ValueError(f"--transition_update_interval must be >= 0, got {args.transition_update_interval}")
+    if args.use_online_td_updates and args.transition_update_interval > 0:
+        raise ValueError("--use_online_td_updates and --transition_update_interval are mutually exclusive")
+    if not 0.0 <= args.td_lambda <= 1.0:
+        raise ValueError(f"--td_lambda must be in [0, 1], got {args.td_lambda}")
+    if not 0.0 <= args.feature_centering_beta <= 1.0:
+        raise ValueError(f"--feature_centering_beta must be in [0, 1], got {args.feature_centering_beta}")
+
     run_all_experiments(
         seeds=args.seeds,
         episodes=args.episodes,
@@ -492,11 +722,26 @@ if __name__ == "__main__":
         weight_fleet_degradation=args.weight_fleet_degradation,
         weight_trip_served=args.weight_trip_served,
         gamma=args.gamma,
-        update_every_transitions=args.update_every_transitions if args.update_every_transitions > 0 else None,
         td_lambda=args.td_lambda,
         include_bias=args.include_bias,
         not_at_depot_at_end_penalty=args.not_at_depot_at_end_penalty,
         functional_bikes_at_end_penalty=args.functional_bikes_at_end_penalty,
+        epsilon_start=args.epsilon_start,
+        epsilon_end=args.epsilon_end,
+        use_reward_centering=args.use_reward_centering,
+        reward_centering_beta=args.reward_centering_beta,
+        use_terminal_update=args.use_terminal_update,
+        use_batch_td_clip=args.use_batch_td_clip,
+        batch_td_clip_value=args.batch_td_clip_value,
+        use_online_td_updates=args.use_online_td_updates,
+        transition_update_interval=args.transition_update_interval,
+        use_feature_scale_diagnostics=args.use_feature_scale_diagnostics,
+        diagnostic_every_n_episodes=args.diagnostic_every_n_episodes,
+        initial_bias=args.initial_bias,
+        use_feature_centering=args.use_feature_centering,
+        feature_centering_beta=args.feature_centering_beta,
+        log_candidate_diagnostics=args.log_candidate_diagnostics,
+        log_greedy_comparison=args.log_greedy_comparison,
     )
  
     # -- Axis 2: Spatial Recoverability ---------------------------------------
