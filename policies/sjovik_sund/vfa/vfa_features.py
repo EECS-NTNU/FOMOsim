@@ -120,6 +120,7 @@ def get_feature_names(
 
     # Pillar 1: Current System Imbalance (CIM, always active)
     names.extend([
+    names.extend([
         "rebalancing_imbalance",          # CIM1
         "squared_starvation_penalty",     # CIM2
         "squared_congestion_penalty",     # CIM3
@@ -129,6 +130,7 @@ def get_feature_names(
         "congestion_severity_max",        # CIM7
         "starvation_count",               # CIM8
         "congestion_count",               # CIM9
+    ])
     ])
 
     # Pillar 2: Future System Imbalance (FIM)
@@ -284,6 +286,10 @@ def extract(
     # Pillar 1: Current System Imbalance (CIM)
     # =========================================================================
 
+    # Bias: constant intercept. It calibrates baseline value but cancels out
+    # across candidate actions, since it is the same for every post-decision state.
+    features.append(1.0)
+
     # CIM1: Rebalancing Imbalance — total L1 deviation from target, normalised by half capacity
     phi_imbalance = total_imbalance / max(total_cap_half, 1.0)
 
@@ -384,7 +390,7 @@ def extract(
         # MP6: Depot Idle Fraction — bikes repaired but not yet picked up.
         # Negative: more bikes sitting idle at depot = worse state (capacity wasted).
         # Normalised by fleet (raw fraction), not 3% cap — 3% was too tight and caused divergence.
-        phi_depot_idle = -depot_fixed_queue / (F_safe*0.30)
+        phi_depot_idle = depot_fixed_queue / (F_safe*0.30)
         
         # MP8: Recoverable Starvation — normalised by expected max recoverable (≈10% of fleet)
         is_starving = (func < target).astype(np.float64)

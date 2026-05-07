@@ -105,6 +105,8 @@ EXPERIMENTS = {
     "Imbalance_squared_temporal_MP1": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization"], # CIM1 + FIM1/FIM2 + MP1: global mass + gross departure/arrival pressure + trailer cannibalization ratio
     "Imbalance_squared_temporal_MP6": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + MP6: global mass + gross departure/arrival pressure + depot idle fraction
     "Imbalance_squared_temporal_fullMP" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization", "global_onsite_backlog", "global_depot_backlog", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + all MP features 
+    "Imbalance_squared_temporal_MP326" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "global_onsite_backlog", "global_depot_backlog", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + MP2/MP3/MP6: global mass + gross departure/arrival pressure + global onsite/depot backlog + depot idle fraction
+
     "Imbalance_squared_temporal_healthMP" : [
         "rebalancing_imbalance",
         "squared_starvation_penalty",
@@ -368,7 +370,7 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = False, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
+def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, update_every_transitions: Optional[int] = UPDATE_EVERY_TRANSITIONS, td_lambda: float = TD_LAMBDA, include_bias: bool = BIAS_FEATURE_ENABLED, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = False, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -448,6 +450,9 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
                     epsilon_start=epsilon_start,
                     epsilon_end=epsilon_end,
                     gamma=gamma,
+                    update_every_transitions=update_every_transitions,
+                    td_lambda=td_lambda,
+                    include_bias=include_bias,
                     weight_starvation=weight_starvation,
                     weight_congestion=weight_congestion,
                     weight_fleet_degradation=weight_fleet_degradation,
@@ -521,6 +526,34 @@ if __name__ == "__main__":
     parser.add_argument(
         "--gamma", type=float, default=0.99,
         help="Discount factor (default: 0.99 per hour)",
+    )
+    parser.add_argument(
+        "--update_every_transitions",
+        type=int,
+        default=UPDATE_EVERY_TRANSITIONS,
+        help=(
+            "Apply a mean TD batch update after this many decision transitions. "
+            "Use 0 to recover once-per-episode updates."
+        ),
+    )
+    parser.add_argument(
+        "--td_lambda",
+        type=float,
+        default=TD_LAMBDA,
+        help="TD(lambda) eligibility trace parameter. Use 0.0 for TD(0).",
+    )
+    parser.add_argument(
+        "--include_bias",
+        dest="include_bias",
+        action="store_true",
+        default=BIAS_FEATURE_ENABLED,
+        help="Include the constant bias/intercept feature.",
+    )
+    parser.add_argument(
+        "--no_bias",
+        dest="include_bias",
+        action="store_false",
+        help="Disable the constant bias/intercept feature.",
     )
     parser.add_argument(
         "--not_at_depot_at_end_penalty", type=float, default=0.0,
@@ -656,6 +689,9 @@ if __name__ == "__main__":
         weight_fleet_degradation=args.weight_fleet_degradation,
         weight_trip_served=args.weight_trip_served,
         gamma=args.gamma,
+        update_every_transitions=args.update_every_transitions if args.update_every_transitions > 0 else None,
+        td_lambda=args.td_lambda,
+        include_bias=args.include_bias,
         not_at_depot_at_end_penalty=args.not_at_depot_at_end_penalty,
         functional_bikes_at_end_penalty=args.functional_bikes_at_end_penalty,
         epsilon_start=args.epsilon_start,

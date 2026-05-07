@@ -46,6 +46,7 @@ from policies.sjovik_sund.vfa.vfa_features import get_feature_names as _get_feat
 from policies.sjovik_sund.run_simulation_ingvild import run_simulation, SimulationConfig, write_simulation_outputs
 from policies.sjovik_sund.mdp.reward import RewardConfig, RewardCalculator
 from policies.sjovik_sund.mdp.action_bridge import reset_truncation_counts, get_truncation_summary
+from policies.sjovik_sund.mdp.candidate_generator import reset_candidate_debug_counts, get_candidate_debug_summary
 from settings import ENABLE_COMPONENT_FAILURES
 
 
@@ -64,11 +65,14 @@ EPISODE_DAYS  : int   = WARMUP_DAYS + LEARNING_DAYS        # days per episode (t
 ALPHA_START   : float = 0.05   # initial alpha for TD updates, will be overwritten in case of argument passing
 EPSILON_START : float = 0.2     # initial exploration rate
 EPSILON_END   : float = 0.01    # final exploration rate
+UPDATE_EVERY_TRANSITIONS: int = 1  # apply mean TD batch update after this many decision transitions
+TD_LAMBDA     : float = 0.0     # eligibility-trace parameter; 0.0 gives TD(0)
 
 GAMMA         : float = 0.95      # discount factor
 
 # ── Feature configuration ───────────────────────────────────────────────────────
 LOGISTICS_ENABLED : bool = False  # Enable Pillar 4: Spatial & Logistic Constraints features
+BIAS_FEATURE_ENABLED: bool = True  # Add a constant intercept feature to active VFA feature sets.
 N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, logistics_enabled=LOGISTICS_ENABLED, demand_horizon_enabled=True))  # auto-synced with vfa_features.py
 
 INSTANCE_NAME : str   = "TD_W34_old" #"OS_W31"
@@ -233,6 +237,9 @@ def train(
     alpha_start   : float = ALPHA_START,
     epsilon_start : float = EPSILON_START,
     epsilon_end   : float = EPSILON_END,
+    update_every_transitions: Optional[int] = UPDATE_EVERY_TRANSITIONS,
+    td_lambda     : float = TD_LAMBDA,
+    include_bias  : bool = BIAS_FEATURE_ENABLED,
     weight_starvation : float = -1.0,
     weight_congestion : float = -1.0,
     weight_fleet_degradation : float = -0.0,
@@ -256,10 +263,7 @@ def train(
     log_candidate_diagnostics: bool = False,
     log_greedy_comparison: bool = False,
 ) -> LinearVFAPolicy:
-    
-    # BATCH SIZE configuration
-    batch_size = 1  # Number of episodes to run before applying batch updates to θ
-    
+
     """
     Run the full episodic VFA training loop.
 
@@ -297,6 +301,12 @@ def train(
     )
     print(f"  alpha schedule      : {alpha_start:.5f} -> {alpha_end:.5f}")
     print(f"  epsilon schedule    : {epsilon_start:.5f} -> {epsilon_end:.5f}")
+    if update_every_transitions and update_every_transitions > 0:
+        print(f"  batch update cadence: every {update_every_transitions} transitions + episode remainder")
+    else:
+        print("  batch update cadence: once per episode")
+    print(f"  TD(lambda)          : {td_lambda:.3f}")
+    print(f"  bias feature        : {'enabled' if include_bias else 'disabled'}")
     print(f"  gamma               : {gamma}")
     print(f"  bias feature        : {use_bias_feature}")
     print(f"  reward centering    : {use_reward_centering} (beta={reward_centering_beta})")
@@ -315,6 +325,12 @@ def train(
 
     SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
+    if active_features is not None:
+        active_features = list(active_features)
+        if include_bias and "bias" not in active_features:
+            active_features = ["bias"] + active_features
+        elif not include_bias:
+            active_features = [f for f in active_features if f != "bias"]
 
     # ── Initialise VFA policy  (θ persists across ALL episodes) ───────────────
     reward_config = RewardConfig(
@@ -446,6 +462,7 @@ def train(
         config        = SimulationConfig()
         stats_collector.reset()
         reset_truncation_counts()
+        reset_candidate_debug_counts()
 
         ###########
         # ── Calculate current dynamic parameters ─────────────────────────
@@ -518,46 +535,8 @@ def train(
         )
         episode_stats.append(ep_stat)
 
-        if use_online_td_updates:
-            if not hasattr(vfa_policy, '_all_phis_for_corr'):
-                vfa_policy._all_phis_for_corr = []
-            online_phis = getattr(vfa_policy, "_online_diag_phis", [])
-            if online_phis:
-                vfa_policy._all_phis_for_corr.extend([phi.copy() for phi in online_phis])
-            vfa_policy.flush_online_update_diagnostics(ep + 1)
-
-            if (ep + 1) % 5 == 0 and len(vfa_policy._all_phis_for_corr) > 0:
-                recent_phis = vfa_policy._all_phis_for_corr[-10000:]
-                temp_df = pd.DataFrame(recent_phis, columns=vfa_policy.FEATURE_NAMES)
-                corr = temp_df.corr(method='pearson')
-
-                print(f"\n  [DEBUG Ep {ep + 1}] Pearson Correlation with 'squared_starvation_penalty':")
-                if 'squared_starvation_penalty' in corr.columns:
-                    target_col = corr['squared_starvation_penalty']
-                    high_corr = target_col[abs(target_col) > 0.3].sort_values()
-                    for f, c in high_corr.items():
-                        print(f"      {f:<35} : {c:+.3f}")
-                print()
-
-        elif transition_update_interval > 0:
-            if (ep + 1) == num_episodes and getattr(vfa_policy, 'batch_buffer', None):
-                vfa_policy.apply_batch_update()
-
-            if (ep + 1) % 5 == 0 and len(getattr(vfa_policy, '_all_phis_for_corr', [])) > 0:
-                recent_phis = vfa_policy._all_phis_for_corr[-10000:]
-                temp_df = pd.DataFrame(recent_phis, columns=vfa_policy.FEATURE_NAMES)
-                corr = temp_df.corr(method='pearson')
-
-                print(f"\n  [DEBUG Ep {ep + 1}] Pearson Correlation with 'squared_starvation_penalty':")
-                if 'squared_starvation_penalty' in corr.columns:
-                    target_col = corr['squared_starvation_penalty']
-                    high_corr = target_col[abs(target_col) > 0.3].sort_values()
-                    for f, c in high_corr.items():
-                        print(f"      {f:<35} : {c:+.3f}")
-                print()
-
         # Apply synchronous batch update every 'batch_size' episodes
-        elif (ep + 1) % batch_size == 0 or (ep + 1) == num_episodes:
+        if (ep + 1) % batch_size == 0 or (ep + 1) == num_episodes:
             # Collect phis for correlation analysis BEFORE the buffer clears
             if not hasattr(vfa_policy, '_all_phis_for_corr'):
                 vfa_policy._all_phis_for_corr = []
@@ -565,33 +544,42 @@ def train(
                 vfa_policy._all_phis_for_corr.extend([item[0] for item in vfa_policy.batch_buffer])
                 
             vfa_policy.apply_batch_update()
+            '''# Flush the final partial transition batch from this episode.
+        if not hasattr(vfa_policy, '_all_phis_for_corr'):
+            vfa_policy._all_phis_for_corr = []
+        if getattr(vfa_policy, 'batch_buffer', None):
+            vfa_policy._all_phis_for_corr.extend([item[0] for item in vfa_policy.batch_buffer])
 
-            # --- MID-RUN DIAGNOSTIC LOGGING ---
-            if (ep + 1) % 5 == 0 and len(vfa_policy._all_phis_for_corr) > 0:
-                recent_phis = vfa_policy._all_phis_for_corr[-10000:] 
-                temp_df = pd.DataFrame(recent_phis, columns=vfa_policy.FEATURE_NAMES)
-                corr = temp_df.corr(method='pearson')
-                
-                print(f"\n  [DEBUG Ep {ep + 1}] Pearson Correlation with 'squared_starvation_penalty':")
-                if 'squared_starvation_penalty' in corr.columns:
-                    target_col = corr['squared_starvation_penalty']
-                    # Print features with high absolute correlation
-                    high_corr = target_col[abs(target_col) > 0.3].sort_values()
-                    for f, c in high_corr.items():
-                        print(f"      {f:<35} : {c:+.3f}")
-                print()
+        vfa_policy.apply_batch_update()'''
+
+        # --- MID-RUN DIAGNOSTIC LOGGING ---
+        if (ep + 1) % 5 == 0 and len(vfa_policy._all_phis_for_corr) > 0:
+            recent_phis = vfa_policy._all_phis_for_corr[-10000:]
+            temp_df = pd.DataFrame(recent_phis, columns=vfa_policy.FEATURE_NAMES)
+            corr = temp_df.corr(method='pearson')
+
+            print(f"\n  [DEBUG Ep {ep + 1}] Pearson Correlation with 'squared_starvation_penalty':")
+            if 'squared_starvation_penalty' in corr.columns:
+                target_col = corr['squared_starvation_penalty']
+                # Print features with high absolute correlation
+                high_corr = target_col[abs(target_col) > 0.3].sort_values()
+                for f, c in high_corr.items():
+                    print(f"      {f:<35} : {c:+.3f}")
+            print()
             
         weights_history.append(vfa_policy.theta.copy())  # Store θ vector for this episode
 
     
         formatted_theta = np.array2string(vfa_policy.theta, formatter={'float_kind':lambda x: f"{x:+.3f}"})
         trunc_summary = get_truncation_summary()
+        candidate_summary = get_candidate_debug_summary()
 
         print(
             f"  Ep {ep + 1:3d}/{num_episodes} | "
             f"SL={sl:.4f} | "
             f"Weights: {formatted_theta} | "
             f"bridge={trunc_summary} | "
+            f"candidate_debug={candidate_summary} | "
             f"t={time.time() - t0:.0f}s"
         )
 
@@ -759,6 +747,34 @@ if __name__ == "__main__":
         help="Final exploration rate (epsilon) for epsilon-greedy policy"
     )
     parser.add_argument(
+        "--update_every_transitions",
+        type=int,
+        default=UPDATE_EVERY_TRANSITIONS,
+        help=(
+            "Apply a mean TD batch update after this many decision transitions. "
+            "Use 0 to recover once-per-episode updates."
+        ),
+    )
+    parser.add_argument(
+        "--td_lambda",
+        type=float,
+        default=TD_LAMBDA,
+        help="TD(lambda) eligibility trace parameter. Use 0.0 for TD(0).",
+    )
+    parser.add_argument(
+        "--include_bias",
+        dest="include_bias",
+        action="store_true",
+        default=BIAS_FEATURE_ENABLED,
+        help="Include the constant bias/intercept feature.",
+    )
+    parser.add_argument(
+        "--no_bias",
+        dest="include_bias",
+        action="store_false",
+        help="Disable the constant bias/intercept feature.",
+    )
+    parser.add_argument(
         "--weight_starvation",
         type=float,
         default=-1.0,
@@ -877,6 +893,9 @@ if __name__ == "__main__":
         alpha_start       = args.alpha_start,
         epsilon_start     = args.epsilon_start,
         epsilon_end       = args.epsilon_end,
+        update_every_transitions = args.update_every_transitions if args.update_every_transitions > 0 else None,
+        td_lambda         = args.td_lambda,
+        include_bias      = args.include_bias,
         weight_starvation = args.weight_starvation,
         weight_congestion = args.weight_congestion,
         use_bias_feature  = args.use_bias_feature,

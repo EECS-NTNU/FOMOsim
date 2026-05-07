@@ -277,15 +277,24 @@ class HybridRolloutPolicy(Policy):
         )
         free_cap = max(0, vehicle_capacity - func_cargo - depot_cargo)
 
+        # Match candidate_generator._rebalancing_options_target_centered():
+        # exact-to-target plus operations toward 75% and 125% of target.
+        rebalancing_options = {0}
         delta = cur_func - target
-        greedy = -min(delta, free_cap) if delta > 0 else min(-delta, func_cargo) if delta < 0 else 0
-        max_pickup = -min(cur_func, free_cap)
-        max_delivery = min(func_cargo, station_spare_cap)
-        rebalancing_options = {0, greedy, max_pickup, max_delivery}
-        if max_pickup < 0:
-            rebalancing_options.add(int(max_pickup / 2))
-        if max_delivery > 0:
-            rebalancing_options.add(int(max_delivery / 2))
+        if delta > 0:
+            rebalancing_options.add(-min(delta, free_cap))
+        elif delta < 0:
+            rebalancing_options.add(min(-delta, func_cargo))
+
+        target_plus = round(target * 1.25)
+        delta_plus = cur_func - target_plus
+        if delta_plus < 0:
+            rebalancing_options.add(min(-delta_plus, func_cargo, station_spare_cap))
+
+        target_minus = round(target * 0.75)
+        delta_minus = cur_func - target_minus
+        if delta_minus > 0:
+            rebalancing_options.add(-min(delta_minus, free_cap))
 
         fractions = (0.0, 0.25, 0.50, 0.75, 1.0)
         onsite_options = {round(cur_onsite * f) for f in fractions} if cur_onsite > 0 else {0}

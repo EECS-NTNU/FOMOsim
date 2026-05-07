@@ -247,6 +247,7 @@ class LinearVFAPolicy(Policy):
         self.use_td_lambda:       bool  = True
         self.td_lambda:           float = 0.8
         self._eligibility_trace: np.ndarray = np.zeros(n_features, dtype=np.float64)
+        self._td_lambda_step_count: int = 0
         self._ep_update_count:   int  = 0   # Check 2: counts TD transitions per episode
         self._ep_decision_count: int  = 0   # Check 11: counts decisions per episode
 
@@ -894,9 +895,9 @@ class LinearVFAPolicy(Policy):
         return 1220.0
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TD(0) update
+    # TD update
     # ─────────────────────────────────────────────────────────────────────────
-        
+
     
     def _buffer_transition_for_batch_update(
         self,
@@ -910,10 +911,71 @@ class LinearVFAPolicy(Policy):
         if self.transition_update_interval > 0 and len(self.batch_buffer) >= self.transition_update_interval:
             self.apply_batch_update()
             self._transition_batch_update_count += 1
+    def _uses_online_td_lambda(self) -> bool:
+        """Use persistent online eligibility traces when lambda is genuinely active."""
+        return (
+            getattr(self, "use_td_lambda", False)
+            and float(getattr(self, "td_lambda", 0.0)) > 0.0
+            and not getattr(self, "use_experience_replay", False)
+        )
+
+    def _apply_online_td_lambda_update(
+        self,
+        reward: float,
+        phi_next: np.ndarray,
+        elapsed_minutes: float,
+    ) -> float:
+        """
+        Semi-gradient online TD(lambda) with an accumulating eligibility trace.
+
+        Unlike the batch path, self._eligibility_trace persists across decisions
+        and is reset only at episode boundaries.
+        """
+        if self._prev_phi is None:
+            return 0.0
+
+        v_cur = self.value(self._prev_phi)
+        v_next = self.value(phi_next)
+        discount = self.gamma ** (elapsed_minutes / 60.0)
+        td_error = reward + (discount * v_next) - v_cur
+
+        self._eligibility_trace = (
+            discount * self.td_lambda * self._eligibility_trace
+            + self._prev_phi
+        )
+        step = self.alpha * td_error * self._eligibility_trace
+        self.theta += step
+        self.weights = list(self.theta)
+        self._td_lambda_step_count += 1
+
+        if hasattr(self, "_all_phis_for_corr"):
+            self._all_phis_for_corr.append(self._prev_phi.copy())
+
+        if VFA_DEBUG_FLAGS.get("check2_td_updates") and self._ep_update_count < 5:
+            print(
+                f"  [CHK2 td#{self._ep_update_count+1} ONLINE λ] "
+                f"r={reward:.4f} V_cur={v_cur:.4f} V_nxt={v_next:.4f} "
+                f"δ={td_error:.4f} α={self.alpha:.5f} "
+                f"‖φ‖={np.linalg.norm(self._prev_phi):.4f} "
+                f"‖e‖={np.linalg.norm(self._eligibility_trace):.4f} "
+                f"‖θ‖={np.linalg.norm(self.theta):.4f} "
+                f"‖step‖={np.linalg.norm(step):.6f}"
+            )
+
+        return float(td_error)
 
     def td_update(self, reward: float, phi_next: np.ndarray, elapsed_minutes: float) -> float:
         if self._prev_phi is None:
             return 0.0
+
+        if self._uses_online_td_lambda():
+            td_error = self._apply_online_td_lambda_update(
+                reward=reward,
+                phi_next=phi_next,
+                elapsed_minutes=elapsed_minutes,
+            )
+            self._ep_update_count += 1
+            return td_error
 
         # Compute pre-update values for logging
         v_cur = self.value(self._prev_phi)
@@ -969,6 +1031,16 @@ class LinearVFAPolicy(Policy):
             self._buffer_transition_for_batch_update(self._prev_phi, reward, phi_next, elapsed_minutes)
 
         return td_error
+
+    def _maybe_apply_transition_batch(self) -> None:
+        """Apply a mean TD batch update once enough transitions have accumulated."""
+        cadence = getattr(self, "update_every_transitions", None)
+        if not cadence or cadence <= 0:
+            return
+        if len(self.batch_buffer) >= cadence:
+            if hasattr(self, '_all_phis_for_corr'):
+                self._all_phis_for_corr.extend([item[0] for item in self.batch_buffer])
+            self.apply_batch_update()
 
     def apply_mini_batch_update(self) -> None:
         """
@@ -1396,7 +1468,7 @@ class LinearVFAPolicy(Policy):
         1. Lazy-initialise caches from sim.State (first call only).
         2. Generate N_CANDIDATES candidate actions.
         3. Compute φ(S^x_a) and V(S^x_a) = θᵀφ for each candidate.
-        4. (If learning) run TD(0) update using reward since last decision
+        4. (If learning) run TD update using reward since last decision
            and the greedy next post-decision state as the bootstrap target.
         5. Select action greedy (exploitation).
         6. Cache the selected action's post-decision features for step 4
@@ -1505,7 +1577,7 @@ class LinearVFAPolicy(Policy):
                 print(f"  -> Going to {dest} | Gravity Feature: {phis[k][idx]:.6f}")
             self._has_printed_spatial = True
  
-        # ── Step 4: TD(0) update ──────────────────────────────────────────
+        # ── Step 4: TD update ─────────────────────────────────────────────
         td_err = 0.0
         if self.learning_mode and self._prev_phi is not None:
             # Consume the reward signal safely
@@ -1583,6 +1655,9 @@ class LinearVFAPolicy(Policy):
         # ── Step 7: cache post-decision features for next TD update ───────
         self._prev_phi = phis[sel_idx]
         self._prev_time = state.time
+
+        if self.learning_mode and not getattr(self, 'use_experience_replay', False):
+            self._maybe_apply_transition_batch()
  
         # ── Step 8: Log the Brain's Decision (NEW) ────────────────────────
         if getattr(self, 'log_rl_decisions', False):
@@ -1896,6 +1971,8 @@ class LinearVFAPolicy(Policy):
             "n_features":    self.n_features,
             "alpha":         self.alpha,
             "gamma":         self.gamma,
+            "use_td_lambda": getattr(self, "use_td_lambda", False),
+            "td_lambda":     getattr(self, "td_lambda", 0.0),
             "feature_names": self.FEATURE_NAMES,
             "use_bias_feature": self.use_bias_feature,
             "use_terminal_update": self.use_terminal_update,
@@ -1996,7 +2073,7 @@ class EpisodeTrainingPolicy(Policy):
             # Warm-up: pure exploitation policy, θ left unchanged
             return self.warmup_policy.get_best_action(state, vehicle)
         else:
-            # Learning: VFA + TD(0) update
+            # Learning: VFA + TD update
             return self.vfa_policy.get_best_action(state, vehicle)
 
     def __repr__(self) -> str:
