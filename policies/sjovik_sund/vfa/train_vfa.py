@@ -383,7 +383,8 @@ def train(
     vfa_policy.log_candidate_diagnostics = log_candidate_diagnostics
     vfa_policy.log_greedy_comparison = log_greedy_comparison
     vfa_policy._collect_phis_inside_batch_update = transition_update_interval > 0
-    vfa_policy._all_phis_for_corr = []
+    if vfa_policy._collect_phis_inside_batch_update and getattr(vfa_policy, "_all_phis_for_corr", None) is None:
+        vfa_policy._all_phis_for_corr = []
 
     # --- EXPERIENCE REPLAY TOGGLE ---
     # Set to True to use Mini-Batch SGD at every timestep
@@ -529,13 +530,19 @@ def train(
         ep_stat["transition_update_interval"] = transition_update_interval
         episode_stats.append(ep_stat)
 
-        # Flush any transitions that were not already consumed by a transition-sized update.
-        remainder_batch_updates = 0
-        if getattr(vfa_policy, "batch_buffer", None):
+        if use_online_td_updates:
+            vfa_policy.flush_online_update_diagnostics(ep + 1)
+        elif transition_update_interval > 0:
+            # Periodic transition batches are applied inside td_update().
+            # Flush only the final partial batch so the last samples are not lost.
+            if (ep + 1) == num_episodes and getattr(vfa_policy, 'batch_buffer', None):
+                vfa_policy.apply_batch_update()
+        else:
+            # Original episode-batch mode: update once after each episode.
             # Collect phis for correlation analysis BEFORE the buffer clears
-            if not getattr(vfa_policy, "_collect_phis_inside_batch_update", False):
-                if getattr(vfa_policy, '_all_phis_for_corr', None) is None:
-                    vfa_policy._all_phis_for_corr = []
+            if getattr(vfa_policy, '_all_phis_for_corr', None) is None:
+                vfa_policy._all_phis_for_corr = []
+            if getattr(vfa_policy, 'batch_buffer', None):
                 vfa_policy._all_phis_for_corr.extend([item[0] for item in vfa_policy.batch_buffer])
                 
             vfa_policy.apply_batch_update()
@@ -547,7 +554,7 @@ def train(
         ep_stat["batch_updates_this_episode"] = transition_batch_updates + remainder_batch_updates
 
         # --- MID-RUN DIAGNOSTIC LOGGING ---
-        if (ep + 1) % 5 == 0 and len(vfa_policy._all_phis_for_corr) > 0:
+        if (ep + 1) % 5 == 0 and getattr(vfa_policy, '_all_phis_for_corr', None):
             recent_phis = vfa_policy._all_phis_for_corr[-10000:]
             temp_df = pd.DataFrame(recent_phis, columns=vfa_policy.FEATURE_NAMES)
             corr = temp_df.corr(method='pearson')
@@ -655,7 +662,7 @@ def train(
     print("=" * 72 + "\n")
 
     # Log the Feature Matrix Correlation
-    if hasattr(vfa_policy, '_all_phis_for_corr') and len(vfa_policy._all_phis_for_corr) > 0:
+    if getattr(vfa_policy, '_all_phis_for_corr', None):
         print("  --- FINAL FEATURE CORRELATION MATRIX ---  ")
         phi_df = pd.DataFrame(vfa_policy._all_phis_for_corr, columns=vfa_policy.FEATURE_NAMES)
         corr_matrix = phi_df.corr(method='pearson')

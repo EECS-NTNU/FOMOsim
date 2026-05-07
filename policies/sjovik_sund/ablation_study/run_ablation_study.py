@@ -511,8 +511,6 @@ def run_all_experiments(
                     epsilon_start=epsilon_start,
                     epsilon_end=epsilon_end,
                     gamma=gamma,
-                    td_lambda=td_lambda,
-                    include_bias=include_bias,
                     weight_starvation=weight_starvation,
                     weight_congestion=weight_congestion,
                     weight_fleet_degradation=weight_fleet_degradation,
@@ -584,31 +582,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--gamma", type=float, default=0.99,
         help="Discount factor (default: 0.99 per hour)",
-    )
-    parser.add_argument(
-        "--td_lambda",
-        type=float,
-        default=TD_LAMBDA,
-        help="TD(lambda) eligibility trace parameter. Use 0.0 for TD(0).",
-    )
-    parser.add_argument(
-        "--include_bias",
-        dest="include_bias",
-        action="store_true",
-        default=BIAS_FEATURE_ENABLED,
-        help="Include the constant bias/intercept feature.",
-    )
-    parser.add_argument(
-        "--use_bias_feature",
-        dest="include_bias",
-        action="store_true",
-        help="Compatibility alias for --include_bias.",
-    )
-    parser.add_argument(
-        "--no_bias",
-        dest="include_bias",
-        action="store_false",
-        help="Disable the constant bias/intercept feature.",
     )
     parser.add_argument(
         "--not_at_depot_at_end_penalty", type=float, default=0.0,
@@ -733,8 +706,6 @@ if __name__ == "__main__":
         weight_fleet_degradation=args.weight_fleet_degradation,
         weight_trip_served=args.weight_trip_served,
         gamma=args.gamma,
-        td_lambda=args.td_lambda,
-        include_bias=args.include_bias,
         not_at_depot_at_end_penalty=args.not_at_depot_at_end_penalty,
         functional_bikes_at_end_penalty=args.functional_bikes_at_end_penalty,
         epsilon_start=args.epsilon_start,
