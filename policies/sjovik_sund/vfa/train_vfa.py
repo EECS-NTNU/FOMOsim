@@ -256,7 +256,6 @@ def train(
     transition_update_interval: int = 0,
     use_feature_scale_diagnostics: bool = False,
     diagnostic_every_n_episodes: int = 10,
-    td_lambda: float = 0.0,
     initial_bias: float | None = None,
     use_feature_centering: bool = False,
     feature_centering_beta: float = 0.01,
@@ -392,6 +391,8 @@ def train(
     vfa_policy.log_candidate_diagnostics = log_candidate_diagnostics
     vfa_policy.log_greedy_comparison = log_greedy_comparison
     vfa_policy._collect_phis_inside_batch_update = transition_update_interval > 0
+    if vfa_policy._collect_phis_inside_batch_update and getattr(vfa_policy, "_all_phis_for_corr", None) is None:
+        vfa_policy._all_phis_for_corr = []
 
     # --- EXPERIENCE REPLAY TOGGLE ---
     # Set to True to use Mini-Batch SGD at every timestep
@@ -535,25 +536,25 @@ def train(
         )
         episode_stats.append(ep_stat)
 
-        # Apply synchronous batch update every 'batch_size' episodes
-        if (ep + 1) % batch_size == 0 or (ep + 1) == num_episodes:
+        if use_online_td_updates:
+            vfa_policy.flush_online_update_diagnostics(ep + 1)
+        elif transition_update_interval > 0:
+            # Periodic transition batches are applied inside td_update().
+            # Flush only the final partial batch so the last samples are not lost.
+            if (ep + 1) == num_episodes and getattr(vfa_policy, 'batch_buffer', None):
+                vfa_policy.apply_batch_update()
+        else:
+            # Original episode-batch mode: update once after each episode.
             # Collect phis for correlation analysis BEFORE the buffer clears
-            if not hasattr(vfa_policy, '_all_phis_for_corr'):
+            if getattr(vfa_policy, '_all_phis_for_corr', None) is None:
                 vfa_policy._all_phis_for_corr = []
             if getattr(vfa_policy, 'batch_buffer', None):
                 vfa_policy._all_phis_for_corr.extend([item[0] for item in vfa_policy.batch_buffer])
                 
             vfa_policy.apply_batch_update()
-            '''# Flush the final partial transition batch from this episode.
-        if not hasattr(vfa_policy, '_all_phis_for_corr'):
-            vfa_policy._all_phis_for_corr = []
-        if getattr(vfa_policy, 'batch_buffer', None):
-            vfa_policy._all_phis_for_corr.extend([item[0] for item in vfa_policy.batch_buffer])
-
-        vfa_policy.apply_batch_update()'''
 
         # --- MID-RUN DIAGNOSTIC LOGGING ---
-        if (ep + 1) % 5 == 0 and len(vfa_policy._all_phis_for_corr) > 0:
+        if (ep + 1) % 5 == 0 and getattr(vfa_policy, '_all_phis_for_corr', None):
             recent_phis = vfa_policy._all_phis_for_corr[-10000:]
             temp_df = pd.DataFrame(recent_phis, columns=vfa_policy.FEATURE_NAMES)
             corr = temp_df.corr(method='pearson')
@@ -661,7 +662,7 @@ def train(
     print("=" * 72 + "\n")
 
     # Log the Feature Matrix Correlation
-    if hasattr(vfa_policy, '_all_phis_for_corr') and len(vfa_policy._all_phis_for_corr) > 0:
+    if getattr(vfa_policy, '_all_phis_for_corr', None):
         print("  --- FINAL FEATURE CORRELATION MATRIX ---  ")
         phi_df = pd.DataFrame(vfa_policy._all_phis_for_corr, columns=vfa_policy.FEATURE_NAMES)
         corr_matrix = phi_df.corr(method='pearson')
@@ -841,12 +842,6 @@ if __name__ == "__main__":
         help="Frequency for heavy diagnostics such as feature scale reports",
     )
     parser.add_argument(
-        "--td_lambda",
-        type=float,
-        default=0.0,
-        help="Eligibility trace lambda. Use 0.0 for TD(0); e.g. 0.3 for low TD(lambda)",
-    )
-    parser.add_argument(
         "--initial_bias",
         type=float,
         default=None,
@@ -908,7 +903,6 @@ if __name__ == "__main__":
         transition_update_interval = args.transition_update_interval,
         use_feature_scale_diagnostics = args.use_feature_scale_diagnostics,
         diagnostic_every_n_episodes = args.diagnostic_every_n_episodes,
-        td_lambda = args.td_lambda,
         initial_bias = args.initial_bias,
         use_feature_centering = args.use_feature_centering,
         feature_centering_beta = args.feature_centering_beta,

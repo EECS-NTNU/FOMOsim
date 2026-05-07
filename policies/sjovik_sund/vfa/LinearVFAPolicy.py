@@ -1140,7 +1140,7 @@ class LinearVFAPolicy(Policy):
         self.weights = list(self.theta)
 
         if getattr(self, "_collect_phis_inside_batch_update", False):
-            if not hasattr(self, "_all_phis_for_corr"):
+            if getattr(self, "_all_phis_for_corr", None) is None:
                 self._all_phis_for_corr = []
             self._all_phis_for_corr.extend(phi.copy() for phi in _dbg_phis)
 
