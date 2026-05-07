@@ -64,13 +64,13 @@ LEARNING_DAYS : int   = 21        # VFA + TD(0)
 EPISODE_DAYS  : int   = WARMUP_DAYS + LEARNING_DAYS        # days per episode (total)
 
 # --- Learning Rate (Alpha) & Exploration (Epsilon) ---
-ALPHA_START   : float = 0.05   # initial alpha for TD updates, will be overwritten in case of argument passing
-EPSILON_START : float = 0.2     # initial exploration rate
-EPSILON_END   : float = 0.01    # final exploration rate
-TRANSITION_UPDATE_INTERVAL: int = 1  # apply mean TD batch update after this many decision transitions
+ALPHA_START   : float = 0.01   # initial alpha for TD updates, will be overwritten in case of argument passing
+EPSILON_START : float = 0.0     # initial exploration rate
+EPSILON_END   : float = 0.0     # final exploration rate
+TRANSITION_UPDATE_INTERVAL: int = 100  # apply mean TD batch update after this many decision transitions
 TD_LAMBDA     : float = 0.0     # eligibility-trace parameter; 0.0 gives TD(0)
 
-GAMMA         : float = 0.95      # discount factor
+GAMMA         : float = 0.97      # discount factor
 
 # ── Feature configuration ───────────────────────────────────────────────────────
 LOGISTICS_ENABLED : bool = False  # Enable Pillar 4: Spatial & Logistic Constraints features
@@ -249,14 +249,14 @@ def train(
     functional_bikes_at_end_penalty : float = 0.0,
     use_reward_centering: bool = False,
     reward_centering_beta: float = 0.01,
-    use_terminal_update: bool = False,
+    use_terminal_update: bool = True,
     use_batch_td_clip: bool = False,
     batch_td_clip_value: float = 10.0,
     use_online_td_updates: bool = False,
     transition_update_interval: int = TRANSITION_UPDATE_INTERVAL,
-    use_feature_scale_diagnostics: bool = False,
-    diagnostic_every_n_episodes: int = 10,
-    initial_bias: float | None = None,
+    use_feature_scale_diagnostics: bool = True,
+    diagnostic_every_n_episodes: int = 25,
+    initial_bias: float | None = -2.5,
     use_feature_centering: bool = False,
     feature_centering_beta: float = 0.01,
     log_candidate_diagnostics: bool = False,
@@ -530,6 +530,7 @@ def train(
         ep_stat["transition_update_interval"] = transition_update_interval
         episode_stats.append(ep_stat)
 
+        remainder_batch_updates = 0
         if use_online_td_updates:
             vfa_policy.flush_online_update_diagnostics(ep + 1)
         elif transition_update_interval > 0:
@@ -537,6 +538,7 @@ def train(
             # Flush only the final partial batch so the last samples are not lost.
             if (ep + 1) == num_episodes and getattr(vfa_policy, 'batch_buffer', None):
                 vfa_policy.apply_batch_update()
+                remainder_batch_updates = 1
         else:
             # Original episode-batch mode: update once after each episode.
             # Collect phis for correlation analysis BEFORE the buffer clears
@@ -754,23 +756,11 @@ if __name__ == "__main__":
         help="TD(lambda) eligibility trace parameter. Use 0.0 for TD(0).",
     )
     parser.add_argument(
-        "--include_bias",
-        dest="include_bias",
-        action="store_true",
-        default=BIAS_FEATURE_ENABLED,
-        help="Include the constant bias/intercept feature.",
-    )
-    parser.add_argument(
         "--use_bias_feature",
         dest="include_bias",
         action="store_true",
-        help="Compatibility alias for --include_bias.",
-    )
-    parser.add_argument(
-        "--no_bias",
-        dest="include_bias",
-        action="store_false",
-        help="Disable the constant bias/intercept feature.",
+        default=BIAS_FEATURE_ENABLED,
+        help="Use the constant bias/intercept feature. Enabled by default.",
     )
     parser.add_argument(
         "--weight_starvation",
@@ -798,6 +788,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_terminal_update",
         action="store_true",
+        default=True,
         help="Append terminal transition with zero bootstrap at the end of each episode",
     )
     parser.add_argument(
@@ -825,18 +816,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_feature_scale_diagnostics",
         action="store_true",
+        default=True,
         help="Print per-feature scale diagnostics during batch updates",
     )
     parser.add_argument(
         "--diagnostic_every_n_episodes",
         type=int,
-        default=10,
+        default=25,
         help="Frequency for heavy diagnostics such as feature scale reports",
     )
     parser.add_argument(
         "--initial_bias",
         type=float,
-        default=None,
+        default=-2.5,
         help="Initial value for the bias/intercept weight. Requires the bias feature to be enabled.",
     )
     parser.add_argument(
