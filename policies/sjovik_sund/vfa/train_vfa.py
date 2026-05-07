@@ -24,6 +24,8 @@ Usage
     python train_vfa.py --episodes 50 --seed 100 --instance TD_W34_37
 """
 
+from __future__ import annotations
+
 import sys
 import argparse
 import time
@@ -65,7 +67,7 @@ EPISODE_DAYS  : int   = WARMUP_DAYS + LEARNING_DAYS        # days per episode (t
 ALPHA_START   : float = 0.05   # initial alpha for TD updates, will be overwritten in case of argument passing
 EPSILON_START : float = 0.2     # initial exploration rate
 EPSILON_END   : float = 0.01    # final exploration rate
-UPDATE_EVERY_TRANSITIONS: int = 1  # apply mean TD batch update after this many decision transitions
+TRANSITION_UPDATE_INTERVAL: int = 1  # apply mean TD batch update after this many decision transitions
 TD_LAMBDA     : float = 0.0     # eligibility-trace parameter; 0.0 gives TD(0)
 
 GAMMA         : float = 0.95      # discount factor
@@ -237,7 +239,6 @@ def train(
     alpha_start   : float = ALPHA_START,
     epsilon_start : float = EPSILON_START,
     epsilon_end   : float = EPSILON_END,
-    update_every_transitions: Optional[int] = UPDATE_EVERY_TRANSITIONS,
     td_lambda     : float = TD_LAMBDA,
     include_bias  : bool = BIAS_FEATURE_ENABLED,
     weight_starvation : float = -1.0,
@@ -246,17 +247,15 @@ def train(
     weight_trip_served : float = 0.0,
     not_at_depot_at_end_penalty : float = 0.0,
     functional_bikes_at_end_penalty : float = 0.0,
-    use_bias_feature: bool = False,
     use_reward_centering: bool = False,
     reward_centering_beta: float = 0.01,
     use_terminal_update: bool = False,
     use_batch_td_clip: bool = False,
     batch_td_clip_value: float = 10.0,
     use_online_td_updates: bool = False,
-    transition_update_interval: int = 0,
+    transition_update_interval: int = TRANSITION_UPDATE_INTERVAL,
     use_feature_scale_diagnostics: bool = False,
     diagnostic_every_n_episodes: int = 10,
-    td_lambda: float = 0.0,
     initial_bias: float | None = None,
     use_feature_centering: bool = False,
     feature_centering_beta: float = 0.01,
@@ -301,19 +300,16 @@ def train(
     )
     print(f"  alpha schedule      : {alpha_start:.5f} -> {alpha_end:.5f}")
     print(f"  epsilon schedule    : {epsilon_start:.5f} -> {epsilon_end:.5f}")
-    if update_every_transitions and update_every_transitions > 0:
-        print(f"  batch update cadence: every {update_every_transitions} transitions + episode remainder")
+    if transition_update_interval > 0:
+        print(f"  batch update cadence: every {transition_update_interval} transitions + episode remainder")
     else:
         print("  batch update cadence: once per episode")
-    print(f"  TD(lambda)          : {td_lambda:.3f}")
     print(f"  bias feature        : {'enabled' if include_bias else 'disabled'}")
     print(f"  gamma               : {gamma}")
-    print(f"  bias feature        : {use_bias_feature}")
     print(f"  reward centering    : {use_reward_centering} (beta={reward_centering_beta})")
     print(f"  terminal update     : {use_terminal_update}")
     print(f"  batch TD clipping   : {use_batch_td_clip} (clip={batch_td_clip_value})")
     print(f"  online TD updates   : {use_online_td_updates}")
-    print(f"  transition updates  : every {transition_update_interval} transitions" if transition_update_interval > 0 else "  transition updates  : disabled")
     print(f"  feature scale diag  : {use_feature_scale_diagnostics} (every {diagnostic_every_n_episodes} batch updates)")
     print(f"  TD lambda           : {td_lambda:g} ({'TD(lambda)' if td_lambda > 0.0 else 'TD(0)'})")
     print(f"  initial bias        : {initial_bias}")
@@ -346,8 +342,8 @@ def train(
 
     print(f" RewardConfig: weight_starvation={reward_config.weight_starvation}, weight_congestion={reward_config.weight_congestion}, weight_fleet_degradation={reward_config.weight_fleet_degradation}, weight_trip_served={reward_config.weight_trip_served}, use_reward_centering={reward_config.use_reward_centering}, reward_centering_beta={reward_config.reward_centering_beta}")
 
-    if initial_bias not in (None, 0.0) and not use_bias_feature and not (active_features and "bias" in active_features):
-        raise ValueError("initial_bias requires --use_bias_feature or an active feature set containing 'bias'")
+    if initial_bias not in (None, 0.0) and not include_bias:
+        raise ValueError("initial_bias requires the bias feature to be enabled")
     if not 0.0 <= feature_centering_beta <= 1.0:
         raise ValueError(f"feature_centering_beta must be in [0, 1], got {feature_centering_beta}")
     if transition_update_interval < 0:
@@ -355,13 +351,8 @@ def train(
     if use_online_td_updates and transition_update_interval > 0:
         raise ValueError("use_online_td_updates and transition_update_interval are mutually exclusive")
 
-    n_active_features = len(active_features) if active_features is not None else N_FEATURES
-    if use_bias_feature and not (active_features and "bias" in active_features):
-        n_active_features += 1
-
     vfa_policy = LinearVFAPolicy(
         active_features=active_features,
-        n_features=n_active_features,
         alpha         = alpha_start,
         gamma         = gamma,
         learning_mode = True,
@@ -369,7 +360,7 @@ def train(
         maintenance_enabled=ENABLE_COMPONENT_FAILURES,
         logistics_enabled=LOGISTICS_ENABLED,
         reward_calculator=RewardCalculator(config=reward_config, gamma=gamma),
-        use_bias_feature=use_bias_feature,
+        use_bias_feature=include_bias,
         use_terminal_update=use_terminal_update,
         use_batch_td_clip=use_batch_td_clip,
         batch_td_clip_value=batch_td_clip_value,
@@ -392,6 +383,7 @@ def train(
     vfa_policy.log_candidate_diagnostics = log_candidate_diagnostics
     vfa_policy.log_greedy_comparison = log_greedy_comparison
     vfa_policy._collect_phis_inside_batch_update = transition_update_interval > 0
+    vfa_policy._all_phis_for_corr = []
 
     # --- EXPERIENCE REPLAY TOGGLE ---
     # Set to True to use Mini-Batch SGD at every timestep
@@ -424,7 +416,7 @@ def train(
 
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     config_parts = []
-    if use_bias_feature:
+    if include_bias:
         config_parts.append("bias")
     if use_reward_centering:
         config_parts.append(f"rc{reward_centering_beta:g}")
@@ -533,24 +525,26 @@ def train(
             simulator, stats_collector, vfa_policy,
             current_alpha, alpha_start, current_epsilon, epsilon_start,
         )
+        ep_stat["gamma"] = gamma
+        ep_stat["transition_update_interval"] = transition_update_interval
         episode_stats.append(ep_stat)
 
-        # Apply synchronous batch update every 'batch_size' episodes
-        if (ep + 1) % batch_size == 0 or (ep + 1) == num_episodes:
+        # Flush any transitions that were not already consumed by a transition-sized update.
+        remainder_batch_updates = 0
+        if getattr(vfa_policy, "batch_buffer", None):
             # Collect phis for correlation analysis BEFORE the buffer clears
-            if not hasattr(vfa_policy, '_all_phis_for_corr'):
-                vfa_policy._all_phis_for_corr = []
-            if getattr(vfa_policy, 'batch_buffer', None):
+            if not getattr(vfa_policy, "_collect_phis_inside_batch_update", False):
+                if getattr(vfa_policy, '_all_phis_for_corr', None) is None:
+                    vfa_policy._all_phis_for_corr = []
                 vfa_policy._all_phis_for_corr.extend([item[0] for item in vfa_policy.batch_buffer])
                 
             vfa_policy.apply_batch_update()
-            '''# Flush the final partial transition batch from this episode.
-        if not hasattr(vfa_policy, '_all_phis_for_corr'):
-            vfa_policy._all_phis_for_corr = []
-        if getattr(vfa_policy, 'batch_buffer', None):
-            vfa_policy._all_phis_for_corr.extend([item[0] for item in vfa_policy.batch_buffer])
+            remainder_batch_updates = 1
 
-        vfa_policy.apply_batch_update()'''
+        transition_batch_updates = getattr(vfa_policy, "_transition_batch_update_count", 0)
+        ep_stat["transition_batch_updates"] = transition_batch_updates
+        ep_stat["remainder_batch_updates"] = remainder_batch_updates
+        ep_stat["batch_updates_this_episode"] = transition_batch_updates + remainder_batch_updates
 
         # --- MID-RUN DIAGNOSTIC LOGGING ---
         if (ep + 1) % 5 == 0 and len(vfa_policy._all_phis_for_corr) > 0:
@@ -747,15 +741,6 @@ if __name__ == "__main__":
         help="Final exploration rate (epsilon) for epsilon-greedy policy"
     )
     parser.add_argument(
-        "--update_every_transitions",
-        type=int,
-        default=UPDATE_EVERY_TRANSITIONS,
-        help=(
-            "Apply a mean TD batch update after this many decision transitions. "
-            "Use 0 to recover once-per-episode updates."
-        ),
-    )
-    parser.add_argument(
         "--td_lambda",
         type=float,
         default=TD_LAMBDA,
@@ -767,6 +752,12 @@ if __name__ == "__main__":
         action="store_true",
         default=BIAS_FEATURE_ENABLED,
         help="Include the constant bias/intercept feature.",
+    )
+    parser.add_argument(
+        "--use_bias_feature",
+        dest="include_bias",
+        action="store_true",
+        help="Compatibility alias for --include_bias.",
     )
     parser.add_argument(
         "--no_bias",
@@ -785,11 +776,6 @@ if __name__ == "__main__":
         type=float,
         default=-1.0,
         help="Reward weight for congestion events (default: -1.0)",
-    )
-    parser.add_argument(
-        "--use_bias_feature",
-        action="store_true",
-        help="Add a constant bias/intercept feature to the linear VFA",
     )
     parser.add_argument(
         "--use_reward_centering",
@@ -826,7 +812,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--transition_update_interval",
         type=int,
-        default=0,
+        default=TRANSITION_UPDATE_INTERVAL,
         help="Apply one mean-gradient TD update every N buffered transitions. 0 keeps episode-batch updates.",
     )
     parser.add_argument(
@@ -841,16 +827,10 @@ if __name__ == "__main__":
         help="Frequency for heavy diagnostics such as feature scale reports",
     )
     parser.add_argument(
-        "--td_lambda",
-        type=float,
-        default=0.0,
-        help="Eligibility trace lambda. Use 0.0 for TD(0); e.g. 0.3 for low TD(lambda)",
-    )
-    parser.add_argument(
         "--initial_bias",
         type=float,
         default=None,
-        help="Initial value for the bias/intercept weight. Requires --use_bias_feature.",
+        help="Initial value for the bias/intercept weight. Requires the bias feature to be enabled.",
     )
     parser.add_argument(
         "--use_feature_centering",
@@ -893,12 +873,10 @@ if __name__ == "__main__":
         alpha_start       = args.alpha_start,
         epsilon_start     = args.epsilon_start,
         epsilon_end       = args.epsilon_end,
-        update_every_transitions = args.update_every_transitions if args.update_every_transitions > 0 else None,
         td_lambda         = args.td_lambda,
         include_bias      = args.include_bias,
         weight_starvation = args.weight_starvation,
         weight_congestion = args.weight_congestion,
-        use_bias_feature  = args.use_bias_feature,
         use_reward_centering = args.use_reward_centering,
         reward_centering_beta = args.reward_centering_beta,
         use_terminal_update = args.use_terminal_update,
@@ -908,7 +886,6 @@ if __name__ == "__main__":
         transition_update_interval = args.transition_update_interval,
         use_feature_scale_diagnostics = args.use_feature_scale_diagnostics,
         diagnostic_every_n_episodes = args.diagnostic_every_n_episodes,
-        td_lambda = args.td_lambda,
         initial_bias = args.initial_bias,
         use_feature_centering = args.use_feature_centering,
         feature_centering_beta = args.feature_centering_beta,

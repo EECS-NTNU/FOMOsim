@@ -746,7 +746,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--vfa-model",
         type=str,
-        default="models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl",
+        default="models/results/Imbalance_squared_temporal_gamma99_alpha_0.01_20260505_121148/vfa_Imbalance_squared_temporal_seed1000.pkl",
         help="Path to trained VFA model (.pkl file).",
     )
     parser.add_argument(
@@ -754,6 +754,7 @@ if __name__ == "__main__":
         type=str,
         nargs="+",
         default=[
+            "bias",
             "rebalancing_imbalance",
             "squared_starvation_penalty",
             "squared_congestion_penalty",
@@ -769,7 +770,7 @@ if __name__ == "__main__":
         "--num-scenarios", "--scenarios",
         dest="num_scenarios",
         type=int,
-        default=8,
+        default=5,
         help="Number of stochastic scenarios per candidate in HybridRolloutPolicy (default: 8).",
     )
     parser.add_argument(
@@ -787,7 +788,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n-routing",
         type=int,
-        default=10,
+        default=5,
         help="Routing candidates per operational profile in candidate generation (default: 10).",
     )
     parser.add_argument(

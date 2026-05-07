@@ -912,6 +912,7 @@ class LinearVFAPolicy(Policy):
         if self.transition_update_interval > 0 and len(self.batch_buffer) >= self.transition_update_interval:
             self.apply_batch_update()
             self._transition_batch_update_count += 1
+
     def _uses_online_td_lambda(self) -> bool:
         """Use persistent online eligibility traces when lambda is genuinely active."""
         return (
@@ -1037,16 +1038,6 @@ class LinearVFAPolicy(Policy):
 
         return td_error
 
-    def _maybe_apply_transition_batch(self) -> None:
-        """Apply a mean TD batch update once enough transitions have accumulated."""
-        cadence = getattr(self, "update_every_transitions", None)
-        if not cadence or cadence <= 0:
-            return
-        if len(self.batch_buffer) >= cadence:
-            if self._all_phis_for_corr is not None:
-                self._all_phis_for_corr.extend([item[0] for item in self.batch_buffer])
-            self.apply_batch_update()
-
     def apply_mini_batch_update(self) -> None:
         """
         Randomly samples exactly 'mini_batch_size' transitions from the replay buffer
@@ -1140,7 +1131,7 @@ class LinearVFAPolicy(Policy):
         self.weights = list(self.theta)
 
         if getattr(self, "_collect_phis_inside_batch_update", False):
-            if not hasattr(self, "_all_phis_for_corr"):
+            if getattr(self, "_all_phis_for_corr", None) is None:
                 self._all_phis_for_corr = []
             self._all_phis_for_corr.extend(phi.copy() for phi in _dbg_phis)
 
@@ -1664,9 +1655,6 @@ class LinearVFAPolicy(Policy):
         self._prev_phi = phis[sel_idx]
         self._prev_time = state.time
 
-        if self.learning_mode and not getattr(self, 'use_experience_replay', False):
-            self._maybe_apply_transition_batch()
- 
         # ── Step 8: Log the Brain's Decision (NEW) ────────────────────────
         if getattr(self, 'log_rl_decisions', False):
             phi_dict = dict(zip(self.FEATURE_NAMES, phis[sel_idx].tolist()))
@@ -1979,8 +1967,6 @@ class LinearVFAPolicy(Policy):
             "n_features":    self.n_features,
             "alpha":         self.alpha,
             "gamma":         self.gamma,
-            "use_td_lambda": getattr(self, "use_td_lambda", False),
-            "td_lambda":     getattr(self, "td_lambda", 0.0),
             "feature_names": self.FEATURE_NAMES,
             "use_bias_feature": self.use_bias_feature,
             "use_terminal_update": self.use_terminal_update,
