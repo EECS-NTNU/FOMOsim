@@ -386,13 +386,13 @@ class BikeDeparture(Event):
         bike.component_failures[category]['total_failures'] += 1
         
         # === LOG FAILURE ===
-        print("\n" + "!"*80)
+        '''print("\n" + "!"*80)
         print(f"COMPONENT FAILURE - SEVERITY: {damage_label}")
         print(f"  Bike: {bike.bike_id}")
         print(f"  Component: {category}")
         print(f"  Odometer: {bike.total_distance_km:.1f} km")
         print(f"  Weibull failure probability: {probability:.6f}")
-        print("!"*80 + "\n")
+        print("!"*80 + "\n")'''
         
         # === LOG TO SIMULATOR ===
         if hasattr(simul, 'log_component_failure'):
@@ -421,7 +421,7 @@ class BikeDeparture(Event):
             simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}", 1)
             simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}_depot", 1)
             
-            print(f"[DEPOT FIX PENDING] Bike {bike.bike_id} will be REMOVED FROM SERVICE upon arrival\n")
+            #print(f"[DEPOT FIX PENDING] Bike {bike.bike_id} will be REMOVED FROM SERVICE upon arrival\n")
             return 'trip_completes_then_unavailable'
         
         else:  # "damaged: on-site fix"
@@ -435,7 +435,7 @@ class BikeDeparture(Event):
             simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}", 1)
             simul.state.metrics.add_aggregate_metric(simul.state, f"failure_{category}_onsite", 1)
             
-            print(f"[ON-SITE FIX PENDING] Bike {bike.bike_id} will be FLAGGED upon arrival (still rentable)\n")
+            #print(f"[ON-SITE FIX PENDING] Bike {bike.bike_id} will be FLAGGED upon arrival (still rentable)\n")
             return 'trip_completes_normally'
 
 

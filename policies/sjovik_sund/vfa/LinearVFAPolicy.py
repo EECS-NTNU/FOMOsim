@@ -105,6 +105,15 @@ class LinearVFAPolicy(Policy):
         log_depot_visits: bool = False,
         depot_log_file: Optional[str] = None,
         reward_calculator: Optional[RewardCalculator] = None,
+        use_bias_feature: bool = False,
+        use_terminal_update: bool = False,
+        use_batch_td_clip: bool = False,
+        batch_td_clip_value: float = 10.0,
+        use_online_td_updates: bool = False,
+        transition_update_interval: int = 0,
+        initial_bias: float | None = None,
+        use_feature_centering: bool = False,
+        feature_centering_beta: float = 0.01,
     ) -> None:
         """
         Initializes the policy, sets hyperparameters (alpha, gamma, epsilon),
@@ -121,16 +130,38 @@ class LinearVFAPolicy(Policy):
         self.demand_horizon_enabled = demand_horizon_enabled
         self.log_depot_visits = log_depot_visits
         self.depot_log_file = depot_log_file
+        self.use_bias_feature = use_bias_feature or bool(active_features and "bias" in active_features)
+        self.use_terminal_update = use_terminal_update
+        self.use_batch_td_clip = use_batch_td_clip
+        self.batch_td_clip_value = float(batch_td_clip_value)
+        self.use_online_td_updates = bool(use_online_td_updates)
+        self.transition_update_interval = max(0, int(transition_update_interval))
+        if self.use_online_td_updates and self.transition_update_interval > 0:
+            raise ValueError("use_online_td_updates and transition_update_interval are mutually exclusive")
         # 1. Get the canonical list of ALL possible features
 
-        self.ALL_FEATURE_NAMES = _get_feature_names(True, True, True, True)
+        self.ALL_FEATURE_NAMES = _get_feature_names(True, True, True, True, include_bias=self.use_bias_feature)
 
         # 2. Determine which features we are actually using
         if active_features is None:
-            self.FEATURE_NAMES = _get_feature_names(self.maintenance_enabled, self.logistics_enabled, self.demand_horizon_enabled)
+            self.FEATURE_NAMES = _get_feature_names(
+                self.maintenance_enabled,
+                self.logistics_enabled,
+                self.demand_horizon_enabled,
+                include_bias=self.use_bias_feature,
+            )
         else:
             # --- FIXED: Force the user's active features into canonical mathematical order ---
-            self.FEATURE_NAMES = [name for name in self.ALL_FEATURE_NAMES if name in active_features]
+            requested_features = set(active_features)
+            if self.use_bias_feature:
+                requested_features.add("bias")
+            unknown_features = requested_features - set(self.ALL_FEATURE_NAMES)
+            if unknown_features:
+                raise ValueError(
+                    f"Unknown active feature(s): {sorted(unknown_features)}. "
+                    f"Valid features include: {self.ALL_FEATURE_NAMES}"
+                )
+            self.FEATURE_NAMES = [name for name in self.ALL_FEATURE_NAMES if name in requested_features]
 
         # 3. Create a boolean mask to slice the numpy array extremely fast
         self._feature_mask = np.array([
@@ -145,6 +176,9 @@ class LinearVFAPolicy(Policy):
             print(f"The math outputs this order: {actual_math_order}\n")
             
         self.N_FEATURES = len(self.FEATURE_NAMES)
+        _health_names = {"fleet_failure_risk", "fleet_health_deficit", "fleet_low_health_fraction",
+                         "depot_bound_health_deficit", "onsite_health_deficit", "maintenance_restoration_value"}
+        self._use_health_features = bool(_health_names & set(self.FEATURE_NAMES))
         self.reward_calc = reward_calculator or RewardCalculator(gamma=gamma)
 
         if n_features is None:
@@ -160,6 +194,7 @@ class LinearVFAPolicy(Policy):
         self.n_features    = n_features
         self.alpha         = alpha
         self.gamma         = gamma
+        self._depot_repair_discount = gamma ** 24.0  # 1440 min depot repair at gamma-per-hour
         self.epsilon       = epsilon
         self.learning_mode = learning_mode
         default_config = MDPConfig.full_maintenance() if maintenance_enabled else MDPConfig.no_maintenance()
@@ -168,6 +203,17 @@ class LinearVFAPolicy(Policy):
 
         # ── Parameter vector θ (small random initialisation) ─────────────────
         self.theta: np.ndarray = np.zeros(n_features, dtype=np.float64)
+        self.initial_bias = initial_bias
+        if initial_bias is not None and "bias" in self.FEATURE_NAMES:
+            self.theta[self.FEATURE_NAMES.index("bias")] = float(initial_bias)
+        elif initial_bias not in (None, 0.0):
+            raise ValueError("initial_bias requires the bias feature to be enabled")
+
+        self.use_feature_centering = bool(use_feature_centering)
+        self.feature_centering_beta = float(np.clip(feature_centering_beta, 0.0, 1.0))
+        self._feature_center = np.zeros(n_features, dtype=np.float64)
+        self._feature_center_initialized = False
+        self._bias_feature_idx = self.FEATURE_NAMES.index("bias") if "bias" in self.FEATURE_NAMES else None
 
         # weights attribute forwarded by run_simulation.py for logging
         self.weights: List[float] = list(self.theta)
@@ -206,6 +252,8 @@ class LinearVFAPolicy(Policy):
 
         # Buffer for Synchronous Batch Learning
         self.batch_buffer: List[Tuple[np.ndarray, float, np.ndarray, float]] = []
+        self._online_update_count: int = 0
+        self._transition_batch_update_count: int = 0
         
         # Buffer for Experience Replay (Mini-Batch SGD)
         self.use_experience_replay = False
@@ -393,6 +441,134 @@ class LinearVFAPolicy(Policy):
     
         return func, onsite, depot
 
+    @staticmethod
+    def _bike_id(bike) -> int:
+        return getattr(bike, "bike_id", getattr(bike, "id", -1))
+
+    @staticmethod
+    def _bike_health_and_risk(bike) -> Tuple[float, float, float]:
+        """
+        Return (health, failure_risk, deficit) for one bike.
+
+        health is the weakest component reliability, so 1.0 is fresh/healthy and
+        0.0 is failed/high-risk. failure_risk is the probability that at least one
+        component is already in a bad reliability state, based on current component
+        reliabilities rather than simulating a future trip.
+        """
+        odometers = getattr(bike, "component_odometers", {}) or {}
+        failures = getattr(bike, "component_failures", {}) or {}
+        reliabilities = []
+
+        for category, odometer in odometers.items():
+            data = failures.get(category, {})
+            scale = float(data.get("scale", 0.0) or 0.0)
+            shape = float(data.get("shape", 0.0) or 0.0)
+            if scale <= 0.0 or shape <= 0.0:
+                continue
+            reliability = float(np.exp(-((max(float(odometer), 0.0) / scale) ** shape)))
+            reliabilities.append(float(np.clip(reliability, 0.0, 1.0)))
+
+        if not reliabilities:
+            return 1.0, 0.0, 0.0
+
+        rel = np.array(reliabilities, dtype=np.float64)
+        health = float(np.min(rel))
+        failure_risk = float(np.clip(1.0 - np.prod(rel), 0.0, 1.0))
+        return health, failure_risk, 1.0 - health
+
+    def _all_bikes_including_depot_queues(self, state) -> list:
+        """Return unique live bikes, including depot repair/fixed queues."""
+        bikes_by_id = {}
+        for bike in state.get_all_bikes():
+            bikes_by_id[self._bike_id(bike)] = bike
+        for depot in state.get_depots():
+            for bike in getattr(depot, "fixed_queue", {}).values():
+                bikes_by_id[self._bike_id(bike)] = bike
+            for _, bikes in getattr(depot, "in_repair", []):
+                for bike in bikes:
+                    bikes_by_id[self._bike_id(bike)] = bike
+        return list(bikes_by_id.values())
+
+    def _compute_health_base(self, state, vehicle) -> dict:
+        """Iterate all bikes once per state. Expensive — call once, not per candidate."""
+        all_bikes = self._all_bikes_including_depot_queues(state)
+        total = max(float(len(all_bikes)), 1.0)
+        health_sum = risk_sum = low_count = 0.0
+        onsite_def_sum = depot_def_sum = 0.0
+        by_id = {}
+        health_cache = {}
+        for bike in all_bikes:
+            bid = self._bike_id(bike)
+            by_id[bid] = bike
+            health, risk, deficit = self._bike_health_and_risk(bike)
+            health_cache[bid] = (health, risk, deficit)
+            health_sum += health
+            risk_sum += risk
+            low_count += 1.0 if health < 0.75 else 0.0
+            status = getattr(bike, "damage_status", None)
+            if status == "onsite":
+                onsite_def_sum += deficit
+            elif status == "depot":
+                depot_def_sum += deficit
+        return {
+            "total": total,
+            "status_denom": max(total * 0.20, 1.0),
+            "health_sum": health_sum,
+            "risk_sum": risk_sum,
+            "low_count": low_count,
+            "onsite_def_sum": onsite_def_sum,
+            "depot_def_sum": depot_def_sum,
+            "by_id": by_id,
+            "health_cache": health_cache,
+        }
+
+    def _health_features_from_base(self, base: dict, candidate_action, vehicle, vehicle_capacity: int = 1) -> dict:
+        """Apply candidate-action delta to cached base. Cheap — call per candidate."""
+        total        = base["total"]
+        status_denom = base["status_denom"]
+        health_sum   = base["health_sum"]
+        risk_sum     = base["risk_sum"]
+        low_count    = base["low_count"]
+        onsite_def_sum = base["onsite_def_sum"]
+        depot_def_sum  = base["depot_def_sum"]
+        by_id        = base["by_id"]
+        health_cache = base["health_cache"]
+
+        onsite_restored_def = onsite_restored_risk = onsite_restored_low = 0.0
+        depot_dropoff_def = 0.0
+
+        if candidate_action is not None:
+            for bike_id in getattr(candidate_action, "onsite_repairs", []) or []:
+                bike = by_id.get(bike_id)
+                if bike is None:
+                    continue
+                health, risk, deficit = health_cache.get(bike_id, self._bike_health_and_risk(bike))
+                onsite_restored_def += deficit
+                onsite_restored_risk += risk
+                onsite_restored_low += 1.0 if health < 0.75 else 0.0
+
+            vehicle_bikes = {self._bike_id(b): b for b in vehicle.get_bike_inventory()}
+            for bike_id in getattr(candidate_action, "delivery_bikes", []) or []:
+                bike = vehicle_bikes.get(bike_id)
+                if bike is not None and getattr(bike, "damage_status", None) == "depot":
+                    _, _, deficit = self._bike_health_and_risk(bike)
+                    depot_dropoff_def += deficit
+
+        K = max(float(vehicle_capacity), 1.0)
+        return {
+            "fleet_failure_risk":         max(0.0, risk_sum - onsite_restored_risk) / total,
+            "fleet_health_deficit":       max(0.0, (total - health_sum) - onsite_restored_def) / total,
+            "fleet_low_health_fraction":  max(0.0, low_count - onsite_restored_low) / total,
+            "depot_bound_health_deficit": depot_def_sum / status_denom,
+            "onsite_health_deficit":      max(0.0, onsite_def_sum - onsite_restored_def) / status_denom,
+            "maintenance_restoration_value": (onsite_restored_def + self._depot_repair_discount * depot_dropoff_def) / K,
+        }
+
+    def _health_feature_inputs(self, state, vehicle, candidate_action=None, vehicle_capacity: int = 1) -> dict:
+        """Convenience wrapper — computes base + delta in one call (used outside the candidate loop)."""
+        base = self._compute_health_base(state, vehicle)
+        return self._health_features_from_base(base, candidate_action, vehicle, vehicle_capacity)
+
     # ─────────────────────────────────────────────────────────────────────────
     # Feature vector  φ(S^x)  – delegated to vfa_features.py
     # ─────────────────────────────────────────────────────────────────────────
@@ -419,6 +595,8 @@ class LinearVFAPolicy(Policy):
         explicit_capacity: Optional[int] = None,
         explicit_dist_to_depot: Optional[float] = None,
         explicit_dist_to_stations: Optional[np.ndarray] = None,
+        candidate_action=None,
+        health_base: Optional[dict] = None,
     ) -> np.ndarray:
         """
         Compute φ(S^x) for the post-decision state.
@@ -540,6 +718,14 @@ class LinearVFAPolicy(Policy):
         # ── Depot queue state ──────────────────────────────────────────────
         depot_in_repair   = float(sum(len(bikes) for d in state.get_depots() for _, bikes in d.in_repair))
         depot_fixed_queue = float(sum(len(d.fixed_queue) for d in state.get_depots()))
+        if not self._use_health_features:
+            health_features = {"fleet_failure_risk": 0.0, "fleet_health_deficit": 0.0,
+                               "fleet_low_health_fraction": 0.0, "depot_bound_health_deficit": 0.0,
+                               "onsite_health_deficit": 0.0, "maintenance_restoration_value": 0.0}
+        elif health_base is not None:
+            health_features = self._health_features_from_base(health_base, candidate_action, vehicle, K)
+        else:
+            health_features = self._health_feature_inputs(state, vehicle, candidate_action=candidate_action, vehicle_capacity=K)
 
         # ── Delegate to canonical feature extractor ────────────────────────
         phi_full = _extract_phi(
@@ -560,6 +746,12 @@ class LinearVFAPolicy(Policy):
             fleet_size=self.cached_fleet_size,
             depot_in_repair=depot_in_repair,
             depot_fixed_queue=depot_fixed_queue,
+            fleet_failure_risk=health_features["fleet_failure_risk"],
+            fleet_health_deficit=health_features["fleet_health_deficit"],
+            fleet_low_health_fraction=health_features["fleet_low_health_fraction"],
+            depot_bound_health_deficit=health_features["depot_bound_health_deficit"],
+            onsite_health_deficit=health_features["onsite_health_deficit"],
+            maintenance_restoration_value=health_features["maintenance_restoration_value"],
             maintenance_enabled=True,
             logistics_enabled=True,
             time_remaining=time_remaining,
@@ -575,6 +767,7 @@ class LinearVFAPolicy(Policy):
             max_travel_time=self._max_travel_time,
             next_is_depot=bool(next_station_id and next_station_id == self._depot_id),
             destination_features_enabled=True,
+            include_bias=self.use_bias_feature,
         )
     
         # 4. Slice the full feature vector to only include active features
@@ -627,6 +820,42 @@ class LinearVFAPolicy(Policy):
         """V(S^x) = θᵀ φ(S^x)."""
         return float(np.dot(self.theta, phi))
 
+    def _update_feature_center(self, phis: list[np.ndarray]) -> None:
+        """Update the running feature center from a candidate set."""
+        if not self.use_feature_centering or not phis:
+            return
+
+        batch_mean = np.mean(np.vstack(phis), axis=0)
+        if self._bias_feature_idx is not None:
+            batch_mean[self._bias_feature_idx] = 0.0
+
+        if not self._feature_center_initialized:
+            self._feature_center = batch_mean.astype(np.float64)
+            self._feature_center_initialized = True
+        else:
+            beta = self.feature_centering_beta
+            self._feature_center = ((1.0 - beta) * self._feature_center) + (beta * batch_mean)
+
+        if self._bias_feature_idx is not None:
+            self._feature_center[self._bias_feature_idx] = 0.0
+
+    def _apply_feature_centering(self, phi: np.ndarray) -> np.ndarray:
+        if not self.use_feature_centering or not self._feature_center_initialized:
+            return phi
+
+        centered = phi.astype(np.float64, copy=True)
+        centered -= self._feature_center
+        if self._bias_feature_idx is not None:
+            centered[self._bias_feature_idx] = phi[self._bias_feature_idx]
+        return centered
+
+    def _prepare_candidate_features(self, phis: list[np.ndarray]) -> list[np.ndarray]:
+        if not self.use_feature_centering:
+            return phis
+        if self.learning_mode:
+            self._update_feature_center(phis)
+        return [self._apply_feature_centering(phi) for phi in phis]
+
     # ─────────────────────────────────────────────────────────────────────────
     # Shift timing helpers
     # ─────────────────────────────────────────────────────────────────────────
@@ -669,6 +898,19 @@ class LinearVFAPolicy(Policy):
     # ─────────────────────────────────────────────────────────────────────────
         
     
+    def _buffer_transition_for_batch_update(
+        self,
+        phi_cur: np.ndarray,
+        reward: float,
+        phi_next: np.ndarray,
+        elapsed_minutes: float,
+    ) -> None:
+        """Buffer one TD sample and optionally apply a periodic mean-gradient update."""
+        self.batch_buffer.append((phi_cur.copy(), reward, phi_next.copy(), elapsed_minutes))
+        if self.transition_update_interval > 0 and len(self.batch_buffer) >= self.transition_update_interval:
+            self.apply_batch_update()
+            self._transition_batch_update_count += 1
+
     def td_update(self, reward: float, phi_next: np.ndarray, elapsed_minutes: float) -> float:
         if self._prev_phi is None:
             return 0.0
@@ -681,9 +923,9 @@ class LinearVFAPolicy(Policy):
         discount = self.gamma ** (elapsed_minutes / 60.0)
 
         td_error = reward + (discount * v_next) - v_cur
-        
-        # --- THE SAFETY RAIL ---
-        td_error = np.clip(td_error, -10.0, 10.0) # Caps the update impact
+        raw_td_error = td_error
+        if self.use_batch_td_clip:
+            td_error = float(np.clip(td_error, -self.batch_td_clip_value, self.batch_td_clip_value))
 
         # [Check 2] First 5 TD transitions per episode
         if VFA_DEBUG_FLAGS.get("check2_td_updates") and self._ep_update_count < 5:
@@ -699,14 +941,32 @@ class LinearVFAPolicy(Policy):
             target_value = reward + discount * v_next
             # print(f"[TD] r={reward:.3f} vs={v_cur:.3f} tgt={target_value:.3f} err={td_error:.3f}")
 
-        if getattr(self, 'use_experience_replay', False):
+        if self.use_online_td_updates:
+            if getattr(self, 'use_td_lambda', False):
+                self._eligibility_trace = discount * self.td_lambda * self._eligibility_trace + self._prev_phi
+                gradient_vector = self._eligibility_trace
+            else:
+                gradient_vector = self._prev_phi
+
+            self.theta += self.alpha * td_error * gradient_vector
+            self.weights = list(self.theta)
+            self._online_update_count += 1
+
+            if not hasattr(self, "_online_diag_phis"):
+                self._online_diag_phis = []
+                self._online_diag_tderrs = []
+                self._online_diag_raw_tderrs = []
+            self._online_diag_phis.append(self._prev_phi.copy())
+            self._online_diag_tderrs.append(float(td_error))
+            self._online_diag_raw_tderrs.append(float(raw_td_error))
+        elif getattr(self, 'use_experience_replay', False):
             self.replay_buffer.append((self._prev_phi.copy(), reward, phi_next.copy(), elapsed_minutes))
             if len(self.replay_buffer) >= max(1000, self.mini_batch_size):
                 self.apply_mini_batch_update()
         else:
             # ALWAYS buffer the transition for batch processing!
             # The TD(lambda) trace logic is now handled inside apply_batch_update
-            self.batch_buffer.append((self._prev_phi.copy(), reward, phi_next.copy(), elapsed_minutes))
+            self._buffer_transition_for_batch_update(self._prev_phi, reward, phi_next, elapsed_minutes)
 
         return td_error
 
@@ -763,7 +1023,7 @@ class LinearVFAPolicy(Policy):
         eligibility_trace = np.zeros_like(self.theta)
 
         # Debug collectors (populated in the loop below)
-        _dbg_rewards, _dbg_targets, _dbg_preds, _dbg_tderrs = [], [], [], []
+        _dbg_rewards, _dbg_targets, _dbg_preds, _dbg_tderrs, _dbg_raw_tderrs = [], [], [], [], []
         _dbg_phis, _dbg_trace_norms = [], []
 
         for phi_cur, reward, phi_next, elapsed_minutes in self.batch_buffer:
@@ -771,12 +1031,16 @@ class LinearVFAPolicy(Policy):
             v_next = self.value(phi_next)
             discount = self.gamma ** (elapsed_minutes / 60.0)
             td_error = reward + (discount * v_next) - v_cur
+            raw_td_error = td_error
+            if self.use_batch_td_clip:
+                td_error = float(np.clip(td_error, -self.batch_td_clip_value, self.batch_td_clip_value))
             total_td += td_error
 
             _dbg_rewards.append(reward)
             _dbg_targets.append(reward + discount * v_next)
             _dbg_preds.append(v_cur)
             _dbg_tderrs.append(td_error)
+            _dbg_raw_tderrs.append(raw_td_error)
             _dbg_phis.append(phi_cur)
 
             if getattr(self, 'use_td_lambda', False):
@@ -795,12 +1059,29 @@ class LinearVFAPolicy(Policy):
         self.theta += step
         self.weights = list(self.theta)
 
+        if getattr(self, "_collect_phis_inside_batch_update", False):
+            if not hasattr(self, "_all_phis_for_corr"):
+                self._all_phis_for_corr = []
+            self._all_phis_for_corr.extend(phi.copy() for phi in _dbg_phis)
+
         # --- EXISTING BATCH LOGGING ---
         grad_norm = np.linalg.norm(mean_gradient)
         weight_diff = np.linalg.norm(self.theta - old_theta)
         step_norm = np.linalg.norm(step)
         mode_str = f"TD(λ={self.td_lambda})" if getattr(self, 'use_td_lambda', False) else "TD(0)"
-        print(f"    [{mode_str} BATCH UPDATE] n={n_transitions} | Mean TD: {mean_td:.4f} | Grad Norm: {grad_norm:.4f} | Step Norm: {step_norm:.4f}")
+        clip_msg = ""
+        if self.use_batch_td_clip and _dbg_raw_tderrs:
+            raw_td = np.array(_dbg_raw_tderrs)
+            used_td = np.array(_dbg_tderrs)
+            clip_frac = float(np.mean(np.abs(raw_td) > self.batch_td_clip_value))
+            clip_msg = (
+                f" | clip={self.batch_td_clip_value:g}"
+                f" frac={clip_frac:.3f}"
+                f" raw_mean={raw_td.mean():.4f}"
+                f" used_mean={used_td.mean():.4f}"
+            )
+        update_label = "TRANSITION-BATCH" if self.transition_update_interval > 0 else "BATCH"
+        print(f"    [{mode_str} {update_label} UPDATE] n={n_transitions} | Mean TD: {mean_td:.4f} | Grad Norm: {grad_norm:.4f} | Step Norm: {step_norm:.4f}{clip_msg}")
 
         self._batch_update_count = getattr(self, '_batch_update_count', 0) + 1
         if self._batch_update_count % 5 == 0:
@@ -864,6 +1145,80 @@ class LinearVFAPolicy(Policy):
                       f"θ_before={old_theta[i]:+.4f} θ_after={self.theta[i]:+.4f}")
 
         self.batch_buffer.clear()
+
+    def flush_online_update_diagnostics(self, episode_number: int) -> None:
+        """Print compact diagnostics for online TD updates and clear per-episode buffers."""
+        phis = getattr(self, "_online_diag_phis", [])
+        if not phis:
+            return
+
+        td = np.array(getattr(self, "_online_diag_tderrs", []), dtype=np.float64)
+        raw_td = np.array(getattr(self, "_online_diag_raw_tderrs", []), dtype=np.float64)
+        phis_arr = np.array(phis)
+
+        print(
+            f"    [ONLINE TD UPDATE] n={len(phis)} | "
+            f"Mean TD: {td.mean():.4f} | TD std: {td.std():.4f}"
+        )
+
+        if self.use_batch_td_clip and len(raw_td) > 0:
+            clip_frac = float(np.mean(np.abs(raw_td) > self.batch_td_clip_value))
+            print(
+                f"  [ONLINE CLIP] clip={self.batch_td_clip_value:g} "
+                f"frac={clip_frac:.3f} raw_mean={raw_td.mean():.4f} "
+                f"used_mean={td.mean():.4f}"
+            )
+
+        every_n = VFA_DEBUG_FLAGS.get("every_n_episodes", 10)
+        if VFA_DEBUG_FLAGS.get("check7_feature_scale") and episode_number % every_n == 0:
+            print(f"  [CHK7] Feature scale (online episode #{episode_number}):")
+            for i, fname in enumerate(self.FEATURE_NAMES):
+                col = phis_arr[:, i]
+                p95 = float(np.percentile(np.abs(col), 95))
+                fz = float(np.mean(col == 0))
+                print(
+                    f"    {fname:<40} mean={col.mean():+.4f} std={col.std():.4f} "
+                    f"min={col.min():.4f} max={col.max():.4f} p95={p95:.4f} frac0={fz:.3f}"
+                )
+
+        self._online_diag_phis = []
+        self._online_diag_tderrs = []
+        self._online_diag_raw_tderrs = []
+
+    def add_terminal_update(self, state) -> None:
+        """Append final transition with zero bootstrap so the last post-decision state is trained."""
+        if not self.use_terminal_update or self._prev_phi is None:
+            return
+
+        reward = self.reward_calc.compute_step_reward(state.metrics)
+        reward += self.reward_calc.compute_fleet_penalty(state)
+        reward = self.reward_calc.center_reward(reward)
+
+        elapsed_minutes = max(0.0, float(state.time - self._prev_time))
+        phi_terminal = np.zeros_like(self._prev_phi)
+        v_cur = self.value(self._prev_phi)
+        td_error = reward - v_cur
+        if self.use_batch_td_clip:
+            td_error_used = float(np.clip(td_error, -self.batch_td_clip_value, self.batch_td_clip_value))
+        else:
+            td_error_used = td_error
+
+        if self.use_online_td_updates:
+            self.td_update(reward, phi_terminal, elapsed_minutes)
+        else:
+            self._buffer_transition_for_batch_update(self._prev_phi, reward, phi_terminal, elapsed_minutes)
+        self._last_terminal_update = {
+            "reward": float(reward),
+            "elapsed_minutes": elapsed_minutes,
+            "v_cur": float(v_cur),
+            "td_error_raw": float(td_error),
+            "td_error_used": float(td_error_used),
+        }
+        print(
+            "  [TERMINAL UPDATE] "
+            f"r={reward:.4f} elapsed={elapsed_minutes:.1f} "
+            f"V_cur={v_cur:.4f} td_raw={td_error:.4f} td_used={td_error_used:.4f}"
+        )
     # ─────────────────────────────────────────────────────────────────────────
     # Action generation  (action-space splitting)
     # ─────────────────────────────────────────────────────────────────────────
@@ -942,6 +1297,90 @@ class LinearVFAPolicy(Policy):
             except IOError as e:
                 print(f"Warning: could not write to depot log file {self.depot_log_file}: {e}")
 
+    def _candidate_action_type(self, action, at_depot: bool) -> str:
+        if len(getattr(action, "onsite_repairs", [])) > 0:
+            return "ONSITE_REP"
+        if at_depot and len(getattr(action, "pick_ups", [])) > 0:
+            return "DEPOT_PICK"
+        if at_depot and len(getattr(action, "delivery_bikes", [])) > 0:
+            return "DEPOT_DROP"
+        if len(getattr(action, "pick_ups", [])) > 0:
+            return "PICKUP"
+        if len(getattr(action, "delivery_bikes", [])) > 0:
+            return "DELIVER"
+        return "IDLE"
+
+    def _log_candidate_diagnostics(self, state, vehicle, candidates, values, sel_idx: int, mode: str, td_err: float) -> None:
+        """Collect compact per-decision candidate value spread diagnostics."""
+        if not getattr(self, "log_candidate_diagnostics", False):
+            return
+
+        if not hasattr(self, "_candidate_diag_rows"):
+            self._candidate_diag_rows = []
+
+        ranked_idx = np.argsort(values)[::-1]
+        best_idx = int(ranked_idx[0])
+        second_idx = int(ranked_idx[1]) if len(ranked_idx) > 1 else best_idx
+        worst_idx = int(ranked_idx[-1])
+        selected = candidates[sel_idx]
+        best = candidates[best_idx]
+        at_depot = vehicle.is_at_depot()
+        tie_tol = 1e-10
+        selected_is_greedy = bool(values[sel_idx] >= values[best_idx] - tie_tol)
+        selected_rank = int(np.sum(values > values[sel_idx] + tie_tol)) + 1
+
+        _t = state.time
+        _day = int(_t // 1440)
+        _clock = _t % 1440
+        _hh = int(_clock // 60)
+        _mm = int(_clock % 60)
+
+        self._candidate_diag_rows.append({
+            "episode": getattr(self, "_comparison_episode", -1),
+            "decision_id": self._ep_decision_count,
+            "day": _day,
+            "time_hhmm": f"{_hh:02d}:{_mm:02d}",
+            "time_min": round(_t, 1),
+            "current_station": vehicle.location.id,
+            "n_candidates": len(candidates),
+            "value_best": float(values[best_idx]),
+            "value_second": float(values[second_idx]),
+            "value_worst": float(values[worst_idx]),
+            "value_mean": float(np.mean(values)),
+            "value_std": float(np.std(values)),
+            "spread_best_worst": float(values[best_idx] - values[worst_idx]),
+            "gap_best_second": float(values[best_idx] - values[second_idx]),
+            "selected_rank": selected_rank,
+            "selected_value": float(values[sel_idx]),
+            "selected_gap_from_best": float(values[sel_idx] - values[best_idx]),
+            "selected_is_greedy": selected_is_greedy,
+            "mode": "explore" if mode == "E" else "exploit",
+            "epsilon": float(self.epsilon),
+            "alpha": float(self.alpha),
+            "td_error_from_prev": float(td_err),
+            "selected_type": self._candidate_action_type(selected, at_depot),
+            "selected_next_station": getattr(selected, "next_location", getattr(selected, "next_station", "")),
+            "selected_pickups": len(getattr(selected, "pick_ups", [])),
+            "selected_deliveries": len(getattr(selected, "delivery_bikes", [])),
+            "selected_onsite_repairs": len(getattr(selected, "onsite_repairs", [])),
+            "best_type": self._candidate_action_type(best, at_depot),
+            "best_next_station": getattr(best, "next_location", getattr(best, "next_station", "")),
+        })
+
+    def flush_candidate_diagnostics(self, path: str) -> None:
+        """Append buffered candidate spread diagnostics to CSV."""
+        import csv, os  # noqa: PLC0415
+        rows = getattr(self, "_candidate_diag_rows", [])
+        if not rows:
+            return
+        write_header = not os.path.exists(path)
+        with open(path, "a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+            if write_header:
+                writer.writeheader()
+            writer.writerows(rows)
+        self._candidate_diag_rows = []
+
     # ─────────────────────────────────────────────────────────────────────────
     # Main decision entry point
     # ─────────────────────────────────────────────────────────────────────────
@@ -971,7 +1410,8 @@ class LinearVFAPolicy(Policy):
         candidates = self._generate_candidates(state, vehicle)
  
         base_func, base_onsite, base_depot = self._extract_inventories(state, vehicle)
-        
+        health_base = self._compute_health_base(state, vehicle) if self._use_health_features else None
+
         # ── Step 3: score each candidate ──────────────────────────────────
         phis: List[np.ndarray] = []
         values = np.empty(len(candidates), dtype=np.float64)
@@ -1047,10 +1487,15 @@ class LinearVFAPolicy(Policy):
                 eval_time=action_eval_time,
                 projected_time=action_eval_time,
                 dist_to_next=travel,
+                candidate_action=action,
+                health_base=health_base,
             )
             phis.append(phi)
-            values[k] = self.value(phi)    
-                    
+
+        phis = self._prepare_candidate_features(phis)
+        for k, phi in enumerate(phis):
+            values[k] = self.value(phi)
+
         # --- DEBUG 2: SPATIAL PARALYSIS ---
         if not getattr(self, "_has_printed_spatial", False) and "proximity_to_demand_gravity" in self.FEATURE_NAMES:
             idx = self.FEATURE_NAMES.index("proximity_to_demand_gravity")
@@ -1067,6 +1512,7 @@ class LinearVFAPolicy(Policy):
             reward = self.reward_calc.compute_step_reward(state.metrics)
             reward += self.reward_calc.compute_fleet_penalty(state)
             reward += self.reward_calc.compute_late_shift_penalty(vehicle, state)
+            reward = self.reward_calc.center_reward(reward)
             if getattr(self, "log_greedy_comparison", False):
                 pending = getattr(self, "_pending_comparison_row", None)
                 if pending is not None:
@@ -1094,6 +1540,7 @@ class LinearVFAPolicy(Policy):
             mode = "X"
  
         selected = candidates[sel_idx]
+        self._log_candidate_diagnostics(state, vehicle, candidates, values, sel_idx, mode, td_err)
         _ns = getattr(selected, 'next_location', getattr(selected, 'next_station', None))
         _pk = len(getattr(selected, 'pick_ups', []))
         _dl = len(getattr(selected, 'delivery_bikes', []))
@@ -1105,12 +1552,7 @@ class LinearVFAPolicy(Policy):
             at_depot = vehicle.is_at_depot()
  
             def _cls(a):
-                if len(getattr(a, 'onsite_repairs', [])) > 0: return "ONSITE_REP"
-                if at_depot and len(a.pick_ups) > 0:          return "DEPOT_PICK"
-                if at_depot and len(a.delivery_bikes) > 0:    return "DEPOT_DROP"
-                if len(a.pick_ups) > 0:                       return "PICKUP"
-                if len(a.delivery_bikes) > 0:                 return "DELIVER"
-                return "IDLE"
+                return self._candidate_action_type(a, at_depot)
  
             ranked = sorted(zip(values.tolist(), candidates), key=lambda x: -x[0])
             v_best  = ranked[0][0]
@@ -1339,7 +1781,10 @@ class LinearVFAPolicy(Policy):
 
         vfa_score    = float(values[sel_idx])
         agreed       = (vfa_dest == greedy_dest and vfa_onsite == greedy_onsite)
-        score_gap    = vfa_score - (greedy_value_in_candidates or 0.0)
+        score_gap = (
+            vfa_score - greedy_value_in_candidates
+            if greedy_value_in_candidates is not None else None
+        )
 
         vehicle_bikes = list(vehicle.get_bike_inventory())
         vehicle_depot_load = sum(
@@ -1434,6 +1879,11 @@ class LinearVFAPolicy(Policy):
         self._td_lambda_step_count = 0
         self._ep_update_count   = 0
         self._ep_decision_count = 0
+        self._online_update_count = 0
+        self._transition_batch_update_count = 0
+        self._online_diag_phis = []
+        self._online_diag_tderrs = []
+        self._online_diag_raw_tderrs = []
         self.reward_calc.reset_episode()
     # ─────────────────────────────────────────────────────────────────────────
     # Serialisation
@@ -1447,6 +1897,19 @@ class LinearVFAPolicy(Policy):
             "alpha":         self.alpha,
             "gamma":         self.gamma,
             "feature_names": self.FEATURE_NAMES,
+            "use_bias_feature": self.use_bias_feature,
+            "use_terminal_update": self.use_terminal_update,
+            "use_batch_td_clip": self.use_batch_td_clip,
+            "batch_td_clip_value": self.batch_td_clip_value,
+            "use_online_td_updates": self.use_online_td_updates,
+            "transition_update_interval": self.transition_update_interval,
+            "use_td_lambda": self.use_td_lambda,
+            "td_lambda": self.td_lambda,
+            "initial_bias": self.initial_bias,
+            "use_feature_centering": self.use_feature_centering,
+            "feature_centering_beta": self.feature_centering_beta,
+            "feature_center": self._feature_center,
+            "feature_center_initialized": self._feature_center_initialized,
         }
         with open(path, "wb") as f:
             pickle.dump(payload, f)
@@ -1460,6 +1923,16 @@ class LinearVFAPolicy(Policy):
         # Use stored feature names if available and not overridden by caller
         if "active_features" not in kwargs and payload.get("feature_names") is not None:
             kwargs["active_features"] = payload["feature_names"]
+        if "use_bias_feature" not in kwargs:
+            kwargs["use_bias_feature"] = bool(payload.get("use_bias_feature", False) or "bias" in payload.get("feature_names", []))
+        kwargs.setdefault("use_terminal_update", bool(payload.get("use_terminal_update", False)))
+        kwargs.setdefault("use_batch_td_clip", bool(payload.get("use_batch_td_clip", False)))
+        kwargs.setdefault("batch_td_clip_value", float(payload.get("batch_td_clip_value", 10.0)))
+        kwargs.setdefault("use_online_td_updates", bool(payload.get("use_online_td_updates", False)))
+        kwargs.setdefault("transition_update_interval", int(payload.get("transition_update_interval", 0)))
+        kwargs.setdefault("initial_bias", payload.get("initial_bias", None))
+        kwargs.setdefault("use_feature_centering", bool(payload.get("use_feature_centering", False)))
+        kwargs.setdefault("feature_centering_beta", float(payload.get("feature_centering_beta", 0.01)))
         policy         = cls(
             n_features   = payload["n_features"],
             alpha        = payload["alpha"],
@@ -1467,8 +1940,13 @@ class LinearVFAPolicy(Policy):
             learning_mode= False,
             **kwargs,
         )
+        policy.use_td_lambda = bool(payload.get("use_td_lambda", False))
+        policy.td_lambda = float(payload.get("td_lambda", 0.0))
         policy.theta   = payload["theta"]
         policy.weights = list(policy.theta)
+        if payload.get("feature_center") is not None:
+            policy._feature_center = np.array(payload["feature_center"], dtype=np.float64)
+            policy._feature_center_initialized = bool(payload.get("feature_center_initialized", True))
         return policy
 
 

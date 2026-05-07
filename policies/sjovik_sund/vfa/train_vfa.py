@@ -65,7 +65,7 @@ ALPHA_START   : float = 0.05   # initial alpha for TD updates, will be overwritt
 EPSILON_START : float = 0.2     # initial exploration rate
 EPSILON_END   : float = 0.01    # final exploration rate
 
-GAMMA         : float = 0.99      # discount factor
+GAMMA         : float = 0.95      # discount factor
 
 # ── Feature configuration ───────────────────────────────────────────────────────
 LOGISTICS_ENABLED : bool = False  # Enable Pillar 4: Spatial & Logistic Constraints features
@@ -239,6 +239,22 @@ def train(
     weight_trip_served : float = 0.0,
     not_at_depot_at_end_penalty : float = 0.0,
     functional_bikes_at_end_penalty : float = 0.0,
+    use_bias_feature: bool = False,
+    use_reward_centering: bool = False,
+    reward_centering_beta: float = 0.01,
+    use_terminal_update: bool = False,
+    use_batch_td_clip: bool = False,
+    batch_td_clip_value: float = 10.0,
+    use_online_td_updates: bool = False,
+    transition_update_interval: int = 0,
+    use_feature_scale_diagnostics: bool = False,
+    diagnostic_every_n_episodes: int = 10,
+    td_lambda: float = 0.0,
+    initial_bias: float | None = None,
+    use_feature_centering: bool = False,
+    feature_centering_beta: float = 0.01,
+    log_candidate_diagnostics: bool = False,
+    log_greedy_comparison: bool = False,
 ) -> LinearVFAPolicy:
     
     # BATCH SIZE configuration
@@ -282,6 +298,18 @@ def train(
     print(f"  alpha schedule      : {alpha_start:.5f} -> {alpha_end:.5f}")
     print(f"  epsilon schedule    : {epsilon_start:.5f} -> {epsilon_end:.5f}")
     print(f"  gamma               : {gamma}")
+    print(f"  bias feature        : {use_bias_feature}")
+    print(f"  reward centering    : {use_reward_centering} (beta={reward_centering_beta})")
+    print(f"  terminal update     : {use_terminal_update}")
+    print(f"  batch TD clipping   : {use_batch_td_clip} (clip={batch_td_clip_value})")
+    print(f"  online TD updates   : {use_online_td_updates}")
+    print(f"  transition updates  : every {transition_update_interval} transitions" if transition_update_interval > 0 else "  transition updates  : disabled")
+    print(f"  feature scale diag  : {use_feature_scale_diagnostics} (every {diagnostic_every_n_episodes} batch updates)")
+    print(f"  TD lambda           : {td_lambda:g} ({'TD(lambda)' if td_lambda > 0.0 else 'TD(0)'})")
+    print(f"  initial bias        : {initial_bias}")
+    print(f"  feature centering   : {use_feature_centering} (beta={feature_centering_beta})")
+    print(f"  candidate diag      : {log_candidate_diagnostics}")
+    print(f"  greedy comparison   : {log_greedy_comparison}")
     print(f"  Instance          : {instance_name}")
     print("=" * 72 + "\n")
 
@@ -296,13 +324,28 @@ def train(
         weight_trip_served=weight_trip_served,
         not_at_depot_at_end_penalty=not_at_depot_at_end_penalty,
         functional_bikes_at_end_penalty=functional_bikes_at_end_penalty,
+        use_reward_centering=use_reward_centering,
+        reward_centering_beta=reward_centering_beta,
     )
 
-    print(f" RewardConfig: weight_starvation={reward_config.weight_starvation}, weight_congestion={reward_config.weight_congestion}, weight_fleet_degradation={reward_config.weight_fleet_degradation}, weight_trip_served={reward_config.weight_trip_served}")
+    print(f" RewardConfig: weight_starvation={reward_config.weight_starvation}, weight_congestion={reward_config.weight_congestion}, weight_fleet_degradation={reward_config.weight_fleet_degradation}, weight_trip_served={reward_config.weight_trip_served}, use_reward_centering={reward_config.use_reward_centering}, reward_centering_beta={reward_config.reward_centering_beta}")
+
+    if initial_bias not in (None, 0.0) and not use_bias_feature and not (active_features and "bias" in active_features):
+        raise ValueError("initial_bias requires --use_bias_feature or an active feature set containing 'bias'")
+    if not 0.0 <= feature_centering_beta <= 1.0:
+        raise ValueError(f"feature_centering_beta must be in [0, 1], got {feature_centering_beta}")
+    if transition_update_interval < 0:
+        raise ValueError(f"transition_update_interval must be >= 0, got {transition_update_interval}")
+    if use_online_td_updates and transition_update_interval > 0:
+        raise ValueError("use_online_td_updates and transition_update_interval are mutually exclusive")
+
+    n_active_features = len(active_features) if active_features is not None else N_FEATURES
+    if use_bias_feature and not (active_features and "bias" in active_features):
+        n_active_features += 1
 
     vfa_policy = LinearVFAPolicy(
         active_features=active_features,
-        n_features=len(active_features) if active_features is not None else N_FEATURES,
+        n_features=n_active_features,
         alpha         = alpha_start,
         gamma         = gamma,
         learning_mode = True,
@@ -310,16 +353,29 @@ def train(
         maintenance_enabled=ENABLE_COMPONENT_FAILURES,
         logistics_enabled=LOGISTICS_ENABLED,
         reward_calculator=RewardCalculator(config=reward_config, gamma=gamma),
+        use_bias_feature=use_bias_feature,
+        use_terminal_update=use_terminal_update,
+        use_batch_td_clip=use_batch_td_clip,
+        batch_td_clip_value=batch_td_clip_value,
+        use_online_td_updates=use_online_td_updates,
+        transition_update_interval=transition_update_interval,
+        initial_bias=initial_bias,
+        use_feature_centering=use_feature_centering,
+        feature_centering_beta=feature_centering_beta,
     )
     
-    # --- TD(λ) ---
-    vfa_policy.use_td_lambda = True
-    vfa_policy.td_lambda = 0.8
+    if not 0.0 <= td_lambda <= 1.0:
+        raise ValueError(f"td_lambda must be in [0, 1], got {td_lambda}")
 
-    # --- Greedy comparison diagnostic ---
-    # Set to True to produce greedy_vs_vfa_decision_comparison.csv alongside the model.
-    GREEDY_COMPARISON_LOG = False
-    vfa_policy.log_greedy_comparison = GREEDY_COMPARISON_LOG
+    # --- TD(λ); td_lambda=0.0 keeps plain TD(0) ---
+    vfa_policy.use_td_lambda = td_lambda > 0.0
+    vfa_policy.td_lambda = td_lambda
+    VFA_DEBUG_FLAGS["check7_feature_scale"] = use_feature_scale_diagnostics
+    VFA_DEBUG_FLAGS["every_n_episodes"] = max(1, int(diagnostic_every_n_episodes))
+
+    vfa_policy.log_candidate_diagnostics = log_candidate_diagnostics
+    vfa_policy.log_greedy_comparison = log_greedy_comparison
+    vfa_policy._collect_phis_inside_batch_update = transition_update_interval > 0
 
     # --- EXPERIENCE REPLAY TOGGLE ---
     # Set to True to use Mini-Batch SGD at every timestep
@@ -351,13 +407,39 @@ def train(
     t0 = time.time()
 
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    config_parts = []
+    if use_bias_feature:
+        config_parts.append("bias")
+    if use_reward_centering:
+        config_parts.append(f"rc{reward_centering_beta:g}")
+    if use_terminal_update:
+        config_parts.append("term")
+    if td_lambda > 0.0:
+        config_parts.append(f"lam{td_lambda:g}")
+    if use_batch_td_clip:
+        config_parts.append(f"clip{batch_td_clip_value:g}")
+    if use_online_td_updates:
+        config_parts.append("online")
+    if transition_update_interval > 0:
+        config_parts.append(f"trans{transition_update_interval}")
+    if use_feature_scale_diagnostics:
+        config_parts.append(f"fsdiag{diagnostic_every_n_episodes}")
+    if initial_bias not in (None, 0.0):
+        config_parts.append(f"initb{str(initial_bias).replace('-', 'm').replace('.', 'p')}")
+    if use_feature_centering:
+        config_parts.append(f"fcenter{feature_centering_beta:g}")
+    if log_candidate_diagnostics:
+        config_parts.append("canddiag")
+    if log_greedy_comparison:
+        config_parts.append("gcmp")
+    config_suffix = ("_" + "_".join(config_parts)) if config_parts else ""
 
     # Resolve weights CSV path before the episode loop so incremental writes
     # always work, even when no --save path was given.
     if save_path is not None:
         weights_csv_path = Path(str(save_path).replace(".pkl", "_weights_evolution.csv"))
     else:
-        weights_csv_path = SAVE_DIR / f"vfa_training_{instance_name}_{run_timestamp}_weights_evolution.csv"
+        weights_csv_path = SAVE_DIR / f"vfa_training_{instance_name}{config_suffix}_{run_timestamp}_weights_evolution.csv"
 
     # ── Episode loop ──────────────────────────────────────────────────────────
     for ep in range(num_episodes):
@@ -380,6 +462,7 @@ def train(
         print(f"EPISODE {ep+1}/{num_episodes} | Alpha: {current_alpha:.5f} | Epsilon: {current_epsilon:.5f}")
         print(f"{'='*50}")
         ############
+        vfa_policy._comparison_episode = ep + 1
 
         # ── Build episode policy ───────────────────────────────────────────
         # EpisodeTrainingPolicy:
@@ -402,6 +485,8 @@ def train(
             config        = config,
         )
 
+        vfa_policy.add_terminal_update(simulator.state)
+
         # --- WRITE CSV FILES INTO FOLDERS ---
         # Only use for specific debug as it takes up too much space
         '''filename = f"run_{run_timestamp}/ep_{ep:03d}/vfa_training_{instance_name}.csv"
@@ -417,15 +502,15 @@ def train(
         )'''
         # ----------------------------
 
-        # Pass episode number to comparison rows before flushing
-        vfa_policy._comparison_episode = ep + 1
-
         sl = _service_level(simulator, vfa_policy)
         service_levels.append(sl)
 
-        if GREEDY_COMPARISON_LOG:
+        if log_greedy_comparison:
             cmp_path = str(save_path).replace(".pkl", "__vfa_comparison.csv") if save_path else str(SAVE_DIR / "greedy_vs_vfa_comparison.csv")
             vfa_policy.flush_comparison_log(cmp_path)
+        if log_candidate_diagnostics:
+            cand_path = str(save_path).replace(".pkl", "__candidate_diagnostics.csv") if save_path else str(SAVE_DIR / "candidate_diagnostics.csv")
+            vfa_policy.flush_candidate_diagnostics(cand_path)
 
         ep_stat = _collect_episode_stats(
             simulator, stats_collector, vfa_policy,
@@ -433,8 +518,46 @@ def train(
         )
         episode_stats.append(ep_stat)
 
+        if use_online_td_updates:
+            if not hasattr(vfa_policy, '_all_phis_for_corr'):
+                vfa_policy._all_phis_for_corr = []
+            online_phis = getattr(vfa_policy, "_online_diag_phis", [])
+            if online_phis:
+                vfa_policy._all_phis_for_corr.extend([phi.copy() for phi in online_phis])
+            vfa_policy.flush_online_update_diagnostics(ep + 1)
+
+            if (ep + 1) % 5 == 0 and len(vfa_policy._all_phis_for_corr) > 0:
+                recent_phis = vfa_policy._all_phis_for_corr[-10000:]
+                temp_df = pd.DataFrame(recent_phis, columns=vfa_policy.FEATURE_NAMES)
+                corr = temp_df.corr(method='pearson')
+
+                print(f"\n  [DEBUG Ep {ep + 1}] Pearson Correlation with 'squared_starvation_penalty':")
+                if 'squared_starvation_penalty' in corr.columns:
+                    target_col = corr['squared_starvation_penalty']
+                    high_corr = target_col[abs(target_col) > 0.3].sort_values()
+                    for f, c in high_corr.items():
+                        print(f"      {f:<35} : {c:+.3f}")
+                print()
+
+        elif transition_update_interval > 0:
+            if (ep + 1) == num_episodes and getattr(vfa_policy, 'batch_buffer', None):
+                vfa_policy.apply_batch_update()
+
+            if (ep + 1) % 5 == 0 and len(getattr(vfa_policy, '_all_phis_for_corr', [])) > 0:
+                recent_phis = vfa_policy._all_phis_for_corr[-10000:]
+                temp_df = pd.DataFrame(recent_phis, columns=vfa_policy.FEATURE_NAMES)
+                corr = temp_df.corr(method='pearson')
+
+                print(f"\n  [DEBUG Ep {ep + 1}] Pearson Correlation with 'squared_starvation_penalty':")
+                if 'squared_starvation_penalty' in corr.columns:
+                    target_col = corr['squared_starvation_penalty']
+                    high_corr = target_col[abs(target_col) > 0.3].sort_values()
+                    for f, c in high_corr.items():
+                        print(f"      {f:<35} : {c:+.3f}")
+                print()
+
         # Apply synchronous batch update every 'batch_size' episodes
-        if (ep + 1) % batch_size == 0 or (ep + 1) == num_episodes:
+        elif (ep + 1) % batch_size == 0 or (ep + 1) == num_episodes:
             # Collect phis for correlation analysis BEFORE the buffer clears
             if not hasattr(vfa_policy, '_all_phis_for_corr'):
                 vfa_policy._all_phis_for_corr = []
@@ -475,7 +598,10 @@ def train(
 
         # ── Periodic checkpoint every 50 episodes ─────────────────────────
         if (ep + 1) % 50 == 0:
-            ck_path = SAVE_DIR / f"vfa_checkpoint_ep{ep + 1:04d}.pkl"
+            if save_path is not None:
+                ck_path = save_path.with_name(f"{save_path.stem}_checkpoint_ep{ep + 1:04d}{save_path.suffix}")
+            else:
+                ck_path = SAVE_DIR / f"vfa_checkpoint_ep{ep + 1:04d}.pkl"
             vfa_policy.save(ck_path)
 
         # ── Periodically update weights evolution CSV every 5 episodes ──
@@ -504,7 +630,7 @@ def train(
     # ── Final save ────────────────────────────────────────────────────────────
     if save_path is None:
         ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_path = SAVE_DIR / f"vfa_trained_baseline_features_alpha{alpha_start}_seed{seed_offset}_{ts}.pkl"
+        save_path = SAVE_DIR / f"vfa_trained_baseline_features_alpha{alpha_start}_seed{seed_offset}{config_suffix}_{ts}.pkl"
 
     vfa_policy.save(save_path)
 
@@ -644,8 +770,99 @@ if __name__ == "__main__":
         default=-1.0,
         help="Reward weight for congestion events (default: -1.0)",
     )
+    parser.add_argument(
+        "--use_bias_feature",
+        action="store_true",
+        help="Add a constant bias/intercept feature to the linear VFA",
+    )
+    parser.add_argument(
+        "--use_reward_centering",
+        action="store_true",
+        help="Subtract a running reward mean before TD updates",
+    )
+    parser.add_argument(
+        "--reward_centering_beta",
+        type=float,
+        default=0.01,
+        help="EMA step size for reward centering baseline (default: 0.01)",
+    )
+    parser.add_argument(
+        "--use_terminal_update",
+        action="store_true",
+        help="Append terminal transition with zero bootstrap at the end of each episode",
+    )
+    parser.add_argument(
+        "--use_batch_td_clip",
+        action="store_true",
+        help="Clip TD errors inside the episode batch update",
+    )
+    parser.add_argument(
+        "--batch_td_clip_value",
+        type=float,
+        default=10.0,
+        help="Absolute TD error clip used when --use_batch_td_clip is set",
+    )
+    parser.add_argument(
+        "--use_online_td_updates",
+        action="store_true",
+        help="Apply TD updates immediately at every transition instead of episode-batch updates.",
+    )
+    parser.add_argument(
+        "--transition_update_interval",
+        type=int,
+        default=0,
+        help="Apply one mean-gradient TD update every N buffered transitions. 0 keeps episode-batch updates.",
+    )
+    parser.add_argument(
+        "--use_feature_scale_diagnostics",
+        action="store_true",
+        help="Print per-feature scale diagnostics during batch updates",
+    )
+    parser.add_argument(
+        "--diagnostic_every_n_episodes",
+        type=int,
+        default=10,
+        help="Frequency for heavy diagnostics such as feature scale reports",
+    )
+    parser.add_argument(
+        "--td_lambda",
+        type=float,
+        default=0.0,
+        help="Eligibility trace lambda. Use 0.0 for TD(0); e.g. 0.3 for low TD(lambda)",
+    )
+    parser.add_argument(
+        "--initial_bias",
+        type=float,
+        default=None,
+        help="Initial value for the bias/intercept weight. Requires --use_bias_feature.",
+    )
+    parser.add_argument(
+        "--use_feature_centering",
+        action="store_true",
+        help="Center non-bias VFA features with a running candidate-set mean before value/TD updates.",
+    )
+    parser.add_argument(
+        "--feature_centering_beta",
+        type=float,
+        default=0.01,
+        help="EMA step size for feature centering when --use_feature_centering is set.",
+    )
+    parser.add_argument(
+        "--log_candidate_diagnostics",
+        action="store_true",
+        help="Write per-decision candidate value spread diagnostics to CSV.",
+    )
+    parser.add_argument(
+        "--log_greedy_comparison",
+        action="store_true",
+        help="Write VFA-vs-greedy-maintenance decision comparison diagnostics to CSV.",
+    )
 
     args = parser.parse_args()
+    if args.transition_update_interval < 0:
+        raise ValueError(f"--transition_update_interval must be >= 0, got {args.transition_update_interval}")
+    if args.use_online_td_updates and args.transition_update_interval > 0:
+        raise ValueError("--use_online_td_updates and --transition_update_interval are mutually exclusive")
 
     selected_features = []
     #IF training with specific features: wirte features inside list and pass to active_features
@@ -662,4 +879,20 @@ if __name__ == "__main__":
         epsilon_end       = args.epsilon_end,
         weight_starvation = args.weight_starvation,
         weight_congestion = args.weight_congestion,
+        use_bias_feature  = args.use_bias_feature,
+        use_reward_centering = args.use_reward_centering,
+        reward_centering_beta = args.reward_centering_beta,
+        use_terminal_update = args.use_terminal_update,
+        use_batch_td_clip = args.use_batch_td_clip,
+        batch_td_clip_value = args.batch_td_clip_value,
+        use_online_td_updates = args.use_online_td_updates,
+        transition_update_interval = args.transition_update_interval,
+        use_feature_scale_diagnostics = args.use_feature_scale_diagnostics,
+        diagnostic_every_n_episodes = args.diagnostic_every_n_episodes,
+        td_lambda = args.td_lambda,
+        initial_bias = args.initial_bias,
+        use_feature_centering = args.use_feature_centering,
+        feature_centering_beta = args.feature_centering_beta,
+        log_candidate_diagnostics = args.log_candidate_diagnostics,
+        log_greedy_comparison = args.log_greedy_comparison,
     )

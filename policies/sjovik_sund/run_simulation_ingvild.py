@@ -232,14 +232,14 @@ def _log_debug_bike_odometer_initialization(
 
         found_ids.add(bike_id)
         component_odometers = getattr(bike, "component_odometers", {}) or {}
-        print(
+        '''print(
             f"[ODOMETER INIT] seed={seed} bike={bike_id}\n"
             f"  stats={stats_path}\n"
             f"  method={sampling_method} bounds={sampling_bounds}\n"
             f"  total_distance_km={getattr(bike, 'total_distance_km', 0.0):.6f}"
         )
         for component, odometer in sorted(component_odometers.items()):
-            print(f"  {component}: {odometer:.6f}")
+            print(f"  {component}: {odometer:.6f}")'''
 
     missing_ids = wanted_ids - found_ids
     for bike_id in sorted(missing_ids):

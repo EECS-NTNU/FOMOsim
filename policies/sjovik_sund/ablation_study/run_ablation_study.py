@@ -59,7 +59,7 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, str(WORKSPACE_ROOT))
  
-from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
+from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START, EPSILON_START, EPSILON_END
  
  
 # -----------------------------------------------------------------------------
@@ -74,7 +74,6 @@ from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START
 EXPERIMENTS = {
     #BASELINES
     "Imbalance": ["rebalancing_imbalance"], # CIM1: total L1 imbalance across the network
-    "Squared": ["squared_starvation_penalty", "squared_congestion_penalty"], # CIM2/CIM3: mean squared starvation/congestion ratio
     "Imbalance_squared" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty"], # CIM1 + CIM2/CIM3: global mass + mean squared depth
     "Squared_temporal": [
         "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
@@ -88,6 +87,11 @@ EXPERIMENTS = {
         "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
     "Imbalance_squared_temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + FIM1/FIM2: global mass + gross departure/arrival pressure
+    "Imbalance_severity": ["rebalancing_imbalance", "starvation_severity_max", "congestion_severity_max"], # CIM1 + CIM6/CIM7: global mass + Q95 tail severity      
+    "Imbalance_severity_temporal": ["rebalancing_imbalance", "starvation_severity_max", "congestion_severity_max", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM6/CIM7 + FIM1/FIM2: global mass + Q95 tail severity + gross departure/arrival pressure    
+    "Imbalance_severity_squared_temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "starvation_severity_max", "congestion_severity_max", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM2/CIM3 + CIM6/CIM7 + FIM1/FIM2: global mass + mean squared depth + Q95 tail severity + gross departure/arrival pressure
+    
+    
     
     # ① vs ③: does depth add value on top of CIM1?
     # ② vs ③: does CIM1 add value on top of depth?
@@ -101,6 +105,42 @@ EXPERIMENTS = {
     "Imbalance_squared_temporal_MP1": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization"], # CIM1 + FIM1/FIM2 + MP1: global mass + gross departure/arrival pressure + trailer cannibalization ratio
     "Imbalance_squared_temporal_MP6": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + MP6: global mass + gross departure/arrival pressure + depot idle fraction
     "Imbalance_squared_temporal_fullMP" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk", "trailer_cannibalization", "global_onsite_backlog", "global_depot_backlog", "depot_idle_fraction"], # CIM1 + FIM1/FIM2 + all MP features 
+    "Imbalance_squared_temporal_healthMP" : [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+        "fleet_health_deficit",
+        "depot_bound_health_deficit",
+        "onsite_health_deficit",
+        "maintenance_restoration_value",
+    ],
+    "Imbalance_squared_temporal_MP3_dest_local" : [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+        "global_depot_backlog",
+        "destination_onsite_fraction",
+        "destination_depot_fraction",
+    ],
+    
+    "Imbalance_squared_temporal_MP3_full_dest" : [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+        "global_depot_backlog",
+        "destination_onsite_fraction",
+        "destination_depot_fraction",
+        "destination_starv_ratio",
+        "destination_cong_ratio",
+    ],
+    "Imbalance_squared_temporal_destination_station_aware": ["rebalancing_imbalance","squared_starvation_penalty","squared_congestion_penalty", "gross_starvation_risk","gross_congestion_risk", "destination_onsite_fraction","destination_depot_fraction",], # CIM1 + FIM1/FIM2 + destination-local station health/imbalance features
+
 
     "Maintenance_full_test": [
         "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
@@ -328,7 +368,7 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0):
+def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = False, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -340,6 +380,38 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
     experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
  
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    config_parts = []
+    if use_bias_feature:
+        config_parts.append("bias")
+    if use_reward_centering:
+        config_parts.append(f"rc{reward_centering_beta:g}")
+    if use_terminal_update:
+        config_parts.append("term")
+    if td_lambda > 0.0:
+        config_parts.append(f"lam{td_lambda:g}")
+    if use_batch_td_clip:
+        config_parts.append(f"clip{batch_td_clip_value:g}")
+    if use_online_td_updates:
+        config_parts.append("online")
+    if transition_update_interval > 0:
+        config_parts.append(f"trans{transition_update_interval}")
+    if use_feature_scale_diagnostics:
+        config_parts.append(f"fsdiag{diagnostic_every_n_episodes}")
+    if gamma != 0.99:
+        config_parts.append(f"g{gamma:g}")
+    if epsilon_start == 0.0 and epsilon_end == 0.0:
+        config_parts.append("eps0")
+    elif epsilon_start != EPSILON_START or epsilon_end != EPSILON_END:
+        config_parts.append(f"eps{epsilon_start:g}-{epsilon_end:g}")
+    if initial_bias not in (None, 0.0):
+        config_parts.append(f"initb{str(initial_bias).replace('-', 'm').replace('.', 'p')}")
+    if use_feature_centering:
+        config_parts.append(f"fcenter{feature_centering_beta:g}")
+    if log_candidate_diagnostics:
+        config_parts.append("canddiag")
+    if log_greedy_comparison:
+        config_parts.append("gcmp")
+    config_suffix = ("_" + "_".join(config_parts)) if config_parts else ""
  
     # 1. OUTERMOST LOOP: Seeds
     for run_id, seed_offset in enumerate(seeds):
@@ -361,7 +433,7 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
 
                 # Force 'models' to be the root, and add your custom folder name inside it
                 base_dir = Path("models") / output_dir
-                exp_dir = base_dir / f"{exp_name}_alpha_{alpha}_{timestamp}"
+                exp_dir = base_dir / f"{exp_name}_alpha_{alpha}{config_suffix}_{timestamp}"
                 
                 # Safely create the whole chain (models -> custom_name -> exp_name)
                 # exist_ok=True ensures subsequent seeds peacefully reuse this folder
@@ -369,10 +441,12 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
  
                 train(
                     num_episodes=episodes,
-                    save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}.pkl",
+                    save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}{config_suffix}.pkl",
                     seed_offset=seed_offset,
                     active_features=features,
                     alpha_start=alpha,
+                    epsilon_start=epsilon_start,
+                    epsilon_end=epsilon_end,
                     gamma=gamma,
                     weight_starvation=weight_starvation,
                     weight_congestion=weight_congestion,
@@ -380,6 +454,22 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
                     weight_trip_served=weight_trip_served,
                     not_at_depot_at_end_penalty=not_at_depot_at_end_penalty,
                     functional_bikes_at_end_penalty=functional_bikes_at_end_penalty,
+                    use_bias_feature=use_bias_feature,
+                    use_reward_centering=use_reward_centering,
+                    reward_centering_beta=reward_centering_beta,
+                    use_terminal_update=use_terminal_update,
+                    use_batch_td_clip=use_batch_td_clip,
+                    batch_td_clip_value=batch_td_clip_value,
+                    use_online_td_updates=use_online_td_updates,
+                    transition_update_interval=transition_update_interval,
+                    use_feature_scale_diagnostics=use_feature_scale_diagnostics,
+                    diagnostic_every_n_episodes=diagnostic_every_n_episodes,
+                    td_lambda=td_lambda,
+                    initial_bias=initial_bias,
+                    use_feature_centering=use_feature_centering,
+                    feature_centering_beta=feature_centering_beta,
+                    log_candidate_diagnostics=log_candidate_diagnostics,
+                    log_greedy_comparison=log_greedy_comparison,
                 )
  
 # -----------------------------------------------------------------------------
@@ -440,8 +530,121 @@ if __name__ == "__main__":
         "--functional_bikes_at_end_penalty", type=float, default=0.0,
         help="Per-bike per-step penalty for functional cargo near shift end (default: 0.0, suggested: -0.2)",
     )
+    parser.add_argument(
+        "--epsilon_start",
+        type=float,
+        default=EPSILON_START,
+        help="Initial epsilon for epsilon-greedy exploration.",
+    )
+    parser.add_argument(
+        "--epsilon_end",
+        type=float,
+        default=EPSILON_END,
+        help="Final epsilon for epsilon-greedy exploration.",
+    )
+    parser.add_argument(
+        "--use_bias_feature",
+        action="store_true",
+        help="Add a constant bias/intercept feature to the linear VFA",
+    )
+    parser.add_argument(
+        "--use_reward_centering",
+        action="store_true",
+        help="Subtract a running reward mean before TD updates",
+    )
+    parser.add_argument(
+        "--reward_centering_beta",
+        type=float,
+        default=0.01,
+        help="EMA step size for reward centering baseline (default: 0.01)",
+    )
+    parser.add_argument(
+        "--use_terminal_update",
+        action="store_true",
+        help="Append terminal transition with zero bootstrap at the end of each episode",
+    )
+    parser.add_argument(
+        "--use_batch_td_clip",
+        action="store_true",
+        help="Clip TD errors inside the episode batch update",
+    )
+    parser.add_argument(
+        "--batch_td_clip_value",
+        type=float,
+        default=10.0,
+        help="Absolute TD error clip used when --use_batch_td_clip is set",
+    )
+    parser.add_argument(
+        "--use_online_td_updates",
+        action="store_true",
+        help="Apply TD updates immediately at every transition instead of episode-batch updates.",
+    )
+    parser.add_argument(
+        "--transition_update_interval",
+        type=int,
+        default=0,
+        help="Apply one mean-gradient TD update every N buffered transitions. 0 keeps episode-batch updates.",
+    )
+    parser.add_argument(
+        "--use_feature_scale_diagnostics",
+        action="store_true",
+        help="Print per-feature scale diagnostics during batch updates",
+    )
+    parser.add_argument(
+        "--diagnostic_every_n_episodes",
+        type=int,
+        default=10,
+        help="Frequency for heavy diagnostics such as feature scale reports",
+    )
+    parser.add_argument(
+        "--td_lambda",
+        type=float,
+        default=0.0,
+        help="Eligibility trace lambda. Use 0.0 for TD(0); e.g. 0.3 for low TD(lambda)",
+    )
+    parser.add_argument(
+        "--initial_bias",
+        type=float,
+        default=None,
+        help="Initial value for the bias/intercept weight. Requires --use_bias_feature.",
+    )
+    parser.add_argument(
+        "--use_feature_centering",
+        action="store_true",
+        help="Center non-bias VFA features with a running candidate-set mean before value/TD updates.",
+    )
+    parser.add_argument(
+        "--feature_centering_beta",
+        type=float,
+        default=0.01,
+        help="EMA step size for feature centering when --use_feature_centering is set.",
+    )
+    parser.add_argument(
+        "--log_candidate_diagnostics",
+        action="store_true",
+        help="Write per-decision candidate value spread diagnostics to CSV.",
+    )
+    parser.add_argument(
+        "--log_greedy_comparison",
+        action="store_true",
+        help="Write VFA-vs-greedy-maintenance decision comparison diagnostics to CSV.",
+    )
 
     args = parser.parse_args()
+    if args.epsilon_start < 0.0 or args.epsilon_end < 0.0:
+        raise ValueError(
+            f"--epsilon_start and --epsilon_end must be non-negative, "
+            f"got {args.epsilon_start}, {args.epsilon_end}"
+        )
+    if args.transition_update_interval < 0:
+        raise ValueError(f"--transition_update_interval must be >= 0, got {args.transition_update_interval}")
+    if args.use_online_td_updates and args.transition_update_interval > 0:
+        raise ValueError("--use_online_td_updates and --transition_update_interval are mutually exclusive")
+    if not 0.0 <= args.td_lambda <= 1.0:
+        raise ValueError(f"--td_lambda must be in [0, 1], got {args.td_lambda}")
+    if not 0.0 <= args.feature_centering_beta <= 1.0:
+        raise ValueError(f"--feature_centering_beta must be in [0, 1], got {args.feature_centering_beta}")
+
     run_all_experiments(
         seeds=args.seeds,
         episodes=args.episodes,
@@ -455,6 +658,24 @@ if __name__ == "__main__":
         gamma=args.gamma,
         not_at_depot_at_end_penalty=args.not_at_depot_at_end_penalty,
         functional_bikes_at_end_penalty=args.functional_bikes_at_end_penalty,
+        epsilon_start=args.epsilon_start,
+        epsilon_end=args.epsilon_end,
+        use_bias_feature=args.use_bias_feature,
+        use_reward_centering=args.use_reward_centering,
+        reward_centering_beta=args.reward_centering_beta,
+        use_terminal_update=args.use_terminal_update,
+        use_batch_td_clip=args.use_batch_td_clip,
+        batch_td_clip_value=args.batch_td_clip_value,
+        use_online_td_updates=args.use_online_td_updates,
+        transition_update_interval=args.transition_update_interval,
+        use_feature_scale_diagnostics=args.use_feature_scale_diagnostics,
+        diagnostic_every_n_episodes=args.diagnostic_every_n_episodes,
+        td_lambda=args.td_lambda,
+        initial_bias=args.initial_bias,
+        use_feature_centering=args.use_feature_centering,
+        feature_centering_beta=args.feature_centering_beta,
+        log_candidate_diagnostics=args.log_candidate_diagnostics,
+        log_greedy_comparison=args.log_greedy_comparison,
     )
  
     # -- Axis 2: Spatial Recoverability ---------------------------------------

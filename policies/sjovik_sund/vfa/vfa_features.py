@@ -72,6 +72,12 @@ Pillar 3  —  Maintenance Pressure  (MP, appended if maintenance_enabled)
   MP7  depot_idle_fraction             depot.fixed_queue / F                    [NEW — 0=good]
   MP8  recoverable_starvation          Σ_i onsite_i * 1[func_i < T_i] / F      [NEW]
   MP9  maintenance_urgency             MP2 * CIM8  (RESTORED)
+  MP11 fleet_failure_risk              mean bike-level component failure risk [0=good]
+  MP12 fleet_health_deficit            1 - mean bike health                 [0=good]
+  MP13 fleet_low_health_fraction       fraction of bikes below health floor [0=good]
+  MP14 depot_bound_health_deficit      depot-bound bad health pressure      [0=good]
+  MP15 onsite_health_deficit           onsite bad health pressure           [0=good]
+  MP16 maintenance_restoration_value   candidate maintenance value          [0=neutral, high=good]
 
 ──────────────────────────────────────────────────────────────────────────────
 Pillar 4  —  Spatial & Logistic Constraints  (SLC, appended if logistics_enabled)
@@ -100,6 +106,7 @@ def get_feature_names(
     logistics_enabled: bool = False,
     demand_horizon_enabled: bool = True,
     destination_features_enabled: bool = True,
+    include_bias: bool = False,
 ) -> list:
     """Returns the canonical feature name list for the active operational pillars.
 
@@ -109,8 +116,10 @@ def get_feature_names(
     Pillar 4 (Spatial & Logistic)        — logistics_enabled
     """
 
+    names = ["bias"] if include_bias else []
+
     # Pillar 1: Current System Imbalance (CIM, always active)
-    names = [
+    names.extend([
         "rebalancing_imbalance",          # CIM1
         "squared_starvation_penalty",     # CIM2
         "squared_congestion_penalty",     # CIM3
@@ -120,7 +129,7 @@ def get_feature_names(
         "congestion_severity_max",        # CIM7
         "starvation_count",               # CIM8
         "congestion_count",               # CIM9
-    ]
+    ])
 
     # Pillar 2: Future System Imbalance (FIM)
     if demand_horizon_enabled:
@@ -144,6 +153,12 @@ def get_feature_names(
             "recoverable_starvation",            # MP8 — new
             "maintenance_urgency",               # MP9 — restored
             "rush_hour_onsite_backlog",          # MP10 — time-aware penalty
+            "fleet_failure_risk",                # MP11 — 0=good, positive=bad
+            "fleet_health_deficit",              # MP12 — 0=good, positive=bad
+            "fleet_low_health_fraction",         # MP13 — 0=good, positive=bad
+            "depot_bound_health_deficit",        # MP14 — 0=good, positive=bad
+            "onsite_health_deficit",             # MP15 — 0=good, positive=bad
+            "maintenance_restoration_value",     # MP16 — 0=neutral, positive=good
         ])
 
     # Pillar 4: Spatial & Logistic Constraints (SLC)
@@ -162,6 +177,7 @@ def get_feature_names(
             "destination_starv_ratio",        # max(0, T_nxt - I_nxt) / T_nxt
             "destination_cong_ratio",         # max(0, I_nxt - T_nxt) / (C_nxt - T_nxt)
             "destination_onsite_fraction",    # onsite[nxt] / C_nxt
+            "destination_depot_fraction",      # depot[nxt] / C_nxt
             "destination_travel_penalty",     # dist_to_next / max_system_travel_time
             "destination_roi_starvation",     # Starvation / Travel Penalty
             "cur_station_onsite_fraction",    # onsite[cur] / C_cur  (post-decision)
@@ -204,6 +220,12 @@ def extract(
     total_stations: int,
     depot_in_repair: float = 0.0,
     depot_fixed_queue: float = 0.0,
+    fleet_failure_risk: float = 0.0,
+    fleet_health_deficit: float = 0.0,
+    fleet_low_health_fraction: float = 0.0,
+    depot_bound_health_deficit: float = 0.0,
+    onsite_health_deficit: float = 0.0,
+    maintenance_restoration_value: float = 0.0,
     maintenance_enabled: bool = True,
     logistics_enabled: bool = False,
     time_remaining: Optional[float] = None,
@@ -219,9 +241,10 @@ def extract(
     max_travel_time: float = 60.0,    # system-wide max travel time for normalisation
     next_is_depot: bool = False,
     destination_features_enabled: bool = False,
+    include_bias: bool = False,
 ) -> np.ndarray:
 
-    features = []
+    features = [1.0] if include_bias else []
 
 
     # ── Safe denominators ─────────────────────────────────────────────────────
@@ -381,6 +404,12 @@ def extract(
             phi_dw_onsite_backlog, phi_fleet_broken, phi_depot_idle,
             phi_rec_starvation, phi_maint_urgency,
             phi_rush_hour_onsite,
+            float(np.clip(fleet_failure_risk, 0.0, 1.0)),
+            float(np.clip(fleet_health_deficit, 0.0, 1.0)),
+            float(np.clip(fleet_low_health_fraction, 0.0, 1.0)),
+            float(max(0.0, depot_bound_health_deficit)),
+            float(max(0.0, onsite_health_deficit)),
+            float(max(0.0, maintenance_restoration_value)),
         ]
         features.extend(cat_b)
 
@@ -440,14 +469,16 @@ def extract(
     if next_station_idx >= 0 and next_station_idx < N:
         nxt_func   = float(func[next_station_idx])
         nxt_onsite = float(onsite[next_station_idx])
+        nxt_depot  = float(depot[next_station_idx])
         nxt_tgt    = float(target_safe[next_station_idx])
         nxt_cap    = float(max(capacities[next_station_idx], 1.0))
         nxt_cap_rem = float(max(capacities[next_station_idx] - target_safe[next_station_idx], 1.0))
         phi_dest_starv  = max(0.0, (nxt_tgt - nxt_func) / nxt_tgt)
         phi_dest_cong   = max(0.0, (nxt_func - nxt_tgt) / nxt_cap_rem)
         phi_dest_onsite = nxt_onsite / nxt_cap
+        phi_dest_depot  = nxt_depot / nxt_cap
     else:
-        phi_dest_starv = phi_dest_cong = phi_dest_onsite = 0.0
+        phi_dest_starv = phi_dest_cong = phi_dest_onsite = phi_dest_depot = 0.0
 
     phi_dest_travel = dist_to_next / max(max_travel_time, 1.0)
 
@@ -490,7 +521,8 @@ def extract(
     phi_depot_urgency = min(1.0, dist_to_depot / max(time_remaining_abs, 1.0))
 
     features.extend([
-        phi_dest_starv, phi_dest_cong, phi_dest_onsite, phi_dest_travel, phi_roi_starv,
+        phi_dest_starv, phi_dest_cong, phi_dest_onsite, phi_dest_depot,
+        phi_dest_travel, phi_roi_starv,
         phi_cur_onsite_frac, phi_cur_func_deficit,
         phi_func_late_pressure, phi_depot_late_pressure,
         phi_non_depot_late_load_pressure, phi_late_depot_return,

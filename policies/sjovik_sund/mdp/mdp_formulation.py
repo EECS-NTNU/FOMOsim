@@ -428,6 +428,8 @@ class PostDecisionState:
             depot=new_depot_s,
             capacity=s.capacity,
             target=s.target,   # propagate target — unchanged by action
+            expected_departure_rate=s.expected_departure_rate,
+            expected_arrival_rate=s.expected_arrival_rate,
         )
 
         # ── build new vehicle status ───────────────────────────────────────

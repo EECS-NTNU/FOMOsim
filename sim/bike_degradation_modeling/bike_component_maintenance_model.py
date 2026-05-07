@@ -55,12 +55,12 @@ class ComponentMaintenanceManager:
             old_value = bike.component_odometers[category]
             bike.component_odometers[category] = 0.0
             
-            if verbose and (bike.bike_id in SAMPLE_BIKES_TO_TRACK):
+            '''if verbose and (bike.bike_id in SAMPLE_BIKES_TO_TRACK):
                 print(f"\n COMPONENT REPAIRED on Bike {bike.bike_id}")
                 print(f"   Component: {category}")
                 print(f"   Odometer reset: {old_value:.2f} km -> 0.0 km")
                 print(f"   Total bike odometer: {bike.total_distance_km:.2f} km (unchanged)")
-                print(f"   Other components continue accumulating usage\n")
+                print(f"   Other components continue accumulating usage\n")'''
             # Always print for debug
             print(f"[DEBUG] After odometer reset: Bike {bike.bike_id} {category} odometer = {bike.component_odometers[category]:.2f} km (was {old_value:.2f} km)")
     

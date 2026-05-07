@@ -58,12 +58,12 @@ class Bike(Location):
         self.component_failures = {}
         self.component_odometers = {}
 
-        if verbose and (self.bike_id in SAMPLE_BIKES_TO_TRACK):
+        '''if verbose and (self.bike_id in SAMPLE_BIKES_TO_TRACK):
             print(f"\n{'='*100}")
             print(f"INITIALIZING BIKE {self.bike_id} - COMPONENT TRACKING")
             print(f"{'='*100}")
             print(f"{'Component':<30} {'Scale(λ)':<15} {'Shape(k)':<12} {'MTTF(km)':<15}")
-            print(f"{'-'*100}")
+            print(f"{'-'*100}")'''
 
         for category, params in damage_configuration.DAMAGE_CATEGORIES.items():
             self.component_failures[category] = {

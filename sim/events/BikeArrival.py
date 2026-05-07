@@ -69,8 +69,8 @@ class BikeArrival(Event):
             # Check if trip was degraded (moderate failure flag from BikeDeparture)
             elif hasattr(self.bike, 'failure_severity') and self.bike.failure_severity == 'moderate':
                 trip_result = 'completed_degraded'
-                if VERBOSE_FAILURE_TRACKING or (self.bike.bike_id in SAMPLE_BIKES_TO_TRACK):
-                    print(f"[DEGRADED TRIP] Bike {self.bike.bike_id} completed with degraded performance")
+                '''if VERBOSE_FAILURE_TRACKING or (self.bike.bike_id in SAMPLE_BIKES_TO_TRACK):
+                    print(f"[DEGRADED TRIP] Bike {self.bike.bike_id} completed with degraded performance")'''
             
             # Check for congestion
             elif self.congested:
@@ -247,14 +247,14 @@ class BikeArrival(Event):
         elif hasattr(self.bike, 'pending_onsite_fix') and self.bike.pending_onsite_fix:
             category = self.bike.pending_failure_category
             
-            print(f"\n{'='*80}")
+            '''print(f"\n{'='*80}")
             print(f"[BIKE ARRIVAL - ON-SITE FIX TRIGGERED]")
             print(f"  Bike {self.bike.bike_id} arrived at {self.arrival_station_id}")
             print(f"  Component failed during trip: {category}")
             print(f"  Total bike odometer: {self.bike.total_distance_km:.1f} km")
             print(f"  Component odometer: {self.bike.component_odometers[category]:.1f} km")
             print(f"  ACTION: Bike FLAGGED for on-site repair (REMOVED FROM SERVICE)")
-            print(f"{'='*80}\n")
+            print(f"{'='*80}\n")'''
             
             # REMOVE BIKE FROM SERVICE UNTIL REPAIRED
             self.bike.is_available = False
