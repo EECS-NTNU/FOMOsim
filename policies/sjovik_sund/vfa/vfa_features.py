@@ -447,7 +447,7 @@ def extract(
     include_bias: bool = False,
 ) -> np.ndarray:
 
-    features = []
+    features = [1.0] if include_bias else []
 
 
     # ── Safe denominators ─────────────────────────────────────────────────────

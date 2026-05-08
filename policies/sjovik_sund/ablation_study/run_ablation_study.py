@@ -128,6 +128,41 @@ EXPERIMENTS = {
     "Imbalance_severity_temporal": ["rebalancing_imbalance", "starvation_severity_max", "congestion_severity_max", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM6/CIM7 + FIM1/FIM2: global mass + Q95 tail severity + gross departure/arrival pressure    
     "Imbalance_severity_squared_temporal": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "starvation_severity_max", "congestion_severity_max", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM2/CIM3 + CIM6/CIM7 + FIM1/FIM2: global mass + mean squared depth + Q95 tail severity + gross departure/arrival pressure
 
+    # -- Screening-guided rebalancing experiments -----------------------------
+    # R4: Tests whether net temporal shortfall is more useful than gross
+    # departure/arrival pressure when current imbalance depth is already known.
+    "R4_NetTemporalAlternative": [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "net_starvation_shortfall",
+        "net_congestion_shortfall",
+    ],
+
+    # R6: Tests whether the breadth of affected stations adds signal beyond the
+    # usual global imbalance and squared depth features.
+    "R6_BreadthDepth": [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "starvation_count",
+        "congestion_count",
+    ],
+
+    # R7: Tests whether destination-local information improves action
+    # discrimination beyond the compact global temporal core.
+    "R7_DestinationAware": [
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+        "destination_starv_ratio",
+        "destination_cong_ratio",
+        "destination_travel_penalty",
+        "cur_station_func_deficit",
+    ],
+
     "KS_Filtered_V2": [
         "rebalancing_imbalance",          # CIM1: total L1 imbalance
         "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
