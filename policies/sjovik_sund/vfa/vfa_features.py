@@ -101,6 +101,28 @@ from settings import SERVICE_TIME_FROM, SERVICE_TIME_TO
 # Feature registry
 # ─────────────────────────────────────────────────────────────────────────────
 
+CIM_FEATURE_NAMES = [
+    "rebalancing_imbalance",          # CIM1
+    "squared_starvation_penalty",     # CIM2
+    "squared_congestion_penalty",     # CIM3
+    "exponential_starvation_penalty", # CIM4
+    "exponential_congestion_penalty", # CIM5
+    "starvation_severity_max",        # CIM6
+    "congestion_severity_max",        # CIM7
+    "starvation_count",               # CIM8
+    "congestion_count",               # CIM9
+]
+
+FIM_FEATURE_NAMES = [
+    "gross_starvation_risk",          # FIM1
+    "gross_congestion_risk",          # FIM2
+    "net_starvation_shortfall",       # FIM3
+    "net_congestion_shortfall",       # FIM4
+]
+
+REBALANCING_CORRELATION_FEATURES = CIM_FEATURE_NAMES + FIM_FEATURE_NAMES
+
+
 def get_feature_names(
     maintenance_enabled: bool = False,
     logistics_enabled: bool = False,
@@ -119,28 +141,11 @@ def get_feature_names(
     names = ["bias"] if include_bias else []
 
     # Pillar 1: Current System Imbalance (CIM, always active)
-    names.extend([
-    names.extend([
-        "rebalancing_imbalance",          # CIM1
-        "squared_starvation_penalty",     # CIM2
-        "squared_congestion_penalty",     # CIM3
-        "exponential_starvation_penalty", # CIM4
-        "exponential_congestion_penalty", # CIM5
-        "starvation_severity_max",        # CIM6
-        "congestion_severity_max",        # CIM7
-        "starvation_count",               # CIM8
-        "congestion_count",               # CIM9
-    ])
-    ])
+    names.extend(CIM_FEATURE_NAMES)
 
     # Pillar 2: Future System Imbalance (FIM)
     if demand_horizon_enabled:
-        names.extend([
-            "gross_starvation_risk",          # FIM1
-            "gross_congestion_risk",          # FIM2
-            "net_starvation_shortfall",       # FIM3
-            "net_congestion_shortfall",       # FIM4
-        ])
+        names.extend(FIM_FEATURE_NAMES)
 
     # Pillar 3: Maintenance Pressure (MP)
     if maintenance_enabled:
@@ -246,7 +251,7 @@ def extract(
     include_bias: bool = False,
 ) -> np.ndarray:
 
-    features = [1.0] if include_bias else []
+    features = []
 
 
     # ── Safe denominators ─────────────────────────────────────────────────────
@@ -288,7 +293,8 @@ def extract(
 
     # Bias: constant intercept. It calibrates baseline value but cancels out
     # across candidate actions, since it is the same for every post-decision state.
-    features.append(1.0)
+    if include_bias:
+        features.append(1.0)
 
     # CIM1: Rebalancing Imbalance — total L1 deviation from target, normalised by half capacity
     phi_imbalance = total_imbalance / max(total_cap_half, 1.0)
@@ -418,7 +424,6 @@ def extract(
             float(max(0.0, maintenance_restoration_value)),
         ]
         features.extend(cat_b)
-
 
 
     # =========================================================================

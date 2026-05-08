@@ -1,8 +1,0 @@
-seed,day,shift_hour_start,shift_hour_end,daily_functional_pickups,daily_functional_deliveries,daily_onsite_repairs,daily_depot_pickups,daily_depot_visits,daily_depot_deliveries,daily_starvations,daily_congestions,daily_trips,daily_bike_departures,daily_bike_arrivals,daily_breakdowns_onsite,daily_breakdowns_depot,daily_total_breakdowns,daily_restored_onsite,daily_restored_depot,daily_total_restored,eod_damaged_fraction_onsite,eod_damaged_fraction_depot
-46,0,5,5,302,292,0,0,0,0,62,38,2978,2916,2914,0,0,0,0,0,0,0.0,0.0
-46,1,5,5,270,275,0,0,0,0,140,113,3146,3006,3005,0,0,0,0,0,0,0.0,0.0
-46,2,5,5,306,296,0,0,0,0,168,33,3204,3036,3036,0,0,0,0,0,0,0.0,0.0
-46,3,5,5,319,322,0,0,0,0,234,57,3504,3270,3270,0,0,0,0,0,0,0.0,0.0
-46,4,5,5,303,303,0,0,0,0,138,41,3036,2898,2896,0,0,0,0,0,0,0.0,0.0
-46,5,5,5,292,294,0,0,0,0,24,13,2284,2260,2261,0,0,0,0,0,0,0.0,0.0
-46,6,5,5,240,240,0,0,0,0,33,21,1592,1559,1559,0,0,0,0,0,0,0.0,0.0

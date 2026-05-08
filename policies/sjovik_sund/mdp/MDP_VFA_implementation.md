@@ -171,7 +171,9 @@ In practice, the current implementation is close to this design, but there are i
 ## Reward/cost flow
 - **Produced by simulator metrics:** starvations/congestions over decision intervals.
 - **Collected by offline collector:** interval deltas converted to scalar `observed_cost`.
-- **Consumed by trainer:** TD target `observed_cost + gamma * V(next_post_state)`.
+- **Consumed by trainer:** continuous-time TD target
+  `gamma^((elapsed_minutes / 2) / 60) * observed_cost + gamma^(elapsed_minutes / 60) * V(next_post_state)`.
+  The interval cost/reward is treated as occurring at the interval midpoint; the continuation value is discounted over the full decision interval.
 
 ## Transition flow
 - **Produced by collector:** serialized transition records (`Experience`).
