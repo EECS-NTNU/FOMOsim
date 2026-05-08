@@ -658,9 +658,72 @@ class LoggingSimulator(sim.Simulator):
         self.operation_logger: Any = None
         # Optional RunLogger — set externally in run_simulation()
         self.run_logger = None
+        self._pending_run_logger = None
+        self.evaluation_warmup_end_time = None
+        self._evaluation_warmup_reset_done = False
 
         # Now call parent __init__
         super().__init__(*args, **kwargs)
+
+    def configure_evaluation_warmup(self, warmup_end_time, run_logger=None):
+        """Reset metrics/logging when the first post-warmup event is reached."""
+        self.evaluation_warmup_end_time = warmup_end_time
+        self._pending_run_logger = run_logger
+        self._evaluation_warmup_reset_done = False
+        self.run_logger = None
+
+    def _activate_evaluation_window_if_needed(self):
+        warmup_end_time = self.evaluation_warmup_end_time
+        if (
+            warmup_end_time is None
+            or self._evaluation_warmup_reset_done
+            or not self.event_queue
+            or self.event_queue[0].time < warmup_end_time
+        ):
+            return
+
+        self._evaluation_warmup_reset_done = True
+        self.state.metrics = sim.Metric()
+
+        self.bike_movements = []
+        self.trip_requests = []
+        self.hourly_metrics = []
+        self.hourly_station_metrics = []
+        self.component_failures = []
+        self.hourly_vehicle_metrics = []
+        self.daily_health_metrics = []
+
+        warmup_hour = int(warmup_end_time // 60)
+        warmup_day = int(warmup_end_time // (24 * 60))
+        self.last_logged_hour = warmup_hour - 1
+        self.last_logged_day = warmup_day - 1
+        self.last_starvations = 0
+        self.last_congestions = 0
+        self.last_pickups = 0
+        self.last_deliveries = 0
+        self.last_hour_starvations = 0
+        self.last_hour_long_congestions = 0
+        self.last_hour_short_congestions = 0
+        self.last_hour_bike_pickups = 0
+        self.last_hour_bike_deliveries = 0
+        self.last_hour_total_failures = 0
+        self.last_hour_depot_failures = 0
+        self.last_hour_onsite_failures = 0
+        self.last_hour_trips = 0
+        self.last_hour_departures = 0
+        self.last_hour_arrivals = 0
+
+        self.run_logger = self._pending_run_logger
+        if self.run_logger is not None:
+            if hasattr(self.run_logger, "_reset_episode_totals"):
+                self.run_logger._reset_episode_totals()
+            if hasattr(self.run_logger, "_reset_hour_accumulators"):
+                self.run_logger._reset_hour_accumulators()
+            self.run_logger.capture_fleet_start(self.state)
+
+    def single_step(self):
+        self._activate_evaluation_window_if_needed()
+        super().single_step()
 
     def log_component_failure(self, time, bike_id, component_category, damage_severity, 
                               odometer_km, failure_probability, departure_station=None, 
@@ -1016,10 +1079,10 @@ class LoggingSimulator(sim.Simulator):
 
         # Print individual component failures with severity breakdown
         if hourly_total_failures > 0:
-            print(f"\n{'COMPONENT BREAKDOWN (THIS HOUR)':^70}")
+            '''print(f"\n{'COMPONENT BREAKDOWN (THIS HOUR)':^70}")
             print(f"{'-'*70}")
             print(f"{'Component':<25} {'Total':>10} {'Depot':>10} {'On-Site':>10}")
-            print(f"{'-'*70}")
+            print(f"{'-'*70}")'''
 
             # Calculate time range for this hour
             last_hour_start = (hour * 60)  # Start of the hour we're logging
@@ -1048,16 +1111,16 @@ class LoggingSimulator(sim.Simulator):
                 # Use component odometer if available, otherwise use bike odometer
                 odometer = component_odo if component_odo is not None else failure.get('odometer_km', 0.0)
                 
-                print(f"{bike_id:<10} "
+                '''print(f"{bike_id:<10} "
                     f"{category:<25} "
                     f"{scale:<15.1f} "
                     f"{shape:<12.2f} "
                     f"{failure_prob:<12.6f} "
-                    f"{odometer:<10.1f}")
+                    f"{odometer:<10.1f}")'''
             
-            print(f"{'-'*95}")
+            # Component failure details are written to structured logs; keep stdout quiet.
         
-        print(f"{'='*70}\n")
+        #print(f"{'='*70}\n")
     
     def log_station_metrics(self, hour, current_time):
         """Log per-station metrics for the current hour"""
