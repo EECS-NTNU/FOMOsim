@@ -27,6 +27,9 @@ Usage
 from __future__ import annotations
 
 import sys
+import io
+if hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 import argparse
 import time
 import numpy as np
@@ -395,7 +398,7 @@ def train(
     # [Check 1] Feature ↔ theta mapping at startup
     print("\n[CHK1] Feature-Theta Mapping:")
     for i, name in enumerate(vfa_policy.FEATURE_NAMES):
-        print(f"  {i:2d}  {name:<40}  θ_init={vfa_policy.theta[i]:+.6f}")
+        print(f"  {i:2d}  {name:<40}  theta_init={vfa_policy.theta[i]:+.6f}")
     print(f"  phi_len={vfa_policy.N_FEATURES}  theta_len={len(vfa_policy.theta)}")
     assert vfa_policy.N_FEATURES == len(vfa_policy.theta), "[CHK1] MISMATCH: phi length != theta length!"
 
