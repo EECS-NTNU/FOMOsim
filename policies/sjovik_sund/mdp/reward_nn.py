@@ -18,7 +18,7 @@ class RewardConfig:
 
     # --- Experiment switch: maintenance shaping (+10/+5/+5) ---
     # Set False for tail-value experiments — keeps value surface consistent with base reward.
-    use_maintenance_shaping: bool = True
+    use_maintenance_shaping: bool = False
     
     @staticmethod
     def benchmark_base_only() -> "RewardConfig":

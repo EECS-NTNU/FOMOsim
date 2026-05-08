@@ -807,7 +807,7 @@ if __name__ == "__main__":
         "--log-files",
         nargs="+",
         choices=["results", "hourly", "daily", "decisions", "debug", "all", "none"],
-        default=None,
+        default=["results", "hourly", "daily", "decisions"] ,
         help=(
             "Centralized run_logs outputs to write. Examples: "
             "'--log-files results daily', '--log-files all', '--log-files none'. "

@@ -3,7 +3,7 @@
 from policies.policy import Policy
 from policies.sjovik_sund.mdp.mdp_formulation import extract_mdp_state, PostDecisionState
 from policies.sjovik_sund.mdp.mdp_config import MDPConfig
-from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
+from policies.sjovik_sund.mdp.candidate_generator_nn import generate_candidates
 from policies.sjovik_sund.NN.nn_model import NNValueNetwork
 from policies.sjovik_sund.NN.nn_state_encoder import encode_state
 
@@ -21,6 +21,14 @@ class NNGreedyPolicy(Policy):
         self.config   = config
         self.depot_id = depot_id
         self._device  = next(nn_model.parameters()).device
+
+    def _mdp_action_allowed(self, action) -> bool:
+        if not self.config.allow_onsite_repairs and action.onsite_repairs != 0:
+            return False
+        if not self.config.allow_depot_removals:
+            if action.depot_removals != 0 or action.depot_dropoffs != 0 or action.load_from_queue != 0:
+                return False
+        return True
 
     def get_best_action(self, state, vehicle):
         mdp_state = extract_mdp_state(
@@ -44,6 +52,8 @@ class NNGreedyPolicy(Policy):
         best_value  = -float("inf")
         with torch.no_grad():
             for mdp_action, sim_action in pairs:
+                if not self._mdp_action_allowed(mdp_action):
+                    continue
                 try:
                     post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
                     enc = encode_state(post_state)
@@ -64,7 +74,7 @@ import torch
 from policies.policy import Policy
 from policies.sjovik_sund.mdp.mdp_formulation import extract_mdp_state, PostDecisionState
 from policies.sjovik_sund.mdp.mdp_config import MDPConfig
-from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
+from policies.sjovik_sund.mdp.candidate_generator_nn import generate_candidates
 from policies.sjovik_sund.NN.nn_model import NNValueNetwork
 from policies.sjovik_sund.NN.nn_state_encoder import encode_state
 
@@ -81,6 +91,14 @@ class NNGreedyPolicy(Policy):
         self.config   = config
         self.depot_id = depot_id
         self._device  = next(nn_model.parameters()).device
+
+    def _mdp_action_allowed(self, action) -> bool:
+        if not self.config.allow_onsite_repairs and action.onsite_repairs != 0:
+            return False
+        if not self.config.allow_depot_removals:
+            if action.depot_removals != 0 or action.depot_dropoffs != 0 or action.load_from_queue != 0:
+                return False
+        return True
 
     def get_best_action(self, state, vehicle):
         mdp_state = extract_mdp_state(
@@ -105,14 +123,21 @@ class NNGreedyPolicy(Policy):
         best_value  = -float("inf")
         with torch.no_grad():
             for mdp_action, sim_action in pairs:
+                if not self._mdp_action_allowed(mdp_action):
+                    continue
                 try:
-                    post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
+                    post_state, action_duration, _ = PostDecisionState.apply(mdp_state, mdp_action)
                     dest = mdp_action.next_station
                     dest_tt = {
                         sid: state.get_vehicle_travel_time(dest, sid)
                         for sid in mdp_state.stations
                     }
-                    enc = encode_state(post_state, dest_travel_times=dest_tt)
+                    enc = encode_state(
+                        post_state,
+                        dest_travel_times=dest_tt,
+                        mdp_action=mdp_action,
+                        action_duration=action_duration,
+                    )
                 except Exception:
                     continue
                 
