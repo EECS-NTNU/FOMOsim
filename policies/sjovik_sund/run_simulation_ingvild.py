@@ -132,9 +132,9 @@ class SimulationConfig:
     
     # === CLI Defaults ===
     default_seed: int = 42
-    default_nsims: int = 1
+    default_nsims: int = 10
     default_vehicles: int = 1
-    default_duration_hours: int = 1344 # 56 days / 8 weeks
+    default_duration_hours: int = 504  #21 days - equal to learning days in VFA
 
     # === Operational Debug Logging ===
     operation_logging_enabled: bool = False
@@ -793,7 +793,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--warmup-days",
         type=float,
-        default=0.0,
+        default=7,
         help=(
             "Evaluation warmup in days before metrics/logs are counted. "
             "Uses GreedyMaintenancePolicy when maintenance is enabled, otherwise GreedyPolicy. "
