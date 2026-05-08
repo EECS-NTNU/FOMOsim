@@ -6,7 +6,6 @@
 
 # python policies/sjovik_sund/run_simulation_ingvild.py --vfa-model models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl --active-features rebalancing_imbalance squared_starvation_penalty squared_congestion_penalty gross_starvation_risk gross_congestion_risk --duration 672
 
-
 ######################################################
 import os
 import sys
@@ -132,9 +131,9 @@ class SimulationConfig:
     
     # === CLI Defaults ===
     default_seed: int = 42
-    default_nsims: int = 1
+    default_nsims: int = 10
     default_vehicles: int = 1
-    default_duration_hours: int = 1344 # 56 days / 8 weeks
+    default_duration_hours: int = 504  #21 days - equal to learning days in VFA
 
     # === Operational Debug Logging ===
     operation_logging_enabled: bool = False
@@ -793,7 +792,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--warmup-days",
         type=float,
-        default=0.0,
+        default=7,
         help=(
             "Evaluation warmup in days before metrics/logs are counted. "
             "Uses GreedyMaintenancePolicy when maintenance is enabled, otherwise GreedyPolicy. "
