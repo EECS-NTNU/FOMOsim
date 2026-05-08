@@ -118,11 +118,29 @@ EXPERIMENTS = {
         "gross_starvation_risk",          # FIM1: gross departure pressure
         "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
+
+    "Squared_only": [
+        "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
+        "squared_congestion_penalty",     # CIM3: mean squared congestion ratio
+    ],
     "Imbalance_squared_temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + FIM1/FIM2: global mass + gross departure/arrival pressure
-    "Imbalance_severity": ["rebalancing_imbalance", "starvation_severity_max", "congestion_severity_max"], # CIM1 + CIM6/CIM7: global mass + Q95 tail severity      
     "Imbalance_severity_temporal": ["rebalancing_imbalance", "starvation_severity_max", "congestion_severity_max", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM6/CIM7 + FIM1/FIM2: global mass + Q95 tail severity + gross departure/arrival pressure    
-    "Imbalance_severity_squared_temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "starvation_severity_max", "congestion_severity_max", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM2/CIM3 + CIM6/CIM7 + FIM1/FIM2: global mass + mean squared depth + Q95 tail severity + gross departure/arrival pressure
+    "Imbalance_severity_squared_temporal": ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "starvation_severity_max", "congestion_severity_max", "gross_starvation_risk", "gross_congestion_risk"], # CIM1 + CIM2/CIM3 + CIM6/CIM7 + FIM1/FIM2: global mass + mean squared depth + Q95 tail severity + gross departure/arrival pressure
+
+    "KS_Filtered_V2": [
+        "rebalancing_imbalance",          # CIM1: total L1 imbalance
+        "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
+        "squared_congestion_penalty",     # CIM3: mean squared congestion ratio
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
+        "demand_weighted_onsite_backlog", # MP: onsite backlog weighted by demand
+        "demand_weighted_depot_backlog",  # MP: depot backlog weighted by demand
+        "fleet_broken_fraction",          # MP: overall fleet health
+        "depot_idle_fraction",            # MP: depot throughput signal
+    ],
     
+    #"Severity_only": ["starvation_severity_max", "congestion_severity_max"], # CIM6/CIM7: Q95 tail severity without global mass signal
+    #"Imbalance_severity": ["rebalancing_imbalance", "starvation_severity_max", "congestion_severity_max"], # CIM1 + CIM6/CIM7: global mass + Q95 tail severity      
     
     # ① vs ③: does depth add value on top of CIM1?
     # ② vs ③: does CIM1 add value on top of depth?

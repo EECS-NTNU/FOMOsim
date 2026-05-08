@@ -3,29 +3,14 @@ import sys
 import re
 import argparse
 import shutil
-import shutil
+import textwrap
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from dataclasses import dataclass
-from dataclasses import dataclass
 from pathlib import Path
- 
-# Use LaTeX styling when the local machine has LaTeX installed; otherwise keep
-# math labels working through Matplotlib's built-in mathtext renderer.
-if shutil.which("latex"):
-    plt.rcParams.update({
-        "text.usetex": True,
-        "font.family": "serif",
-        "text.latex.preamble": r"\usepackage[T1]{fontenc} \usepackage{mlmodern}"
-    })
-else:
-    plt.rcParams.update({
-        "text.usetex": False,
-        "font.family": "serif",
-    })
- 
+
  
 # Use LaTeX styling when the local machine has LaTeX installed; otherwise keep
 # math labels working through Matplotlib's built-in mathtext renderer.
@@ -82,6 +67,42 @@ def _parse_run_folder(folder_name: str):
         exp_name = f"{base_name}_{suffix_without_timestamp}"
 
     return exp_name, base_name, alpha_str
+
+
+def _display_name(name: str) -> str:
+    return name.replace("_", " ")
+
+
+def _wrapped_legend_label(label: str, width: int = 58) -> str:
+    return "\n".join(
+        textwrap.wrap(
+            label,
+            width=width,
+            break_long_words=False,
+            break_on_hyphens=False,
+        )
+    )
+
+
+def _place_legend_below(fig, ax, *, ncols: int = 1, fontsize: int = 9, wrap_width: int = 58):
+    handles, labels = ax.get_legend_handles_labels()
+    if not handles:
+        return
+
+    labels = [_wrapped_legend_label(label, width=wrap_width) for label in labels]
+    rows = int(np.ceil(len(labels) / max(1, ncols)))
+    fig.subplots_adjust(bottom=min(0.45, 0.13 + 0.065 * rows))
+    ax.legend(
+        handles,
+        labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.14),
+        ncol=ncols,
+        fontsize=fontsize,
+        frameon=True,
+        columnspacing=1.5,
+        handlelength=2.8,
+    )
  
  
 def discover_runs(study_dir: Path, filter_alphas=None, filter_experiments=None):
@@ -118,6 +139,8 @@ def load_experiment(exp_dir: Path):
     # Define the columns you want to ignore
     cols_to_ignore = [
         "alpha", "alpha_initial", "epsilon", "epsilon_initial", "starvations",
+        "gamma", "transition_update_interval", "transition_batch_updates",
+        "remainder_batch_updates", "batch_updates_this_episode",
         "long_congestions", "short_congestions", "total_trips", "bike_departures",
         "bike_arrivals", "total_onsite_repairs", "total_depot_pickups",
         "total_depot_deliveries", "total_depot_visits", "total_functional_pickups",
@@ -161,17 +184,10 @@ def load_experiment(exp_dir: Path):
         feature_df = df.drop(columns=["episode", "service_level"])
         feature_df = feature_df.apply(pd.to_numeric, errors="coerce").dropna(axis=1, how="all")
         w_vals = feature_df.values
-        feature_df = df.drop(columns=["episode", "service_level"])
-        feature_df = feature_df.apply(pd.to_numeric, errors="coerce").dropna(axis=1, how="all")
-        w_vals = feature_df.values
  
-        loaded_data.append((sl_smoothed, w_vals, episodes, list(feature_df.columns)))
         loaded_data.append((sl_smoothed, w_vals, episodes, list(feature_df.columns)))
         if len(episodes) < min_length:
             min_length = len(episodes)
-
-    if not loaded_data:
-        return None
 
     if not loaded_data:
         return None
@@ -179,19 +195,13 @@ def load_experiment(exp_dir: Path):
     all_sls, all_weights, final_episodes = [], [], None
     feature_names = list(dict.fromkeys(feat for *_, features in loaded_data for feat in features))
     for sl_smoothed, w_vals, ep_vals, features in loaded_data:
-    feature_names = list(dict.fromkeys(feat for *_, features in loaded_data for feat in features))
-    for sl_smoothed, w_vals, ep_vals, features in loaded_data:
         all_sls.append(sl_smoothed[:min_length])
-        weight_df = pd.DataFrame(w_vals[:min_length, :], columns=features)
-        all_weights.append(weight_df.reindex(columns=feature_names).values)
         weight_df = pd.DataFrame(w_vals[:min_length, :], columns=features)
         all_weights.append(weight_df.reindex(columns=feature_names).values)
         final_episodes = ep_vals[:min_length]
  
     assert final_episodes is not None
-    assert final_episodes is not None
     all_sls = np.array(all_sls)
-    all_weights = np.array(all_weights, dtype=float)
     all_weights = np.array(all_weights, dtype=float)
  
     return (
@@ -199,14 +209,13 @@ def load_experiment(exp_dir: Path):
         all_sls.mean(axis=0),
         all_sls.std(axis=0),
         np.nanmean(all_weights, axis=0),
-        np.nanmean(all_weights, axis=0),
         feature_names,
         found_seeds,
     )
  
  
 def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
-    study_dir = WORKSPACE_ROOT / "models/maintenance_feature_sets"
+    study_dir = WORKSPACE_ROOT / "models/baselines_withmaint"
     #study_dir = WORKSPACE_ROOT / "models/Convergencemethods/Rewardshaping"
     #study_dir = WORKSPACE_ROOT / "models/Convergencemethods/TDlambda"
     if not study_dir.exists():
@@ -278,7 +287,7 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
  
             episodes, sl_mean, sl_std, weights_mean, feature_names, found_seeds = result
             color = get_color(exp_name, run.alpha)
-            run_suffix = f"  ({run.path.name})" if alpha_counts[run.alpha] > 1 else ""
+            run_suffix = f"  ({_display_name(run.path.name)})" if alpha_counts[run.alpha] > 1 else ""
  
             ax.plot(
                 episodes, sl_mean,
@@ -292,8 +301,6 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
             any_plotted = True
  
             # Weight evolution plot: each feature gets its own palette color
- 
-            # Weight evolution plot: each feature gets its own palette color
             fig_w, ax_w = plt.subplots(figsize=(12, 6))
             weight_colors = [COLORS[i % len(COLORS)] for i in range(len(feature_names))]
             for i, feat in enumerate(feature_names):
@@ -303,14 +310,11 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
             ax_w.set_title(
                 rf"Weight evolution: {exp_name} ($\alpha$={alpha_label})",
                 #f"Seeds: {', '.join(found_seeds)}",
-                #f"Seeds: {', '.join(found_seeds)}",
                 fontsize=13, fontweight="bold"
             )
             ax_w.set_xlabel("Episode", fontsize=12)
             ax_w.set_ylabel(r"Weight ($\theta$)", fontsize=12)
-            ax_w.set_ylabel(r"Weight ($\theta$)", fontsize=12)
             ax_w.grid(True, alpha=0.3)
-            ax_w.legend(loc="center left", bbox_to_anchor=(1, 0.5), fontsize=11)
             ax_w.legend(loc="center left", bbox_to_anchor=(1, 0.5), fontsize=11)
             plt.tight_layout()
             fig_w.savefig(run.path / f"{run.path.name}_mean_weights.png", dpi=200, bbox_inches="tight")
@@ -331,12 +335,10 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
         ax.set_xlabel("Training episode", fontsize=12)
         ax.set_ylabel("Service level (30-ep moving avg)", fontsize=12)
         ax.grid(True, alpha=0.3)
-        ax.legend(loc="lower right", fontsize=11)
-        ax.legend(loc="lower right", fontsize=11)
-        fig.tight_layout()
+        _place_legend_below(fig, ax, ncols=1, fontsize=9, wrap_width=62)
  
         out = study_dir / f"convergence_{exp_name}.png"
-        fig.savefig(out, dpi=200)
+        fig.savefig(out, dpi=200, bbox_inches="tight", pad_inches=0.15)
         plt.close(fig)
         print(f"  -> Saved {out.name}")
  
@@ -356,11 +358,11 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
                 continue
             episodes, sl_mean, sl_std, *_ = result
             color = get_color(exp_name)
-            run_suffix = f"  ({run.path.name})" if alpha_counts[run.alpha] > 1 else ""
+            run_suffix = f"  ({_display_name(run.path.name)})" if alpha_counts[run.alpha] > 1 else ""
             ax_master.plot(
                 episodes, sl_mean,
                 linestyle="-", linewidth=2.0, alpha=1, color=color,
-                label=rf"{exp_name}  $\alpha$={alpha_label}{run_suffix}  (peak={sl_mean.max():.4f})",
+                label=rf"{_display_name(exp_name)}  $\alpha$={alpha_label}{run_suffix}  (peak={sl_mean.max():.4f})",
             )
             ax_master.fill_between(episodes, sl_mean - sl_std, sl_mean + sl_std, color=color, alpha=0.08)
             trend = np.poly1d(np.polyfit(episodes, sl_mean, 1))(episodes)
@@ -377,11 +379,9 @@ def plot_ablation_comparison(filter_alphas=None, filter_experiments=None):
         ax_master.set_xlabel("Training episode", fontsize=12)
         ax_master.set_ylabel(r"Service level ($30$-ep moving avg)", fontsize=12)
         ax_master.grid(True, alpha=0.3)
-        ax_master.legend(loc="lower right", fontsize=11, ncol=2)
-        ax_master.legend(loc="lower right", fontsize=11, ncol=2)
-        fig_master.tight_layout()
+        _place_legend_below(fig_master, ax_master, ncols=2, fontsize=9, wrap_width=48)
         out = study_dir / f"ablation_comparison_alpha_{alpha_label}.png"
-        fig_master.savefig(out, dpi=200)
+        fig_master.savefig(out, dpi=200, bbox_inches="tight", pad_inches=0.15)
         print(f"\nSaved master plot to: {out.name}")
     plt.close(fig_master)
  
