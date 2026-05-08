@@ -538,8 +538,8 @@ def train(
             vfa_policy.flush_online_update_diagnostics(ep + 1)
         elif transition_update_interval > 0:
             # Periodic transition batches are applied inside td_update().
-            # Flush only the final partial batch so the last samples are not lost.
-            if (ep + 1) == num_episodes and getattr(vfa_policy, 'batch_buffer', None):
+            # Flush the episode remainder so batches never mix across episodes.
+            if getattr(vfa_policy, 'batch_buffer', None):
                 vfa_policy.apply_batch_update()
                 remainder_batch_updates = 1
         else:

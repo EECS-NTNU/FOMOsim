@@ -6,7 +6,6 @@
 
 # python policies/sjovik_sund/run_simulation_ingvild.py --vfa-model models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl --active-features rebalancing_imbalance squared_starvation_penalty squared_congestion_penalty gross_starvation_risk gross_congestion_risk --duration 672
 
-
 ######################################################
 import os
 import sys
@@ -132,9 +131,9 @@ class SimulationConfig:
     
     # === CLI Defaults ===
     default_seed: int = 42
-    default_nsims: int = 1
+    default_nsims: int = 10
     default_vehicles: int = 1
-    default_duration_hours: int = 1344 # 56 days / 8 weeks
+    default_duration_hours: int = 504  #21 days - equal to learning days in VFA
 
     # === Operational Debug Logging ===
     operation_logging_enabled: bool = False
@@ -179,6 +178,31 @@ class SimulationConfig:
         """Calculate final weights from alpha and service weights."""
         return ([w * (1 - alpha) for w in self.service_weights] + 
                 [self.maintenance_reward * alpha])
+
+
+class EvaluationWarmupPolicy(policies.Policy):
+    """Route to a warmup policy before handing control to the evaluated policy."""
+
+    def __init__(self, evaluation_policy, warmup_policy, warmup_end_time: float):
+        super().__init__(
+            maintenance_enabled=getattr(evaluation_policy, "maintenance_enabled", True)
+        )
+        self.evaluation_policy = evaluation_policy
+        self.warmup_policy = warmup_policy
+        self.warmup_end_time = warmup_end_time
+        self.weights = getattr(evaluation_policy, "weights", None)
+
+    def init_sim(self, simulator) -> None:
+        self.warmup_policy.init_sim(simulator)
+        self.evaluation_policy.init_sim(simulator)
+
+    def get_best_action(self, state, vehicle):
+        if state.time < self.warmup_end_time:
+            return self.warmup_policy.get_best_action(state, vehicle)
+        return self.evaluation_policy.get_best_action(state, vehicle)
+
+    def __repr__(self) -> str:
+        return f"EvaluationWarmupPolicy({self.evaluation_policy!r})"
 
 
 def _resolve_odometer_stats_path(stats_path, instance_name: str) -> Path | None:
@@ -258,6 +282,7 @@ def run_simulation(
     odometer_stats_path=None,
     odometer_sampling_method="triangular",
     odometer_sampling_bounds="p05-p95",
+    warmup_hours=0.0,
     verbose=True,
 ):
     """Run a single simulation with given parameters.
@@ -275,7 +300,11 @@ def run_simulation(
         config = SimulationConfig()
     
     START_TIME = timeInMinutes(hours=config.start_hour)
-    DURATION = timeInMinutes(hours=duration)
+    warmup_hours = float(warmup_hours or 0.0)
+    WARMUP_DURATION = timeInMinutes(hours=warmup_hours)
+    EVALUATION_DURATION = timeInMinutes(hours=duration)
+    DURATION = WARMUP_DURATION + EVALUATION_DURATION
+    warmup_end_time = START_TIME + WARMUP_DURATION
  
     # Use config default if not provided
     if instance_name is None:
@@ -331,9 +360,24 @@ def run_simulation(
     if hasattr(state, 'vehicles'):
         state.vehicles = {} 
 
+    policy.maintenance_enabled = MAINTENANCE_ENABLED
+    policy_for_sim = policy
+    if warmup_hours > 0:
+        warmup_policy = GreedyMaintenancePolicy() if MAINTENANCE_ENABLED else GreedyPolicy()
+        warmup_policy.maintenance_enabled = MAINTENANCE_ENABLED
+        policy_for_sim = EvaluationWarmupPolicy(
+            evaluation_policy=policy,
+            warmup_policy=warmup_policy,
+            warmup_end_time=warmup_end_time,
+        )
+        print(
+            f"Using {warmup_hours:g}h evaluation warmup "
+            f"({warmup_policy.__class__.__name__}); metrics/logs reset at t={warmup_end_time:g}."
+        )
+
     # Create the list of policies for the vehicles
     # If the simulator creates a NEW Vehicle object for each entry in this list:
-    vehicle_policies = [policy for _ in range(num_vehicles)]
+    vehicle_policies = [policy_for_sim for _ in range(num_vehicles)]
     state.set_sb_vehicles(vehicle_policies)
  
     # Use config for target state
@@ -367,9 +411,14 @@ def run_simulation(
         verbose=verbose,
     )
     simulator.operation_logger = operation_logger
-    simulator.run_logger = run_logger
+    simulator.run_logger = None if warmup_hours > 0 else run_logger
 
-    if run_logger is not None:
+    if warmup_hours > 0:
+        simulator.configure_evaluation_warmup(
+            warmup_end_time=warmup_end_time,
+            run_logger=run_logger,
+        )
+    elif run_logger is not None:
         run_logger.capture_fleet_start(state)
 
     if operation_logger.enabled:
@@ -377,14 +426,12 @@ def run_simulation(
 
 
     print(
-        f"Running simulation with duration {duration}, vehicles {num_vehicles}, "
+        f"Running simulation with duration {duration}, warmup {warmup_hours:g}h, vehicles {num_vehicles}, "
         f"seed {seed}, Instance {INSTANCE}"
     )
 
     if ENABLE_COMPONENT_FAILURES:
         print("Component failure simulation: ENABLED")
-
-    policy.maintenance_enabled = MAINTENANCE_ENABLED
 
     simulator.run()
   
@@ -462,6 +509,7 @@ def test_seeds(
     odometer_stats_path=None,
     odometer_sampling_method="triangular",
     odometer_sampling_bounds="p05-p95",
+    warmup_hours=0.0,
 ):
     """Test multiple seeds with the same policy.
 
@@ -494,6 +542,7 @@ def test_seeds(
                     "odometer_stats_path": odometer_stats_path,
                     "odometer_sampling_method": odometer_sampling_method,
                     "odometer_sampling_bounds": odometer_sampling_bounds,
+                    "warmup_hours": warmup_hours,
                 },
             )
             processes.append(p)
@@ -539,6 +588,7 @@ def test_seeds(
                 odometer_stats_path=odometer_stats_path,
                 odometer_sampling_method=odometer_sampling_method,
                 odometer_sampling_bounds=odometer_sampling_bounds,
+                warmup_hours=warmup_hours,
             )
             solve_time = time.time() - start_solve
 
@@ -571,6 +621,7 @@ def test_policies(
     odometer_stats_path=None,
     odometer_sampling_method="triangular",
     odometer_sampling_bounds="p05-p95",
+    warmup_hours=0.0,
 ):
     """Test multiple policies with multiple seeds.
 
@@ -607,6 +658,7 @@ def test_policies(
             odometer_stats_path=odometer_stats_path,
             odometer_sampling_method=odometer_sampling_method,
             odometer_sampling_bounds=odometer_sampling_bounds,
+            warmup_hours=warmup_hours,
         )
 
 
@@ -738,6 +790,16 @@ if __name__ == "__main__":
         help=f"Simulation duration in hours (default: {config.default_duration_hours} hours = 56 days / 8 weeks).",
     )
     parser.add_argument(
+        "--warmup-days",
+        type=float,
+        default=7,
+        help=(
+            "Evaluation warmup in days before metrics/logs are counted. "
+            "Uses GreedyMaintenancePolicy when maintenance is enabled, otherwise GreedyPolicy. "
+            "Default: 0."
+        ),
+    )
+    parser.add_argument(
         "--maintenance_limit",
         type=float,
         default=config.default_maintenance_limit,
@@ -807,11 +869,11 @@ if __name__ == "__main__":
         "--log-files",
         nargs="+",
         choices=["results", "hourly", "daily", "decisions", "debug", "all", "none"],
-        default=None,
+        default=["results", "hourly", "daily", "decisions"] ,
         help=(
             "Centralized run_logs outputs to write. Examples: "
             "'--log-files results daily', '--log-files all', '--log-files none'. "
-            "Default: results."
+            "Default: results hourly daily decisions."
         ),
     )
     parser.add_argument(
@@ -883,6 +945,7 @@ if __name__ == "__main__":
     
     # Simulation settings
     duration = args.duration
+    warmup_hours = args.warmup_days * 24
     num_vehicles = args.vehicles
 
     # Determine alpha values: from CLI if provided, otherwise defaults
@@ -907,6 +970,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     timestamp = datetime.now().strftime("%m%d%H%M")
+    warmup_suffix = f"_W{args.warmup_days:g}d" if args.warmup_days > 0 else ""
 
     def _resolve_log_files() -> list[str]:
         if args.log_files is not None:
@@ -953,22 +1017,22 @@ if __name__ == "__main__":
     def _build_policy(policy_type: str):
         if policy_type == "do-nothing":
             _set_run_logger_context(policy_type)
-            policy_name = f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            policy_name = f"DoNothing_{args.instance}_V{num_vehicles}_D{duration}h{warmup_suffix}_{timestamp}_seed{start_seed}"
             return policy_name, DoNothing()
 
         if policy_type == "greedy":
             _set_run_logger_context(policy_type)
-            policy_name = f"Greedy_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            policy_name = f"Greedy_{args.instance}_V{num_vehicles}_D{duration}h{warmup_suffix}_{timestamp}_seed{start_seed}"
             return policy_name, GreedyPolicy()
 
         if policy_type == "greedy-v2":
             _set_run_logger_context(policy_type)
-            policy_name = f"GreedyV2_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            policy_name = f"GreedyV2_{args.instance}_V{num_vehicles}_D{duration}h{warmup_suffix}_{timestamp}_seed{start_seed}"
             return policy_name, GreedyPolicyV2()
 
         if policy_type == "greedy-maintenance":
             _set_run_logger_context(policy_type)
-            policy_name = f"GreedyMaintenance_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            policy_name = f"GreedyMaintenance_{args.instance}_V{num_vehicles}_D{duration}h{warmup_suffix}_{timestamp}_seed{start_seed}"
             policy = GreedyMaintenancePolicy()
             if run_logger is not None:
                 policy.logger = run_logger
@@ -976,7 +1040,7 @@ if __name__ == "__main__":
 
         if policy_type == "xpilot":
             _set_run_logger_context(policy_type)
-            policy_name = f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+            policy_name = f"XPILOT_{args.instance}_V{num_vehicles}_D{duration}h{warmup_suffix}_{timestamp}_seed{start_seed}"
             policy = policies.sjovik_sund.XPILOT_policy.XPILOTPolicy(
                 time_horizon=40, max_depth=2, num_successors=5, number_of_scenarios=100
             )
@@ -988,7 +1052,7 @@ if __name__ == "__main__":
             if run_logger is not None:
                 vfa_policy.logger = run_logger
             policy_name = (
-                f"VFA_{exp_name}_{args.instance}_V{num_vehicles}_D{duration}h_"
+                f"VFA_{exp_name}_{args.instance}_V{num_vehicles}_D{duration}h{warmup_suffix}_"
                 f"{timestamp}_seed{start_seed}"
             )
             return policy_name, vfa_policy
@@ -1010,7 +1074,7 @@ if __name__ == "__main__":
             )
             policy_name = (
                 f"Hybrid_{exp_name}_H{int(args.lookahead)}_S{args.num_scenarios}_"
-                f"{args.instance}_V{num_vehicles}_D{duration}h_{timestamp}_seed{start_seed}"
+                f"{args.instance}_V{num_vehicles}_D{duration}h{warmup_suffix}_{timestamp}_seed{start_seed}"
             )
             return policy_name, hybrid_policy
 
@@ -1035,6 +1099,7 @@ if __name__ == "__main__":
             odometer_stats_path=args.odometer_stats_in,
             odometer_sampling_method=args.odometer_sampling_method,
             odometer_sampling_bounds=args.odometer_sampling_bounds,
+            warmup_hours=warmup_hours,
         )
 
     if run_logger is not None:

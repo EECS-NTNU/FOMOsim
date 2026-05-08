@@ -89,7 +89,7 @@ from policies.sjovik_sund.NN.NNGreedyPolicy import NNGreedyPolicy
 from policies.sjovik_sund.mdp.mdp_formulation import extract_mdp_state, PostDecisionState
 from policies.sjovik_sund.mdp.mdp_config import MDPConfig
 from policies.sjovik_sund.mdp.reward import RewardCalculator
-from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
+from policies.sjovik_sund.mdp.candidate_generator_nn import generate_candidates
 from policies.sjovik_sund.NN.nn_model import NNValueNetwork
 from policies.sjovik_sund.NN.nn_state_encoder import encode_state
 from policies.sjovik_sund.NN.nn_debug_logger import MaintenanceDebugLogger
@@ -130,6 +130,7 @@ class NNRolloutPolicy(Policy):
         debug_logger:          "MaintenanceDebugLogger" = None,
         rollout_log_every:     int   = 1,
         pruning_logger:        "PruningDebugLogger" = None,
+        debug_print:           bool  = False,
     ):
         super().__init__(maintenance_enabled=maintenance_enabled)
 
@@ -148,6 +149,7 @@ class NNRolloutPolicy(Policy):
         self._debug_logger       = debug_logger
         self._rollout_log_every  = rollout_log_every
         self._pruning_logger     = pruning_logger
+        self._debug_print        = debug_print
 
         # MDP config derived directly from maintenance flag — no VFA needed.
         self._mdp_config = (
@@ -170,6 +172,14 @@ class NNRolloutPolicy(Policy):
 
         # Will be set by init_sim() once the simulator is attached.
         self._simulator = None
+
+    def _mdp_action_allowed(self, action) -> bool:
+        if not self._mdp_config.allow_onsite_repairs and action.onsite_repairs != 0:
+            return False
+        if not self._mdp_config.allow_depot_removals:
+            if action.depot_removals != 0 or action.depot_dropoffs != 0 or action.load_from_queue != 0:
+                return False
+        return True
 
     # ─────────────────────────────────────────────────────────────────────────
     # Simulator attachment
@@ -473,14 +483,21 @@ class NNRolloutPolicy(Policy):
         pre_scores = []
         with torch.no_grad():
             for mdp_action, sim_action in pairs:
+                if not self._mdp_action_allowed(mdp_action):
+                    continue
                 try:
-                    post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
+                    post_state, action_duration, _ = PostDecisionState.apply(mdp_state, mdp_action)
                     dest = mdp_action.next_station
                     dest_tt = {
                         sid: state.get_vehicle_travel_time(dest, sid)
                         for sid in mdp_state.stations
                     }
-                    enc = encode_state(post_state, dest_travel_times=dest_tt)
+                    enc = encode_state(
+                        post_state,
+                        dest_travel_times=dest_tt,
+                        mdp_action=mdp_action,
+                        action_duration=action_duration,
+                    )
                 except Exception as e:
                     print(f"[NNRollout] pre-score failed: {e}")
                     continue
@@ -496,7 +513,7 @@ class NNRolloutPolicy(Policy):
         pre_scores.sort(key=lambda x: x[0], reverse=True)
         
         # Pruning diagnostic: log score spread
-        if pre_scores:
+        if pre_scores and self._debug_print:
             scores_only = [s for s, _, _ in pre_scores]
             spread = max(scores_only) - min(scores_only)
             print(f"[PRUNE] {len(pre_scores)} candidates → top {self.n_rollout_candidates} | score spread: {spread:.4f} | top: {scores_only[0]:.4f} | cutoff: {scores_only[min(self.n_rollout_candidates, len(scores_only))-1]:.4f}")

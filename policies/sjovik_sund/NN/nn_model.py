@@ -325,10 +325,20 @@ class NNValueNetwork(nn.Module):
         station_embed_dim:   int = STATION_EMBED_DIM,
         vehicle_embed_dim:   int = VEHICLE_EMBED_DIM,
         value_hidden_dims:   list = None,
+        station_id_embed_dim: int = 0,
+        max_station_id_embeddings: int = 512,
+        use_station_spotlights: bool = False,
     ):
         super().__init__()
 
-        self.station_encoder = StationEncoder(station_feature_dim, station_embed_dim)
+        self.station_id_embed_dim = int(station_id_embed_dim or 0)
+        if self.station_id_embed_dim > 0:
+            self.station_id_embedding = nn.Embedding(max_station_id_embeddings, self.station_id_embed_dim)
+        else:
+            self.station_id_embedding = None
+
+        station_encoder_input_dim = station_feature_dim + self.station_id_embed_dim
+        self.station_encoder = StationEncoder(station_encoder_input_dim, station_embed_dim)
         self.vehicle_encoder = VehicleEncoder(vehicle_feature_dim, vehicle_embed_dim)
         #self.station_attn    = AttentionPool(station_embed_dim)
         self.vehicle_attn    = AttentionPool(vehicle_embed_dim)
@@ -337,10 +347,16 @@ class NNValueNetwork(nn.Module):
         vehicle_summary_dim = 2 * vehicle_embed_dim
         self.station_cross_attn = CrossAttentionPool(station_embed_dim, vehicle_summary_dim)
 
+        self.use_station_spotlights = bool(use_station_spotlights)
+
         # Dual pooling: attention + max concatenated → 2× each embed dim.
         # +2*station_feature_dim: destination raw bypass + max-deficit station raw bypass.
+        # Optional +4*station_feature_dim: starving, congested, depot-broken,
+        # onsite-broken raw station spotlights.
         combined_dim = (2 * station_embed_dim + 2 * vehicle_embed_dim
                         + global_feature_dim + 2 * station_feature_dim)
+        if self.use_station_spotlights:
+            combined_dim += 4 * station_feature_dim
         self.value_mlp = ValueMLP(combined_dim, value_hidden_dims)
 
         # Store dims so checkpoints can be verified for compatibility.
@@ -348,6 +364,73 @@ class NNValueNetwork(nn.Module):
         self.vehicle_feature_dim = vehicle_feature_dim
         self.global_feature_dim  = global_feature_dim
         self.value_hidden_dims   = value_hidden_dims
+        self.max_station_id_embeddings = max_station_id_embeddings
+
+    def _station_spotlights(self, station_block: torch.Tensor) -> torch.Tensor:
+        zero = torch.zeros(self.station_feature_dim, device=station_block.device)
+        if station_block.numel() == 0:
+            return torch.cat([zero, zero, zero, zero], dim=0)
+
+        non_dest_mask = station_block[:, -1] < 0.5
+        candidates = station_block[non_dest_mask] if non_dest_mask.any() else station_block
+
+        top_starving = candidates[candidates[:, 5].argmax()]
+        top_congested = candidates[candidates[:, 5].argmin()]
+        top_depot = candidates[candidates[:, 2].argmax()]
+        top_onsite = candidates[candidates[:, 1].argmax()]
+        return torch.cat([top_starving, top_congested, top_depot, top_onsite], dim=0)
+
+    def _station_spotlights_batch(self, station_blocks: torch.Tensor) -> torch.Tensor:
+        B = station_blocks.shape[0]
+        rows = []
+        arange_b = torch.arange(B, device=station_blocks.device)
+
+        non_dest = station_blocks[:, :, -1] < 0.5
+
+        starving_scores = station_blocks[:, :, 5].clone()
+        starving_scores[~non_dest] = -float("inf")
+        no_non_dest = ~non_dest.any(dim=1)
+        starving_scores[no_non_dest] = station_blocks[no_non_dest, :, 5]
+        rows.append(station_blocks[arange_b, starving_scores.argmax(dim=1), :])
+
+        congested_scores = station_blocks[:, :, 5].clone()
+        congested_scores[~non_dest] = float("inf")
+        congested_scores[no_non_dest] = station_blocks[no_non_dest, :, 5]
+        rows.append(station_blocks[arange_b, congested_scores.argmin(dim=1), :])
+
+        depot_scores = station_blocks[:, :, 2].clone()
+        depot_scores[~non_dest] = -float("inf")
+        depot_scores[no_non_dest] = station_blocks[no_non_dest, :, 2]
+        rows.append(station_blocks[arange_b, depot_scores.argmax(dim=1), :])
+
+        onsite_scores = station_blocks[:, :, 1].clone()
+        onsite_scores[~non_dest] = -float("inf")
+        onsite_scores[no_non_dest] = station_blocks[no_non_dest, :, 1]
+        rows.append(station_blocks[arange_b, onsite_scores.argmax(dim=1), :])
+
+        return torch.cat(rows, dim=1)
+
+    def _append_station_id_embeddings(self, station_block: torch.Tensor) -> torch.Tensor:
+        if self.station_id_embedding is None:
+            return station_block
+
+        if station_block.dim() == 2:
+            n_stations = station_block.shape[0]
+            ids = torch.arange(n_stations, device=station_block.device).clamp_max(
+                self.max_station_id_embeddings - 1
+            )
+            emb = self.station_id_embedding(ids)
+            return torch.cat([station_block, emb], dim=-1)
+
+        if station_block.dim() == 3:
+            batch_size, n_stations, _ = station_block.shape
+            ids = torch.arange(n_stations, device=station_block.device).clamp_max(
+                self.max_station_id_embeddings - 1
+            )
+            emb = self.station_id_embedding(ids).unsqueeze(0).expand(batch_size, -1, -1)
+            return torch.cat([station_block, emb], dim=-1)
+
+        raise ValueError(f"station_block must be 2D or 3D, got shape {tuple(station_block.shape)}")
 
 
     def forward(
@@ -407,7 +490,8 @@ class NNValueNetwork(nn.Module):
         ], dim=0)
 
         # --- 2. Station branch (Conditioned on Vehicle) ---
-        station_embeddings = self.station_encoder(station_block)
+        station_block_for_encoder = self._append_station_id_embeddings(station_block)
+        station_embeddings = self.station_encoder(station_block_for_encoder)
         station_summary = torch.cat([
             self.station_cross_attn(station_embeddings, vehicle_summary),
             station_embeddings.max(dim=0).values,
@@ -432,7 +516,10 @@ class NNValueNetwork(nn.Module):
             max_deficit_raw = torch.zeros(self.station_feature_dim, device=station_block.device)
 
         # --- 4. Combine ---
-        combined = torch.cat([station_summary, vehicle_summary, global_context, dest_raw, max_deficit_raw], dim=0)
+        parts = [station_summary, vehicle_summary, global_context, dest_raw, max_deficit_raw]
+        if self.use_station_spotlights:
+            parts.append(self._station_spotlights(station_block))
+        combined = torch.cat(parts, dim=0)
         value = self.value_mlp(combined)
         return value
 
@@ -461,7 +548,8 @@ class NNValueNetwork(nn.Module):
         the B states without any explicit looping.
         """
         # [B, N, embed_dim] → attention+max over stations → [B, 2*embed_dim]
-        st_emb = self.station_encoder(station_blocks)
+        station_blocks_for_encoder = self._append_station_id_embeddings(station_blocks)
+        st_emb = self.station_encoder(station_blocks_for_encoder)
         station_summary = torch.cat([
             self.station_attn.forward_batch(st_emb),   # ← revert: st_emb.mean(dim=1)
             st_emb.max(dim=1).values,
@@ -509,7 +597,8 @@ class NNValueNetwork(nn.Module):
         ], dim=1)   # [B, 2*vehicle_embed_dim]
 
         # --- 2. Station branch (Conditioned on Vehicle) ---
-        st_emb = self.station_encoder(station_blocks)
+        station_blocks_for_encoder = self._append_station_id_embeddings(station_blocks)
+        st_emb = self.station_encoder(station_blocks_for_encoder)
         station_summary = torch.cat([
             self.station_cross_attn.forward_batch(st_emb, vehicle_summary),
             st_emb.max(dim=1).values,
@@ -526,7 +615,10 @@ class NNValueNetwork(nn.Module):
         max_deficit_raw = station_blocks[torch.arange(B, device=station_blocks.device), max_def_idx, :]  # [B, station_feature_dim]
 
         # --- 4. Combine ---
-        combined = torch.cat([station_summary, vehicle_summary, global_contexts, dest_raw, max_deficit_raw], dim=1)
+        parts = [station_summary, vehicle_summary, global_contexts, dest_raw, max_deficit_raw]
+        if self.use_station_spotlights:
+            parts.append(self._station_spotlights_batch(station_blocks))
+        combined = torch.cat(parts, dim=1)
 
         return self.value_mlp(combined)   # [B, 1]
 
@@ -558,15 +650,23 @@ class NNValueNetwork(nn.Module):
         global_feature_dim=GLOBAL_FEATURE_DIM,
     )'''
     
-def build_nn_value_network(value_hidden_dims: list = None) -> NNValueNetwork:
+def build_nn_value_network(
+    value_hidden_dims: list = None,
+    station_feature_dim: int = None,
+    global_feature_dim: int = None,
+    station_id_embed_dim: int = 0,
+    use_station_spotlights: bool = False,
+) -> NNValueNetwork:
     from policies.sjovik_sund.NN.nn_state_encoder import (
         STATION_FEATURE_DIM, VEHICLE_FEATURE_DIM, GLOBAL_FEATURE_DIM,
     )
     return NNValueNetwork(
-        station_feature_dim=STATION_FEATURE_DIM,
+        station_feature_dim=station_feature_dim if station_feature_dim is not None else STATION_FEATURE_DIM,
         vehicle_feature_dim=VEHICLE_FEATURE_DIM,
-        global_feature_dim=GLOBAL_FEATURE_DIM,
+        global_feature_dim=global_feature_dim if global_feature_dim is not None else GLOBAL_FEATURE_DIM,
         value_hidden_dims=value_hidden_dims,
+        station_id_embed_dim=station_id_embed_dim,
+        use_station_spotlights=use_station_spotlights,
     )
 
 
@@ -625,7 +725,11 @@ class FlatNNValueNetwork(nn.Module):
         return self.net(global_contexts)
 
 
-def build_vfa_nn_value_network(hidden_dims: list = None, value_hidden_dims: list = None) -> FlatNNValueNetwork:
+def build_vfa_nn_value_network(
+    hidden_dims: list = None,
+    value_hidden_dims: list = None,
+    **kwargs,
+) -> FlatNNValueNetwork:
     """Factory for the VFA-features flat MLP. Use when USE_VFA_FEATURES=True."""
     from policies.sjovik_sund.NN.nn_state_encoder import VFA_FEATURE_DIM
     return FlatNNValueNetwork(input_dim=VFA_FEATURE_DIM, hidden_dims=value_hidden_dims or hidden_dims)

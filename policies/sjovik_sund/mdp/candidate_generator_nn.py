@@ -430,11 +430,29 @@ def generate_candidates(
         fallback_target = depot_id
         if fallback_target is None:
             fallback_target = sorted(state.get_stations(), key=lambda s: state.get_vehicle_travel_time(cur_id, s.id))[1].id
+
+        # If the vehicle is already at the depot, pruning can remove every
+        # outbound route near shift end. The fallback still has to execute the
+        # depot operation; otherwise PostDecisionState correctly rejects it
+        # because depot cargo must be unloaded completely at the depot.
+        fallback_op = {
+            'rebalancing': 0,
+            'onsite_repairs': 0,
+            'depot_removals': 0,
+            'load_from_queue': 0,
+            'depot_dropoffs': 0,
+        }
+        if vehicle.is_at_depot() and op_profiles:
+            fallback_op = op_profiles[0]
+
         fallback_mdp = MdpAction(
             current_station=cur_id,
-            rebalancing=0, onsite_repairs=0, depot_removals=0, load_from_queue=0,
+            rebalancing=int(fallback_op.get('rebalancing', 0)),
+            onsite_repairs=int(fallback_op.get('onsite_repairs', 0)),
+            depot_removals=int(fallback_op.get('depot_removals', 0)),
+            load_from_queue=int(fallback_op.get('load_from_queue', 0)),
             next_station=fallback_target,
-            depot_dropoffs=0,
+            depot_dropoffs=int(fallback_op.get('depot_dropoffs', 0)),
         )
         sim_actions.append(mdp_action_to_sim_action(fallback_mdp, state, vehicle))
         mdp_actions.append(fallback_mdp)

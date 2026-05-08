@@ -12,8 +12,9 @@ Two modes:
      Point directly at one .pt file.
        python evaluate_nn_rollout.py --model models/nn_model_final_seed0.pt
 
-Each evaluated model is compared against DoNothing, LinearVFA, and pure-NN (no rollout) baselines.
-Results are written to simulation_results/csv/.
+By default, each evaluated model is tested as an NNRolloutPolicy, using the same
+RunLogger-based testing path as evaluate_hybrid_rollout.py. Optional baselines
+can be enabled with CLI flags.
 """
 
 import os
@@ -29,8 +30,10 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 
 from policies.sjovik_sund.NN.train_nn_rollout import load_nn_model
 from policies.sjovik_sund.NN.NNRolloutPolicy import NNRolloutPolicy
+from policies.sjovik_sund.NN.NNAnalyticalRolloutPolicy import NNAnalyticalRolloutPolicy
 from policies.do_nothing_policy import DoNothing
 from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, test_policies
+from policies.sjovik_sund.vfa.run_logger import RunLogger
 
 # --- NEW BASELINE IMPORTS ---
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
@@ -73,6 +76,15 @@ def evaluate_model(
     maintenance_enabled: bool = False,
     n_screening_scenarios: int = 3,
     n_survivors: int = 4,
+    n_time_steps: int = 4,
+    run_logger=None,
+    write_csv: bool = False,
+    run_rollout: bool = True,
+    use_analytical_rollout: bool = True,
+    run_donothing: bool = False,
+    run_nn_greedy: bool = False,
+    run_linear_vfa: bool = False,
+    run_greedy_maintenance: bool = False,
 ):
     model_name = model_file.stem
     lr, tau, freq = _parse_model_hyperparams(model_name)
@@ -86,7 +98,8 @@ def evaluate_model(
     hp_str = ("_" + "_".join(hp_parts)) if hp_parts else ""
 
     eval_key = (
-        f"{model_name}_NNRollout_H{int(lookahead_minutes)}_S{num_scenarios}"
+        f"{model_name}_{'NNAnalytical' if use_analytical_rollout else 'NNRollout'}"
+        f"_H{int(lookahead_minutes)}_S{num_scenarios}"
         f"{hp_str}_{timestamp}"
     )
 
@@ -98,6 +111,57 @@ def evaluate_model(
     print(f"  Eval timestamp: {timestamp}")
     print(f"{'='*60}")
 
+    eval_seeds = list(range(start_seed, start_seed + episodes))
+
+    def _test_one(policy_name: str, policy, policy_type: str, results_only: bool = False):
+        if run_logger is not None:
+            run_logger.set_run_label(
+                model_name,
+                0.0,
+                policy_type=policy_type,
+                duration_hours=duration_hours,
+                num_vehicles=vehicles,
+                instance_name=instance,
+                results_only=results_only,
+            )
+
+        test_policies(
+            list_of_seeds=eval_seeds,
+            policy_dict={policy_name: policy},
+            num_vehicles=vehicles,
+            duration=duration_hours,
+            use_multiprocessing=False,
+            instance_name=instance,
+            config=SimulationConfig(),
+            run_logger=run_logger,
+            write_csv=write_csv,
+        )
+
+    if run_donothing:
+        print(f"\n{'='*60}")
+        print("  RUNNING BASELINE: DoNothing")
+        print(f"{'='*60}")
+        _test_one("DoNothing_Baseline", DoNothing(), "do-nothing", results_only=True)
+
+    if run_linear_vfa:
+        print(f"\n{'='*60}")
+        print("  RUNNING BASELINE: LinearVFA")
+        print(f"{'='*60}")
+        _test_one(
+            "LinearVFA",
+            LinearVFAPolicy(learning_mode=False, maintenance_enabled=maintenance_enabled),
+            "vfa",
+        )
+
+    if run_greedy_maintenance:
+        print(f"\n{'='*60}")
+        print("  RUNNING BASELINE: GreedyMaintenance")
+        print(f"{'='*60}")
+        _test_one("GreedyMaintenance", GreedyMaintenancePolicy(), "greedy-maintenance")
+
+    if not (run_rollout or run_nn_greedy):
+        return
+
     nn_model = load_nn_model(str(model_file))
 
     pruning_logger = None
@@ -106,38 +170,46 @@ def evaluate_model(
         pruning_logger = PruningDebugLogger(log_path=log_path, log_every=debug_log_every)
         print(f"  Debug log → {log_path}")
 
-    nn_rollout = NNRolloutPolicy(
-        nn_model=nn_model,
-        lookahead_minutes=lookahead_minutes,
-        num_scenarios=num_scenarios,
-        n_rollout_candidates=n_rollout_candidates,
-        n_screening_scenarios=n_screening_scenarios,
-        n_survivors=n_survivors,
-        maintenance_enabled=maintenance_enabled,
-        depot_id=depot_id,
-        congestion_weight=congestion_weight,
-        pruning_logger=pruning_logger,
-    )
-
     mdp_config = MDPConfig.full_maintenance() if maintenance_enabled else MDPConfig.no_maintenance()
 
-    policy_dict = {
-        #"DoNothing": DoNothing(),
-        #eval_key:    nn_rollout,
-        #"NN_Greedy": NNGreedyPolicy(nn_model=nn_model, config=mdp_config, depot_id=depot_id),
-        #"LinearVFA": LinearVFAPolicy(learning_mode=False, maintenance_enabled=maintenance_enabled),
-        "GreedyMaintenance": GreedyMaintenancePolicy(),
-    }
+    if run_nn_greedy:
+        print(f"\n{'='*60}")
+        print("  RUNNING NN greedy baseline")
+        print(f"{'='*60}")
+        _test_one(
+            f"{model_name}_NNGreedy",
+            NNGreedyPolicy(nn_model=nn_model, config=mdp_config, depot_id=depot_id),
+            "nn-greedy",
+        )
 
-    test_policies(
-        list_of_seeds=list(range(start_seed, start_seed + episodes)),
-        policy_dict=policy_dict,
-        num_vehicles=vehicles,
-        duration=duration_hours,
-        use_multiprocessing=False,
-        instance_name=instance,
-        config=SimulationConfig(),
-    )
+    if run_rollout:
+        if use_analytical_rollout:
+            nn_rollout = NNAnalyticalRolloutPolicy(
+                nn_model=nn_model,
+                lookahead_minutes=lookahead_minutes,
+                num_scenarios=num_scenarios,
+                n_rollout_candidates=n_rollout_candidates,
+                n_time_steps=n_time_steps,
+                maintenance_enabled=maintenance_enabled,
+                depot_id=depot_id,
+                congestion_weight=congestion_weight,
+            )
+            policy_type = "nn-analytical"
+        else:
+            nn_rollout = NNRolloutPolicy(
+                nn_model=nn_model,
+                lookahead_minutes=lookahead_minutes,
+                num_scenarios=num_scenarios,
+                n_rollout_candidates=n_rollout_candidates,
+                n_screening_scenarios=n_screening_scenarios,
+                n_survivors=n_survivors,
+                maintenance_enabled=maintenance_enabled,
+                depot_id=depot_id,
+                congestion_weight=congestion_weight,
+                pruning_logger=pruning_logger,
+            )
+            policy_type = "nn-rollout"
+        _test_one(eval_key, nn_rollout, policy_type)
 
     if pruning_logger is not None:
         pruning_logger.close()
@@ -146,15 +218,20 @@ def evaluate_model(
 # ─────────────────────────────────────────────────────────────────────────────
 # Batch mode — scan NN/models/ for all .pt files
 # ─────────────────────────────────────────────────────────────────────────────
-def run_batch(pattern: str, **kwargs):
+def run_batch(pattern: str, log_decisions: bool = False, **kwargs):
     models = list(NN_MODELS_DIR.glob(pattern))
     if not models:
         print(f"No models found matching '{pattern}' in {NN_MODELS_DIR}")
         return
-        
+
+    run_logger = RunLogger(log_decisions=log_decisions)
     print(f"Found {len(models)} model(s) for batch evaluation.")
-    for mf in sorted(models):
-        evaluate_model(model_file=mf, **kwargs)
+    try:
+        for mf in sorted(models):
+            evaluate_model(model_file=mf, run_logger=run_logger, **kwargs)
+    finally:
+        run_logger.close()
+        print(f"\nRun logs written to: {run_logger.run_dir}")
 
 
 if __name__ == "__main__":
@@ -165,7 +242,9 @@ if __name__ == "__main__":
 
     mode = parser.add_argument_group("Mode (omit --model for batch mode)")
     mode.add_argument(
-        "--model", type=str, default="nn_model_best_greedy_seed1000_arch_128-64-32_20260429_181934.pt",
+        "--model",
+        type=str,
+        default="policies/sjovik_sund/NN/models/nn_model_best_greedy_seed1000_arch_128-64-32_20260504_143352.pt",
         help="Path to a single .pt file (activates single mode)",
     )
     mode.add_argument(
@@ -177,10 +256,10 @@ if __name__ == "__main__":
     rollout.add_argument("--lookahead", type=float, default=60.0,
                          help="Rollout horizon in simulation minutes (default: 60)")
     rollout.add_argument("--scenarios", type=int, default=8,
-                         help="Monte Carlo scenarios per action (default: 3)")
+                         help="Monte Carlo scenarios per action (default: 8)")
     # --- NEW ARGUMENT ---
     rollout.add_argument("--candidates", type=int, default=999,
-                         help="Number of candidates to run full rollout on (default: 8)")
+                         help="Number of candidates to run full rollout on (default: 999)")
     
     # --- NEW ARGUMENT ---
     rollout.add_argument("--congestion_weight", type=float, default=-1.0,
@@ -188,13 +267,32 @@ if __name__ == "__main__":
     rollout.add_argument("--n_screening", type=int, default=3,
                          help="Stage-1 scenarios per candidate in two-stage screening (default: 3)")
     rollout.add_argument("--n_survivors", type=int, default=7,
-                         help="Candidates advanced from stage-1 to stage-2 (default: 4)")
+                         help="Candidates advanced from stage-1 to stage-2 (default: 7)")
+    rollout.add_argument("--n_time_steps", type=int, default=4,
+                         help="Sub-intervals per analytical rollout horizon (default: 4)")
 
     debug = parser.add_argument_group("Debug / tracing")
     debug.add_argument("--debug", type=int, default=0, metavar="N",
                        help="Write pruning trace to debug_logs/. Log every Nth decision (0=off, 1=all, 10=every 10th)")
     debug.add_argument("--maintenance", action="store_true",
                        help="Include maintenance actions as candidates (default: off)")
+
+    testing = parser.add_argument_group("Testing options")
+    testing.add_argument("--log_decisions", action="store_true", default=False,
+                         help="Write decisions.csv in run_logs/. Can be large for long runs.")
+    testing.add_argument("--run_donothing", "--run_donoting", dest="run_donothing",
+                         action="store_true", default=False,
+                         help="Also run the DoNothing baseline.")
+    testing.add_argument("--run_nn_greedy", action="store_true", default=False,
+                         help="Also run the NN greedy baseline without rollout.")
+    testing.add_argument("--run_linear_vfa", action="store_true", default=False,
+                         help="Also run the default LinearVFA baseline.")
+    testing.add_argument("--run_greedy_maintenance", action="store_true", default=False,
+                         help="Also run the GreedyMaintenance baseline.")
+    testing.add_argument("--no_rollout", action="store_true", default=False,
+                         help="Skip NNRolloutPolicy evaluation, useful for baselines only.")
+    testing.add_argument("--simulation_rollout", action="store_true", default=False,
+                         help="Use old simulator-cloning NN rollout instead of fast analytical rollout.")
 
     sim = parser.add_argument_group("Simulation settings")
     sim.add_argument("--episodes",  type=int,   default=5,
@@ -219,6 +317,7 @@ if __name__ == "__main__":
         congestion_weight=args.congestion_weight,
         n_screening_scenarios=args.n_screening,
         n_survivors=args.n_survivors,
+        n_time_steps=args.n_time_steps,
         episodes=args.episodes,
         start_seed=args.seed,
         duration_hours=args.duration,
@@ -227,6 +326,12 @@ if __name__ == "__main__":
         depot_id=args.depot_id,
         debug_log_every=args.debug,
         maintenance_enabled=args.maintenance,
+        run_rollout=not args.no_rollout,
+        use_analytical_rollout=not args.simulation_rollout,
+        run_donothing=args.run_donothing,
+        run_nn_greedy=args.run_nn_greedy,
+        run_linear_vfa=args.run_linear_vfa,
+        run_greedy_maintenance=args.run_greedy_maintenance,
     )
 
     if args.model:
@@ -236,7 +341,11 @@ if __name__ == "__main__":
         if not model_file.exists():
             print(f"Error: model not found at {model_file}")
             sys.exit(1)
-        evaluate_model(model_file=model_file, **shared)
-        print("\nEvaluation complete. Check simulation_results/csv/ for output.")
+        run_logger = RunLogger(log_decisions=args.log_decisions)
+        try:
+            evaluate_model(model_file=model_file, run_logger=run_logger, **shared)
+        finally:
+            run_logger.close()
+        print(f"\nEvaluation complete. Run logs written to: {run_logger.run_dir}")
     else:
-        run_batch(pattern=args.pattern, **shared)
+        run_batch(pattern=args.pattern, log_decisions=args.log_decisions, **shared)

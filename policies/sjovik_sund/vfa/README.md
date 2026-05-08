@@ -238,13 +238,16 @@ regime.
 The learned parameter vector `theta` is updated online during the learning
 phase:
 
-`theta <- theta + alpha * (r + gamma * V(next) - V(cur)) * phi(cur)`
+`theta <- theta + alpha * (gamma^((elapsed_minutes / 2) / 60) * r + gamma^(elapsed_minutes / 60) * V(next) - V(cur)) * phi(cur)`
 
 where:
 
 - `phi(cur)` is the stored feature vector for the last chosen post-decision
   state,
-- reward comes from changes in starvation/congestion metrics,
+- `r` is the aggregate reward from changes in starvation/congestion metrics
+  over the elapsed decision interval,
+- aggregate interval rewards are discounted at the interval midpoint,
+- continuation values are discounted over the full interval,
 - `phi(next)` is computed from the best downstream candidate.
 
 ### Model outputs

@@ -1,20 +1,74 @@
 import os
+import shutil
+import sys
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
 
-# Add the LaTeX configuration
-plt.rcParams.update({
-    "text.usetex": True,
-    "font.family": "serif",
-    "text.latex.preamble": r"\usepackage[T1]{fontenc} \usepackage{mlmodern}"
-})
+WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(WORKSPACE_ROOT))
+
+from policies.sjovik_sund.vfa.vfa_features import REBALANCING_CORRELATION_FEATURES
+
+# Use LaTeX styling when available; otherwise fall back to Matplotlib mathtext.
+if shutil.which("latex"):
+    plt.rcParams.update({
+        "text.usetex": True,
+        "font.family": "serif",
+        "text.latex.preamble": r"\usepackage[T1]{fontenc} \usepackage{mlmodern}"
+    })
+else:
+    plt.rcParams.update({
+        "text.usetex": False,
+        "font.family": "serif",
+    })
+
+
+def _display_labels(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy with underscore-free labels for LaTeX/plot readability."""
+    display_df = df.copy()
+    display_df.index = display_df.index.astype(str).str.replace('_', ' ')
+    display_df.columns = display_df.columns.astype(str).str.replace('_', ' ')
+    return display_df
+
+
+def _plot_correlation_heatmap(
+    corr_df: pd.DataFrame,
+    out_path: str,
+    title: str,
+    custom_cmap,
+    figsize=(14, 12),
+) -> None:
+    plt.figure(figsize=figsize)
+    sns.heatmap(
+        _display_labels(corr_df),
+        annot=True,
+        cmap=custom_cmap,
+        fmt=".2f",
+        linewidths=0.5,
+        cbar_kws={'shrink': 0.8},
+        vmin=-1.0,
+        vmax=1.0,
+        annot_kws={"fontweight": "bold"},
+    )
+    plt.title(title, fontsize=16, fontweight="bold")
+    plt.xticks(rotation=45, ha="right")
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    plt.savefig(out_path, format="svg")
+    print(f"Saved correlation matrix to {out_path}")
+    plt.close()
+
 
 def main():
-    stats_path = "models/feature_study_maintenanceenabled/feature_statistics.csv"
-    corr_path = "models/feature_study_maintenanceenabled/feature_correlations.csv"
-    out_dir = "models/feature_study_maintenanceenabled"
+    out_dir = WORKSPACE_ROOT / "models/feature_study_maintenanceenabled"
+    stats_path = out_dir / "feature_statistics.csv"
+    corr_path = out_dir / "feature_correlations.csv"
 
     if not os.path.exists(stats_path) or not os.path.exists(corr_path):
         print(f"Could not find the CSV files at {stats_path} or {corr_path}.")
@@ -24,28 +78,44 @@ def main():
     stats_df = pd.read_csv(stats_path, index_col=0)
     corr_df = pd.read_csv(corr_path, index_col=0)
 
-    # Fix underscores in feature names for LaTeX compatibility
-    stats_df.index = stats_df.index.str.replace('_', ' ')
-    stats_df.columns = stats_df.columns.str.replace('_', ' ')
-    corr_df.index = corr_df.index.str.replace('_', ' ')
-    corr_df.columns = corr_df.columns.str.replace('_', ' ')
-
     # Custom palette from Colorpallette.png
     custom_cmap = LinearSegmentedColormap.from_list('custom_palette', ['#3758d8', '#ffffff', '#db3249'])
 
     # 1. Plot the Correlation Matrix
-    plt.figure(figsize=(14, 12))
-    sns.heatmap(corr_df, annot=True, cmap=custom_cmap, fmt=".2f",
-                linewidths=0.5, cbar_kws={'shrink': 0.8}, vmin=-1.0, vmax=1.0,
-                annot_kws={"fontweight": "bold"})
-    plt.title("Feature Correlation Matrix", fontsize=16, fontweight="bold")
-    plt.tight_layout()
     corr_out = os.path.join(out_dir, "feature_correlation_matrix.svg")
-    plt.savefig(corr_out, format="svg")
-    print(f"Saved correlation matrix to {corr_out}")
-    plt.close()
+    _plot_correlation_heatmap(
+        corr_df,
+        corr_out,
+        "Feature Correlation Matrix",
+        custom_cmap,
+    )
+
+    # 1b. Plot a focused correlation matrix for the core rebalancing/FIM features.
+    missing_features = [
+        feat for feat in REBALANCING_CORRELATION_FEATURES
+        if feat not in corr_df.index or feat not in corr_df.columns
+    ]
+    selected_features = [
+        feat for feat in REBALANCING_CORRELATION_FEATURES
+        if feat in corr_df.index and feat in corr_df.columns
+    ]
+    if missing_features:
+        print("Missing focused-correlation features:", ", ".join(missing_features))
+    if len(selected_features) >= 2:
+        focused_corr = corr_df.loc[selected_features, selected_features]
+        focused_corr_out = os.path.join(out_dir, "feature_correlation_matrix_rebalancing_subset.svg")
+        _plot_correlation_heatmap(
+            focused_corr,
+            focused_corr_out,
+            "Focused Rebalancing Feature Correlations",
+            custom_cmap,
+            figsize=(12, 10),
+        )
+    else:
+        print("Skipping focused rebalancing correlation matrix: fewer than two requested features found.")
 
     # 2. Plot the Feature Statistics Table
+    stats_df = _display_labels(stats_df)
     fig, ax = plt.subplots(figsize=(10, len(stats_df) * 0.4 + 1))
     ax.axis('off')
     ax.axis('tight')
