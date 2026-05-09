@@ -73,6 +73,11 @@ STATION_EMBED_DIM = 64   # StationEncoder output dimension
 VEHICLE_EMBED_DIM = 16   # VehicleEncoder output dimension
 VALUE_HIDDEN_DIM  = 128   # hidden dimension in the final ValueMLP
 
+# Must match nn_state_encoder._encode_station(). The destination flag stays at
+# index 9 even when optional station features, such as demand horizon features,
+# are appended after the base station block.
+STATION_DESTINATION_FEATURE_IDX = 9
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # SUB-NETWORKS
@@ -371,7 +376,7 @@ class NNValueNetwork(nn.Module):
         if station_block.numel() == 0:
             return torch.cat([zero, zero, zero, zero], dim=0)
 
-        non_dest_mask = station_block[:, -1] < 0.5
+        non_dest_mask = station_block[:, STATION_DESTINATION_FEATURE_IDX] < 0.5
         candidates = station_block[non_dest_mask] if non_dest_mask.any() else station_block
 
         top_starving = candidates[candidates[:, 5].argmax()]
@@ -385,7 +390,7 @@ class NNValueNetwork(nn.Module):
         rows = []
         arange_b = torch.arange(B, device=station_blocks.device)
 
-        non_dest = station_blocks[:, :, -1] < 0.5
+        non_dest = station_blocks[:, :, STATION_DESTINATION_FEATURE_IDX] < 0.5
 
         starving_scores = station_blocks[:, :, 5].clone()
         starving_scores[~non_dest] = -float("inf")
@@ -498,7 +503,7 @@ class NNValueNetwork(nn.Module):
         ], dim=0)
 
         # --- 3. Destination spotlight: raw features bypass pooling ---
-        dest_mask = station_block[:, -1] > 0.5
+        dest_mask = station_block[:, STATION_DESTINATION_FEATURE_IDX] > 0.5
         if dest_mask.any():
             dest_raw = station_block[dest_mask][0]
         else:
@@ -508,7 +513,7 @@ class NNValueNetwork(nn.Module):
         # CrossAttentionPool is vehicle-conditioned and may down-weight a critically starved
         # station that is far from the destination. This bypass guarantees the NN always
         # sees the worst station regardless of attention routing.
-        non_dest_mask = station_block[:, -1] < 0.5
+        non_dest_mask = station_block[:, STATION_DESTINATION_FEATURE_IDX] < 0.5
         if non_dest_mask.any():
             non_dest = station_block[non_dest_mask]
             max_deficit_raw = non_dest[non_dest[:, 5].argmax()]  # deficit_ratio at index 5
@@ -605,12 +610,12 @@ class NNValueNetwork(nn.Module):
         ], dim=1)   # [B, 2*station_embed_dim]
 
         # --- 3. Destination spotlight ---
-        dest_idx = station_blocks[:, :, -1].argmax(dim=1)   # [B]
+        dest_idx = station_blocks[:, :, STATION_DESTINATION_FEATURE_IDX].argmax(dim=1)   # [B]
         dest_raw = station_blocks[torch.arange(B, device=station_blocks.device), dest_idx, :]  # [B, station_feature_dim]
 
         # --- 3b. Max-deficit spotlight (non-destination) ---
         deficit_scores = station_blocks[:, :, 5].clone()  # deficit_ratio at index 5, [B, N]
-        deficit_scores[station_blocks[:, :, -1] > 0.5] = -float('inf')  # mask out destination
+        deficit_scores[station_blocks[:, :, STATION_DESTINATION_FEATURE_IDX] > 0.5] = -float('inf')  # mask out destination
         max_def_idx = deficit_scores.argmax(dim=1)   # [B]
         max_deficit_raw = station_blocks[torch.arange(B, device=station_blocks.device), max_def_idx, :]  # [B, station_feature_dim]
 

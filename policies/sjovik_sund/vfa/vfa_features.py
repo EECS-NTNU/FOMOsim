@@ -72,9 +72,9 @@ Pillar 3  —  Maintenance Pressure  (MP, appended if maintenance_enabled)
   MP7  depot_idle_fraction             depot.fixed_queue / F                    [NEW — 0=good]
   MP8  recoverable_starvation          Σ_i onsite_i * 1[func_i < T_i] / F      [NEW]
   MP9  maintenance_urgency             MP2 * CIM8  (RESTORED)
-  MP11 fleet_failure_risk              mean bike-level component failure risk [0=good]
-  MP12 fleet_health_deficit            1 - mean bike health                 [0=good]
-  MP13 fleet_low_health_fraction       fraction of bikes below health floor [0=good]
+  MP11 fleet_failure_risk              mean functional-bike failure exposure [0=good]
+  MP12 fleet_health_deficit            functional-bike reliability deficit   [0=good]
+  MP13 fleet_low_health_fraction       near-failure functional-bike fraction [0=good]
   MP14 depot_bound_health_deficit      depot-bound bad health pressure      [0=good]
   MP15 onsite_health_deficit           onsite bad health pressure           [0=good]
   MP16 maintenance_restoration_value   candidate maintenance value          [0=neutral, high=good]
@@ -216,13 +216,13 @@ FEATURE_METADATA: Dict[str, Dict[str, object]] = {
     },
     "fleet_failure_risk": {
         "family": "degradation",
-        "high_means": "the functional fleet has high expected component failure risk",
+        "high_means": "currently functional bikes have high expected trip-failure exposure",
         "expected_sign": "negative",
         "priority": "medium",
     },
     "fleet_low_health_fraction": {
         "family": "degradation",
-        "high_means": "many bikes are below the low-health threshold",
+        "high_means": "many currently functional bikes exceed the near-failure risk threshold",
         "expected_sign": "negative",
         "priority": "medium",
     },

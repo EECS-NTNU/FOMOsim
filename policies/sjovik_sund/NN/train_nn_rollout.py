@@ -938,6 +938,14 @@ class NNLearningPolicy(Policy):
         self._nn_top1_chosen:   int  = 0
         self._forced_decisions: int  = 0
         self._pool_has_both:    int  = 0
+        self._pool_has_maintenance: int = 0
+        self._nn_top_maintenance:   int = 0
+        self._nn_top_rebalancing:   int = 0
+        self._chosen_maintenance_when_available: int = 0
+        self._best_maintenance_values: list = []
+        self._best_rebalancing_values: list = []
+        self._maintenance_minus_rebalancing_gaps: list = []
+        self._maintenance_beats_rebalancing: int = 0
         self._action_type_counts: dict = {}
         self._candidate_type_counts: dict = {}
 
@@ -972,6 +980,21 @@ class NNLearningPolicy(Policy):
         if mdp_action.rebalancing < 0:
             return "pickup"
         return "move"
+
+    @staticmethod
+    def _is_maintenance_like(mdp_action) -> bool:
+        """True for actions that repair, collect, drop off, or reload maintenance-related bikes."""
+        return (
+            getattr(mdp_action, "depot_removals", 0) > 0
+            or getattr(mdp_action, "onsite_repairs", 0) > 0
+            or getattr(mdp_action, "depot_dropoffs", 0) > 0
+            or getattr(mdp_action, "load_from_queue", 0) > 0
+        )
+
+    @staticmethod
+    def _is_rebalancing_like(mdp_action) -> bool:
+        """True when the action changes functional-bike balance at a normal station."""
+        return getattr(mdp_action, "rebalancing", 0) != 0
 
     @staticmethod
     def _inc_count(counter: dict, key: str, amount: int = 1) -> None:
@@ -1207,14 +1230,35 @@ class NNLearningPolicy(Policy):
         nn_top1_idx = int(max(range(len(values)), key=lambda i: values[i]))
         if idx == nn_top1_idx:
             self._nn_top1_chosen += 1
-        has_maint = any(
-            a.depot_removals > 0 or a.onsite_repairs > 0
-            for a, _ in valid_pairs
-        )
-        has_rebal = any(
-            a.rebalancing != 0
-            for a, _ in valid_pairs
-        )
+        top_mdp = valid_pairs[nn_top1_idx][0]
+        chosen_mdp = valid_pairs[idx][0]
+        has_maint = any(self._is_maintenance_like(a) for a, _ in valid_pairs)
+        has_rebal = any(self._is_rebalancing_like(a) for a, _ in valid_pairs)
+        if has_maint:
+            self._pool_has_maintenance += 1
+        if self._is_maintenance_like(top_mdp):
+            self._nn_top_maintenance += 1
+        if self._is_rebalancing_like(top_mdp):
+            self._nn_top_rebalancing += 1
+        if has_maint and self._is_maintenance_like(chosen_mdp):
+            self._chosen_maintenance_when_available += 1
+        maint_values = [
+            v for v, (a, _) in zip(values, valid_pairs)
+            if self._is_maintenance_like(a)
+        ]
+        rebal_values = [
+            v for v, (a, _) in zip(values, valid_pairs)
+            if self._is_rebalancing_like(a)
+        ]
+        if maint_values:
+            self._best_maintenance_values.append(max(maint_values))
+        if rebal_values:
+            self._best_rebalancing_values.append(max(rebal_values))
+        if maint_values and rebal_values:
+            gap = max(maint_values) - max(rebal_values)
+            self._maintenance_minus_rebalancing_gaps.append(gap)
+            if gap > 0.0:
+                self._maintenance_beats_rebalancing += 1
         if has_maint and has_rebal:
             self._pool_has_both += 1
 
@@ -1234,9 +1278,8 @@ class NNLearningPolicy(Policy):
                 self._bypass_same_as_dest += 1
 
         # Track maintenance action frequency
-        chosen_mdp = valid_pairs[idx][0]
         self._inc_count(self._action_type_counts, self._action_type(chosen_mdp))
-        if chosen_mdp.depot_removals > 0 or chosen_mdp.onsite_repairs > 0:
+        if self._is_maintenance_like(chosen_mdp):
             self._maintenance_chosen += 1
 
         # Maintenance debug logger — log per-decision stats
@@ -1776,6 +1819,14 @@ def train_nn_rollout(
         "pct_forced",         # % decisions with exactly 1 valid candidate (forced)
         "pct_nn_top1_chosen", # % decisions where Boltzmann picked NN argmax (agreement w/ greedy)
         "pct_pool_mixed",     # % decisions where pool had ≥1 maintenance AND ≥1 rebalancing action
+        "pct_pool_has_maintenance",
+        "pct_nn_top_maintenance",
+        "pct_nn_top_rebalancing",
+        "pct_chosen_maintenance_when_available",
+        "best_maintenance_value_mean",
+        "best_rebalancing_value_mean",
+        "maint_minus_rebal_gap_mean",
+        "pct_maintenance_beats_rebalancing",
         "action_entropy",
         "candidate_entropy",
     ]
@@ -2119,7 +2170,32 @@ def train_nn_rollout(
                     f"  (uniform random → mean≈3.5, collapsed → mean≈0)"
                     f"\n  -> >70% idx0: NN is collapsing to 'always go nearest'"
                 )
-            # 3c. Reward normalizer stats
+
+            # 3c. Maintenance-vs-rebalancing ranking diagnostics.
+            if nn_learning._pool_sizes:
+                n_decisions = max(len(nn_learning._pool_sizes), 1)
+                maint_gap = (
+                    _stat.mean(nn_learning._maintenance_minus_rebalancing_gaps)
+                    if nn_learning._maintenance_minus_rebalancing_gaps else 0.0
+                )
+                maint_beats = (
+                    nn_learning._maintenance_beats_rebalancing
+                    / max(len(nn_learning._maintenance_minus_rebalancing_gaps), 1) * 100
+                )
+                print(
+                    f"  Maintenance ranking:"
+                    f" pool_has_maint={nn_learning._pool_has_maintenance / n_decisions * 100:.1f}%"
+                    f" | NN-top maint={nn_learning._nn_top_maintenance / n_decisions * 100:.1f}%"
+                    f" | NN-top rebal={nn_learning._nn_top_rebalancing / n_decisions * 100:.1f}%"
+                    f" | chosen maint when available="
+                    f"{nn_learning._chosen_maintenance_when_available / max(nn_learning._pool_has_maintenance, 1) * 100:.1f}%"
+                    f"\n  Best-value gap: V(best maint)-V(best rebal)={maint_gap:+.4f}"
+                    f" | maintenance beats rebal={maint_beats:.1f}%"
+                    f"\n  -> If pool_has_maint is high but NN-top maint is low/negative gap:"
+                    f" the NN is actively ranking maintenance below rebalancing."
+                )
+
+            # 3d. Reward normalizer stats
             print(
                 f"  Reward normalizer: mean={reward_normalizer.mean:.3f}"
                 f"  std={reward_normalizer.std:.3f}"
@@ -2258,6 +2334,28 @@ def train_nn_rollout(
         pct_forced        = round(nn_learning._forced_decisions / _n_dec * 100, 1)
         pct_nn_top1       = round(nn_learning._nn_top1_chosen   / _n_dec * 100, 1)
         pct_pool_mixed    = round(nn_learning._pool_has_both     / _n_dec * 100, 1)
+        pct_pool_has_maintenance = round(nn_learning._pool_has_maintenance / _n_dec * 100, 1)
+        pct_nn_top_maintenance = round(nn_learning._nn_top_maintenance / _n_dec * 100, 1)
+        pct_nn_top_rebalancing = round(nn_learning._nn_top_rebalancing / _n_dec * 100, 1)
+        pct_chosen_maintenance_when_available = round(
+            nn_learning._chosen_maintenance_when_available
+            / max(nn_learning._pool_has_maintenance, 1) * 100,
+            1,
+        )
+        best_maintenance_value_mean = round(
+            _stat.mean(nn_learning._best_maintenance_values), 6
+        ) if nn_learning._best_maintenance_values else 0.0
+        best_rebalancing_value_mean = round(
+            _stat.mean(nn_learning._best_rebalancing_values), 6
+        ) if nn_learning._best_rebalancing_values else 0.0
+        maint_minus_rebal_gap_mean = round(
+            _stat.mean(nn_learning._maintenance_minus_rebalancing_gaps), 6
+        ) if nn_learning._maintenance_minus_rebalancing_gaps else 0.0
+        pct_maintenance_beats_rebalancing = round(
+            nn_learning._maintenance_beats_rebalancing
+            / max(len(nn_learning._maintenance_minus_rebalancing_gaps), 1) * 100,
+            1,
+        )
 
         def _entropy(counts: dict) -> float:
             total = sum(counts.values())
@@ -2333,6 +2431,14 @@ def train_nn_rollout(
             "pct_forced":        pct_forced,
             "pct_nn_top1_chosen": pct_nn_top1,
             "pct_pool_mixed":    pct_pool_mixed,
+            "pct_pool_has_maintenance": pct_pool_has_maintenance,
+            "pct_nn_top_maintenance": pct_nn_top_maintenance,
+            "pct_nn_top_rebalancing": pct_nn_top_rebalancing,
+            "pct_chosen_maintenance_when_available": pct_chosen_maintenance_when_available,
+            "best_maintenance_value_mean": best_maintenance_value_mean,
+            "best_rebalancing_value_mean": best_rebalancing_value_mean,
+            "maint_minus_rebal_gap_mean": maint_minus_rebal_gap_mean,
+            "pct_maintenance_beats_rebalancing": pct_maintenance_beats_rebalancing,
             "action_entropy":    action_entropy,
             "candidate_entropy": candidate_entropy,
         })

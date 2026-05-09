@@ -97,7 +97,7 @@ class SimulationConfig:
     """Centralized configuration for simulation runs."""
     
     # === Time Settings ===
-    start_hour: int = 5  # 5 AM start time
+    start_hour: int = 0  # 0 AM start time
     
     # === Instance Settings ===
     default_instance: str = "TD_W34_old"
@@ -792,7 +792,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--warmup-days",
         type=float,
-        default=7,
+        default=0,
         help=(
             "Evaluation warmup in days before metrics/logs are counted. "
             "Uses GreedyMaintenancePolicy when maintenance is enabled, otherwise GreedyPolicy. "
