@@ -62,6 +62,7 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 from helpers import timeInMinutes
 from policies.policy import Policy
 from policies.greedy_policy import GreedyPolicy
+from policies.greedy_policy_maintenance import GreedyMaintenancePolicy
 # ── State encoding mode ───────────────────────────────────────────────────────
 # USE_VFA_FEATURES=True  → 28-dim hand-crafted features (same as LinearVFAPolicy)
 #                          Uses FlatNNValueNetwork (simple MLP, no Deep Sets).
@@ -74,6 +75,11 @@ if USE_VFA_FEATURES:
 else:
     from policies.sjovik_sund.NN.nn_model import NNValueNetwork, build_nn_value_network
     from policies.sjovik_sund.NN.nn_state_encoder import encode_state
+from policies.sjovik_sund.NN.nn_state_encoder import (
+    get_global_feature_dim,
+    get_station_feature_dim,
+    set_encoder_options,
+)
 from policies.sjovik_sund.mdp.candidate_generator_nn import generate_candidates
 #from policies.sjovik_sund.mdp.candidate_generator_nn import generate_candidates
 #from policies.sjovik_sund.mdp.candidate_generator_nn import generate_candidates
@@ -104,7 +110,7 @@ EPISODE_DAYS         : int   = WARMUP_DAYS + LEARNING_DAYS
 LR_START             : float = 5e-4  # Adam lr at episode 0
 LR_END               : float = 5e-5  # Adam lr at episode N (linearly decayed)
 
-GAMMA                : float = 0.99  # discount factor (matches linear VFA)
+GAMMA                : float = 0.97  # discount factor (matches linear VFA)
 
 TARGET_UPDATE_FREQ   : int   = 25   # kept for CLI arg compatibility; not used when POLYAK > 0
 POLYAK               : float = 0.0005 # soft target update rate: θ_target ← (1-τ)θ_target + τθ_online
@@ -240,8 +246,20 @@ class RewardNormalizer:
       alpha=0.001 → half-life ≈ 693 samples ≈ ~0.7 episodes   (moderate)
     """
 
-    def __init__(self, alpha: float = 0.005):
+    def __init__(
+        self,
+        alpha: float = 0.005,
+        mode: str = "ema",
+        fixed_scale: float = 10.0,
+    ):
+        if mode not in {"ema", "fixed", "none"}:
+            raise ValueError(f"Unknown reward normalization mode: {mode!r}")
+        if fixed_scale <= 0.0:
+            raise ValueError("fixed_scale must be positive")
+
         self._alpha = alpha
+        self._mode = mode
+        self._fixed_scale = fixed_scale
         self._mean  = 0.0
         self._var   = 1.0    # start with unit variance (no scaling until first update)
         self._n     = 0      # counts updates; used only for the CSV log field
@@ -326,9 +344,16 @@ class RewardNormalizer:
         return max(-5.0, min(5.0, normalized))'''
         
     def normalize(self, reward: float, n_steps: int = 1, gamma: float = 0.99) -> float:
+        if self._mode == "none":
+            return reward
+
         # Calculate N-step discounts
         discount_sum   = sum(gamma ** i for i in range(n_steps))
         sq_discount_sum = sum((gamma ** i) ** 2 for i in range(n_steps))
+
+        if self._mode == "fixed":
+            normalized = reward / max(self._fixed_scale * discount_sum, REWARD_NORM_EPS)
+            return max(-5.0, min(5.0, normalized))
 
         expected_std  = math.sqrt(max(self._var * sq_discount_sum, REWARD_NORM_EPS))
         
@@ -468,22 +493,323 @@ def _compute_td_loss(online_model, target_model, batch, gamma,
         v_list       = v_curs.detach().cpu().squeeze(1).tolist()
         tgt_list     = td_targets.cpu().squeeze(1).tolist()
         norm_r_list  = r_t.cpu().squeeze(1).tolist()
+        v_next_list   = v_nexts.cpu().squeeze(1).tolist()
+        bootstrap_t   = (1.0 - done_t) * gn_t * v_nexts
+        bootstrap_l   = bootstrap_t.cpu().squeeze(1).tolist()
+        td_err_list   = (td_targets - v_curs.detach()).cpu().squeeze(1).tolist()
+        terminal_tgts = [t for t, done in zip(tgt_list, dones) if done]
+        nonterm_tgts  = [t for t, done in zip(tgt_list, dones) if not done]
+        _mean = lambda xs: statistics.mean(xs) if xs else 0.0
+        _std = lambda xs: statistics.stdev(xs) if len(xs) > 1 else 0.0
         debug_info = {
-            "v_cur_mean":       statistics.mean(v_list),
-            "v_cur_std":        statistics.stdev(v_list) if len(v_list) > 1 else 0.0,
+            "v_cur_mean":       _mean(v_list),
+            "v_cur_std":        _std(v_list),
             "v_cur_min":        min(v_list),
             "v_cur_max":        max(v_list),
-            "td_target_mean":   statistics.mean(tgt_list),
-            "td_target_std":    statistics.stdev(tgt_list) if len(tgt_list) > 1 else 0.0,
-            "norm_reward_mean": statistics.mean(norm_r_list),
-            "norm_reward_std":  statistics.stdev(norm_r_list) if len(norm_r_list) > 1 else 0.0,
-            "reward_mean":      statistics.mean(rewards),
+            "v_next_mean":      _mean(v_next_list),
+            "v_next_std":       _std(v_next_list),
+            "bootstrap_mean":   _mean(bootstrap_l),
+            "bootstrap_std":    _std(bootstrap_l),
+            "td_target_mean":   _mean(tgt_list),
+            "td_target_std":    _std(tgt_list),
+            "td_error_mean":    _mean(td_err_list),
+            "td_error_std":     _std(td_err_list),
+            "norm_reward_mean": _mean(norm_r_list),
+            "norm_reward_std":  _std(norm_r_list),
+            "reward_mean":      _mean(rewards),
             "reward_min":       min(rewards),
             "reward_max":       max(rewards),
             "n_done":           sum(dones),
+            "fraction_terminal": sum(dones) / max(len(dones), 1),
+            "terminal_target_mean": _mean(terminal_tgts),
+            "nonterminal_target_mean": _mean(nonterm_tgts),
         }
 
     return loss, debug_info
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# OPTIONAL LINEAR-VFA TEACHER PREFIT
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _linear_teacher_score_actions(teacher, state, vehicle, sim_actions: list) -> list[float]:
+    """
+    Score an arbitrary candidate set with a loaded LinearVFAPolicy.
+
+    The LinearVFAPolicy normally scores candidates inside get_best_action().
+    For teacher prefit we need the same scoring logic, but applied to the NN
+    candidate pool so the NN learns a ranking over exactly the candidates it
+    will later choose between.
+    """
+    if not getattr(teacher, "_initialized", False):
+        teacher._lazy_init(state)
+
+    base_func, base_onsite, base_depot = teacher._extract_inventories(state, vehicle)
+    health_base = teacher._compute_health_base(state, vehicle) if teacher._use_health_features else None
+
+    phis = []
+    raw_bikes = getattr(vehicle.location, "bikes", [])
+    station_bikes = (
+        raw_bikes
+        if isinstance(raw_bikes, dict)
+        else {getattr(b, "bike_id", getattr(b, "id", None)): b for b in raw_bikes}
+    )
+    vehicle_bikes = {
+        getattr(b, "bike_id", getattr(b, "id", None)): b
+        for b in vehicle.get_bike_inventory()
+    }
+
+    for sim_action in sim_actions:
+        functional_pickups = 0
+        depot_pickups = 0
+
+        if vehicle.is_at_depot():
+            fixed_queue = getattr(vehicle.location, "fixed_queue", {})
+            for bike_id in getattr(sim_action, "pick_ups", []) or []:
+                if bike_id in fixed_queue:
+                    functional_pickups += 1
+            depot_dropoffs = sum(
+                1 for bike_id in getattr(sim_action, "delivery_bikes", []) or []
+                if getattr(vehicle_bikes.get(bike_id), "damage_status", None) == "depot"
+            )
+            delta_func = -functional_pickups
+            delta_depot_cargo = -depot_dropoffs
+        else:
+            for bike_id in getattr(sim_action, "pick_ups", []) or []:
+                bike = station_bikes.get(bike_id)
+                if bike and getattr(bike, "damage_status", None) == "depot":
+                    depot_pickups += 1
+                elif bike:
+                    functional_pickups += 1
+            delta_func = len(getattr(sim_action, "delivery_bikes", []) or []) - functional_pickups
+            delta_depot_cargo = depot_pickups
+
+        delta_onsite_repairs = len(getattr(sim_action, "onsite_repairs", []) or [])
+        dest_id = getattr(sim_action, "next_location", getattr(sim_action, "next_station", None))
+        try:
+            service_time = sim_action.get_action_time(0.0) if hasattr(sim_action, "get_action_time") else 0.0
+        except Exception:
+            service_time = 0.0
+        try:
+            travel_time = state.get_vehicle_travel_time(vehicle.location.id, dest_id) if dest_id else 0.0
+        except Exception:
+            travel_time = 0.0
+
+        projected_time = state.time + service_time + travel_time
+        phi = teacher.extract_features(
+            state,
+            vehicle,
+            base_func,
+            base_onsite,
+            base_depot,
+            delta_func,
+            delta_depot_cargo,
+            delta_onsite_repairs,
+            time_remaining=teacher._get_time_remaining(state, vehicle),
+            shift_length=teacher._get_shift_length(state, vehicle),
+            next_station_id=dest_id,
+            eval_time=projected_time,
+            projected_time=projected_time,
+            dist_to_next=travel_time,
+            candidate_action=sim_action,
+            health_base=health_base,
+        )
+        phis.append(phi)
+
+    phis = teacher._prepare_candidate_features(phis)
+    return [teacher.value(phi) for phi in phis]
+
+
+class NNLinearTeacherPrefitPolicy(Policy):
+    """Collect NN candidate encodings while a trained Linear VFA chooses actions."""
+
+    def __init__(
+        self,
+        teacher,
+        config: MDPConfig,
+        depot_id: Optional[str],
+        warmup_end_time: float,
+        dataset: list,
+        use_action_context: bool = False,
+    ) -> None:
+        super().__init__(maintenance_enabled=config.allow_onsite_repairs)
+        self.teacher = teacher
+        self.config = config
+        self.depot_id = depot_id
+        self.warmup_end_time = warmup_end_time
+        self.dataset = dataset
+        self.use_action_context = use_action_context
+        self.greedy_policy = (
+            GreedyMaintenancePolicy() if self.maintenance_enabled else GreedyPolicy()
+        )
+
+    def init_sim(self, simulator) -> None:
+        self.teacher.init_sim(simulator)
+        self.greedy_policy.init_sim(simulator)
+
+    def get_best_action(self, state, vehicle):
+        if state.time < self.warmup_end_time:
+            return self.greedy_policy.get_best_action(state, vehicle)
+
+        vehicle_shift_end = getattr(vehicle, "shift_end_time", None)
+        mdp_state = extract_mdp_state(
+            sim_state=state,
+            active_vehicle_id=vehicle.id,
+            config=self.config,
+            depot_id=self.depot_id,
+            shift_end_time=vehicle_shift_end,
+        )
+        pairs = generate_candidates(
+            state=state,
+            vehicle=vehicle,
+            maintenance_enabled=self.maintenance_enabled,
+            return_pairs=True,
+            wide_search=True,
+            training_mode=True,
+        )
+
+        encodings = []
+        valid_pairs = []
+        for mdp_action, sim_action in pairs:
+            try:
+                post_state, action_duration, _ = PostDecisionState.apply(mdp_state, mdp_action)
+                dest = mdp_action.next_station
+                dest_tt = {
+                    sid: state.get_vehicle_travel_time(dest, sid)
+                    for sid in mdp_state.stations
+                }
+                encodings.append(encode_state(
+                    post_state,
+                    dest_travel_times=dest_tt,
+                    mdp_action=mdp_action if self.use_action_context else None,
+                    action_duration=action_duration,
+                ))
+                valid_pairs.append((mdp_action, sim_action))
+            except Exception:
+                continue
+
+        if not valid_pairs:
+            return self.greedy_policy.get_best_action(state, vehicle)
+
+        try:
+            teacher_values = _linear_teacher_score_actions(
+                self.teacher,
+                state,
+                vehicle,
+                [sim_action for _, sim_action in valid_pairs],
+            )
+        except Exception as exc:
+            print(f"  [TEACHER PREFIT] teacher scoring failed; greedy fallback: {str(exc)[:100]}")
+            return self.greedy_policy.get_best_action(state, vehicle)
+
+        if len(encodings) > 1:
+            best_idx = int(max(range(len(teacher_values)), key=lambda i: teacher_values[i]))
+            self.dataset.append((encodings, best_idx, [float(v) for v in teacher_values]))
+
+        best_idx = int(max(range(len(teacher_values)), key=lambda i: teacher_values[i]))
+        return valid_pairs[best_idx][1]
+
+
+def _scores_for_encoded_candidates(model: nn.Module, encodings: list[dict]) -> torch.Tensor:
+    station = torch.stack([e["station_block"] for e in encodings]).to(device)
+    vehicle = torch.stack([e["vehicle_block"] for e in encodings]).to(device)
+    global_context = torch.stack([e["global_context"] for e in encodings]).to(device)
+    return model.forward_batch(station, vehicle, global_context).squeeze(1)
+
+
+def _run_linear_teacher_prefit(
+    online_model: nn.Module,
+    teacher_path: str,
+    config: MDPConfig,
+    depot_id: Optional[str],
+    warmup_end_time: float,
+    seed_offset: int,
+    instance_name: str,
+    make_sim_config,
+    episodes: int,
+    steps: int,
+    batch_sets: int,
+    lr: float,
+    use_action_context: bool,
+    maintenance_enabled: bool,
+) -> dict:
+    """Pretrain NN candidate rankings from a trained LinearVFAPolicy teacher."""
+    if episodes <= 0 or steps <= 0:
+        return {"sets": 0, "loss": 0.0, "accuracy": 0.0}
+
+    from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+
+    teacher = LinearVFAPolicy.load(
+        Path(teacher_path),
+        maintenance_enabled=maintenance_enabled,
+        config=config,
+    )
+    dataset = []
+
+    print("\n" + "=" * 72)
+    print("  LINEAR-VFA TEACHER PREFIT")
+    print("=" * 72)
+    print(f"  Teacher           : {teacher_path}")
+    print(f"  Collection eps    : {episodes}")
+    print(f"  Optimizer steps   : {steps}")
+    print(f"  Batch candidate sets: {batch_sets}")
+    print(f"  LR                : {lr:g}")
+    print("=" * 72)
+
+    for ep in range(episodes):
+        policy = NNLinearTeacherPrefitPolicy(
+            teacher=teacher,
+            config=config,
+            depot_id=depot_id,
+            warmup_end_time=warmup_end_time,
+            dataset=dataset,
+            use_action_context=use_action_context,
+        )
+        simulator = run_simulation(
+            seed=seed_offset + 50_000 + ep,
+            policy=policy,
+            duration=24 * EPISODE_DAYS,
+            num_vehicles=NUM_VEHICLES,
+            instance_name=instance_name,
+            config=make_sim_config(),
+        )
+        sl = _service_level(simulator, policy)
+        print(f"  [TEACHER PREFIT] collect ep {ep+1}/{episodes}: sets={len(dataset)} teacher_SL={sl:.4f}")
+
+    if not dataset:
+        print("  [TEACHER PREFIT] no candidate sets collected; skipping.")
+        return {"sets": 0, "loss": 0.0, "accuracy": 0.0}
+
+    optimizer = optim.Adam(online_model.parameters(), lr=lr, weight_decay=1e-4)
+    online_model.train()
+    last_loss = 0.0
+    last_acc = 0.0
+
+    for step in range(steps):
+        batch = random.sample(dataset, min(batch_sets, len(dataset)))
+        losses = []
+        n_correct = 0
+        for encodings, best_idx, _teacher_values in batch:
+            scores = _scores_for_encoded_candidates(online_model, encodings)
+            target = torch.tensor([best_idx], dtype=torch.long, device=device)
+            losses.append(torch.nn.functional.cross_entropy(scores.unsqueeze(0), target))
+            if int(torch.argmax(scores).item()) == int(best_idx):
+                n_correct += 1
+        loss = torch.stack(losses).mean()
+        optimizer.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(online_model.parameters(), GRAD_CLIP_NORM)
+        optimizer.step()
+
+        last_loss = float(loss.item())
+        last_acc = n_correct / max(len(batch), 1)
+        if step == 0 or (step + 1) % 100 == 0 or step + 1 == steps:
+            print(
+                f"  [TEACHER PREFIT] step {step+1:4d}/{steps} "
+                f"loss={last_loss:.4f} top1_acc={last_acc:.3f}"
+            )
+
+    return {"sets": len(dataset), "loss": last_loss, "accuracy": last_acc}
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -538,6 +864,7 @@ class NNLearningPolicy(Policy):
         debug_logger=None,                # MaintenanceDebugLogger — None disables logging
         training_mode:     bool = True,   # False disables wildcard candidate injection
         n_step_return:     int  = N_STEP_RETURN,  # n-step return length; 1=TD(0), 3=default
+        use_action_context: bool = False,
     ):
         super().__init__(maintenance_enabled=config.allow_onsite_repairs)
 
@@ -552,6 +879,7 @@ class NNLearningPolicy(Policy):
         self._debug_logger      = debug_logger
         self.training_mode      = training_mode
         self.n_step_return      = n_step_return
+        self.use_action_context = use_action_context
 
         # RewardCalculator: initialized lazily on the first get_best_action call
         # because we need the simulator's initial metrics to set the baseline.
@@ -610,6 +938,8 @@ class NNLearningPolicy(Policy):
         self._nn_top1_chosen:   int  = 0
         self._forced_decisions: int  = 0
         self._pool_has_both:    int  = 0
+        self._action_type_counts: dict = {}
+        self._candidate_type_counts: dict = {}
 
         # n-step return buffer: sliding window of (enc_state, scaled_reward) pairs.
         # Transitions are not pushed to the replay buffer immediately; instead they
@@ -624,6 +954,28 @@ class NNLearningPolicy(Policy):
     # init_sim is intentionally not overridden: generate_candidates() is a
     # standalone function that reads directly from sim.State and sim.Vehicle,
     # so no policy-level initialisation is needed before calling it.
+
+    @staticmethod
+    def _action_type(mdp_action) -> str:
+        """Coarse action label for entropy diagnostics."""
+        has_depot_visit = mdp_action.depot_dropoffs > 0 or mdp_action.load_from_queue > 0
+        has_maintenance = mdp_action.depot_removals > 0 or mdp_action.onsite_repairs > 0
+        has_rebalancing = mdp_action.rebalancing != 0
+        if has_depot_visit:
+            return "depot"
+        if has_maintenance and has_rebalancing:
+            return "mixed"
+        if has_maintenance:
+            return "maintenance"
+        if mdp_action.rebalancing > 0:
+            return "deliver"
+        if mdp_action.rebalancing < 0:
+            return "pickup"
+        return "move"
+
+    @staticmethod
+    def _inc_count(counter: dict, key: str, amount: int = 1) -> None:
+        counter[key] = counter.get(key, 0) + amount
 
     def _lazy_init_reward_calc(self, sim_state) -> None:
         """
@@ -652,17 +1004,22 @@ class NNLearningPolicy(Policy):
         """
         self._candidate_count += 1
         try:
-            post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
+            post_state, action_duration, _ = PostDecisionState.apply(mdp_state, mdp_action)
             dest_tt = None
             if sim_state is not None:
                 dest = mdp_action.next_station
                 dest_tt = {sid: sim_state.get_travel_time(dest, sid) for sid in mdp_state.stations}
-            return encode_state(post_state, dest_travel_times=dest_tt)
+            return encode_state(
+                post_state,
+                dest_travel_times=dest_tt,
+                mdp_action=mdp_action if self.use_action_context else None,
+                action_duration=action_duration,
+            )
         except Exception as _exc:
             self._fallback_count += 1
             reason = str(_exc)[:80]
             self._fallback_reasons[reason] = self._fallback_reasons.get(reason, 0) + 1
-            return encode_state(mdp_state)
+            return encode_state(mdp_state, mdp_action=mdp_action if self.use_action_context else None)
 
     def get_best_action(self, state, vehicle):
         """
@@ -707,7 +1064,7 @@ class NNLearningPolicy(Policy):
             vehicle=vehicle,
             maintenance_enabled=self.maintenance_enabled,
             return_pairs=True,
-            wide_search=False,
+            wide_search=True if self.tau == 0.0 else False,
             training_mode=self.training_mode,
         )
 
@@ -735,13 +1092,18 @@ class NNLearningPolicy(Policy):
             for mdp_action, sim_action in pairs: # <-- Unpack sim_action here too
                 self._candidate_count += 1
                 try:
-                    post_state, _, _ = PostDecisionState.apply(mdp_state, mdp_action)
+                    post_state, action_duration, _ = PostDecisionState.apply(mdp_state, mdp_action)
                     dest = mdp_action.next_station
                     dest_tt = {
                         sid: state.get_vehicle_travel_time(dest, sid)
                         for sid in mdp_state.stations
                     }
-                    post_encoded = encode_state(post_state, dest_travel_times=dest_tt)
+                    post_encoded = encode_state(
+                        post_state,
+                        dest_travel_times=dest_tt,
+                        mdp_action=mdp_action if self.use_action_context else None,
+                        action_duration=action_duration,
+                    )
                     
                     v = self.online_model(
                         post_encoded["station_block"].to(device),
@@ -856,6 +1218,9 @@ class NNLearningPolicy(Policy):
         if has_maint and has_rebal:
             self._pool_has_both += 1
 
+        for cand_mdp, _ in valid_pairs:
+            self._inc_count(self._candidate_type_counts, self._action_type(cand_mdp))
+
         # --- Max-deficit diagnostics ---
         best_def_val, best_def_sid = -float('inf'), None
         chosen_dest = valid_pairs[idx][0].next_station if valid_pairs else None
@@ -870,6 +1235,7 @@ class NNLearningPolicy(Policy):
 
         # Track maintenance action frequency
         chosen_mdp = valid_pairs[idx][0]
+        self._inc_count(self._action_type_counts, self._action_type(chosen_mdp))
         if chosen_mdp.depot_removals > 0 or chosen_mdp.onsite_repairs > 0:
             self._maintenance_chosen += 1
 
@@ -948,8 +1314,11 @@ class NNLearningPolicy(Policy):
         by pushing a terminal transition with done=True so the TD target is
         just r (no bootstrap). Call this after run_simulation returns.
         """
-        '''if self._prev_post_encoded is not None and self._reward_calc is not None:
-            final_r = (self._reward_calc.compute_step_reward(sim_state.metrics)
+        if self._prev_post_encoded is not None and self._reward_calc is not None:
+            final_r = (self._reward_calc.compute_step_reward(
+                           sim_state.metrics,
+                           executed_action=getattr(self, "_prev_executed_action", None),
+                       )
                        + self._reward_calc.compute_fleet_penalty(sim_state))
 
             elapsed_time = sim_state.time - (self._prev_time if self._prev_time is not None else sim_state.time)
@@ -986,19 +1355,17 @@ class NNLearningPolicy(Policy):
                 self._nstep_terminal += 1
 
             print(
-                f"  [N-STEP] n={N_STEP_RETURN} | "
+                f"  [N-STEP] n={self.n_step_return} | "
                 f"full pushes={self._nstep_pushed} | "
                 f"terminal flush={self._nstep_terminal} | "
                 f"total={self._nstep_pushed + self._nstep_terminal}"
-            )'''
+            )
 
         # Reset for the next episode
         self._prev_post_encoded = None
         self._prev_time         = None
         self._reward_calc       = None
         self._nstep_pending.clear()
-        self._nstep_pushed   = 0
-        self._nstep_terminal = 0
         self._prev_executed_action = None  # 🔴 NEW: Clear the stored action
 
 
@@ -1100,6 +1467,7 @@ def _run_greedy_eval(
     odometer_stats_path: Optional[str] = None,
     odometer_sampling_method: str = "triangular",
     odometer_sampling_bounds: str = "p05-p95",
+    use_action_context: bool = False,
 ) -> float:
     """
     Run one evaluation episode with tau=0 (pure greedy NN) and no buffer writes.
@@ -1121,6 +1489,7 @@ def _run_greedy_eval(
         tau=0.0,       # <-- pure greedy: NN argmax only
         verbose=False,
         training_mode=False,
+        use_action_context=use_action_context,
     )
     greedy_policy  = GreedyPolicy()
     eval_episode   = NNEpisodeTrainingPolicy(
@@ -1174,6 +1543,19 @@ def train_nn_rollout(
     odometer_stats_path:    Optional[str] = None,
     odometer_sampling_method: str = "triangular",
     odometer_sampling_bounds: str = "p05-p95",
+    reward_norm_mode:       str = "ema",
+    fixed_reward_scale:     float = 10.0,
+    use_station_id_embedding: bool = False,
+    station_id_embed_dim:    int = 8,
+    use_action_context:      bool = False,
+    use_station_spotlights:  bool = False,
+    use_demand_horizon:      bool = False,
+    use_global_health:       bool = False,
+    linear_teacher_prefit_path: Optional[str] = None,
+    teacher_prefit_episodes: int = 0,
+    teacher_prefit_steps:    int = 500,
+    teacher_prefit_batch_sets: int = 16,
+    teacher_prefit_lr:       float = 1e-4,
 ) -> nn.Module:
     """
     Run the full episodic NN training loop.
@@ -1207,13 +1589,24 @@ def train_nn_rollout(
     random.seed(seed_offset)
     torch.manual_seed(seed_offset)
     SAVE_DIR.mkdir(parents=True, exist_ok=True)
+    set_encoder_options(
+        use_action_context=use_action_context,
+        use_demand_horizon=use_demand_horizon,
+        use_global_health=use_global_health,
+    )
 
     # ── Build online model + frozen target ────────────────────────────────────
     # The target model starts as an exact copy of the online model.
     # It is NEVER updated by backprop; only by hard weight copies every
     # TARGET_UPDATE_FREQ episodes.
     #online_model = build_nn_value_network().to(device)
-    online_model = build_nn_value_network(value_hidden_dims=value_hidden_dims).to(device)
+    online_model = build_nn_value_network(
+        value_hidden_dims=value_hidden_dims,
+        station_feature_dim=get_station_feature_dim(use_demand_horizon),
+        global_feature_dim=get_global_feature_dim(use_action_context, use_global_health),
+        station_id_embed_dim=station_id_embed_dim if use_station_id_embedding else 0,
+        use_station_spotlights=use_station_spotlights,
+    ).to(device)
     target_model = copy.deepcopy(online_model).to(device)
     for param in target_model.parameters():
         param.requires_grad = False   # no gradient tracking in target
@@ -1222,9 +1615,12 @@ def train_nn_rollout(
     # The replay buffer is shared across ALL episodes: transitions from earlier
     # episodes (when the policy was exploratory) stay in the buffer and continue
     # to contribute to gradient updates in later episodes.
-    optimizer         = optim.Adam(online_model.parameters(), lr=lr_start, weight_decay=1e-4)
+    optimizer         = None
     replay_buffer     = ReplayBuffer(max_size=buffer_size)
-    reward_normalizer = RewardNormalizer()   # shared across all episodes
+    reward_normalizer = RewardNormalizer(
+        mode=reward_norm_mode,
+        fixed_scale=fixed_reward_scale,
+    )   # shared across all episodes
 
     # ── Warmup end time (absolute simulation minutes) ─────────────────────────
     # Mirrors the calculation in train_vfa.py:
@@ -1279,6 +1675,29 @@ def train_nn_rollout(
         depot_id = _probe.state.get_closest_depot(_probe_vehicles[0]) if _probe_vehicles else None
         print(f"  Depot ID          : {depot_id!r}  (auto-resolved from instance)")
 
+    prefit_info = {"sets": 0, "loss": 0.0, "accuracy": 0.0}
+    if linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0:
+        prefit_info = _run_linear_teacher_prefit(
+            online_model=online_model,
+            teacher_path=linear_teacher_prefit_path,
+            config=config,
+            depot_id=depot_id,
+            warmup_end_time=warmup_end_time,
+            seed_offset=seed_offset,
+            instance_name=instance_name,
+            make_sim_config=_make_sim_config,
+            episodes=teacher_prefit_episodes,
+            steps=teacher_prefit_steps,
+            batch_sets=teacher_prefit_batch_sets,
+            lr=teacher_prefit_lr,
+            use_action_context=use_action_context,
+            maintenance_enabled=_maintenance,
+        )
+        target_model.load_state_dict(online_model.state_dict())
+        print("  [TEACHER PREFIT] target network reset to prefitted online weights")
+
+    optimizer = optim.Adam(online_model.parameters(), lr=lr_start, weight_decay=1e-4)
+
     # ── Metrics tracking ──────────────────────────────────────────────────────
     learning_curve = []   # written to checkpoint; also mirrored to CSV below
     best_greedy_sl  = -float("inf")   # track best greedy SL for model saving
@@ -1288,12 +1707,38 @@ def train_nn_rollout(
     # Open CSV log — one row per episode, written incrementally so a partial
     # run is still readable if training is interrupted on the cluster.
     ts_run    = datetime.now().strftime("%Y%m%d_%H%M%S")
-    _label    = (f"_{run_label}" if run_label else
-                 f"_n{n_step_return}_buf{buffer_size}_poly{polyak}"
-                 f"_taue{tau_end}_maint{'1' if use_maintenance_shaping else '0'}")
+    def _tag_float(value: float) -> str:
+        return f"{value:g}".replace("-", "m").replace(".", "p")
+
+    _reward_norm_suffix = f"rnorm{reward_norm_mode}"
+    if reward_norm_mode == "fixed":
+        _reward_norm_suffix += f"_rs{_tag_float(fixed_reward_scale)}"
+    _encoder_suffix = ""
+    if use_station_id_embedding:
+        _encoder_suffix += f"_sid{station_id_embed_dim}"
+    if use_action_context:
+        _encoder_suffix += "_actctx"
+    if use_station_spotlights:
+        _encoder_suffix += "_spots"
+    if use_demand_horizon:
+        _encoder_suffix += "_dh"
+    if use_global_health:
+        _encoder_suffix += "_ghealth"
+    if linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0:
+        _encoder_suffix += f"_ltpref{teacher_prefit_episodes}e{teacher_prefit_steps}s"
+    _base_label = (
+        run_label if run_label else
+        f"n{n_step_return}_buf{buffer_size}_poly{polyak}"
+        f"_taue{tau_end}_maint{'1' if use_maintenance_shaping else '0'}"
+    )
+    _label = f"_{_base_label}{_encoder_suffix}_{_reward_norm_suffix}"
     csv_path  = SAVE_DIR / f"training_log_seed{seed_offset}{_label}_{ts_run}.csv"
     CSV_FIELDS = [
         "episode", "mean_loss", "lr", "tau", "polyak",
+        "reward_norm_mode", "fixed_reward_scale",
+        "station_id_embedding", "station_id_embed_dim", "action_context",
+        "station_spotlights", "demand_horizon", "global_health",
+        "linear_teacher_prefit", "teacher_prefit_sets", "teacher_prefit_acc",
         "service_level", "buffer_size", "n_updates", "elapsed_s",
         "mean_value_spread",  # max(V)-min(V) per decision; near 0 = NN not discriminating
         "mean_reward",        # raw step reward mean (un-normalized); scale check
@@ -1309,11 +1754,30 @@ def train_nn_rollout(
         "mean_v_pred",        # mean V(S^x) across all candidate evaluations; should stabilize
         "n_step_terminal",    # short terminal transitions at episode end; high = many partial n-steps
         "reward_ema_mean",    # EMA running mean of step rewards; confirm it updates each episode
-        "grad_norm",          # mean gradient norm per update; rising = unstable learning
+        "prediction_mean",    # V(Sx) mean on final sampled training batch
+        "prediction_std",
+        "prediction_min",
+        "prediction_max",
+        "target_mean",        # TD target mean/std on final sampled training batch
+        "target_std",
+        "v_next_mean",
+        "v_next_std",
+        "bootstrap_mean",
+        "bootstrap_std",
+        "td_error_mean",
+        "td_error_std",
+        "fraction_terminal_transitions",
+        "terminal_target_mean",
+        "nonterminal_target_mean",
+        "grad_norm",          # kept for compatibility; same as grad_norm_after_clip
+        "grad_norm_before_clip",
+        "grad_norm_after_clip",
         "mean_pool_size",     # avg valid candidates per decision; <2 = NN has no real choice
         "pct_forced",         # % decisions with exactly 1 valid candidate (forced)
         "pct_nn_top1_chosen", # % decisions where Boltzmann picked NN argmax (agreement w/ greedy)
         "pct_pool_mixed",     # % decisions where pool had ≥1 maintenance AND ≥1 rebalancing action
+        "action_entropy",
+        "candidate_entropy",
     ]
     csv_file   = csv_path.open("w", newline="")
     csv_writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
@@ -1336,6 +1800,22 @@ def train_nn_rollout(
     print(f"  Target update     : every {target_update_freq} episodes")
     print(f"  Polyak τ          : {polyak:.3f}  (for soft target updates, if enabled)")
     print(f"  Replay buffer     : {buffer_size:,}  |  batch: {batch_size}")
+    print(f"  Reward norm       : {reward_norm_mode}"
+          f"{f'  scale={fixed_reward_scale:g}' if reward_norm_mode == 'fixed' else ''}")
+    print(f"  Station ID embed  : {use_station_id_embedding}"
+          f"{f'  dim={station_id_embed_dim}' if use_station_id_embedding else ''}")
+    print(f"  Action context    : {use_action_context}")
+    print(f"  Station spotlights: {use_station_spotlights}")
+    print(f"  Demand horizon    : {use_demand_horizon}")
+    print(f"  Global health     : {use_global_health}")
+    print(f"  Warmup policy     : {'GreedyMaintenancePolicy' if _maintenance else 'GreedyPolicy'}")
+    if linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0:
+        print(f"  Linear teacher    : {linear_teacher_prefit_path}")
+        print(
+            f"  Teacher prefit    : {teacher_prefit_episodes} collect eps, "
+            f"{teacher_prefit_steps} steps, batch_sets={teacher_prefit_batch_sets}, "
+            f"lr={teacher_prefit_lr:g}"
+        )
     print(f"  Instance          : {instance_name}")
     n_params = sum(p.numel() for p in online_model.parameters())
     print(f"  Model parameters  : {n_params:,}")
@@ -1369,8 +1849,9 @@ def train_nn_rollout(
             reward_normalizer=reward_normalizer,
             debug_logger=debug_logger,
             n_step_return=n_step_return,
+            use_action_context=use_action_context,
         )
-        greedy_policy  = GreedyPolicy()
+        greedy_policy = GreedyMaintenancePolicy() if _maintenance else GreedyPolicy()
         episode_policy = NNEpisodeTrainingPolicy(
             nn_learning_policy=nn_learning,
             greedy_policy=greedy_policy,
@@ -1405,7 +1886,8 @@ def train_nn_rollout(
         # We do one gradient pass per episode rather than per transition.
         # This keeps training fast while still leveraging the diversity of the buffer.
         episode_losses     = []
-        episode_grad_norms = []
+        episode_grad_norms_before = []
+        episode_grad_norms_after  = []
         n_updates          = 0   # tracked for CSV logging
 
         buffer_ready = replay_buffer.ready(min_size=MIN_BUFFER_SIZE)
@@ -1439,7 +1921,7 @@ def train_nn_rollout(
                 batch = replay_buffer.sample(batch_size)
 
                 # Collect debug info on the final update step of a diagnostic episode.
-                want_debug = collect_debug_this_ep and (update_i == n_updates - 1)
+                want_debug = (update_i == n_updates - 1)
 
                 # Forward: online model; backward: clip gradients; step
                 loss, debug_info = _compute_td_loss(
@@ -1455,12 +1937,14 @@ def train_nn_rollout(
 
                 optimizer.zero_grad()
                 loss.backward()
-                nn.utils.clip_grad_norm_(online_model.parameters(), GRAD_CLIP_NORM)
-                _gn = sum(
+                _gn_before = nn.utils.clip_grad_norm_(online_model.parameters(), GRAD_CLIP_NORM)
+                _gn_before = float(_gn_before.item() if hasattr(_gn_before, "item") else _gn_before)
+                _gn_after = sum(
                     p.grad.data.norm(2).item() ** 2
                     for p in online_model.parameters() if p.grad is not None
                 ) ** 0.5
-                episode_grad_norms.append(_gn)
+                episode_grad_norms_before.append(_gn_before)
+                episode_grad_norms_after.append(_gn_after)
                 optimizer.step()
                 episode_losses.append(loss.item())
 
@@ -1475,19 +1959,26 @@ def train_nn_rollout(
                         for _op, _tp in zip(online_model.parameters(), target_model.parameters()):
                             _tp.data.mul_(1.0 - polyak).add_(polyak * _op.data)
                             
-        mean_loss      = sum(episode_losses) / max(len(episode_losses), 1)
-        mean_grad_norm = round(sum(episode_grad_norms) / max(len(episode_grad_norms), 1), 4) if episode_grad_norms else 0.0
+        mean_loss = sum(episode_losses) / max(len(episode_losses), 1)
+        mean_grad_norm_before = (
+            round(sum(episode_grad_norms_before) / max(len(episode_grad_norms_before), 1), 4)
+            if episode_grad_norms_before else 0.0
+        )
+        mean_grad_norm_after = (
+            round(sum(episode_grad_norms_after) / max(len(episode_grad_norms_after), 1), 4)
+            if episode_grad_norms_after else 0.0
+        )
 
         # --- Target network update ---
         # Polyak updates now run inside the gradient loop (per gradient step).
         # This block handles the fallback hard-copy when POLYAK=0, and prints
         # a periodic diagnostic showing how far online and target have drifted.
-        if POLYAK > 0.0:
+        if polyak > 0.0:
             if ep == 0 or (DEBUG_EVERY > 0 and (ep + 1) % DEBUG_EVERY == 0):
                 sample_p = next(online_model.parameters())
                 sample_t = next(target_model.parameters())
                 diff = (sample_p - sample_t).norm().item()
-                print(f"  [POLYAK] ep={ep+1}  τ={POLYAK}/step  |online-target|={diff:.5f}")
+                print(f"  [POLYAK] ep={ep+1}  τ={polyak}/step  |online-target|={diff:.5f}")
         else:
             if (ep + 1) % target_update_freq == 0:
                 target_model.load_state_dict(online_model.state_dict())
@@ -1670,6 +2161,7 @@ def train_nn_rollout(
                 odometer_stats_path=odometer_stats_path,
                 odometer_sampling_method=odometer_sampling_method,
                 odometer_sampling_bounds=odometer_sampling_bounds,
+                use_action_context=use_action_context,
             )
             online_model.train()
             print(
@@ -1691,6 +2183,19 @@ def train_nn_rollout(
                     "station_feature_dim":  online_model.station_feature_dim,
                     "vehicle_feature_dim":  online_model.vehicle_feature_dim,
                     "global_feature_dim":   online_model.global_feature_dim,
+                    "reward_norm_mode":     reward_norm_mode,
+                    "fixed_reward_scale":   fixed_reward_scale,
+                    "use_station_id_embedding": use_station_id_embedding,
+                    "station_id_embed_dim":  station_id_embed_dim if use_station_id_embedding else 0,
+                    "use_action_context":    use_action_context,
+                    "use_station_spotlights": use_station_spotlights,
+                    "use_demand_horizon":    use_demand_horizon,
+                    "use_global_health":     use_global_health,
+                    "linear_teacher_prefit_path": linear_teacher_prefit_path,
+                    "teacher_prefit_episodes": teacher_prefit_episodes,
+                    "teacher_prefit_steps":    teacher_prefit_steps,
+                    "teacher_prefit_sets":     int(prefit_info.get("sets", 0)),
+                    "teacher_prefit_accuracy": float(prefit_info.get("accuracy", 0.0)),
                     "best_greedy_sl":       best_greedy_sl,
                 }, best_greedy_path)
                 print(f"  -> New best greedy SL={best_greedy_sl:.4f} — saved to {best_greedy_path.name}")
@@ -1754,6 +2259,22 @@ def train_nn_rollout(
         pct_nn_top1       = round(nn_learning._nn_top1_chosen   / _n_dec * 100, 1)
         pct_pool_mixed    = round(nn_learning._pool_has_both     / _n_dec * 100, 1)
 
+        def _entropy(counts: dict) -> float:
+            total = sum(counts.values())
+            if total <= 0:
+                return 0.0
+            ent = 0.0
+            for count in counts.values():
+                p = count / total
+                if p > 0.0:
+                    ent -= p * math.log(p)
+            return round(ent, 4)
+
+        action_entropy = _entropy(nn_learning._action_type_counts)
+        candidate_entropy = _entropy(nn_learning._candidate_type_counts)
+        _td = last_debug_info or {}
+        _tdv = lambda key: round(float(_td.get(key, 0.0)), 6) if _td else ""
+
         # Write one CSV row per episode (flushed immediately so partial runs are readable)
         csv_writer.writerow({
             "episode":          ep + 1,
@@ -1761,6 +2282,17 @@ def train_nn_rollout(
             "lr":               round(current_lr,   6),
             "tau":              round(current_tau,  4),
             "polyak":           polyak,
+            "reward_norm_mode":  reward_norm_mode,
+            "fixed_reward_scale": fixed_reward_scale if reward_norm_mode == "fixed" else "",
+            "station_id_embedding": int(use_station_id_embedding),
+            "station_id_embed_dim": station_id_embed_dim if use_station_id_embedding else 0,
+            "action_context":    int(use_action_context),
+            "station_spotlights": int(use_station_spotlights),
+            "demand_horizon":    int(use_demand_horizon),
+            "global_health":     int(use_global_health),
+            "linear_teacher_prefit": int(bool(linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0)),
+            "teacher_prefit_sets": int(prefit_info.get("sets", 0)),
+            "teacher_prefit_acc": round(float(prefit_info.get("accuracy", 0.0)), 4),
             "service_level":    round(sl,           4),
             "buffer_size":      len(replay_buffer),
             "n_updates":        n_updates,
@@ -1779,11 +2311,30 @@ def train_nn_rollout(
             "mean_v_pred":       mean_v_pred,
             "n_step_terminal":   nn_learning._nstep_terminal,
             "reward_ema_mean":   round(reward_normalizer.mean, 4),
-            "grad_norm":         mean_grad_norm,
+            "prediction_mean":   _tdv("v_cur_mean"),
+            "prediction_std":    _tdv("v_cur_std"),
+            "prediction_min":    _tdv("v_cur_min"),
+            "prediction_max":    _tdv("v_cur_max"),
+            "target_mean":       _tdv("td_target_mean"),
+            "target_std":        _tdv("td_target_std"),
+            "v_next_mean":       _tdv("v_next_mean"),
+            "v_next_std":        _tdv("v_next_std"),
+            "bootstrap_mean":    _tdv("bootstrap_mean"),
+            "bootstrap_std":     _tdv("bootstrap_std"),
+            "td_error_mean":     _tdv("td_error_mean"),
+            "td_error_std":      _tdv("td_error_std"),
+            "fraction_terminal_transitions": _tdv("fraction_terminal"),
+            "terminal_target_mean": _tdv("terminal_target_mean"),
+            "nonterminal_target_mean": _tdv("nonterminal_target_mean"),
+            "grad_norm":         mean_grad_norm_after,
+            "grad_norm_before_clip": mean_grad_norm_before,
+            "grad_norm_after_clip":  mean_grad_norm_after,
             "mean_pool_size":    mean_pool_size,
             "pct_forced":        pct_forced,
             "pct_nn_top1_chosen": pct_nn_top1,
             "pct_pool_mixed":    pct_pool_mixed,
+            "action_entropy":    action_entropy,
+            "candidate_entropy": candidate_entropy,
         })
         csv_file.flush()
 
@@ -1799,6 +2350,19 @@ def train_nn_rollout(
                 "station_feature_dim":  online_model.station_feature_dim,
                 "vehicle_feature_dim":  online_model.vehicle_feature_dim,
                 "global_feature_dim":   online_model.global_feature_dim,
+                "reward_norm_mode":     reward_norm_mode,
+                "fixed_reward_scale":   fixed_reward_scale,
+                "use_station_id_embedding": use_station_id_embedding,
+                "station_id_embed_dim":  station_id_embed_dim if use_station_id_embedding else 0,
+                "use_action_context":    use_action_context,
+                "use_station_spotlights": use_station_spotlights,
+                "use_demand_horizon":    use_demand_horizon,
+                "use_global_health":     use_global_health,
+                "linear_teacher_prefit_path": linear_teacher_prefit_path,
+                "teacher_prefit_episodes": teacher_prefit_episodes,
+                "teacher_prefit_steps":    teacher_prefit_steps,
+                "teacher_prefit_sets":     int(prefit_info.get("sets", 0)),
+                "teacher_prefit_accuracy": float(prefit_info.get("accuracy", 0.0)),
             }, ck_path)
             print(f"  -> Checkpoint saved -> {ck_path}")
 
@@ -1818,6 +2382,19 @@ def train_nn_rollout(
         "vehicle_feature_dim": online_model.vehicle_feature_dim,
         "global_feature_dim":  online_model.global_feature_dim,
         "value_hidden_dims":   online_model.value_hidden_dims,
+        "reward_norm_mode":    reward_norm_mode,
+        "fixed_reward_scale":  fixed_reward_scale,
+        "use_station_id_embedding": use_station_id_embedding,
+        "station_id_embed_dim": station_id_embed_dim if use_station_id_embedding else 0,
+        "use_action_context":   use_action_context,
+        "use_station_spotlights": use_station_spotlights,
+        "use_demand_horizon":   use_demand_horizon,
+        "use_global_health":    use_global_health,
+        "linear_teacher_prefit_path": linear_teacher_prefit_path,
+        "teacher_prefit_episodes": teacher_prefit_episodes,
+        "teacher_prefit_steps": teacher_prefit_steps,
+        "teacher_prefit_sets": int(prefit_info.get("sets", 0)),
+        "teacher_prefit_accuracy": float(prefit_info.get("accuracy", 0.0)),
     }, save_path)
 
     csv_file.close()
@@ -1861,6 +2438,16 @@ def load_nn_model(checkpoint_path: str) -> nn.Module:
     """
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
     state_dict = checkpoint["model_state"]
+    use_action_context = bool(checkpoint.get("use_action_context", False))
+    use_demand_horizon = bool(checkpoint.get("use_demand_horizon", False))
+    use_global_health = bool(checkpoint.get("use_global_health", False))
+    use_station_spotlights = bool(checkpoint.get("use_station_spotlights", False))
+    station_id_embed_dim = int(checkpoint.get("station_id_embed_dim", 0) or 0)
+    set_encoder_options(
+        use_action_context=use_action_context,
+        use_demand_horizon=use_demand_horizon,
+        use_global_health=use_global_health,
+    )
 
     # Infer value_hidden_dims from weights when the key is absent or None
     stored_dims = checkpoint.get("value_hidden_dims")
@@ -1884,6 +2471,8 @@ def load_nn_model(checkpoint_path: str) -> nn.Module:
             vehicle_feature_dim=checkpoint["vehicle_feature_dim"],
             global_feature_dim=checkpoint["global_feature_dim"],
             value_hidden_dims=stored_dims,
+            station_id_embed_dim=station_id_embed_dim,
+            use_station_spotlights=use_station_spotlights,
         )
     model.load_state_dict(state_dict)
     model.eval()
@@ -1979,6 +2568,48 @@ if __name__ == "__main__":
     parser.add_argument("--odometer_sampling_bounds", type=str,
                         choices=["p05-p95", "min-max"],
                         default="p05-p95")
+    parser.add_argument("--reward_norm", type=str,
+                        choices=["ema", "fixed", "none"],
+                        default="ema",
+                        help=(
+                            "Reward normalization for TD targets. "
+                            "ema=current moving mean/std normalizer; "
+                            "fixed=reward/(fixed_reward_scale*discount_sum); "
+                            "none=raw reward."
+                        ))
+    parser.add_argument("--fixed_reward_scale", type=float, default=10.0,
+                        help="Scale used when --reward_norm fixed.")
+    parser.add_argument("--station_id_embedding", action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help="Enable learned station-ID embeddings in the Deep Sets station branch.")
+    parser.add_argument("--station_id_embed_dim", type=int, default=8,
+                        help="Embedding dimension used when --station_id_embedding is enabled.")
+    parser.add_argument("--action_context", action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help="Append proposed-action features to the global context.")
+    parser.add_argument("--station_spotlights", action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help="Append raw top starving/congested/depot-broken/onsite-broken station spotlights.")
+    parser.add_argument("--demand_horizon", action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help="Append per-station projected flow/risk horizon features.")
+    parser.add_argument("--global_health", action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help="Append global inventory-health features to the global context.")
+    parser.add_argument("--linear_teacher_prefit", type=str, default=None,
+                        help=(
+                            "Path to a trained LinearVFAPolicy model. When set with "
+                            "--teacher_prefit_episodes > 0, pretrain the NN to imitate "
+                            "the Linear VFA's candidate rankings from raw NN encodings."
+                        ))
+    parser.add_argument("--teacher_prefit_episodes", type=int, default=0,
+                        help="Teacher-driven episodes used to collect candidate-ranking data before TD training.")
+    parser.add_argument("--teacher_prefit_steps", type=int, default=500,
+                        help="Supervised ranking optimizer steps before TD training.")
+    parser.add_argument("--teacher_prefit_batch_sets", type=int, default=16,
+                        help="Candidate sets per supervised prefit batch.")
+    parser.add_argument("--teacher_prefit_lr", type=float, default=1e-4,
+                        help="Learning rate for Linear-VFA teacher prefit.")
     args = parser.parse_args()
 
     custom_reward = RewardConfig()
@@ -2010,6 +2641,22 @@ if __name__ == "__main__":
         print(f"  tau_end:             {args.tau_end}")
         print(f"  maintenance_shaping: {args.maintenance_shaping}")
         print(f"  fleet_degradation:   {args.fleet_degradation_weight}")
+        print(f"  reward_norm:         {args.reward_norm}")
+        if args.reward_norm == "fixed":
+            print(f"  fixed_reward_scale:  {args.fixed_reward_scale:g}")
+        print(f"  station_id_embed:    {args.station_id_embedding}"
+              f"{f' dim={args.station_id_embed_dim}' if args.station_id_embedding else ''}")
+        print(f"  action_context:      {args.action_context}")
+        print(f"  station_spotlights:  {args.station_spotlights}")
+        print(f"  demand_horizon:      {args.demand_horizon}")
+        print(f"  global_health:       {args.global_health}")
+        print(f"  linear_teacher:      {args.linear_teacher_prefit}")
+        print(
+            f"  teacher_prefit:      eps={args.teacher_prefit_episodes} "
+            f"steps={args.teacher_prefit_steps} "
+            f"batch_sets={args.teacher_prefit_batch_sets} "
+            f"lr={args.teacher_prefit_lr:g}"
+        )
         print(f"  odometer_stats:      {args.odometer_stats}")
         print("="*50 + "\n")
 
@@ -2039,4 +2686,17 @@ if __name__ == "__main__":
             odometer_stats_path      = args.odometer_stats,
             odometer_sampling_method = args.odometer_sampling_method,
             odometer_sampling_bounds = args.odometer_sampling_bounds,
+            reward_norm_mode         = args.reward_norm,
+            fixed_reward_scale       = args.fixed_reward_scale,
+            use_station_id_embedding = args.station_id_embedding,
+            station_id_embed_dim     = args.station_id_embed_dim,
+            use_action_context       = args.action_context,
+            use_station_spotlights   = args.station_spotlights,
+            use_demand_horizon       = args.demand_horizon,
+            use_global_health        = args.global_health,
+            linear_teacher_prefit_path = args.linear_teacher_prefit,
+            teacher_prefit_episodes  = args.teacher_prefit_episodes,
+            teacher_prefit_steps     = args.teacher_prefit_steps,
+            teacher_prefit_batch_sets = args.teacher_prefit_batch_sets,
+            teacher_prefit_lr        = args.teacher_prefit_lr,
         )

@@ -6,7 +6,6 @@
 
 # python policies/sjovik_sund/run_simulation_ingvild.py --vfa-model models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl --active-features rebalancing_imbalance squared_starvation_penalty squared_congestion_penalty gross_starvation_risk gross_congestion_risk --duration 672
 
-
 ######################################################
 import os
 import sys
@@ -98,7 +97,7 @@ class SimulationConfig:
     """Centralized configuration for simulation runs."""
     
     # === Time Settings ===
-    start_hour: int = 5  # 5 AM start time
+    start_hour: int = 0 # 00AM start time
     
     # === Instance Settings ===
     default_instance: str = "TD_W34_old"
@@ -793,7 +792,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--warmup-days",
         type=float,
-        default=7,
+        default=0,
         help=(
             "Evaluation warmup in days before metrics/logs are counted. "
             "Uses GreedyMaintenancePolicy when maintenance is enabled, otherwise GreedyPolicy. "
@@ -870,7 +869,7 @@ if __name__ == "__main__":
         "--log-files",
         nargs="+",
         choices=["results", "hourly", "daily", "decisions", "debug", "all", "none"],
-        default=["results", "hourly", "daily", "decisions"],
+        default=["results", "hourly", "daily", "decisions"] ,
         help=(
             "Centralized run_logs outputs to write. Examples: "
             "'--log-files results daily', '--log-files all', '--log-files none'. "

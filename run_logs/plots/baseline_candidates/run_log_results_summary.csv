@@ -1,0 +1,181 @@
+policy,experiment,experiment_label,label,mean,std,n,metric
+Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,0.9259700000000001,0.004516156182714065,10,service_level
+Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,0.9251444444444444,0.0020935084852414143,9,service_level
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.92907,0.00274592627561471,10,service_level
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.92951,0.003085251655501979,10,service_level
+Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.92919,0.0033603736564719647,10,service_level
+Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.927225,0.0014407752542756956,4,service_level
+Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,0.926625,0.0030489069079480536,4,service_level
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.9270099999999999,0.003926958110293466,10,service_level
+Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.9270200000000001,0.003389460789630768,10,service_level
+VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.91823,0.005507984103906722,10,service_level
+VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.9171699999999999,0.0035702629844001164,10,service_level
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,0.90615,0.0027993054694175905,10,service_level
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,0.92082,0.003457295024855233,10,service_level
+VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,0.91985,0.004218543719236695,10,service_level
+VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,0.9201900000000001,0.0035031573060756464,10,service_level
+VFA,R6_BreadthDepth,Squared count,VFA: Squared count,0.9089600000000001,0.003896779296918063,10,service_level
+VFA,Squared_only,Squared only,VFA: Squared only,0.90581,0.004700697347793816,10,service_level
+VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,0.91815,0.0029871019028111286,10,service_level
+Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,3159.1,217.95231384665587,10,starvations
+Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,3187.0,95.28509852017781,9,starvations
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,2980.1,198.96981904019736,10,starvations
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,2917.1,167.41727642165375,10,starvations
+Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,2942.0,175.73085481307297,10,starvations
+Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,3071.25,83.34416596259157,4,starvations
+Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,3077.5,193.13294212364008,4,starvations
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,3090.0,170.78771748707354,10,starvations
+Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,3061.6,189.7315061987451,10,starvations
+VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,3579.1,200.7056717351721,10,starvations
+VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,3678.0,177.11264463298178,10,starvations
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,4044.2,144.7977900383842,10,starvations
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,3335.3,132.08587274109897,10,starvations
+VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,3429.9,155.77152071757752,10,starvations
+VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,3421.1,217.43476671815338,10,starvations
+VFA,R6_BreadthDepth,Squared count,VFA: Squared count,3949.4,224.6593470617731,10,starvations
+VFA,Squared_only,Squared only,VFA: Squared only,4046.6,257.6833543539649,10,starvations
+VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,3324.3,135.82509177451553,10,starvations
+Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,1253.8,118.86481583902126,10,congestions
+Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,1274.7777777777778,125.61625867874127,9,congestions
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,1247.8,70.41590729373584,10,congestions
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,1282.9,123.87220116806766,10,congestions
+Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,1277.7,91.43066589862872,10,congestions
+Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,1287.5,19.39931270260193,4,congestions
+Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,1316.25,123.3622713798672,4,congestions
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,1260.8,136.0308788474146,10,congestions
+Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,1287.4,145.42978450861506,10,congestions
+VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,1295.3,206.58280556608665,10,congestions
+VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,1259.4,119.26739332739318,10,congestions
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,1548.9,140.78387691777777,10,congestions
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,1384.4,145.412211011012,10,congestions
+VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,1348.2,161.84615465860708,10,congestions
+VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,1334.4,86.0932311186219,10,congestions
+VFA,R6_BreadthDepth,Squared count,VFA: Squared count,1477.1,92.1996023129529,10,congestions
+VFA,Squared_only,Squared only,VFA: Squared only,1567.4,178.9246893093417,10,congestions
+VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,1553.8,78.26138539819266,10,congestions
+Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,41.1,0.5676462121975467,10,total_depot_visits
+Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,41.44444444444444,0.7264831572567791,9,total_depot_visits
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,41.2,0.632455532033675,10,total_depot_visits
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,41.4,0.8432740427115678,10,total_depot_visits
+Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,41.2,0.7888106377466154,10,total_depot_visits
+Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,40.5,0.9999999999999993,4,total_depot_visits
+Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,41.25,0.5,4,total_depot_visits
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,41.0,0.8164965809277259,10,total_depot_visits
+Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,40.9,1.1972189997378644,10,total_depot_visits
+VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,41.7,1.251665557034572,10,total_depot_visits
+VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,41.5,1.4337208778404376,10,total_depot_visits
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,41.9,1.1972189997378644,10,total_depot_visits
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,42.3,1.6363916944844774,10,total_depot_visits
+VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,42.0,1.4907119849998605,10,total_depot_visits
+VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,43.0,2.160246899469287,10,total_depot_visits
+VFA,R6_BreadthDepth,Squared count,VFA: Squared count,41.5,1.9002923751652303,10,total_depot_visits
+VFA,Squared_only,Squared only,VFA: Squared only,40.3,1.3374935098492582,10,total_depot_visits
+VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,41.8,1.3165611772087666,10,total_depot_visits
+Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,216.7,9.487418569406064,10,total_fixed_on_site
+Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,206.22222222222223,12.245180457814595,9,total_fixed_on_site
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,210.2,14.74825790088819,10,total_fixed_on_site
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,210.5,12.589678312014176,10,total_fixed_on_site
+Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,206.2,7.757433710820726,10,total_fixed_on_site
+Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,211.0,9.416297927883694,4,total_fixed_on_site
+Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,211.75,11.644025649805707,4,total_fixed_on_site
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,209.5,13.36038921588739,10,total_fixed_on_site
+Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,212.3,10.20947272552963,10,total_fixed_on_site
+VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,185.7,10.467409740077374,10,total_fixed_on_site
+VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,181.9,17.678926563692844,10,total_fixed_on_site
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,196.3,15.268340519592238,10,total_fixed_on_site
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,191.4,14.773850773128402,10,total_fixed_on_site
+VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,188.6,16.581113754308948,10,total_fixed_on_site
+VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,190.4,13.729125568982493,10,total_fixed_on_site
+VFA,R6_BreadthDepth,Squared count,VFA: Squared count,201.7,14.69731645951434,10,total_fixed_on_site
+VFA,Squared_only,Squared only,VFA: Squared only,212.2,11.914510294408059,10,total_fixed_on_site
+VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,212.8,18.23793360614689,10,total_fixed_on_site
+Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,152.8,11.063453348751462,10,total_picked_up_to_depot
+Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,147.0,8.817596044274202,9,total_picked_up_to_depot
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,154.4,15.45027867422174,10,total_picked_up_to_depot
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,154.5,10.298327803850267,10,total_picked_up_to_depot
+Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,153.8,9.75021367287234,10,total_picked_up_to_depot
+Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,152.0,15.641824275533425,4,total_picked_up_to_depot
+Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,158.25,10.04572877727976,4,total_picked_up_to_depot
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,156.6,12.833982667555349,10,total_picked_up_to_depot
+Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,160.5,12.149531312405063,10,total_picked_up_to_depot
+VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,153.2,12.908223046656042,10,total_picked_up_to_depot
+VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,150.9,6.57351588657935,10,total_picked_up_to_depot
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,48.7,11.23536084571089,10,total_picked_up_to_depot
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,164.0,13.482498944104453,10,total_picked_up_to_depot
+VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,161.6,15.167216107263863,10,total_picked_up_to_depot
+VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,158.5,10.013879257199868,10,total_picked_up_to_depot
+VFA,R6_BreadthDepth,Squared count,VFA: Squared count,52.1,11.75159563633807,10,total_picked_up_to_depot
+VFA,Squared_only,Squared only,VFA: Squared only,81.4,9.512564790259717,10,total_picked_up_to_depot
+VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,185.2,10.881176406988356,10,total_picked_up_to_depot
+Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,6057.6,90.45588243263488,10,total_functional_pickups
+Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,6015.0,35.344730866141774,9,total_functional_pickups
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,6205.3,49.24552997199082,10,total_functional_pickups
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,6195.2,57.408477887271516,10,total_functional_pickups
+Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,6269.4,121.40583914201893,10,total_functional_pickups
+Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,6093.25,53.723830838837245,4,total_functional_pickups
+Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,6034.0,62.67375846396962,4,total_functional_pickups
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,6021.7,59.649066305442844,10,total_functional_pickups
+Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,5785.8,78.53067341279241,10,total_functional_pickups
+VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,6237.1,94.97537692592877,10,total_functional_pickups
+VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,6196.1,74.51688846608315,10,total_functional_pickups
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,6393.8,94.7790412837494,10,total_functional_pickups
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,6235.5,109.36407088253436,10,total_functional_pickups
+VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,6316.6,128.06265827494155,10,total_functional_pickups
+VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,6272.2,48.85534202566235,10,total_functional_pickups
+VFA,R6_BreadthDepth,Squared count,VFA: Squared count,6266.7,109.255104126891,10,total_functional_pickups
+VFA,Squared_only,Squared only,VFA: Squared only,5699.9,67.97295213702438,10,total_functional_pickups
+VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,5480.9,80.31251459143847,10,total_functional_pickups
+Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,0.02596,0.0047532912574107826,10,broken_ratio_end_onsite
+Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,0.022155555555555553,0.006366535775268822,9,broken_ratio_end_onsite
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.02636,0.008441721783301478,10,broken_ratio_end_onsite
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.02454,0.007955040330926467,10,broken_ratio_end_onsite
+Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.022170000000000002,0.004744599268876375,10,broken_ratio_end_onsite
+Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.024775,0.005340646028337768,4,broken_ratio_end_onsite
+Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,0.025425,0.0043972529303342705,4,broken_ratio_end_onsite
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.02101,0.0060553832799143835,10,broken_ratio_end_onsite
+Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.02296,0.004262810757652228,10,broken_ratio_end_onsite
+VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.0531,0.01059402347237976,10,broken_ratio_end_onsite
+VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.052059999999999995,0.011674873304094854,10,broken_ratio_end_onsite
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,0.03314,0.00840782704124886,10,broken_ratio_end_onsite
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,0.03992,0.011154251805178747,10,broken_ratio_end_onsite
+VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,0.0496,0.013838432795017728,10,broken_ratio_end_onsite
+VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,0.03826,0.005698186846123362,10,broken_ratio_end_onsite
+VFA,R6_BreadthDepth,Squared count,VFA: Squared count,0.02818,0.007666927531793801,10,broken_ratio_end_onsite
+VFA,Squared_only,Squared only,VFA: Squared only,0.02373,0.004419665648490216,10,broken_ratio_end_onsite
+VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,0.0253,0.00662989860824097,10,broken_ratio_end_onsite
+Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,0.12499,0.012065142629354474,10,broken_ratio_end_depot
+Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,0.1302333333333333,0.013011629413720638,9,broken_ratio_end_depot
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.12410999999999998,0.016946874506986696,10,broken_ratio_end_depot
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.12736,0.017822719582974232,10,broken_ratio_end_depot
+Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.12383,0.014176353550895937,10,broken_ratio_end_depot
+Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.1259,0.02237245330013378,4,broken_ratio_end_depot
+Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,0.1168,0.00868216562845929,4,broken_ratio_end_depot
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.12069,0.018816036304764673,10,broken_ratio_end_depot
+Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.11144000000000001,0.01752738809216403,10,broken_ratio_end_depot
+VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.11782,0.0148696409580804,10,broken_ratio_end_depot
+VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.12553,0.015948810474626485,10,broken_ratio_end_depot
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,0.24933,0.018059472737473693,10,broken_ratio_end_depot
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,0.11171,0.011980025041710057,10,broken_ratio_end_depot
+VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,0.11433,0.016380072581578437,10,broken_ratio_end_depot
+VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,0.10608999999999999,0.01256834206338379,10,broken_ratio_end_depot
+VFA,R6_BreadthDepth,Squared count,VFA: Squared count,0.25184,0.01617997390466238,10,broken_ratio_end_depot
+VFA,Squared_only,Squared only,VFA: Squared only,0.20223,0.016310054840155786,10,broken_ratio_end_depot
+VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,0.08194,0.014336526776036097,10,broken_ratio_end_depot
+Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,0.8490399999999999,0.011492045558172478,10,functional_ratio_end
+Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,0.847588888888889,0.014415394934274645,9,functional_ratio_end
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.84956,0.013096242039438492,10,functional_ratio_end
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.8481099999999999,0.018250019786899482,10,functional_ratio_end
+Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.85401,0.013820311139768164,10,functional_ratio_end
+Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.849325,0.02122787083058502,4,functional_ratio_end
+Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,0.857775,0.01254229511160806,4,functional_ratio_end
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.85831,0.017459505529462564,10,functional_ratio_end
+Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.8655799999999999,0.018748617726826323,10,functional_ratio_end
+VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.82907,0.012786629301300985,10,functional_ratio_end
+VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.8224199999999999,0.018910302894336598,10,functional_ratio_end
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,0.71753,0.015920291035865744,10,functional_ratio_end
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,0.84839,0.015620815884226064,10,functional_ratio_end
+VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,0.83607,0.021468118480926796,10,functional_ratio_end
+VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,0.8556900000000001,0.015909078470413597,10,functional_ratio_end
+VFA,R6_BreadthDepth,Squared count,VFA: Squared count,0.72,0.016495858065991395,10,functional_ratio_end
+VFA,Squared_only,Squared only,VFA: Squared only,0.7740199999999999,0.014507760375437388,10,functional_ratio_end
+VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,0.89273,0.015260045871490687,10,functional_ratio_end
