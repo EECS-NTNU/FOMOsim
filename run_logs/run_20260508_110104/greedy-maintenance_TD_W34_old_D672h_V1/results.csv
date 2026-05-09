@@ -1,6 +1,0 @@
-seed,exp_name,alpha,duration_hours,total_runtime_s,service_level,avg_bike_km_driven,starvations,congestions,total_trips,bike_departures,bike_arrivals,total_depot_deliveries,total_depot_visits,total_fixed_on_site,total_picked_up_to_depot,total_depot_fixes,total_bikes_redistributed_from_depot,total_functional_pickups,total_functional_deliveries,broken_ratio_start_onsite,broken_ratio_start_depot,functional_ratio_start,broken_ratio_end_onsite,broken_ratio_end_depot,functional_ratio_end,broken_bikes_end_onsite,broken_bikes_end_depot,new_breakdowns_onsite,new_breakdowns_depot,restored_onsite,restored_depot
-42,,0.0,672,40620,0.9106,400.3242,4861,2296,80076,75215,75208,259,65,260,259,259,228,5817,6032,0.0,0.0,1.0,0.0257,0.0678,0.9065,19,50,280,286,260,228
-43,,0.0,672,40620,0.9163,397.607,4533,2154,79878,75345,75335,252,62,234,252,252,229,5980,6189,0.0,0.0,1.0,0.0215,0.0511,0.9274,16,38,252,272,234,229
-44,,0.0,672,40620,0.9138,397.6894,4928,1948,79812,74884,74878,254,64,287,254,254,233,5822,6035,0.0,0.0,1.0,0.0176,0.0583,0.9241,13,43,303,288,287,233
-45,,0.0,672,40620,0.9135,395.4283,4831,2031,79370,74539,74533,257,64,251,257,257,233,6043,6256,0.0,0.0,1.0,0.016,0.0559,0.9281,12,42,264,284,251,233
-46,,0.0,672,40620,0.9139,396.37,4676,2138,79152,74476,74469,219,61,276,219,219,210,5901,6091,0.0,0.0,1.0,0.0107,0.0706,0.9188,8,53,284,268,276,210

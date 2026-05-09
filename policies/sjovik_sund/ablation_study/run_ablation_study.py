@@ -105,6 +105,8 @@ EXPERIMENTS = {
     ],
 
     #BASELINES
+    "Imbalance_squared_net_temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty", "net_starvation_shortfall", "net_congestion_shortfall"], # CIM1 + CIM2/CIM3 + FIM3/FIM4: global mass + mean squared depth + net outflow/inflow pressure with demand uncertainty
+    "Imbalance_squared_temporal" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty"], # CIM1 + CIM2/CIM3: global mass + mean squared depth
     "Imbalance": ["rebalancing_imbalance"], # CIM1: total L1 imbalance across the network
     "Imbalance_squared" : ["rebalancing_imbalance", "squared_starvation_penalty", "squared_congestion_penalty"], # CIM1 + CIM2/CIM3: global mass + mean squared depth
     "Squared_temporal": [
