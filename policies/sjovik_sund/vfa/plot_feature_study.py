@@ -15,6 +15,11 @@ sys.path.insert(0, str(WORKSPACE_ROOT))
 
 from policies.sjovik_sund.vfa.vfa_features import REBALANCING_CORRELATION_FEATURES
 
+EXCLUDED_CORRELATION_FEATURES = {
+    "exponential_starvation_penalty",
+    "exponential_congestion_penalty",
+}
+
 # Use LaTeX styling when available; otherwise fall back to Matplotlib mathtext.
 if shutil.which("latex"):
     plt.rcParams.update({
@@ -75,6 +80,11 @@ def main():
 
     # Load the data
     corr_df = pd.read_csv(corr_path, index_col=0)
+    corr_df = corr_df.drop(
+        index=list(EXCLUDED_CORRELATION_FEATURES),
+        columns=list(EXCLUDED_CORRELATION_FEATURES),
+        errors="ignore",
+    )
 
     # Custom palette from Colorpallette.png
     custom_cmap = LinearSegmentedColormap.from_list('custom_palette', ['#3758d8', '#ffffff', '#db3249'])

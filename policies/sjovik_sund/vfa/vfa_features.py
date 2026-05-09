@@ -45,12 +45,10 @@ Pillar 1  —  Current System Imbalance  (CIM, always active)
   CIM1  rebalancing_imbalance          Σ_i |I_i - T_i| / (0.5 * Σ_i C_i)
   CIM2  squared_starvation_penalty     (1/N) Σ_i (max(0, T_i-I_i) / T_i)^2
   CIM3  squared_congestion_penalty     (1/N) Σ_i (max(0, I_i-T_i) / (C_i-T_i))^2
-  CIM4  exponential_starvation_penalty (1/N) Σ_i (exp(3 * starv_ratio_i) - 1) / (exp(3) - 1)
-  CIM5  exponential_congestion_penalty (1/N) Σ_i (exp(3 * cong_ratio_i) - 1) / (exp(3) - 1)
-  CIM6  starvation_severity_max        Q95 of starvation ratio across stations
-  CIM7  congestion_severity_max        Q95 of congestion ratio across stations
-  CIM8  starvation_count               fraction of stations with starvation ratio ≥ 0.9
-  CIM9 congestion_count               fraction of stations with congestion ratio ≥ 0.9
+  CIM4  starvation_severity_max        Q95 of starvation ratio across stations
+  CIM5  congestion_severity_max        Q95 of congestion ratio across stations
+  CIM6  starvation_count               fraction of stations with starvation ratio ≥ 0.9
+  CIM7  congestion_count               fraction of stations with congestion ratio ≥ 0.9
 
 ──────────────────────────────────────────────────────────────────────────────
 Pillar 2  —  Future System Imbalance  (FIM, appended if demand_horizon_enabled)
@@ -71,7 +69,7 @@ Pillar 3  —  Maintenance Pressure  (MP, appended if maintenance_enabled)
   MP6  undistributed_depot_inventory   -depot.fixed_queue / (0.07F)             [fixed-queue pressure]
   MP7  depot_idle_fraction             depot.fixed_queue / F                    [NEW — 0=good]
   MP8  recoverable_starvation          Σ_i onsite_i * 1[func_i < T_i] / F      [NEW]
-  MP9  maintenance_urgency             MP2 * CIM8  (RESTORED)
+  MP9  maintenance_urgency             MP2 * CIM6  (RESTORED)
   MP11 fleet_failure_risk              mean functional-bike failure exposure [0=good]
   MP12 fleet_health_deficit            functional-bike reliability deficit   [0=good]
   MP13 fleet_low_health_fraction       near-failure functional-bike fraction [0=good]
@@ -105,35 +103,12 @@ CIM_FEATURE_NAMES = [
     "rebalancing_imbalance",          # CIM1
     "squared_starvation_penalty",     # CIM2
     "squared_congestion_penalty",     # CIM3
-    "exponential_starvation_penalty", # CIM4
-    "exponential_congestion_penalty", # CIM5
-    "starvation_severity_max",        # CIM6
-    "congestion_severity_max",        # CIM7
-    "starvation_count",               # CIM8
-    "congestion_count",               # CIM9
+    "starvation_severity_max",        # CIM4
+    "congestion_severity_max",        # CIM5
+    "starvation_count",               # CIM6
+    "congestion_count",               # CIM7
 ]
 
-FIM_FEATURE_NAMES = [
-    "gross_starvation_risk",          # FIM1
-    "gross_congestion_risk",          # FIM2
-    "net_starvation_shortfall",       # FIM3
-    "net_congestion_shortfall",       # FIM4
-]
-
-REBALANCING_CORRELATION_FEATURES = CIM_FEATURE_NAMES + FIM_FEATURE_NAMES
-
-
-CIM_FEATURE_NAMES = [
-    "rebalancing_imbalance",          # CIM1
-    "squared_starvation_penalty",     # CIM2
-    "squared_congestion_penalty",     # CIM3
-    "exponential_starvation_penalty", # CIM4
-    "exponential_congestion_penalty", # CIM5
-    "starvation_severity_max",        # CIM6
-    "congestion_severity_max",        # CIM7
-    "starvation_count",               # CIM8
-    "congestion_count",               # CIM9
-]
 FIM_FEATURE_NAMES = [
     "gross_starvation_risk",          # FIM1
     "gross_congestion_risk",          # FIM2
@@ -490,7 +465,7 @@ def extract(
     # CIM1: Rebalancing Imbalance — total L1 deviation from target, normalised by half capacity
     phi_imbalance = total_imbalance / max(total_cap_half, 1.0)
 
-    # CIM3: Squared Starvation Penalty — mean squared starvation depth
+    # CIM2: Squared Starvation Penalty — mean squared starvation depth
     phi_starvation_sq = np.sum(starv_ratio**2) / N
 
     # ── Diagnostic: one-shot print if phi_starvation_sq is stuck at zero ──────
@@ -505,33 +480,26 @@ def extract(
             print("  -> Van post-decision state solved starvation, or city is over-saturated.")
         extract._printed_starv_diag = True
 
-    # CIM4: Squared Congestion Penalty — mean squared congestion depth
+    # CIM3: Squared Congestion Penalty — mean squared congestion depth
     phi_congestion_sq = np.sum(cong_ratio**2) / N
 
-    # CIM5: Exponential Starvation Penalty — exponential penalty to increase tail response
-    phi_starvation_exp = np.sum((np.exp(3.0 * starv_ratio) - 1.0) / (np.exp(3.0) - 1.0)) / N
-
-    # CIM6: Exponential Congestion Penalty
-    phi_congestion_exp = np.sum((np.exp(3.0 * cong_ratio) - 1.0) / (np.exp(3.0) - 1.0)) / N
-
-    # CIM6: Starvation Severity (Q95) — 95th-percentile starvation ratio
+    # CIM4: Starvation Severity (Q95) — 95th-percentile starvation ratio
     phi_starvation_max = float(np.quantile(starv_ratio, 0.95))
 
-    # CIM7: Congestion Severity (Q95) — 95th-percentile congestion ratio
+    # CIM5: Congestion Severity (Q95) — 95th-percentile congestion ratio
     phi_congestion_max = float(np.quantile(cong_ratio, 0.95))
 
     # CIMx: Starvation Variance — spread of the starvation problem
     #phi_starv_var = float(np.var(starv_ratio))
 
-    # CIM8: Severe Station Starvation Count — fraction with starvation ratio >= 0.9
+    # CIM6: Severe Station Starvation Count — fraction with starvation ratio >= 0.9
     phi_starvation_cnt = float(np.sum(starv_ratio >= 0.9)) / N
 
-    # CIM9: Severe Station Congestion Count — fraction with congestion ratio >= 0.9
+    # CIM7: Severe Station Congestion Count — fraction with congestion ratio >= 0.9
     phi_congestion_cnt = float(np.sum(cong_ratio >= 0.9)) / N
 
     cat_a = [
         phi_imbalance, phi_starvation_sq, phi_congestion_sq,
-        phi_starvation_exp, phi_congestion_exp,
         phi_starvation_max, phi_congestion_max,
         phi_starvation_cnt, phi_congestion_cnt
     ]
