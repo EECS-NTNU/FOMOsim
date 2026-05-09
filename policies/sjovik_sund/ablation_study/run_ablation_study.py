@@ -192,7 +192,6 @@ KITCHEN_SINK_EXPERIMENTS = {
     ],
 }
 
-
 CORE_REBALANCING_BASELINES = {
     "Imbalance": [
         "rebalancing_imbalance",
@@ -208,6 +207,16 @@ CORE_REBALANCING_BASELINES = {
         "gross_starvation_risk",
         "gross_congestion_risk",
     ],
+    "Squared_only": [
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+    ],
+    "Imbalance_temporal": [
+        "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
+        "gross_starvation_risk",          # FIM1: gross departure pressure
+        "gross_congestion_risk",          # FIM2: gross arrival pressure
+    ],
+
     "Squared_only": [
         "squared_starvation_penalty",
         "squared_congestion_penalty",
@@ -637,7 +646,7 @@ if __name__ == "__main__":
         help="Subset of experiments to run (default: all)",
     )
     parser.add_argument(
-        "--alphas", nargs="+", type=float, default=[0.05], metavar="ALPHA",
+        "--alphas", nargs="+", type=float, default=[0.01], metavar="ALPHA",
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
     )
 
@@ -661,8 +670,8 @@ if __name__ == "__main__":
         help="Positive reward per successful trip served (default: 0.0)",
     )
     parser.add_argument(
-        "--gamma", type=float, default=0.99,
-        help="Discount factor (default: 0.99 per hour)",
+        "--gamma", type=float, default=0.97,
+        help="Discount factor (default: 0.97 per hour)",
     )
     parser.add_argument(
         "--not_at_depot_at_end_penalty", type=float, default=0.0,
@@ -692,6 +701,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_reward_centering",
         action="store_true",
+        default=False,
         help="Subtract a running reward mean before TD updates",
     )
     parser.add_argument(
@@ -708,6 +718,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_batch_td_clip",
         action="store_true",
+        default = False,
         help="Clip TD errors inside the episode batch update",
     )
     parser.add_argument(

@@ -66,16 +66,14 @@ def _plot_correlation_heatmap(
 
 
 def main():
-    out_dir = WORKSPACE_ROOT / "models/feature_study_maintenanceenabled"
-    stats_path = out_dir / "feature_statistics.csv"
+    out_dir = WORKSPACE_ROOT / "models/feature_study"
     corr_path = out_dir / "feature_correlations.csv"
 
-    if not os.path.exists(stats_path) or not os.path.exists(corr_path):
-        print(f"Could not find the CSV files at {stats_path} or {corr_path}.")
+    if not os.path.exists(corr_path):
+        print(f"Could not find the correlation CSV file at {corr_path}.")
         return
 
     # Load the data
-    stats_df = pd.read_csv(stats_path, index_col=0)
     corr_df = pd.read_csv(corr_path, index_col=0)
 
     # Custom palette from Colorpallette.png
@@ -113,35 +111,6 @@ def main():
         )
     else:
         print("Skipping focused rebalancing correlation matrix: fewer than two requested features found.")
-
-    # 2. Plot the Feature Statistics Table
-    stats_df = _display_labels(stats_df)
-    fig, ax = plt.subplots(figsize=(10, len(stats_df) * 0.4 + 1))
-    ax.axis('off')
-    ax.axis('tight')
-
-    stats_df_rounded = stats_df.round(4)
-    
-    table = ax.table(cellText=stats_df_rounded.values, #type: ignore
-                     rowLabels=stats_df_rounded.index, #type: ignore
-                     colLabels=stats_df_rounded.columns, #type: ignore
-                     cellLoc='center',
-                     loc='center')
-    
-    table.scale(1, 1.5)
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    
-    # Make all table text thicker
-    for cell in table.get_celld().values():
-        cell.get_text().set_fontweight("bold")
-
-    plt.title("Feature Statistics overview", fontsize=16, fontweight="bold")
-    plt.tight_layout()
-    stats_out = os.path.join(out_dir, "feature_statistics_table.png")
-    plt.savefig(stats_out, dpi=300, bbox_inches='tight')
-    print(f"Saved statistics table to {stats_out}")
-    plt.close()
 
 if __name__ == "__main__":
     main()

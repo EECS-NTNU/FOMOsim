@@ -97,7 +97,7 @@ class SimulationConfig:
     """Centralized configuration for simulation runs."""
     
     # === Time Settings ===
-    start_hour: int = 0  # 0 AM start time
+    start_hour: int = 0 # 00AM start time
     
     # === Instance Settings ===
     default_instance: str = "TD_W34_old"
