@@ -454,7 +454,7 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = False, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
+def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = True, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -581,7 +581,7 @@ if __name__ == "__main__":
         help="Subset of experiments to run (default: all)",
     )
     parser.add_argument(
-        "--alphas", nargs="+", type=float, default=[0.05], metavar="ALPHA",
+        "--alphas", nargs="+", type=float, default=[0.01], metavar="ALPHA",
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
     )
 
@@ -605,8 +605,8 @@ if __name__ == "__main__":
         help="Positive reward per successful trip served (default: 0.0)",
     )
     parser.add_argument(
-        "--gamma", type=float, default=0.99,
-        help="Discount factor (default: 0.99 per hour)",
+        "--gamma", type=float, default=0.97,
+        help="Discount factor (default: 0.97 per hour)",
     )
     parser.add_argument(
         "--not_at_depot_at_end_penalty", type=float, default=0.0,
@@ -636,6 +636,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_reward_centering",
         action="store_true",
+        default=False,
         help="Subtract a running reward mean before TD updates",
     )
     parser.add_argument(
@@ -652,6 +653,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_batch_td_clip",
         action="store_true",
+        default = False,
         help="Clip TD errors inside the episode batch update",
     )
     parser.add_argument(
@@ -668,7 +670,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--transition_update_interval",
         type=int,
-        default=0,
+        default=100,
         help="Apply one mean-gradient TD update every N buffered transitions. 0 keeps episode-batch updates.",
     )
     parser.add_argument(
@@ -691,7 +693,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--initial_bias",
         type=float,
-        default=None,
+        default=-2.5,
         help="Initial value for the bias/intercept weight. Requires --use_bias_feature.",
     )
     parser.add_argument(
