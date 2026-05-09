@@ -98,7 +98,7 @@ from settings import SERVICE_TIME_FROM, SERVICE_TIME_TO
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Feature registry
+# Feature registry and feature-selection metadata
 # ─────────────────────────────────────────────────────────────────────────────
 
 CIM_FEATURE_NAMES = [
@@ -122,6 +122,192 @@ FIM_FEATURE_NAMES = [
 
 REBALANCING_CORRELATION_FEATURES = CIM_FEATURE_NAMES + FIM_FEATURE_NAMES
 
+
+CIM_FEATURE_NAMES = [
+    "rebalancing_imbalance",          # CIM1
+    "squared_starvation_penalty",     # CIM2
+    "squared_congestion_penalty",     # CIM3
+    "exponential_starvation_penalty", # CIM4
+    "exponential_congestion_penalty", # CIM5
+    "starvation_severity_max",        # CIM6
+    "congestion_severity_max",        # CIM7
+    "starvation_count",               # CIM8
+    "congestion_count",               # CIM9
+]
+FIM_FEATURE_NAMES = [
+    "gross_starvation_risk",          # FIM1
+    "gross_congestion_risk",          # FIM2
+    "net_starvation_shortfall",       # FIM3
+    "net_congestion_shortfall",       # FIM4
+]
+
+REBALANCING_CORRELATION_FEATURES = CIM_FEATURE_NAMES + FIM_FEATURE_NAMES
+
+
+BASE_REBALANCING_FEATURES = [
+    "rebalancing_imbalance",
+    "squared_starvation_penalty",
+    "squared_congestion_penalty",
+    "gross_starvation_risk",
+    "gross_congestion_risk",
+]
+
+MAINTENANCE_FEATURE_POOL = [
+    # Existing broad maintenance descriptors.
+    "global_onsite_backlog",
+    "global_depot_backlog",
+    "demand_weighted_onsite_backlog",
+    "demand_weighted_depot_backlog",
+    "fleet_broken_fraction",
+    "depot_idle_fraction",
+    "fleet_failure_risk",
+    "fleet_low_health_fraction",
+    "maintenance_restoration_value",
+
+    # Mechanism-specific candidate features for screening.
+    "onsite_shortage_pressure",
+    "depot_shortage_pressure",
+    "current_station_onsite_shortage_pressure",
+    "current_station_depot_shortage_pressure",
+    "broken_cargo_distance_pressure",
+    "late_broken_cargo_pressure",
+    "repaired_idle_away_pressure",
+    "depot_pipeline_pressure",
+    "depot_queue_pickup_opportunity",
+    "degradation_demand_exposure",
+]
+
+FEATURE_METADATA: Dict[str, Dict[str, object]] = {
+    "global_onsite_backlog": {
+        "family": "onsite_backlog",
+        "high_means": "many on-site broken bikes remain in the system",
+        "expected_sign": "negative",
+        "priority": "medium",
+    },
+    "global_depot_backlog": {
+        "family": "depot_backlog",
+        "high_means": "many depot-bound broken bikes remain at stations",
+        "expected_sign": "negative",
+        "priority": "medium",
+    },
+    "demand_weighted_onsite_backlog": {
+        "family": "demand_weighted_backlog",
+        "high_means": "on-site broken bikes are located at high-departure stations",
+        "expected_sign": "negative",
+        "priority": "high",
+    },
+    "demand_weighted_depot_backlog": {
+        "family": "demand_weighted_backlog",
+        "high_means": "depot-bound broken bikes are located at high-departure stations",
+        "expected_sign": "negative",
+        "priority": "high",
+    },
+    "fleet_broken_fraction": {
+        "family": "fleet_availability",
+        "high_means": "a large share of the fleet is unavailable due to maintenance",
+        "expected_sign": "negative",
+        "priority": "medium",
+    },
+    "depot_idle_fraction": {
+        "family": "depot_pipeline",
+        "high_means": "many repaired bikes are waiting idle at the depot",
+        "expected_sign": "negative",
+        "priority": "medium",
+    },
+    "fleet_failure_risk": {
+        "family": "degradation",
+        "high_means": "the functional fleet has high expected component failure risk",
+        "expected_sign": "negative",
+        "priority": "medium",
+    },
+    "fleet_low_health_fraction": {
+        "family": "degradation",
+        "high_means": "many bikes are below the low-health threshold",
+        "expected_sign": "negative",
+        "priority": "medium",
+    },
+    "maintenance_restoration_value": {
+        "family": "immediate_repair_opportunity",
+        "high_means": "the candidate action restores valuable broken bikes",
+        "expected_sign": "positive",
+        "priority": "high",
+    },
+    "onsite_shortage_pressure": {
+        "family": "immediate_repair_opportunity",
+        "high_means": "on-site broken bikes remain at shortage-prone, high-demand stations",
+        "expected_sign": "negative",
+        "priority": "high",
+    },
+    "depot_shortage_pressure": {
+        "family": "depot_backlog",
+        "high_means": "depot-bound broken bikes remain at shortage-prone, high-demand stations",
+        "expected_sign": "negative",
+        "priority": "high",
+    },
+    "current_station_onsite_shortage_pressure": {
+        "family": "immediate_repair_opportunity",
+        "high_means": "the current station still has unrepaired on-site bikes and shortage pressure",
+        "expected_sign": "negative",
+        "priority": "high",
+    },
+    "current_station_depot_shortage_pressure": {
+        "family": "depot_removal_opportunity",
+        "high_means": "the current station still has depot-bound bikes and shortage pressure",
+        "expected_sign": "negative",
+        "priority": "medium",
+    },
+    "broken_cargo_distance_pressure": {
+        "family": "vehicle_logistics",
+        "high_means": "the vehicle is carrying broken bikes far from the depot",
+        "expected_sign": "negative",
+        "priority": "high",
+    },
+    "late_broken_cargo_pressure": {
+        "family": "vehicle_logistics",
+        "high_means": "the vehicle carries broken bikes late in the shift while not routing to the depot",
+        "expected_sign": "negative",
+        "priority": "high",
+    },
+    "repaired_idle_away_pressure": {
+        "family": "depot_pipeline",
+        "high_means": "repaired bikes wait at depot while the candidate route avoids depot",
+        "expected_sign": "negative",
+        "priority": "high",
+    },
+    "depot_pipeline_pressure": {
+        "family": "depot_pipeline",
+        "high_means": "many bikes are unavailable in the depot pipeline",
+        "expected_sign": "negative",
+        "priority": "medium",
+    },
+    "depot_queue_pickup_opportunity": {
+        "family": "depot_pipeline",
+        "high_means": "the candidate route can pick up repaired depot bikes with available vehicle space",
+        "expected_sign": "positive",
+        "priority": "medium",
+    },
+    "degradation_demand_exposure": {
+        "family": "degradation",
+        "high_means": "high fleet failure risk coincides with future starvation pressure",
+        "expected_sign": "negative",
+        "priority": "low",
+    },
+}
+
+
+def get_base_rebalancing_feature_names() -> List[str]:
+    """Compact base feature set used as the benchmark in maintenance tests."""
+    return list(BASE_REBALANCING_FEATURES)
+
+
+def get_maintenance_feature_pool_names() -> List[str]:
+    """Candidate maintenance feature pool for pre-training screening."""
+    return list(MAINTENANCE_FEATURE_POOL)
+
+
+def get_feature_metadata() -> Dict[str, Dict[str, object]]:
+    """Interpretability metadata used by screening scripts and thesis tables."""
+    return {name: dict(meta) for name, meta in FEATURE_METADATA.items()}
 
 def get_feature_names(
     maintenance_enabled: bool = False,
@@ -166,6 +352,16 @@ def get_feature_names(
             "depot_bound_health_deficit",        # MP14 — 0=good, positive=bad
             "onsite_health_deficit",             # MP15 — 0=good, positive=bad
             "maintenance_restoration_value",     # MP16 — 0=neutral, positive=good
+            "onsite_shortage_pressure",
+            "depot_shortage_pressure",
+            "current_station_onsite_shortage_pressure",
+            "current_station_depot_shortage_pressure",
+            "broken_cargo_distance_pressure",
+            "late_broken_cargo_pressure",
+            "repaired_idle_away_pressure",
+            "depot_pipeline_pressure",
+            "depot_queue_pickup_opportunity",
+            "degradation_demand_exposure",
         ])
 
     # Pillar 4: Spatial & Logistic Constraints (SLC)
@@ -251,7 +447,7 @@ def extract(
     include_bias: bool = False,
 ) -> np.ndarray:
 
-    features = []
+    features = [1.0] if include_bias else []
 
 
     # ── Safe denominators ─────────────────────────────────────────────────────
@@ -290,11 +486,6 @@ def extract(
     # =========================================================================
     # Pillar 1: Current System Imbalance (CIM)
     # =========================================================================
-
-    # Bias: constant intercept. It calibrates baseline value but cancels out
-    # across candidate actions, since it is the same for every post-decision state.
-    if include_bias:
-        features.append(1.0)
 
     # CIM1: Rebalancing Imbalance — total L1 deviation from target, normalised by half capacity
     phi_imbalance = total_imbalance / max(total_cap_half, 1.0)
@@ -373,7 +564,12 @@ def extract(
     # Pillar 3: Maintenance Pressure (MP)
     # =========================================================================
     if maintenance_enabled:
-        dw_denom = max(lam_max_safe, 1.0)  # normalise by peak demand only — *F was 50x over-scaled
+        dw_denom = max(lam_max_safe * F_safe * 0.30, 1.0)
+        demand_weight = gross_outflow / max(lam_max_safe, 1.0)
+        demand_weight = np.clip(demand_weight, 0.0, 1.0)
+        shortage_demand_weight = np.maximum(starv_ratio, demand_weight)
+        max_dist_safe = max(float(np.max(dist_to_stations)) if len(dist_to_stations) else 0.0,
+                            float(dist_to_depot), max_travel_time, 1.0)
 
         # MP1: Trailer Cannibalization
         phi_cannibalization = float(depot_cargo_veh) / K
@@ -411,6 +607,42 @@ def extract(
         is_rush_hour = 1.0 if (6 <= hour_of_day < 10) or (15 <= hour_of_day < 18) else 0.0
         phi_rush_hour_onsite = is_rush_hour * phi_dw_onsite_backlog
 
+        # Candidate-pool maintenance mechanisms.  All pressure features are
+        # directional: 0 is good/no pressure, larger values are worse unless the
+        # feature name explicitly says "opportunity".
+        phi_onsite_shortage_pressure = float(np.dot(onsite, shortage_demand_weight)) / (F_safe * 0.10)
+        phi_depot_shortage_pressure = float(np.dot(depot, shortage_demand_weight)) / (F_safe * 0.10)
+
+        if cur_station_idx >= 0 and cur_station_idx < N:
+            cur_cap_safe = float(max(capacities[cur_station_idx], 1.0))
+            cur_shortage_pressure = max(starv_ratio[cur_station_idx], demand_weight[cur_station_idx])
+            phi_cur_onsite_shortage_pressure = (
+                float(onsite[cur_station_idx]) / cur_cap_safe
+            ) * float(cur_shortage_pressure)
+            phi_cur_depot_shortage_pressure = (
+                float(depot[cur_station_idx]) / cur_cap_safe
+            ) * float(cur_shortage_pressure)
+        else:
+            phi_cur_onsite_shortage_pressure = 0.0
+            phi_cur_depot_shortage_pressure = 0.0
+
+        _service_window_min = max((SERVICE_TIME_TO - SERVICE_TIME_FROM) * 60.0, 1.0)
+        _clock_min = current_time_minutes % 1440.0
+        _close_min = SERVICE_TIME_TO * 60.0
+        _time_remaining_abs = max(0.0, _close_min - _clock_min)
+        phi_shift_remaining_for_mp = min(1.0, _time_remaining_abs / _service_window_min)
+        phi_late_for_mp = max(0.0, 1.0 - phi_shift_remaining_for_mp)
+        depot_cargo_frac = float(depot_cargo_veh) / K_safe
+        phi_broken_cargo_distance_pressure = depot_cargo_frac * (float(dist_to_depot) / max_dist_safe)
+        phi_late_broken_cargo_pressure = depot_cargo_frac * phi_late_for_mp * (0.0 if next_is_depot else 1.0)
+
+        phi_repaired_idle_away_pressure = phi_depot_idle * (0.0 if next_is_depot else 1.0)
+        phi_depot_pipeline_pressure = (
+            float(np.sum(depot)) + float(depot_cargo_veh) + float(depot_in_repair) + float(depot_fixed_queue)
+        ) / (F_safe * 0.30)
+        phi_depot_queue_pickup_opportunity = phi_depot_idle * veh_free_frac * (1.0 if next_is_depot else 0.0)
+        phi_degradation_demand_exposure = float(np.clip(fleet_failure_risk, 0.0, 1.0)) * phi_gross_starv if demand_horizon_enabled else 0.0
+
         cat_b = [
             phi_cannibalization, phi_onsite_backlog, phi_depot_backlog, phi_dw_depot_backlog,
             phi_dw_onsite_backlog, phi_fleet_broken, phi_depot_idle,
@@ -422,6 +654,16 @@ def extract(
             float(max(0.0, depot_bound_health_deficit)),
             float(max(0.0, onsite_health_deficit)),
             float(max(0.0, maintenance_restoration_value)),
+            phi_onsite_shortage_pressure,
+            phi_depot_shortage_pressure,
+            phi_cur_onsite_shortage_pressure,
+            phi_cur_depot_shortage_pressure,
+            phi_broken_cargo_distance_pressure,
+            phi_late_broken_cargo_pressure,
+            phi_repaired_idle_away_pressure,
+            phi_depot_pipeline_pressure,
+            phi_depot_queue_pickup_opportunity,
+            phi_degradation_demand_exposure,
         ]
         features.extend(cat_b)
 

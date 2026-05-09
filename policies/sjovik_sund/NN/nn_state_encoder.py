@@ -62,15 +62,86 @@ _SHIFT_LENGTH_MIN = _SHIFT_END_MIN - _SHIFT_START_MIN              # 780
 # Dimension constants — imported by nn_model.py to keep shapes in sync
 # ─────────────────────────────────────────────────────────────────────────────
 
-STATION_FEATURE_DIM = 10  # features per station row (functional, onsite, depot, eta_from_dest, target_ratio, deficit_ratio, departure_rate, arrival_rate, net_flow_ratio, is_destination)
+STATION_FEATURE_DIM = 10  # base features per station row
 VEHICLE_FEATURE_DIM = 6   # features per vehicle row  (func_cargo, depot_cargo, dest_func, eta, dest_id)
-GLOBAL_FEATURE_DIM  = 8   # entries in the global context vector
+GLOBAL_FEATURE_DIM  = 8   # base entries in the global context vector
+ACTION_CONTEXT_DIM  = 10  # appended to global context when action-context encoding is enabled
+DEMAND_HORIZON_DIM  = 4   # appended to each station row when demand-horizon encoding is enabled
+GLOBAL_HEALTH_DIM   = 8   # appended to global context when global-health encoding is enabled
+
+_USE_ACTION_CONTEXT = False
+_USE_DEMAND_HORIZON = False
+_USE_GLOBAL_HEALTH = False
+
+
+def set_encoder_options(
+    use_action_context: bool = False,
+    use_demand_horizon: bool = False,
+    use_global_health: bool = False,
+) -> None:
+    """Set process-local encoder options used by training/evaluation."""
+    global _USE_ACTION_CONTEXT, _USE_DEMAND_HORIZON, _USE_GLOBAL_HEALTH
+    _USE_ACTION_CONTEXT = bool(use_action_context)
+    _USE_DEMAND_HORIZON = bool(use_demand_horizon)
+    _USE_GLOBAL_HEALTH = bool(use_global_health)
+
+
+def get_global_feature_dim(use_action_context: bool = None, use_global_health: bool = None) -> int:
+    if use_action_context is None:
+        use_action_context = _USE_ACTION_CONTEXT
+    if use_global_health is None:
+        use_global_health = _USE_GLOBAL_HEALTH
+    return (
+        GLOBAL_FEATURE_DIM
+        + (GLOBAL_HEALTH_DIM if use_global_health else 0)
+        + (ACTION_CONTEXT_DIM if use_action_context else 0)
+    )
+
+
+def get_station_feature_dim(use_demand_horizon: bool = None) -> int:
+    if use_demand_horizon is None:
+        use_demand_horizon = _USE_DEMAND_HORIZON
+    return STATION_FEATURE_DIM + (DEMAND_HORIZON_DIM if use_demand_horizon else 0)
 
 # ═════════════════════════════════════════════════════════════════════════════
 # STATION BLOCK  [N_stations × STATION_FEATURE_DIM]
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _encode_station(inv: StationInventory, eta_from_dest: float, is_destination: bool) -> list:
+def _late_shift_weight(time_minutes: float) -> float:
+    time_of_day = time_minutes % 1440.0
+    minutes_to_end = _SHIFT_END_MIN - time_of_day
+    if minutes_to_end < 0:
+        return 1.0
+    late_window = 2.0 * 60.0
+    return min(1.0, max(0.0, 1.0 - minutes_to_end / late_window))
+
+
+def _encode_demand_horizon(inv: StationInventory, time_minutes: float) -> list:
+    cap = inv.capacity if inv.capacity > 0 else 1
+    net_flow = inv.expected_arrival_rate - inv.expected_departure_rate
+    projected_1h = inv.functional + net_flow
+    projected_2h = inv.functional + 2.0 * net_flow
+
+    overflow = max(0.0, projected_2h - cap)
+    empty = max(0.0, -projected_2h)
+    violation_risk = min(1.0, max(overflow, empty) / cap)
+
+    # MDPState only carries the current target, not tomorrow's full target
+    # schedule. This is a late-shift proxy for the next-morning positioning gap.
+    late_target_gap = ((inv.target - inv.functional) / cap) * _late_shift_weight(time_minutes)
+
+    def _clip(x: float, lo: float = -2.0, hi: float = 2.0) -> float:
+        return max(lo, min(hi, x))
+
+    return [
+        _clip(net_flow / cap),
+        _clip((2.0 * net_flow) / cap),
+        violation_risk,
+        max(-1.0, min(1.0, late_target_gap)),
+    ]
+
+
+def _encode_station(inv: StationInventory, eta_from_dest: float, is_destination: bool, time_minutes: float) -> list:
     """
     Encode one StationInventory as a 9-element feature vector.
 
@@ -111,7 +182,7 @@ def _encode_station(inv: StationInventory, eta_from_dest: float, is_destination:
     arrival_rate   = min(2.0, inv.expected_arrival_rate   / cap)
     net_flow_ratio = max(-2.0, min(2.0, (inv.expected_arrival_rate - inv.expected_departure_rate) / cap))
 
-    return [
+    features = [
         inv.functional / cap,   # [0] functional_ratio
         inv.onsite     / cap,   # [1] onsite_ratio
         inv.depot      / cap,   # [2] depot_ratio
@@ -123,6 +194,9 @@ def _encode_station(inv: StationInventory, eta_from_dest: float, is_destination:
         net_flow_ratio,         # [8] net inventory trend: >0 filling, <0 draining
         float(is_destination),  # [9] 1.0 if this is the vehicle's next destination
     ]
+    if _USE_DEMAND_HORIZON:
+        features.extend(_encode_demand_horizon(inv, time_minutes))
+    return features
 
 
 def encode_station_block(mdp_state: MDPState, dest_travel_times: dict = None) -> torch.Tensor:
@@ -154,7 +228,7 @@ def encode_station_block(mdp_state: MDPState, dest_travel_times: dict = None) ->
         raw_tt = tt.get(sid, 0.0)
         eta = min(1.0, raw_tt / 60.0)
         is_dest = (sid == destination_station)
-        rows.append(_encode_station(mdp_state.stations[sid], eta, is_dest))
+        rows.append(_encode_station(mdp_state.stations[sid], eta, is_dest, mdp_state.time))
 
     return torch.tensor(rows, dtype=torch.float32)   # [N, STATION_FEATURE_DIM]
 
@@ -324,18 +398,105 @@ def encode_global_context(mdp_state: MDPState) -> torch.Tensor:
     else:
         mean_load = 0.0
 
+    features = [time_sin, time_cos, starved_ratio, low_ratio, broken_ratio,
+                depot_queue_ratio, shift_remaining, mean_load]
+
+    if _USE_GLOBAL_HEALTH:
+        total_functional = sum(inv.functional for inv in mdp_state.stations.values())
+        deviations = [
+            (inv.target - inv.functional) / max(inv.capacity, 1)
+            for inv in mdp_state.stations.values()
+        ]
+        max_starving = max([d for d in deviations if d > 0.0] or [0.0])
+        max_congested = max([-d for d in deviations if d < 0.0] or [0.0])
+        mean_abs_dev = sum(abs(d) for d in deviations) / max(len(deviations), 1)
+
+        total_vehicle_capacity = sum(max(v.capacity, 1) for v in mdp_state.vehicles.values())
+        total_depot_cargo = sum(v.depot_cargo for v in mdp_state.vehicles.values())
+        total_free_capacity = sum(max(0, v.capacity - v.functional_cargo - v.depot_cargo)
+                                  for v in mdp_state.vehicles.values())
+
+        if mdp_state.depot is not None:
+            fixed_queue = mdp_state.depot.fixed_queue
+            in_repair = mdp_state.depot.in_repair
+            depot_den = max(total_capacity, 1)
+        else:
+            fixed_queue = 0
+            in_repair = 0
+            depot_den = max(total_capacity, 1)
+
+        features.extend([
+            total_functional / max(total_capacity, 1),
+            mean_abs_dev,
+            min(1.0, max_starving),
+            min(1.0, max_congested),
+            total_depot_cargo / max(total_vehicle_capacity, 1),
+            fixed_queue / depot_den,
+            in_repair / depot_den,
+            total_free_capacity / max(total_vehicle_capacity, 1),
+        ])
+
+    return torch.tensor(features, dtype=torch.float32)
+
+
+def encode_action_context(mdp_state: MDPState, mdp_action=None, action_duration: float = 0.0) -> torch.Tensor:
+    """
+    Encode the proposed action alongside the post-decision state.
+
+    This is optional because older checkpoints were trained from state-only
+    encodings. Values are normalized to roughly [-1, 1] or [0, 1].
+    """
+    if mdp_action is None:
+        return torch.zeros(ACTION_CONTEXT_DIM, dtype=torch.float32)
+
+    v = mdp_state.vehicles.get(mdp_state.active_vehicle_id) if mdp_state.active_vehicle_id else None
+    cap = max(getattr(v, "capacity", 1), 1)
+    next_station = getattr(mdp_action, "next_station", None)
+    dest_inv = mdp_state.stations.get(next_station)
+
+    if dest_inv is not None:
+        dest_cap = max(dest_inv.capacity, 1)
+        dest_deficit = (dest_inv.target - dest_inv.functional) / dest_cap
+        dest_depot = dest_inv.depot / dest_cap
+    else:
+        dest_deficit = 0.0
+        dest_depot = 0.0
+
+    is_depot = 1.0 if (mdp_state.depot is not None and next_station == mdp_state.depot.station_id) else 0.0
+    travel_to_next = 0.0
+    if mdp_state.travel_times:
+        travel_to_next = float(mdp_state.travel_times.get(next_station, 0.0) or 0.0)
+
+    def _clip(x: float, lo: float = -1.0, hi: float = 1.0) -> float:
+        return max(lo, min(hi, x))
+
     return torch.tensor(
-        [time_sin, time_cos, starved_ratio, low_ratio, broken_ratio,
-         depot_queue_ratio, shift_remaining, mean_load],
+        [
+            _clip(float(getattr(mdp_action, "rebalancing", 0)) / cap),
+            _clip(float(getattr(mdp_action, "onsite_repairs", 0)) / cap, 0.0, 1.0),
+            _clip(float(getattr(mdp_action, "depot_removals", 0)) / cap, 0.0, 1.0),
+            _clip(float(getattr(mdp_action, "depot_dropoffs", 0)) / cap, 0.0, 1.0),
+            _clip(float(getattr(mdp_action, "load_from_queue", 0)) / cap, 0.0, 1.0),
+            is_depot,
+            _clip(dest_deficit),
+            _clip(dest_depot, 0.0, 1.0),
+            min(1.0, travel_to_next / 60.0),
+            min(1.0, max(0.0, float(action_duration or 0.0)) / 60.0),
+        ],
         dtype=torch.float32,
-    )   # [8]
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # PUBLIC INTERFACE
 # ═════════════════════════════════════════════════════════════════════════════
 
-def encode_state(mdp_state: MDPState, dest_travel_times: dict = None) -> Dict[str, torch.Tensor]:
+def encode_state(
+    mdp_state: MDPState,
+    dest_travel_times: dict = None,
+    mdp_action=None,
+    action_duration: float = 0.0,
+) -> Dict[str, torch.Tensor]:
     """
     Convert an MDPState into the three tensor blocks consumed by NNValueNetwork.
 
@@ -348,10 +509,17 @@ def encode_state(mdp_state: MDPState, dest_travel_times: dict = None) -> Dict[st
     Returns:
         dict with three float32 tensors.
     """
+    global_context = encode_global_context(mdp_state)
+    if _USE_ACTION_CONTEXT:
+        global_context = torch.cat([
+            global_context,
+            encode_action_context(mdp_state, mdp_action=mdp_action, action_duration=action_duration),
+        ], dim=0)
+
     return {
         "station_block":  encode_station_block(mdp_state, dest_travel_times),
         "vehicle_block":  encode_vehicle_block(mdp_state),
-        "global_context": encode_global_context(mdp_state),
+        "global_context": global_context,
     }
 
 
@@ -364,9 +532,14 @@ def encode_state(mdp_state: MDPState, dest_travel_times: dict = None) -> Dict[st
 # are dummy [1,1] zeros; global_context carries the full VFA feature vector.
 # FlatNNValueNetwork (nn_model.py) ignores the dummies and reads global_context.
 
-VFA_FEATURE_DIM = 40  # must match vfa_features.extract() output
+VFA_FEATURE_DIM = 28  # must match nn_state_encoder's vfa_features.extract() call
 
-def encode_state_vfa(mdp_state: MDPState, dest_travel_times: dict = None) -> Dict[str, torch.Tensor]:
+def encode_state_vfa(
+    mdp_state: MDPState,
+    dest_travel_times: dict = None,
+    mdp_action=None,
+    action_duration: float = 0.0,
+) -> Dict[str, torch.Tensor]:
     """
     Encode post-decision MDPState using the hand-crafted VFA features from
     vfa_features.py — the same features LinearVFAPolicy uses.

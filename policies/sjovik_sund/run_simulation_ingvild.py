@@ -6,7 +6,6 @@
 
 # python policies/sjovik_sund/run_simulation_ingvild.py --vfa-model models/final_ablation_500ep_timefix/Imbalance_Squared_Temporal_alpha_0.1_20260429_202323/vfa_Imbalance_Squared_Temporal_seed1000.pkl --active-features rebalancing_imbalance squared_starvation_penalty squared_congestion_penalty gross_starvation_risk gross_congestion_risk --duration 672
 
-
 ######################################################
 import os
 import sys
@@ -870,7 +869,7 @@ if __name__ == "__main__":
         "--log-files",
         nargs="+",
         choices=["results", "hourly", "daily", "decisions", "debug", "all", "none"],
-        default=["results", "hourly", "daily", "decisions"],
+        default=["results", "hourly", "daily", "decisions"] ,
         help=(
             "Centralized run_logs outputs to write. Examples: "
             "'--log-files results daily', '--log-files all', '--log-files none'. "
