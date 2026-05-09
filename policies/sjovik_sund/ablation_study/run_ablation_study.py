@@ -48,8 +48,6 @@ Feature reference  (see vfa_features.py for full definitions)
     SLC5  imbalance_hotspot_distance     distance to worst-imbalance stations, normalised
 """
  
-from __future__ import annotations
-
 import os
 import sys
 import argparse
@@ -61,15 +59,7 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, str(WORKSPACE_ROOT))
  
-from policies.sjovik_sund.vfa.train_vfa import (
-    train,
-    ALPHA_START,
-    EPSILON_START,
-    EPSILON_END,
-    TRANSITION_UPDATE_INTERVAL,
-    TD_LAMBDA,
-    BIAS_FEATURE_ENABLED,
-)
+from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START, EPSILON_START, EPSILON_END
  
  
 # -----------------------------------------------------------------------------
@@ -113,6 +103,12 @@ EXPERIMENTS = {
         "gross_starvation_risk",          # FIM1: gross departure pressure
         "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
+
+    "Squared_only": [
+        "squared_starvation_penalty",     # CIM2: mean squared starvation ratio
+        "squared_congestion_penalty",     # CIM3: mean squared congestion ratio
+    ],
+
     "Imbalance_temporal": [
         "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
         "gross_starvation_risk",          # FIM1: gross departure pressure
@@ -177,6 +173,7 @@ EXPERIMENTS = {
 
     #"Severity_only": ["starvation_severity_max", "congestion_severity_max"], # CIM6/CIM7: Q95 tail severity without global mass signal
     #"Imbalance_severity": ["rebalancing_imbalance", "starvation_severity_max", "congestion_severity_max"], # CIM1 + CIM6/CIM7: global mass + Q95 tail severity      
+    
     
     # ① vs ③: does depth add value on top of CIM1?
     # ② vs ③: does CIM1 add value on top of depth?
@@ -269,8 +266,10 @@ EXPERIMENTS = {
     
     # --- Check 12: Minimal debug experiment matrix ---
     # Run these SHORT (50–100 ep) before full runs to isolate root cause.
-    # A/B/C share same features — toggle TD(lambda), alpha, and
-    # transition_update_interval in train_vfa.py/CLI for short debug runs.
+    # A/B/C share same features — toggle use_td_lambda + batch_size manually in train_vfa.py:
+    #   Debug_A: use_td_lambda=False, batch_size=1,  alpha=0.1  (TD(0) mean batch)
+    #   Debug_B: use_td_lambda=True,  batch_size=1,  alpha=0.1  (TD(λ) online)
+    #   Debug_C: use_td_lambda=True,  batch_size=1,  alpha=0.01 (TD(λ) tiny alpha)
     "Debug_D_no_maintenance": [
         "rebalancing_imbalance",
         "squared_starvation_penalty",
@@ -453,38 +452,7 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(
-    seeds: List[int],
-    episodes: int = 300,
-    run_only: Optional[List[str]] = None,
-    alphas: Optional[List[float]] = None,
-    output_dir: str = "maintenance_feature_sets",
-    weight_starvation: float = -1.0,
-    weight_congestion: float = -1.0,
-    weight_fleet_degradation: float = 0.0,
-    weight_trip_served: float = 0.0,
-    gamma: float = 0.97,
-    td_lambda: float = TD_LAMBDA,
-    include_bias: bool = BIAS_FEATURE_ENABLED,
-    not_at_depot_at_end_penalty: float = 0.0,
-    functional_bikes_at_end_penalty: float = 0.0,
-    epsilon_start: float = EPSILON_START,
-    epsilon_end: float = EPSILON_END,
-    use_reward_centering: bool = False,
-    reward_centering_beta: float = 0.01,
-    use_terminal_update: bool = True,
-    use_batch_td_clip: bool = False,
-    batch_td_clip_value: float = 10.0,
-    use_online_td_updates: bool = False,
-    transition_update_interval: int = TRANSITION_UPDATE_INTERVAL,
-    use_feature_scale_diagnostics: bool = True,
-    diagnostic_every_n_episodes: int = 25,
-    initial_bias: float | None = -2.5,
-    use_feature_centering: bool = False,
-    feature_centering_beta: float = 0.01,
-    log_candidate_diagnostics: bool = False,
-    log_greedy_comparison: bool = False,
-):
+def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = False, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -497,7 +465,7 @@ def run_all_experiments(
  
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     config_parts = []
-    if include_bias:
+    if use_bias_feature:
         config_parts.append("bias")
     if use_reward_centering:
         config_parts.append(f"rc{reward_centering_beta:g}")
@@ -564,14 +532,13 @@ def run_all_experiments(
                     epsilon_start=epsilon_start,
                     epsilon_end=epsilon_end,
                     gamma=gamma,
-                    td_lambda=td_lambda,
-                    include_bias=include_bias,
                     weight_starvation=weight_starvation,
                     weight_congestion=weight_congestion,
                     weight_fleet_degradation=weight_fleet_degradation,
                     weight_trip_served=weight_trip_served,
                     not_at_depot_at_end_penalty=not_at_depot_at_end_penalty,
                     functional_bikes_at_end_penalty=functional_bikes_at_end_penalty,
+                    include_bias=use_bias_feature,
                     use_reward_centering=use_reward_centering,
                     reward_centering_beta=reward_centering_beta,
                     use_terminal_update=use_terminal_update,
@@ -581,6 +548,7 @@ def run_all_experiments(
                     transition_update_interval=transition_update_interval,
                     use_feature_scale_diagnostics=use_feature_scale_diagnostics,
                     diagnostic_every_n_episodes=diagnostic_every_n_episodes,
+                    td_lambda=td_lambda,
                     initial_bias=initial_bias,
                     use_feature_centering=use_feature_centering,
                     feature_centering_beta=feature_centering_beta,
@@ -611,11 +579,11 @@ if __name__ == "__main__":
         help="Subset of experiments to run (default: all)",
     )
     parser.add_argument(
-        "--alphas", nargs="+", type=float, default=[0.01], metavar="ALPHA",
+        "--alphas", nargs="+", type=float, default=[0.05], metavar="ALPHA",
         help="List of alpha (learning rate) values to test. e.g. --alphas 0.001 0.005 0.01",
     )
 
-    parser.add_argument("--output_dir", type=str, default="maintenance_feature_sets",
+    parser.add_argument("--output_dir", type=str, default="results",
                         help="Directory to save experiment results"
     )
     parser.add_argument(
@@ -635,21 +603,8 @@ if __name__ == "__main__":
         help="Positive reward per successful trip served (default: 0.0)",
     )
     parser.add_argument(
-        "--gamma", type=float, default=0.97,
-        help="Discount factor (default: 0.97 per hour)",
-    )
-    parser.add_argument(
-        "--td_lambda",
-        type=float,
-        default=TD_LAMBDA,
-        help="TD(lambda) eligibility trace parameter. Use 0.0 for TD(0).",
-    )
-    parser.add_argument(
-        "--use_bias_feature",
-        dest="include_bias",
-        action="store_true",
-        default=BIAS_FEATURE_ENABLED,
-        help="Use the constant bias/intercept feature. Enabled by default.",
+        "--gamma", type=float, default=0.99,
+        help="Discount factor (default: 0.99 per hour)",
     )
     parser.add_argument(
         "--not_at_depot_at_end_penalty", type=float, default=0.0,
@@ -672,6 +627,11 @@ if __name__ == "__main__":
         help="Final epsilon for epsilon-greedy exploration.",
     )
     parser.add_argument(
+        "--use_bias_feature",
+        action="store_true",
+        help="Add a constant bias/intercept feature to the linear VFA",
+    )
+    parser.add_argument(
         "--use_reward_centering",
         action="store_true",
         help="Subtract a running reward mean before TD updates",
@@ -685,7 +645,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_terminal_update",
         action="store_true",
-        default=True,
         help="Append terminal transition with zero bootstrap at the end of each episode",
     )
     parser.add_argument(
@@ -696,7 +655,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_td_clip_value",
         type=float,
-        default=5.0,
+        default=10.0,
         help="Absolute TD error clip used when --use_batch_td_clip is set",
     )
     parser.add_argument(
@@ -707,26 +666,31 @@ if __name__ == "__main__":
     parser.add_argument(
         "--transition_update_interval",
         type=int,
-        default=TRANSITION_UPDATE_INTERVAL,
+        default=0,
         help="Apply one mean-gradient TD update every N buffered transitions. 0 keeps episode-batch updates.",
     )
     parser.add_argument(
         "--use_feature_scale_diagnostics",
         action="store_true",
-        default=True,
         help="Print per-feature scale diagnostics during batch updates",
     )
     parser.add_argument(
         "--diagnostic_every_n_episodes",
         type=int,
-        default=25,
+        default=10,
         help="Frequency for heavy diagnostics such as feature scale reports",
+    )
+    parser.add_argument(
+        "--td_lambda",
+        type=float,
+        default=0.0,
+        help="Eligibility trace lambda. Use 0.0 for TD(0); e.g. 0.3 for low TD(lambda)",
     )
     parser.add_argument(
         "--initial_bias",
         type=float,
-        default=-2.5,
-        help="Initial value for the bias/intercept weight. Requires the bias feature to be enabled.",
+        default=None,
+        help="Initial value for the bias/intercept weight. Requires --use_bias_feature.",
     )
     parser.add_argument(
         "--use_feature_centering",
@@ -776,12 +740,11 @@ if __name__ == "__main__":
         weight_fleet_degradation=args.weight_fleet_degradation,
         weight_trip_served=args.weight_trip_served,
         gamma=args.gamma,
-        td_lambda=args.td_lambda,
-        include_bias=args.include_bias,
         not_at_depot_at_end_penalty=args.not_at_depot_at_end_penalty,
         functional_bikes_at_end_penalty=args.functional_bikes_at_end_penalty,
         epsilon_start=args.epsilon_start,
         epsilon_end=args.epsilon_end,
+        use_bias_feature=args.use_bias_feature,
         use_reward_centering=args.use_reward_centering,
         reward_centering_beta=args.reward_centering_beta,
         use_terminal_update=args.use_terminal_update,
@@ -791,6 +754,7 @@ if __name__ == "__main__":
         transition_update_interval=args.transition_update_interval,
         use_feature_scale_diagnostics=args.use_feature_scale_diagnostics,
         diagnostic_every_n_episodes=args.diagnostic_every_n_episodes,
+        td_lambda=args.td_lambda,
         initial_bias=args.initial_bias,
         use_feature_centering=args.use_feature_centering,
         feature_centering_beta=args.feature_centering_beta,
