@@ -109,10 +109,11 @@ SCREENED_MAINTENANCE_EXPERIMENTS = {
         "late_broken_cargo_pressure",
     ],
 
-    # M4: Isolates global degradation exposure. Use mainly as a mechanism check;
-    # it can be skipped if compute is limited and M6 is run.
+    # M4: Isolates global degradation exposure. Uses expected trip-failure
+    # exposure rather than the thresholded low-health fraction, because the
+    # combined screening showed clearer signal without severe multicollinearity.
     "M4_DegradationHealth": MAINTENANCE_ABLATION_REBALANCING_BASE + [
-        "fleet_low_health_fraction",
+        "fleet_failure_risk",
     ],
 
     # M5: Optional depot-pipeline test for repaired bikes waiting at depot while
@@ -126,7 +127,8 @@ SCREENED_MAINTENANCE_EXPERIMENTS = {
     "M6_CompactMaintenanceFull": MAINTENANCE_ABLATION_REBALANCING_BASE + [
         "onsite_shortage_pressure",
         "depot_shortage_pressure",
-        "fleet_low_health_fraction",
+        "demand_weighted_onsite_backlog",
+        "demand_weighted_depot_backlog",
         "maintenance_restoration_value",
         "late_broken_cargo_pressure",
     ],
@@ -138,7 +140,7 @@ SCREENED_MAINTENANCE_EXPERIMENTS = {
         "depot_shortage_pressure",
         "demand_weighted_onsite_backlog",
         "demand_weighted_depot_backlog",
-        "fleet_low_health_fraction",
+        "fleet_failure_risk",
         "maintenance_restoration_value",
         "late_broken_cargo_pressure",
         "repaired_idle_away_pressure",
