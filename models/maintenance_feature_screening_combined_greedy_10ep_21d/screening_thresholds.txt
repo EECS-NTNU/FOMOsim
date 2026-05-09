@@ -1,0 +1,9 @@
+feature_scope: combined
+active_features: 24 (5 base, 19 maintenance)
+near_constant: std < 0.0001
+sparse: fraction_zero > 0.95
+poor_scaling: p99_abs > 5.0 or min < 0
+redundancy: abs(corr) > 0.85, severe > 0.95
+weak_signal: max abs target corr < 0.03
+vif_flag: VIF > 10.0, serious > 20.0
+condition_number: 129.777

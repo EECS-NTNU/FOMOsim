@@ -1,0 +1,7 @@
+feature_a,feature_b,corr,abs_corr
+gross_starvation_risk,degradation_demand_exposure,0.9883067064778961,0.9883067064778961
+depot_idle_fraction,repaired_idle_away_pressure,0.9341508102098541,0.9341508102098541
+global_depot_backlog,depot_pipeline_pressure,0.9062945562794401,0.9062945562794401
+global_depot_backlog,fleet_broken_fraction,0.9043171340580475,0.9043171340580475
+fleet_broken_fraction,depot_pipeline_pressure,0.8937441318702701,0.8937441318702701
+fleet_failure_risk,fleet_low_health_fraction,0.8885488175283889,0.8885488175283889

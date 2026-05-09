@@ -1,0 +1,5 @@
+Seed,Duration (hours),Total Runtime (s),Failed Events,Starvations,Bike Starvations,Long Congestions,Short Congestions,Total Trips,Bike Departures,Bike Arrivals,Vehicle Arrivals,Bike Deliveries,Bike Pickups,Service Level
+9000,120,7500,778,428,428,350,753,15738,15310,15308,0,1073,1079,0.9506
+9001,120,7500,862,531,531,331,845,15658,15127,15122,0,1089,1101,0.9449
+9002,120,7500,691,435,435,256,671,15626,15191,15188,0,1048,1068,0.9558
+9003,120,7500,810,449,449,361,730,15478,15029,15026,0,1028,1048,0.9477
