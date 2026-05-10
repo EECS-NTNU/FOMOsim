@@ -360,7 +360,7 @@ def generate_candidates(
     wide_search: bool = False,
     verbose: bool = False,
     n_candidates: int = 8,
-    training_mode: bool = True,
+    training_mode: bool = False,
     **kwargs,
 ) -> Union[List['sim.Action'], List[Tuple]]:
     

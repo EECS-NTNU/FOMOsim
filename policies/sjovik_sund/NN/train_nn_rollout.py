@@ -631,6 +631,7 @@ class NNLinearTeacherPrefitPolicy(Policy):
         warmup_end_time: float,
         dataset: list,
         use_action_context: bool = False,
+        candidate_wildcards: bool = True,
     ) -> None:
         super().__init__(maintenance_enabled=config.allow_onsite_repairs)
         self.teacher = teacher
@@ -639,6 +640,7 @@ class NNLinearTeacherPrefitPolicy(Policy):
         self.warmup_end_time = warmup_end_time
         self.dataset = dataset
         self.use_action_context = use_action_context
+        self.candidate_wildcards = candidate_wildcards
         self.greedy_policy = (
             GreedyMaintenancePolicy() if self.maintenance_enabled else GreedyPolicy()
         )
@@ -665,7 +667,7 @@ class NNLinearTeacherPrefitPolicy(Policy):
             maintenance_enabled=self.maintenance_enabled,
             return_pairs=True,
             wide_search=True,
-            training_mode=True,
+            training_mode=self.candidate_wildcards,
         )
 
         encodings = []
@@ -732,6 +734,7 @@ def _run_linear_teacher_prefit(
     lr: float,
     use_action_context: bool,
     maintenance_enabled: bool,
+    candidate_wildcards: bool,
 ) -> dict:
     """Pretrain NN candidate rankings from a trained LinearVFAPolicy teacher."""
     if episodes <= 0 or steps <= 0:
@@ -764,6 +767,7 @@ def _run_linear_teacher_prefit(
             warmup_end_time=warmup_end_time,
             dataset=dataset,
             use_action_context=use_action_context,
+            candidate_wildcards=candidate_wildcards,
         )
         simulator = run_simulation(
             seed=seed_offset + 50_000 + ep,
@@ -862,7 +866,7 @@ class NNLearningPolicy(Policy):
         verbose:           bool = False,
         reward_normalizer: Optional[RewardNormalizer] = None,
         debug_logger=None,                # MaintenanceDebugLogger — None disables logging
-        training_mode:     bool = True,   # False disables wildcard candidate injection
+        training_mode:     bool = False,  # True enables training-only wildcard candidate injection
         n_step_return:     int  = N_STEP_RETURN,  # n-step return length; 1=TD(0), 3=default
         use_action_context: bool = False,
     ):
@@ -1599,6 +1603,8 @@ def train_nn_rollout(
     teacher_prefit_steps:    int = 500,
     teacher_prefit_batch_sets: int = 16,
     teacher_prefit_lr:       float = 1e-4,
+    candidate_wildcards:     bool = True,
+    max_updates_per_episode: int = 400,
 ) -> nn.Module:
     """
     Run the full episodic NN training loop.
@@ -1735,6 +1741,7 @@ def train_nn_rollout(
             lr=teacher_prefit_lr,
             use_action_context=use_action_context,
             maintenance_enabled=_maintenance,
+            candidate_wildcards=candidate_wildcards,
         )
         target_model.load_state_dict(online_model.state_dict())
         print("  [TEACHER PREFIT] target network reset to prefitted online weights")
@@ -1767,6 +1774,10 @@ def train_nn_rollout(
         _encoder_suffix += "_dh"
     if use_global_health:
         _encoder_suffix += "_ghealth"
+    if not candidate_wildcards:
+        _encoder_suffix += "_nowild"
+    if max_updates_per_episode != 400:
+        _encoder_suffix += f"_upd{max_updates_per_episode}"
     if linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0:
         _encoder_suffix += f"_ltpref{teacher_prefit_episodes}e{teacher_prefit_steps}s"
     _base_label = (
@@ -1781,6 +1792,8 @@ def train_nn_rollout(
         "reward_norm_mode", "fixed_reward_scale",
         "station_id_embedding", "station_id_embed_dim", "action_context",
         "station_spotlights", "demand_horizon", "global_health",
+        "candidate_wildcards",
+        "max_updates_per_episode",
         "linear_teacher_prefit", "teacher_prefit_sets", "teacher_prefit_acc",
         "service_level", "buffer_size", "n_updates", "elapsed_s",
         "mean_value_spread",  # max(V)-min(V) per decision; near 0 = NN not discriminating
@@ -1851,6 +1864,7 @@ def train_nn_rollout(
     print(f"  Target update     : every {target_update_freq} episodes")
     print(f"  Polyak τ          : {polyak:.3f}  (for soft target updates, if enabled)")
     print(f"  Replay buffer     : {buffer_size:,}  |  batch: {batch_size}")
+    print(f"  Max updates/ep    : {max_updates_per_episode}")
     print(f"  Reward norm       : {reward_norm_mode}"
           f"{f'  scale={fixed_reward_scale:g}' if reward_norm_mode == 'fixed' else ''}")
     print(f"  Station ID embed  : {use_station_id_embedding}"
@@ -1859,6 +1873,7 @@ def train_nn_rollout(
     print(f"  Station spotlights: {use_station_spotlights}")
     print(f"  Demand horizon    : {use_demand_horizon}")
     print(f"  Global health     : {use_global_health}")
+    print(f"  Candidate wildcards: {candidate_wildcards}")
     print(f"  Warmup policy     : {'GreedyMaintenancePolicy' if _maintenance else 'GreedyPolicy'}")
     if linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0:
         print(f"  Linear teacher    : {linear_teacher_prefit_path}")
@@ -1899,6 +1914,7 @@ def train_nn_rollout(
             verbose=(ep == VERBOSE_EPISODE),
             reward_normalizer=reward_normalizer,
             debug_logger=debug_logger,
+            training_mode=candidate_wildcards,
             n_step_return=n_step_return,
             use_action_context=use_action_context,
         )
@@ -1958,12 +1974,10 @@ def train_nn_rollout(
         if buffer_ready:
             # Number of gradient steps: proportional to episode length relative to batch size,
             # capped to prevent overfitting on a single episode's transitions.
-            '''n_updates = min(
+            n_updates = min(
                 max(1, len(replay_buffer) // batch_size) * 4,
-                150,  # hard cap: at most 400 gradient steps per episode
-            )'''
-            # Change the cap from 150 to 400 to squeeze more learning out of the data
-            n_updates = min(max(1, len(replay_buffer) // batch_size) * 4, 400)
+                max_updates_per_episode,
+            )
 
             if ep == VERBOSE_EPISODE:
                 print(f"  [DEBUG] gradient update: {n_updates} steps x batch={batch_size}")
@@ -2001,7 +2015,8 @@ def train_nn_rollout(
 
                 # Polyak update every gradient step (standard SAC/TD3 schedule).
                 # Per-step τ=0.005 keeps the target responsive without losing
-                # the stabilising lag: after 400 steps the target is ~87% online.
+                # the stabilising lag; the effective target lag depends on
+                # --max_updates_per_episode.
                 # Previously this ran once per episode (τ per episode), leaving
                 # the target 80% at random initialisation after 43 episodes.
                 # Polyak update every gradient step
@@ -2388,6 +2403,8 @@ def train_nn_rollout(
             "station_spotlights": int(use_station_spotlights),
             "demand_horizon":    int(use_demand_horizon),
             "global_health":     int(use_global_health),
+            "candidate_wildcards": int(candidate_wildcards),
+            "max_updates_per_episode": max_updates_per_episode,
             "linear_teacher_prefit": int(bool(linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0)),
             "teacher_prefit_sets": int(prefit_info.get("sets", 0)),
             "teacher_prefit_acc": round(float(prefit_info.get("accuracy", 0.0)), 4),
@@ -2464,6 +2481,8 @@ def train_nn_rollout(
                 "use_station_spotlights": use_station_spotlights,
                 "use_demand_horizon":    use_demand_horizon,
                 "use_global_health":     use_global_health,
+                "candidate_wildcards":   candidate_wildcards,
+                "max_updates_per_episode": max_updates_per_episode,
                 "linear_teacher_prefit_path": linear_teacher_prefit_path,
                 "teacher_prefit_episodes": teacher_prefit_episodes,
                 "teacher_prefit_steps":    teacher_prefit_steps,
@@ -2496,6 +2515,8 @@ def train_nn_rollout(
         "use_station_spotlights": use_station_spotlights,
         "use_demand_horizon":   use_demand_horizon,
         "use_global_health":    use_global_health,
+        "candidate_wildcards":  candidate_wildcards,
+        "max_updates_per_episode": max_updates_per_episode,
         "linear_teacher_prefit_path": linear_teacher_prefit_path,
         "teacher_prefit_episodes": teacher_prefit_episodes,
         "teacher_prefit_steps": teacher_prefit_steps,
@@ -2702,6 +2723,14 @@ if __name__ == "__main__":
     parser.add_argument("--global_health", action=argparse.BooleanOptionalAction,
                         default=False,
                         help="Append global inventory-health features to the global context.")
+    parser.add_argument("--candidate_wildcards", action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help=(
+                            "Inject random wildcard routing candidates during NN training. "
+                            "Evaluation/greedy policies always disable this for deterministic candidate pools."
+                        ))
+    parser.add_argument("--max_updates_per_episode", type=int, default=400,
+                        help="Hard cap on gradient updates after each episode.")
     parser.add_argument("--linear_teacher_prefit", type=str, default=None,
                         help=(
                             "Path to a trained LinearVFAPolicy model. When set with "
@@ -2756,6 +2785,8 @@ if __name__ == "__main__":
         print(f"  station_spotlights:  {args.station_spotlights}")
         print(f"  demand_horizon:      {args.demand_horizon}")
         print(f"  global_health:       {args.global_health}")
+        print(f"  candidate_wildcards: {args.candidate_wildcards}")
+        print(f"  max_updates/ep:      {args.max_updates_per_episode}")
         print(f"  linear_teacher:      {args.linear_teacher_prefit}")
         print(
             f"  teacher_prefit:      eps={args.teacher_prefit_episodes} "
@@ -2800,6 +2831,8 @@ if __name__ == "__main__":
             use_station_spotlights   = args.station_spotlights,
             use_demand_horizon       = args.demand_horizon,
             use_global_health        = args.global_health,
+            candidate_wildcards      = args.candidate_wildcards,
+            max_updates_per_episode  = args.max_updates_per_episode,
             linear_teacher_prefit_path = args.linear_teacher_prefit,
             teacher_prefit_episodes  = args.teacher_prefit_episodes,
             teacher_prefit_steps     = args.teacher_prefit_steps,

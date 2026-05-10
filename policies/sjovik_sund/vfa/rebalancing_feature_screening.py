@@ -10,8 +10,11 @@ for the rebalancing feature pool:
   - spatial/logistic rebalancing features
   - destination-local rebalancing features
 
-The default behavior policy is GreedyPolicy, so the sampled states represent a
-standard rebalancing baseline rather than an untrained VFA.
+The default behavior policy is GreedyMaintenancePolicy, so the sampled states
+represent the maintenance-aware operating regime used in the final experiments
+rather than a pure rebalancing-only baseline.
+By default, each episode uses the same timing convention as VFA training:
+7 days of greedy-maintenance warmup followed by 21 analysis days.
 """
 
 from __future__ import annotations
@@ -190,7 +193,8 @@ def run_screening(args: argparse.Namespace) -> None:
     print("Rebalancing feature screening")
     print(f"  instance       : {args.instance}")
     print(f"  episodes       : {args.episodes}")
-    print(f"  days/episode   : {args.days}")
+    print(f"  warmup days    : {args.warmup_days}")
+    print(f"  analysis days  : {args.days}")
     print(f"  behavior policy: {args.behavior_policy}")
     print(f"  active features: {len(active_features)}")
     print(f"  output         : {output_dir}")
@@ -219,6 +223,7 @@ def run_screening(args: argparse.Namespace) -> None:
     config.start_hour = args.start_hour
 
     for ep in range(args.episodes):
+        policy.reset_episode()
         run_simulation(
             seed=args.seed_start + ep,
             policy=policy,
@@ -226,6 +231,7 @@ def run_screening(args: argparse.Namespace) -> None:
             num_vehicles=args.vehicles,
             instance_name=args.instance,
             config=config,
+            warmup_hours=24 * args.warmup_days,
         )
         policy.apply_batch_update()
         print(
@@ -275,6 +281,8 @@ def run_screening(args: argparse.Namespace) -> None:
     vif.to_csv(output_dir / "vif_scores.csv")
 
     with open(output_dir / "screening_thresholds.txt", "w") as fh:
+        fh.write(f"warmup_days: {args.warmup_days}\n")
+        fh.write(f"analysis_days: {args.days}\n")
         fh.write(f"near_constant: std < {NEAR_CONSTANT_STD}\n")
         fh.write(f"sparse: fraction_zero > {SPARSE_FRACTION_ZERO}\n")
         fh.write(f"poor_scaling: p99_abs > {POOR_SCALING_P99_ABS} or min < 0\n")
@@ -293,7 +301,18 @@ def run_screening(args: argparse.Namespace) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Screen rebalancing VFA feature candidates.")
     parser.add_argument("--episodes", type=int, default=3)
-    parser.add_argument("--days", type=int, default=7)
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=21,
+        help="Analysis days per episode after warmup. Default matches VFA training learning days.",
+    )
+    parser.add_argument(
+        "--warmup_days",
+        type=float,
+        default=7.0,
+        help="Greedy-maintenance warmup days before diagnostics are collected.",
+    )
     parser.add_argument("--seed_start", type=int, default=1)
     parser.add_argument("--instance", type=str, default="TD_W34_old")
     parser.add_argument("--vehicles", type=int, default=1)
@@ -305,8 +324,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--behavior_policy",
         choices=["greedy_rebalancing", "greedy_maintenance", "untrained_vfa", "random_candidate"],
-        default="greedy_rebalancing",
-        help="Policy used to generate visited states.",
+        default="greedy_maintenance",
+        help=(
+            "Policy used to generate visited states. Default is greedy_maintenance "
+            "to screen rebalancing features under degradation/maintenance dynamics."
+        ),
     )
     parser.add_argument(
         "--features",

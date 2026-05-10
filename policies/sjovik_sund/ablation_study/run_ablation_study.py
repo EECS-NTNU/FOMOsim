@@ -161,6 +161,18 @@ SCREENED_MAINTENANCE_EXPERIMENTS = {
         "fleet_broken_fraction",
         "depot_idle_fraction",
     ],
+    
+    "M9_FleetBrokenGlobal": MAINTENANCE_ABLATION_REBALANCING_BASE + [
+    "fleet_broken_fraction",
+    ],
+    
+    "M10_FleetBrokenCompact": MAINTENANCE_ABLATION_REBALANCING_BASE + [
+    "fleet_broken_fraction",
+    "onsite_shortage_pressure",
+    "depot_shortage_pressure",
+    "maintenance_restoration_value",
+    "late_broken_cargo_pressure",
+    ]
 }
  
 KITCHEN_SINK_EXPERIMENTS = {
