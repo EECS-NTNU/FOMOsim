@@ -149,8 +149,6 @@ SCREENED_MAINTENANCE_EXPERIMENTS = {
         "rebalancing_imbalance",
         "squared_starvation_penalty",
         "squared_congestion_penalty",
-        "starvation_severity_max",
-        "congestion_severity_max",
         "gross_starvation_risk",
         "gross_congestion_risk",
         "demand_weighted_onsite_backlog",
@@ -218,11 +216,7 @@ CORE_REBALANCING_BASELINES = {
         "squared_starvation_penalty",
         "squared_congestion_penalty",
     ],
-    "Imbalance_temporal": [
-        "rebalancing_imbalance",
-        "gross_starvation_risk",
-        "gross_congestion_risk",
-    ],
+
     "Imbalance_squared_temporal": [
         "rebalancing_imbalance",
         "squared_starvation_penalty",
@@ -246,9 +240,11 @@ CORE_REBALANCING_BASELINES = {
         "gross_starvation_risk",
         "gross_congestion_risk",
     ],
-    "Imbalanced_Starvation": [
-        "rebalancing_imbalance",
-        "squared_starvation_penalty",
+    "Count_Temporal": [
+        "starvation_count",
+        "congestion_count",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
     ],
 }
 
