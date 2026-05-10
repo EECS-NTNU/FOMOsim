@@ -23,13 +23,10 @@ Feature reference  (see vfa_features.py for full definitions)
     CIM1  rebalancing_imbalance          total L1 deviation from target
     CIM2  squared_starvation_penalty     mean squared starvation ratio
     CIM3  squared_congestion_penalty     mean squared congestion ratio
-    CIM4  exponential_starvation_penalty exponential starvation penalty, bounded [0,1]
-    CIM5  exponential_congestion_penalty exponential congestion penalty, bounded [0,1]
-    CIM6  starvation_severity_max        95th-percentile starvation ratio
-    CIM7  congestion_severity_max        95th-percentile congestion ratio
-    CIM8  starvation_variance            variance of starvation ratios
-    CIM9  starvation_count               fraction of stations with starvation ratio >= 0.9
-    CIM10 congestion_count               fraction of stations with congestion ratio >= 0.9
+    CIM4  starvation_severity_max        95th-percentile starvation ratio
+    CIM5  congestion_severity_max        95th-percentile congestion ratio
+    CIM6  starvation_count               fraction of stations with starvation ratio >= 0.9
+    CIM7  congestion_count               fraction of stations with congestion ratio >= 0.9
 
   Pillar 2 — Future System Imbalance (FIM, demand_horizon_enabled)
     FIM1  gross_starvation_risk          departure pressure vs current inventory (Poisson-adjusted)
@@ -42,7 +39,7 @@ Feature reference  (see vfa_features.py for full definitions)
     MP2   global_onsite_backlog          onsite broken bikes normalised by fleet
     MP3   demand_weighted_depot_backlog  broken bikes at high-activity stations
     MP4   depot_pull                     urgency to return to depot
-    MP5   maintenance_urgency            onsite backlog × starvation breadth (CIM9)
+    MP5   maintenance_urgency            onsite backlog × starvation breadth (CIM6)
 
   Pillar 4 — Spatial & Logistic Constraints (SLC, logistics_enabled)
     SLC5  imbalance_hotspot_distance     distance to worst-imbalance stations, normalised
@@ -152,8 +149,6 @@ SCREENED_MAINTENANCE_EXPERIMENTS = {
         "rebalancing_imbalance",
         "squared_starvation_penalty",
         "squared_congestion_penalty",
-        "starvation_severity_max",
-        "congestion_severity_max",
         "gross_starvation_risk",
         "gross_congestion_risk",
         "demand_weighted_onsite_backlog",
@@ -233,11 +228,7 @@ CORE_REBALANCING_BASELINES = {
         "squared_starvation_penalty",
         "squared_congestion_penalty",
     ],
-    "Imbalance_temporal": [
-        "rebalancing_imbalance",
-        "gross_starvation_risk",
-        "gross_congestion_risk",
-    ],
+
     "Imbalance_squared_temporal": [
         "rebalancing_imbalance",
         "squared_starvation_penalty",
@@ -261,9 +252,11 @@ CORE_REBALANCING_BASELINES = {
         "gross_starvation_risk",
         "gross_congestion_risk",
     ],
-    "Imbalanced_Starvation": [
-        "rebalancing_imbalance",
-        "squared_starvation_penalty",
+    "Count_Temporal": [
+        "starvation_count",
+        "congestion_count",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
     ],
 }
 
@@ -505,7 +498,6 @@ PRIOR_REBALANCING_HYPOTHESIS_EXPERIMENTS = {
 
 # Historical experiments kept as comments because they were deliberately
 # disregarded before this registry cleanup:
-# - Exponential_Temporal: too correlated with squared congestion/starvation.
 # - Breadth_And_Mass: hotspot_imbalance_mass converged to near-zero weights.
 # - Micro_Severity_Spatial: imbalance_hotspot_distance converged to near-zero.
 # - FullVFA: too many correlated features; unstable in earlier long runs.
@@ -851,11 +843,6 @@ if __name__ == "__main__":
     #     "squared_congestion_penalty", # A4
     # ],
  
-    # "Exponential": [
-    #     "exponential_starvation_penalty", # A5
-    #     "exponential_congestion_penalty", # A6
-    # ],
- 
     # -- Axis 3: Long-Term Recoverability -------------------------------------
     # Do features that encode how recoverable the state is (rather than just
     # how bad it is) improve tail value estimation?
@@ -947,15 +934,6 @@ if __name__ == "__main__":
     #     "hotspot_imbalance_mass",         # A18
     #     "multi_horizon_starvation_risk",  # D4
     #     "time_of_day_fraction",           # D1
-    # ],
- 
-    # "Expo_Macro_Reachability": [
-    #     "exponential_starvation_penalty", # A5
-    #     "exponential_congestion_penalty", # A6
-    #     "congestion_severity_max",        # A10
-    #     "rebalancing_imbalance",          # A1
-    #     "hotspot_imbalance_mass",         # A18
-    #     "multi_horizon_congestion_risk",  # D5
     # ],
  
     # "Rollout_Balanced_MinRedundancy": [

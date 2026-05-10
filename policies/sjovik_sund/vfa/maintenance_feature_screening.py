@@ -428,8 +428,8 @@ def run_screening(args: argparse.Namespace) -> None:
     print("Maintenance feature screening")
     print(f"  instance       : {args.instance}")
     print(f"  episodes       : {args.episodes}")
+    print(f"  days/episode   : {args.days}")
     print(f"  warmup days    : {args.warmup_days}")
-    print(f"  analysis days  : {args.days}")
     print(f"  behavior policy: {args.behavior_policy}")
     print(f"  feature scope  : {'explicit' if args.features else args.feature_scope}")
     print(f"  active features: {len(active_features)} ({n_base} base, {n_maintenance} maintenance)")
@@ -458,6 +458,7 @@ def run_screening(args: argparse.Namespace) -> None:
     config = SimulationConfig()
     config.start_hour = args.start_hour
 
+    warmup_hours = float(args.warmup_days) * 24.0
     for ep in range(args.episodes):
         policy.reset_episode()
         run_simulation(
@@ -467,7 +468,7 @@ def run_screening(args: argparse.Namespace) -> None:
             num_vehicles=args.vehicles,
             instance_name=args.instance,
             config=config,
-            warmup_hours=24 * args.warmup_days,
+            warmup_hours=warmup_hours,
         )
         policy.apply_batch_update()
         print(
@@ -558,17 +559,16 @@ def run_screening(args: argparse.Namespace) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Screen maintenance VFA feature candidates.")
     parser.add_argument("--episodes", type=int, default=3)
-    parser.add_argument(
-        "--days",
-        type=int,
-        default=21,
-        help="Analysis days per episode after warmup. Default matches VFA training learning days.",
-    )
+    parser.add_argument("--days", type=int, default=7)
     parser.add_argument(
         "--warmup_days",
         type=float,
         default=7.0,
-        help="Greedy-maintenance warmup days before diagnostics are collected.",
+        help=(
+            "Evaluation warmup in days before feature/transition logging starts. "
+            "Uses GreedyMaintenancePolicy (or GreedyPolicy without maintenance) during warmup. "
+            "Default: 7."
+        ),
     )
     parser.add_argument("--seed_start", type=int, default=1)
     parser.add_argument("--instance", type=str, default="TD_W34_old")

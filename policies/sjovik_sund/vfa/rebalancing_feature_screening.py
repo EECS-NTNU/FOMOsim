@@ -34,7 +34,7 @@ import pandas as pd
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(WORKSPACE_ROOT))
 
-from policies.greedy_policy import GreedyPolicy
+from policies.greedy_policy_maintenance import GreedyMaintenancePolicy 
 from policies.sjovik_sund.run_simulation_ingvild import SimulationConfig, run_simulation
 from policies.sjovik_sund.vfa.LinearVFAPolicy import VFA_DEBUG_FLAGS
 from policies.sjovik_sund.vfa.maintenance_feature_screening import (
@@ -60,8 +60,6 @@ REBALANCING_FEATURE_POOL = [
     "rebalancing_imbalance",
     "squared_starvation_penalty",
     "squared_congestion_penalty",
-    "exponential_starvation_penalty",
-    "exponential_congestion_penalty",
     "starvation_severity_max",
     "congestion_severity_max",
     "starvation_count",
@@ -73,21 +71,15 @@ REBALANCING_FEATURE_POOL = [
     "net_starvation_shortfall",
     "net_congestion_shortfall",
 
-    # Spatial/logistic rebalancing features.
-    "time_remaining_fraction",
-    "functional_bikes_time_penalty",
-    "reachable_imbalance_fraction",
-    "recoverable_imbalance_fraction",
-    "imbalance_hotspot_distance",
 
     # Destination-local rebalancing features.
-    "destination_starv_ratio",
-    "destination_cong_ratio",
-    "destination_travel_penalty",
-    "destination_roi_starvation",
-    "cur_station_func_deficit",
-    "functional_load_late_pressure",
-    "non_depot_late_load_pressure",
+    #"destination_starv_ratio",
+    #"destination_cong_ratio",
+    #"destination_travel_penalty",
+    #"destination_roi_starvation",
+    #"cur_station_func_deficit",
+    #"functional_load_late_pressure",
+    #"non_depot_late_load_pressure",
 ]
 
 
@@ -95,8 +87,6 @@ REBALANCING_FEATURE_METADATA = {
     "rebalancing_imbalance": ("current_imbalance", "total deviation from target inventory", "negative", "high"),
     "squared_starvation_penalty": ("current_imbalance", "mean squared shortage depth", "negative", "high"),
     "squared_congestion_penalty": ("current_imbalance", "mean squared excess inventory depth", "negative", "high"),
-    "exponential_starvation_penalty": ("current_imbalance", "tail-sensitive shortage pressure", "negative", "medium"),
-    "exponential_congestion_penalty": ("current_imbalance", "tail-sensitive congestion pressure", "negative", "medium"),
     "starvation_severity_max": ("current_imbalance", "severe shortage at the worst stations", "negative", "medium"),
     "congestion_severity_max": ("current_imbalance", "severe congestion at the worst stations", "negative", "medium"),
     "starvation_count": ("current_imbalance", "many stations are nearly empty", "negative", "medium"),
@@ -105,18 +95,13 @@ REBALANCING_FEATURE_METADATA = {
     "gross_congestion_risk": ("future_imbalance", "expected arrivals exceed free docks", "negative", "high"),
     "net_starvation_shortfall": ("future_imbalance", "net demand creates future shortage", "negative", "medium"),
     "net_congestion_shortfall": ("future_imbalance", "net demand creates future congestion", "negative", "medium"),
-    "time_remaining_fraction": ("logistics", "large share of shift remains", "context", "low"),
-    "functional_bikes_time_penalty": ("logistics", "functional cargo remains late in the shift", "negative", "medium"),
-    "reachable_imbalance_fraction": ("logistics", "imbalance is reachable within remaining shift", "positive", "medium"),
-    "recoverable_imbalance_fraction": ("logistics", "reachable imbalance is serviceable with current capacity", "positive", "medium"),
-    "imbalance_hotspot_distance": ("logistics", "worst imbalance locations are far away", "negative", "medium"),
-    "destination_starv_ratio": ("destination_local", "candidate destination is short of bikes", "context", "medium"),
-    "destination_cong_ratio": ("destination_local", "candidate destination has excess bikes", "context", "medium"),
-    "destination_travel_penalty": ("destination_local", "candidate destination is far away", "negative", "medium"),
-    "destination_roi_starvation": ("destination_local", "shortage relief per unit travel is high", "positive", "medium"),
-    "cur_station_func_deficit": ("destination_local", "current station remains short after action", "negative", "medium"),
-    "functional_load_late_pressure": ("logistics", "functional cargo remains on vehicle late in shift", "negative", "medium"),
-    "non_depot_late_load_pressure": ("logistics", "vehicle carries load late while routing away from depot", "negative", "low"),
+    #"destination_starv_ratio": ("destination_local", "candidate destination is short of bikes", "context", "medium"),
+    #"destination_cong_ratio": ("destination_local", "candidate destination has excess bikes", "context", "medium"),
+    #"destination_travel_penalty": ("destination_local", "candidate destination is far away", "negative", "medium"),
+    #"destination_roi_starvation": ("destination_local", "shortage relief per unit travel is high", "positive", "medium"),
+    #"cur_station_func_deficit": ("destination_local", "current station remains short after action", "negative", "medium"),
+    #"functional_load_late_pressure": ("logistics", "functional cargo remains on vehicle late in shift", "negative", "medium"),
+    #"non_depot_late_load_pressure": ("logistics", "vehicle carries load late while routing away from depot", "negative", "low"),
 }
 
 
@@ -126,7 +111,7 @@ class RebalancingFeatureScreeningPolicy(FeatureScreeningPolicy):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.behavior_policy_name == "greedy_rebalancing":
-            self.behavior_policy = GreedyPolicy()
+            self.behavior_policy = GreedyMaintenancePolicy()
 
     def get_best_action(self, state, vehicle):
         if self.behavior_policy_name in ("untrained_vfa", "greedy_maintenance", "random_candidate"):
@@ -193,8 +178,8 @@ def run_screening(args: argparse.Namespace) -> None:
     print("Rebalancing feature screening")
     print(f"  instance       : {args.instance}")
     print(f"  episodes       : {args.episodes}")
+    print(f"  days/episode   : {args.days}")
     print(f"  warmup days    : {args.warmup_days}")
-    print(f"  analysis days  : {args.days}")
     print(f"  behavior policy: {args.behavior_policy}")
     print(f"  active features: {len(active_features)}")
     print(f"  output         : {output_dir}")
@@ -222,6 +207,7 @@ def run_screening(args: argparse.Namespace) -> None:
     config = SimulationConfig()
     config.start_hour = args.start_hour
 
+    warmup_hours = float(args.warmup_days) * 24.0
     for ep in range(args.episodes):
         policy.reset_episode()
         run_simulation(
@@ -231,7 +217,7 @@ def run_screening(args: argparse.Namespace) -> None:
             num_vehicles=args.vehicles,
             instance_name=args.instance,
             config=config,
-            warmup_hours=24 * args.warmup_days,
+            warmup_hours=warmup_hours,
         )
         policy.apply_batch_update()
         print(
@@ -301,17 +287,16 @@ def run_screening(args: argparse.Namespace) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Screen rebalancing VFA feature candidates.")
     parser.add_argument("--episodes", type=int, default=3)
-    parser.add_argument(
-        "--days",
-        type=int,
-        default=21,
-        help="Analysis days per episode after warmup. Default matches VFA training learning days.",
-    )
+    parser.add_argument("--days", type=int, default=7)
     parser.add_argument(
         "--warmup_days",
         type=float,
         default=7.0,
-        help="Greedy-maintenance warmup days before diagnostics are collected.",
+        help=(
+            "Evaluation warmup in days before feature/transition logging starts. "
+            "Uses GreedyMaintenancePolicy (or GreedyPolicy without maintenance) during warmup. "
+            "Default: 7."
+        ),
     )
     parser.add_argument("--seed_start", type=int, default=1)
     parser.add_argument("--instance", type=str, default="TD_W34_old")
@@ -323,12 +308,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output_dir", type=str, default="models/rebalancing_feature_screening")
     parser.add_argument(
         "--behavior_policy",
-        choices=["greedy_rebalancing", "greedy_maintenance", "untrained_vfa", "random_candidate"],
+        choices=["greedy_maintenance", "untrained_vfa", "random_candidate"],
         default="greedy_maintenance",
-        help=(
-            "Policy used to generate visited states. Default is greedy_maintenance "
-            "to screen rebalancing features under degradation/maintenance dynamics."
-        ),
+        help="Policy used to generate visited states.",
     )
     parser.add_argument(
         "--features",
