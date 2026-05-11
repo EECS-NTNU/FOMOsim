@@ -390,6 +390,7 @@ def run_screening(args: argparse.Namespace) -> None:
     print(f"  instance       : {args.instance}")
     print(f"  episodes       : {args.episodes}")
     print(f"  days/episode   : {args.days}")
+    print(f"  warmup days    : {args.warmup_days}")
     print(f"  behavior policy: {args.behavior_policy}")
     print(f"  active features: {len(active_features)}")
     print(f"  output         : {output_dir}")
@@ -417,6 +418,7 @@ def run_screening(args: argparse.Namespace) -> None:
     config = SimulationConfig()
     config.start_hour = args.start_hour
 
+    warmup_hours = float(args.warmup_days) * 24.0
     for ep in range(args.episodes):
         run_simulation(
             seed=args.seed_start + ep,
@@ -425,6 +427,7 @@ def run_screening(args: argparse.Namespace) -> None:
             num_vehicles=args.vehicles,
             instance_name=args.instance,
             config=config,
+            warmup_hours=warmup_hours,
         )
         policy.apply_batch_update()
         print(
@@ -506,6 +509,16 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Screen maintenance VFA feature candidates.")
     parser.add_argument("--episodes", type=int, default=3)
     parser.add_argument("--days", type=int, default=7)
+    parser.add_argument(
+        "--warmup_days",
+        type=float,
+        default=7.0,
+        help=(
+            "Evaluation warmup in days before feature/transition logging starts. "
+            "Uses GreedyMaintenancePolicy (or GreedyPolicy without maintenance) during warmup. "
+            "Default: 7."
+        ),
+    )
     parser.add_argument("--seed_start", type=int, default=1)
     parser.add_argument("--instance", type=str, default="TD_W34_old")
     parser.add_argument("--vehicles", type=int, default=1)
