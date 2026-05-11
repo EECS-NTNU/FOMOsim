@@ -51,14 +51,21 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
- 
-os.environ.setdefault("MPLCONFIGDIR", str(Path("/private/tmp") / "fomosim_matplotlib_cache"))
-os.environ.setdefault("XDG_CACHE_HOME", str(Path("/private/tmp") / "fomosim_cache"))
+
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, str(WORKSPACE_ROOT))
- 
+
+# Use project-local cache directory (portable across machines)
+cache_dir = WORKSPACE_ROOT / ".matplotlib_cache"
+cache_dir.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(cache_dir))
+
+xdg_cache = WORKSPACE_ROOT / ".cache"
+xdg_cache.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("XDG_CACHE_HOME", str(xdg_cache))
+
 from policies.sjovik_sund.vfa.train_vfa import (
     train,
     ALPHA_START,
@@ -198,45 +205,45 @@ KITCHEN_SINK_EXPERIMENTS = {
 }
 
 CORE_REBALANCING_BASELINES = {
-    "Imbalance": [
+    "Imbalance": [ #EX1
         "rebalancing_imbalance",
     ],
-    "Imbalance_squared": [
+    "Squared_only": [ #EX2
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+    ],
+    "Imbalance_squared": [ #EX3
         "rebalancing_imbalance",
         "squared_starvation_penalty",
         "squared_congestion_penalty",
     ],
-    "Squared_temporal": [
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "gross_starvation_risk",
-        "gross_congestion_risk",
-    ],
-    "Squared_only": [
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-    ],
-    "Imbalance_temporal": [
+    "Imbalance_temporal": [ #EX4
         "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
         "gross_starvation_risk",          # FIM1: gross departure pressure
         "gross_congestion_risk",          # FIM2: gross arrival pressure
     ],
+    "Squared_temporal": [ #EX5
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+    ],
 
-    "Imbalance_squared_temporal": [
+    "Imbalance_squared_temporal": [ #EX6
         "rebalancing_imbalance",
         "squared_starvation_penalty",
         "squared_congestion_penalty",
         "gross_starvation_risk",
         "gross_congestion_risk",
     ],
-    "Imbalance_severity_temporal": [
+    "Imbalance_severity_temporal": [ #EX7
         "rebalancing_imbalance",
         "starvation_severity_max",
         "congestion_severity_max",
         "gross_starvation_risk",
         "gross_congestion_risk",
     ],
-    "Imbalance_severity_squared_temporal": [
+    "Imbalance_severity_squared_temporal": [ #EX8
         "rebalancing_imbalance",
         "squared_starvation_penalty",
         "squared_congestion_penalty",
@@ -245,11 +252,30 @@ CORE_REBALANCING_BASELINES = {
         "gross_starvation_risk",
         "gross_congestion_risk",
     ],
-    "Count_Temporal": [
+    "Imbalance_count_temporal": [ #EX9
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
         "starvation_count",
         "congestion_count",
         "gross_starvation_risk",
         "gross_congestion_risk",
+    ],
+    "Imbalance_squared_count_temporal": [ #EX10
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "starvation_count",
+        "congestion_count",
+        "gross_starvation_risk",
+        "gross_congestion_risk",
+    ],
+    "Imbalance_squared_net": [ #EX11
+        "rebalancing_imbalance",
+        "squared_starvation_penalty",
+        "squared_congestion_penalty",
+        "net_starvation_shortfall",
+        "net_congestion_shortfall",
     ],
 }
 
