@@ -607,7 +607,7 @@ def encode_state_vfa(
         depot_in_repair=depot_in_repair,
         depot_fixed_queue=depot_fixed_q,
         maintenance_enabled=True,
-        logistics_enabled=True,   # SLC(5) gives total 28 features
+        logistics_enabled=False,   # SLC(5) gives total 28 features
         time_remaining=shift_remaining,
         shift_length=_SHIFT_LENGTH_MIN,
         demand_horizon_enabled=True,

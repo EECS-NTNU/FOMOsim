@@ -10,15 +10,46 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path("/private/tmp") / "fomosim_matplotlib_cache"))
 os.environ.setdefault("XDG_CACHE_HOME", str(Path("/private/tmp") / "fomosim_cache"))
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 import numpy as np
 import pandas as pd
+import seaborn as sns
+
+# Match the LaTeX styling used in plot_feature_study.py.
+if shutil.which("latex"):
+    plt.rcParams.update({
+        "text.usetex": True,
+        "font.family": "serif",
+        "text.latex.preamble": r"\usepackage[T1]{fontenc} \usepackage{mlmodern}",
+    })
+else:
+    plt.rcParams.update({
+        "text.usetex": False,
+        "font.family": "serif",
+    })
+
+# Shared divergent palette: blue (low) -> white (zero) -> red (high).
+DIVERGENT_CMAP = LinearSegmentedColormap.from_list(
+    "custom_palette", ["#3758d8", "#ffffff", "#db3249"]
+)
+
+# Categorical traffic-light colors derived from the same palette.
+PASS_COLOR = "#3758d8"
+FLAG_COLOR = "#db3249"
+WARN_COLOR = "#d89c2b"
+
+
+def _strip_underscores(labels):
+    return [str(label).replace("_", " ") for label in labels]
 
 
 DIAGNOSTIC_COLUMNS = [
@@ -26,8 +57,8 @@ DIAGNOSTIC_COLUMNS = [
     ("not sparse", "sparse", False),
     ("scale ok", "poor_scaling", False),
     ("target signal", "weak_signal", False),
-    ("VIF ok", "vif_flag", False),
-    ("VIF safe", "vif_serious", False),
+    ("vif ok", "vif_flag", False),
+    ("vif safe", "vif_serious", False),
 ]
 
 TARGET_COLUMNS = [
@@ -71,12 +102,12 @@ def plot_diagnostic_traffic_light(summary: pd.DataFrame, features: list[str], ou
 
     fig_h = max(5.0, 0.34 * len(features) + 1.6)
     fig, ax = plt.subplots(figsize=(8.8, fig_h))
-    ax.imshow(data, aspect="auto", interpolation="nearest", cmap=ListedColormap(["#c93f3f", "#2f8f5b"]), vmin=0, vmax=1)
+    ax.imshow(data, aspect="auto", interpolation="nearest", cmap=ListedColormap([FLAG_COLOR, PASS_COLOR]), vmin=0, vmax=1)
     ax.set_xticks(np.arange(len(labels)))
     ax.set_xticklabels(labels, rotation=35, ha="right")
     ax.set_yticks(np.arange(len(features)))
-    ax.set_yticklabels(features, fontsize=8)
-    ax.set_title("Rebalancing Feature Screening Diagnostics")
+    ax.set_yticklabels(_strip_underscores(features), fontsize=8)
+    ax.set_title("Rebalancing feature screening diagnostics")
     ax.set_xlabel("Diagnostic")
     ax.set_ylabel("Candidate rebalancing feature")
     for i in range(data.shape[0]):
@@ -96,12 +127,12 @@ def plot_target_correlation_heatmap(input_dir: Path, features: list[str], output
 
     fig_h = max(5.0, 0.34 * len(features) + 1.7)
     fig, ax = plt.subplots(figsize=(9.0, fig_h))
-    im = ax.imshow(data.to_numpy(), aspect="auto", interpolation="nearest", cmap="RdBu_r", vmin=-1, vmax=1)
+    im = ax.imshow(data.to_numpy(), aspect="auto", interpolation="nearest", cmap=DIVERGENT_CMAP, vmin=-1, vmax=1)
     ax.set_xticks(np.arange(len(cols)))
     ax.set_xticklabels([c.replace("corr_", "").replace("_", " ") for c in cols], rotation=30, ha="right")
     ax.set_yticks(np.arange(len(features)))
-    ax.set_yticklabels(features, fontsize=8)
-    ax.set_title("Rebalancing Feature-Target Correlations")
+    ax.set_yticklabels(_strip_underscores(features), fontsize=8)
+    ax.set_title("Rebalancing feature-target correlations")
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
             val = data.iloc[i, j]
@@ -116,26 +147,26 @@ def plot_feature_correlation_heatmap(input_dir: Path, features: list[str], outpu
     corr = pd.read_csv(input_dir / fname, index_col=0)
     data = corr.reindex(index=features, columns=features).astype(float)
 
-    fig_w = max(8.0, 0.33 * len(features) + 2.4)
-    fig_h = max(7.0, 0.33 * len(features) + 2.0)
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-    im = ax.imshow(data.to_numpy(), aspect="equal", interpolation="nearest", cmap="RdBu_r", vmin=-1, vmax=1)
-    ax.set_xticks(np.arange(len(features)))
-    ax.set_xticklabels(features, rotation=65, ha="right", fontsize=7)
-    ax.set_yticks(np.arange(len(features)))
-    ax.set_yticklabels(features, fontsize=7)
-    ax.set_title(f"Rebalancing Feature Redundancy ({method.title()})")
+    display_df = data.copy()
+    display_df.index = display_df.index.astype(str).str.replace("_", " ")
+    display_df.columns = display_df.columns.astype(str).str.replace("_", " ")
 
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            val = data.iloc[i, j]
-            if pd.isna(val):
-                continue
-            color = "white" if abs(float(val)) > 0.55 else "black"
-            ax.text(j, i, f"{val:.2f}", ha="center", va="center", fontsize=5, color=color)
-
-    cbar = fig.colorbar(im, ax=ax, shrink=0.78)
-    cbar.set_label(f"{method.title()} correlation")
+    fig = plt.figure(figsize=(12, 10))
+    sns.heatmap(
+        display_df,
+        annot=True,
+        cmap=DIVERGENT_CMAP,
+        fmt=".2f",
+        linewidths=0.5,
+        cbar_kws={"shrink": 0.8},
+        vmin=-1.0,
+        vmax=1.0,
+        annot_kws={"fontweight": "bold"},
+    )
+    plt.title(f"Rebalancing feature redundancy ({method})", fontsize=16, fontweight="bold")
+    plt.xticks(rotation=45, ha="right")
+    plt.yticks(rotation=0)
+    plt.tight_layout()
     _save(fig, output_dir, f"03_rebalancing_feature_{method}_heatmap")
 
 
@@ -143,12 +174,12 @@ def plot_vif(summary: pd.DataFrame, features: list[str], output_dir: Path) -> No
     df = summary.set_index("feature").reindex(features)[["vif"]].dropna().sort_values("vif", ascending=True)
     fig_h = max(4.5, 0.32 * len(df) + 1.2)
     fig, ax = plt.subplots(figsize=(9.0, fig_h))
-    colors = np.where(df["vif"] > 20.0, "#c93f3f", np.where(df["vif"] > 10.0, "#d89c2b", "#2f8f5b"))
-    ax.barh(df.index, df["vif"], color=colors)
-    ax.axvline(10.0, color="#d89c2b", linestyle="--", linewidth=1.2, label="VIF = 10")
-    ax.axvline(20.0, color="#c93f3f", linestyle="--", linewidth=1.2, label="VIF = 20")
+    colors = np.where(df["vif"] > 20.0, FLAG_COLOR, np.where(df["vif"] > 10.0, WARN_COLOR, PASS_COLOR))
+    ax.barh(_strip_underscores(df.index), df["vif"], color=colors)
+    ax.axvline(10.0, color=WARN_COLOR, linestyle="--", linewidth=1.2, label="vif = 10")
+    ax.axvline(20.0, color=FLAG_COLOR, linestyle="--", linewidth=1.2, label="vif = 20")
     ax.set_xlabel("Variance inflation factor")
-    ax.set_title("Rebalancing Feature Multicollinearity")
+    ax.set_title("Rebalancing feature multicollinearity")
     ax.legend(loc="lower right")
     _save(fig, output_dir, "04_vif_scores")
 
@@ -157,19 +188,19 @@ def plot_sparsity(summary: pd.DataFrame, features: list[str], output_dir: Path) 
     df = summary.set_index("feature").reindex(features)[["fraction_zero"]].dropna().sort_values("fraction_zero", ascending=True)
     fig_h = max(4.5, 0.32 * len(df) + 1.2)
     fig, ax = plt.subplots(figsize=(9.0, fig_h))
-    colors = np.where(df["fraction_zero"] > 0.95, "#c93f3f", np.where(df["fraction_zero"] > 0.80, "#d89c2b", "#2f8f5b"))
-    ax.barh(df.index, df["fraction_zero"], color=colors)
-    ax.axvline(0.95, color="#c93f3f", linestyle="--", linewidth=1.2, label="sparsity threshold = 0.95")
+    colors = np.where(df["fraction_zero"] > 0.95, FLAG_COLOR, np.where(df["fraction_zero"] > 0.80, WARN_COLOR, PASS_COLOR))
+    ax.barh(_strip_underscores(df.index), df["fraction_zero"], color=colors)
+    ax.axvline(0.95, color=FLAG_COLOR, linestyle="--", linewidth=1.2, label="sparsity threshold = 0.95")
     ax.set_xlim(0, 1)
-    ax.set_xlabel("Fraction of candidate states where feature is zero")
-    ax.set_title("Rebalancing Feature Sparsity")
+    ax.set_xlabel("fraction of candidate states where feature is zero")
+    ax.set_title("rebalancing feature sparsity")
     ax.legend(loc="lower right")
     _save(fig, output_dir, "05_fraction_zero")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Plot rebalancing feature-screening diagnostics.")
-    parser.add_argument("--input_dir", type=str, default="models/rebalancing_feature_screening")
+    parser.add_argument("--input_dir", type=str, default="models/feature_study_v2")
     parser.add_argument("--output_dir", type=str, default=None)
     return parser.parse_args()
 

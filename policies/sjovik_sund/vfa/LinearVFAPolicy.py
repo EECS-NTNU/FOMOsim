@@ -18,7 +18,7 @@ import sys
 import pickle
 import numpy as np
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
 
 if TYPE_CHECKING:
     from policies.sjovik_sund.simulation_logging import SimulationRunLogger as RunLogger
@@ -50,7 +50,7 @@ from policies.sjovik_sund.mdp.action_bridge import (
     mdp_action_to_sim_action,
     record_depot_action_stats,
 )
-from settings import ENABLE_COMPONENT_FAILURES
+from settings import ENABLE_COMPONENT_FAILURES, SERVICE_TIME_TO
 from sim.Bike import Bike
 from sim.bike_degradation_modeling.bike_component_degradation_model import ComponentFailureModel
 
@@ -95,7 +95,7 @@ class LinearVFAPolicy(Policy):
         active_features: Optional[List[str]] = None,
         n_features: Optional[int] = None,   # defaults to len(FEATURE_NAMES); set explicitly to override
         alpha: float = 0.1,
-        gamma: float = 0.99,
+        gamma: float = 0.97,
         epsilon: float = 0.0,
         learning_mode: bool = True,
         config: Optional[MDPConfig] = None,
@@ -239,6 +239,7 @@ class LinearVFAPolicy(Policy):
 
         # ── Per-episode TD tracking ───────────────────────────────────────────
         self._prev_phi:          Optional[np.ndarray] = None
+        self._prev_time:         Optional[float]      = None
 
         # ── Potential-based reward shaping (off by default) ──────────────────
         self.use_reward_shaping:  bool = False
@@ -257,6 +258,9 @@ class LinearVFAPolicy(Policy):
         self._online_update_count: int = 0
         self._transition_batch_update_count: int = 0
         self._all_phis_for_corr: Optional[List[np.ndarray]] = None
+        self._online_diag_phis: List[np.ndarray] = []
+        self._online_diag_tderrs: List[float] = []
+        self._online_diag_raw_tderrs: List[float] = []
         
         # Buffer for Experience Replay (Mini-Batch SGD)
         self.use_experience_replay = False
@@ -265,16 +269,27 @@ class LinearVFAPolicy(Policy):
 
         # logging for RL decisions (e.g., depot visits)
         self.log_rl_decisions = True
-        self.rl_logs = []
+        self.rl_logs: List[Dict[str, object]] = []
+        self.log_candidate_diagnostics: bool = False
+        self._candidate_diag_rows: List[Dict[str, object]] = []
+        self.log_greedy_comparison: bool = False
+        self._comparison_episode: int = -1
+        self._comparison_rows: List[Dict[str, object]] = []
+        self._pending_comparison_row: Optional[Dict[str, object]] = None
+        self._comparison_greedy: Optional[Any] = None
+        self._collect_phis_inside_batch_update: bool = False
+        self._warmup_depot_snapshot: Dict[str, int] = {}
+        self.warmup_starvations_snapshot: int = 0
+        self.warmup_congestions_snapshot: int = 0
 
         # Optional RunLogger — attach externally for structured per-run output
         self.logger: Optional[RunLogger] = None
         
         # Cache for static fleet size to optimize VFA speed
-        self.cached_fleet_size = None
+        self.cached_fleet_size: Optional[float] = None
 
         # Simulator reference — set by init_sim(), used to pre-warm target matrix
-        self._simulator_ref = None
+        self._simulator_ref: Optional[Any] = None
 
     def init_sim(self, simulator) -> None:
         """
@@ -330,43 +345,46 @@ class LinearVFAPolicy(Policy):
         weekday_days = [0, 1, 2, 3, 4]
         weekend_days = [5, 6]
 
-        self._leave_profile  = np.zeros((2, 24, N), dtype=np.float32)
-        self._arrive_profile = np.zeros((2, 24, N), dtype=np.float32)
+        leave_profile = np.zeros((2, 24, N), dtype=np.float32)
+        arrive_profile = np.zeros((2, 24, N), dtype=np.float32)
 
         for i, s in enumerate(stations):
             for h in range(24):
-                self._leave_profile[0, h, i]  = np.mean([s.get_leave_intensity(d, h)  for d in weekday_days])
-                self._leave_profile[1, h, i]  = np.mean([s.get_leave_intensity(d, h)  for d in weekend_days])
-                self._arrive_profile[0, h, i] = np.mean([s.get_arrive_intensity(d, h) for d in weekday_days])
-                self._arrive_profile[1, h, i] = np.mean([s.get_arrive_intensity(d, h) for d in weekend_days])
+                leave_profile[0, h, i]  = np.mean([s.get_leave_intensity(d, h)  for d in weekday_days])
+                leave_profile[1, h, i]  = np.mean([s.get_leave_intensity(d, h)  for d in weekend_days])
+                arrive_profile[0, h, i] = np.mean([s.get_arrive_intensity(d, h) for d in weekday_days])
+                arrive_profile[1, h, i] = np.mean([s.get_arrive_intensity(d, h) for d in weekend_days])
 
         # Find the absolute peak 3-hour rolling net demand for scaling (Lambda_max)
         max_abs_3hr_activity = np.zeros(N, dtype=np.float32)
         for day_type in range(2):
             for h in range(24):
                 three_hr_demand = (
-                    np.abs(self._leave_profile[day_type, h]        - self._arrive_profile[day_type, h]) +
-                    np.abs(self._leave_profile[day_type, (h+1)%24] - self._arrive_profile[day_type, (h+1)%24]) +
-                    np.abs(self._leave_profile[day_type, (h+2)%24] - self._arrive_profile[day_type, (h+2)%24])
+                    np.abs(leave_profile[day_type, h]        - arrive_profile[day_type, h]) +
+                    np.abs(leave_profile[day_type, (h+1)%24] - arrive_profile[day_type, (h+1)%24]) +
+                    np.abs(leave_profile[day_type, (h+2)%24] - arrive_profile[day_type, (h+2)%24])
                 )
                 max_abs_3hr_activity = np.maximum(max_abs_3hr_activity, three_hr_demand)
                 
+        self._leave_profile = leave_profile
+        self._arrive_profile = arrive_profile
         self._lambda_max_system = float(np.sum(max_abs_3hr_activity))
         
         # ── 3. Travel Time Matrix (N x N) ──────────────────────────────────────
-        self._travel_time_matrix = np.zeros((N, N), dtype=np.float32)
+        travel_time_matrix = np.zeros((N, N), dtype=np.float32)
         for i, s_from in enumerate(stations):
             for j, s_to in enumerate(stations):
-                self._travel_time_matrix[i, j] = state.get_travel_time(s_from.id, s_to.id)
+                travel_time_matrix[i, j] = state.get_travel_time(s_from.id, s_to.id)
 
         # ── 4. G_max (Maximum Theoretical Gravity) ─────────────────────────────
         best_gravity = 0.0
         for j in range(N):
             # Calculate gravity using the absolute maximum 3-hour demand
-            current_gravity = np.sum(max_abs_3hr_activity / (self._travel_time_matrix[j] + 1.0))
+            current_gravity = np.sum(max_abs_3hr_activity / (travel_time_matrix[j] + 1.0))
             if current_gravity > best_gravity:
                 best_gravity = current_gravity
         
+        self._travel_time_matrix = travel_time_matrix
         self._max_gravity = float(best_gravity)
 
         # Closest-depot ID
@@ -374,7 +392,7 @@ class LinearVFAPolicy(Policy):
         self._depot_id = state.get_closest_depot(vehicles[0]) if vehicles else None
         
         self.cached_fleet_size = float(len(state.get_all_bikes()))
-        self._max_travel_time = float(np.max(self._travel_time_matrix)) if self._travel_time_matrix.size > 0 else 60.0
+        self._max_travel_time = float(np.max(travel_time_matrix)) if travel_time_matrix.size > 0 else 60.0
 
         self._initialized = True
 
@@ -608,11 +626,13 @@ class LinearVFAPolicy(Policy):
         delta_func: int = 0,
         delta_depot_cargo: int = 0,
         delta_onsite_repairs: int = 0,
+        delta_depot_fixed_queue: int = 0,
+        delta_depot_in_repair: int = 0,
         time_remaining: Optional[float] = None,
         shift_length: float = 1440.0,
         next_station_id: Optional[str] = None,
         eval_time: Optional[float] = None,
-        projected_time: float = None,
+        projected_time: Optional[float] = None,
         dist_to_next: float = 0.0,
         explicit_vehicle_loc_id: Optional[str] = None,
         explicit_functional_cargo: Optional[int] = None,
@@ -629,16 +649,24 @@ class LinearVFAPolicy(Policy):
         t         = eval_time if eval_time is not None else (float(state.time) if state else 0.0)
         eval_day  = int(t // (24 * 60)) % 7
         eval_hour = int((t // 60) % 24)
-        # Explicitly tell Pylance the lazy caches are populated
-        assert self._target_matrix is not None
-        assert self._leave_profile is not None
-        assert self._arrive_profile is not None
-        assert self._travel_time_matrix is not None
-        assert self._capacities is not None
-        assert self._lambda_max_system is not None
-        assert self._max_gravity is not None
-        assert self._N_stations is not None
-        assert self.cached_fleet_size is not None
+        target_matrix = self._target_matrix
+        leave_profile = self._leave_profile
+        arrive_profile = self._arrive_profile
+        travel_time_matrix = self._travel_time_matrix
+        capacities = self._capacities
+        lambda_max_system = self._lambda_max_system
+        max_gravity = self._max_gravity
+        n_stations = self._N_stations
+        cached_fleet_size = self.cached_fleet_size
+        assert target_matrix is not None
+        assert leave_profile is not None
+        assert arrive_profile is not None
+        assert travel_time_matrix is not None
+        assert capacities is not None
+        assert lambda_max_system is not None
+        assert max_gravity is not None
+        assert n_stations is not None
+        assert cached_fleet_size is not None
 
         # Use the projected arrival time for all time-indexed features so that
         # candidates with long travel times are evaluated at t_{k+1}, not t_k.
@@ -680,12 +708,19 @@ class LinearVFAPolicy(Policy):
         if next_station_id and next_station_id in self._sid_to_idx:
             nxt_idx = self._sid_to_idx[next_station_id]
             d, h = eval_day % 7, eval_hour % 24
-            target_nxt = self._target_matrix[d, h, nxt_idx]
+            target_nxt = target_matrix[d, h, nxt_idx]
             cur_nxt = func_post[nxt_idx]
             delta_nxt = target_nxt - cur_nxt
             
             if delta_nxt > 0: # Starving
-                delivery = min(func_cargo_veh, delta_nxt)
+                free_docks_nxt = max(
+                    0.0,
+                    float(capacities[nxt_idx])
+                    - float(func_post[nxt_idx])
+                    - float(onsite_post[nxt_idx])
+                    - float(depot_post[nxt_idx])
+                )
+                delivery = min(func_cargo_veh, delta_nxt, free_docks_nxt)
                 func_post[nxt_idx] += delivery
                 func_cargo_veh -= delivery
             elif delta_nxt < 0: # Congested
@@ -707,12 +742,12 @@ class LinearVFAPolicy(Policy):
             current_minute / 60.0,          # overlap into fourth hour
         ])
 
-        dynamic_leave  = np.array([self._leave_profile[day_type, h]  * w for h, w in zip(hours, weights)])
-        dynamic_arrive = np.array([self._arrive_profile[day_type, h] * w for h, w in zip(hours, weights)])
+        dynamic_leave  = np.array([leave_profile[day_type, h]  * w for h, w in zip(hours, weights)])
+        dynamic_arrive = np.array([arrive_profile[day_type, h] * w for h, w in zip(hours, weights)])
 
         # ── Time-indexed target inventory (N,) ─────────────────────────────
         d, h   = eval_day % 7, eval_hour % 24
-        target = self._target_matrix[d, h]              
+        target = target_matrix[d, h]
 
         # ── Anticipated Distances (from Destination) ────────────────
         # Evaluate spatial gravity from where the vehicle is GOING, not where it is!
@@ -733,7 +768,7 @@ class LinearVFAPolicy(Policy):
             # Fast spatial slice from cached matrix using the routing target
             if routing_target in self._sid_to_idx:
                 v_idx = self._sid_to_idx[routing_target]
-                dist_to_stations = self._travel_time_matrix[v_idx]
+                dist_to_stations = travel_time_matrix[v_idx]
             else:
                 dist_to_stations = np.array([
                     state.get_travel_time(routing_target, sid) if state else 0.0
@@ -741,8 +776,18 @@ class LinearVFAPolicy(Policy):
                 ], dtype=np.float32)
 
         # ── Depot queue state ──────────────────────────────────────────────
-        depot_in_repair   = float(sum(len(bikes) for d in state.get_depots() for _, bikes in d.in_repair))
-        depot_fixed_queue = float(sum(len(d.fixed_queue) for d in state.get_depots()))
+        # Depot inventory is not part of the station arrays, so depot actions
+        # need explicit queue/pipeline deltas to match PostDecisionState.
+        depot_in_repair = max(
+            0.0,
+            float(sum(len(bikes) for d in state.get_depots() for _, bikes in d.in_repair))
+            + float(delta_depot_in_repair),
+        )
+        depot_fixed_queue = max(
+            0.0,
+            float(sum(len(d.fixed_queue) for d in state.get_depots()))
+            + float(delta_depot_fixed_queue),
+        )
         if not self._use_health_features:
             health_features = {"fleet_failure_risk": 0.0, "fleet_health_deficit": 0.0,
                                "fleet_low_health_fraction": 0.0, "depot_bound_health_deficit": 0.0,
@@ -752,13 +797,19 @@ class LinearVFAPolicy(Policy):
         else:
             health_features = self._health_feature_inputs(state, vehicle, candidate_action=candidate_action, vehicle_capacity=K)
 
+        # Current-station local features should use the same service location
+        # that received the post-decision deltas above. In normal VFA scoring
+        # this is vehicle.location.id; in rollout base steps it may be an
+        # explicit synthetic destination.
+        cur_station_idx = self._sid_to_idx.get(cur_loc_id, -1)
+
         # ── Delegate to canonical feature extractor ────────────────────────
         phi_full = _extract_phi(
             func=func_post.astype(np.float64),
             onsite=onsite_post.astype(np.float64),
             depot=depot_post.astype(np.float64),
             target=target.astype(np.float64),
-            capacities=self._capacities,
+            capacities=capacities,
             leave_activity=dynamic_leave.astype(np.float64),
             arrive_activity=dynamic_arrive.astype(np.float64),
             dist_to_stations=dist_to_stations,
@@ -766,9 +817,9 @@ class LinearVFAPolicy(Policy):
             depot_cargo_veh=float(depot_cargo_veh),
             vehicle_capacity=K,
             dist_to_depot=dist_to_depot,
-            lambda_max_system=self._lambda_max_system,
-            max_gravity=self._max_gravity,
-            fleet_size=self.cached_fleet_size,
+            lambda_max_system=lambda_max_system,
+            max_gravity=max_gravity,
+            fleet_size=cached_fleet_size,
             depot_in_repair=depot_in_repair,
             depot_fixed_queue=depot_fixed_queue,
             fleet_failure_risk=health_features["fleet_failure_risk"],
@@ -778,16 +829,16 @@ class LinearVFAPolicy(Policy):
             onsite_health_deficit=health_features["onsite_health_deficit"],
             maintenance_restoration_value=health_features["maintenance_restoration_value"],
             maintenance_enabled=True,
-            logistics_enabled=True,
+            logistics_enabled=False,
             time_remaining=time_remaining,
             shift_length=shift_length,
             demand_horizon_enabled=True,
             current_time_minutes=t,
             current_day_of_week=eval_day,
-            target_matrix=self._target_matrix,
-            total_stations=self._N_stations,
+            target_matrix=target_matrix,
+            total_stations=n_stations,
             next_station_idx=self._sid_to_idx.get(next_station_id, -1) if next_station_id else -1,
-            cur_station_idx=self._sid_to_idx.get(vehicle.location.id, -1),
+            cur_station_idx=cur_station_idx,
             dist_to_next=dist_to_next,
             max_travel_time=self._max_travel_time,
             next_is_depot=bool(next_station_id and next_station_id == self._depot_id),
@@ -897,11 +948,10 @@ class LinearVFAPolicy(Policy):
         
         if hasattr(vehicle, "shift_end_time") and vehicle.shift_end_time is not None:
             return max(0.0, vehicle.shift_end_time - state.time)
-            
-        if self._simulator_ref is not None and hasattr(self._simulator_ref, "duration"):
-            return max(0.0, self._simulator_ref.duration - state.time)
-        
-        return None
+
+        close_min = SERVICE_TIME_TO * 60.0
+        clock_min = float(state.time % 1440.0)
+        return max(0.0, close_min - clock_min)
     
     def _get_shift_length(self, state, vehicle) -> float:
         """
@@ -915,8 +965,8 @@ class LinearVFAPolicy(Policy):
         if self._simulator_ref is not None and hasattr(self._simulator_ref, "duration"):
             return float(self._simulator_ref.duration)
             
-        # Default 12-hour shift
-        return 1220.0
+        # Fall back to the same 24-hour reference used by MDPState.
+        return 1440
 
     # ─────────────────────────────────────────────────────────────────────────
     # TD update
@@ -1043,10 +1093,6 @@ class LinearVFAPolicy(Policy):
             self.weights = list(self.theta)
             self._online_update_count += 1
 
-            if not hasattr(self, "_online_diag_phis"):
-                self._online_diag_phis = []
-                self._online_diag_tderrs = []
-                self._online_diag_raw_tderrs = []
             self._online_diag_phis.append(self._prev_phi.copy())
             self._online_diag_tderrs.append(float(td_error))
             self._online_diag_raw_tderrs.append(float(raw_td_error))
@@ -1153,10 +1199,12 @@ class LinearVFAPolicy(Policy):
         self.theta += step
         self.weights = list(self.theta)
 
-        if getattr(self, "_collect_phis_inside_batch_update", False):
-            if getattr(self, "_all_phis_for_corr", None) is None:
-                self._all_phis_for_corr = []
-            self._all_phis_for_corr.extend(phi.copy() for phi in _dbg_phis)
+        if self._collect_phis_inside_batch_update:
+            all_phis_for_corr = self._all_phis_for_corr
+            if all_phis_for_corr is None:
+                all_phis_for_corr = []
+                self._all_phis_for_corr = all_phis_for_corr
+            all_phis_for_corr.extend(phi.copy() for phi in _dbg_phis)
 
         # --- EXISTING BATCH LOGGING ---
         grad_norm = np.linalg.norm(mean_gradient)
@@ -1242,12 +1290,12 @@ class LinearVFAPolicy(Policy):
 
     def flush_online_update_diagnostics(self, episode_number: int) -> None:
         """Print compact diagnostics for online TD updates and clear per-episode buffers."""
-        phis = getattr(self, "_online_diag_phis", [])
+        phis = self._online_diag_phis
         if not phis:
             return
 
-        td = np.array(getattr(self, "_online_diag_tderrs", []), dtype=np.float64)
-        raw_td = np.array(getattr(self, "_online_diag_raw_tderrs", []), dtype=np.float64)
+        td = np.array(self._online_diag_tderrs, dtype=np.float64)
+        raw_td = np.array(self._online_diag_raw_tderrs, dtype=np.float64)
         phis_arr = np.array(phis)
 
         print(
@@ -1288,7 +1336,8 @@ class LinearVFAPolicy(Policy):
         reward += self.reward_calc.compute_fleet_penalty(state)
         reward = self.reward_calc.center_reward(reward)
 
-        elapsed_minutes = max(0.0, float(state.time - self._prev_time))
+        prev_time = self._prev_time if self._prev_time is not None else state.time
+        elapsed_minutes = max(0.0, float(state.time - prev_time))
         phi_terminal = np.zeros_like(self._prev_phi)
         v_cur = self.value(self._prev_phi)
         td_error = reward - v_cur
@@ -1406,11 +1455,8 @@ class LinearVFAPolicy(Policy):
 
     def _log_candidate_diagnostics(self, state, vehicle, candidates, values, sel_idx: int, mode: str, td_err: float) -> None:
         """Collect compact per-decision candidate value spread diagnostics."""
-        if not getattr(self, "log_candidate_diagnostics", False):
+        if not self.log_candidate_diagnostics:
             return
-
-        if not hasattr(self, "_candidate_diag_rows"):
-            self._candidate_diag_rows = []
 
         ranked_idx = np.argsort(values)[::-1]
         best_idx = int(ranked_idx[0])
@@ -1430,7 +1476,7 @@ class LinearVFAPolicy(Policy):
         _mm = int(_clock % 60)
 
         self._candidate_diag_rows.append({
-            "episode": getattr(self, "_comparison_episode", -1),
+            "episode": self._comparison_episode,
             "decision_id": self._ep_decision_count,
             "day": _day,
             "time_hhmm": f"{_hh:02d}:{_mm:02d}",
@@ -1464,7 +1510,7 @@ class LinearVFAPolicy(Policy):
     def flush_candidate_diagnostics(self, path: str) -> None:
         """Append buffered candidate spread diagnostics to CSV."""
         import csv, os  # noqa: PLC0415
-        rows = getattr(self, "_candidate_diag_rows", [])
+        rows = self._candidate_diag_rows
         if not rows:
             return
         write_header = not os.path.exists(path)
@@ -1520,6 +1566,8 @@ class LinearVFAPolicy(Policy):
                 
             functional_pickups = 0
             depot_pickups = 0
+            delta_depot_fixed_queue = 0
+            delta_depot_in_repair = 0
  
             if vehicle.is_at_depot():
                 # pick_ups at depot come from fixed_queue (repaired bikes), not depot.bikes.
@@ -1538,6 +1586,8 @@ class LinearVFAPolicy(Policy):
                 )
                 delta_func = -functional_pickups   # vehicle GAINS repaired bikes; no functional deliveries
                 delta_depot_cargo = -depot_dropoffs
+                delta_depot_fixed_queue = -functional_pickups
+                delta_depot_in_repair = depot_dropoffs
             else:
                 for b_id in action.pick_ups:
                     b = station_bikes.get(b_id)
@@ -1575,6 +1625,8 @@ class LinearVFAPolicy(Policy):
                 base_func, base_onsite, base_depot,
                 delta_func, delta_depot_cargo,
                 delta_onsite_repairs,
+                delta_depot_fixed_queue,
+                delta_depot_in_repair,
                 time_remaining=time_rem,
                 shift_length=shift_len,
                 next_station_id=dest_id,
@@ -1607,12 +1659,13 @@ class LinearVFAPolicy(Policy):
             reward += self.reward_calc.compute_fleet_penalty(state)
             reward += self.reward_calc.compute_late_shift_penalty(vehicle, state)
             reward = self.reward_calc.center_reward(reward)
-            if getattr(self, "log_greedy_comparison", False):
-                pending = getattr(self, "_pending_comparison_row", None)
+            if self.log_greedy_comparison:
+                pending = self._pending_comparison_row
                 if pending is not None:
                     pending["realized_reward"] = round(reward, 6)
             
-            elapsed_minutes = state.time - self._prev_time
+            prev_time = self._prev_time if self._prev_time is not None else state.time
+            elapsed_minutes = state.time - prev_time
             
             # FIXED: We expect to take the BEST action next, so use argmax!
             phi_next = phis[int(np.argmax(values))]
@@ -1627,7 +1680,7 @@ class LinearVFAPolicy(Policy):
  
         # ── Step 5: select best action (epsilon-greedy) ──────────────────
         if self.learning_mode and self.epsilon > 0.0 and self._rng.random() < self.epsilon:
-            sel_idx = self._rng.integers(len(candidates))
+            sel_idx = int(self._rng.integers(len(candidates)))
             mode = "E"
         else:
             sel_idx = int(np.argmax(values))
@@ -1700,7 +1753,7 @@ class LinearVFAPolicy(Policy):
  
         record_depot_action_stats(selected, vehicle)
 
-        if getattr(self, 'log_greedy_comparison', False):
+        if self.log_greedy_comparison:
             self._log_greedy_comparison(state, vehicle, candidates, values, sel_idx)
 
         self._ep_decision_count += 1
@@ -1834,14 +1887,16 @@ class LinearVFAPolicy(Policy):
         # Lazy-import to avoid circular dependency at module load time.
         from policies.greedy_policy_maintenance import GreedyMaintenancePolicy  # noqa: PLC0415
 
-        if not hasattr(self, "_comparison_greedy"):
-            self._comparison_greedy = GreedyMaintenancePolicy()
-            self._comparison_rows: list = []
-            if hasattr(self._comparison_greedy, "init_sim") and hasattr(self, "_sim"):
-                self._comparison_greedy.init_sim(self._sim)
+        greedy_policy = self._comparison_greedy
+        if greedy_policy is None:
+            greedy_policy = GreedyMaintenancePolicy()
+            self._comparison_greedy = greedy_policy
+            simulator = getattr(self, "_sim", None)
+            if hasattr(greedy_policy, "init_sim") and simulator is not None:
+                greedy_policy.init_sim(simulator)
 
         try:
-            greedy_action = self._comparison_greedy.get_best_action(state, vehicle)
+            greedy_action = greedy_policy.get_best_action(state, vehicle)
             greedy_dest = getattr(greedy_action, "next_location", getattr(greedy_action, "next_station", None))
             greedy_onsite = len(getattr(greedy_action, "onsite_repairs", []))
             greedy_error = ""
@@ -1907,9 +1962,9 @@ class LinearVFAPolicy(Policy):
         _hh      = int(_clock // 60)
         _mm      = int(_clock % 60)
         from policies.sjovik_sund.mdp.action_bridge import depot_stats as _ds  # noqa: PLC0415
-        _snap = getattr(self, "_warmup_depot_snapshot", {k: 0 for k in _ds})
+        _snap = self._warmup_depot_snapshot
         row = {
-            "episode":                    getattr(self, "_comparison_episode", -1),
+            "episode":                    self._comparison_episode,
             "decision_id":                self._ep_decision_count,
             "day":                        _day,
             "time_hhmm":                  f"{_hh:02d}:{_mm:02d}",
@@ -1937,7 +1992,7 @@ class LinearVFAPolicy(Policy):
             "depot_skipped_loads_so_far": _ds["skipped_loads"] - _snap.get("skipped_loads", 0),
         }
         # Commit the previous pending row (now its reward is known) and hold this one.
-        if hasattr(self, "_pending_comparison_row") and self._pending_comparison_row is not None:
+        if self._pending_comparison_row is not None:
             self._comparison_rows.append(self._pending_comparison_row)
         self._pending_comparison_row = row
 
@@ -1945,11 +2000,11 @@ class LinearVFAPolicy(Policy):
         """Append buffered comparison rows to CSV and clear the buffer."""
         import csv, os  # noqa: PLC0415
         # Commit the final pending row (last decision of episode — no next call to commit it).
-        pending = getattr(self, "_pending_comparison_row", None)
+        pending = self._pending_comparison_row
         if pending is not None:
             self._comparison_rows.append(pending)
             self._pending_comparison_row = None
-        rows = getattr(self, "_comparison_rows", [])
+        rows = self._comparison_rows
         if not rows:
             return
         write_header = not os.path.exists(path)

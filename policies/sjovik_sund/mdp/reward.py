@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Optional
 
@@ -50,7 +51,7 @@ class RewardConfig:
         )
 
 class RewardCalculator:
-    def __init__(self, config: Optional[RewardConfig] = None, gamma: float = 0.99):
+    def __init__(self, config: Optional[RewardConfig] = None, gamma: float = 0.97):
         self.config = config or RewardConfig()
         self.gamma = gamma
         #self._scale_factor = 1.0 - gamma  # Will be 0.01 when gamma=0.99
@@ -95,20 +96,64 @@ class RewardCalculator:
 
     def compute_fleet_penalty(self, sim_state) -> float:
         """
-        Penalize total_broken / total_fleet ratio at this moment.
+        Penalize broken bikes at normal stations or on vehicles.
+        Bikes in use are excluded entirely. Broken bikes already at the depot
+        are counted in fleet size but not penalized, since the maintenance
+        system has accepted them.
         Call once per decision epoch alongside compute_step_reward.
         Returns a negative float (or 0.0 if weight is 0 or no stations).
         """
         if self.config.weight_fleet_degradation == 0.0:
             return 0.0
-        total_bikes  = 0
+        seen = set()
+        total_bikes = 0
         total_broken = 0
+
+        def iter_or_empty(value: object) -> Iterable[object]:
+            if value is None:
+                return ()
+            if isinstance(value, dict):
+                return value.values()
+            if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
+                return value
+            return ()
+
+        def add_bike(bike, count_broken: bool = True) -> None:
+            nonlocal total_bikes, total_broken
+            bike_id = getattr(bike, "bike_id", getattr(bike, "id", id(bike)))
+            if bike_id in seen:
+                return
+            seen.add(bike_id)
+            total_bikes += 1
+            ds = getattr(bike, "damage_status", None)
+            if count_broken and ds in ("depot", "onsite"):
+                total_broken += 1
+
         for s in sim_state.get_stations():
             for bike in s.get_bikes():
-                total_bikes += 1
-                ds = getattr(bike, "damage_status", None)
-                if ds in ("depot", "onsite"):
-                    total_broken += 1
+                add_bike(bike)
+
+        get_vehicles = getattr(sim_state, "get_vehicles", None)
+        if callable(get_vehicles):
+            for vehicle in get_vehicles():
+                for bike in vehicle.get_bike_inventory():
+                    add_bike(bike)
+
+        get_depots = getattr(sim_state, "get_depots", None)
+        if callable(get_depots):
+            for depot in get_depots():
+                for bike in depot.get_bikes():
+                    add_bike(bike, count_broken=False)
+                fixed_queue = getattr(depot, "fixed_queue", {})
+                for bike in iter_or_empty(fixed_queue):
+                    add_bike(bike, count_broken=False)
+                for repair_entry in iter_or_empty(getattr(depot, "in_repair", [])):
+                    if not isinstance(repair_entry, tuple) or len(repair_entry) != 2:
+                        continue
+                    _, bikes = repair_entry
+                    for bike in iter_or_empty(bikes):
+                        add_bike(bike, count_broken=False)
+
         if total_bikes == 0:
             return 0.0
         ratio = total_broken / total_bikes

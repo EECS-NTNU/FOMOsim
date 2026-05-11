@@ -221,7 +221,11 @@ def _generate_operational_profiles(state, vehicle, maintenance_enabled: bool):
         return profiles
  
     # --- STATION LOGIC ---
-    functional_bikes = [b for b in vehicle.location.get_bikes() if getattr(b, 'is_available', True)]
+    functional_bikes = [
+        b for b in vehicle.location.get_bikes()
+        if getattr(b, "is_available", True)
+        and getattr(b, "damage_status", None) not in ("onsite", "depot")
+    ]
     target = round(vehicle.location.get_target_state(state.day(), state.hour()))
  
     n_vehicle = len(vehicle.get_bike_inventory())
@@ -314,7 +318,14 @@ def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled:
     free_ratio = free_space_post / _cap
  
     def score_station(s):
-        functional = len([b for b in s.get_bikes() if getattr(b, 'is_available', True)])
+        bikes = s.get_bikes()
+        functional = len([
+            b for b in bikes
+            if getattr(b, "is_available", True)
+            and getattr(b, "damage_status", None) not in ("onsite", "depot")
+        ])
+        occupied_docks = len(bikes)
+        free_docks = max(0, s.capacity - occupied_docks)
         target = round(s.get_target_state(state.day(), state.hour()))
         delta = functional - target # > 0 means congested, < 0 means starving
  
@@ -324,7 +335,7 @@ def _generate_routing_candidates(state, vehicle, tabu_list, maintenance_enabled:
  
         # Time to violation: how many calendar hours until station overflows or empties
         if net_demand > 0:
-            ttv = (s.capacity - functional) / net_demand
+            ttv = free_docks / net_demand
         elif net_demand < 0:
             ttv = functional / (-net_demand)
         else:

@@ -32,7 +32,7 @@ def _decision_feature_names() -> list[str]:
     try:
         return get_feature_names(
             maintenance_enabled=True,
-            logistics_enabled=True,
+            logistics_enabled=False,
             demand_horizon_enabled=True,
         )
     except TypeError:

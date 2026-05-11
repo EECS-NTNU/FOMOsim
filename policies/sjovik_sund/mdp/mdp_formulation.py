@@ -52,7 +52,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .mdp_config import MDPConfig
 
-from settings import MINUTES_PER_ACTION, MAINTENANCE_REPAIR, MINUTES_CONSTANT_PER_ACTION
+from settings import MINUTES_PER_ACTION, MAINTENANCE_REPAIR
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -444,7 +444,11 @@ class PostDecisionState:
         time_unload_depot = depot_rem * MINUTES_PER_ACTION
         time_rebalancing = abs(action.rebalancing) * MINUTES_PER_ACTION
         time_onsite_repairs = onsite_rep * MAINTENANCE_REPAIR
-        action_duration = time_unload_depot + time_rebalancing + time_onsite_repairs
+        action_duration = (
+            + time_unload_depot
+            + time_rebalancing
+            + time_onsite_repairs
+        )
 
         # ── compute travel time to next station ───────────────────────────
         travel_time_to_next = state.travel_times.get(action.next_station, 0.0) if state.travel_times else 0.0
@@ -551,6 +555,16 @@ class PostDecisionState:
             capacity=depot.capacity,
         )
  
+        # ── compute action duration ────────────────────────────────────────
+        # Time = unload all broken bikes + load bikes from queue
+        time_unload_broken = depot_dropoffs * MINUTES_PER_ACTION
+        time_load_from_queue = action.load_from_queue * MINUTES_PER_ACTION
+        action_duration = time_unload_broken + time_load_from_queue
+        travel_time_to_next = state.travel_times.get(action.next_station, 0.0) if state.travel_times else 0.0
+        new_eta = state.time + action_duration + travel_time_to_next
+        # NOTE: Repair duration (24h cycle) is not added here—it's exogenous,
+        # managed by the simulator between decision epochs.
+
         # ── build new vehicle status ───────────────────────────────────────
         # After unload: vehicle only has functional_cargo + newly loaded bikes from queue
         new_func_cargo = v.functional_cargo + action.load_from_queue
@@ -559,19 +573,12 @@ class PostDecisionState:
         new_vehicle = VehicleStatus(
             vehicle_id=v.vehicle_id,
             destination_station=action.next_station,
-            eta=state.time,  # will be updated by caller
+            eta=new_eta,
             functional_cargo=new_func_cargo,
             depot_cargo=new_depot_cargo,
             capacity=v.capacity,
         )
- 
-        # ── compute action duration ────────────────────────────────────────
-        # Time = unload all broken bikes + load bikes from queue
-        time_unload_broken = depot_dropoffs * MINUTES_PER_ACTION
-        time_load_from_queue = action.load_from_queue * MINUTES_PER_ACTION
-        action_duration = MINUTES_CONSTANT_PER_ACTION + time_unload_broken + time_load_from_queue
-        # NOTE: Repair duration (24h cycle) is not added here—it's exogenous,
-        # managed by the simulator between decision epochs.
+
         # ── build executed action record ───────────────────────────────────────────────────
         executed = ExecutedAction(
             bikes_unloaded_for_repair=depot_dropoffs,

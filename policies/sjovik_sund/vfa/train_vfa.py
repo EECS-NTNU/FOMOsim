@@ -28,8 +28,11 @@ from __future__ import annotations
 
 import sys
 import io
+import os
 if hasattr(sys.stdout, 'buffer'):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+os.environ.setdefault("MPLCONFIGDIR", "/private/tmp/fomosim_matplotlib_cache")
+os.environ.setdefault("XDG_CACHE_HOME", "/private/tmp/fomosim_cache")
 import argparse
 import time
 import numpy as np
@@ -76,7 +79,7 @@ TD_LAMBDA     : float = 0.0     # eligibility-trace parameter; 0.0 gives TD(0)
 GAMMA         : float = 0.97      # discount factor
 
 # ── Feature configuration ───────────────────────────────────────────────────────
-LOGISTICS_ENABLED : bool = False  # Enable Pillar 4: Spatial & Logistic Constraints features
+LOGISTICS_ENABLED : bool = False  # Deprecated SLC switch retained for compatibility; no active features.
 BIAS_FEATURE_ENABLED: bool = True  # Add a constant intercept feature to active VFA feature sets.
 N_FEATURES    : int   = len(_get_feature_names(ENABLE_COMPONENT_FAILURES, logistics_enabled=LOGISTICS_ENABLED, demand_horizon_enabled=True))  # auto-synced with vfa_features.py
 

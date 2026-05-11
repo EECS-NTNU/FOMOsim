@@ -422,7 +422,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "study_dir",
         nargs="?",
-        default="baselines_withmaint",
+        default="maintenance_feature_sets",
         help=(
             "Ablation study directory under models/ (e.g. baselines_withmaint or "
             "Convergencemethods/Rewardshaping). You may also pass an absolute path."

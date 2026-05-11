@@ -41,8 +41,8 @@ Feature reference  (see vfa_features.py for full definitions)
     MP4   depot_pull                     urgency to return to depot
     MP5   maintenance_urgency            onsite backlog × starvation breadth (CIM6)
 
-  Pillar 4 — Spatial & Logistic Constraints (SLC, logistics_enabled)
-    SLC5  imbalance_hotspot_distance     distance to worst-imbalance stations, normalised
+  Destination-local routing and shift features are included as explicit
+  candidate-destination terms in vfa_features.py.
 """
  
 import os
@@ -52,11 +52,21 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
  
+os.environ.setdefault("MPLCONFIGDIR", str(Path("/private/tmp") / "fomosim_matplotlib_cache"))
+os.environ.setdefault("XDG_CACHE_HOME", str(Path("/private/tmp") / "fomosim_cache"))
+
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 os.chdir(WORKSPACE_ROOT)
 sys.path.insert(0, str(WORKSPACE_ROOT))
  
-from policies.sjovik_sund.vfa.train_vfa import train, ALPHA_START, EPSILON_START, EPSILON_END
+from policies.sjovik_sund.vfa.train_vfa import (
+    train,
+    ALPHA_START,
+    EPSILON_START,
+    EPSILON_END,
+    GAMMA,
+    BIAS_FEATURE_ENABLED,
+)
  
  
 # -----------------------------------------------------------------------------
@@ -222,11 +232,6 @@ CORE_REBALANCING_BASELINES = {
         "rebalancing_imbalance",          # CIM1: total L1 imbalance across the network
         "gross_starvation_risk",          # FIM1: gross departure pressure
         "gross_congestion_risk",          # FIM2: gross arrival pressure
-    ],
-
-    "Squared_only": [
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
     ],
 
     "Imbalance_squared_temporal": [
@@ -407,7 +412,7 @@ LEGACY_MAINTENANCE_EXTENSION_EXPERIMENTS = {
         "gross_congestion_risk",
         "global_onsite_backlog",
         "global_depot_backlog",
-        "undistributed_depot_inventory",
+        "depot_idle_fraction",
         "recoverable_starvation",
     ],
 }
@@ -424,7 +429,7 @@ DEBUG_AND_SHIFT_EXPERIMENTS = {
         "squared_starvation_penalty",
         "squared_congestion_penalty",
         "global_onsite_backlog",
-        "undistributed_depot_inventory",
+        "depot_idle_fraction",
     ],
     "Imbalance_Squared_Temporal_ShiftAware": [
         "rebalancing_imbalance",
@@ -499,7 +504,7 @@ PRIOR_REBALANCING_HYPOTHESIS_EXPERIMENTS = {
 # Historical experiments kept as comments because they were deliberately
 # disregarded before this registry cleanup:
 # - Breadth_And_Mass: hotspot_imbalance_mass converged to near-zero weights.
-# - Micro_Severity_Spatial: imbalance_hotspot_distance converged to near-zero.
+# - Micro_Severity_Spatial: removed with the deprecated SLC feature block.
 # - FullVFA: too many correlated features; unstable in earlier long runs.
 
 EXPERIMENT_GROUPS = {
@@ -523,7 +528,7 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -1.0, weight_trip_served: float = 0.0, gamma: float = 0.99, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = True, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
+def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -0.0, weight_trip_served: float = 0.0, gamma: float = GAMMA, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = BIAS_FEATURE_ENABLED, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -674,8 +679,8 @@ if __name__ == "__main__":
         help="Positive reward per successful trip served (default: 0.0)",
     )
     parser.add_argument(
-        "--gamma", type=float, default=0.97,
-        help="Discount factor (default: 0.97 per hour)",
+        "--gamma", type=float, default=GAMMA,
+        help=f"Discount factor (default: {GAMMA:g} per hour)",
     )
     parser.add_argument(
         "--not_at_depot_at_end_penalty", type=float, default=0.0,
@@ -700,6 +705,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_bias_feature",
         action="store_true",
+        default=BIAS_FEATURE_ENABLED,
         help="Add a constant bias/intercept feature to the linear VFA",
     )
     parser.add_argument(
@@ -919,7 +925,6 @@ if __name__ == "__main__":
     #     "squared_starvation_penalty",     # A3
     #     "squared_congestion_penalty",     # A4
     #     "unmet_starvation_deficit",       # A11
-    #     "imbalance_hotspot_distance",     # A14
     #     "starvation_count",               # A15
     #     "congestion_count",               # A16
     #     "future_net_pressure",            # D7
@@ -941,7 +946,6 @@ if __name__ == "__main__":
     #     "congestion_severity_max",        # A10
     #     "congestion_count",               # A16
     #     "imbalance_asymmetry",            # A17
-    #     "imbalance_hotspot_distance",     # A14
     #     "multi_horizon_starvation_risk",  # D4
     #     "temporal_demand_gradient",       # D6
     # ],

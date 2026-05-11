@@ -11,7 +11,7 @@ VEHICLE_BATTERY_INVENTORY = 50 # How many batteries can a vehicle hold?
 VEHICLE_BIKE_INVENTORY = 20 # How many bikes can be carried in a vehicle?
 
 VEHICLE_SPEED = 25 # Average speed of a vehicle? (km/h)
-MINUTES_CONSTANT_PER_ACTION = 3 # Constant time in addition (f.eks park the car and start again)
+MINUTES_CONSTANT_PER_ACTION = 0 # Constant time in addition (f.eks park the car and start again)
 
 # Bike settings
 BATTERY_LIMIT_TO_USE = 15 # Battery limit for the bike to be up for rental
@@ -23,7 +23,7 @@ MAINTENANCE_THRESHOLD_FOR_NO_RENTAL = 0.9 # above this value, bike is not availa
 ENABLE_COMPONENT_FAILURES = True # Toggle failure simulation on/off
 BURN_IN_KM = 10.0
 VERBOSE_FAILURE_TRACKING = False  # Print probability calculations for every trip
-SAMPLE_BIKES_TO_TRACK = ['B572', 'B573', 'B2', 'B4', 'B5']  # Print detailed info for these bikes
+SAMPLE_BIKES_TO_TRACK = []  # Print detailed info for these bikes
 #MIN_DISTANCE_FOR_FAILURE_KM = 10.0  # Minimum distance before first possible failure
 
 # Depot settings

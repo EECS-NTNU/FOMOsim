@@ -13,12 +13,12 @@ LinearVFAPolicy imports this module as the single source of truth via:
     - extract(...)
     - as_dict(...)
 
-Features are organised around four Operational Pillars:
+Features are organised around the active VFA feature groups:
 
   Pillar 1  Current System Imbalance  (CIM) — always active
   Pillar 2  Future System Imbalance   (FIM) — demand_horizon_enabled
   Pillar 3  Maintenance Pressure      (MP)  — maintenance_enabled
-  Pillar 4  Spatial & Logistic        (SLC) — logistics_enabled
+  Destination-local routing and shift features — destination_features_enabled
 
 ──────────────────────────────────────────────────────────────────────────────
 Notation
@@ -33,9 +33,7 @@ Notation
   q_func    functional bikes on the vehicle (post-decision)
   q_depot   broken bikes on the vehicle (post-decision)
   K         vehicle capacity
-  d_i       travel time from vehicle location to station i (minutes)
-  t_rem     time remaining in shift (minutes)
-  L         total shift length (minutes)
+  d_i       travel time from candidate destination to station i (minutes)
   F         total fleet size (bikes)
   N         number of stations
 
@@ -65,27 +63,17 @@ Pillar 3  —  Maintenance Pressure  (MP, appended if maintenance_enabled)
   MP2  global_onsite_backlog           Σ_i onsite_i / F
   MP3  demand_weighted_depot_backlog   Σ_i (depot_i * λ_i^out) / (Λ_max * F)  [FIXED]
   MP4  demand_weighted_onsite_backlog  Σ_i (onsite_i * λ_i^out) / (Λ_max * F) [NEW]
-  MP5  fleet_broken_fraction           (Σ onsite + Σ depot + in_repair) / F     [NEW — 0=good]
-  MP6  undistributed_depot_inventory   -depot.fixed_queue / (0.07F)             [fixed-queue pressure]
-  MP7  depot_idle_fraction             depot.fixed_queue / F                    [NEW — 0=good]
-  MP8  recoverable_starvation          Σ_i onsite_i * 1[func_i < T_i] / F      [NEW]
-  MP9  maintenance_urgency             MP2 * CIM6  (RESTORED)
-  MP11 fleet_failure_risk              mean functional-bike failure exposure [0=good]
-  MP12 fleet_health_deficit            functional-bike reliability deficit   [0=good]
-  MP13 fleet_low_health_fraction       near-failure functional-bike fraction [0=good]
-  MP14 depot_bound_health_deficit      depot-bound bad health pressure      [0=good]
-  MP15 onsite_health_deficit           onsite bad health pressure           [0=good]
-  MP16 maintenance_restoration_value   candidate maintenance value          [0=neutral, high=good]
+  MP5  fleet_broken_fraction           (Σ onsite + Σ depot + in_repair) / F     [0=good]
+  MP6  depot_idle_fraction             depot.fixed_queue / F                    [0=good]
+  MP7  recoverable_starvation          Σ_i onsite_i * 1[func_i < T_i] / F
+  MP8  maintenance_urgency             MP2 * CIM6
+  MP9  fleet_failure_risk              mean functional-bike failure exposure [0=good]
+  MP10 fleet_health_deficit            functional-bike reliability deficit   [0=good]
+  MP11 fleet_low_health_fraction       near-failure functional-bike fraction [0=good]
+  MP12 depot_bound_health_deficit      depot-bound bad health pressure      [0=good]
+  MP13 onsite_health_deficit           onsite bad health pressure           [0=good]
+  MP14 maintenance_restoration_value   candidate maintenance value          [0=neutral, high=good]
 
-──────────────────────────────────────────────────────────────────────────────
-Pillar 4  —  Spatial & Logistic Constraints  (SLC, appended if logistics_enabled)
-──────────────────────────────────────────────────────────────────────────────
-  SLC1  time_remaining_fraction        t_rem / L
-  SLC2  functional_bikes_time_penalty  (q_func / K) * (1 - SLC1)
-  SLC3  reachable_imbalance_fraction   Σ_i |I_i-T_i|*1[d_i≤t_rem] / Σ_i |I_i-T_i|
-  SLC4  recoverable_imbalance_fraction fraction of imbalance reachable and serviceable now
-  SLC5  imbalance_hotspot_distance     distance to the worst-imbalance hotspot, normalised
-──────────────────────────────────────────────────────────────────────────────
 """
 
 from __future__ import annotations
@@ -326,7 +314,11 @@ def get_feature_names(
     Pillar 1 (Current System Imbalance) is always active.
     Pillar 2 (Future System Imbalance)   — demand_horizon_enabled
     Pillar 3 (Asset Health & Recovery)   — maintenance_enabled
-    Pillar 4 (Spatial & Logistic)        — logistics_enabled
+    Destination-local features           — destination_features_enabled
+
+    The logistics_enabled argument is retained for backward compatibility.
+    The former Pillar 4 SLC features were removed because their shift-time
+    semantics overlapped with the destination-local late-shift features.
     """
 
     names = ["bias"] if include_bias else []
@@ -348,15 +340,15 @@ def get_feature_names(
             "demand_weighted_onsite_backlog",    # MP4 — new
             "fleet_broken_fraction",             # MP5 — 0=good, positive=bad
             "depot_idle_fraction",               # MP6 — 0=good, positive=bad
-            "recoverable_starvation",            # MP8 — new
-            "maintenance_urgency",               # MP9 — restored
-            "rush_hour_onsite_backlog",          # MP10 — time-aware penalty
-            "fleet_failure_risk",                # MP11 — 0=good, positive=bad
-            "fleet_health_deficit",              # MP12 — 0=good, positive=bad
-            "fleet_low_health_fraction",         # MP13 — 0=good, positive=bad
-            "depot_bound_health_deficit",        # MP14 — 0=good, positive=bad
-            "onsite_health_deficit",             # MP15 — 0=good, positive=bad
-            "maintenance_restoration_value",     # MP16 — 0=neutral, positive=good
+            "recoverable_starvation",            # MP7
+            "maintenance_urgency",               # MP8
+            "rush_hour_onsite_backlog",          # MP9 — time-aware penalty
+            "fleet_failure_risk",                # MP10 — 0=good, positive=bad
+            "fleet_health_deficit",              # MP11 — 0=good, positive=bad
+            "fleet_low_health_fraction",         # MP12 — 0=good, positive=bad
+            "depot_bound_health_deficit",        # MP13 — 0=good, positive=bad
+            "onsite_health_deficit",             # MP14 — 0=good, positive=bad
+            "maintenance_restoration_value",     # MP15 — 0=neutral, positive=good
             "onsite_shortage_pressure",
             "depot_shortage_pressure",
             "current_station_onsite_shortage_pressure",
@@ -369,17 +361,7 @@ def get_feature_names(
             "degradation_demand_exposure",
         ])
 
-    # Pillar 4: Spatial & Logistic Constraints (SLC)
-    if logistics_enabled:
-        names.extend([
-            "time_remaining_fraction",        # SLC1
-            "functional_bikes_time_penalty",  # SLC2
-            "reachable_imbalance_fraction",   # SLC3
-            "recoverable_imbalance_fraction", # SLC4
-            "imbalance_hotspot_distance",     # SLC5
-        ])
-
-    # Pillar 5: Destination-Local Features
+    # Destination-Local Features
     if destination_features_enabled:
         names.extend([
             "destination_starv_ratio",        # max(0, T_nxt - I_nxt) / T_nxt
@@ -667,52 +649,7 @@ def extract(
 
 
     # =========================================================================
-    # Pillar 4: Spatial & Logistic Constraints (SLC)
-    # =========================================================================
-    if logistics_enabled:
-        if time_remaining is None:
-            time_remaining = shift_length
-        shift_length_safe = max(shift_length, 1.0)
-
-        #NOTE! Doesnt work - time remaining is not being calculated correctly. If enabled, this must be fixed.
-
-        # SLC1: Time Remaining Fraction
-        phi_time_remaining = float(time_remaining) / shift_length_safe
-
-        # SLC2: Functional Bikes Time Penalty — urgency to flush bikes as shift ends
-        phi_time_penalty = veh_load * (1.0 - phi_time_remaining)
-
-        # SLC3: Reachable Imbalance Fraction — fraction of imbalance at reachable stations
-        phi_reachable = (
-            float(np.sum(np.abs(func - target) * (dist_to_stations <= time_remaining))
-                  / total_imbalance)
-            if total_imbalance >= 1e-6 else 0.0
-        )
-
-        cat_c = [phi_time_remaining, phi_time_penalty, phi_reachable]
-
-        # SLC4: Recoverable Imbalance Fraction — reachable imbalance vs serviceable capacity
-        reachable_imbalance = float(np.sum(np.abs(func - target) * (dist_to_stations <= time_remaining)))
-        serviceable_capacity = max(0.0, K_safe - float(depot_cargo_veh))
-        phi_recoverable_imbalance = min(reachable_imbalance, serviceable_capacity) / max(total_imbalance, 1.0)
-        cat_c.append(phi_recoverable_imbalance)
-
-        # SLC5: Imbalance Hotspot Distance — travel distance to worst-imbalance stations
-        max_dist = max(float(np.max(dist_to_stations)), 1.0)
-        imbalance = np.abs(func - target)
-        if np.any(imbalance > 0.0):
-            hotspot_count = min(5, N)
-            hotspot_idx = np.argpartition(imbalance, -hotspot_count)[-hotspot_count:]
-            hotspot_weights = imbalance[hotspot_idx]
-            phi_imbalance_hotspot_dist = float(np.average(dist_to_stations[hotspot_idx], weights=hotspot_weights)) / max_dist
-        else:
-            phi_imbalance_hotspot_dist = 0.0
-        cat_c.append(phi_imbalance_hotspot_dist)
-
-        features.extend(cat_c)
-
-    # =========================================================================
-    # Pillar 5: Destination-Local Features
+    # Destination-Local Features
     # =========================================================================
     if not destination_features_enabled:
         return np.array(features, dtype=np.float32)
