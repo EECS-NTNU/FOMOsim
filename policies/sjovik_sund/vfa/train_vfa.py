@@ -548,10 +548,12 @@ def train(
         else:
             # Original episode-batch mode: update once after each episode.
             # Collect phis for correlation analysis BEFORE the buffer clears
-            if getattr(vfa_policy, '_all_phis_for_corr', None) is None:
-                vfa_policy._all_phis_for_corr = []
+            _all_phis = getattr(vfa_policy, '_all_phis_for_corr', None)
+            if _all_phis is None:
+                _all_phis = []
+                vfa_policy._all_phis_for_corr = _all_phis
             if getattr(vfa_policy, 'batch_buffer', None):
-                vfa_policy._all_phis_for_corr.extend([item[0] for item in vfa_policy.batch_buffer])
+                _all_phis.extend([item[0] for item in vfa_policy.batch_buffer])
                 
             vfa_policy.apply_batch_update()
             remainder_batch_updates = 1
@@ -562,8 +564,9 @@ def train(
         ep_stat["batch_updates_this_episode"] = transition_batch_updates + remainder_batch_updates
 
         # --- MID-RUN DIAGNOSTIC LOGGING ---
-        if (ep + 1) % 5 == 0 and getattr(vfa_policy, '_all_phis_for_corr', None):
-            recent_phis = vfa_policy._all_phis_for_corr[-10000:]
+        _all_phis_mid = getattr(vfa_policy, '_all_phis_for_corr', None)
+        if (ep + 1) % 5 == 0 and _all_phis_mid:
+            recent_phis = _all_phis_mid[-10000:]
             temp_df = pd.DataFrame(recent_phis, columns=vfa_policy.FEATURE_NAMES)
             corr = temp_df.corr(method='pearson')
 
@@ -670,9 +673,10 @@ def train(
     print("=" * 72 + "\n")
 
     # Log the Feature Matrix Correlation
-    if getattr(vfa_policy, '_all_phis_for_corr', None):
+    _all_phis_final = getattr(vfa_policy, '_all_phis_for_corr', None)
+    if _all_phis_final:
         print("  --- FINAL FEATURE CORRELATION MATRIX ---  ")
-        phi_df = pd.DataFrame(vfa_policy._all_phis_for_corr, columns=vfa_policy.FEATURE_NAMES)
+        phi_df = pd.DataFrame(_all_phis_final, columns=vfa_policy.FEATURE_NAMES)
         corr_matrix = phi_df.corr(method='pearson')
         pd.set_option('display.max_columns', None)
         pd.set_option('display.width', 1000)
