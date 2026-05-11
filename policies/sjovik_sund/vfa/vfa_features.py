@@ -544,7 +544,7 @@ def extract(
         phi_gross_starv       = float(np.mean(starvation_shortfall / target_safe))
 
         # FIM2: Gross Congestion Risk
-        free_docks_d          = np.maximum(0.0, capacities - func - onsite)
+        free_docks_d          = np.maximum(0.0, capacities - func - onsite - depot)
         congestion_shortfall  = np.maximum(0.0, gross_inflow + np.sqrt(gross_inflow) - free_docks_d)
         phi_gross_cong        = float(np.mean(congestion_shortfall / cap_rem_safe))
 
