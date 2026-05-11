@@ -4,9 +4,18 @@ Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance
 Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.92907,0.00274592627561471,10,service_level
 Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.92951,0.003085251655501979,10,service_level
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.92919,0.0033603736564719647,10,service_level
+Hybrid,M10_FleetBrokenCompact,M10 FleetBrokenCompact,Hybrid: M10 FleetBrokenCompact,0.93402,0.0023555136264611933,10,service_level
+Hybrid,M1_ShortagePressure,M1 ShortagePressure,Hybrid: M1 ShortagePressure,0.9317399999999999,0.0028123536998986057,10,service_level
+Hybrid,M2_DemandWeightedBacklog,M2 DemandWeightedBacklog,Hybrid: M2 DemandWeightedBacklog,0.93198,0.0020943309724640773,10,service_level
+Hybrid,M3_RepairOpportunityLogistics,M3 RepairOpportunityLogistics,Hybrid: M3 RepairOpportunityLogistics,0.92438,0.004553094186008723,10,service_level
+Hybrid,M4_DegradationHealth,M4 DegradationHealth,Hybrid: M4 DegradationHealth,0.9290200000000001,0.0021907887975693833,10,service_level
+Hybrid,M5_DepotIdlePipeline,M5 DepotIdlePipeline,Hybrid: M5 DepotIdlePipeline,0.9288500000000001,0.0024158044438884474,10,service_level
+Hybrid,M7_StressNoDuplicates,M7 StressNoDuplicates,Hybrid: M7 StressNoDuplicates,0.9260400000000001,0.00434695295580706,10,service_level
+Hybrid,M8_KSFiltered,M8 KSFiltered,Hybrid: M8 KSFiltered,0.9374,0.0023748684174075755,10,service_level
+Hybrid,M9_FleetBrokenGlobal,M9 FleetBrokenGlobal,Hybrid: M9 FleetBrokenGlobal,0.93574,0.002866744184998451,10,service_level
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.9287599999999999,0.0023547587750954234,10,service_level
 Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,0.9283899999999999,0.003272257121111749,10,service_level
-Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.9270099999999999,0.003926958110293466,10,service_level
+Hybrid,R7_DestinationAware,R7 DestinationAware,Hybrid: R7 DestinationAware,0.81952,0.005913036445008598,10,service_level
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.9270200000000001,0.003389460789630768,10,service_level
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.91823,0.005507984103906722,10,service_level
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.9171699999999999,0.0035702629844001164,10,service_level
@@ -22,9 +31,18 @@ Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance
 Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,2980.1,198.96981904019736,10,starvations
 Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,2917.1,167.41727642165375,10,starvations
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,2942.0,175.73085481307297,10,starvations
+Hybrid,M10_FleetBrokenCompact,M10 FleetBrokenCompact,Hybrid: M10 FleetBrokenCompact,2708.6,121.8242814694819,10,starvations
+Hybrid,M1_ShortagePressure,M1 ShortagePressure,Hybrid: M1 ShortagePressure,2811.9,133.05758987078573,10,starvations
+Hybrid,M2_DemandWeightedBacklog,M2 DemandWeightedBacklog,Hybrid: M2 DemandWeightedBacklog,2799.4,100.7617652352981,10,starvations
+Hybrid,M3_RepairOpportunityLogistics,M3 RepairOpportunityLogistics,Hybrid: M3 RepairOpportunityLogistics,3183.7,146.28514772335726,10,starvations
+Hybrid,M4_DegradationHealth,M4 DegradationHealth,Hybrid: M4 DegradationHealth,2917.5,146.19792520187605,10,starvations
+Hybrid,M5_DepotIdlePipeline,M5 DepotIdlePipeline,Hybrid: M5 DepotIdlePipeline,2943.1,149.3440844344214,10,starvations
+Hybrid,M7_StressNoDuplicates,M7 StressNoDuplicates,Hybrid: M7 StressNoDuplicates,3031.7,177.00348395817903,10,starvations
+Hybrid,M8_KSFiltered,M8 KSFiltered,Hybrid: M8 KSFiltered,2586.0,118.3910657289833,10,starvations
+Hybrid,M9_FleetBrokenGlobal,M9 FleetBrokenGlobal,Hybrid: M9 FleetBrokenGlobal,2629.9,133.33037496718026,10,starvations
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,2986.3,135.18797612542653,10,starvations
 Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,3000.2,168.87194359434997,10,starvations
-Hybrid,Squared_only,Squared only,Hybrid: Squared only,3090.0,170.78771748707354,10,starvations
+Hybrid,R7_DestinationAware,R7 DestinationAware,Hybrid: R7 DestinationAware,8138.9,255.51710097151772,10,starvations
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,3061.6,189.7315061987451,10,starvations
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,3579.1,200.7056717351721,10,starvations
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,3678.0,177.11264463298178,10,starvations
@@ -40,9 +58,18 @@ Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance
 Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,1247.8,70.41590729373584,10,congestions
 Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,1282.9,123.87220116806766,10,congestions
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,1277.7,91.43066589862872,10,congestions
+Hybrid,M10_FleetBrokenCompact,M10 FleetBrokenCompact,Hybrid: M10 FleetBrokenCompact,1221.3,117.24907012187538,10,congestions
+Hybrid,M1_ShortagePressure,M1 ShortagePressure,Hybrid: M1 ShortagePressure,1255.5,79.32668039330918,10,congestions
+Hybrid,M2_DemandWeightedBacklog,M2 DemandWeightedBacklog,Hybrid: M2 DemandWeightedBacklog,1252.5,121.89909306015733,10,congestions
+Hybrid,M3_RepairOpportunityLogistics,M3 RepairOpportunityLogistics,Hybrid: M3 RepairOpportunityLogistics,1321.4,153.12464058914733,10,congestions
+Hybrid,M4_DegradationHealth,M4 DegradationHealth,Hybrid: M4 DegradationHealth,1311.0,91.78598295309946,10,congestions
+Hybrid,M5_DepotIdlePipeline,M5 DepotIdlePipeline,Hybrid: M5 DepotIdlePipeline,1294.9,124.47172815989626,10,congestions
+Hybrid,M7_StressNoDuplicates,M7 StressNoDuplicates,Hybrid: M7 StressNoDuplicates,1372.9,152.66990535138223,10,congestions
+Hybrid,M8_KSFiltered,M8 KSFiltered,Hybrid: M8 KSFiltered,1143.0,100.97524449091463,10,congestions
+Hybrid,M9_FleetBrokenGlobal,M9 FleetBrokenGlobal,Hybrid: M9 FleetBrokenGlobal,1197.0,90.58329500152516,10,congestions
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,1259.4,34.15390005385753,10,congestions
 Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,1268.0,109.94847278005578,10,congestions
-Hybrid,Squared_only,Squared only,Hybrid: Squared only,1260.8,136.0308788474146,10,congestions
+Hybrid,R7_DestinationAware,R7 DestinationAware,Hybrid: R7 DestinationAware,2617.1,218.89289618441254,10,congestions
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,1287.4,145.42978450861506,10,congestions
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,1295.3,206.58280556608665,10,congestions
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,1259.4,119.26739332739318,10,congestions
@@ -58,9 +85,18 @@ Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance
 Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,41.2,0.632455532033675,10,total_depot_visits
 Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,41.4,0.8432740427115678,10,total_depot_visits
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,41.2,0.7888106377466154,10,total_depot_visits
+Hybrid,M10_FleetBrokenCompact,M10 FleetBrokenCompact,Hybrid: M10 FleetBrokenCompact,57.2,2.0439612955674527,10,total_depot_visits
+Hybrid,M1_ShortagePressure,M1 ShortagePressure,Hybrid: M1 ShortagePressure,40.8,1.2292725943057161,10,total_depot_visits
+Hybrid,M2_DemandWeightedBacklog,M2 DemandWeightedBacklog,Hybrid: M2 DemandWeightedBacklog,41.5,0.9718253158075507,10,total_depot_visits
+Hybrid,M3_RepairOpportunityLogistics,M3 RepairOpportunityLogistics,Hybrid: M3 RepairOpportunityLogistics,44.7,1.8287822299126943,10,total_depot_visits
+Hybrid,M4_DegradationHealth,M4 DegradationHealth,Hybrid: M4 DegradationHealth,41.0,1.3333333333333335,10,total_depot_visits
+Hybrid,M5_DepotIdlePipeline,M5 DepotIdlePipeline,Hybrid: M5 DepotIdlePipeline,40.8,1.4757295747452437,10,total_depot_visits
+Hybrid,M7_StressNoDuplicates,M7 StressNoDuplicates,Hybrid: M7 StressNoDuplicates,47.4,3.062315754094893,10,total_depot_visits
+Hybrid,M8_KSFiltered,M8 KSFiltered,Hybrid: M8 KSFiltered,40.6,1.2649110640673518,10,total_depot_visits
+Hybrid,M9_FleetBrokenGlobal,M9 FleetBrokenGlobal,Hybrid: M9 FleetBrokenGlobal,41.3,0.6749485577105525,10,total_depot_visits
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,40.7,1.1595018087284055,10,total_depot_visits
 Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,40.8,1.1352924243950935,10,total_depot_visits
-Hybrid,Squared_only,Squared only,Hybrid: Squared only,41.0,0.8164965809277259,10,total_depot_visits
+Hybrid,R7_DestinationAware,R7 DestinationAware,Hybrid: R7 DestinationAware,0.0,0.0,10,total_depot_visits
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,40.9,1.1972189997378644,10,total_depot_visits
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,41.7,1.251665557034572,10,total_depot_visits
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,41.5,1.4337208778404376,10,total_depot_visits
@@ -76,9 +112,18 @@ Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance
 Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,210.2,14.74825790088819,10,total_fixed_on_site
 Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,210.5,12.589678312014176,10,total_fixed_on_site
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,206.2,7.757433710820726,10,total_fixed_on_site
+Hybrid,M10_FleetBrokenCompact,M10 FleetBrokenCompact,Hybrid: M10 FleetBrokenCompact,218.8,13.66910547345526,10,total_fixed_on_site
+Hybrid,M1_ShortagePressure,M1 ShortagePressure,Hybrid: M1 ShortagePressure,206.5,18.08774907683835,10,total_fixed_on_site
+Hybrid,M2_DemandWeightedBacklog,M2 DemandWeightedBacklog,Hybrid: M2 DemandWeightedBacklog,208.9,16.815667297691956,10,total_fixed_on_site
+Hybrid,M3_RepairOpportunityLogistics,M3 RepairOpportunityLogistics,Hybrid: M3 RepairOpportunityLogistics,210.9,18.56789343643125,10,total_fixed_on_site
+Hybrid,M4_DegradationHealth,M4 DegradationHealth,Hybrid: M4 DegradationHealth,209.3,17.16618122290971,10,total_fixed_on_site
+Hybrid,M5_DepotIdlePipeline,M5 DepotIdlePipeline,Hybrid: M5 DepotIdlePipeline,209.2,16.551602809261567,10,total_fixed_on_site
+Hybrid,M7_StressNoDuplicates,M7 StressNoDuplicates,Hybrid: M7 StressNoDuplicates,214.2,12.743625857659191,10,total_fixed_on_site
+Hybrid,M8_KSFiltered,M8 KSFiltered,Hybrid: M8 KSFiltered,214.4,18.013575127910862,10,total_fixed_on_site
+Hybrid,M9_FleetBrokenGlobal,M9 FleetBrokenGlobal,Hybrid: M9 FleetBrokenGlobal,223.2,12.839176159101658,10,total_fixed_on_site
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,206.3,9.381423725166197,10,total_fixed_on_site
 Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,203.3,17.913681921927715,10,total_fixed_on_site
-Hybrid,Squared_only,Squared only,Hybrid: Squared only,209.5,13.36038921588739,10,total_fixed_on_site
+Hybrid,R7_DestinationAware,R7 DestinationAware,Hybrid: R7 DestinationAware,171.3,15.25377913101464,10,total_fixed_on_site
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,212.3,10.20947272552963,10,total_fixed_on_site
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,185.7,10.467409740077374,10,total_fixed_on_site
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,181.9,17.678926563692844,10,total_fixed_on_site
@@ -94,9 +139,18 @@ Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance
 Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,154.4,15.45027867422174,10,total_picked_up_to_depot
 Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,154.5,10.298327803850267,10,total_picked_up_to_depot
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,153.8,9.75021367287234,10,total_picked_up_to_depot
+Hybrid,M10_FleetBrokenCompact,M10 FleetBrokenCompact,Hybrid: M10 FleetBrokenCompact,220.7,17.701537911843836,10,total_picked_up_to_depot
+Hybrid,M1_ShortagePressure,M1 ShortagePressure,Hybrid: M1 ShortagePressure,201.2,11.773793875477107,10,total_picked_up_to_depot
+Hybrid,M2_DemandWeightedBacklog,M2 DemandWeightedBacklog,Hybrid: M2 DemandWeightedBacklog,191.7,11.766713880925105,10,total_picked_up_to_depot
+Hybrid,M3_RepairOpportunityLogistics,M3 RepairOpportunityLogistics,Hybrid: M3 RepairOpportunityLogistics,83.3,8.957306142659931,10,total_picked_up_to_depot
+Hybrid,M4_DegradationHealth,M4 DegradationHealth,Hybrid: M4 DegradationHealth,157.2,11.183320914051723,10,total_picked_up_to_depot
+Hybrid,M5_DepotIdlePipeline,M5 DepotIdlePipeline,Hybrid: M5 DepotIdlePipeline,157.2,10.228500487472353,10,total_picked_up_to_depot
+Hybrid,M7_StressNoDuplicates,M7 StressNoDuplicates,Hybrid: M7 StressNoDuplicates,152.8,11.914510294408057,10,total_picked_up_to_depot
+Hybrid,M8_KSFiltered,M8 KSFiltered,Hybrid: M8 KSFiltered,231.0,17.301252363147977,10,total_picked_up_to_depot
+Hybrid,M9_FleetBrokenGlobal,M9 FleetBrokenGlobal,Hybrid: M9 FleetBrokenGlobal,229.3,18.76788036335839,10,total_picked_up_to_depot
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,156.2,11.820885471627472,10,total_picked_up_to_depot
 Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,157.9,10.908202825804477,10,total_picked_up_to_depot
-Hybrid,Squared_only,Squared only,Hybrid: Squared only,156.6,12.833982667555349,10,total_picked_up_to_depot
+Hybrid,R7_DestinationAware,R7 DestinationAware,Hybrid: R7 DestinationAware,0.0,0.0,10,total_picked_up_to_depot
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,160.5,12.149531312405063,10,total_picked_up_to_depot
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,153.2,12.908223046656042,10,total_picked_up_to_depot
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,150.9,6.57351588657935,10,total_picked_up_to_depot
@@ -112,9 +166,18 @@ Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance
 Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,6205.3,49.24552997199082,10,total_functional_pickups
 Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,6195.2,57.408477887271516,10,total_functional_pickups
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,6269.4,121.40583914201893,10,total_functional_pickups
+Hybrid,M10_FleetBrokenCompact,M10 FleetBrokenCompact,Hybrid: M10 FleetBrokenCompact,5873.5,68.06247130394264,10,total_functional_pickups
+Hybrid,M1_ShortagePressure,M1 ShortagePressure,Hybrid: M1 ShortagePressure,5959.5,100.23998980225183,10,total_functional_pickups
+Hybrid,M2_DemandWeightedBacklog,M2 DemandWeightedBacklog,Hybrid: M2 DemandWeightedBacklog,6022.3,99.48204751500529,10,total_functional_pickups
+Hybrid,M3_RepairOpportunityLogistics,M3 RepairOpportunityLogistics,Hybrid: M3 RepairOpportunityLogistics,6120.1,56.30166762874592,10,total_functional_pickups
+Hybrid,M4_DegradationHealth,M4 DegradationHealth,Hybrid: M4 DegradationHealth,6078.6,94.7748208474522,10,total_functional_pickups
+Hybrid,M5_DepotIdlePipeline,M5 DepotIdlePipeline,Hybrid: M5 DepotIdlePipeline,6073.0,72.01234462075085,10,total_functional_pickups
+Hybrid,M7_StressNoDuplicates,M7 StressNoDuplicates,Hybrid: M7 StressNoDuplicates,6082.1,71.73477383931584,10,total_functional_pickups
+Hybrid,M8_KSFiltered,M8 KSFiltered,Hybrid: M8 KSFiltered,5870.4,108.3914715792304,10,total_functional_pickups
+Hybrid,M9_FleetBrokenGlobal,M9 FleetBrokenGlobal,Hybrid: M9 FleetBrokenGlobal,5849.2,103.39009193878864,10,total_functional_pickups
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,6057.2,86.71767729566764,10,total_functional_pickups
 Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,6072.0,69.84268036093698,10,total_functional_pickups
-Hybrid,Squared_only,Squared only,Hybrid: Squared only,6021.7,59.649066305442844,10,total_functional_pickups
+Hybrid,R7_DestinationAware,R7 DestinationAware,Hybrid: R7 DestinationAware,0.0,0.0,10,total_functional_pickups
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,5785.8,78.53067341279241,10,total_functional_pickups
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,6237.1,94.97537692592877,10,total_functional_pickups
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,6196.1,74.51688846608315,10,total_functional_pickups
@@ -130,9 +193,18 @@ Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance
 Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.02636,0.008441721783301478,10,broken_ratio_end_onsite
 Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.02454,0.007955040330926467,10,broken_ratio_end_onsite
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.022170000000000002,0.004744599268876375,10,broken_ratio_end_onsite
+Hybrid,M10_FleetBrokenCompact,M10 FleetBrokenCompact,Hybrid: M10 FleetBrokenCompact,0.01043,0.003157372325209683,10,broken_ratio_end_onsite
+Hybrid,M1_ShortagePressure,M1 ShortagePressure,Hybrid: M1 ShortagePressure,0.02294,0.005399629616927443,10,broken_ratio_end_onsite
+Hybrid,M2_DemandWeightedBacklog,M2 DemandWeightedBacklog,Hybrid: M2 DemandWeightedBacklog,0.02424,0.0075711734009112925,10,broken_ratio_end_onsite
+Hybrid,M3_RepairOpportunityLogistics,M3 RepairOpportunityLogistics,Hybrid: M3 RepairOpportunityLogistics,0.022949999999999998,0.004684549071148683,10,broken_ratio_end_onsite
+Hybrid,M4_DegradationHealth,M4 DegradationHealth,Hybrid: M4 DegradationHealth,0.02621,0.0074542232623154275,10,broken_ratio_end_onsite
+Hybrid,M5_DepotIdlePipeline,M5 DepotIdlePipeline,Hybrid: M5 DepotIdlePipeline,0.027389999999999998,0.006243298629552952,10,broken_ratio_end_onsite
+Hybrid,M7_StressNoDuplicates,M7 StressNoDuplicates,Hybrid: M7 StressNoDuplicates,0.020980000000000002,0.005360099501564001,10,broken_ratio_end_onsite
+Hybrid,M8_KSFiltered,M8 KSFiltered,Hybrid: M8 KSFiltered,0.00833,0.004879674397152152,10,broken_ratio_end_onsite
+Hybrid,M9_FleetBrokenGlobal,M9 FleetBrokenGlobal,Hybrid: M9 FleetBrokenGlobal,0.010159999999999999,0.006372893987646255,10,broken_ratio_end_onsite
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.02571,0.008225765752938884,10,broken_ratio_end_onsite
 Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,0.024380000000000002,0.006142348447006605,10,broken_ratio_end_onsite
-Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.02101,0.0060553832799143835,10,broken_ratio_end_onsite
+Hybrid,R7_DestinationAware,R7 DestinationAware,Hybrid: R7 DestinationAware,0.06941,0.013369405371967744,10,broken_ratio_end_onsite
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.02296,0.004262810757652228,10,broken_ratio_end_onsite
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.0531,0.01059402347237976,10,broken_ratio_end_onsite
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.052059999999999995,0.011674873304094854,10,broken_ratio_end_onsite
@@ -148,9 +220,18 @@ Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance
 Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.12410999999999998,0.016946874506986696,10,broken_ratio_end_depot
 Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.12736,0.017822719582974232,10,broken_ratio_end_depot
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.12383,0.014176353550895937,10,broken_ratio_end_depot
+Hybrid,M10_FleetBrokenCompact,M10 FleetBrokenCompact,Hybrid: M10 FleetBrokenCompact,0.045799999999999993,0.005604958122551458,10,broken_ratio_end_depot
+Hybrid,M1_ShortagePressure,M1 ShortagePressure,Hybrid: M1 ShortagePressure,0.06446,0.011382754987748399,10,broken_ratio_end_depot
+Hybrid,M2_DemandWeightedBacklog,M2 DemandWeightedBacklog,Hybrid: M2 DemandWeightedBacklog,0.07082000000000001,0.011325173533132088,10,broken_ratio_end_depot
+Hybrid,M3_RepairOpportunityLogistics,M3 RepairOpportunityLogistics,Hybrid: M3 RepairOpportunityLogistics,0.22266,0.015909899084811597,10,broken_ratio_end_depot
+Hybrid,M4_DegradationHealth,M4 DegradationHealth,Hybrid: M4 DegradationHealth,0.12381,0.017542611613503338,10,broken_ratio_end_depot
+Hybrid,M5_DepotIdlePipeline,M5 DepotIdlePipeline,Hybrid: M5 DepotIdlePipeline,0.11649000000000001,0.01417058377218258,10,broken_ratio_end_depot
+Hybrid,M7_StressNoDuplicates,M7 StressNoDuplicates,Hybrid: M7 StressNoDuplicates,0.12886,0.01833340606046181,10,broken_ratio_end_depot
+Hybrid,M8_KSFiltered,M8 KSFiltered,Hybrid: M8 KSFiltered,0.03171,0.007533104716295046,10,broken_ratio_end_depot
+Hybrid,M9_FleetBrokenGlobal,M9 FleetBrokenGlobal,Hybrid: M9 FleetBrokenGlobal,0.028949999999999997,0.007224995194154495,10,broken_ratio_end_depot
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.12746,0.01647281936335665,10,broken_ratio_end_depot
 Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,0.12514,0.014771308525501573,10,broken_ratio_end_depot
-Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.12069,0.018816036304764673,10,broken_ratio_end_depot
+Hybrid,R7_DestinationAware,R7 DestinationAware,Hybrid: R7 DestinationAware,0.3295,0.017134824837803923,10,broken_ratio_end_depot
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.11144000000000001,0.01752738809216403,10,broken_ratio_end_depot
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.11782,0.0148696409580804,10,broken_ratio_end_depot
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.12553,0.015948810474626485,10,broken_ratio_end_depot
@@ -166,9 +247,18 @@ Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance
 Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.84956,0.013096242039438492,10,functional_ratio_end
 Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.8481099999999999,0.018250019786899482,10,functional_ratio_end
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.85401,0.013820311139768164,10,functional_ratio_end
+Hybrid,M10_FleetBrokenCompact,M10 FleetBrokenCompact,Hybrid: M10 FleetBrokenCompact,0.94377,0.005653720505610038,10,functional_ratio_end
+Hybrid,M1_ShortagePressure,M1 ShortagePressure,Hybrid: M1 ShortagePressure,0.9126,0.014390969390558768,10,functional_ratio_end
+Hybrid,M2_DemandWeightedBacklog,M2 DemandWeightedBacklog,Hybrid: M2 DemandWeightedBacklog,0.90492,0.007238600233010032,10,functional_ratio_end
+Hybrid,M3_RepairOpportunityLogistics,M3 RepairOpportunityLogistics,Hybrid: M3 RepairOpportunityLogistics,0.75441,0.01653282593307431,10,functional_ratio_end
+Hybrid,M4_DegradationHealth,M4 DegradationHealth,Hybrid: M4 DegradationHealth,0.8499700000000001,0.02254393488280164,10,functional_ratio_end
+Hybrid,M5_DepotIdlePipeline,M5 DepotIdlePipeline,Hybrid: M5 DepotIdlePipeline,0.85613,0.019165539097267488,10,functional_ratio_end
+Hybrid,M7_StressNoDuplicates,M7 StressNoDuplicates,Hybrid: M7 StressNoDuplicates,0.85014,0.016908722272510397,10,functional_ratio_end
+Hybrid,M8_KSFiltered,M8 KSFiltered,Hybrid: M8 KSFiltered,0.95993,0.008247700016098777,10,functional_ratio_end
+Hybrid,M9_FleetBrokenGlobal,M9 FleetBrokenGlobal,Hybrid: M9 FleetBrokenGlobal,0.96085,0.005704043400177741,10,functional_ratio_end
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.8468199999999999,0.01756232077804958,10,functional_ratio_end
 Hybrid,R6_BreadthDepth,Squared count,Hybrid: Squared count,0.85047,0.013478299431143237,10,functional_ratio_end
-Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.85831,0.017459505529462564,10,functional_ratio_end
+Hybrid,R7_DestinationAware,R7 DestinationAware,Hybrid: R7 DestinationAware,0.60108,0.017276432244856334,10,functional_ratio_end
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.8655799999999999,0.018748617726826323,10,functional_ratio_end
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.82907,0.012786629301300985,10,functional_ratio_end
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.8224199999999999,0.018910302894336598,10,functional_ratio_end
