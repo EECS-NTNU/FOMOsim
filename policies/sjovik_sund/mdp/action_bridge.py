@@ -161,12 +161,15 @@ def mdp_action_to_sim_action(
     if getattr(vehicle, "is_at_depot")() and depot_dropoff_count > len(vehicle_depot):
         print(f"[WARNING - BRIDGE] MDP wanted to drop off {depot_dropoff_count} broken bikes at depot, but vehicle only has {len(vehicle_depot)}. Truncating!")
 
-    unload_time = len(depot_dropoffs) * depot_unload_minutes_per_bike
+    # Depot dropoffs are carried in delivery_bikes so Action.get_action_time()
+    # already charges MINUTES_PER_ACTION for unloading them.  Keep
+    # depot_unload_minutes_per_bike in the signature for backward compatibility,
+    # but do not add it to maintenance_time or depot unloads are double-counted.
     return Action(
         battery_swaps=[],
         onsite_repairs=onsite_repairs,
         pick_ups=pick_up_functional + pick_up_depot + depot_pickups,
         delivery_bikes=delivery_bikes,
         next_location=mdp_action.next_station,
-        maintenance_time=onsite_repair_count * maintenance_minutes_per_onsite_repair + unload_time,
+        maintenance_time=onsite_repair_count * maintenance_minutes_per_onsite_repair,
     )
