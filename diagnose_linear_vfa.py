@@ -508,12 +508,12 @@ def print_top_fixes() -> None:
     _log("=" * 70)
 
     fixes = [
-        ("FIX 1 [CRITICAL] — Remove reward crushing",
-         "In reward.py, line 41: `self._scale_factor = 1.0 - gamma` = 0.01.",
-         "Change to `self._scale_factor = 1.0`.",
-         "Effect: reward signal goes from 0.01 to 1.0 per starvation event.",
-         "Why: Tiny rewards mean TD errors are dominated by bootstrap noise, not true penalty.",
-         "This alone may flip all theta signs to the correct direction."),
+        ("FIX 1 [RESOLVED] — Reward scaling is no longer tied to gamma",
+         "reward.py now uses a fixed `self._scale_factor = 0.1`.",
+         "Do not describe the reward scale as `(1 - gamma)`.",
+         "Gamma still controls TD discounting; the reward scale only sets numerical magnitude.",
+         "If rewards look too small or large, tune this fixed scale directly.",
+         "This item is retained only as a historical diagnostic note."),
 
         ("FIX 2 [CRITICAL] — Clarify depot_idle_fraction semantics",
          "MP7 `depot_idle_fraction` = depot.fixed_queue / fleet.",

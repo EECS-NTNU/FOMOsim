@@ -54,14 +54,11 @@ class RewardCalculator:
     def __init__(self, config: Optional[RewardConfig] = None, gamma: float = 0.97):
         self.config = config or RewardConfig()
         self.gamma = gamma
-        #self._scale_factor = 1.0 - gamma  # Will be 0.01 when gamma=0.99
 
-        # --- FIXED: Set to 1.0. Stop crushing the reward signal! ---
-        #self._scale_factor = 1.0  - self.gamma  # This will be 0.01 when gamma=0.99
-        self._scale_factor = 0.1 # Have removed scaling due to it cerushing the reward signal and causing instability. The gamma discounting will still be applied during learning updates, so we can afford to keep the raw reward values intact for better learning dynamics.
-        # Articles reagarding this:
-        # https://www.nature.com/articles/nature14236 but it is deep RL, but they seem to do discouted rewards with gamma, but no immediate reward dampening?
-        # 
+        # Reward scaling is intentionally independent of gamma. Discounting is
+        # applied during TD updates; this factor only keeps immediate rewards
+        # in a numerically convenient range.
+        self._scale_factor = 0.1
        
         # Move the state tracking out of the policy and into the calculator
         self._prev_starvations = 0

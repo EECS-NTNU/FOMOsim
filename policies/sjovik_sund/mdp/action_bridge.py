@@ -98,6 +98,10 @@ def mdp_action_to_sim_action(
     - rebalancing > 0 : delivery_bikes (functional bikes from vehicle)
     - rebalancing < 0 : pick_ups (functional bikes from station)
     - depot_removals  : additional pick_ups (depot-damaged bikes from station)
+    TODO(doc): The onsite_repairs line below is stale/misleading because
+    battery_swaps is hardcoded to [] in the returned simulator Action.
+    Clarify that onsite repairs are represented by onsite_repairs plus
+    maintenance_time, not battery_swaps.
     - onsite_repairs  : battery_swaps + maintenance_time proxy
     - depot_dropoffs  : delivery_bikes when current station is depot
     - load_from_queue : pick_ups when current station is depot

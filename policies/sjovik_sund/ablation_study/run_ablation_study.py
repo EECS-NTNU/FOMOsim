@@ -35,6 +35,10 @@ Feature reference  (see vfa_features.py for full definitions)
     FIM4  net_congestion_shortfall       net inflow pressure with demand uncertainty
 
   Pillar 3 — Maintenance Pressure (MP, maintenance_enabled)
+    TODO(doc): This MP list is stale; the active maintenance feature pool in
+    vfa_features.py has expanded beyond MP1-MP5 and no longer includes
+    "depot_pull". Prefer replacing this duplicated list with a pointer to
+    vfa_features.get_feature_names().
     MP1   trailer_cannibalization        broken bike fraction of van capacity
     MP2   global_onsite_backlog          onsite broken bikes normalised by fleet
     MP3   demand_weighted_depot_backlog  broken bikes at high-activity stations
@@ -254,8 +258,6 @@ CORE_REBALANCING_BASELINES = {
     ],
     "Imbalance_count_temporal": [ #EX9
         "rebalancing_imbalance",
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
         "starvation_count",
         "congestion_count",
         "gross_starvation_risk",
@@ -571,6 +573,9 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
         config_parts.append(f"trans{transition_update_interval}")
     if use_feature_scale_diagnostics:
         config_parts.append(f"fsdiag{diagnostic_every_n_episodes}")
+    # TODO(config): 0.99 is stale now that the default GAMMA is imported as 0.97.
+    # Decide whether gamma should always be included for traceability, or only
+    # included when gamma != GAMMA.
     if gamma != 0.99:
         config_parts.append(f"g{gamma:g}")
     if epsilon_start == 0.0 and epsilon_end == 0.0:
