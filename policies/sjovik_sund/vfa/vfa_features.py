@@ -141,6 +141,36 @@ MAINTENANCE_FEATURE_POOL = [
 ]
 
 FEATURE_METADATA: Dict[str, Dict[str, object]] = {
+    "rebalancing_imbalance": {
+        "family": "base_rebalancing",
+        "high_means": "large total deviation from target inventory across stations",
+        "expected_sign": "negative",
+        "priority": "baseline",
+    },
+    "squared_starvation_penalty": {
+        "family": "base_rebalancing",
+        "high_means": "deep starvation pressure at one or more stations",
+        "expected_sign": "negative",
+        "priority": "baseline",
+    },
+    "squared_congestion_penalty": {
+        "family": "base_rebalancing",
+        "high_means": "deep congestion pressure at one or more stations",
+        "expected_sign": "negative",
+        "priority": "baseline",
+    },
+    "gross_starvation_risk": {
+        "family": "base_rebalancing",
+        "high_means": "high near-future departure pressure relative to available bikes",
+        "expected_sign": "negative",
+        "priority": "baseline",
+    },
+    "gross_congestion_risk": {
+        "family": "base_rebalancing",
+        "high_means": "high near-future arrival pressure relative to free docks",
+        "expected_sign": "negative",
+        "priority": "baseline",
+    },
     "global_onsite_backlog": {
         "family": "onsite_backlog",
         "high_means": "many on-site broken bikes remain in the system",

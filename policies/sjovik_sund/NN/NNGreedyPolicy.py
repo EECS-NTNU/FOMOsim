@@ -44,6 +44,7 @@ class NNGreedyPolicy(Policy):
             maintenance_enabled=self.maintenance_enabled,
             return_pairs=True,
             wide_search=True,
+            training_mode=False,
         )
         if not pairs:
             return None
@@ -115,6 +116,7 @@ class NNGreedyPolicy(Policy):
             maintenance_enabled=self.maintenance_enabled,
             return_pairs=True,
             wide_search=True,
+            training_mode=False,
         )
         if not pairs:
             return None

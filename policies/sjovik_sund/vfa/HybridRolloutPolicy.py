@@ -408,6 +408,7 @@ class HybridRolloutPolicy(Policy):
         func_cargo: int,
         depot_cargo: int,
         vehicle_capacity: int,
+        health_base: Optional[dict] = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int, int, Optional[str], int, int]:
         """
         Apply one event-lite VFA base-policy operation at the reached destination.
@@ -475,6 +476,7 @@ class HybridRolloutPolicy(Policy):
                     explicit_functional_cargo=cand_func_cargo,
                     explicit_depot_cargo=cand_depot_cargo,
                     explicit_capacity=vehicle_capacity,
+                    health_base=health_base,
                 )
                 value = float(vfa.value(phi))
                 if value > best_value:
@@ -545,6 +547,7 @@ class HybridRolloutPolicy(Policy):
         depot_cargo: int = 0,
         vehicle_capacity: int = 0,
         dest_arrival_min: float = float("inf"),
+        health_base: Optional[dict] = None,
         depot_fixed_queue_delta: int = 0,
         depot_in_repair_delta: int = 0,
     ) -> tuple[float, float]:
@@ -629,6 +632,7 @@ class HybridRolloutPolicy(Policy):
                     state, vehicle, dest_id, step_start,
                     func_proj, onsite_proj, depot_proj,
                     func_cargo, depot_cargo, vehicle_capacity,
+                    health_base=health_base,
                 )
                 depot_fixed_queue_delta += base_fixed_queue_delta
                 depot_in_repair_delta += base_in_repair_delta
@@ -695,6 +699,7 @@ class HybridRolloutPolicy(Policy):
             explicit_functional_cargo=func_cargo,
             explicit_depot_cargo=depot_cargo,
             explicit_capacity=vehicle_capacity,
+            health_base=health_base,
         )
         terminal_value  = vfa.value(terminal_phi)
         discounted_tail = (gamma ** (self.lookahead_minutes / 60.0)) * terminal_value
@@ -733,6 +738,11 @@ class HybridRolloutPolicy(Policy):
 
         # ── 2. Snapshot current inventories ──────────────────────────────────
         base_func, base_onsite, base_depot = self.vfa._extract_inventories(state, vehicle)
+        health_base = (
+            self.vfa._compute_health_base(state, vehicle)
+            if getattr(self.vfa, "_use_health_features", False)
+            else None
+        )
 
         # ── 3. Mute VFA logging during rollout ────────────────────────────────
         old_log_rl     = getattr(self.vfa, "log_rl_decisions", False)
@@ -780,6 +790,8 @@ class HybridRolloutPolicy(Policy):
                     delta_depot_in_repair=effect.depot_dropoffs,
                     eval_time=float(state.time),
                     next_station_id=dest_id,
+                    candidate_action=action,
+                    health_base=health_base,
                 )
                 immediate_vfa = float(self.vfa.value(immediate_phi))
             except Exception as e:
@@ -806,6 +818,7 @@ class HybridRolloutPolicy(Policy):
                     depot_cargo=depot_cargo_post,
                     vehicle_capacity=veh_capacity,
                     dest_arrival_min=dest_arrival_min,
+                    health_base=health_base,
                     depot_fixed_queue_delta=-effect.load_from_queue,
                     depot_in_repair_delta=effect.depot_dropoffs,
                 )

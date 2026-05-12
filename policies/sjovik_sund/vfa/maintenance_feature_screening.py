@@ -13,6 +13,8 @@ the pre-training diagnostics used to prune the maintenance feature pool:
 
 The script is intentionally diagnostic.  It does not choose a final feature set
 automatically; it produces CSV evidence for the thesis feature-screening step.
+By default, each episode uses the same timing convention as VFA training:
+7 days of greedy-maintenance warmup followed by 21 analysis days.
 """
 
 from __future__ import annotations
@@ -286,7 +288,18 @@ def _safe_corr_with_targets(features: pd.DataFrame, targets: pd.DataFrame) -> pd
     return pd.DataFrame(rows).set_index("feature")
 
 
+def _feature_group(feature: str) -> str:
+    base = set(get_base_rebalancing_feature_names())
+    maintenance = set(get_maintenance_feature_pool_names())
+    if feature in base:
+        return "base_rebalancing"
+    if feature in maintenance:
+        return "maintenance"
+    return "custom"
+
+
 def _corr_pairs(corr: pd.DataFrame, threshold: float) -> pd.DataFrame:
+    metadata = get_feature_metadata()
     rows = []
     cols = list(corr.columns)
     for i, a in enumerate(cols):
@@ -295,12 +308,27 @@ def _corr_pairs(corr: pd.DataFrame, threshold: float) -> pd.DataFrame:
             if pd.notna(val) and abs(float(val)) >= threshold:
                 rows.append({
                     "feature_a": a,
+                    "group_a": _feature_group(a),
+                    "family_a": metadata.get(a, {}).get("family", ""),
                     "feature_b": b,
+                    "group_b": _feature_group(b),
+                    "family_b": metadata.get(b, {}).get("family", ""),
                     "corr": float(val),
                     "abs_corr": abs(float(val)),
+                    "cross_group": _feature_group(a) != _feature_group(b),
                 })
     return pd.DataFrame(rows).sort_values("abs_corr", ascending=False) if rows else pd.DataFrame(
-        columns=["feature_a", "feature_b", "corr", "abs_corr"]
+        columns=[
+            "feature_a",
+            "group_a",
+            "family_a",
+            "feature_b",
+            "group_b",
+            "family_b",
+            "corr",
+            "abs_corr",
+            "cross_group",
+        ]
     )
 
 
@@ -374,6 +402,7 @@ def _metadata_table(features: Iterable[str]) -> pd.DataFrame:
         meta = metadata.get(feature, {})
         rows.append({
             "feature": feature,
+            "screening_group": _feature_group(feature),
             "family": meta.get("family", ""),
             "high_means": meta.get("high_means", ""),
             "expected_sign": meta.get("expected_sign", ""),
@@ -382,23 +411,34 @@ def _metadata_table(features: Iterable[str]) -> pd.DataFrame:
     return pd.DataFrame(rows).set_index("feature")
 
 
-def build_default_feature_set() -> list[str]:
-    """Base rebalancing features plus the maintenance candidate pool."""
-    return get_base_rebalancing_feature_names() + get_maintenance_feature_pool_names()
+def build_feature_set(scope: str) -> list[str]:
+    """Build the feature set used for screening diagnostics."""
+    base = get_base_rebalancing_feature_names()
+    maintenance = get_maintenance_feature_pool_names()
+    if scope == "combined":
+        return base + maintenance
+    if scope == "maintenance_only":
+        return maintenance
+    if scope == "base_only":
+        return base
+    raise ValueError(f"Unknown feature scope: {scope}")
 
 
 def run_screening(args: argparse.Namespace) -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    active_features = args.features if args.features else build_default_feature_set()
+    active_features = args.features if args.features else build_feature_set(args.feature_scope)
+    n_base = sum(1 for f in active_features if _feature_group(f) == "base_rebalancing")
+    n_maintenance = sum(1 for f in active_features if _feature_group(f) == "maintenance")
     print("Maintenance feature screening")
     print(f"  instance       : {args.instance}")
     print(f"  episodes       : {args.episodes}")
     print(f"  days/episode   : {args.days}")
     print(f"  warmup days    : {args.warmup_days}")
     print(f"  behavior policy: {args.behavior_policy}")
-    print(f"  active features: {len(active_features)}")
+    print(f"  feature scope  : {'explicit' if args.features else args.feature_scope}")
+    print(f"  active features: {len(active_features)} ({n_base} base, {n_maintenance} maintenance)")
     print(f"  output         : {output_dir}")
 
     policy = FeatureScreeningPolicy(
@@ -426,6 +466,7 @@ def run_screening(args: argparse.Namespace) -> None:
 
     warmup_hours = float(args.warmup_days) * 24.0
     for ep in range(args.episodes):
+        policy.reset_episode()
         run_simulation(
             seed=args.seed_start + ep,
             policy=policy,
@@ -482,8 +523,17 @@ def run_screening(args: argparse.Namespace) -> None:
     pearson_pairs.to_csv(output_dir / "redundant_pairs_pearson.csv", index=False)
     spearman_pairs.to_csv(output_dir / "redundant_pairs_spearman.csv", index=False)
     vif.to_csv(output_dir / "vif_scores.csv")
+    pd.DataFrame({
+        "feature": active_features,
+        "screening_group": [_feature_group(f) for f in active_features],
+        "family": [get_feature_metadata().get(f, {}).get("family", "") for f in active_features],
+    }).to_csv(output_dir / "screened_feature_set.csv", index=False)
 
     with open(output_dir / "screening_thresholds.txt", "w") as fh:
+        fh.write(f"feature_scope: {'explicit' if args.features else args.feature_scope}\n")
+        fh.write(f"active_features: {len(active_features)} ({n_base} base, {n_maintenance} maintenance)\n")
+        fh.write(f"warmup_days: {args.warmup_days}\n")
+        fh.write(f"analysis_days: {args.days}\n")
         fh.write(f"near_constant: std < {NEAR_CONSTANT_STD}\n")
         fh.write(f"sparse: fraction_zero > {SPARSE_FRACTION_ZERO}\n")
         fh.write(f"poor_scaling: p99_abs > {POOR_SCALING_P99_ABS} or min < 0\n")
@@ -497,7 +547,7 @@ def run_screening(args: argparse.Namespace) -> None:
     print(f"  condition number: {condition_number:.3g}")
     print(f"  flagged features: {len(flagged)}/{len(summary)}")
     if not flagged.empty:
-        cols = ["family", "priority", "std", "fraction_zero", "p99_abs", "max_abs_target_corr", "vif", "recommendation_flag"]
+        cols = ["screening_group", "family", "priority", "std", "fraction_zero", "p99_abs", "max_abs_target_corr", "vif", "recommendation_flag"]
         print(flagged[cols].sort_values("recommendation_flag").to_string())
     print("\nSaved:")
     for name in [
@@ -506,6 +556,7 @@ def run_screening(args: argparse.Namespace) -> None:
         "redundant_pairs_pearson.csv",
         "redundant_pairs_spearman.csv",
         "vif_scores.csv",
+        "screened_feature_set.csv",
         "screening_thresholds.txt",
     ]:
         print(f"  {output_dir / name}")
@@ -533,6 +584,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--alpha", type=float, default=0.01)
     parser.add_argument("--epsilon", type=float, default=0.0)
     parser.add_argument("--output_dir", type=str, default="models/maintenance_feature_screening")
+    parser.add_argument(
+        "--feature_scope",
+        choices=["combined", "maintenance_only", "base_only"],
+        default="combined",
+        help=(
+            "Feature set to screen when --features is not supplied. "
+            "'combined' screens base rebalancing features together with the maintenance pool."
+        ),
+    )
     parser.add_argument(
         "--behavior_policy",
         choices=["greedy_maintenance", "untrained_vfa", "random_candidate"],

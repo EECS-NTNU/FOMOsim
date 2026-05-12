@@ -9,8 +9,11 @@ for the rebalancing feature pool:
   - future demand/imbalance features
   - destination-local rebalancing features
 
-The default behavior policy is GreedyPolicy, so the sampled states represent a
-standard rebalancing baseline rather than an untrained VFA.
+The default behavior policy is GreedyMaintenancePolicy, so the sampled states
+represent the maintenance-aware operating regime used in the final experiments
+rather than a pure rebalancing-only baseline.
+By default, each episode uses the same timing convention as VFA training:
+7 days of greedy-maintenance warmup followed by 21 analysis days.
 """
 
 from __future__ import annotations
@@ -205,6 +208,7 @@ def run_screening(args: argparse.Namespace) -> None:
 
     warmup_hours = float(args.warmup_days) * 24.0
     for ep in range(args.episodes):
+        policy.reset_episode()
         run_simulation(
             seed=args.seed_start + ep,
             policy=policy,
@@ -262,6 +266,8 @@ def run_screening(args: argparse.Namespace) -> None:
     vif.to_csv(output_dir / "vif_scores.csv")
 
     with open(output_dir / "screening_thresholds.txt", "w") as fh:
+        fh.write(f"warmup_days: {args.warmup_days}\n")
+        fh.write(f"analysis_days: {args.days}\n")
         fh.write(f"near_constant: std < {NEAR_CONSTANT_STD}\n")
         fh.write(f"sparse: fraction_zero > {SPARSE_FRACTION_ZERO}\n")
         fh.write(f"poor_scaling: p99_abs > {POOR_SCALING_P99_ABS} or min < 0\n")

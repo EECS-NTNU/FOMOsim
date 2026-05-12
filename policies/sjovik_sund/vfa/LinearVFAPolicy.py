@@ -52,6 +52,7 @@ from policies.sjovik_sund.mdp.action_bridge import (
 )
 from settings import ENABLE_COMPONENT_FAILURES, SERVICE_TIME_TO
 from sim.Bike import Bike
+from sim.bike_degradation_modeling.bike_component_degradation_model import ComponentFailureModel
 
 # ── Debug flags — flip individual checks on/off from train_vfa.py ─────────────
 VFA_DEBUG_FLAGS = {
@@ -465,19 +466,23 @@ class LinearVFAPolicy(Policy):
     def _bike_id(bike) -> int:
         return getattr(bike, "bike_id", getattr(bike, "id", -1))
 
-    @staticmethod
-    def _bike_health_and_risk(bike) -> Tuple[float, float, float]:
+    _failure_exposure_trip_km: float = 2.5
+    _low_failure_risk_threshold: float = 0.01
+
+    @classmethod
+    def _bike_health_and_risk(cls, bike) -> Tuple[float, float, float]:
         """
         Return (health, failure_risk, deficit) for one bike.
 
         health is the weakest component reliability, so 1.0 is fresh/healthy and
         0.0 is failed/high-risk. failure_risk is the probability that at least one
-        component is already in a bad reliability state, based on current component
-        reliabilities rather than simulating a future trip.
+        component fails on a representative future trip, conditional on the
+        current component odometers.
         """
         odometers = getattr(bike, "component_odometers", {}) or {}
         failures = getattr(bike, "component_failures", {}) or {}
         reliabilities = []
+        trip_survival_probs = []
 
         for category, odometer in odometers.items():
             data = failures.get(category, {})
@@ -485,16 +490,29 @@ class LinearVFAPolicy(Policy):
             shape = float(data.get("shape", 0.0) or 0.0)
             if scale <= 0.0 or shape <= 0.0:
                 continue
-            reliability = float(np.exp(-((max(float(odometer), 0.0) / scale) ** shape)))
+            odometer_km = max(float(odometer), 0.0)
+            reliability = float(ComponentFailureModel.calculate_reliability(odometer_km, scale, shape))
+            trip_failure = float(ComponentFailureModel.calculate_trip_failure_probability(
+                odometer_km,
+                cls._failure_exposure_trip_km,
+                scale,
+                shape,
+            ))
             reliabilities.append(float(np.clip(reliability, 0.0, 1.0)))
+            trip_survival_probs.append(float(np.clip(1.0 - trip_failure, 0.0, 1.0)))
 
         if not reliabilities:
             return 1.0, 0.0, 0.0
 
         rel = np.array(reliabilities, dtype=np.float64)
+        trip_survival = np.array(trip_survival_probs, dtype=np.float64)
         health = float(np.min(rel))
-        failure_risk = float(np.clip(1.0 - np.prod(rel), 0.0, 1.0))
+        failure_risk = float(np.clip(1.0 - np.prod(trip_survival), 0.0, 1.0))
         return health, failure_risk, 1.0 - health
+
+    @staticmethod
+    def _is_functional_bike(bike) -> bool:
+        return getattr(bike, "damage_status", None) is None
 
     def _all_bikes_including_depot_queues(self, state) -> list:
         """Return unique live bikes, including depot repair/fixed queues."""
@@ -513,6 +531,7 @@ class LinearVFAPolicy(Policy):
         """Iterate all bikes once per state. Expensive — call once, not per candidate."""
         all_bikes = self._all_bikes_including_depot_queues(state)
         total = max(float(len(all_bikes)), 1.0)
+        functional_total = 0.0
         health_sum = risk_sum = low_count = 0.0
         onsite_def_sum = depot_def_sum = 0.0
         by_id = {}
@@ -522,9 +541,11 @@ class LinearVFAPolicy(Policy):
             by_id[bid] = bike
             health, risk, deficit = self._bike_health_and_risk(bike)
             health_cache[bid] = (health, risk, deficit)
-            health_sum += health
-            risk_sum += risk
-            low_count += 1.0 if health < 0.75 else 0.0
+            if self._is_functional_bike(bike):
+                functional_total += 1.0
+                health_sum += health
+                risk_sum += risk
+                low_count += 1.0 if risk > self._low_failure_risk_threshold else 0.0
             status = getattr(bike, "damage_status", None)
             if status == "onsite":
                 onsite_def_sum += deficit
@@ -533,6 +554,7 @@ class LinearVFAPolicy(Policy):
         return {
             "total": total,
             "status_denom": max(total * 0.20, 1.0),
+            "functional_total": max(functional_total, 1.0),
             "health_sum": health_sum,
             "risk_sum": risk_sum,
             "low_count": low_count,
@@ -546,6 +568,7 @@ class LinearVFAPolicy(Policy):
         """Apply candidate-action delta to cached base. Cheap — call per candidate."""
         total        = base["total"]
         status_denom = base["status_denom"]
+        functional_total = base["functional_total"]
         health_sum   = base["health_sum"]
         risk_sum     = base["risk_sum"]
         low_count    = base["low_count"]
@@ -554,7 +577,7 @@ class LinearVFAPolicy(Policy):
         by_id        = base["by_id"]
         health_cache = base["health_cache"]
 
-        onsite_restored_def = onsite_restored_risk = onsite_restored_low = 0.0
+        onsite_restored_def = onsite_restored_count = 0.0
         depot_dropoff_def = 0.0
 
         if candidate_action is not None:
@@ -564,8 +587,7 @@ class LinearVFAPolicy(Policy):
                     continue
                 health, risk, deficit = health_cache.get(bike_id, self._bike_health_and_risk(bike))
                 onsite_restored_def += deficit
-                onsite_restored_risk += risk
-                onsite_restored_low += 1.0 if health < 0.75 else 0.0
+                onsite_restored_count += 1.0
 
             vehicle_bikes = {self._bike_id(b): b for b in vehicle.get_bike_inventory()}
             for bike_id in getattr(candidate_action, "delivery_bikes", []) or []:
@@ -575,10 +597,11 @@ class LinearVFAPolicy(Policy):
                     depot_dropoff_def += deficit
 
         K = max(float(vehicle_capacity), 1.0)
+        functional_after = max(functional_total + onsite_restored_count, 1.0)
         return {
-            "fleet_failure_risk":         max(0.0, risk_sum - onsite_restored_risk) / total,
-            "fleet_health_deficit":       max(0.0, (total - health_sum) - onsite_restored_def) / total,
-            "fleet_low_health_fraction":  max(0.0, low_count - onsite_restored_low) / total,
+            "fleet_failure_risk":         max(0.0, risk_sum) / functional_after,
+            "fleet_health_deficit":       max(0.0, functional_total - health_sum) / functional_after,
+            "fleet_low_health_fraction":  max(0.0, low_count) / functional_after,
             "depot_bound_health_deficit": depot_def_sum / status_denom,
             "onsite_health_deficit":      max(0.0, onsite_def_sum - onsite_restored_def) / status_denom,
             "maintenance_restoration_value": (onsite_restored_def + self._depot_repair_discount * depot_dropoff_def) / K,
