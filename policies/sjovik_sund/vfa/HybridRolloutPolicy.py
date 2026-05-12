@@ -64,6 +64,7 @@ class HybridRolloutPolicy(Policy):
     avg_km_per_trip       : average trip distance (km) — used for degradation estimation
     logger                : optional RunLogger for structured CSV output
     debug_print           : print ranked candidate table at each decision
+    NOTE: Degradation estimation is off by default - not included in thesis
     """
 
     def __init__(
@@ -202,7 +203,7 @@ class HybridRolloutPolicy(Policy):
             idx = vfa._sid_to_idx[vehicle.location.id]
             func[idx] = max(
                 0.0,
-                func[idx] + effect.station_delta_func - effect.onsite_repairs,
+                func[idx] + effect.station_delta_func - effect.onsite_repairs, #Note: confusing logic but correct - substracts onsite to avoid double counting with next line
             )
             if effect.onsite_repairs:
                 applied    = min(effect.onsite_repairs, int(onsite[idx]))
@@ -225,7 +226,7 @@ class HybridRolloutPolicy(Policy):
         return (
             handling_count * MINUTES_PER_ACTION
             + effect.onsite_repairs * MAINTENANCE_REPAIR
-            + MINUTES_CONSTANT_PER_ACTION #NOTE: This is set to zero in settings and thus not included
+            + MINUTES_CONSTANT_PER_ACTION #NOTE: This is set to zero in settings and thus not included even though calculated. Can be removed.
         )
 
     def _action_arrival_time(self, state, vehicle, action, dest_id: Optional[str]) -> float:
@@ -458,7 +459,7 @@ class HybridRolloutPolicy(Policy):
                 state, vehicle, dest_idx, eval_time,
                 cand_func, cand_onsite, cand_depot,
                 cand_func_cargo, cand_depot_cargo, vehicle_capacity,
-                n_options=min(5, self.n_routing_candidates),
+                n_options=min(5, self.n_routing_candidates), #Required at lest 5 routing options
             ) or [None]
 
             for next_id in next_options:
