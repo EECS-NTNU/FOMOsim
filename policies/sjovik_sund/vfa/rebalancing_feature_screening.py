@@ -7,7 +7,6 @@ for the rebalancing feature pool:
 
   - current imbalance features
   - future demand/imbalance features
-  - spatial/logistic rebalancing features
   - destination-local rebalancing features
 
 The default behavior policy is GreedyMaintenancePolicy, so the sampled states

@@ -61,7 +61,7 @@ VIF_SERIOUS = 20.0
 class DiagnosticRewardCalculator(RewardCalculator):
     """RewardCalculator that exposes the last realized service-level deltas."""
 
-    def __init__(self, config: RewardConfig | None = None, gamma: float = 0.99):
+    def __init__(self, config: RewardConfig | None = None, gamma: float = 0.97):
         super().__init__(config=config, gamma=gamma)
         self.last_delta_starvation = 0.0
         self.last_delta_congestion = 0.0
@@ -135,6 +135,8 @@ class FeatureScreeningPolicy(LinearVFAPolicy):
 
         functional_pickups = 0
         depot_pickups = 0
+        delta_depot_fixed_queue = 0
+        delta_depot_in_repair = 0
         if vehicle.is_at_depot():
             fixed_queue = getattr(vehicle.location, "fixed_queue", {})
             vehicle_bikes = {
@@ -151,6 +153,8 @@ class FeatureScreeningPolicy(LinearVFAPolicy):
             )
             delta_func = -functional_pickups
             delta_depot_cargo = -depot_dropoffs
+            delta_depot_fixed_queue = -functional_pickups
+            delta_depot_in_repair = depot_dropoffs
         else:
             for bike_id in getattr(action, "pick_ups", []):
                 bike = station_bikes.get(bike_id)
@@ -182,6 +186,8 @@ class FeatureScreeningPolicy(LinearVFAPolicy):
             delta_func,
             delta_depot_cargo,
             delta_onsite_repairs,
+            delta_depot_fixed_queue,
+            delta_depot_in_repair,
             time_remaining=self._get_time_remaining(state, vehicle),
             shift_length=self._get_shift_length(state, vehicle),
             next_station_id=dest_id,
@@ -439,7 +445,7 @@ def run_screening(args: argparse.Namespace) -> None:
         active_features=active_features,
         learning_mode=True,
         maintenance_enabled=True,
-        logistics_enabled=True,
+        logistics_enabled=False,
         demand_horizon_enabled=True,
         gamma=args.gamma,
         alpha=args.alpha,

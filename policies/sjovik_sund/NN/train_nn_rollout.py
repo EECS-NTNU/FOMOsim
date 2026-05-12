@@ -808,6 +808,8 @@ def _linear_teacher_score_actions(teacher, state, vehicle, sim_actions: list) ->
     for sim_action in sim_actions:
         functional_pickups = 0
         depot_pickups = 0
+        delta_depot_fixed_queue = 0
+        delta_depot_in_repair = 0
 
         if vehicle.is_at_depot():
             fixed_queue = getattr(vehicle.location, "fixed_queue", {})
@@ -820,6 +822,8 @@ def _linear_teacher_score_actions(teacher, state, vehicle, sim_actions: list) ->
             )
             delta_func = -functional_pickups
             delta_depot_cargo = -depot_dropoffs
+            delta_depot_fixed_queue = -functional_pickups
+            delta_depot_in_repair = depot_dropoffs
         else:
             for bike_id in getattr(sim_action, "pick_ups", []) or []:
                 bike = station_bikes.get(bike_id)
@@ -851,6 +855,8 @@ def _linear_teacher_score_actions(teacher, state, vehicle, sim_actions: list) ->
             delta_func,
             delta_depot_cargo,
             delta_onsite_repairs,
+            delta_depot_fixed_queue,
+            delta_depot_in_repair,
             time_remaining=teacher._get_time_remaining(state, vehicle),
             shift_length=teacher._get_shift_length(state, vehicle),
             next_station_id=dest_id,
