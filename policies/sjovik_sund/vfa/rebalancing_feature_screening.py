@@ -286,7 +286,7 @@ def run_screening(args: argparse.Namespace) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Screen rebalancing VFA feature candidates.")
     parser.add_argument("--episodes", type=int, default=3)
-    parser.add_argument("--days", type=int, default=7)
+    parser.add_argument("--days", type=int, default=21)
     parser.add_argument(
         "--warmup_days",
         type=float,
@@ -304,7 +304,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gamma", type=float, default=0.97)
     parser.add_argument("--alpha", type=float, default=0.01)
     parser.add_argument("--epsilon", type=float, default=0.0)
-    parser.add_argument("--output_dir", type=str, default="models/rebalancing_feature_screening")
+    parser.add_argument("--output_dir", type=str, default="models/rebalancing_feature_screening_new")
     parser.add_argument(
         "--behavior_policy",
         choices=["greedy_maintenance", "untrained_vfa", "random_candidate"],

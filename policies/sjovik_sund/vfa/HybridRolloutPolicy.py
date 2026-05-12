@@ -225,7 +225,7 @@ class HybridRolloutPolicy(Policy):
         return (
             handling_count * MINUTES_PER_ACTION
             + effect.onsite_repairs * MAINTENANCE_REPAIR
-            + MINUTES_CONSTANT_PER_ACTION
+            + MINUTES_CONSTANT_PER_ACTION #NOTE: This is set to zero in settings and thus not included
         )
 
     def _action_arrival_time(self, state, vehicle, action, dest_id: Optional[str]) -> float:

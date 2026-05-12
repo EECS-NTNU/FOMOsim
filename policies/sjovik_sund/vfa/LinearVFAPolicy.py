@@ -962,6 +962,10 @@ class LinearVFAPolicy(Policy):
         """
         if hasattr(vehicle, "shift_length") and vehicle.shift_length is not None:
             return float(vehicle.shift_length)
+        # TODO(logistics): This fallback uses the full simulator duration, which
+        # can be multi-day and is not a real shift length. It is currently
+        # dormant because logistics/SLC features are inactive, but replace with
+        # a daily service-window reference before re-enabling logistics features.
         if self._simulator_ref is not None and hasattr(self._simulator_ref, "duration"):
             return float(self._simulator_ref.duration)
             

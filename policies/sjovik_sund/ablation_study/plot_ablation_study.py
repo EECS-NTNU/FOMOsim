@@ -420,7 +420,7 @@ def plot_ablation_comparison(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot VFA ablation results across experiments and alphas")
     parser.add_argument(
-        "study_dir",
+        "--study_dir",
         nargs="?",
         default="maintenance_feature_sets",
         help=(
