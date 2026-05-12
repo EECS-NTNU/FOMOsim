@@ -364,7 +364,8 @@ class HybridRolloutPolicy(Policy):
         rising = net_demand > 0
         falling = net_demand < 0
         capacities = vfa._capacities if vfa._capacities is not None else np.maximum(func, 1.0)
-        ttv[rising] = np.maximum(0.0, capacities[rising] - func[rising]) / np.maximum(net_demand[rising], 1e-6)
+        free_docks = np.maximum(0.0, capacities - func - onsite - depot)
+        ttv[rising] = free_docks[rising] / np.maximum(net_demand[rising], 1e-6)
         ttv[falling] = np.maximum(0.0, func[falling]) / np.maximum(-net_demand[falling], 1e-6)
         urgency = 1.0 - np.minimum(ttv, 8.0) / 8.0
 
@@ -406,7 +407,7 @@ class HybridRolloutPolicy(Policy):
         func_cargo: int,
         depot_cargo: int,
         vehicle_capacity: int,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int, int, Optional[str]]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int, int, Optional[str], int, int]:
         """
         Apply one event-lite VFA base-policy operation at the reached destination.
 
@@ -417,14 +418,14 @@ class HybridRolloutPolicy(Policy):
         vfa = self.vfa
         if dest_id is None:
             self._record_base_step_debug(eval_time, dest_id, None, None, func_cargo, depot_cargo, func_cargo, depot_cargo, "no-destination")
-            return func_proj, onsite_proj, depot_proj, func_cargo, depot_cargo, None
+            return func_proj, onsite_proj, depot_proj, func_cargo, depot_cargo, None, 0, 0
 
         if dest_id not in vfa._sid_to_idx:
             if self._is_depot_id(state, dest_id):
                 self._record_base_step_debug(eval_time, dest_id, (0, 0, 0), None, func_cargo, depot_cargo, func_cargo, 0, "depot-unload")
-                return func_proj, onsite_proj, depot_proj, func_cargo, 0, None
+                return func_proj, onsite_proj, depot_proj, func_cargo, 0, None, 0, depot_cargo
             self._record_base_step_debug(eval_time, dest_id, None, None, func_cargo, depot_cargo, func_cargo, depot_cargo, "non-station")
-            return func_proj, onsite_proj, depot_proj, func_cargo, depot_cargo, None
+            return func_proj, onsite_proj, depot_proj, func_cargo, depot_cargo, None, 0, 0
 
         dest_idx = vfa._sid_to_idx[dest_id]
         func_cargo_before = func_cargo
@@ -499,7 +500,7 @@ class HybridRolloutPolicy(Policy):
             func_cargo_before, depot_cargo_before, func_cargo, depot_cargo,
             f"vfa={best_value:.4f}",
         )
-        return func_proj, onsite_proj, depot_proj, func_cargo, depot_cargo, best_next
+        return func_proj, onsite_proj, depot_proj, func_cargo, depot_cargo, best_next, 0, 0
 
     def _record_base_step_debug(
         self,
@@ -543,6 +544,8 @@ class HybridRolloutPolicy(Policy):
         depot_cargo: int = 0,
         vehicle_capacity: int = 0,
         dest_arrival_min: float = float("inf"),
+        depot_fixed_queue_delta: int = 0,
+        depot_in_repair_delta: int = 0,
     ) -> tuple[float, float]:
         """
         Project station inventories forward analytically over `lookahead_minutes`.
@@ -568,7 +571,7 @@ class HybridRolloutPolicy(Policy):
 
         cfg    = vfa.reward_calc.config
         gamma  = vfa.gamma
-        sf     = 1.0 - gamma           # reward scale factor (matches RewardCalculator)
+        sf     = float(getattr(vfa.reward_calc, "_scale_factor", 1.0))
         dt     = self.lookahead_minutes / self.n_time_steps   # minutes per time step
         t0     = float(state.time)
         accumulated_reward = 0.0
@@ -619,11 +622,15 @@ class HybridRolloutPolicy(Policy):
                     func_cargo,
                     depot_cargo,
                     terminal_next_station_id,
+                    base_fixed_queue_delta,
+                    base_in_repair_delta,
                 ) = self._apply_vfa_base_step(
                     state, vehicle, dest_id, step_start,
                     func_proj, onsite_proj, depot_proj,
                     func_cargo, depot_cargo, vehicle_capacity,
                 )
+                depot_fixed_queue_delta += base_fixed_queue_delta
+                depot_in_repair_delta += base_in_repair_delta
                 dest_service_done = True
 
             # ── Poisson demand sampling ───────────────────────────────────────
@@ -636,11 +643,11 @@ class HybridRolloutPolicy(Policy):
             starvations    = int(np.sum(n_depart - actual_depart))   # unmet departures
 
             func_proj -= actual_depart
-            func_proj += n_arrive
 
-            overflow    = func_proj > vfa._capacities
-            congestions = int(np.sum(overflow))
-            func_proj   = np.minimum(func_proj, vfa._capacities)
+            free_docks = np.maximum(0.0, vfa._capacities - func_proj - onsite_proj - depot_proj).astype(int)
+            actual_arrive = np.minimum(n_arrive, free_docks)
+            congestions = int(np.sum(n_arrive - actual_arrive))
+            func_proj += actual_arrive
 
             # ── Weibull degradation (optional) ────────────────────────────────
             if self.use_degradation:
@@ -679,6 +686,8 @@ class HybridRolloutPolicy(Policy):
             delta_func=0,
             delta_depot_cargo=0,
             delta_onsite_repairs=0,
+            delta_depot_fixed_queue=depot_fixed_queue_delta,
+            delta_depot_in_repair=depot_in_repair_delta,
             eval_time=t0 + self.lookahead_minutes,
             next_station_id=terminal_next_station_id,
             explicit_vehicle_loc_id=terminal_loc_id,
@@ -766,6 +775,8 @@ class HybridRolloutPolicy(Policy):
                     delta_func=0,
                     delta_depot_cargo=0,
                     delta_onsite_repairs=0,
+                    delta_depot_fixed_queue=-effect.load_from_queue,
+                    delta_depot_in_repair=effect.depot_dropoffs,
                     eval_time=float(state.time),
                     next_station_id=dest_id,
                 )
@@ -794,6 +805,8 @@ class HybridRolloutPolicy(Policy):
                     depot_cargo=depot_cargo_post,
                     vehicle_capacity=veh_capacity,
                     dest_arrival_min=dest_arrival_min,
+                    depot_fixed_queue_delta=-effect.load_from_queue,
+                    depot_in_repair_delta=effect.depot_dropoffs,
                 )
                 q_sum += r + t
                 r_sum += r
@@ -927,13 +940,22 @@ class HybridRolloutPolicy(Policy):
             else:
                 func_pickups += 1
 
-        func_deliveries  = len(getattr(action, "delivery_bikes", []))
+        delivery_ids_raw = list(getattr(action, "delivery_bikes", []))
+        vehicle_bikes = {self._bike_id(b): b for b in inv}
+        if is_at_depot:
+            depot_deliveries = sum(
+                1 for b_id in delivery_ids_raw
+                if getattr(vehicle_bikes.get(b_id), "damage_status", None) == "depot"
+            )
+            func_deliveries = len(delivery_ids_raw) - depot_deliveries
+        else:
+            depot_deliveries = 0
+            func_deliveries = len(delivery_ids_raw)
         onsite_repairs   = len(getattr(action, "onsite_repairs", []))
-        depot_deliveries = depot_before if is_at_depot else 0
 
         if is_at_depot:
             func_after  = func_before - func_deliveries + load_from_queue
-            depot_after = 0
+            depot_after = max(depot_before - depot_deliveries, 0)
         else:
             func_after  = func_before - func_deliveries + func_pickups
             depot_after = depot_before + depot_pickups
@@ -953,7 +975,7 @@ class HybridRolloutPolicy(Policy):
         maint_flag = (n_damaged > 0) or is_at_depot
         is_maint   = (onsite_repairs > 0) or (depot_pickups > 0) or is_at_depot
 
-        delivery_ids   = [getattr(b, "bike_id", str(b)) for b in getattr(action, "delivery_bikes", [])]
+        delivery_ids   = [self._bike_id(b) for b in delivery_ids_raw]
         bikes_involved = str(list(getattr(action, "pick_ups", [])) + delivery_ids)
 
         logger.log_decision({

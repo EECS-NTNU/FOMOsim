@@ -319,8 +319,8 @@ class BikeDeparture(Event):
                                 
                                 #print(f"{station.id:<10} {total:<7} {num_usable:<8} {num_unusable:<10} {demand:<8.2f} {crit_str}")
                             
-                            print("=" * 100)
-                            print()
+                            #print("=" * 100)
+                            #print()
                             
                             simul.state.metrics.add_aggregate_metric(simul.state, "battery starvations", 1)
                             #simul.state.metrics.add_aggregate_metric(simul.state, "maintenance_starvation", 1)
