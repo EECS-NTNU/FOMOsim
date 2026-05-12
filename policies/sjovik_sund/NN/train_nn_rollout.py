@@ -54,11 +54,13 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 
 # ── Workspace root on sys.path ────────────────────────────────────────────────
 WORKSPACE_ROOT = Path(__file__).parents[3]
 sys.path.insert(0, str(WORKSPACE_ROOT))
 
+import sim
 from helpers import timeInMinutes
 from policies.policy import Policy
 from policies.greedy_policy import GreedyPolicy
@@ -223,6 +225,92 @@ class ReplayBuffer:
     def ready(self, min_size: int = MIN_BUFFER_SIZE) -> bool:
         """True once enough transitions have been collected to start learning."""
         return len(self) >= min_size
+
+
+class RankingReplayBuffer:
+    """Replay buffer for same-decision candidate ranking samples."""
+
+    def __init__(self, max_size: int = 10_000):
+        self._buffer = deque(maxlen=max_size)
+        self.max_size = max_size
+
+    @staticmethod
+    def _detach_encoded(encoded: dict) -> dict:
+        return {
+            key: value.detach().cpu().clone()
+            for key, value in encoded.items()
+        }
+
+    def push(self, candidate_encodings: list, chosen_idx: int, reward_weight: float) -> None:
+        if len(candidate_encodings) < 2:
+            return
+        if chosen_idx < 0 or chosen_idx >= len(candidate_encodings):
+            return
+        self._buffer.append((
+            [self._detach_encoded(enc) for enc in candidate_encodings],
+            int(chosen_idx),
+            float(reward_weight),
+        ))
+
+    def sample(self, batch_size: int) -> list:
+        return random.sample(self._buffer, min(batch_size, len(self._buffer)))
+
+    def __len__(self) -> int:
+        return len(self._buffer)
+
+
+class CandidatePoolReplayBuffer:
+    """Replay buffer for same-decision candidate pools without fixed labels."""
+
+    def __init__(self, max_size: int = 10_000):
+        self._buffer = deque(maxlen=max_size)
+        self.max_size = max_size
+
+    @staticmethod
+    def _detach_encoded(encoded: dict) -> dict:
+        return {
+            key: value.detach().cpu().clone()
+            for key, value in encoded.items()
+        }
+
+    def push(self, candidate_encodings: list) -> None:
+        if len(candidate_encodings) < 2:
+            return
+        self._buffer.append([self._detach_encoded(enc) for enc in candidate_encodings])
+
+    def sample(self, batch_size: int) -> list:
+        return random.sample(self._buffer, min(batch_size, len(self._buffer)))
+
+    def __len__(self) -> int:
+        return len(self._buffer)
+
+
+class MCReturnReplayBuffer:
+    """Replay buffer for terminal-anchored Monte Carlo return targets."""
+
+    def __init__(self, max_size: int = 50_000):
+        self._buffer = deque(maxlen=max_size)
+        self.max_size = max_size
+
+    @staticmethod
+    def _detach_encoded(encoded: dict) -> dict:
+        return {
+            key: value.detach().cpu().clone()
+            for key, value in encoded.items()
+        }
+
+    def push(self, encoded_state: dict, return_to_go: float, n_steps: int) -> None:
+        self._buffer.append((
+            self._detach_encoded(encoded_state),
+            float(return_to_go),
+            int(max(n_steps, 1)),
+        ))
+
+    def sample(self, batch_size: int) -> list:
+        return random.sample(self._buffer, min(batch_size, len(self._buffer)))
+
+    def __len__(self) -> int:
+        return len(self._buffer)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -526,6 +614,164 @@ def _compute_td_loss(online_model, target_model, batch, gamma,
         }
 
     return loss, debug_info
+
+
+def _compute_ranking_loss(
+    online_model,
+    ranking_batch: list,
+    margin: float,
+    max_others: int,
+) -> torch.Tensor:
+    """
+    Pairwise candidate-ranking loss.
+
+    For each stored decision pool, encourage the realized chosen candidate to
+    score above alternatives from the same candidate set. Samples are reward
+    weighted before insertion, so low-penalty chosen actions teach more strongly
+    than exploratory bad choices.
+    """
+    losses = []
+    for candidate_encodings, chosen_idx, reward_weight in ranking_batch:
+        if len(candidate_encodings) < 2:
+            continue
+
+        other_indices = [i for i in range(len(candidate_encodings)) if i != chosen_idx]
+        if max_others > 0 and len(other_indices) > max_others:
+            other_indices = random.sample(other_indices, max_others)
+
+        selected = [candidate_encodings[chosen_idx]] + [candidate_encodings[i] for i in other_indices]
+        station = torch.stack([enc["station_block"] for enc in selected]).to(device)
+        vehicle = torch.stack([enc["vehicle_block"] for enc in selected]).to(device)
+        global_context = torch.stack([enc["global_context"] for enc in selected]).to(device)
+
+        scores = online_model.forward_batch(station, vehicle, global_context).squeeze(1)
+        chosen_score = scores[0]
+        other_scores = scores[1:]
+        if other_scores.numel() == 0:
+            continue
+
+        sample_loss = torch.nn.functional.softplus(
+            margin - (chosen_score - other_scores)
+        ).mean()
+        losses.append(sample_loss * float(reward_weight))
+
+    if not losses:
+        return torch.zeros((), dtype=torch.float32, device=device)
+    return torch.stack(losses).mean()
+
+
+def _compute_target_ranking_loss(
+    online_model,
+    target_model,
+    pool_batch: list,
+    margin: float,
+    max_others: int,
+) -> tuple[torch.Tensor, dict]:
+    """
+    Rank each candidate pool according to the lagged target network.
+
+    With base rewards and post-decision states, there is no deterministic
+    per-candidate immediate reward available at the decision point, so this
+    corresponds to ranking by gamma * V_target(S^x_candidate). Gamma is
+    positive and does not change the ordering.
+    """
+    losses = []
+    top1_matches = 0
+    top3_matches = 0
+    n_pools = 0
+
+    for candidate_encodings in pool_batch:
+        if len(candidate_encodings) < 2:
+            continue
+
+        station = torch.stack([enc["station_block"] for enc in candidate_encodings]).to(device)
+        vehicle = torch.stack([enc["vehicle_block"] for enc in candidate_encodings]).to(device)
+        global_context = torch.stack([enc["global_context"] for enc in candidate_encodings]).to(device)
+
+        with torch.no_grad():
+            target_scores = target_model.forward_batch(station, vehicle, global_context).squeeze(1)
+            target_best_idx = int(torch.argmax(target_scores).item())
+            target_top3 = torch.argsort(target_scores, descending=True)[:3].tolist()
+
+        other_indices = [i for i in range(len(candidate_encodings)) if i != target_best_idx]
+        if max_others > 0 and len(other_indices) > max_others:
+            other_indices = random.sample(other_indices, max_others)
+
+        selected_indices = [target_best_idx] + other_indices
+        selected_station = station[selected_indices]
+        selected_vehicle = vehicle[selected_indices]
+        selected_global = global_context[selected_indices]
+
+        online_scores = online_model.forward_batch(
+            selected_station,
+            selected_vehicle,
+            selected_global,
+        ).squeeze(1)
+        best_score = online_scores[0]
+        other_scores = online_scores[1:]
+        if other_scores.numel() == 0:
+            continue
+
+        sample_loss = torch.nn.functional.softplus(
+            margin - (best_score - other_scores)
+        ).mean()
+        losses.append(sample_loss)
+
+        with torch.no_grad():
+            full_online_scores = online_model.forward_batch(station, vehicle, global_context).squeeze(1)
+            online_top_idx = int(torch.argmax(full_online_scores).item())
+            top1_matches += int(online_top_idx == target_best_idx)
+            top3_matches += int(online_top_idx in target_top3)
+            n_pools += 1
+
+    if not losses:
+        zero = torch.zeros((), dtype=torch.float32, device=device)
+        return zero, {"top1_match": 0.0, "top3_match": 0.0}
+
+    return torch.stack(losses).mean(), {
+        "top1_match": top1_matches / max(n_pools, 1),
+        "top3_match": top3_matches / max(n_pools, 1),
+    }
+
+
+def _compute_mc_return_loss(
+    online_model,
+    mc_batch: list,
+    gamma: float,
+    reward_normalizer=None,
+) -> tuple[torch.Tensor, dict]:
+    """
+    Supervised value loss against realized return-to-go from completed episodes.
+
+    Unlike TD, this target has no bootstrap term. It is noisier, but it gives the
+    value function a terminal-anchored signal that can counter self-consistent
+    target drift.
+    """
+    encodings = [t[0] for t in mc_batch]
+    returns = [t[1] for t in mc_batch]
+    n_steps = [t[2] for t in mc_batch]
+
+    station = torch.stack([enc["station_block"] for enc in encodings]).to(device)
+    vehicle = torch.stack([enc["vehicle_block"] for enc in encodings]).to(device)
+    global_context = torch.stack([enc["global_context"] for enc in encodings]).to(device)
+
+    preds = online_model.forward_batch(station, vehicle, global_context)
+    norm_returns = [
+        reward_normalizer.normalize(g, n_steps=n, gamma=gamma) if reward_normalizer is not None else g
+        for g, n in zip(returns, n_steps)
+    ]
+    targets = torch.tensor(norm_returns, dtype=torch.float32, device=device).unsqueeze(1)
+    loss = torch.nn.functional.huber_loss(preds, targets, delta=1.0)
+
+    with torch.no_grad():
+        target_list = targets.detach().cpu().squeeze(1).tolist()
+        pred_list = preds.detach().cpu().squeeze(1).tolist()
+        _mean = lambda xs: sum(xs) / len(xs) if xs else 0.0
+        debug = {
+            "target_mean": _mean(target_list),
+            "pred_mean": _mean(pred_list),
+        }
+    return loss, debug
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -862,6 +1108,12 @@ class NNLearningPolicy(Policy):
         gamma:             float,
         config:            MDPConfig,
         depot_id:          Optional[str],
+        ranking_buffer:    Optional[RankingReplayBuffer] = None,
+        rollout_ranking_buffer: Optional[RankingReplayBuffer] = None,
+        target_ranking_buffer: Optional[CandidatePoolReplayBuffer] = None,
+        mc_return_buffer:  Optional[MCReturnReplayBuffer] = None,
+        teacher_ranking_buffer: Optional[RankingReplayBuffer] = None,
+        teacher_ranking_policy = None,
         tau:               float = 0.0,   # Boltzmann temperature; 0 = greedy
         verbose:           bool = False,
         reward_normalizer: Optional[RewardNormalizer] = None,
@@ -869,12 +1121,24 @@ class NNLearningPolicy(Policy):
         training_mode:     bool = False,  # True enables training-only wildcard candidate injection
         n_step_return:     int  = N_STEP_RETURN,  # n-step return length; 1=TD(0), 3=default
         use_action_context: bool = False,
+        ranking_reward_scale: float = 10.0,
+        rollout_ranking_every: int = 0,
+        rollout_ranking_horizon_minutes: float = 120.0,
+        rollout_ranking_candidates: int = 6,
+        rollout_ranking_scenarios: int = 1,
+        rollout_ranking_min_margin: float = 0.0,
     ):
         super().__init__(maintenance_enabled=config.allow_onsite_repairs)
 
         self.online_model       = online_model
         self.reward_calc_config = reward_calc_config
         self.replay_buffer      = replay_buffer
+        self.ranking_buffer     = ranking_buffer
+        self.rollout_ranking_buffer = rollout_ranking_buffer
+        self.target_ranking_buffer = target_ranking_buffer
+        self.mc_return_buffer   = mc_return_buffer
+        self.teacher_ranking_buffer = teacher_ranking_buffer
+        self.teacher_ranking_policy = teacher_ranking_policy
         self.gamma              = gamma
         self.config             = config
         self.depot_id           = depot_id
@@ -884,6 +1148,12 @@ class NNLearningPolicy(Policy):
         self.training_mode      = training_mode
         self.n_step_return      = n_step_return
         self.use_action_context = use_action_context
+        self.ranking_reward_scale = max(float(ranking_reward_scale), 1e-6)
+        self.rollout_ranking_every = int(max(0, rollout_ranking_every))
+        self.rollout_ranking_horizon_minutes = float(max(1.0, rollout_ranking_horizon_minutes))
+        self.rollout_ranking_candidates = int(max(2, rollout_ranking_candidates))
+        self.rollout_ranking_scenarios = int(max(1, rollout_ranking_scenarios))
+        self.rollout_ranking_min_margin = float(max(0.0, rollout_ranking_min_margin))
 
         # RewardCalculator: initialized lazily on the first get_best_action call
         # because we need the simulator's initial metrics to set the baseline.
@@ -893,6 +1163,8 @@ class NNLearningPolicy(Policy):
         # None until the first learning-phase decision.
         self._prev_post_encoded: Optional[dict] = None
         self._prev_time: Optional[float] = None
+        self._prev_candidate_encodings: Optional[list] = None
+        self._prev_chosen_idx: Optional[int] = None
 
         # Decision counter — used for verbose debug output.
         self._decision_count: int = 0
@@ -952,6 +1224,19 @@ class NNLearningPolicy(Policy):
         self._maintenance_beats_rebalancing: int = 0
         self._action_type_counts: dict = {}
         self._candidate_type_counts: dict = {}
+        self._teacher_rank_decisions: int = 0
+        self._teacher_top1_match: int = 0
+        self._teacher_top3_match: int = 0
+        self._teacher_margins: list = []
+        self._nn_margins: list = []
+        self._rollout_rank_decisions: int = 0
+        self._rollout_rank_accepted: int = 0
+        self._rollout_top1_match: int = 0
+        self._rollout_top3_match: int = 0
+        self._rollout_margins: list = []
+        self._rollout_scores_mean: list = []
+        self._rollout_scores_std: list = []
+        self._simulator = None
 
         # n-step return buffer: sliding window of (enc_state, scaled_reward) pairs.
         # Transitions are not pushed to the replay buffer immediately; instead they
@@ -962,10 +1247,163 @@ class NNLearningPolicy(Policy):
         self._nstep_pending: deque = deque()
         self._nstep_pushed: int = 0       # full n-step transitions pushed this episode
         self._nstep_terminal: int = 0     # short terminal transitions pushed at flush
+        self._mc_episode_steps: list = []  # [(encoded S^x_t, raw reward r_{t+1})]
 
-    # init_sim is intentionally not overridden: generate_candidates() is a
-    # standalone function that reads directly from sim.State and sim.Vehicle,
-    # so no policy-level initialisation is needed before calling it.
+    def init_sim(self, simulator) -> None:
+        self._simulator = simulator
+
+    def _clone_simulator_for_rollout(self):
+        if self._simulator is None:
+            return None
+        root_sim = self._simulator
+        clone_sim = root_sim.sloppycopy()
+        self._simulator = root_sim
+        for attr in ("operation_logger",):
+            logger = getattr(clone_sim, attr, None) or getattr(clone_sim.state, attr, None)
+            if logger is not None:
+                logger.enabled = False
+        return clone_sim
+
+    def _make_rollout_reward_calculator(self, clone_sim) -> RewardCalculator:
+        reward_calc = RewardCalculator(
+            config=copy.deepcopy(self.reward_calc_config),
+            gamma=self.gamma,
+        )
+        reward_calc.compute_step_reward(clone_sim.state.metrics)
+        return reward_calc
+
+    @staticmethod
+    def _apply_action_to_clone(clone_sim, clone_vehicle, action) -> None:
+        state = clone_sim.state
+        origin_id = clone_vehicle.location.id
+        current_time = state.time
+        refill_time = state.do_action(action, clone_vehicle, current_time)
+        travel_time = state.get_vehicle_travel_time(origin_id, action.next_location)
+        if hasattr(action, "get_action_time"):
+            action_time = action.get_action_time(travel_time) + refill_time
+        else:
+            action_time = travel_time + refill_time + getattr(action, "maintenance_time", 0.0)
+        arrival_time = current_time + action_time
+        clone_sim.add_event(sim.VehicleArrival(arrival_time, clone_vehicle))
+        clone_vehicle.eta = arrival_time
+
+    def _score_candidate_by_short_rollout(self, state, vehicle, sim_action, rng_seed=None, rng2_seed=None) -> float:
+        clone_sim = self._clone_simulator_for_rollout()
+        if clone_sim is None:
+            return -float("inf")
+        clone_state = clone_sim.state
+        if rng_seed is not None:
+            clone_state.rng = np.random.default_rng(rng_seed)
+        if rng2_seed is not None:
+            clone_state.rng2 = np.random.default_rng(rng2_seed)
+
+        clone_vehicle = clone_state.get_vehicle_by_id(vehicle.id)
+        base_policy = GreedyMaintenancePolicy() if self.maintenance_enabled else GreedyPolicy()
+        base_policy.maintenance_enabled = self.maintenance_enabled
+        base_policy.init_sim(clone_sim)
+        for clone_v in clone_state.get_vehicles():
+            clone_v.policy = base_policy
+
+        reward_calc = self._make_rollout_reward_calculator(clone_sim)
+        self._apply_action_to_clone(clone_sim, clone_vehicle, sim_action)
+
+        target_time = clone_state.time + self.rollout_ranking_horizon_minutes
+        accumulated_reward = 0.0
+        while clone_sim.event_queue:
+            if clone_sim.event_queue[0].time > target_time:
+                clone_state.time = target_time
+                break
+            clone_sim.single_step()
+            step_reward = (
+                reward_calc.compute_step_reward(clone_state.metrics)
+                + reward_calc.compute_fleet_penalty(clone_state)
+            )
+            time_elapsed = clone_state.time - state.time
+            discount = self.gamma ** max(time_elapsed / 60.0, 0.0)
+            accumulated_reward += discount * step_reward
+        return float(accumulated_reward)
+
+    def _maybe_add_short_rollout_ranking_sample(self, state, vehicle, valid_pairs, post_encodings, values) -> None:
+        if self.rollout_ranking_buffer is None or self.rollout_ranking_every <= 0:
+            return
+        if self._simulator is None or len(valid_pairs) < 2:
+            return
+        if self._decision_count % self.rollout_ranking_every != 0:
+            return
+
+        subset_indices = sorted(
+            range(len(values)),
+            key=lambda i: values[i],
+            reverse=True,
+        )[:min(self.rollout_ranking_candidates, len(values))]
+        if len(subset_indices) < 2:
+            return
+
+        rng = getattr(self._simulator.state, "rng", None)
+        if rng is None:
+            seeds = [(None, None)] * self.rollout_ranking_scenarios
+        else:
+            seeds = [
+                (int(rng.integers(0, 2**31)), int(rng.integers(0, 2**31)))
+                for _ in range(self.rollout_ranking_scenarios)
+            ]
+
+        rollout_scores = []
+        for idx in subset_indices:
+            sim_action = valid_pairs[idx][1]
+            scenario_scores = [
+                self._score_candidate_by_short_rollout(
+                    state,
+                    vehicle,
+                    sim_action,
+                    rng_seed=s1,
+                    rng2_seed=s2,
+                )
+                for s1, s2 in seeds
+            ]
+            finite_scores = [s for s in scenario_scores if math.isfinite(s)]
+            rollout_scores.append(
+                sum(finite_scores) / len(finite_scores)
+                if finite_scores else -float("inf")
+            )
+
+        finite_rollout_scores = [s for s in rollout_scores if math.isfinite(s)]
+        if len(finite_rollout_scores) < 2:
+            return
+
+        self._rollout_rank_decisions += 1
+        sorted_local = sorted(range(len(rollout_scores)), key=lambda i: rollout_scores[i], reverse=True)
+        best_local = sorted_local[0]
+        second_local = sorted_local[1]
+        margin = rollout_scores[best_local] - rollout_scores[second_local]
+        self._rollout_margins.append(float(margin))
+        mean_score = sum(finite_rollout_scores) / len(finite_rollout_scores)
+        self._rollout_scores_mean.append(float(mean_score))
+        if len(finite_rollout_scores) > 1:
+            var = sum((s - mean_score) ** 2 for s in finite_rollout_scores) / (len(finite_rollout_scores) - 1)
+            self._rollout_scores_std.append(float(math.sqrt(max(var, 0.0))))
+
+        nn_best_global = int(max(range(len(values)), key=lambda i: values[i]))
+        rollout_best_global = subset_indices[best_local]
+        if nn_best_global == rollout_best_global:
+            self._rollout_top1_match += 1
+        rollout_top3_global = {subset_indices[i] for i in sorted_local[:3]}
+        if nn_best_global in rollout_top3_global:
+            self._rollout_top3_match += 1
+
+        if margin < self.rollout_ranking_min_margin:
+            return
+
+        subset_encodings = [post_encodings[i] for i in subset_indices]
+        self.rollout_ranking_buffer.push(
+            candidate_encodings=subset_encodings,
+            chosen_idx=best_local,
+            reward_weight=1.0,
+        )
+        self._rollout_rank_accepted += 1
+
+    # generate_candidates() is standalone, but sparse rollout-ranking needs the
+    # root simulator so it can clone short diagnostic branches.
 
     @staticmethod
     def _action_type(mdp_action) -> str:
@@ -1210,6 +1648,15 @@ class NNLearningPolicy(Policy):
             self._value_spreads.append(max(values) - min(values))
         if values:
             self._v_pred_values.append(sum(values) / len(values))
+        if self.target_ranking_buffer is not None and len(post_encodings) > 1:
+            self.target_ranking_buffer.push(post_encodings)
+        self._maybe_add_short_rollout_ranking_sample(
+            state=state,
+            vehicle=vehicle,
+            valid_pairs=valid_pairs,
+            post_encodings=post_encodings,
+            values=values,
+        )
 
         self._decision_count += 1
 
@@ -1236,6 +1683,48 @@ class NNLearningPolicy(Policy):
             self._nn_top1_chosen += 1
         top_mdp = valid_pairs[nn_top1_idx][0]
         chosen_mdp = valid_pairs[idx][0]
+
+        # Optional Linear-VFA teacher ranking. This stores the teacher's best
+        # candidate from the exact same NN candidate pool, then the training loop
+        # samples those pools as an auxiliary pairwise ranking loss.
+        if self.teacher_ranking_buffer is not None and self.teacher_ranking_policy is not None:
+            try:
+                teacher_values = _linear_teacher_score_actions(
+                    self.teacher_ranking_policy,
+                    state,
+                    vehicle,
+                    [sim_action for _, sim_action in valid_pairs],
+                )
+                if len(teacher_values) == len(valid_pairs) and len(teacher_values) > 1:
+                    teacher_best_idx = int(max(range(len(teacher_values)), key=lambda i: teacher_values[i]))
+                    self.teacher_ranking_buffer.push(
+                        candidate_encodings=post_encodings,
+                        chosen_idx=teacher_best_idx,
+                        reward_weight=1.0,
+                    )
+
+                    self._teacher_rank_decisions += 1
+                    if nn_top1_idx == teacher_best_idx:
+                        self._teacher_top1_match += 1
+
+                    teacher_top3 = sorted(
+                        range(len(teacher_values)),
+                        key=lambda i: teacher_values[i],
+                        reverse=True,
+                    )[:3]
+                    if nn_top1_idx in teacher_top3:
+                        self._teacher_top3_match += 1
+
+                    teacher_sorted = sorted(teacher_values, reverse=True)
+                    nn_sorted = sorted(values, reverse=True)
+                    if len(teacher_sorted) > 1:
+                        self._teacher_margins.append(float(teacher_sorted[0] - teacher_sorted[1]))
+                    if len(nn_sorted) > 1:
+                        self._nn_margins.append(float(nn_sorted[0] - nn_sorted[1]))
+            except Exception as exc:
+                if self.verbose:
+                    print(f"  [TEACHER RANK] scoring failed: {str(exc)[:120]}")
+
         has_maint = any(self._is_maintenance_like(a) for a, _ in valid_pairs)
         has_rebal = any(self._is_rebalancing_like(a) for a, _ in valid_pairs)
         if has_maint:
@@ -1317,6 +1806,21 @@ class NNLearningPolicy(Policy):
             if self.reward_normalizer is not None:
                 self.reward_normalizer.update(scaled_r)
 
+            if (
+                self.ranking_buffer is not None
+                and self._prev_candidate_encodings is not None
+                and self._prev_chosen_idx is not None
+            ):
+                # Rewards are penalties, so values near 0 are higher-quality
+                # chosen actions. Large penalties still contribute, but weakly.
+                reward_weight = math.exp(min(float(scaled_r), 0.0) / self.ranking_reward_scale)
+                reward_weight = max(0.05, min(1.0, reward_weight))
+                self.ranking_buffer.push(
+                    candidate_encodings=self._prev_candidate_encodings,
+                    chosen_idx=self._prev_chosen_idx,
+                    reward_weight=reward_weight,
+                )
+
             # --- n-step return accumulation (sliding window) ---
             # Append (S^x_{k-1}, r_k) to the pending window.
             # Once the window holds N_STEP_RETURN entries, fold the oldest n
@@ -1325,6 +1829,8 @@ class NNLearningPolicy(Policy):
             #   push (S^x_0, G_n, S^x_n, n, done=False)
             # Then slide the window by popping the oldest entry.
             self._nstep_pending.append((self._prev_post_encoded, scaled_r))
+            if self.mc_return_buffer is not None:
+                self._mc_episode_steps.append((self._prev_post_encoded, scaled_r))
             if len(self._nstep_pending) >= self.n_step_return:
                 accum_r = sum(
                     self.gamma ** i * self._nstep_pending[i][1]
@@ -1344,6 +1850,8 @@ class NNLearningPolicy(Policy):
         # --- Step 7: store chosen post-decision state for next epoch ---
         self._prev_post_encoded = chosen_post_encoded
         self._prev_time         = mdp_state.time
+        self._prev_candidate_encodings = post_encodings
+        self._prev_chosen_idx = idx
         
         # 🔴 NEW: Save what action we actually took, so we can get rewarded for it next epoch
         # PostDecisionState.apply returns (new_state, duration, executed_action)
@@ -1378,6 +1886,8 @@ class NNLearningPolicy(Policy):
 
             # Append the terminal step to the pending window.
             self._nstep_pending.append((self._prev_post_encoded, scaled_r))
+            if self.mc_return_buffer is not None:
+                self._mc_episode_steps.append((self._prev_post_encoded, scaled_r))
 
             # Drain all remaining pending entries as terminal transitions (done=True).
             # Each entry at position i gets an accumulated return from i to the end
@@ -1401,6 +1911,18 @@ class NNLearningPolicy(Policy):
                 )
                 self._nstep_terminal += 1
 
+            if self.mc_return_buffer is not None and self._mc_episode_steps:
+                return_to_go = 0.0
+                n_from_end = 0
+                for enc, reward in reversed(self._mc_episode_steps):
+                    n_from_end += 1
+                    return_to_go = reward + self.gamma * return_to_go
+                    self.mc_return_buffer.push(
+                        encoded_state=enc,
+                        return_to_go=return_to_go,
+                        n_steps=n_from_end,
+                    )
+
             print(
                 f"  [N-STEP] n={self.n_step_return} | "
                 f"full pushes={self._nstep_pushed} | "
@@ -1411,8 +1933,11 @@ class NNLearningPolicy(Policy):
         # Reset for the next episode
         self._prev_post_encoded = None
         self._prev_time         = None
+        self._prev_candidate_encodings = None
+        self._prev_chosen_idx = None
         self._reward_calc       = None
         self._nstep_pending.clear()
+        self._mc_episode_steps.clear()
         self._prev_executed_action = None  # 🔴 NEW: Clear the stored action
 
 
@@ -1605,6 +2130,36 @@ def train_nn_rollout(
     teacher_prefit_lr:       float = 1e-4,
     candidate_wildcards:     bool = True,
     max_updates_per_episode: int = 400,
+    ranking_loss_lambda:     float = 0.0,
+    ranking_margin:          float = 0.1,
+    ranking_buffer_size:     int = 10_000,
+    ranking_batch_size:      int = 16,
+    ranking_max_others:      int = 16,
+    ranking_reward_scale:    float = 10.0,
+    rollout_ranking_lambda:  float = 0.0,
+    rollout_ranking_margin:  float = 0.1,
+    rollout_ranking_buffer_size: int = 5_000,
+    rollout_ranking_batch_sets: int = 8,
+    rollout_ranking_max_others: int = 8,
+    rollout_ranking_every: int = 25,
+    rollout_ranking_horizon_minutes: float = 120.0,
+    rollout_ranking_candidates: int = 6,
+    rollout_ranking_scenarios: int = 1,
+    rollout_ranking_min_margin: float = 0.0,
+    linear_teacher_ranking_path: Optional[str] = None,
+    teacher_ranking_lambda:  float = 0.0,
+    teacher_ranking_margin:  float = 0.1,
+    teacher_ranking_buffer_size: int = 10_000,
+    teacher_ranking_batch_sets: int = 16,
+    teacher_ranking_max_others: int = 16,
+    target_ranking_lambda:  float = 0.0,
+    target_ranking_margin:  float = 0.1,
+    target_ranking_buffer_size: int = 10_000,
+    target_ranking_batch_sets: int = 16,
+    target_ranking_max_others: int = 16,
+    mc_return_loss_lambda: float = 0.0,
+    mc_return_buffer_size: int = 50_000,
+    mc_return_batch_size: int = 128,
 ) -> nn.Module:
     """
     Run the full episodic NN training loop.
@@ -1666,6 +2221,27 @@ def train_nn_rollout(
     # to contribute to gradient updates in later episodes.
     optimizer         = None
     replay_buffer     = ReplayBuffer(max_size=buffer_size)
+    ranking_buffer    = (
+        RankingReplayBuffer(max_size=ranking_buffer_size)
+        if ranking_loss_lambda > 0.0 else None
+    )
+    rollout_ranking_buffer = (
+        RankingReplayBuffer(max_size=rollout_ranking_buffer_size)
+        if rollout_ranking_lambda > 0.0 else None
+    )
+    target_ranking_buffer = (
+        CandidatePoolReplayBuffer(max_size=target_ranking_buffer_size)
+        if target_ranking_lambda > 0.0 else None
+    )
+    mc_return_buffer = (
+        MCReturnReplayBuffer(max_size=mc_return_buffer_size)
+        if mc_return_loss_lambda > 0.0 else None
+    )
+    teacher_ranking_buffer = (
+        RankingReplayBuffer(max_size=teacher_ranking_buffer_size)
+        if teacher_ranking_lambda > 0.0 and linear_teacher_ranking_path else None
+    )
+    teacher_ranking_policy = None
     reward_normalizer = RewardNormalizer(
         mode=reward_norm_mode,
         fixed_scale=fixed_reward_scale,
@@ -1724,6 +2300,15 @@ def train_nn_rollout(
         depot_id = _probe.state.get_closest_depot(_probe_vehicles[0]) if _probe_vehicles else None
         print(f"  Depot ID          : {depot_id!r}  (auto-resolved from instance)")
 
+    if teacher_ranking_buffer is not None:
+        from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
+        teacher_ranking_policy = LinearVFAPolicy.load(
+            Path(linear_teacher_ranking_path),
+            maintenance_enabled=_maintenance,
+            config=config,
+        )
+        print(f"  Linear teacher ranking: {linear_teacher_ranking_path}")
+
     prefit_info = {"sets": 0, "loss": 0.0, "accuracy": 0.0}
     if linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0:
         prefit_info = _run_linear_teacher_prefit(
@@ -1778,6 +2363,16 @@ def train_nn_rollout(
         _encoder_suffix += "_nowild"
     if max_updates_per_episode != 400:
         _encoder_suffix += f"_upd{max_updates_per_episode}"
+    if ranking_loss_lambda > 0.0:
+        _encoder_suffix += f"_rank{_tag_float(ranking_loss_lambda)}"
+    if rollout_ranking_lambda > 0.0:
+        _encoder_suffix += f"_rrank{_tag_float(rollout_ranking_lambda)}"
+    if target_ranking_lambda > 0.0:
+        _encoder_suffix += f"_tgrank{_tag_float(target_ranking_lambda)}"
+    if mc_return_loss_lambda > 0.0:
+        _encoder_suffix += f"_mc{_tag_float(mc_return_loss_lambda)}"
+    if teacher_ranking_lambda > 0.0 and linear_teacher_ranking_path:
+        _encoder_suffix += f"_ltrank{_tag_float(teacher_ranking_lambda)}"
     if linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0:
         _encoder_suffix += f"_ltpref{teacher_prefit_episodes}e{teacher_prefit_steps}s"
     _base_label = (
@@ -1794,7 +2389,21 @@ def train_nn_rollout(
         "station_spotlights", "demand_horizon", "global_health",
         "candidate_wildcards",
         "max_updates_per_episode",
+        "ranking_loss_lambda", "ranking_margin", "ranking_buffer_size",
+        "ranking_loss", "td_loss",
+        "rollout_ranking_lambda", "rollout_ranking_buffer_size",
+        "rollout_ranking_loss", "rollout_rank_decisions",
+        "rollout_rank_accepted", "rollout_top1_match", "rollout_top3_match",
+        "rollout_margin_mean", "rollout_score_mean", "rollout_score_std",
+        "target_ranking_lambda", "target_ranking_buffer_size",
+        "target_ranking_loss", "target_top1_match", "target_top3_match",
+        "mc_return_loss_lambda", "mc_return_buffer_size", "mc_return_loss",
+        "mc_return_target_mean", "mc_return_pred_mean",
         "linear_teacher_prefit", "teacher_prefit_sets", "teacher_prefit_acc",
+        "linear_teacher_ranking", "teacher_ranking_lambda",
+        "teacher_ranking_buffer_size", "teacher_ranking_loss",
+        "teacher_top1_match", "teacher_top3_match",
+        "teacher_margin_mean", "nn_margin_mean",
         "service_level", "buffer_size", "n_updates", "elapsed_s",
         "mean_value_spread",  # max(V)-min(V) per decision; near 0 = NN not discriminating
         "mean_reward",        # raw step reward mean (un-normalized); scale check
@@ -1865,6 +2474,29 @@ def train_nn_rollout(
     print(f"  Polyak τ          : {polyak:.3f}  (for soft target updates, if enabled)")
     print(f"  Replay buffer     : {buffer_size:,}  |  batch: {batch_size}")
     print(f"  Max updates/ep    : {max_updates_per_episode}")
+    print(
+        f"  Ranking loss      : lambda={ranking_loss_lambda:g} "
+        f"margin={ranking_margin:g} buffer={ranking_buffer_size:,}"
+    )
+    print(
+        f"  Rollout ranking   : lambda={rollout_ranking_lambda:g} "
+        f"every={rollout_ranking_every} horizon={rollout_ranking_horizon_minutes:g}m "
+        f"cands={rollout_ranking_candidates} scenarios={rollout_ranking_scenarios}"
+    )
+    print(
+        f"  Target ranking    : lambda={target_ranking_lambda:g} "
+        f"margin={target_ranking_margin:g} buffer={target_ranking_buffer_size:,}"
+    )
+    print(
+        f"  MC return loss    : lambda={mc_return_loss_lambda:g} "
+        f"buffer={mc_return_buffer_size:,} batch={mc_return_batch_size}"
+    )
+    print(
+        f"  Teacher ranking   : lambda={teacher_ranking_lambda:g} "
+        f"margin={teacher_ranking_margin:g} "
+        f"buffer={teacher_ranking_buffer_size:,} "
+        f"path={linear_teacher_ranking_path}"
+    )
     print(f"  Reward norm       : {reward_norm_mode}"
           f"{f'  scale={fixed_reward_scale:g}' if reward_norm_mode == 'fixed' else ''}")
     print(f"  Station ID embed  : {use_station_id_embedding}"
@@ -1907,6 +2539,12 @@ def train_nn_rollout(
             online_model=online_model,
             reward_calc_config=reward_calc_config,
             replay_buffer=replay_buffer,
+            ranking_buffer=ranking_buffer,
+            rollout_ranking_buffer=rollout_ranking_buffer,
+            target_ranking_buffer=target_ranking_buffer,
+            mc_return_buffer=mc_return_buffer,
+            teacher_ranking_buffer=teacher_ranking_buffer,
+            teacher_ranking_policy=teacher_ranking_policy,
             gamma=gamma,
             config=config,
             depot_id=depot_id,
@@ -1917,6 +2555,12 @@ def train_nn_rollout(
             training_mode=candidate_wildcards,
             n_step_return=n_step_return,
             use_action_context=use_action_context,
+            ranking_reward_scale=ranking_reward_scale,
+            rollout_ranking_every=rollout_ranking_every,
+            rollout_ranking_horizon_minutes=rollout_ranking_horizon_minutes,
+            rollout_ranking_candidates=rollout_ranking_candidates,
+            rollout_ranking_scenarios=rollout_ranking_scenarios,
+            rollout_ranking_min_margin=rollout_ranking_min_margin,
         )
         greedy_policy = GreedyMaintenancePolicy() if _maintenance else GreedyPolicy()
         episode_policy = NNEpisodeTrainingPolicy(
@@ -1953,6 +2597,16 @@ def train_nn_rollout(
         # We do one gradient pass per episode rather than per transition.
         # This keeps training fast while still leveraging the diversity of the buffer.
         episode_losses     = []
+        episode_td_losses = []
+        episode_ranking_losses = []
+        episode_rollout_ranking_losses = []
+        episode_teacher_ranking_losses = []
+        episode_target_ranking_losses = []
+        episode_target_top1_matches = []
+        episode_target_top3_matches = []
+        episode_mc_return_losses = []
+        episode_mc_return_target_means = []
+        episode_mc_return_pred_means = []
         episode_grad_norms_before = []
         episode_grad_norms_after  = []
         n_updates          = 0   # tracked for CSV logging
@@ -1988,8 +2642,8 @@ def train_nn_rollout(
                 # Collect debug info on the final update step of a diagnostic episode.
                 want_debug = (update_i == n_updates - 1)
 
-                # Forward: online model; backward: clip gradients; step
-                loss, debug_info = _compute_td_loss(
+                # Forward: online model; optional ranking loss; backward; step
+                td_loss, debug_info = _compute_td_loss(
                     online_model=online_model,
                     target_model=target_model,
                     batch=batch,
@@ -1999,6 +2653,88 @@ def train_nn_rollout(
                 )
                 if debug_info is not None:
                     last_debug_info = debug_info
+
+                ranking_loss = torch.zeros((), dtype=torch.float32, device=device)
+                if (
+                    ranking_loss_lambda > 0.0
+                    and ranking_buffer is not None
+                    and len(ranking_buffer) > 0
+                ):
+                    ranking_batch = ranking_buffer.sample(ranking_batch_size)
+                    ranking_loss = _compute_ranking_loss(
+                        online_model=online_model,
+                        ranking_batch=ranking_batch,
+                        margin=ranking_margin,
+                        max_others=ranking_max_others,
+                    )
+
+                rollout_ranking_loss = torch.zeros((), dtype=torch.float32, device=device)
+                if (
+                    rollout_ranking_lambda > 0.0
+                    and rollout_ranking_buffer is not None
+                    and len(rollout_ranking_buffer) > 0
+                ):
+                    rollout_ranking_batch = rollout_ranking_buffer.sample(rollout_ranking_batch_sets)
+                    rollout_ranking_loss = _compute_ranking_loss(
+                        online_model=online_model,
+                        ranking_batch=rollout_ranking_batch,
+                        margin=rollout_ranking_margin,
+                        max_others=rollout_ranking_max_others,
+                    )
+
+                teacher_ranking_loss = torch.zeros((), dtype=torch.float32, device=device)
+                if (
+                    teacher_ranking_lambda > 0.0
+                    and teacher_ranking_buffer is not None
+                    and len(teacher_ranking_buffer) > 0
+                ):
+                    teacher_ranking_batch = teacher_ranking_buffer.sample(teacher_ranking_batch_sets)
+                    teacher_ranking_loss = _compute_ranking_loss(
+                        online_model=online_model,
+                        ranking_batch=teacher_ranking_batch,
+                        margin=teacher_ranking_margin,
+                        max_others=teacher_ranking_max_others,
+                    )
+
+                target_ranking_loss = torch.zeros((), dtype=torch.float32, device=device)
+                target_ranking_info = None
+                if (
+                    target_ranking_lambda > 0.0
+                    and target_ranking_buffer is not None
+                    and len(target_ranking_buffer) > 0
+                ):
+                    target_ranking_batch = target_ranking_buffer.sample(target_ranking_batch_sets)
+                    target_ranking_loss, target_ranking_info = _compute_target_ranking_loss(
+                        online_model=online_model,
+                        target_model=target_model,
+                        pool_batch=target_ranking_batch,
+                        margin=target_ranking_margin,
+                        max_others=target_ranking_max_others,
+                    )
+
+                mc_return_loss = torch.zeros((), dtype=torch.float32, device=device)
+                mc_return_info = None
+                if (
+                    mc_return_loss_lambda > 0.0
+                    and mc_return_buffer is not None
+                    and len(mc_return_buffer) > 0
+                ):
+                    mc_return_batch = mc_return_buffer.sample(mc_return_batch_size)
+                    mc_return_loss, mc_return_info = _compute_mc_return_loss(
+                        online_model=online_model,
+                        mc_batch=mc_return_batch,
+                        gamma=gamma,
+                        reward_normalizer=reward_normalizer,
+                    )
+
+                loss = (
+                    td_loss
+                    + ranking_loss_lambda * ranking_loss
+                    + rollout_ranking_lambda * rollout_ranking_loss
+                    + teacher_ranking_lambda * teacher_ranking_loss
+                    + target_ranking_lambda * target_ranking_loss
+                    + mc_return_loss_lambda * mc_return_loss
+                )
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -2012,6 +2748,18 @@ def train_nn_rollout(
                 episode_grad_norms_after.append(_gn_after)
                 optimizer.step()
                 episode_losses.append(loss.item())
+                episode_td_losses.append(td_loss.item())
+                episode_ranking_losses.append(ranking_loss.item())
+                episode_rollout_ranking_losses.append(rollout_ranking_loss.item())
+                episode_teacher_ranking_losses.append(teacher_ranking_loss.item())
+                episode_target_ranking_losses.append(target_ranking_loss.item())
+                if target_ranking_info is not None:
+                    episode_target_top1_matches.append(float(target_ranking_info["top1_match"]))
+                    episode_target_top3_matches.append(float(target_ranking_info["top3_match"]))
+                episode_mc_return_losses.append(mc_return_loss.item())
+                if mc_return_info is not None:
+                    episode_mc_return_target_means.append(float(mc_return_info["target_mean"]))
+                    episode_mc_return_pred_means.append(float(mc_return_info["pred_mean"]))
 
                 # Polyak update every gradient step (standard SAC/TD3 schedule).
                 # Per-step τ=0.005 keeps the target responsive without losing
@@ -2026,6 +2774,32 @@ def train_nn_rollout(
                             _tp.data.mul_(1.0 - polyak).add_(polyak * _op.data)
                             
         mean_loss = sum(episode_losses) / max(len(episode_losses), 1)
+        mean_td_loss = sum(episode_td_losses) / max(len(episode_td_losses), 1)
+        mean_ranking_loss = sum(episode_ranking_losses) / max(len(episode_ranking_losses), 1)
+        mean_rollout_ranking_loss = (
+            sum(episode_rollout_ranking_losses) / max(len(episode_rollout_ranking_losses), 1)
+        )
+        mean_teacher_ranking_loss = (
+            sum(episode_teacher_ranking_losses) / max(len(episode_teacher_ranking_losses), 1)
+        )
+        mean_target_ranking_loss = (
+            sum(episode_target_ranking_losses) / max(len(episode_target_ranking_losses), 1)
+        )
+        mean_target_top1_match = (
+            sum(episode_target_top1_matches) / max(len(episode_target_top1_matches), 1)
+        )
+        mean_target_top3_match = (
+            sum(episode_target_top3_matches) / max(len(episode_target_top3_matches), 1)
+        )
+        mean_mc_return_loss = (
+            sum(episode_mc_return_losses) / max(len(episode_mc_return_losses), 1)
+        )
+        mean_mc_return_target = (
+            sum(episode_mc_return_target_means) / max(len(episode_mc_return_target_means), 1)
+        )
+        mean_mc_return_pred = (
+            sum(episode_mc_return_pred_means) / max(len(episode_mc_return_pred_means), 1)
+        )
         mean_grad_norm_before = (
             round(sum(episode_grad_norms_before) / max(len(episode_grad_norms_before), 1), 4)
             if episode_grad_norms_before else 0.0
@@ -2287,6 +3061,30 @@ def train_nn_rollout(
                     "teacher_prefit_steps":    teacher_prefit_steps,
                     "teacher_prefit_sets":     int(prefit_info.get("sets", 0)),
                     "teacher_prefit_accuracy": float(prefit_info.get("accuracy", 0.0)),
+                    "linear_teacher_ranking_path": linear_teacher_ranking_path,
+                    "teacher_ranking_lambda": teacher_ranking_lambda,
+                    "teacher_ranking_margin": teacher_ranking_margin,
+                    "teacher_ranking_buffer_size": teacher_ranking_buffer_size,
+                    "teacher_ranking_batch_sets": teacher_ranking_batch_sets,
+                    "teacher_ranking_max_others": teacher_ranking_max_others,
+                    "rollout_ranking_lambda": rollout_ranking_lambda,
+                    "rollout_ranking_margin": rollout_ranking_margin,
+                    "rollout_ranking_buffer_size": rollout_ranking_buffer_size,
+                    "rollout_ranking_batch_sets": rollout_ranking_batch_sets,
+                    "rollout_ranking_max_others": rollout_ranking_max_others,
+                    "rollout_ranking_every": rollout_ranking_every,
+                    "rollout_ranking_horizon_minutes": rollout_ranking_horizon_minutes,
+                    "rollout_ranking_candidates": rollout_ranking_candidates,
+                    "rollout_ranking_scenarios": rollout_ranking_scenarios,
+                    "rollout_ranking_min_margin": rollout_ranking_min_margin,
+                    "target_ranking_lambda": target_ranking_lambda,
+                    "target_ranking_margin": target_ranking_margin,
+                    "target_ranking_buffer_size": target_ranking_buffer_size,
+                    "target_ranking_batch_sets": target_ranking_batch_sets,
+                    "target_ranking_max_others": target_ranking_max_others,
+                    "mc_return_loss_lambda": mc_return_loss_lambda,
+                    "mc_return_buffer_size": mc_return_buffer_size,
+                    "mc_return_batch_size": mc_return_batch_size,
                     "best_greedy_sl":       best_greedy_sl,
                 }, best_greedy_path)
                 print(f"  -> New best greedy SL={best_greedy_sl:.4f} — saved to {best_greedy_path.name}")
@@ -2371,6 +3169,35 @@ def train_nn_rollout(
             / max(len(nn_learning._maintenance_minus_rebalancing_gaps), 1) * 100,
             1,
         )
+        teacher_rank_decisions = max(nn_learning._teacher_rank_decisions, 1)
+        teacher_top1_match = round(
+            nn_learning._teacher_top1_match / teacher_rank_decisions * 100,
+            1,
+        )
+        teacher_top3_match = round(
+            nn_learning._teacher_top3_match / teacher_rank_decisions * 100,
+            1,
+        )
+        teacher_margin_mean = round(
+            _stat.mean(nn_learning._teacher_margins), 6
+        ) if nn_learning._teacher_margins else 0.0
+        nn_margin_mean = round(
+            _stat.mean(nn_learning._nn_margins), 6
+        ) if nn_learning._nn_margins else 0.0
+        rollout_rank_decisions = nn_learning._rollout_rank_decisions
+        rollout_rank_accepted = nn_learning._rollout_rank_accepted
+        rollout_denom = max(rollout_rank_decisions, 1)
+        rollout_top1_match = round(nn_learning._rollout_top1_match / rollout_denom * 100, 1)
+        rollout_top3_match = round(nn_learning._rollout_top3_match / rollout_denom * 100, 1)
+        rollout_margin_mean = round(
+            _stat.mean(nn_learning._rollout_margins), 6
+        ) if nn_learning._rollout_margins else 0.0
+        rollout_score_mean = round(
+            _stat.mean(nn_learning._rollout_scores_mean), 6
+        ) if nn_learning._rollout_scores_mean else 0.0
+        rollout_score_std = round(
+            _stat.mean(nn_learning._rollout_scores_std), 6
+        ) if nn_learning._rollout_scores_std else 0.0
 
         def _entropy(counts: dict) -> float:
             total = sum(counts.values())
@@ -2405,9 +3232,42 @@ def train_nn_rollout(
             "global_health":     int(use_global_health),
             "candidate_wildcards": int(candidate_wildcards),
             "max_updates_per_episode": max_updates_per_episode,
+            "ranking_loss_lambda": ranking_loss_lambda,
+            "ranking_margin": ranking_margin,
+            "ranking_buffer_size": len(ranking_buffer) if ranking_buffer is not None else 0,
+            "ranking_loss": round(mean_ranking_loss, 6),
+            "td_loss": round(mean_td_loss, 6),
+            "rollout_ranking_lambda": rollout_ranking_lambda,
+            "rollout_ranking_buffer_size": len(rollout_ranking_buffer) if rollout_ranking_buffer is not None else 0,
+            "rollout_ranking_loss": round(mean_rollout_ranking_loss, 6),
+            "rollout_rank_decisions": rollout_rank_decisions,
+            "rollout_rank_accepted": rollout_rank_accepted,
+            "rollout_top1_match": rollout_top1_match,
+            "rollout_top3_match": rollout_top3_match,
+            "rollout_margin_mean": rollout_margin_mean,
+            "rollout_score_mean": rollout_score_mean,
+            "rollout_score_std": rollout_score_std,
+            "target_ranking_lambda": target_ranking_lambda,
+            "target_ranking_buffer_size": len(target_ranking_buffer) if target_ranking_buffer is not None else 0,
+            "target_ranking_loss": round(mean_target_ranking_loss, 6),
+            "target_top1_match": round(mean_target_top1_match * 100, 1),
+            "target_top3_match": round(mean_target_top3_match * 100, 1),
+            "mc_return_loss_lambda": mc_return_loss_lambda,
+            "mc_return_buffer_size": len(mc_return_buffer) if mc_return_buffer is not None else 0,
+            "mc_return_loss": round(mean_mc_return_loss, 6),
+            "mc_return_target_mean": round(mean_mc_return_target, 6),
+            "mc_return_pred_mean": round(mean_mc_return_pred, 6),
             "linear_teacher_prefit": int(bool(linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0)),
             "teacher_prefit_sets": int(prefit_info.get("sets", 0)),
             "teacher_prefit_acc": round(float(prefit_info.get("accuracy", 0.0)), 4),
+            "linear_teacher_ranking": int(bool(linear_teacher_ranking_path and teacher_ranking_lambda > 0.0)),
+            "teacher_ranking_lambda": teacher_ranking_lambda,
+            "teacher_ranking_buffer_size": len(teacher_ranking_buffer) if teacher_ranking_buffer is not None else 0,
+            "teacher_ranking_loss": round(mean_teacher_ranking_loss, 6),
+            "teacher_top1_match": teacher_top1_match,
+            "teacher_top3_match": teacher_top3_match,
+            "teacher_margin_mean": teacher_margin_mean,
+            "nn_margin_mean": nn_margin_mean,
             "service_level":    round(sl,           4),
             "buffer_size":      len(replay_buffer),
             "n_updates":        n_updates,
@@ -2483,11 +3343,41 @@ def train_nn_rollout(
                 "use_global_health":     use_global_health,
                 "candidate_wildcards":   candidate_wildcards,
                 "max_updates_per_episode": max_updates_per_episode,
+                "ranking_loss_lambda":    ranking_loss_lambda,
+                "ranking_margin":         ranking_margin,
+                "ranking_buffer_size":    ranking_buffer_size,
+                "ranking_batch_size":     ranking_batch_size,
+                "ranking_max_others":     ranking_max_others,
+                "ranking_reward_scale":   ranking_reward_scale,
+                "rollout_ranking_lambda": rollout_ranking_lambda,
+                "rollout_ranking_margin": rollout_ranking_margin,
+                "rollout_ranking_buffer_size": rollout_ranking_buffer_size,
+                "rollout_ranking_batch_sets": rollout_ranking_batch_sets,
+                "rollout_ranking_max_others": rollout_ranking_max_others,
+                "rollout_ranking_every": rollout_ranking_every,
+                "rollout_ranking_horizon_minutes": rollout_ranking_horizon_minutes,
+                "rollout_ranking_candidates": rollout_ranking_candidates,
+                "rollout_ranking_scenarios": rollout_ranking_scenarios,
+                "rollout_ranking_min_margin": rollout_ranking_min_margin,
+                "target_ranking_lambda": target_ranking_lambda,
+                "target_ranking_margin": target_ranking_margin,
+                "target_ranking_buffer_size": target_ranking_buffer_size,
+                "target_ranking_batch_sets": target_ranking_batch_sets,
+                "target_ranking_max_others": target_ranking_max_others,
+                "mc_return_loss_lambda": mc_return_loss_lambda,
+                "mc_return_buffer_size": mc_return_buffer_size,
+                "mc_return_batch_size": mc_return_batch_size,
                 "linear_teacher_prefit_path": linear_teacher_prefit_path,
                 "teacher_prefit_episodes": teacher_prefit_episodes,
                 "teacher_prefit_steps":    teacher_prefit_steps,
                 "teacher_prefit_sets":     int(prefit_info.get("sets", 0)),
                 "teacher_prefit_accuracy": float(prefit_info.get("accuracy", 0.0)),
+                "linear_teacher_ranking_path": linear_teacher_ranking_path,
+                "teacher_ranking_lambda": teacher_ranking_lambda,
+                "teacher_ranking_margin": teacher_ranking_margin,
+                "teacher_ranking_buffer_size": teacher_ranking_buffer_size,
+                "teacher_ranking_batch_sets": teacher_ranking_batch_sets,
+                "teacher_ranking_max_others": teacher_ranking_max_others,
             }, ck_path)
             print(f"  -> Checkpoint saved -> {ck_path}")
 
@@ -2517,11 +3407,41 @@ def train_nn_rollout(
         "use_global_health":    use_global_health,
         "candidate_wildcards":  candidate_wildcards,
         "max_updates_per_episode": max_updates_per_episode,
+        "ranking_loss_lambda": ranking_loss_lambda,
+        "ranking_margin":      ranking_margin,
+        "ranking_buffer_size": ranking_buffer_size,
+        "ranking_batch_size":  ranking_batch_size,
+        "ranking_max_others":  ranking_max_others,
+        "ranking_reward_scale": ranking_reward_scale,
+        "rollout_ranking_lambda": rollout_ranking_lambda,
+        "rollout_ranking_margin": rollout_ranking_margin,
+        "rollout_ranking_buffer_size": rollout_ranking_buffer_size,
+        "rollout_ranking_batch_sets": rollout_ranking_batch_sets,
+        "rollout_ranking_max_others": rollout_ranking_max_others,
+        "rollout_ranking_every": rollout_ranking_every,
+        "rollout_ranking_horizon_minutes": rollout_ranking_horizon_minutes,
+        "rollout_ranking_candidates": rollout_ranking_candidates,
+        "rollout_ranking_scenarios": rollout_ranking_scenarios,
+        "rollout_ranking_min_margin": rollout_ranking_min_margin,
+        "target_ranking_lambda": target_ranking_lambda,
+        "target_ranking_margin": target_ranking_margin,
+        "target_ranking_buffer_size": target_ranking_buffer_size,
+        "target_ranking_batch_sets": target_ranking_batch_sets,
+        "target_ranking_max_others": target_ranking_max_others,
+        "mc_return_loss_lambda": mc_return_loss_lambda,
+        "mc_return_buffer_size": mc_return_buffer_size,
+        "mc_return_batch_size": mc_return_batch_size,
         "linear_teacher_prefit_path": linear_teacher_prefit_path,
         "teacher_prefit_episodes": teacher_prefit_episodes,
         "teacher_prefit_steps": teacher_prefit_steps,
         "teacher_prefit_sets": int(prefit_info.get("sets", 0)),
         "teacher_prefit_accuracy": float(prefit_info.get("accuracy", 0.0)),
+        "linear_teacher_ranking_path": linear_teacher_ranking_path,
+        "teacher_ranking_lambda": teacher_ranking_lambda,
+        "teacher_ranking_margin": teacher_ranking_margin,
+        "teacher_ranking_buffer_size": teacher_ranking_buffer_size,
+        "teacher_ranking_batch_sets": teacher_ranking_batch_sets,
+        "teacher_ranking_max_others": teacher_ranking_max_others,
     }, save_path)
 
     csv_file.close()
@@ -2731,6 +3651,57 @@ if __name__ == "__main__":
                         ))
     parser.add_argument("--max_updates_per_episode", type=int, default=400,
                         help="Hard cap on gradient updates after each episode.")
+    parser.add_argument("--ranking_loss_lambda", type=float, default=0.0,
+                        help="Weight for auxiliary same-decision candidate-ranking loss. 0 disables it.")
+    parser.add_argument("--ranking_margin", type=float, default=0.1,
+                        help="Margin used in softplus pairwise candidate-ranking loss.")
+    parser.add_argument("--ranking_buffer_size", type=int, default=10000,
+                        help="Max same-decision candidate pools stored for ranking loss.")
+    parser.add_argument("--ranking_batch_size", type=int, default=16,
+                        help="Ranking candidate pools sampled per gradient update.")
+    parser.add_argument("--ranking_max_others", type=int, default=16,
+                        help="Max non-chosen candidates compared per ranking sample; <=0 uses all.")
+    parser.add_argument("--ranking_reward_scale", type=float, default=10.0,
+                        help="Penalty scale for reward-weighting ranking samples.")
+    parser.add_argument("--rollout_ranking_lambda", type=float, default=0.0,
+                        help="Weight for sparse short-rollout candidate-ranking loss. 0 disables it.")
+    parser.add_argument("--rollout_ranking_margin", type=float, default=0.1,
+                        help="Margin used by sparse short-rollout ranking loss.")
+    parser.add_argument("--rollout_ranking_buffer_size", type=int, default=5000,
+                        help="Max rollout-labelled candidate pools stored.")
+    parser.add_argument("--rollout_ranking_batch_sets", type=int, default=8,
+                        help="Rollout-labelled candidate pools sampled per gradient update.")
+    parser.add_argument("--rollout_ranking_max_others", type=int, default=8,
+                        help="Max non-rollout-best candidates compared per rollout-ranking sample; <=0 uses all.")
+    parser.add_argument("--rollout_ranking_every", type=int, default=25,
+                        help="Collect one rollout-ranking label every N learning decisions; <=0 disables collection.")
+    parser.add_argument("--rollout_ranking_horizon_minutes", type=float, default=120.0,
+                        help="Short simulation horizon used to label rollout-ranking candidate pools.")
+    parser.add_argument("--rollout_ranking_candidates", type=int, default=6,
+                        help="Number of current-NN top candidates to simulate for each rollout-ranking label.")
+    parser.add_argument("--rollout_ranking_scenarios", type=int, default=1,
+                        help="Common-random-number rollout scenarios per candidate.")
+    parser.add_argument("--rollout_ranking_min_margin", type=float, default=0.0,
+                        help="Only store rollout labels when best-minus-second rollout score is at least this value.")
+    parser.add_argument("--target_ranking_lambda", type=float, default=0.0,
+                        help=(
+                            "Weight for target-network candidate-ranking loss. "
+                            "Ranks same-decision candidates by lagged V_target(S^x). 0 disables it."
+                        ))
+    parser.add_argument("--target_ranking_margin", type=float, default=0.1,
+                        help="Margin used by the target-network candidate-ranking loss.")
+    parser.add_argument("--target_ranking_buffer_size", type=int, default=10000,
+                        help="Max candidate pools stored for target-network ranking.")
+    parser.add_argument("--target_ranking_batch_sets", type=int, default=16,
+                        help="Candidate pools sampled per gradient update for target-network ranking.")
+    parser.add_argument("--target_ranking_max_others", type=int, default=16,
+                        help="Max non-target-best candidates compared per target-ranking sample; <=0 uses all.")
+    parser.add_argument("--mc_return_loss_lambda", type=float, default=0.0,
+                        help="Weight for terminal-anchored Monte Carlo return loss. 0 disables it.")
+    parser.add_argument("--mc_return_buffer_size", type=int, default=50000,
+                        help="Max realized return-to-go samples stored for MC return loss.")
+    parser.add_argument("--mc_return_batch_size", type=int, default=128,
+                        help="MC return samples per gradient update.")
     parser.add_argument("--linear_teacher_prefit", type=str, default=None,
                         help=(
                             "Path to a trained LinearVFAPolicy model. When set with "
@@ -2745,6 +3716,22 @@ if __name__ == "__main__":
                         help="Candidate sets per supervised prefit batch.")
     parser.add_argument("--teacher_prefit_lr", type=float, default=1e-4,
                         help="Learning rate for Linear-VFA teacher prefit.")
+    parser.add_argument("--linear_teacher_ranking", type=str, default=None,
+                        help=(
+                            "Path to a trained LinearVFAPolicy model used as an online "
+                            "candidate-ranking teacher during TD training. This is separate "
+                            "from --linear_teacher_prefit."
+                        ))
+    parser.add_argument("--teacher_ranking_lambda", type=float, default=0.0,
+                        help="Weight for online Linear-VFA teacher candidate-ranking loss. 0 disables it.")
+    parser.add_argument("--teacher_ranking_margin", type=float, default=0.1,
+                        help="Margin used by the online Linear-VFA teacher ranking loss.")
+    parser.add_argument("--teacher_ranking_buffer_size", type=int, default=10000,
+                        help="Max teacher-scored candidate pools stored for online teacher ranking.")
+    parser.add_argument("--teacher_ranking_batch_sets", type=int, default=16,
+                        help="Teacher-scored candidate pools sampled per gradient update.")
+    parser.add_argument("--teacher_ranking_max_others", type=int, default=16,
+                        help="Max non-teacher-best candidates compared per teacher ranking sample; <=0 uses all.")
     args = parser.parse_args()
 
     custom_reward = RewardConfig()
@@ -2787,12 +3774,38 @@ if __name__ == "__main__":
         print(f"  global_health:       {args.global_health}")
         print(f"  candidate_wildcards: {args.candidate_wildcards}")
         print(f"  max_updates/ep:      {args.max_updates_per_episode}")
+        print(
+            f"  ranking_loss:        lambda={args.ranking_loss_lambda:g} "
+            f"margin={args.ranking_margin:g} buffer={args.ranking_buffer_size}"
+        )
+        print(
+            f"  rollout_rank_loss:   lambda={args.rollout_ranking_lambda:g} "
+            f"every={args.rollout_ranking_every} "
+            f"horizon={args.rollout_ranking_horizon_minutes:g}m "
+            f"cands={args.rollout_ranking_candidates} "
+            f"scenarios={args.rollout_ranking_scenarios}"
+        )
+        print(
+            f"  target_rank_loss:    lambda={args.target_ranking_lambda:g} "
+            f"margin={args.target_ranking_margin:g} "
+            f"batch_sets={args.target_ranking_batch_sets}"
+        )
+        print(
+            f"  mc_return_loss:      lambda={args.mc_return_loss_lambda:g} "
+            f"buffer={args.mc_return_buffer_size} batch={args.mc_return_batch_size}"
+        )
         print(f"  linear_teacher:      {args.linear_teacher_prefit}")
         print(
             f"  teacher_prefit:      eps={args.teacher_prefit_episodes} "
             f"steps={args.teacher_prefit_steps} "
             f"batch_sets={args.teacher_prefit_batch_sets} "
             f"lr={args.teacher_prefit_lr:g}"
+        )
+        print(f"  teacher_ranking:     {args.linear_teacher_ranking}")
+        print(
+            f"  teacher_rank_loss:   lambda={args.teacher_ranking_lambda:g} "
+            f"margin={args.teacher_ranking_margin:g} "
+            f"batch_sets={args.teacher_ranking_batch_sets}"
         )
         print(f"  odometer_stats:      {args.odometer_stats}")
         print("="*50 + "\n")
@@ -2833,9 +3846,39 @@ if __name__ == "__main__":
             use_global_health        = args.global_health,
             candidate_wildcards      = args.candidate_wildcards,
             max_updates_per_episode  = args.max_updates_per_episode,
+            ranking_loss_lambda      = args.ranking_loss_lambda,
+            ranking_margin           = args.ranking_margin,
+            ranking_buffer_size      = args.ranking_buffer_size,
+            ranking_batch_size       = args.ranking_batch_size,
+            ranking_max_others       = args.ranking_max_others,
+            ranking_reward_scale     = args.ranking_reward_scale,
+            rollout_ranking_lambda   = args.rollout_ranking_lambda,
+            rollout_ranking_margin   = args.rollout_ranking_margin,
+            rollout_ranking_buffer_size = args.rollout_ranking_buffer_size,
+            rollout_ranking_batch_sets = args.rollout_ranking_batch_sets,
+            rollout_ranking_max_others = args.rollout_ranking_max_others,
+            rollout_ranking_every    = args.rollout_ranking_every,
+            rollout_ranking_horizon_minutes = args.rollout_ranking_horizon_minutes,
+            rollout_ranking_candidates = args.rollout_ranking_candidates,
+            rollout_ranking_scenarios = args.rollout_ranking_scenarios,
+            rollout_ranking_min_margin = args.rollout_ranking_min_margin,
+            target_ranking_lambda    = args.target_ranking_lambda,
+            target_ranking_margin    = args.target_ranking_margin,
+            target_ranking_buffer_size = args.target_ranking_buffer_size,
+            target_ranking_batch_sets = args.target_ranking_batch_sets,
+            target_ranking_max_others = args.target_ranking_max_others,
+            mc_return_loss_lambda    = args.mc_return_loss_lambda,
+            mc_return_buffer_size    = args.mc_return_buffer_size,
+            mc_return_batch_size     = args.mc_return_batch_size,
             linear_teacher_prefit_path = args.linear_teacher_prefit,
             teacher_prefit_episodes  = args.teacher_prefit_episodes,
             teacher_prefit_steps     = args.teacher_prefit_steps,
             teacher_prefit_batch_sets = args.teacher_prefit_batch_sets,
             teacher_prefit_lr        = args.teacher_prefit_lr,
+            linear_teacher_ranking_path = args.linear_teacher_ranking,
+            teacher_ranking_lambda   = args.teacher_ranking_lambda,
+            teacher_ranking_margin   = args.teacher_ranking_margin,
+            teacher_ranking_buffer_size = args.teacher_ranking_buffer_size,
+            teacher_ranking_batch_sets = args.teacher_ranking_batch_sets,
+            teacher_ranking_max_others = args.teacher_ranking_max_others,
         )
