@@ -240,6 +240,7 @@ def train(
     save_path     : Optional[Path] = None,
     seed_offset   : int   = 0,
     instance_name : str   = INSTANCE_NAME,
+    num_vehicles  : int   = NUM_VEHICLES,
     active_features: list | None = None,
     gamma         : float = GAMMA,
     alpha_start   : float = ALPHA_START,
@@ -496,7 +497,7 @@ def train(
             seed          = seed_offset + ep,
             policy        = episode_policy,
             duration      = 24 * EPISODE_DAYS,
-            num_vehicles  = NUM_VEHICLES,
+            num_vehicles  = num_vehicles,
             instance_name = instance_name,
             config        = config,
         )
@@ -513,7 +514,7 @@ def train(
             seed=seed_offset + ep,
             policy=episode_policy,
             duration=24 * EPISODE_DAYS,
-            num_vehicles=NUM_VEHICLES,
+            num_vehicles=num_vehicles,
             append_to_results=False
         )'''
         # ----------------------------
@@ -734,6 +735,12 @@ if __name__ == "__main__":
         default=INSTANCE_NAME,
         help="Simulator instance name",
     )
+    parser.add_argument(
+        "--vehicles",
+        type=int,
+        default=NUM_VEHICLES,
+        help="Number of service vehicles during training",
+    )
     
     parser.add_argument(
         "--gamma", 
@@ -783,6 +790,12 @@ if __name__ == "__main__":
         type=float,
         default=-1.0,
         help="Reward weight for congestion events (default: -1.0)",
+    )
+    parser.add_argument(
+        "--weight_fleet_degradation",
+        type=float,
+        default=-0.0,
+        help="Reward weight for broken-fleet degradation pressure (default: 0.0)",
     )
     parser.add_argument(
         "--use_reward_centering",
@@ -877,6 +890,7 @@ if __name__ == "__main__":
         save_path         = Path(args.save) if args.save else None,
         seed_offset       = args.seed,
         instance_name     = args.instance,
+        num_vehicles      = args.vehicles,
         active_features   = None, #OR: selected_features
         gamma             = args.gamma,
         alpha_start       = args.alpha_start,
@@ -886,6 +900,7 @@ if __name__ == "__main__":
         include_bias      = args.include_bias,
         weight_starvation = args.weight_starvation,
         weight_congestion = args.weight_congestion,
+        weight_fleet_degradation = args.weight_fleet_degradation,
         use_reward_centering = args.use_reward_centering,
         reward_centering_beta = args.reward_centering_beta,
         use_terminal_update = args.use_terminal_update,
