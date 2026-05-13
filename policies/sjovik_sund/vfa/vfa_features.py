@@ -111,6 +111,8 @@ BASE_REBALANCING_FEATURES = [
     "rebalancing_imbalance",
     "squared_starvation_penalty",
     "squared_congestion_penalty",
+    "starvation_count",
+    "congestion_count",
     "gross_starvation_risk",
     "gross_congestion_risk",
 ]
@@ -123,7 +125,6 @@ MAINTENANCE_FEATURE_POOL = [
     "demand_weighted_depot_backlog",
     "fleet_broken_fraction",
     "depot_idle_fraction",
-    "fleet_failure_risk",
     "fleet_low_health_fraction",
     "maintenance_restoration_value",
 
@@ -139,6 +140,57 @@ MAINTENANCE_FEATURE_POOL = [
     "depot_queue_pickup_opportunity",
     "degradation_demand_exposure",
 ]
+
+# Maintenance screening groups used by the EX12-EX20 maintenance ablations.
+# The experiment names use EX ids for consistency with the rebalancing study,
+# while these M labels identify the maintenance feature sets in notes/tables.
+MAINTENANCE_SCREENING_GROUPS = {
+    "M1_ShortagePressure": [
+        "onsite_shortage_pressure",
+        "depot_shortage_pressure",
+    ],
+    "M2_DemandWeightedBacklog": [
+        "demand_weighted_onsite_backlog",
+        "demand_weighted_depot_backlog",
+    ],
+    "M3_RepairOpportunityLogistics": [
+        "maintenance_restoration_value",
+        "late_broken_cargo_pressure",
+    ],
+    "M4_FleetBrokenGlobal": [
+        "fleet_broken_fraction",
+    ],
+    "M5_DepotIdlePipeline": [
+        "repaired_idle_away_pressure",
+    ],
+    "M6_CompactMaintenanceFull": [
+        "onsite_shortage_pressure",
+        "depot_shortage_pressure",
+        "demand_weighted_onsite_backlog",
+        "demand_weighted_depot_backlog",
+        "maintenance_restoration_value",
+        "late_broken_cargo_pressure",
+    ],
+    "M7_KSFiltered": [
+        "demand_weighted_onsite_backlog",
+        "demand_weighted_depot_backlog",
+        "fleet_broken_fraction",
+        "depot_idle_fraction",
+    ],
+    "M8_FleetBrokenCompact": [
+        "fleet_broken_fraction",
+        "onsite_shortage_pressure",
+        "depot_shortage_pressure",
+        "maintenance_restoration_value",
+        "late_broken_cargo_pressure",
+    ],
+    "M9_FleetShortageLogistics": [
+        "fleet_broken_fraction",
+        "onsite_shortage_pressure",
+        "depot_shortage_pressure",
+        "late_broken_cargo_pressure",
+    ],
+}
 
 FEATURE_METADATA: Dict[str, Dict[str, object]] = {
     "rebalancing_imbalance": {
@@ -296,6 +348,11 @@ def get_base_rebalancing_feature_names() -> List[str]:
 def get_maintenance_feature_pool_names() -> List[str]:
     """Candidate maintenance feature pool for pre-training screening."""
     return list(MAINTENANCE_FEATURE_POOL)
+
+
+def get_maintenance_screening_groups() -> Dict[str, List[str]]:
+    """M-labeled maintenance feature groups used in the EX12-EX22 ablations."""
+    return {name: list(features) for name, features in MAINTENANCE_SCREENING_GROUPS.items()}
 
 
 def get_feature_metadata() -> Dict[str, Dict[str, object]]:

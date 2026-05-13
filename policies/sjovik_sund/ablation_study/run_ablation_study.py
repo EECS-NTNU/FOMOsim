@@ -77,6 +77,7 @@ from policies.sjovik_sund.vfa.train_vfa import (
     EPSILON_END,
     GAMMA,
     BIAS_FEATURE_ENABLED,
+    INSTANCE_NAME,
 )
  
  
@@ -96,53 +97,49 @@ MAINTENANCE_ABLATION_REBALANCING_BASE = [
     "rebalancing_imbalance",
     "squared_starvation_penalty",
     "squared_congestion_penalty",
+    "starvation_count",
+    "congestion_count",
     "gross_starvation_risk",
     "gross_congestion_risk",
 ]
 
 SCREENED_MAINTENANCE_EXPERIMENTS = {
-    # M0: reference run for the chosen rebalancing baseline without maintenance
-    # features. Include this when the baseline was not already trained with the
-    # exact same hyperparameters.
-    "M0_RebalancingBase": MAINTENANCE_ABLATION_REBALANCING_BASE,
-
     # M1: Tests whether broken bikes matter mainly when they are located at
     # shortage-prone stations.
-    "M1_ShortagePressure": MAINTENANCE_ABLATION_REBALANCING_BASE + [
+    "EX12_ShortagePressure": MAINTENANCE_ABLATION_REBALANCING_BASE + [
         "onsite_shortage_pressure",
         "depot_shortage_pressure",
     ],
 
     # M2: Tests whether demand-weighted maintenance backlog is sufficient without
     # explicitly using shortage pressure.
-    "M2_DemandWeightedBacklog": MAINTENANCE_ABLATION_REBALANCING_BASE + [
+    "EX13_DemandWeightedBacklog": MAINTENANCE_ABLATION_REBALANCING_BASE + [
         "demand_weighted_onsite_backlog",
         "demand_weighted_depot_backlog",
     ],
 
     # M3: Tests whether immediate repair value and late-shift broken-cargo
     # logistics add action-discriminating maintenance signal.
-    "M3_RepairOpportunityLogistics": MAINTENANCE_ABLATION_REBALANCING_BASE + [
+    "EX14_RepairOpportunityLogistics": MAINTENANCE_ABLATION_REBALANCING_BASE + [
         "maintenance_restoration_value",
         "late_broken_cargo_pressure",
     ],
 
-    # M4: Isolates global degradation exposure. Uses expected trip-failure
-    # exposure rather than the thresholded low-health fraction, because the
-    # combined screening showed clearer signal without severe multicollinearity.
-    "M4_DegradationHealth": MAINTENANCE_ABLATION_REBALANCING_BASE + [
-        "fleet_failure_risk",
+    # M4: Tests whether realized broken-fleet pressure is sufficient as the
+    # global maintenance state signal.
+    "EX15_FleetBrokenGlobal": MAINTENANCE_ABLATION_REBALANCING_BASE + [
+        "fleet_broken_fraction",
     ],
 
     # M5: Optional depot-pipeline test for repaired bikes waiting at depot while
     # the route does not return there.
-    "M5_DepotIdlePipeline": MAINTENANCE_ABLATION_REBALANCING_BASE + [
+    "EX16_DepotIdlePipeline": MAINTENANCE_ABLATION_REBALANCING_BASE + [
         "repaired_idle_away_pressure",
     ],
 
     # M6: Compact full maintenance set: one screened representative from each
     # mechanism with acceptable within-set redundancy.
-    "M6_CompactMaintenanceFull": MAINTENANCE_ABLATION_REBALANCING_BASE + [
+    "EX17_CompactMaintenanceFull": MAINTENANCE_ABLATION_REBALANCING_BASE + [
         "onsite_shortage_pressure",
         "depot_shortage_pressure",
         "demand_weighted_onsite_backlog",
@@ -151,43 +148,33 @@ SCREENED_MAINTENANCE_EXPERIMENTS = {
         "late_broken_cargo_pressure",
     ],
 
-    # M7: Optional stress test. Keeps the screened, interpretable maintenance
-    # candidates while avoiding the worst duplicate raw backlog/pipeline features.
-    "M7_StressNoDuplicates": MAINTENANCE_ABLATION_REBALANCING_BASE + [
-        "onsite_shortage_pressure",
-        "depot_shortage_pressure",
-        "demand_weighted_onsite_backlog",
-        "demand_weighted_depot_backlog",
-        "fleet_failure_risk",
-        "maintenance_restoration_value",
-        "late_broken_cargo_pressure",
-        "repaired_idle_away_pressure",
-    ],
-
-    # M8: Proven screened kitchen-sink maintenance/rebalancing set kept as a
+    # M7: Proven screened kitchen-sink maintenance/rebalancing set kept as a
     # direct comparison against the newer compact M-series feature sets.
-    "M8_KSFiltered": [
-        "rebalancing_imbalance",
-        "squared_starvation_penalty",
-        "squared_congestion_penalty",
-        "gross_starvation_risk",
-        "gross_congestion_risk",
+    "EX18_KSFiltered": MAINTENANCE_ABLATION_REBALANCING_BASE + [
         "demand_weighted_onsite_backlog",
         "demand_weighted_depot_backlog",
         "fleet_broken_fraction",
         "depot_idle_fraction",
     ],
-    
-    "M9_FleetBrokenGlobal": MAINTENANCE_ABLATION_REBALANCING_BASE + [
-    "fleet_broken_fraction",
+
+    # M8: Compact broken-fleet set combining global broken share with local
+    # shortage and logistics pressure.
+    "EX19_FleetBrokenCompact": MAINTENANCE_ABLATION_REBALANCING_BASE + [
+        "fleet_broken_fraction",
+        "onsite_shortage_pressure",
+        "depot_shortage_pressure",
+        "maintenance_restoration_value",
+        "late_broken_cargo_pressure",
     ],
-    
-    "M10_FleetBrokenCompact": MAINTENANCE_ABLATION_REBALANCING_BASE + [
-    "fleet_broken_fraction",
-    "onsite_shortage_pressure",
-    "depot_shortage_pressure",
-    "maintenance_restoration_value",
-    "late_broken_cargo_pressure",
+
+    # M9: Interpretable final-candidate set: realized broken-fleet pressure,
+    # shortage-weighted broken-bike location, and late-shift broken-cargo
+    # logistics, without the harder-to-interpret restoration-value feature.
+    "EX20_FleetShortageLogistics": MAINTENANCE_ABLATION_REBALANCING_BASE + [
+        "fleet_broken_fraction",
+        "onsite_shortage_pressure",
+        "depot_shortage_pressure",
+        "late_broken_cargo_pressure",
     ]
 }
  
@@ -556,7 +543,11 @@ EXPERIMENTS = {
 # Runner
 # -----------------------------------------------------------------------------
  
-def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -0.0, weight_trip_served: float = 0.0, gamma: float = GAMMA, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = BIAS_FEATURE_ENABLED, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
+def _param_token(value: float) -> str:
+    return str(value).replace("-", "m").replace(".", "p")
+
+
+def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", instance_name: str = INSTANCE_NAME, num_vehicles: int = 1, n_routing_candidates: int = 10, weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -0.0, weight_trip_served: float = 0.0, gamma: float = GAMMA, gammas: Optional[List[float]] = None, weight_starvations: Optional[List[float]] = None, weight_congestions: Optional[List[float]] = None, weight_fleet_degradations: Optional[List[float]] = None, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = BIAS_FEATURE_ENABLED, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -564,8 +555,38 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
  
     if alphas is None:
         alphas = [ALPHA_START]
+    if gammas is None:
+        gammas = [gamma]
+    if weight_starvations is None:
+        weight_starvations = [weight_starvation]
+    if weight_congestions is None:
+        weight_congestions = [weight_congestion]
+    if weight_fleet_degradations is None:
+        weight_fleet_degradations = [weight_fleet_degradation]
  
     experiments = {k: v for k, v in EXPERIMENTS.items() if run_only is None or k in run_only}
+    total_runs = (
+        len(seeds)
+        * len(alphas)
+        * len(gammas)
+        * len(weight_starvations)
+        * len(weight_congestions)
+        * len(weight_fleet_degradations)
+        * len(experiments)
+    )
+    print("\n" + "=" * 72)
+    print("VFA TRAINING GRID")
+    print(f"  seeds                    : {seeds}")
+    print(f"  experiments              : {list(experiments)}")
+    print(f"  learning rates / alphas  : {alphas}")
+    print(f"  gammas                   : {gammas}")
+    print(f"  starvation weights       : {weight_starvations}")
+    print(f"  congestion weights       : {weight_congestions}")
+    print(f"  fleet degradation weights: {weight_fleet_degradations}")
+    print(f"  instance / vehicles      : {instance_name} / {num_vehicles}")
+    print(f"  fixed routing candidates : {n_routing_candidates}")
+    print(f"  total training runs      : {total_runs}")
+    print("=" * 72)
  
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     config_parts = []
@@ -585,11 +606,6 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
         config_parts.append(f"trans{transition_update_interval}")
     if use_feature_scale_diagnostics:
         config_parts.append(f"fsdiag{diagnostic_every_n_episodes}")
-    # TODO(config): 0.99 is stale now that the default GAMMA is imported as 0.97.
-    # Decide whether gamma should always be included for traceability, or only
-    # included when gamma != GAMMA.
-    if gamma != 0.99:
-        config_parts.append(f"g{gamma:g}")
     if epsilon_start == 0.0 and epsilon_end == 0.0:
         config_parts.append("eps0")
     elif epsilon_start != EPSILON_START or epsilon_end != EPSILON_END:
@@ -602,9 +618,10 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
         config_parts.append("canddiag")
     if log_greedy_comparison:
         config_parts.append("gcmp")
-    config_suffix = ("_" + "_".join(config_parts)) if config_parts else ""
+    base_config_suffix = ("_" + "_".join(config_parts)) if config_parts else ""
  
     # 1. OUTERMOST LOOP: Seeds
+    completed = 0
     for run_id, seed_offset in enumerate(seeds):
         print(f"\n{'='*60}")
         print(f"STARTING SEED: {seed_offset}  (Run {run_id + 1}/{len(seeds)})")
@@ -612,56 +629,78 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
         
         # 2. MIDDLE LOOP: Alphas
         for alpha in alphas:
-            print(f"\n  -> RUNNING WITH ALPHA: {alpha}")
-            
-            # 3. INNERMOST LOOP: Experiments
-            for exp_name, features in experiments.items():
-                print(f"\n{'='*40}")
-                print(f"EXPERIMENT: {exp_name} | Alpha: {alpha} | Seed: {seed_offset}")
-                for f in features:
-                    print(f"  - {f}")
-                print(f"{'='*40}")
+            for gamma_value in gammas:
+                for w_starv in weight_starvations:
+                    for w_cong in weight_congestions:
+                        for w_fleet in weight_fleet_degradations:
+                            tuning_suffix = (
+                                f"_g{_param_token(gamma_value)}"
+                                f"_ws{_param_token(w_starv)}"
+                                f"_wc{_param_token(w_cong)}"
+                                f"_wf{_param_token(w_fleet)}"
+                            )
+                            config_suffix = f"{tuning_suffix}{base_config_suffix}"
+                            print(
+                                f"\n  -> RUNNING PARAMS: alpha={alpha}, gamma={gamma_value}, "
+                                f"w_starv={w_starv}, w_cong={w_cong}, w_fleet={w_fleet}"
+                            )
+                            
+                            # 3. INNERMOST LOOP: Experiments
+                            for exp_name, features in experiments.items():
+                                completed += 1
+                                print(f"\n{'='*40}")
+                                print(
+                                    f"[{completed}/{total_runs}] EXPERIMENT: {exp_name} | "
+                                    f"Alpha: {alpha} | Gamma: {gamma_value} | Seed: {seed_offset}"
+                                )
+                                print(f"Rewards: starvation={w_starv}, congestion={w_cong}, fleet={w_fleet}")
+                                for f in features:
+                                    print(f"  - {f}")
+                                print(f"{'='*40}")
 
-                # Force 'models' to be the root, and add your custom folder name inside it
-                base_dir = Path("models") / output_dir
-                exp_dir = base_dir / f"{exp_name}_alpha_{alpha}{config_suffix}_{timestamp}"
-                
-                # Safely create the whole chain (models -> custom_name -> exp_name)
-                # exist_ok=True ensures subsequent seeds peacefully reuse this folder
-                exp_dir.mkdir(parents=True, exist_ok=True)
- 
-                train(
-                    num_episodes=episodes,
-                    save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}{config_suffix}.pkl",
-                    seed_offset=seed_offset,
-                    active_features=features,
-                    alpha_start=alpha,
-                    epsilon_start=epsilon_start,
-                    epsilon_end=epsilon_end,
-                    gamma=gamma,
-                    weight_starvation=weight_starvation,
-                    weight_congestion=weight_congestion,
-                    weight_fleet_degradation=weight_fleet_degradation,
-                    weight_trip_served=weight_trip_served,
-                    not_at_depot_at_end_penalty=not_at_depot_at_end_penalty,
-                    functional_bikes_at_end_penalty=functional_bikes_at_end_penalty,
-                    include_bias=use_bias_feature,
-                    use_reward_centering=use_reward_centering,
-                    reward_centering_beta=reward_centering_beta,
-                    use_terminal_update=use_terminal_update,
-                    use_batch_td_clip=use_batch_td_clip,
-                    batch_td_clip_value=batch_td_clip_value,
-                    use_online_td_updates=use_online_td_updates,
-                    transition_update_interval=transition_update_interval,
-                    use_feature_scale_diagnostics=use_feature_scale_diagnostics,
-                    diagnostic_every_n_episodes=diagnostic_every_n_episodes,
-                    td_lambda=td_lambda,
-                    initial_bias=initial_bias,
-                    use_feature_centering=use_feature_centering,
-                    feature_centering_beta=feature_centering_beta,
-                    log_candidate_diagnostics=log_candidate_diagnostics,
-                    log_greedy_comparison=log_greedy_comparison,
-                )
+                                # Force 'models' to be the root, and add your custom folder name inside it
+                                base_dir = Path("models") / output_dir
+                                exp_dir = base_dir / f"{exp_name}_alpha_{alpha}{config_suffix}_{timestamp}"
+                                
+                                # Safely create the whole chain (models -> custom_name -> exp_name)
+                                # exist_ok=True ensures subsequent seeds peacefully reuse this folder
+                                exp_dir.mkdir(parents=True, exist_ok=True)
+                 
+                                train(
+                                    num_episodes=episodes,
+                                    save_path=exp_dir / f"vfa_{exp_name}_seed{seed_offset}{config_suffix}.pkl",
+                                    seed_offset=seed_offset,
+                                    instance_name=instance_name,
+                                    num_vehicles=num_vehicles,
+                                    n_routing_candidates=n_routing_candidates,
+                                    active_features=features,
+                                    alpha_start=alpha,
+                                    epsilon_start=epsilon_start,
+                                    epsilon_end=epsilon_end,
+                                    gamma=gamma_value,
+                                    weight_starvation=w_starv,
+                                    weight_congestion=w_cong,
+                                    weight_fleet_degradation=w_fleet,
+                                    weight_trip_served=weight_trip_served,
+                                    not_at_depot_at_end_penalty=not_at_depot_at_end_penalty,
+                                    functional_bikes_at_end_penalty=functional_bikes_at_end_penalty,
+                                    include_bias=use_bias_feature,
+                                    use_reward_centering=use_reward_centering,
+                                    reward_centering_beta=reward_centering_beta,
+                                    use_terminal_update=use_terminal_update,
+                                    use_batch_td_clip=use_batch_td_clip,
+                                    batch_td_clip_value=batch_td_clip_value,
+                                    use_online_td_updates=use_online_td_updates,
+                                    transition_update_interval=transition_update_interval,
+                                    use_feature_scale_diagnostics=use_feature_scale_diagnostics,
+                                    diagnostic_every_n_episodes=diagnostic_every_n_episodes,
+                                    td_lambda=td_lambda,
+                                    initial_bias=initial_bias,
+                                    use_feature_centering=use_feature_centering,
+                                    feature_centering_beta=feature_centering_beta,
+                                    log_candidate_diagnostics=log_candidate_diagnostics,
+                                    log_greedy_comparison=log_greedy_comparison,
+                                )
  
 # -----------------------------------------------------------------------------
 # CLI
@@ -694,16 +733,48 @@ if __name__ == "__main__":
                         help="Directory to save experiment results"
     )
     parser.add_argument(
+        "--instance",
+        type=str,
+        default=INSTANCE_NAME,
+        help=f"Simulator instance name (default: {INSTANCE_NAME})",
+    )
+    parser.add_argument(
+        "--vehicles",
+        type=int,
+        default=1,
+        help="Number of service vehicles during training",
+    )
+    parser.add_argument(
+        "--n_routing_candidates",
+        "--n-routing",
+        dest="n_routing_candidates",
+        type=int,
+        default=10,
+        help="Fixed routing candidates per operational profile during training",
+    )
+    parser.add_argument(
         "--weight_starvation", type=float, default= -1.0,
         help="Reward weight for starvation events (default: -1.0)",
+    )
+    parser.add_argument(
+        "--weight_starvations", nargs="+", type=float, default=None, metavar="W",
+        help="Grid of starvation weights. Overrides --weight_starvation when provided.",
     )
     parser.add_argument(
         "--weight_congestion", type=float, default= -1.0,
         help="Reward weight for congestion events (default: -1.0)",
     )
     parser.add_argument(
+        "--weight_congestions", nargs="+", type=float, default=None, metavar="W",
+        help="Grid of congestion weights. Overrides --weight_congestion when provided.",
+    )
+    parser.add_argument(
         "--weight_fleet_degradation", type=float, default=-0.0,
         help="Reward weight for fleet degradation/maintenance penalty (default: 0.0)",
+    )
+    parser.add_argument(
+        "--weight_fleet_degradations", nargs="+", type=float, default=None, metavar="W",
+        help="Grid of fleet degradation weights. Overrides --weight_fleet_degradation when provided.",
     )
     parser.add_argument(
         "--weight_trip_served", type=float, default=0.0,
@@ -712,6 +783,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--gamma", type=float, default=GAMMA,
         help=f"Discount factor (default: {GAMMA:g} per hour)",
+    )
+    parser.add_argument(
+        "--gammas", nargs="+", type=float, default=None, metavar="GAMMA",
+        help="Grid of discount factors. Overrides --gamma when provided.",
     )
     parser.add_argument(
         "--not_at_depot_at_end_penalty", type=float, default=0.0,
@@ -845,11 +920,18 @@ if __name__ == "__main__":
         run_only=args.experiments,
         alphas=args.alphas,
         output_dir=args.output_dir,
+        instance_name=args.instance,
+        num_vehicles=args.vehicles,
+        n_routing_candidates=args.n_routing_candidates,
         weight_starvation=args.weight_starvation,
         weight_congestion=args.weight_congestion,
         weight_fleet_degradation=args.weight_fleet_degradation,
         weight_trip_served=args.weight_trip_served,
         gamma=args.gamma,
+        gammas=args.gammas,
+        weight_starvations=args.weight_starvations,
+        weight_congestions=args.weight_congestions,
+        weight_fleet_degradations=args.weight_fleet_degradations,
         not_at_depot_at_end_penalty=args.not_at_depot_at_end_penalty,
         functional_bikes_at_end_penalty=args.functional_bikes_at_end_penalty,
         epsilon_start=args.epsilon_start,
