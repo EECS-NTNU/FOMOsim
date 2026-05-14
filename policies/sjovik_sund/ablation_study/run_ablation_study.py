@@ -672,7 +672,6 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
                                     seed_offset=seed_offset,
                                     instance_name=instance_name,
                                     num_vehicles=num_vehicles,
-                                    n_routing_candidates=n_routing_candidates,
                                     active_features=features,
                                     alpha_start=alpha,
                                     epsilon_start=epsilon_start,
