@@ -547,7 +547,7 @@ def _param_token(value: float) -> str:
     return str(value).replace("-", "m").replace(".", "p")
 
 
-def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", instance_name: str = INSTANCE_NAME, num_vehicles: int = 1, n_routing_candidates: int = 10, weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = -0.0, weight_trip_served: float = 0.0, gamma: float = GAMMA, gammas: Optional[List[float]] = None, weight_starvations: Optional[List[float]] = None, weight_congestions: Optional[List[float]] = None, weight_fleet_degradations: Optional[List[float]] = None, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = BIAS_FEATURE_ENABLED, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
+def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optional[List[str]] = None, alphas: Optional[List[float]] = None, output_dir: str = "results", instance_name: str = INSTANCE_NAME, num_vehicles: int = 1, n_routing_candidates: int = 10, weight_starvation: float = -1.0, weight_congestion: float = -1.0, weight_fleet_degradation: float = 0.0, weight_trip_served: float = 0.0, gamma: float = GAMMA, gammas: Optional[List[float]] = None, weight_starvations: Optional[List[float]] = None, weight_congestions: Optional[List[float]] = None, weight_fleet_degradations: Optional[List[float]] = None, not_at_depot_at_end_penalty: float = 0.0, functional_bikes_at_end_penalty: float = 0.0, epsilon_start: float = EPSILON_START, epsilon_end: float = EPSILON_END, use_bias_feature: bool = BIAS_FEATURE_ENABLED, use_reward_centering: bool = False, reward_centering_beta: float = 0.01, use_terminal_update: bool = False, use_batch_td_clip: bool = False, batch_td_clip_value: float = 10.0, use_online_td_updates: bool = False, transition_update_interval: int = 0, use_feature_scale_diagnostics: bool = False, diagnostic_every_n_episodes: int = 10, td_lambda: float = 0.0, initial_bias: float | None = None, use_feature_centering: bool = False, feature_centering_beta: float = 0.01, log_candidate_diagnostics: bool = False, log_greedy_comparison: bool = False):
     if run_only:
         unknown = set(run_only) - set(EXPERIMENTS)
         if unknown:
@@ -672,7 +672,7 @@ def run_all_experiments(seeds: List[int], episodes: int = 200, run_only: Optiona
                                     seed_offset=seed_offset,
                                     instance_name=instance_name,
                                     num_vehicles=num_vehicles,
-                                    n_routing_candidates=n_routing_candidates,
+                                    #n_routing_candidates=n_routing_candidates,
                                     active_features=features,
                                     alpha_start=alpha,
                                     epsilon_start=epsilon_start,
@@ -769,7 +769,7 @@ if __name__ == "__main__":
         help="Grid of congestion weights. Overrides --weight_congestion when provided.",
     )
     parser.add_argument(
-        "--weight_fleet_degradation", type=float, default=-0.0,
+        "--weight_fleet_degradation", type=float, default=0.0,
         help="Reward weight for fleet degradation/maintenance penalty (default: 0.0)",
     )
     parser.add_argument(

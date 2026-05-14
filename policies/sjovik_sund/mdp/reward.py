@@ -33,7 +33,7 @@ class RewardConfig:
         return RewardConfig(
             weight_starvation=-1.0,
             weight_congestion=-1.0,
-            weight_fleet_degradation=-0.0,
+            weight_fleet_degradation=0.0,
             not_at_depot_at_end_penalty=0.0,
             functional_bikes_at_end_penalty=0.0,
         )

@@ -1073,7 +1073,7 @@ if __name__ == "__main__":
                 debug_print=args.hybrid_debug,
             )
             policy_name = (
-                f"Hybrid_{exp_name}_H{int(args.lookahead)}_S{args.num_scenarios}_"
+                f"Hybrid_{exp_name}_H{int(args.lookahead)}_S{args.num_scenarios}_R{args.n_routing}_"
                 f"{args.instance}_V{num_vehicles}_D{duration}h{warmup_suffix}_{timestamp}_seed{start_seed}"
             )
             return policy_name, hybrid_policy
