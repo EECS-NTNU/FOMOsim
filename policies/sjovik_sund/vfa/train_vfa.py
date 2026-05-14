@@ -250,7 +250,7 @@ def train(
     include_bias  : bool = BIAS_FEATURE_ENABLED,
     weight_starvation : float = -1.0,
     weight_congestion : float = -1.0,
-    weight_fleet_degradation : float = -0.0,
+    weight_fleet_degradation : float = 0.0,
     weight_trip_served : float = 0.0,
     not_at_depot_at_end_penalty : float = 0.0,
     functional_bikes_at_end_penalty : float = 0.0,
@@ -794,7 +794,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--weight_fleet_degradation",
         type=float,
-        default=-0.0,
+        default=0.0,
         help="Reward weight for broken-fleet degradation pressure (default: 0.0)",
     )
     parser.add_argument(
