@@ -56,6 +56,51 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 
+
+def _build_optimizer(
+    parameters,
+    optimizer_name: str,
+    lr: float,
+    weight_decay: float = 1e-4,
+    momentum: float = 0.9,
+    rmsprop_alpha: float = 0.95,
+    optimizer_eps: float = 1e-8,
+):
+    """Create the TD optimizer from CLI-controlled settings."""
+    name = optimizer_name.lower()
+    if name == "adam":
+        return optim.Adam(
+            parameters,
+            lr=lr,
+            weight_decay=weight_decay,
+            eps=optimizer_eps,
+        )
+    if name == "adamw":
+        return optim.AdamW(
+            parameters,
+            lr=lr,
+            weight_decay=weight_decay,
+            eps=optimizer_eps,
+        )
+    if name == "sgd":
+        return optim.SGD(
+            parameters,
+            lr=lr,
+            momentum=momentum,
+            weight_decay=weight_decay,
+        )
+    if name == "rmsprop":
+        return optim.RMSprop(
+            parameters,
+            lr=lr,
+            alpha=rmsprop_alpha,
+            eps=optimizer_eps,
+            momentum=momentum,
+            weight_decay=weight_decay,
+        )
+    raise ValueError(f"Unsupported optimizer: {optimizer_name}")
+
+
 # ── Workspace root on sys.path ────────────────────────────────────────────────
 WORKSPACE_ROOT = Path(__file__).parents[3]
 sys.path.insert(0, str(WORKSPACE_ROOT))
@@ -1242,6 +1287,12 @@ class NNLearningPolicy(Policy):
         self._rollout_margins: list = []
         self._rollout_scores_mean: list = []
         self._rollout_scores_std: list = []
+        self._rollout_best_type_counts: dict = {}
+        self._rollout_subset_has_maintenance: int = 0
+        self._rollout_subset_has_rebalancing: int = 0
+        self._rollout_best_maintenance: int = 0
+        self._rollout_best_rebalancing: int = 0
+        self._rollout_best_same_type_as_nn: int = 0
         self._simulator = None
 
         # n-step return buffer: sliding window of (enc_state, scaled_reward) pairs.
@@ -1391,6 +1442,25 @@ class NNLearningPolicy(Policy):
 
         nn_best_global = int(max(range(len(values)), key=lambda i: values[i]))
         rollout_best_global = subset_indices[best_local]
+        rollout_best_mdp = valid_pairs[rollout_best_global][0]
+        nn_best_mdp = valid_pairs[nn_best_global][0]
+        rollout_best_type = self._action_type(rollout_best_mdp)
+        nn_best_type = self._action_type(nn_best_mdp)
+        self._inc_count(self._rollout_best_type_counts, rollout_best_type)
+        subset_mdp_actions = [valid_pairs[i][0] for i in subset_indices]
+        subset_has_maintenance = any(self._is_maintenance_like(a) for a in subset_mdp_actions)
+        subset_has_rebalancing = any(self._is_rebalancing_like(a) for a in subset_mdp_actions)
+        if subset_has_maintenance:
+            self._rollout_subset_has_maintenance += 1
+        if subset_has_rebalancing:
+            self._rollout_subset_has_rebalancing += 1
+        if self._is_maintenance_like(rollout_best_mdp):
+            self._rollout_best_maintenance += 1
+        if self._is_rebalancing_like(rollout_best_mdp):
+            self._rollout_best_rebalancing += 1
+        if rollout_best_type == nn_best_type:
+            self._rollout_best_same_type_as_nn += 1
+
         if nn_best_global == rollout_best_global:
             self._rollout_top1_match += 1
         rollout_top3_global = {subset_indices[i] for i in sorted_local[:3]}
@@ -2103,6 +2173,11 @@ def train_nn_rollout(
     gamma:                  float = GAMMA,
     lr_start:               float = LR_START,
     lr_end:                 float = LR_END,
+    optimizer_name:         str = "adam",
+    weight_decay:           float = 1e-4,
+    momentum:               float = 0.9,
+    rmsprop_alpha:          float = 0.95,
+    optimizer_eps:          float = 1e-8,
     tau_start:              float = TAU_START,
     tau_end:                float = TAU_END,
     tau_anneal_episodes:    int   = TAU_ANNEAL_EPISODES,
@@ -2184,7 +2259,8 @@ def train_nn_rollout(
         seed_offset         : episode i uses seed = seed_offset + i
         instance_name       : simulator instance (e.g. "TD_W34_old")
         gamma               : TD discount factor
-        lr_start / lr_end   : Adam learning rate bounds (linear decay)
+        lr_start / lr_end   : optimizer learning rate bounds (linear decay)
+        optimizer_name      : adam, adamw, sgd, or rmsprop
         target_update_freq  : online → target copy frequency (episodes)
         batch_size          : gradient update mini-batch size
         buffer_size         : replay buffer capacity
@@ -2337,7 +2413,15 @@ def train_nn_rollout(
         target_model.load_state_dict(online_model.state_dict())
         print("  [TEACHER PREFIT] target network reset to prefitted online weights")
 
-    optimizer = optim.Adam(online_model.parameters(), lr=lr_start, weight_decay=1e-4)
+    optimizer = _build_optimizer(
+        online_model.parameters(),
+        optimizer_name=optimizer_name,
+        lr=lr_start,
+        weight_decay=weight_decay,
+        momentum=momentum,
+        rmsprop_alpha=rmsprop_alpha,
+        optimizer_eps=optimizer_eps,
+    )
 
     # ── Metrics tracking ──────────────────────────────────────────────────────
     learning_curve = []   # written to checkpoint; also mirrored to CSV below
@@ -2381,6 +2465,14 @@ def train_nn_rollout(
         _encoder_suffix += f"_ltrank{_tag_float(teacher_ranking_lambda)}"
     if linear_teacher_prefit_path and teacher_prefit_episodes > 0 and teacher_prefit_steps > 0:
         _encoder_suffix += f"_ltpref{teacher_prefit_episodes}e{teacher_prefit_steps}s"
+    if optimizer_name.lower() != "adam":
+        _encoder_suffix += f"_opt{optimizer_name.lower()}"
+    if abs(weight_decay - 1e-4) > 1e-12:
+        _encoder_suffix += f"_wd{_tag_float(weight_decay)}"
+    if optimizer_name.lower() in {"sgd", "rmsprop"}:
+        _encoder_suffix += f"_mom{_tag_float(momentum)}"
+    if optimizer_name.lower() == "rmsprop":
+        _encoder_suffix += f"_rmsa{_tag_float(rmsprop_alpha)}"
     _base_label = (
         run_label if run_label else
         f"n{n_step_return}_buf{buffer_size}_poly{polyak}"
@@ -2390,6 +2482,7 @@ def train_nn_rollout(
     csv_path  = SAVE_DIR / f"training_log_seed{seed_offset}{_label}_{ts_run}.csv"
     CSV_FIELDS = [
         "episode", "mean_loss", "lr", "tau", "polyak",
+        "optimizer", "weight_decay", "momentum", "rmsprop_alpha", "optimizer_eps",
         "reward_norm_mode", "fixed_reward_scale",
         "station_id_embedding", "station_id_embed_dim", "action_context",
         "station_spotlights", "demand_horizon", "global_health",
@@ -2401,6 +2494,11 @@ def train_nn_rollout(
         "rollout_ranking_loss", "rollout_rank_decisions",
         "rollout_rank_accepted", "rollout_top1_match", "rollout_top3_match",
         "rollout_margin_mean", "rollout_score_mean", "rollout_score_std",
+        "pct_rollout_best_maintenance", "pct_rollout_best_rebalancing",
+        "pct_rollout_best_depot", "pct_rollout_best_move",
+        "pct_rollout_best_maintenance_when_available",
+        "pct_rollout_best_rebalancing_when_available",
+        "pct_rollout_best_same_type_as_nn",
         "target_ranking_lambda", "target_ranking_buffer_size",
         "target_ranking_loss", "target_top1_match", "target_top3_match",
         "mc_return_loss_lambda", "mc_return_buffer_size", "mc_return_loss",
@@ -2475,6 +2573,12 @@ def train_nn_rollout(
           f"(warm-up = {WARMUP_DAYS}d,  learning = {LEARNING_DAYS}d)")
     print(f"  Selection         : Boltzmann  tau {tau_start:.3f} -> {tau_end:.3f}  (linear anneal)")
     print(f"  LR schedule       : {lr_start:.5f}  ->  {lr_end:.5f}  (linear)")
+    print(
+        f"  Optimizer         : {optimizer_name.lower()}  "
+        f"weight_decay={weight_decay:g}  eps={optimizer_eps:g}"
+        f"{f'  momentum={momentum:g}' if optimizer_name.lower() in {'sgd', 'rmsprop'} else ''}"
+        f"{f'  alpha={rmsprop_alpha:g}' if optimizer_name.lower() == 'rmsprop' else ''}"
+    )
     print(f"  gamma                 : {gamma}")
     print(f"  Target update     : every {target_update_freq} episodes")
     print(f"  Polyak τ          : {polyak:.3f}  (for soft target updates, if enabled)")
@@ -3056,6 +3160,11 @@ def train_nn_rollout(
                     "global_feature_dim":   online_model.global_feature_dim,
                     "reward_norm_mode":     reward_norm_mode,
                     "fixed_reward_scale":   fixed_reward_scale,
+                    "optimizer_name":       optimizer_name.lower(),
+                    "weight_decay":         weight_decay,
+                    "momentum":             momentum,
+                    "rmsprop_alpha":        rmsprop_alpha,
+                    "optimizer_eps":        optimizer_eps,
                     "use_station_id_embedding": use_station_id_embedding,
                     "station_id_embed_dim":  station_id_embed_dim if use_station_id_embedding else 0,
                     "use_action_context":    use_action_context,
@@ -3204,6 +3313,37 @@ def train_nn_rollout(
         rollout_score_std = round(
             _stat.mean(nn_learning._rollout_scores_std), 6
         ) if nn_learning._rollout_scores_std else 0.0
+        rollout_best_counts = nn_learning._rollout_best_type_counts
+        pct_rollout_best_maintenance = round(
+            nn_learning._rollout_best_maintenance / rollout_denom * 100,
+            1,
+        )
+        pct_rollout_best_rebalancing = round(
+            nn_learning._rollout_best_rebalancing / rollout_denom * 100,
+            1,
+        )
+        pct_rollout_best_depot = round(
+            rollout_best_counts.get("depot", 0) / rollout_denom * 100,
+            1,
+        )
+        pct_rollout_best_move = round(
+            rollout_best_counts.get("move", 0) / rollout_denom * 100,
+            1,
+        )
+        pct_rollout_best_maintenance_when_available = round(
+            nn_learning._rollout_best_maintenance
+            / max(nn_learning._rollout_subset_has_maintenance, 1) * 100,
+            1,
+        )
+        pct_rollout_best_rebalancing_when_available = round(
+            nn_learning._rollout_best_rebalancing
+            / max(nn_learning._rollout_subset_has_rebalancing, 1) * 100,
+            1,
+        )
+        pct_rollout_best_same_type_as_nn = round(
+            nn_learning._rollout_best_same_type_as_nn / rollout_denom * 100,
+            1,
+        )
 
         def _entropy(counts: dict) -> float:
             total = sum(counts.values())
@@ -3228,6 +3368,11 @@ def train_nn_rollout(
             "lr":               round(current_lr,   6),
             "tau":              round(current_tau,  4),
             "polyak":           polyak,
+            "optimizer":         optimizer_name.lower(),
+            "weight_decay":      weight_decay,
+            "momentum":          momentum,
+            "rmsprop_alpha":     rmsprop_alpha,
+            "optimizer_eps":     optimizer_eps,
             "reward_norm_mode":  reward_norm_mode,
             "fixed_reward_scale": fixed_reward_scale if reward_norm_mode == "fixed" else "",
             "station_id_embedding": int(use_station_id_embedding),
@@ -3253,6 +3398,13 @@ def train_nn_rollout(
             "rollout_margin_mean": rollout_margin_mean,
             "rollout_score_mean": rollout_score_mean,
             "rollout_score_std": rollout_score_std,
+            "pct_rollout_best_maintenance": pct_rollout_best_maintenance,
+            "pct_rollout_best_rebalancing": pct_rollout_best_rebalancing,
+            "pct_rollout_best_depot": pct_rollout_best_depot,
+            "pct_rollout_best_move": pct_rollout_best_move,
+            "pct_rollout_best_maintenance_when_available": pct_rollout_best_maintenance_when_available,
+            "pct_rollout_best_rebalancing_when_available": pct_rollout_best_rebalancing_when_available,
+            "pct_rollout_best_same_type_as_nn": pct_rollout_best_same_type_as_nn,
             "target_ranking_lambda": target_ranking_lambda,
             "target_ranking_buffer_size": len(target_ranking_buffer) if target_ranking_buffer is not None else 0,
             "target_ranking_loss": round(mean_target_ranking_loss, 6),
@@ -3341,6 +3493,11 @@ def train_nn_rollout(
                 "global_feature_dim":   online_model.global_feature_dim,
                 "reward_norm_mode":     reward_norm_mode,
                 "fixed_reward_scale":   fixed_reward_scale,
+                "optimizer_name":       optimizer_name.lower(),
+                "weight_decay":         weight_decay,
+                "momentum":             momentum,
+                "rmsprop_alpha":        rmsprop_alpha,
+                "optimizer_eps":        optimizer_eps,
                 "use_station_id_embedding": use_station_id_embedding,
                 "station_id_embed_dim":  station_id_embed_dim if use_station_id_embedding else 0,
                 "use_action_context":    use_action_context,
@@ -3405,6 +3562,11 @@ def train_nn_rollout(
         "value_hidden_dims":   online_model.value_hidden_dims,
         "reward_norm_mode":    reward_norm_mode,
         "fixed_reward_scale":  fixed_reward_scale,
+        "optimizer_name":      optimizer_name.lower(),
+        "weight_decay":        weight_decay,
+        "momentum":            momentum,
+        "rmsprop_alpha":       rmsprop_alpha,
+        "optimizer_eps":       optimizer_eps,
         "use_station_id_embedding": use_station_id_embedding,
         "station_id_embed_dim": station_id_embed_dim if use_station_id_embedding else 0,
         "use_action_context":   use_action_context,
@@ -3591,6 +3753,17 @@ if __name__ == "__main__":
     parser.add_argument("--gamma",                 type=float, default=GAMMA)
     parser.add_argument("--lr_start",              type=float, default=LR_START)
     parser.add_argument("--lr_end",                type=float, default=LR_END)
+    parser.add_argument("--optimizer",             type=str,   default="adam",
+                        choices=["adam", "adamw", "sgd", "rmsprop"],
+                        help="Optimizer used for TD/ranking updates after each episode.")
+    parser.add_argument("--weight_decay",          type=float, default=1e-4,
+                        help="Weight decay passed to the TD optimizer.")
+    parser.add_argument("--momentum",              type=float, default=0.9,
+                        help="Momentum for SGD/RMSprop. Ignored by Adam/AdamW.")
+    parser.add_argument("--rmsprop_alpha",         type=float, default=0.95,
+                        help="RMSprop smoothing coefficient.")
+    parser.add_argument("--optimizer_eps",         type=float, default=1e-8,
+                        help="Numerical epsilon passed to Adam/AdamW/RMSprop.")
     parser.add_argument("--tau_start",             type=float, default=TAU_START)
     parser.add_argument("--tau_end",               type=float, default=TAU_END)
     parser.add_argument("--tau_anneal_episodes",   type=int,   default=TAU_ANNEAL_EPISODES)
@@ -3765,6 +3938,12 @@ if __name__ == "__main__":
         print(f"  Episodes:            {args.episodes}")
         print(f"  n_step:              {args.n_step}")
         print(f"  buffer_size:         {args.buffer_size}")
+        print(
+            f"  optimizer:           {args.optimizer} "
+            f"wd={args.weight_decay:g} eps={args.optimizer_eps:g}"
+            f"{f' momentum={args.momentum:g}' if args.optimizer in {'sgd', 'rmsprop'} else ''}"
+            f"{f' alpha={args.rmsprop_alpha:g}' if args.optimizer == 'rmsprop' else ''}"
+        )
         print(f"  polyak:              {args.polyak}")
         print(f"  tau_end:             {args.tau_end}")
         print(f"  maintenance_shaping: {args.maintenance_shaping}")
@@ -3823,6 +4002,11 @@ if __name__ == "__main__":
             gamma                    = args.gamma,
             lr_start                 = args.lr_start,
             lr_end                   = args.lr_end,
+            optimizer_name           = args.optimizer,
+            weight_decay             = args.weight_decay,
+            momentum                 = args.momentum,
+            rmsprop_alpha            = args.rmsprop_alpha,
+            optimizer_eps            = args.optimizer_eps,
             tau_start                = args.tau_start,
             tau_end                  = args.tau_end,
             tau_anneal_episodes      = args.tau_anneal_episodes,
