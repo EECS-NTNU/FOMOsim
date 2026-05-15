@@ -1,0 +1,12 @@
+,vif
+squared_congestion_penalty,9.083691709590838
+gross_starvation_risk,7.429880247684986
+gross_congestion_risk,6.1709034553072035
+squared_starvation_penalty,4.779377020507904
+congestion_severity_max,4.492274757017988
+rebalancing_imbalance,4.257810963415229
+starvation_count,4.181762878210161
+net_starvation_shortfall,3.6435405557604907
+congestion_count,3.285358810722307
+net_congestion_shortfall,2.9337301137378566
+starvation_severity_max,2.4257880237772462
