@@ -1178,6 +1178,9 @@ class NNLearningPolicy(Policy):
         rollout_ranking_candidates: int = 6,
         rollout_ranking_scenarios: int = 1,
         rollout_ranking_min_margin: float = 0.0,
+        rebalancing_potential_shaping: bool = False,
+        rebalancing_potential_weight: float = 0.0,
+        rebalancing_potential_mode: str = "target",
     ):
         super().__init__(maintenance_enabled=config.allow_onsite_repairs)
 
@@ -1205,6 +1208,9 @@ class NNLearningPolicy(Policy):
         self.rollout_ranking_candidates = int(max(2, rollout_ranking_candidates))
         self.rollout_ranking_scenarios = int(max(1, rollout_ranking_scenarios))
         self.rollout_ranking_min_margin = float(max(0.0, rollout_ranking_min_margin))
+        self.rebalancing_potential_shaping = bool(rebalancing_potential_shaping)
+        self.rebalancing_potential_weight = float(rebalancing_potential_weight)
+        self.rebalancing_potential_mode = rebalancing_potential_mode
 
         # RewardCalculator: initialized lazily on the first get_best_action call
         # because we need the simulator's initial metrics to set the baseline.
@@ -1293,6 +1299,11 @@ class NNLearningPolicy(Policy):
         self._rollout_best_maintenance: int = 0
         self._rollout_best_rebalancing: int = 0
         self._rollout_best_same_type_as_nn: int = 0
+        self._prev_potential_reward: float = 0.0
+        self._potential_rewards: list = []
+        self._potential_deltas: list = []
+        self._potential_risk_before: list = []
+        self._potential_risk_after: list = []
         self._simulator = None
 
         # n-step return buffer: sliding window of (enc_state, scaled_reward) pairs.
@@ -1518,6 +1529,65 @@ class NNLearningPolicy(Policy):
     def _inc_count(counter: dict, key: str, amount: int = 1) -> None:
         counter[key] = counter.get(key, 0) + amount
 
+    def _rebalancing_risk_potential(self, mdp_state: MDPState) -> float:
+        """
+        Positive risk score used for optional difference-reward shaping.
+
+        Uses sums rather than means so a single station-level improvement is not
+        diluted by the full network size.  Lower is better.
+        """
+        mode = self.rebalancing_potential_mode
+        risk = 0.0
+        for inv in mdp_state.stations.values():
+            func = float(inv.functional)
+            onsite = float(inv.onsite)
+            depot = float(inv.depot)
+            target = float(inv.target)
+            capacity = float(max(inv.capacity, 1))
+            target_safe = max(target, 1.0)
+            cap_rem_safe = max(capacity - target, 1.0)
+
+            if mode in {"target", "combined"}:
+                starv_ratio = max(0.0, target - func) / target_safe
+                cong_ratio = max(0.0, func - target) / cap_rem_safe
+                risk += starv_ratio ** 2 + cong_ratio ** 2
+
+            if mode in {"gross", "combined"}:
+                gross_out = max(0.0, float(inv.expected_departure_rate))
+                gross_in = max(0.0, float(inv.expected_arrival_rate))
+                free_docks = max(0.0, capacity - func - onsite - depot)
+                gross_starv = max(0.0, gross_out + math.sqrt(gross_out) - func) / target_safe
+                gross_cong = max(0.0, gross_in + math.sqrt(gross_in) - free_docks) / cap_rem_safe
+                risk += gross_starv + gross_cong
+        return float(risk)
+
+    def _compute_rebalancing_potential_reward(
+        self,
+        pre_state: MDPState,
+        post_state: MDPState,
+        mdp_action,
+    ) -> float:
+        if (
+            not self.rebalancing_potential_shaping
+            or self.rebalancing_potential_weight == 0.0
+        ):
+            return 0.0
+
+        before = self._rebalancing_risk_potential(pre_state)
+        after = self._rebalancing_risk_potential(post_state)
+        delta = before - after
+
+        # This diagnostic is meant to help rebalancing learn from delayed
+        # starvation/congestion consequences.  Pure maintenance actions get no
+        # direct potential reward, even if repairs improve the same risk score.
+        reward = self.rebalancing_potential_weight * delta if self._is_rebalancing_like(mdp_action) else 0.0
+
+        self._potential_rewards.append(float(reward))
+        self._potential_deltas.append(float(delta if self._is_rebalancing_like(mdp_action) else 0.0))
+        self._potential_risk_before.append(float(before))
+        self._potential_risk_after.append(float(after))
+        return float(reward)
+
     def _lazy_init_reward_calc(self, sim_state) -> None:
         """
         Build the RewardCalculator on the first call, synced to current metrics.
@@ -1583,6 +1653,8 @@ class NNLearningPolicy(Policy):
                )
                + self._reward_calc.compute_fleet_penalty(state)
                + self._reward_calc.compute_late_shift_penalty(vehicle, state))
+        if self.rebalancing_potential_shaping:
+            r_k += self._prev_potential_reward
 
         # --- Step 2: snapshot MDP state from live simulator ---
         # Read shift_end_time from the vehicle object — same pattern as
@@ -1627,6 +1699,7 @@ class NNLearningPolicy(Policy):
         # --- Step 4: score each candidate's post-decision state ---
         values         = []
         post_encodings = []
+        post_states    = []
         valid_pairs    = [] # Keep track of which sim_actions correspond to valid PDS
         
         with torch.no_grad():
@@ -1654,6 +1727,7 @@ class NNLearningPolicy(Policy):
                     
                     values.append(v.item())
                     post_encodings.append(post_encoded)
+                    post_states.append(post_state)
                     valid_pairs.append((mdp_action, sim_action))
                     
                 except Exception as _exc:
@@ -1740,6 +1814,7 @@ class NNLearningPolicy(Policy):
         idx = _boltzmann_select(values, self.tau)
         chosen_sim_action    = valid_pairs[idx][1]
         chosen_post_encoded  = post_encodings[idx]
+        chosen_post_state    = post_states[idx]
 
         if self.verbose:
             sorted_vals = sorted(values, reverse=True)
@@ -1928,6 +2003,11 @@ class NNLearningPolicy(Policy):
         self._prev_time         = mdp_state.time
         self._prev_candidate_encodings = post_encodings
         self._prev_chosen_idx = idx
+        self._prev_potential_reward = self._compute_rebalancing_potential_reward(
+            mdp_state,
+            chosen_post_state,
+            valid_pairs[idx][0],
+        )
         
         # 🔴 NEW: Save what action we actually took, so we can get rewarded for it next epoch
         # PostDecisionState.apply returns (new_state, duration, executed_action)
@@ -1951,6 +2031,8 @@ class NNLearningPolicy(Policy):
                            executed_action=getattr(self, "_prev_executed_action", None),
                        )
                        + self._reward_calc.compute_fleet_penalty(sim_state))
+            if self.rebalancing_potential_shaping:
+                final_r += self._prev_potential_reward
 
             elapsed_time = sim_state.time - (self._prev_time if self._prev_time is not None else sim_state.time)
             elapsed_time = max(1.0, elapsed_time)
@@ -2015,6 +2097,7 @@ class NNLearningPolicy(Policy):
         self._nstep_pending.clear()
         self._mc_episode_steps.clear()
         self._prev_executed_action = None  # 🔴 NEW: Clear the stored action
+        self._prev_potential_reward = 0.0
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -2227,6 +2310,9 @@ def train_nn_rollout(
     rollout_ranking_candidates: int = 6,
     rollout_ranking_scenarios: int = 1,
     rollout_ranking_min_margin: float = 0.0,
+    rebalancing_potential_shaping: bool = False,
+    rebalancing_potential_weight: float = 0.0,
+    rebalancing_potential_mode: str = "target",
     linear_teacher_ranking_path: Optional[str] = None,
     teacher_ranking_lambda:  float = 0.0,
     teacher_ranking_margin:  float = 0.1,
@@ -2457,6 +2543,8 @@ def train_nn_rollout(
         _encoder_suffix += f"_rank{_tag_float(ranking_loss_lambda)}"
     if rollout_ranking_lambda > 0.0:
         _encoder_suffix += f"_rrank{_tag_float(rollout_ranking_lambda)}"
+    if rebalancing_potential_shaping and rebalancing_potential_weight != 0.0:
+        _encoder_suffix += f"_rpot{_tag_float(rebalancing_potential_weight)}_{rebalancing_potential_mode}"
     if target_ranking_lambda > 0.0:
         _encoder_suffix += f"_tgrank{_tag_float(target_ranking_lambda)}"
     if mc_return_loss_lambda > 0.0:
@@ -2499,6 +2587,10 @@ def train_nn_rollout(
         "pct_rollout_best_maintenance_when_available",
         "pct_rollout_best_rebalancing_when_available",
         "pct_rollout_best_same_type_as_nn",
+        "rebalancing_potential_shaping", "rebalancing_potential_weight",
+        "rebalancing_potential_mode", "potential_reward_mean",
+        "potential_delta_mean", "potential_risk_before_mean",
+        "potential_risk_after_mean",
         "target_ranking_lambda", "target_ranking_buffer_size",
         "target_ranking_loss", "target_top1_match", "target_top3_match",
         "mc_return_loss_lambda", "mc_return_buffer_size", "mc_return_loss",
@@ -2594,6 +2686,10 @@ def train_nn_rollout(
         f"cands={rollout_ranking_candidates} scenarios={rollout_ranking_scenarios}"
     )
     print(
+        f"  Rebal. potential  : enabled={rebalancing_potential_shaping} "
+        f"weight={rebalancing_potential_weight:g} mode={rebalancing_potential_mode}"
+    )
+    print(
         f"  Target ranking    : lambda={target_ranking_lambda:g} "
         f"margin={target_ranking_margin:g} buffer={target_ranking_buffer_size:,}"
     )
@@ -2671,6 +2767,9 @@ def train_nn_rollout(
             rollout_ranking_candidates=rollout_ranking_candidates,
             rollout_ranking_scenarios=rollout_ranking_scenarios,
             rollout_ranking_min_margin=rollout_ranking_min_margin,
+            rebalancing_potential_shaping=rebalancing_potential_shaping,
+            rebalancing_potential_weight=rebalancing_potential_weight,
+            rebalancing_potential_mode=rebalancing_potential_mode,
         )
         greedy_policy = GreedyMaintenancePolicy() if _maintenance else GreedyPolicy()
         episode_policy = NNEpisodeTrainingPolicy(
@@ -3192,6 +3291,9 @@ def train_nn_rollout(
                     "rollout_ranking_candidates": rollout_ranking_candidates,
                     "rollout_ranking_scenarios": rollout_ranking_scenarios,
                     "rollout_ranking_min_margin": rollout_ranking_min_margin,
+                    "rebalancing_potential_shaping": rebalancing_potential_shaping,
+                    "rebalancing_potential_weight": rebalancing_potential_weight,
+                    "rebalancing_potential_mode": rebalancing_potential_mode,
                     "target_ranking_lambda": target_ranking_lambda,
                     "target_ranking_margin": target_ranking_margin,
                     "target_ranking_buffer_size": target_ranking_buffer_size,
@@ -3344,6 +3446,18 @@ def train_nn_rollout(
             nn_learning._rollout_best_same_type_as_nn / rollout_denom * 100,
             1,
         )
+        potential_reward_mean = round(
+            _stat.mean(nn_learning._potential_rewards), 6
+        ) if nn_learning._potential_rewards else 0.0
+        potential_delta_mean = round(
+            _stat.mean(nn_learning._potential_deltas), 6
+        ) if nn_learning._potential_deltas else 0.0
+        potential_risk_before_mean = round(
+            _stat.mean(nn_learning._potential_risk_before), 6
+        ) if nn_learning._potential_risk_before else 0.0
+        potential_risk_after_mean = round(
+            _stat.mean(nn_learning._potential_risk_after), 6
+        ) if nn_learning._potential_risk_after else 0.0
 
         def _entropy(counts: dict) -> float:
             total = sum(counts.values())
@@ -3405,6 +3519,13 @@ def train_nn_rollout(
             "pct_rollout_best_maintenance_when_available": pct_rollout_best_maintenance_when_available,
             "pct_rollout_best_rebalancing_when_available": pct_rollout_best_rebalancing_when_available,
             "pct_rollout_best_same_type_as_nn": pct_rollout_best_same_type_as_nn,
+            "rebalancing_potential_shaping": int(rebalancing_potential_shaping),
+            "rebalancing_potential_weight": rebalancing_potential_weight,
+            "rebalancing_potential_mode": rebalancing_potential_mode,
+            "potential_reward_mean": potential_reward_mean,
+            "potential_delta_mean": potential_delta_mean,
+            "potential_risk_before_mean": potential_risk_before_mean,
+            "potential_risk_after_mean": potential_risk_after_mean,
             "target_ranking_lambda": target_ranking_lambda,
             "target_ranking_buffer_size": len(target_ranking_buffer) if target_ranking_buffer is not None else 0,
             "target_ranking_loss": round(mean_target_ranking_loss, 6),
@@ -3522,6 +3643,9 @@ def train_nn_rollout(
                 "rollout_ranking_candidates": rollout_ranking_candidates,
                 "rollout_ranking_scenarios": rollout_ranking_scenarios,
                 "rollout_ranking_min_margin": rollout_ranking_min_margin,
+                "rebalancing_potential_shaping": rebalancing_potential_shaping,
+                "rebalancing_potential_weight": rebalancing_potential_weight,
+                "rebalancing_potential_mode": rebalancing_potential_mode,
                 "target_ranking_lambda": target_ranking_lambda,
                 "target_ranking_margin": target_ranking_margin,
                 "target_ranking_buffer_size": target_ranking_buffer_size,
@@ -3591,6 +3715,9 @@ def train_nn_rollout(
         "rollout_ranking_candidates": rollout_ranking_candidates,
         "rollout_ranking_scenarios": rollout_ranking_scenarios,
         "rollout_ranking_min_margin": rollout_ranking_min_margin,
+        "rebalancing_potential_shaping": rebalancing_potential_shaping,
+        "rebalancing_potential_weight": rebalancing_potential_weight,
+        "rebalancing_potential_mode": rebalancing_potential_mode,
         "target_ranking_lambda": target_ranking_lambda,
         "target_ranking_margin": target_ranking_margin,
         "target_ranking_buffer_size": target_ranking_buffer_size,
@@ -3862,6 +3989,22 @@ if __name__ == "__main__":
                         help="Common-random-number rollout scenarios per candidate.")
     parser.add_argument("--rollout_ranking_min_margin", type=float, default=0.0,
                         help="Only store rollout labels when best-minus-second rollout score is at least this value.")
+    parser.add_argument("--rebalancing_potential_shaping", action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help=(
+                            "Add immediate difference-reward shaping for rebalancing actions: "
+                            "weight * (risk_before - risk_after). Pure maintenance actions receive no "
+                            "potential reward."
+                        ))
+    parser.add_argument("--rebalancing_potential_weight", type=float, default=0.0,
+                        help="Weight for --rebalancing_potential_shaping.")
+    parser.add_argument("--rebalancing_potential_mode", type=str, default="target",
+                        choices=["target", "gross", "combined"],
+                        help=(
+                            "Risk potential used by rebalancing shaping. target uses current "
+                            "target-gap starvation/congestion; gross uses expected demand/return pressure; "
+                            "combined uses both."
+                        ))
     parser.add_argument("--target_ranking_lambda", type=float, default=0.0,
                         help=(
                             "Weight for target-network candidate-ranking loss. "
@@ -3971,6 +4114,11 @@ if __name__ == "__main__":
             f"scenarios={args.rollout_ranking_scenarios}"
         )
         print(
+            f"  rebal_potential:     enabled={args.rebalancing_potential_shaping} "
+            f"weight={args.rebalancing_potential_weight:g} "
+            f"mode={args.rebalancing_potential_mode}"
+        )
+        print(
             f"  target_rank_loss:    lambda={args.target_ranking_lambda:g} "
             f"margin={args.target_ranking_margin:g} "
             f"batch_sets={args.target_ranking_batch_sets}"
@@ -4052,6 +4200,9 @@ if __name__ == "__main__":
             rollout_ranking_candidates = args.rollout_ranking_candidates,
             rollout_ranking_scenarios = args.rollout_ranking_scenarios,
             rollout_ranking_min_margin = args.rollout_ranking_min_margin,
+            rebalancing_potential_shaping = args.rebalancing_potential_shaping,
+            rebalancing_potential_weight = args.rebalancing_potential_weight,
+            rebalancing_potential_mode = args.rebalancing_potential_mode,
             target_ranking_lambda    = args.target_ranking_lambda,
             target_ranking_margin    = args.target_ranking_margin,
             target_ranking_buffer_size = args.target_ranking_buffer_size,
