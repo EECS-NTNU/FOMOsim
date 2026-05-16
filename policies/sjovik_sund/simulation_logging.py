@@ -89,6 +89,7 @@ class SimulationRunLogger:
     def _results_columns() -> list[str]:
         return [
             "seed", "exp_name", "alpha", "duration_hours", "total_runtime_s",
+            "lookahead_minutes", "num_scenarios", "n_routing_candidates", "n_time_steps",
             "service_level",
             "avg_bike_km_driven",
             "starvations", "congestions", "total_trips",
@@ -188,6 +189,10 @@ class SimulationRunLogger:
         self._duration_hours: int | float | None = None
         self._num_vehicles: int | None = None
         self._instance_name: str = ""
+        self._lookahead_minutes: int | float | None = None
+        self._num_scenarios: int | None = None
+        self._n_routing_candidates: int | None = None
+        self._n_time_steps: int | None = None
         self._current_seed: int = 0
         self._shift_hour_start: int = 5
         self._results_only: bool = False
@@ -244,12 +249,32 @@ class SimulationRunLogger:
             duration_hours = int(duration_hours)
         return f"D{duration_hours}h"
 
+    @staticmethod
+    def _format_scalar(value: int | float | None) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+        return f"{value:g}" if isinstance(value, float) else str(value)
+
     def _policy_folder_name(self) -> str:
         policy_type = _safe_path_part(self._policy_type)
         parts = [policy_type]
 
         if self._policy_type.lower() in {"vfa", "hybrid"} and self._exp_name:
             parts.append(_safe_path_part(self._exp_name))
+
+        if self._policy_type.lower() == "hybrid":
+            rollout_parts = [
+                ("H", self._lookahead_minutes),
+                ("S", self._num_scenarios),
+                ("R", self._n_routing_candidates),
+                ("T", self._n_time_steps),
+            ]
+            for prefix, value in rollout_parts:
+                formatted = self._format_scalar(value)
+                if formatted is not None:
+                    parts.append(f"{prefix}{_safe_path_part(formatted)}")
 
         if self._instance_name:
             parts.append(_safe_path_part(self._instance_name))
@@ -285,6 +310,10 @@ class SimulationRunLogger:
         duration_hours: int | float | None = None,
         num_vehicles: int | None = None,
         instance_name: str | None = None,
+        lookahead_minutes: int | float | None = None,
+        num_scenarios: int | None = None,
+        n_routing_candidates: int | None = None,
+        n_time_steps: int | None = None,
         shift_hour_start: int = 5,
         results_only: bool = False,
     ) -> None:
@@ -297,6 +326,10 @@ class SimulationRunLogger:
         self._duration_hours = duration_hours
         self._num_vehicles = num_vehicles
         self._instance_name = instance_name or ""
+        self._lookahead_minutes = lookahead_minutes
+        self._num_scenarios = num_scenarios
+        self._n_routing_candidates = n_routing_candidates
+        self._n_time_steps = n_time_steps
         self._shift_hour_start = shift_hour_start
         self._results_only = results_only
 
@@ -316,9 +349,11 @@ class SimulationRunLogger:
 
         self.debug(
             f"Run label: exp={exp_name} alpha={alpha} policy={policy_type} "
+            f"H={lookahead_minutes} S={num_scenarios} R={n_routing_candidates} T={n_time_steps} "
             f"folder={self._policy_dir.name} results_only={results_only} "
             f"log_files={sorted(self.log_files)}"
         )
+        print(f"[SimulationRunLogger] Policy output folder: {self._policy_dir}")
 
     def set_seed(self, seed: int) -> None:
         self._close_seed_files()
@@ -566,6 +601,10 @@ class SimulationRunLogger:
             "alpha": self._alpha,
             "duration_hours": duration,
             "total_runtime_s": round(solve_time, 2),
+            "lookahead_minutes": self._lookahead_minutes,
+            "num_scenarios": self._num_scenarios,
+            "n_routing_candidates": self._n_routing_candidates,
+            "n_time_steps": self._n_time_steps,
             "service_level": round(service_level, 4),
             "avg_bike_km_driven": round(avg_bike_km_driven, 4),
             "starvations": ag("starvations"),

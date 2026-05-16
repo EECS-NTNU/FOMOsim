@@ -122,6 +122,12 @@ class HybridRolloutPolicy(Policy):
         self._simulator = simulator
         self._sync_maintenance_flag()
         self.vfa.init_sim(simulator)
+        cfg = self.vfa.reward_calc.config
+        print(
+            f"[HYBRID REWARD CONFIG] ws={cfg.weight_starvation}, "
+            f"wc={cfg.weight_congestion}, "
+            f"scale={self.vfa.reward_calc._scale_factor}"
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # Analytical rollout core
