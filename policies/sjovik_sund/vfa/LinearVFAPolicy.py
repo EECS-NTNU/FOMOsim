@@ -25,7 +25,9 @@ if TYPE_CHECKING:
 from collections import deque
 
 from policies import action
-from policies.sjovik_sund.mdp.reward import RewardCalculator
+from dataclasses import asdict
+
+from policies.sjovik_sund.mdp.reward import RewardCalculator, RewardConfig
 from policies.sjovik_sund.mdp.candidate_generator import generate_candidates
 from helpers import format_sim_time
 
@@ -2065,6 +2067,7 @@ class LinearVFAPolicy(Policy):
             "feature_centering_beta": self.feature_centering_beta,
             "feature_center": self._feature_center,
             "feature_center_initialized": self._feature_center_initialized,
+            "reward_config": asdict(self.reward_calc.config),
         }
         with open(path, "wb") as f:
             pickle.dump(payload, f)
@@ -2088,6 +2091,23 @@ class LinearVFAPolicy(Policy):
         kwargs.setdefault("initial_bias", payload.get("initial_bias", None))
         kwargs.setdefault("use_feature_centering", bool(payload.get("use_feature_centering", False)))
         kwargs.setdefault("feature_centering_beta", float(payload.get("feature_centering_beta", 0.01)))
+        reward_config_payload = payload.get("reward_config")
+        loaded_reward_config = reward_config_payload is not None
+        if "reward_calculator" not in kwargs and loaded_reward_config:
+            valid_reward_keys = RewardConfig.__dataclass_fields__.keys()
+            if isinstance(reward_config_payload, RewardConfig):
+                reward_config = reward_config_payload
+            else:
+                reward_config = RewardConfig(**{
+                    key: value
+                    for key, value in dict(reward_config_payload).items()
+                    if key in valid_reward_keys
+                })
+            kwargs["reward_calculator"] = RewardCalculator(
+                config=reward_config,
+                gamma=payload["gamma"],
+            )
+
         policy         = cls(
             n_features   = payload["n_features"],
             alpha        = payload["alpha"],
@@ -2102,6 +2122,7 @@ class LinearVFAPolicy(Policy):
         if payload.get("feature_center") is not None:
             policy._feature_center = np.array(payload["feature_center"], dtype=np.float64)
             policy._feature_center_initialized = bool(payload.get("feature_center_initialized", True))
+        policy._reward_config_loaded_from_model = loaded_reward_config
         return policy
 
 

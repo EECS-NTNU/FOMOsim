@@ -51,7 +51,7 @@ from policies.sjovik_sund.operational_scenarios import (
     VehiclePolicyAssignment,
     VehiclePolicyDispatcher,
 )
-from policies.sjovik_sund.mdp.reward import RewardCalculator, RewardConfig
+from policies.sjovik_sund.mdp.reward import RewardCalculator
 from policies.do_nothing_policy import DoNothing
 from policies.greedy_policy import GreedyPolicy
 #from policies.greedy_policy_V2 import GreedyPolicyV2
@@ -97,7 +97,7 @@ from sim.bike_degradation_modeling.steady_state_odometer import (
     write_csv_rows,
 )
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Dict, List
 
 
@@ -212,6 +212,64 @@ class EvaluationWarmupPolicy(policies.Policy):
 
     def __repr__(self) -> str:
         return f"EvaluationWarmupPolicy({self.evaluation_policy!r})"
+
+
+def _parse_tuning_number_token(token: str) -> float:
+    """Parse run_ablation_study path tokens such as m1p0 or 0p7."""
+    return float(token.replace("m", "-").replace("p", "."))
+
+
+def _infer_reward_config_from_model_path(model_path: str | Path) -> dict[str, float]:
+    """Infer legacy reward config from filenames like *_wsm1p0_wcm0p7_wf0p0_*."""
+    import re
+
+    text = str(model_path)
+    inferred: dict[str, float] = {}
+    token_pattern = r"(-?\d+(?:\.\d+)?|m?\d+(?:p\d+)?)"
+    for attr, prefix in (
+        ("weight_starvation", "ws"),
+        ("weight_congestion", "wc"),
+        ("weight_fleet_degradation", "wf"),
+    ):
+        match = re.search(rf"(?:^|[\\/_-]){prefix}{token_pattern}(?=[\\/_\.-]|$)", text)
+        if match:
+            inferred[attr] = _parse_tuning_number_token(match.group(1))
+    return inferred
+
+
+def _configure_evaluation_reward(vfa_policy: LinearVFAPolicy, args) -> dict[str, str]:
+    """Apply CLI/model/path reward weights to the loaded VFA policy."""
+    reward_config = vfa_policy.reward_calc.config
+    loaded_from_model = bool(getattr(vfa_policy, "_reward_config_loaded_from_model", False))
+    inferred = {} if loaded_from_model else _infer_reward_config_from_model_path(args.vfa_model)
+    sources: dict[str, str] = {}
+
+    for attr in ("weight_starvation", "weight_congestion"):
+        cli_value = getattr(args, attr)
+        if cli_value is not None:
+            reward_config = replace(reward_config, **{attr: cli_value})
+            sources[attr] = "cli"
+        elif attr in inferred:
+            reward_config = replace(reward_config, **{attr: inferred[attr]})
+            sources[attr] = "model-path"
+        elif loaded_from_model:
+            sources[attr] = "model"
+        else:
+            sources[attr] = "default"
+
+    if not loaded_from_model and "weight_fleet_degradation" in inferred:
+        reward_config = replace(
+            reward_config,
+            weight_fleet_degradation=inferred["weight_fleet_degradation"],
+        )
+        sources["weight_fleet_degradation"] = "model-path"
+    elif loaded_from_model:
+        sources["weight_fleet_degradation"] = "model"
+    else:
+        sources["weight_fleet_degradation"] = "default"
+
+    vfa_policy.reward_calc = RewardCalculator(reward_config, gamma=vfa_policy.gamma)
+    return sources
 
 
 def _resolve_odometer_stats_path(stats_path, instance_name: str) -> Path | None:
@@ -892,6 +950,30 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "--weight-starvation",
+        "--weight_starvation",
+        dest="weight_starvation",
+        type=float,
+        default=None,
+        help=(
+            "Starvation reward weight for rollout scoring. If omitted, uses the "
+            "value saved in the VFA model, then legacy filename tokens like "
+            "wsm1p0, then -1.0."
+        ),
+    )
+    parser.add_argument(
+        "--weight-congestion",
+        "--weight_congestion",
+        dest="weight_congestion",
+        type=float,
+        default=None,
+        help=(
+            "Congestion reward weight for rollout scoring. If omitted, uses the "
+            "value saved in the VFA model, then legacy filename tokens like "
+            "wcm0p7, then -1.0."
+        ),
+    )
+    parser.add_argument(
         "--num-scenarios", "--scenarios",
         dest="num_scenarios",
         type=int,
@@ -1060,6 +1142,10 @@ if __name__ == "__main__":
         results_only: bool = False,
         num_vehicles_override: int | None = None,
         scenario_name: str | None = None,
+        lookahead_minutes: float | None = None,
+        num_scenarios: int | None = None,
+        n_routing_candidates: int | None = None,
+        n_time_steps: int | None = None,
     ) -> None:
         if run_logger is None:
             return
@@ -1070,16 +1156,29 @@ if __name__ == "__main__":
             duration_hours=duration,
             num_vehicles=num_vehicles if num_vehicles_override is None else num_vehicles_override,
             instance_name=args.instance,
+            lookahead_minutes=lookahead_minutes,
+            num_scenarios=num_scenarios,
+            n_routing_candidates=n_routing_candidates,
+            n_time_steps=n_time_steps,
             results_only=results_only,
             scenario_name=scenario_name,
         )
 
     def _load_vfa_policy() -> tuple[LinearVFAPolicy, str]:
         load_kwargs = {}
-        if args.active_features:
+        if args.active_features is not None:
             load_kwargs["active_features"] = args.active_features
         vfa_policy = LinearVFAPolicy.load(Path(args.vfa_model), **load_kwargs)
         vfa_policy.learning_mode = False
+        reward_sources = _configure_evaluation_reward(vfa_policy, args)
+        cfg = vfa_policy.reward_calc.config
+        print(
+            f"[REWARD CONFIG] ws={cfg.weight_starvation} ({reward_sources['weight_starvation']}), "
+            f"wc={cfg.weight_congestion} ({reward_sources['weight_congestion']}), "
+            f"wf={cfg.weight_fleet_degradation} ({reward_sources['weight_fleet_degradation']}), "
+            f"scale={vfa_policy.reward_calc._scale_factor}, "
+            f"gamma={vfa_policy.reward_calc.gamma}"
+        )
         import re
         stem = Path(args.vfa_model).stem          # e.g. "vfa_Squared_Temporal_seed1000"
         exp_name = re.sub(r"^vfa_|_seed\d+$", "", stem)  # e.g. "Squared_Temporal"
@@ -1130,7 +1229,14 @@ if __name__ == "__main__":
 
         if policy_type == "hybrid":
             vfa_policy, exp_name = _load_vfa_policy()
-            _set_run_logger_context(policy_type, exp_name=exp_name)
+            _set_run_logger_context(
+                policy_type,
+                exp_name=exp_name,
+                lookahead_minutes=args.lookahead,
+                num_scenarios=args.num_scenarios,
+                n_routing_candidates=args.n_routing,
+                n_time_steps=args.n_time_steps,
+            )
             if run_logger is not None:
                 vfa_policy.logger = run_logger
             hybrid_policy = HybridRolloutPolicy(
