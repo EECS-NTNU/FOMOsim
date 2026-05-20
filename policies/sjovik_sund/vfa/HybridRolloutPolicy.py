@@ -466,7 +466,7 @@ class HybridRolloutPolicy(Policy):
                 state, vehicle, dest_idx, eval_time,
                 cand_func, cand_onsite, cand_depot,
                 cand_func_cargo, cand_depot_cargo, vehicle_capacity,
-                n_options=min(1, self.n_routing_candidates), #Required at lest 1 routing option
+                n_options=5,
             ) or [None]
 
             for next_id in next_options:
