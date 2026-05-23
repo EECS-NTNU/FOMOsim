@@ -88,7 +88,7 @@ def mdp_action_to_sim_action(
     mdp_action: MdpAction,
     state,
     vehicle,
-    maintenance_minutes_per_onsite_repair: float = MAINTENANCE_REPAIR,
+    maintenance_minutes_per_onsite_repair: float | None = None,
     depot_unload_minutes_per_bike: float = MINUTES_PER_ACTION,
 ) -> Action:
     """
@@ -106,6 +106,10 @@ def mdp_action_to_sim_action(
     - depot_dropoffs  : delivery_bikes when current station is depot
     - load_from_queue : pick_ups when current station is depot
     """
+    if maintenance_minutes_per_onsite_repair is None:
+        import settings
+        maintenance_minutes_per_onsite_repair = settings.MAINTENANCE_REPAIR
+
     station = vehicle.location
 
     station_bikes = _station_bikes(station)
