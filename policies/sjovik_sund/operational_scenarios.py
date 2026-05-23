@@ -31,12 +31,20 @@ class TimeWindow:
     def parse(cls, text: str | None) -> "TimeWindow":
         if text is None or str(text).strip().lower() in {"", "all", "always"}:
             return cls(0.0, 0.0)
-        cleaned = str(text).strip().replace(":", ".")
+
+        def parse_hour(value: str) -> float:
+            value = value.strip()
+            if ":" not in value:
+                return float(value)
+            hour, minute = value.split(":", 1)
+            return float(hour) + float(minute) / 60.0
+
+        cleaned = str(text).strip()
         if "-" not in cleaned:
-            hour = float(cleaned)
+            hour = parse_hour(cleaned)
             return cls(hour, hour)
         start, end = cleaned.split("-", 1)
-        return cls(float(start), float(end))
+        return cls(parse_hour(start), parse_hour(end))
 
     def contains(self, hour: float) -> bool:
         hour = float(hour) % 24.0
@@ -91,6 +99,20 @@ def _nearest_depot_id(state, vehicle) -> str:
         depots,
         key=lambda depot: state.get_vehicle_travel_time(vehicle.location.id, depot.id),
     ).id
+
+
+class _DepotStagedVehicleArrival(sim.VehicleArrival):
+    """Vehicle wake-up that stages a dedicated window vehicle at the depot."""
+
+    def __init__(self, arrival_time: float, vehicle: sim.Vehicle, depot_id: str):
+        super().__init__(arrival_time, vehicle)
+        self.depot_id = depot_id
+
+    def perform(self, simul) -> None:
+        depot = getattr(simul.state, "locations", {}).get(self.depot_id)
+        if depot is not None:
+            self.vehicle.location = depot
+        super().perform(simul)
 
 
 def _action_counts(state, vehicle, action) -> dict:
@@ -368,6 +390,7 @@ class VehiclePolicyDispatcher(Policy):
         default_window: TimeWindow | None = None,
         logger=None,
         scenario_name: str = "",
+        activation_start_time: float = 0.0,
     ):
         super().__init__(maintenance_enabled=getattr(default_policy, "maintenance_enabled", True))
         self.default_policy = default_policy
@@ -375,7 +398,11 @@ class VehiclePolicyDispatcher(Policy):
         self.default_window = default_window or TimeWindow(float(SERVICE_TIME_FROM), float(SERVICE_TIME_TO))
         self.logger = logger
         self.scenario_name = scenario_name
+        self.activation_start_time = float(activation_start_time or 0.0)
         self.swap_threshold = getattr(default_policy, "swap_threshold", 0)
+
+    def set_activation_start_time(self, activation_start_time: float) -> None:
+        self.activation_start_time = float(activation_start_time or 0.0)
 
     def init_sim(self, simulator) -> None:
         seen = set()
@@ -385,12 +412,65 @@ class VehiclePolicyDispatcher(Policy):
             seen.add(id(policy))
             if hasattr(policy, "init_sim"):
                 policy.init_sim(simulator)
+        self._schedule_assignment_wakeups(simulator)
+
+    def _schedule_assignment_wakeups(self, simulator) -> None:
+        """Ensure time-window vehicles receive a decision at window start.
+
+        A dedicated vehicle can sit idle at the depot outside its active window.
+        Without an explicit wake-up event, it may not receive a VehicleArrival
+        event exactly when the window opens, especially for after-hours windows
+        that start when the default daytime vehicle stops operating.
+        """
+        state = getattr(simulator, "state", None)
+        if state is None or not hasattr(simulator, "add_event"):
+            return
+
+        start_time = max(float(getattr(state, "time", 0.0)), self.activation_start_time)
+        end_time = float(getattr(simulator, "end_time", start_time))
+        if end_time <= start_time:
+            return
+
+        existing = {
+            (float(getattr(event, "time", -1.0)), getattr(getattr(event, "vehicle", None), "id", None))
+            for event in getattr(simulator, "event_queue", [])
+        }
+        depots = sorted(state.get_depots(), key=lambda depot: depot.id)
+        staging_depot_id = depots[0].id if depots else None
+
+        for assignment in self.assignments.values():
+            window = assignment.active_window
+            if window.start_hour % 24.0 == window.end_hour % 24.0:
+                continue
+            vehicle = getattr(state, "vehicles", {}).get(assignment.vehicle_id)
+            if vehicle is None:
+                continue
+
+            wake_minute = (window.start_hour % 24.0) * 60.0
+            day_start = (start_time // 1440.0) * 1440.0
+            wake_time = day_start + wake_minute
+            if wake_time < start_time:
+                wake_time += 1440.0
+
+            while wake_time < end_time:
+                key = (float(wake_time), assignment.vehicle_id)
+                if key not in existing:
+                    if staging_depot_id is not None:
+                        simulator.add_event(
+                            _DepotStagedVehicleArrival(wake_time, vehicle, staging_depot_id)
+                        )
+                    else:
+                        simulator.add_event(sim.VehicleArrival(wake_time, vehicle))
+                    existing.add(key)
+                wake_time += 1440.0
 
     def get_action(self, state, vehicle):
-        hour = state.hour()
+        clock_minute = float(getattr(state, "time", 0.0)) % (24 * 60)
+        hour = clock_minute / 60.0
+        after_activation_start = float(getattr(state, "time", 0.0)) >= self.activation_start_time
         assignment = self.assignments.get(vehicle.id)
         if assignment is not None:
-            active = assignment.active_window.contains(hour)
+            active = after_activation_start and assignment.active_window.contains(hour)
             if active:
                 return self._delegate(
                     state,
@@ -401,27 +481,9 @@ class VehiclePolicyDispatcher(Policy):
                     vehicle_active=True,
                 )
             if assignment.idle_outside_window:
-                action = self._return_to_depot_action(state, vehicle)
-                self._with_context(
-                    vehicle,
-                    vehicle_role=assignment.role,
-                    vehicle_policy_type="inactive",
-                    active_window=assignment.active_window.label(),
-                    vehicle_active=False,
-                )
-                try:
-                    log_policy_action(
-                        self.logger,
-                        state,
-                        vehicle,
-                        action,
-                        winning_profile_type="inactive-return-to-depot",
-                    )
-                finally:
-                    self._clear_context()
-                return action
+                return self._idle_until_next_assignment_window_action(state, vehicle, assignment)
 
-        if self.default_window.contains(hour):
+        if after_activation_start and self.default_window.contains(hour):
             return self._delegate(
                 state,
                 vehicle,
@@ -503,7 +565,20 @@ class VehiclePolicyDispatcher(Policy):
             self.logger.clear_decision_context()
 
     def _return_to_depot_action(self, state, vehicle):
-        return sim.Action([], [], [], _nearest_depot_id(state, vehicle), maintenance_time=0.0)
+        depot_id = _nearest_depot_id(state, vehicle)
+        # Wait 30 min when already at depot to avoid zero-time event loops.
+        already_there = (vehicle.location.id == depot_id)
+        return sim.Action([], [], [], depot_id, maintenance_time=30.0 if already_there else 0.0)
+
+    def _idle_until_next_assignment_window_action(self, state, vehicle, assignment):
+        current_time = float(getattr(state, "time", 0.0))
+        reference_time = max(current_time, self.activation_start_time)
+        day_start = (reference_time // 1440.0) * 1440.0
+        wake_time = day_start + (assignment.active_window.start_hour % 24.0) * 60.0
+        if wake_time <= reference_time:
+            wake_time += 1440.0
+        wait_time = max(0.0, wake_time - current_time)
+        return sim.Action([], [], [], _nearest_depot_id(state, vehicle), maintenance_time=wait_time)
 
     def __repr__(self) -> str:
         return f"VehiclePolicyDispatcher({self.scenario_name or 'scenario'})"
