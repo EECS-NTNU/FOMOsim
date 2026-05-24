@@ -11,10 +11,15 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
+import sys
 from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path("/private/tmp") / "fomosim_matplotlib_cache"))
 os.environ.setdefault("XDG_CACHE_HOME", str(Path("/private/tmp") / "fomosim_cache"))
+
+WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
 
 import matplotlib
 matplotlib.use("Agg")
@@ -24,18 +29,58 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-# Match the LaTeX styling used in plot_feature_study.py.
-if shutil.which("latex"):
-    plt.rcParams.update({
-        "text.usetex": True,
-        "font.family": "serif",
-        "text.latex.preamble": r"\usepackage[T1]{fontenc} \usepackage{mlmodern}",
-    })
-else:
-    plt.rcParams.update({
-        "text.usetex": False,
-        "font.family": "serif",
-    })
+from policies.sjovik_sund.vfa.vfa_features import get_feature_short_name
+
+# Thesis plot style shared with hyperparameter_tuning.ipynb.
+BASE_FONTSIZE = 12
+TITLE_FONTSIZE = 16
+AXIS_FONTSIZE = 14
+TICK_FONTSIZE = 12
+LEGEND_FONTSIZE = 12
+ANNOT_FONTSIZE = 11
+SMALL_FONTSIZE = 10
+HEATMAP_FONTSIZE = 11
+PLOT_DPI = 300
+
+THESIS_USETEX = shutil.which("latex") is not None
+THESIS_SERIF_FONTS = ["Latin Modern Roman", "Computer Modern Roman", "DejaVu Serif"]
+THESIS_SANS_FONTS = ["Latin Modern Sans", "DejaVu Sans"]
+THESIS_MONO_FONTS = ["Latin Modern Mono", "Latin Modern Typewriter", "DejaVu Sans Mono"]
+
+plt.rcParams.update({
+    "text.usetex": THESIS_USETEX,
+    "font.family": "serif",
+    "font.serif": THESIS_SERIF_FONTS,
+    "font.sans-serif": THESIS_SANS_FONTS,
+    "font.monospace": THESIS_MONO_FONTS,
+    "mathtext.fontset": "cm",
+})
+if THESIS_USETEX:
+    plt.rcParams["text.latex.preamble"] = r"\usepackage[T1]{fontenc} \usepackage{mlmodern}"
+
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": THESIS_SERIF_FONTS,
+    "font.sans-serif": THESIS_SANS_FONTS,
+    "font.monospace": THESIS_MONO_FONTS,
+    "mathtext.fontset": "cm",
+    "mathtext.default": "regular",
+    "font.size": BASE_FONTSIZE,
+    "font.weight": "normal",
+    "axes.titlesize": TITLE_FONTSIZE,
+    "axes.labelsize": AXIS_FONTSIZE,
+    "axes.titleweight": "normal",
+    "axes.labelweight": "normal",
+    "xtick.labelsize": TICK_FONTSIZE,
+    "ytick.labelsize": TICK_FONTSIZE,
+    "legend.fontsize": LEGEND_FONTSIZE,
+    "legend.title_fontsize": LEGEND_FONTSIZE,
+    "figure.titlesize": TITLE_FONTSIZE,
+    "figure.titleweight": "normal",
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
+    "svg.fonttype": "path",
+})
 
 # Shared divergent palette: blue (low) -> white (zero) -> red (high).
 DIVERGENT_CMAP = LinearSegmentedColormap.from_list(
@@ -48,8 +93,8 @@ FLAG_COLOR = "#db3249"
 WARN_COLOR = "#d89c2b"
 
 
-def _strip_underscores(labels):
-    return [str(label).replace("_", " ") for label in labels]
+def _feature_labels(labels):
+    return [get_feature_short_name(str(label)) for label in labels]
 
 
 DIAGNOSTIC_COLUMNS = [
@@ -83,7 +128,7 @@ def _save(fig, output_dir: Path, stem: str) -> None:
     for ext in ("png", "pdf", "svg"):
         path = output_dir / f"{stem}.{ext}"
         if ext == "png":
-            fig.savefig(path, dpi=220, bbox_inches="tight")
+            fig.savefig(path, dpi=PLOT_DPI, bbox_inches="tight")
         else:
             fig.savefig(path, bbox_inches="tight")
         print(f"  wrote {path}")
@@ -106,13 +151,14 @@ def plot_diagnostic_traffic_light(summary: pd.DataFrame, features: list[str], ou
     ax.set_xticks(np.arange(len(labels)))
     ax.set_xticklabels(labels, rotation=35, ha="right")
     ax.set_yticks(np.arange(len(features)))
-    ax.set_yticklabels(_strip_underscores(features), fontsize=8)
-    ax.set_title("Rebalancing feature screening diagnostics")
+    ax.set_yticklabels(_feature_labels(features), fontsize=TICK_FONTSIZE)
+    ax.set_title("Rebalancing feature screening diagnostics", fontsize=TITLE_FONTSIZE)
     ax.set_xlabel("Diagnostic")
     ax.set_ylabel("Candidate rebalancing feature")
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
-            ax.text(j, i, "pass" if data[i, j] else "flag", ha="center", va="center", fontsize=6, color="white")
+            ax.text(j, i, "pass" if data[i, j] else "flag", ha="center", va="center",
+                    fontsize=SMALL_FONTSIZE, color="white")
     ax.set_xticks(np.arange(-0.5, len(labels), 1), minor=True)
     ax.set_yticks(np.arange(-0.5, len(features), 1), minor=True)
     ax.grid(which="minor", color="white", linestyle="-", linewidth=0.8)
@@ -131,12 +177,13 @@ def plot_target_correlation_heatmap(input_dir: Path, features: list[str], output
     ax.set_xticks(np.arange(len(cols)))
     ax.set_xticklabels([c.replace("corr_", "").replace("_", " ") for c in cols], rotation=30, ha="right")
     ax.set_yticks(np.arange(len(features)))
-    ax.set_yticklabels(_strip_underscores(features), fontsize=8)
-    ax.set_title("Rebalancing feature-target correlations")
+    ax.set_yticklabels(_feature_labels(features), fontsize=TICK_FONTSIZE)
+    ax.set_title("Rebalancing feature-target correlations", fontsize=TITLE_FONTSIZE)
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
             val = data.iloc[i, j]
-            ax.text(j, i, "" if pd.isna(val) else f"{val:.2f}", ha="center", va="center", fontsize=6)
+            ax.text(j, i, "" if pd.isna(val) else f"{val:.2f}", ha="center", va="center",
+                    fontsize=SMALL_FONTSIZE)
     cbar = fig.colorbar(im, ax=ax, shrink=0.78)
     cbar.set_label("Pearson correlation")
     _save(fig, output_dir, "02_feature_target_correlation_heatmap")
@@ -148,8 +195,8 @@ def plot_feature_correlation_heatmap(input_dir: Path, features: list[str], outpu
     data = corr.reindex(index=features, columns=features).astype(float)
 
     display_df = data.copy()
-    display_df.index = display_df.index.astype(str).str.replace("_", " ")
-    display_df.columns = display_df.columns.astype(str).str.replace("_", " ")
+    display_df.index = _feature_labels(display_df.index)
+    display_df.columns = _feature_labels(display_df.columns)
 
     fig = plt.figure(figsize=(12, 10))
     sns.heatmap(
@@ -161,11 +208,11 @@ def plot_feature_correlation_heatmap(input_dir: Path, features: list[str], outpu
         cbar_kws={"shrink": 0.8},
         vmin=-1.0,
         vmax=1.0,
-        annot_kws={"fontweight": "bold"},
+        annot_kws={"fontsize": SMALL_FONTSIZE},
     )
-    plt.title(f"Rebalancing feature redundancy ({method})", fontsize=16, fontweight="bold")
-    plt.xticks(rotation=45, ha="right")
-    plt.yticks(rotation=0)
+    plt.title(f"Rebalancing feature correlation matrix ({method})", fontsize=TITLE_FONTSIZE)
+    plt.xticks(rotation=45, ha="right", fontsize=TICK_FONTSIZE)
+    plt.yticks(rotation=0, fontsize=TICK_FONTSIZE)
     plt.tight_layout()
     _save(fig, output_dir, f"03_rebalancing_feature_{method}_heatmap")
 
@@ -175,7 +222,7 @@ def plot_vif(summary: pd.DataFrame, features: list[str], output_dir: Path) -> No
     fig_h = max(4.5, 0.32 * len(df) + 1.2)
     fig, ax = plt.subplots(figsize=(9.0, fig_h))
     colors = np.where(df["vif"] > 20.0, FLAG_COLOR, np.where(df["vif"] > 10.0, WARN_COLOR, PASS_COLOR))
-    ax.barh(_strip_underscores(df.index), df["vif"], color=colors)
+    ax.barh(_feature_labels(df.index), df["vif"], color=colors)
     ax.axvline(10.0, color=WARN_COLOR, linestyle="--", linewidth=1.2, label="vif = 10")
     ax.axvline(20.0, color=FLAG_COLOR, linestyle="--", linewidth=1.2, label="vif = 20")
     ax.set_xlabel("Variance inflation factor")
@@ -189,7 +236,7 @@ def plot_sparsity(summary: pd.DataFrame, features: list[str], output_dir: Path) 
     fig_h = max(4.5, 0.32 * len(df) + 1.2)
     fig, ax = plt.subplots(figsize=(9.0, fig_h))
     colors = np.where(df["fraction_zero"] > 0.95, FLAG_COLOR, np.where(df["fraction_zero"] > 0.80, WARN_COLOR, PASS_COLOR))
-    ax.barh(_strip_underscores(df.index), df["fraction_zero"], color=colors)
+    ax.barh(_feature_labels(df.index), df["fraction_zero"], color=colors)
     ax.axvline(0.95, color=FLAG_COLOR, linestyle="--", linewidth=1.2, label="sparsity threshold = 0.95")
     ax.set_xlim(0, 1)
     ax.set_xlabel("fraction of candidate states where feature is zero")
@@ -200,7 +247,7 @@ def plot_sparsity(summary: pd.DataFrame, features: list[str], output_dir: Path) 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Plot rebalancing feature-screening diagnostics.")
-    parser.add_argument("--input_dir", type=str, default="models/feature_study_v2")
+    parser.add_argument("--input_dir", type=str, default="models/rebalancing_feature_screening_greedy_10ep_21d")
     parser.add_argument("--output_dir", type=str, default=None)
     return parser.parse_args()
 
