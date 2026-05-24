@@ -1,111 +1,364 @@
 policy,experiment,experiment_label,label,mean,std,n,metric
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,0.9463900000000001,0.0017797939955699075,10,service_level
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,0.9459899999999999,0.0017660061658379713,10,service_level
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,0.9423199999999999,0.002344639275738021,10,service_level
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,0.9486000000000001,0.0026562295750848317,10,service_level
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,0.9455500000000001,0.002477117500465212,10,service_level
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,0.94239,0.0020272860895514627,10,service_level
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,0.94632,0.002413756868912449,10,service_level
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,0.94335,0.003039828211520445,10,service_level
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,0.9457599999999999,0.0028371347048269085,10,service_level
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,0.94612,0.0017868656605601132,10,service_level
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.94371,0.0022849507653339113,10,service_level
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,0.94629,0.002271294295721677,10,service_level
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.9451,0.002730893219768569,10,service_level
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.94431,0.0018070540790038694,10,service_level
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.9448000000000001,0.0034114187338668608,10,service_level
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.9422200000000001,0.0032893092824414455,10,service_level
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.9449099999999999,0.0015487988177222292,10,service_level
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,0.9393,0.0020477630071209932,10,service_level
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,0.9368299999999999,0.003497951781638298,10,service_level
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,0.9297000000000001,0.004059556626036901,10,service_level
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,0.94213,0.0031166399285840795,10,service_level
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,0.9382999999999999,0.0031425396665047535,10,service_level
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,0.9412900000000001,0.0027024474504089863,10,service_level
+VFA,Imbalance,Imbalance,VFA: Imbalance,0.91723,0.0030419474756222926,10,service_level
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.9373699999999999,0.00291892293682294,10,service_level
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.9370900000000001,0.0031373909896954518,10,service_level
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,0.91706,0.002731788181149248,10,service_level
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,0.93754,0.003687275416889824,10,service_level
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,0.93725,0.0029132837524385004,10,service_level
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,0.9343600000000001,0.0015966631871917449,10,service_level
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,0.93177,0.003555605902421325,10,service_level
+VFA,Squared_only,Squared only,VFA: Squared only,0.9217000000000001,0.004922510651193252,10,service_level
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,0.93438,0.002117545749210646,10,service_level
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,2339.9,114.68454318017073,10,starvations
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,2357.6,136.06877346074342,10,starvations
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,2582.7,150.57375453762035,10,starvations
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,2222.4,146.67590879971465,10,starvations
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,2395.7,149.0570733347167,10,starvations
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,2530.4,119.81763921337568,10,starvations
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,2314.6,125.48235821111356,10,starvations
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,2487.4,189.6213771352446,10,starvations
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,2369.4,181.4994337303686,10,starvations
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,2356.2,121.81570779939118,10,starvations
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,2473.0,166.31362608704745,10,starvations
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,2369.2,154.32850964384022,10,starvations
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,2410.7,190.1590270156943,10,starvations
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,2425.4,107.70762894676184,10,starvations
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,2377.7,184.33426762873532,10,starvations
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,2551.5,210.17730610130104,10,starvations
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,2434.7,102.44895748073232,10,starvations
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,2555.8,119.88031068064879,10,starvations
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,2624.1,154.7976815789636,10,starvations
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,3028.9,165.4881331764373,10,starvations
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,2429.5,155.33780394138876,10,starvations
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,2647.7,155.22818329442916,10,starvations
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,2410.7,145.66861173377205,10,starvations
+VFA,Imbalance,Imbalance,VFA: Imbalance,3605.0,132.05806803574455,10,starvations
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,2760.5,170.72736550809108,10,starvations
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,2749.6,155.73710041105957,10,starvations
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,3610.5,157.68833536793744,10,starvations
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,2631.3,179.87406088087798,10,starvations
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,2688.4,152.97944669500905,10,starvations
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,2815.1,110.36046997604409,10,starvations
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,2893.9,170.55429243108094,10,starvations
+VFA,Squared_only,Squared only,VFA: Squared only,3371.0,208.0790448096321,10,starvations
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,2762.6,124.69536211637285,10,starvations
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,853.1,46.84596508179168,10,congestions
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,859.1,80.551501813712,10,congestions
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,853.4,60.66153824477437,10,congestions
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,840.4,83.97909792852559,10,congestions
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,847.4,58.12668157663149,10,congestions
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,900.4,82.38824080062773,10,congestions
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,881.7,63.045045624361144,10,congestions
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,886.3,74.39690853792246,10,congestions
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,861.3,65.09659489302543,10,congestions
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,853.8,65.31258173838586,10,congestions
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,880.0,84.63779035132923,10,congestions
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,830.7,69.92066933318073,10,congestions
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,859.8,56.49346078185609,10,congestions
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,891.9,78.72660146213462,10,congestions
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,909.7,41.48373175113346,10,congestions
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,889.2,88.71151747847252,10,congestions
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,847.4,93.51197190140356,10,congestions
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,1058.9,71.60299497150164,10,congestions
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,1137.0,92.15928240461365,10,congestions
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,1158.5,123.26777536909002,10,congestions
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,1017.3,83.92860722728042,10,congestions
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,1027.3,79.48591769056397,10,congestions
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,1085.5,79.73462930942317,10,congestions
+VFA,Imbalance,Imbalance,VFA: Imbalance,1325.5,90.87628953693037,10,congestions
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,969.9,72.83993105128226,10,congestions
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,997.5,78.3358155635084,10,congestions
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,1330.1,100.35763825218065,10,congestions
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,1088.7,133.78843165402773,10,congestions
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,1050.7,98.59124369503274,10,congestions
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,1093.5,91.26913802351567,10,congestions
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,1170.2,101.18937142254066,10,congestions
+VFA,Squared_only,Squared only,VFA: Squared only,1293.2,172.4553404346889,10,congestions
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,1146.0,65.7047267029634,10,congestions
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,42.0,0.0,10,total_depot_visits
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,42.1,0.5676462121975463,10,total_depot_visits
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,49.8,1.229272594305719,10,total_depot_visits
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,42.0,0.0,10,total_depot_visits
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,41.9,0.31622776601683905,10,total_depot_visits
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,51.9,1.9119507199599985,10,total_depot_visits
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,44.6,1.5776212754932313,10,total_depot_visits
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,41.8,0.42163702135578396,10,total_depot_visits
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,42.2,0.6324555320336757,10,total_depot_visits
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,41.9,0.3162277660168383,10,total_depot_visits
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,42.0,0.47140452079103323,10,total_depot_visits
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,42.0,0.0,10,total_depot_visits
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,42.2,0.42163702135578457,10,total_depot_visits
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,42.0,0.0,10,total_depot_visits
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,41.8,0.4216370213557833,10,total_depot_visits
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,41.7,0.4830458915396488,10,total_depot_visits
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,42.1,0.31622776601683844,10,total_depot_visits
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,43.5,0.9718253158075499,10,total_depot_visits
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,43.6,1.8973665961010269,10,total_depot_visits
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,50.8,2.485513584307632,10,total_depot_visits
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,44.0,1.0540925533894596,10,total_depot_visits
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,44.0,1.699673171197595,10,total_depot_visits
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,73.6,3.5339622081862845,10,total_depot_visits
+VFA,Imbalance,Imbalance,VFA: Imbalance,47.5,1.9002923751652303,10,total_depot_visits
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,43.2,1.6865480854231367,10,total_depot_visits
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,43.2,1.6193277068654832,10,total_depot_visits
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,46.1,2.6436506745197805,10,total_depot_visits
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,43.8,0.9189365834726811,10,total_depot_visits
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,44.6,2.503331114069145,10,total_depot_visits
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,44.2,0.9189365834726817,10,total_depot_visits
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,44.1,1.5238839267549937,10,total_depot_visits
+VFA,Squared_only,Squared only,VFA: Squared only,44.4,1.7126976771553502,10,total_depot_visits
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,44.6,1.8973665961010278,10,total_depot_visits
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,205.8,7.420691791650333,10,total_fixed_on_site
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,212.7,8.731170215574386,10,total_fixed_on_site
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,206.5,15.70031846810758,10,total_fixed_on_site
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,220.7,17.02971259625691,10,total_fixed_on_site
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,210.8,13.95070687177615,10,total_fixed_on_site
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,210.1,14.27857758244069,10,total_fixed_on_site
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,221.5,13.410195126594296,10,total_fixed_on_site
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,208.6,17.108802153017933,10,total_fixed_on_site
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,210.8,18.219647514580394,10,total_fixed_on_site
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,212.6,15.421485733295032,10,total_fixed_on_site
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,205.1,13.236733400318641,10,total_fixed_on_site
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,214.6,8.527081042837061,10,total_fixed_on_site
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,203.5,14.736575812130402,10,total_fixed_on_site
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,210.7,15.239203828721934,10,total_fixed_on_site
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,206.3,14.552968387545166,10,total_fixed_on_site
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,208.3,11.470251377658059,10,total_fixed_on_site
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,214.3,8.097324661063482,10,total_fixed_on_site
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,201.3,6.832113712298542,10,total_fixed_on_site
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,198.0,9.26162932629987,10,total_fixed_on_site
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,203.8,11.951754868823421,10,total_fixed_on_site
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,211.9,12.740573857649514,10,total_fixed_on_site
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,201.7,9.741663102366042,10,total_fixed_on_site
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,209.4,16.647989534942518,10,total_fixed_on_site
+VFA,Imbalance,Imbalance,VFA: Imbalance,189.7,15.355418877024775,10,total_fixed_on_site
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,200.1,10.785278031753386,10,total_fixed_on_site
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,201.0,10.022197585581939,10,total_fixed_on_site
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,195.3,12.463725143168256,10,total_fixed_on_site
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,201.3,14.376292212450947,10,total_fixed_on_site
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,200.6,12.258330500792788,10,total_fixed_on_site
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,191.2,16.83778818940038,10,total_fixed_on_site
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,195.9,12.377847596052845,10,total_fixed_on_site
+VFA,Squared_only,Squared only,VFA: Squared only,207.8,9.354737361952557,10,total_fixed_on_site
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,209.3,10.934654391733952,10,total_fixed_on_site
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,220.3,10.677598564804311,10,total_picked_up_to_depot
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,212.1,8.372574275573793,10,total_picked_up_to_depot
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,150.8,8.916900308465445,10,total_picked_up_to_depot
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,215.8,16.1713051764881,10,total_picked_up_to_depot
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,196.5,8.797095480264428,10,total_picked_up_to_depot
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,184.6,17.341023934909703,10,total_picked_up_to_depot
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,211.1,11.685223337379751,10,total_picked_up_to_depot
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,183.3,14.51474346234813,10,total_picked_up_to_depot
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,195.6,14.960689229518211,10,total_picked_up_to_depot
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,191.7,14.765199325139877,10,total_picked_up_to_depot
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,185.0,14.552586635295382,10,total_picked_up_to_depot
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,193.3,11.851394667107982,10,total_picked_up_to_depot
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,198.2,11.93314711214104,10,total_picked_up_to_depot
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,192.6,13.582668695395943,10,total_picked_up_to_depot
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,190.8,13.926792723220792,10,total_picked_up_to_depot
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,192.7,10.924488292109817,10,total_picked_up_to_depot
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,200.2,10.778579580713675,10,total_picked_up_to_depot
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,210.2,13.23967102646017,10,total_picked_up_to_depot
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,202.1,11.637582795981867,10,total_picked_up_to_depot
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,101.8,19.083442503326744,10,total_picked_up_to_depot
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,218.5,16.2907608443832,10,total_picked_up_to_depot
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,183.2,8.40370288755036,10,total_picked_up_to_depot
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,214.0,17.962924780409967,10,total_picked_up_to_depot
+VFA,Imbalance,Imbalance,VFA: Imbalance,46.0,7.453559924999299,10,total_picked_up_to_depot
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,186.4,14.811407015465406,10,total_picked_up_to_depot
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,184.1,13.714955340794956,10,total_picked_up_to_depot
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,57.1,11.892574714221196,10,total_picked_up_to_depot
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,190.7,9.4404566744529,10,total_picked_up_to_depot
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,188.4,20.08979840615629,10,total_picked_up_to_depot
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,177.8,17.806365902863693,10,total_picked_up_to_depot
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,172.3,12.970479302374809,10,total_picked_up_to_depot
+VFA,Squared_only,Squared only,VFA: Squared only,104.7,11.116054455905957,10,total_picked_up_to_depot
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,196.4,11.692352676476668,10,total_picked_up_to_depot
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,6901.1,111.20796334395797,10,total_functional_pickups
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,6970.4,95.15040725083625,10,total_functional_pickups
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,7117.3,124.64710185158737,10,total_functional_pickups
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,6956.7,137.59768247402366,10,total_functional_pickups
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,7018.3,120.6713166691516,10,total_functional_pickups
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,7110.6,64.64123211146952,10,total_functional_pickups
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,6816.2,107.57405717819597,10,total_functional_pickups
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,7044.4,158.91591067815284,10,total_functional_pickups
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,7135.0,117.63597333393484,10,total_functional_pickups
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,7182.7,143.03461119603182,10,total_functional_pickups
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,7056.8,128.5671463131663,10,total_functional_pickups
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,7011.6,73.57415004983437,10,total_functional_pickups
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,6977.8,167.16910932080458,10,total_functional_pickups
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,6988.4,99.1151967269511,10,total_functional_pickups
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,6991.0,148.5432970925013,10,total_functional_pickups
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,6887.7,144.25290291706438,10,total_functional_pickups
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,6799.7,88.13758184414488,10,total_functional_pickups
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,7228.5,126.48342008166723,10,total_functional_pickups
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,7236.1,124.24120805021879,10,total_functional_pickups
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,7536.9,44.40082581814592,10,total_functional_pickups
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,7223.9,101.65677547512513,10,total_functional_pickups
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,7397.3,68.88646053067656,10,total_functional_pickups
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,7419.8,47.52028806497038,10,total_functional_pickups
+VFA,Imbalance,Imbalance,VFA: Imbalance,8202.4,59.96517507872572,10,total_functional_pickups
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,7134.7,84.81751653468235,10,total_functional_pickups
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,7181.5,122.08944808349847,10,total_functional_pickups
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,7741.7,96.61613621842764,10,total_functional_pickups
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,7379.6,95.95855586889817,10,total_functional_pickups
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,7397.2,178.00112359195936,10,total_functional_pickups
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,7602.4,80.255425569449,10,total_functional_pickups
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,7567.5,163.498725785045,10,total_functional_pickups
+VFA,Squared_only,Squared only,VFA: Squared only,6942.8,93.10901615251284,10,total_functional_pickups
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,6764.5,119.75182670840591,10,total_functional_pickups
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,0.01908,0.0035492722258701624,10,broken_ratio_end_onsite
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,0.01802,0.005397077398411518,10,broken_ratio_end_onsite
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,0.01684,0.005070218053605891,10,broken_ratio_end_onsite
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,0.0069099999999999995,0.002978981929004158,10,broken_ratio_end_onsite
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,0.02156,0.006414254958034227,10,broken_ratio_end_onsite
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,0.01776,0.007518303591162629,10,broken_ratio_end_onsite
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,0.00679,0.006130878131774165,10,broken_ratio_end_onsite
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,0.020399999999999998,0.0059466143495456505,10,broken_ratio_end_onsite
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,0.01841,0.005477519714453087,10,broken_ratio_end_onsite
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,0.01815,0.006090840117203318,10,broken_ratio_end_onsite
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.02207,0.006726737693711566,10,broken_ratio_end_onsite
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,0.0213,0.006658661860898012,10,broken_ratio_end_onsite
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.01948,0.005607296833392878,10,broken_ratio_end_onsite
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.02051,0.006682722332835458,10,broken_ratio_end_onsite
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.02023,0.005392391759589514,10,broken_ratio_end_onsite
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.015409999999999998,0.003138453263773238,10,broken_ratio_end_onsite
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.015289999999999998,0.004552276597728022,10,broken_ratio_end_onsite
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,0.027710000000000002,0.006928596138067541,10,broken_ratio_end_onsite
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,0.02769,0.008955625172048138,10,broken_ratio_end_onsite
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,0.02183,0.004077867089545711,10,broken_ratio_end_onsite
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,0.009510000000000001,0.004076068367107369,10,broken_ratio_end_onsite
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,0.02743,0.005280793290574606,10,broken_ratio_end_onsite
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,0.01107,0.0047234756506435195,10,broken_ratio_end_onsite
+VFA,Imbalance,Imbalance,VFA: Imbalance,0.037219999999999996,0.0071339252090899365,10,broken_ratio_end_onsite
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.026119999999999997,0.005868522433760951,10,broken_ratio_end_onsite
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.02769,0.007700137083916826,10,broken_ratio_end_onsite
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,0.028350000000000004,0.010099092368458993,10,broken_ratio_end_onsite
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,0.02692,0.005999962962848652,10,broken_ratio_end_onsite
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,0.03125,0.007931267237963932,10,broken_ratio_end_onsite
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,0.03996,0.00702569885808127,10,broken_ratio_end_onsite
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,0.03552,0.006691752801438168,10,broken_ratio_end_onsite
+VFA,Squared_only,Squared only,VFA: Squared only,0.017509999999999998,0.00603627000353327,10,broken_ratio_end_onsite
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,0.01358,0.0040562160801526454,10,broken_ratio_end_onsite
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,0.03788,0.006406038817657392,10,broken_ratio_end_depot
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,0.04247,0.011457850292848713,10,broken_ratio_end_depot
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,0.12134,0.014317681376535796,10,broken_ratio_end_depot
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,0.023129999999999998,0.004975506674366607,10,broken_ratio_end_depot
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,0.06217,0.010662400188408696,10,broken_ratio_end_depot
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,0.08124,0.010196099472074819,10,broken_ratio_end_depot
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,0.040510000000000004,0.006352331155655467,10,broken_ratio_end_depot
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,0.08043,0.00794509632135165,10,broken_ratio_end_depot
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,0.0665,0.012724167730914443,10,broken_ratio_end_depot
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,0.06477999999999999,0.012167059354393456,10,broken_ratio_end_depot
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.07618,0.01607481121368321,10,broken_ratio_end_depot
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,0.05996,0.00929016206054077,10,broken_ratio_end_depot
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.06179,0.011076546794416067,10,broken_ratio_end_depot
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.059430000000000004,0.008712577115871053,10,broken_ratio_end_depot
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.07289,0.013875353849341805,10,broken_ratio_end_depot
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.07221999999999999,0.012672174241226325,10,broken_ratio_end_depot
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.051070000000000004,0.01052151763451135,10,broken_ratio_end_depot
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,0.04088,0.008953931476669279,10,broken_ratio_end_depot
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,0.0571,0.006428927679723198,10,broken_ratio_end_depot
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,0.19175999999999999,0.01264253842302952,10,broken_ratio_end_depot
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,0.02405,0.005494694410671685,10,broken_ratio_end_depot
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,0.07678,0.008021055624625314,10,broken_ratio_end_depot
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,0.03425,0.011433114672350276,10,broken_ratio_end_depot
+VFA,Imbalance,Imbalance,VFA: Imbalance,0.24081000000000002,0.01933629000380143,10,broken_ratio_end_depot
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.07199,0.011282577522692037,10,broken_ratio_end_depot
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.07028999999999999,0.01019176682970677,10,broken_ratio_end_depot
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,0.23354,0.01708769537805884,10,broken_ratio_end_depot
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,0.07066,0.012035890771632429,10,broken_ratio_end_depot
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,0.07235,0.0076139127041664105,10,broken_ratio_end_depot
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,0.08022,0.012721704987059627,10,broken_ratio_end_depot
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,0.08607000000000001,0.00933214873434837,10,broken_ratio_end_depot
+VFA,Squared_only,Squared only,VFA: Squared only,0.17174,0.01713555108863182,10,broken_ratio_end_depot
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,0.062419999999999996,0.010419938152940792,10,broken_ratio_end_depot
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,0.94306,0.005921748990890366,10,functional_ratio_end
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,0.93951,0.010665255114935913,10,functional_ratio_end
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,0.8618,0.014530121969358836,10,functional_ratio_end
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,0.96994,0.0069774557604394116,10,functional_ratio_end
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,0.91626,0.013981908946126725,10,functional_ratio_end
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,0.9009499999999999,0.014797165644511513,10,functional_ratio_end
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,0.9526999999999999,0.008685108583726016,10,functional_ratio_end
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,0.89915,0.007883350951354536,10,functional_ratio_end
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,0.91507,0.015377259544896552,10,functional_ratio_end
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,0.91708,0.012481702163122152,10,functional_ratio_end
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,0.90176,0.01750328223188125,10,functional_ratio_end
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,0.91876,0.011084142827581281,10,functional_ratio_end
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,0.91875,0.013384671996147084,10,functional_ratio_end
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,0.9200900000000001,0.006597044792935664,10,functional_ratio_end
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,0.9068400000000001,0.013676110558196017,10,functional_ratio_end
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,0.9123699999999999,0.012908313428002706,10,functional_ratio_end
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,0.93366,0.012148543579833384,10,functional_ratio_end
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,0.93141,0.011960996799784076,10,functional_ratio_end
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,0.91523,0.012506891433659009,10,functional_ratio_end
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,0.78642,0.013331149821210283,10,functional_ratio_end
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,0.96642,0.006462335319199849,10,functional_ratio_end
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,0.89578,0.007810932509416965,10,functional_ratio_end
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,0.95469,0.011927135261895648,10,functional_ratio_end
+VFA,Imbalance,Imbalance,VFA: Imbalance,0.72194,0.016990337123069556,10,functional_ratio_end
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,0.9018900000000001,0.011606171729826423,10,functional_ratio_end
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,0.9020199999999999,0.013474403717996417,10,functional_ratio_end
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,0.73812,0.018514546833353584,10,functional_ratio_end
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,0.90242,0.011903388873201897,10,functional_ratio_end
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,0.89643,0.007211110255093262,10,functional_ratio_end
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,0.8798199999999999,0.016403102687533738,10,functional_ratio_end
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,0.8783899999999999,0.011999393503191923,10,functional_ratio_end
+VFA,Squared_only,Squared only,VFA: Squared only,0.81074,0.016732549782451613,10,functional_ratio_end
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,0.92397,0.013356068117359836,10,functional_ratio_end
+Hybrid,EX12_ShortagePressure,EX12 ShortagePressure,Hybrid: EX12 ShortagePressure,59565.0,409.11639202337324,10,total_trips
+Hybrid,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,Hybrid: EX13 DemandWeightedBacklog,59565.0,409.11639202337324,10,total_trips
+Hybrid,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,Hybrid: EX14 RepairOpportunityLogistics,59565.0,409.11639202337324,10,total_trips
+Hybrid,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,Hybrid: EX15 FleetBrokenGlobal,59565.0,409.11639202337324,10,total_trips
+Hybrid,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,Hybrid: EX16 DepotIdlePipeline,59565.0,409.11639202337324,10,total_trips
+Hybrid,EX17_CompactMaintenanceFull,EX17 CompactMaintenanceFull,Hybrid: EX17 CompactMaintenanceFull,59565.0,409.11639202337324,10,total_trips
+Hybrid,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,Hybrid: EX20 FleetShortageLogistics,59565.0,409.11639202337324,10,total_trips
+Hybrid,Imbalance,Imbalance,Hybrid: Imbalance,59565.0,409.11639202337324,10,total_trips
 Hybrid,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,Hybrid: Imbalance severity squared temporal,59565.0,409.11639202337324,10,total_trips
 Hybrid,Imbalance_severity_temporal,Imbalance severity temporal,Hybrid: Imbalance severity temporal,59565.0,409.11639202337324,10,total_trips
+Hybrid,Imbalance_squared,Imbalance squared,Hybrid: Imbalance squared,59565.0,409.11639202337324,10,total_trips
+Hybrid,Imbalance_squared_count_temporal,Imbalance squared count temporal,Hybrid: Imbalance squared count temporal,59565.0,409.11639202337324,10,total_trips
+Hybrid,Imbalance_squared_temporal,Imbalance squared temporal,Hybrid: Imbalance squared temporal,59565.0,409.11639202337324,10,total_trips
 Hybrid,Imbalance_temporal,Imbalance temporal,Hybrid: Imbalance temporal,59565.0,409.11639202337324,10,total_trips
 Hybrid,R4_NetTemporalAlternative,Net temporal,Hybrid: Net temporal,59565.0,409.11639202337324,10,total_trips
+Hybrid,Squared_only,Squared only,Hybrid: Squared only,59565.0,409.11639202337324,10,total_trips
 Hybrid,Squared_temporal,Squared temporal,Hybrid: Squared temporal,59565.0,409.11639202337324,10,total_trips
+VFA,EX12_ShortagePressure,EX12 ShortagePressure,VFA: EX12 ShortagePressure,59565.0,409.11639202337324,10,total_trips
+VFA,EX13_DemandWeightedBacklog,EX13 DemandWeightedBacklog,VFA: EX13 DemandWeightedBacklog,59565.0,409.11639202337324,10,total_trips
+VFA,EX14_RepairOpportunityLogistics,EX14 RepairOpportunityLogistics,VFA: EX14 RepairOpportunityLogistics,59565.0,409.11639202337324,10,total_trips
+VFA,EX15_FleetBrokenGlobal,EX15 FleetBrokenGlobal,VFA: EX15 FleetBrokenGlobal,59565.0,409.11639202337324,10,total_trips
+VFA,EX16_DepotIdlePipeline,EX16 DepotIdlePipeline,VFA: EX16 DepotIdlePipeline,59565.0,409.11639202337324,10,total_trips
+VFA,EX20_FleetShortageLogistics,EX20 FleetShortageLogistics,VFA: EX20 FleetShortageLogistics,59565.0,409.11639202337324,10,total_trips
+VFA,Imbalance,Imbalance,VFA: Imbalance,59565.0,409.11639202337324,10,total_trips
 VFA,Imbalance_severity_squared_temporal,Imbalance severity squared temporal,VFA: Imbalance severity squared temporal,59565.0,409.11639202337324,10,total_trips
 VFA,Imbalance_severity_temporal,Imbalance severity temporal,VFA: Imbalance severity temporal,59565.0,409.11639202337324,10,total_trips
+VFA,Imbalance_squared,Imbalance squared,VFA: Imbalance squared,59565.0,409.11639202337324,10,total_trips
+VFA,Imbalance_squared_count_temporal,Imbalance squared count temporal,VFA: Imbalance squared count temporal,59565.0,409.11639202337324,10,total_trips
+VFA,Imbalance_squared_temporal,Imbalance squared temporal,VFA: Imbalance squared temporal,59565.0,409.11639202337324,10,total_trips
 VFA,Imbalance_temporal,Imbalance temporal,VFA: Imbalance temporal,59565.0,409.11639202337324,10,total_trips
 VFA,R4_NetTemporalAlternative,Net temporal,VFA: Net temporal,59565.0,409.11639202337324,10,total_trips
+VFA,Squared_only,Squared only,VFA: Squared only,59565.0,409.11639202337324,10,total_trips
 VFA,Squared_temporal,Squared temporal,VFA: Squared temporal,59565.0,409.11639202337324,10,total_trips

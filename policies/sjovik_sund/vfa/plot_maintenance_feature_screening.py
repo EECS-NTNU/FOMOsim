@@ -132,6 +132,10 @@ def _load_summary(input_dir: Path) -> pd.DataFrame:
 
 
 def _maintenance_features(summary: pd.DataFrame) -> list[str]:
+    if "screening_group" in summary.columns:
+        features = summary.loc[summary["screening_group"].eq("maintenance"), "feature"].tolist()
+        if features:
+            return features
     features = summary[summary["family"].notna()]["feature"].tolist()
     if not features:
         # Fallback if metadata is missing.

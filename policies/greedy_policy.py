@@ -198,8 +198,14 @@ class GreedyPolicy(Policy):
                 # commented out by Lasse since it clutters the simulation output
                 # print('no stations with non-zero criticality, route to random station')
                 # print('problem seems to be that target state is empty... ??')
-                potential_stations2 = [station for station in state.locations if station.id not in tabu_list]
-                next_location_id = state.rng.choice(potential_stations2).id
+                potential_stations2 = [
+                    station_id for station_id in state.locations
+                    if station_id not in tabu_list
+                ]
+                if len(potential_stations2) == 0:
+                    next_location_id = vehicle.location.id
+                else:
+                    next_location_id = state.rng.choice(potential_stations2)
             else: 
                 next_location_id = list(criticalities.keys())[0]
     

@@ -16,6 +16,9 @@ from datetime import datetime
 
 # Get workspace root (2 levels up from this file)
 WORKSPACE_ROOT = Path(__file__).parents[2]
+cache_dir = WORKSPACE_ROOT / ".matplotlib_cache"
+cache_dir.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(cache_dir))
 STEADY_STATE_ODOMETER_DIR = (
     WORKSPACE_ROOT
     / "policies"
@@ -42,6 +45,12 @@ import policies.sjovik_sund.sjovik_sund_policy
 import policies.sjovik_sund.XPILOT_policy
 from policies.sjovik_sund.vfa.LinearVFAPolicy import LinearVFAPolicy
 from policies.sjovik_sund.vfa.HybridRolloutPolicy import HybridRolloutPolicy
+from policies.sjovik_sund.operational_scenarios import (
+    MaintenanceTourPolicy,
+    TimeWindow,
+    VehiclePolicyAssignment,
+    VehiclePolicyDispatcher,
+)
 from policies.sjovik_sund.mdp.reward import RewardCalculator
 from policies.do_nothing_policy import DoNothing
 from policies.greedy_policy import GreedyPolicy
@@ -441,14 +450,25 @@ def run_simulation(
     # Use config for target state
     tstate = config.get_target_state_instance()
     start_stations = config.get_start_stations(INSTANCE)
- 
-    # Distribute vehicles to start stations
+
+    # Start all service vehicles at the depot when the instance contains one.
+    # If no depot is present, keep the old configured station-start fallback.
+    depots = sorted(state.get_depots(), key=lambda depot: depot.id)
+    start_location = depots[0] if depots else None
     for i in range(num_vehicles):
         vehicle_id = f"V{i}"
-        if vehicle_id in state.vehicles:
+        if vehicle_id not in state.vehicles:
+            continue
+
+        if start_location is not None:
+            state.vehicles[vehicle_id].location = start_location
+        else:
             station_id = f"S{start_stations[i % len(start_stations)]}"
             if station_id in state.locations:
                 state.vehicles[vehicle_id].location = state.locations[station_id]
+
+    if start_location is not None:
+        print(f"Initialized all service vehicles at depot {start_location.id}.")
  
  
     d = demand.Demand()
@@ -802,6 +822,56 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "--operational-scenarios",
+        type=str,
+        nargs="+",
+        default=None,
+        help=(
+            "Run named operational scenario experiments instead of --policy. "
+            "Use 'all' for all defaults. Available: "
+            "S1_integrated_vfa_1, S2_integrated_vfa_2, "
+            "S3_day_rebalance_day_maintenance, S4_day_rebalance_after_hours."
+        ),
+    )
+    parser.add_argument(
+        "--scenario-linear-policy",
+        type=str,
+        choices=["hybrid", "vfa"],
+        default="hybrid",
+        help="Linear/VFA-family policy used inside operational scenarios (default: hybrid rollout).",
+    )
+    parser.add_argument(
+        "--maintenance-window",
+        type=str,
+        default="10-16",
+        help="Activation window for Scenario 3 maintenance vehicle, e.g. '10-16' or '9.5-14'.",
+    )
+    parser.add_argument(
+        "--after-hours-maintenance-window",
+        type=str,
+        default=f"{SERVICE_TIME_TO}-{SERVICE_TIME_FROM}",
+        help="Activation window for Scenario 4 after-hours maintenance vehicle.",
+    )
+    parser.add_argument(
+        "--rebalance-window",
+        type=str,
+        default=f"{SERVICE_TIME_FROM}-{SERVICE_TIME_TO}",
+        help="Active window for rebalancing vehicles in separated scenarios.",
+    )
+    parser.add_argument(
+        "--maintenance-mode",
+        type=str,
+        choices=["onsite", "depot", "both"],
+        default="both",
+        help="MaintenanceTourPolicy mode for dedicated maintenance vehicles.",
+    )
+    parser.add_argument(
+        "--maintenance-depot-load-threshold",
+        type=float,
+        default=1.0,
+        help="Fraction of vehicle capacity that triggers depot return for the maintenance tour.",
+    )
+    parser.add_argument(
         "--alphas",
         type=float,
         nargs="+",
@@ -1070,6 +1140,8 @@ if __name__ == "__main__":
         exp_name: str = "",
         alpha: float = 0.0,
         results_only: bool = False,
+        num_vehicles_override: int | None = None,
+        scenario_name: str | None = None,
         lookahead_minutes: float | None = None,
         num_scenarios: int | None = None,
         n_routing_candidates: int | None = None,
@@ -1082,13 +1154,14 @@ if __name__ == "__main__":
             alpha,
             policy_type=policy_type,
             duration_hours=duration,
-            num_vehicles=num_vehicles,
+            num_vehicles=num_vehicles if num_vehicles_override is None else num_vehicles_override,
             instance_name=args.instance,
             lookahead_minutes=lookahead_minutes,
             num_scenarios=num_scenarios,
             n_routing_candidates=n_routing_candidates,
             n_time_steps=n_time_steps,
             results_only=results_only,
+            scenario_name=scenario_name,
         )
 
     def _load_vfa_policy() -> tuple[LinearVFAPolicy, str]:
@@ -1184,16 +1257,158 @@ if __name__ == "__main__":
 
         raise ValueError(f"Unknown policy type: {policy_type}")
 
+    operational_scenario_specs = {
+        "S1_integrated_vfa_1": {
+            "num_vehicles": 1,
+            "kind": "integrated",
+            "description": "One vehicle, fully integrated VFA/rollout action space.",
+        },
+        "S2_integrated_vfa_2": {
+            "num_vehicles": 2,
+            "kind": "integrated",
+            "description": "Two vehicles, both fully integrated VFA/rollout action spaces.",
+        },
+        "S3_day_rebalance_day_maintenance": {
+            "num_vehicles": 2,
+            "kind": "separated_day",
+            "description": (
+                "Vehicle V0 uses rebalancing-only VFA/rollout during the rebalance window; "
+                "vehicle V1 uses a maintenance-only shortest-path tour during the maintenance window."
+            ),
+        },
+        "S4_day_rebalance_after_hours": {
+            "num_vehicles": 2,
+            "kind": "separated_after_hours",
+            "description": (
+                "Vehicle V0 uses rebalancing-only VFA/rollout during the daytime rebalance window; "
+                "vehicle V1 uses a maintenance-only shortest-path tour after hours."
+            ),
+        },
+    }
+
+    def _build_linear_policy(maintenance_enabled: bool):
+        vfa_policy, exp_name = _load_vfa_policy()
+        vfa_policy.maintenance_enabled = bool(maintenance_enabled)
+        if run_logger is not None:
+            vfa_policy.logger = run_logger
+
+        if args.scenario_linear_policy == "vfa":
+            return vfa_policy, exp_name
+
+        hybrid_policy = HybridRolloutPolicy(
+            trained_vfa=vfa_policy,
+            lookahead_minutes=args.lookahead,
+            num_scenarios=args.num_scenarios,
+            n_routing_candidates=args.n_routing,
+            n_time_steps=args.n_time_steps,
+            use_degradation=args.rollout_degradation,
+            logger=run_logger,
+            debug_print=args.hybrid_debug,
+        )
+        hybrid_policy.maintenance_enabled = bool(maintenance_enabled)
+        return hybrid_policy, exp_name
+
+    def _build_operational_scenario(scenario_key: str):
+        spec = operational_scenario_specs[scenario_key]
+        scenario_num_vehicles = int(spec["num_vehicles"])
+        scenario_name = scenario_key
+
+        if spec["kind"] == "integrated":
+            policy, exp_name = _build_linear_policy(maintenance_enabled=True)
+            _set_run_logger_context(
+                "scenario",
+                exp_name=scenario_name,
+                num_vehicles_override=scenario_num_vehicles,
+                scenario_name=scenario_name,
+            )
+            policy_name = (
+                f"{scenario_name}_{args.scenario_linear_policy}_{exp_name}_"
+                f"{args.instance}_V{scenario_num_vehicles}_D{duration}h{warmup_suffix}_{timestamp}_seed{start_seed}"
+            )
+            return policy_name, policy, scenario_num_vehicles
+
+        if spec["kind"] in {"separated_day", "separated_after_hours"}:
+            rebalancing_policy, exp_name = _build_linear_policy(maintenance_enabled=False)
+            maintenance_policy = MaintenanceTourPolicy(
+                mode=args.maintenance_mode,
+                depot_load_threshold=args.maintenance_depot_load_threshold,
+                logger=run_logger,
+            )
+            maintenance_window_text = (
+                args.maintenance_window
+                if spec["kind"] == "separated_day"
+                else args.after_hours_maintenance_window
+            )
+            maintenance_window = TimeWindow.parse(maintenance_window_text)
+            rebalance_window = TimeWindow.parse(args.rebalance_window)
+            scenario_policy = VehiclePolicyDispatcher(
+                default_policy=rebalancing_policy,
+                default_window=rebalance_window,
+                assignments=[
+                    VehiclePolicyAssignment(
+                        vehicle_id="V1",
+                        policy=maintenance_policy,
+                        role=f"maintenance_{args.maintenance_mode}",
+                        active_window=maintenance_window,
+                        idle_outside_window=True,
+                    )
+                ],
+                logger=run_logger,
+                scenario_name=scenario_name,
+            )
+            _set_run_logger_context(
+                "scenario",
+                exp_name=scenario_name,
+                num_vehicles_override=scenario_num_vehicles,
+                scenario_name=scenario_name,
+            )
+            policy_name = (
+                f"{scenario_name}_{args.scenario_linear_policy}_{exp_name}_"
+                f"maint{args.maintenance_mode}_{maintenance_window.label()}_"
+                f"{args.instance}_V{scenario_num_vehicles}_D{duration}h{warmup_suffix}_{timestamp}_seed{start_seed}"
+            )
+            return policy_name, scenario_policy, scenario_num_vehicles
+
+        raise ValueError(f"Unsupported operational scenario kind: {spec['kind']}")
+
+    def _resolve_operational_scenarios() -> list[str]:
+        requested = args.operational_scenarios
+        if not requested:
+            return []
+        if "all" in requested:
+            return list(operational_scenario_specs.keys())
+        unknown = sorted(set(requested) - set(operational_scenario_specs))
+        if unknown:
+            raise ValueError(
+                f"Unknown operational scenario(s): {unknown}. "
+                f"Available: {sorted(operational_scenario_specs)}"
+            )
+        return requested
+
     # Start timing
     start_time = time.time()
  
-    # Test policies sequentially so each policy gets its own run_logger folder.
-    for policy_type in args.policy:
-        policy_name, policy = _build_policy(policy_type)
+    scenario_keys = _resolve_operational_scenarios()
+    if scenario_keys:
+        print("\nRunning operational scenario experiments:")
+        for scenario_key in scenario_keys:
+            print(f"  - {scenario_key}: {operational_scenario_specs[scenario_key]['description']}")
+
+    # Test policies/scenarios sequentially so each one gets its own run_logger folder.
+    run_items = []
+    if scenario_keys:
+        for scenario_key in scenario_keys:
+            run_items.append(_build_operational_scenario(scenario_key))
+    else:
+        for policy_type in args.policy:
+            policy_name, policy = _build_policy(policy_type)
+            run_items.append((policy_name, policy, num_vehicles))
+
+    for policy_name, policy, run_num_vehicles in run_items:
         test_policies(
             list_of_seeds=list_of_seeds,
             policy_dict={policy_name: policy},
-            num_vehicles=num_vehicles,
+            num_vehicles=run_num_vehicles,
             duration=duration,
             use_multiprocessing=False,
             instance_name=args.instance,

@@ -78,6 +78,7 @@ class HybridRolloutPolicy(Policy):
         avg_km_per_trip: float = 2.5,
         logger: Optional[RunLogger] = None,
         debug_print: bool = True,
+        maintenance_block_windows=None,
     ):
         super().__init__(maintenance_enabled=trained_vfa.maintenance_enabled)
         self.vfa = trained_vfa
@@ -91,6 +92,11 @@ class HybridRolloutPolicy(Policy):
         self.avg_km_per_trip      = avg_km_per_trip
         self.logger: Optional[RunLogger] = logger
         self.debug_print = debug_print
+        self.maintenance_block_windows = list(
+            maintenance_block_windows
+            if maintenance_block_windows is not None
+            else getattr(trained_vfa, "maintenance_block_windows", []) or []
+        )
         self.weights     = getattr(trained_vfa, "weights", [])
         self._simulator  = None
 
@@ -104,6 +110,19 @@ class HybridRolloutPolicy(Policy):
     def _sync_maintenance_flag(self) -> None:
         """Keep Hybrid policy and wrapped VFA on the same maintenance setting."""
         self.vfa.maintenance_enabled = bool(self.maintenance_enabled)
+
+    def set_maintenance_block_windows(self, windows) -> None:
+        """Block candidate-generator maintenance actions inside hour-of-day windows."""
+        self.maintenance_block_windows = list(windows or [])
+        if hasattr(self.vfa, "set_maintenance_block_windows"):
+            self.vfa.set_maintenance_block_windows(self.maintenance_block_windows)
+
+    def _maintenance_allowed_now(self, state) -> bool:
+        windows = getattr(self, "maintenance_block_windows", None) or []
+        if not windows:
+            return True
+        clock_hour = (float(getattr(state, "time", 0.0)) % (24 * 60)) / 60.0
+        return not any(window.contains(clock_hour) for window in windows)
 
     def _compute_avg_failure_rate(self) -> float:
         """Fleet-average hazard rate per km, evaluated at each component's MTTF/2."""
@@ -730,12 +749,14 @@ class HybridRolloutPolicy(Policy):
             all_candidates, candidate_metadata = generate_candidates(
                 state, vehicle, self.maintenance_enabled,
                 n_routing=self.n_routing_candidates, return_metadata=True,
+                maintenance_allowed=self._maintenance_allowed_now(state),
             )
             action_to_meta: Dict = {id(a): candidate_metadata[i] for i, a in enumerate(all_candidates)}
         else:
             all_candidates = cast(List[sim.Action], generate_candidates(
                 state, vehicle, self.maintenance_enabled,
                 n_routing=self.n_routing_candidates,
+                maintenance_allowed=self._maintenance_allowed_now(state),
             ))
             candidate_metadata = []
             action_to_meta = {}
@@ -1002,6 +1023,8 @@ class HybridRolloutPolicy(Policy):
             "day":    day,
             "hour":   clock_hour,
             "minute": minute,
+            "vehicle_id":                       vehicle.id,
+            "vehicle_policy_type":              self.__class__.__name__,
             "current_station_id":             vehicle.location.id,
             "is_at_depot":                    is_at_depot,
             "functional_load_before":         func_before,

@@ -6,11 +6,16 @@ Simulation logging utilities for tracking hourly and daily metrics.
 import os
 import csv
 import re
+from pathlib import Path
+
+_MPL_CACHE_DIR = Path.cwd() / ".matplotlib_cache"
+_MPL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(_MPL_CACHE_DIR))
+
 import sim
 import pandas as pd
 from datetime import datetime
 from typing import Any
-from pathlib import Path
 from settings import MAINTENANCE_INCREASE_PER_MINUTE
 from sim.bike_degradation_modeling import damage_configuration
 #from sim.bike_degradation_modeling.utils import haversine_distance
@@ -88,8 +93,17 @@ class SimulationRunLogger:
     @staticmethod
     def _results_columns() -> list[str]:
         return [
-            "seed", "exp_name", "alpha", "duration_hours", "total_runtime_s",
-            "lookahead_minutes", "num_scenarios", "n_routing_candidates", "n_time_steps",
+            "seed", 
+            "scenario_name", 
+            "exp_name", 
+            "alpha", 
+            "duration_hours", 
+            "total_runtime_s",
+            "num_service_vehicles",
+            "lookahead_minutes", 
+            "num_scenarios", 
+            "n_routing_candidates", 
+            "n_time_steps",
             "service_level",
             "avg_bike_km_driven",
             "starvations", "congestions", "total_trips",
@@ -110,11 +124,13 @@ class SimulationRunLogger:
     @staticmethod
     def _hourly_columns() -> list[str]:
         base = [
-            "seed", "day", "hour",
+            "seed", "scenario_name", "day", "hour",
             "functional_pickups", "functional_deliveries",
             "depot_visits", "depot_deliveries",
             "unique_stations_visited",
             "breakdowns_onsite", "breakdowns_depot",
+            "broken_bikes_onsite", "broken_bikes_depot", "broken_bikes_total",
+            "accumulated_component_odometer_km",
             "damaged_fraction_onsite", "damaged_fraction_depot",
             "restored_onsite", "restored_depot",
             "total_breakdowns", "total_restored",
@@ -128,7 +144,7 @@ class SimulationRunLogger:
     @staticmethod
     def _daily_columns() -> list[str]:
         return [
-            "seed", "day",
+            "seed", "scenario_name", "day",
             "shift_hour_start", "shift_hour_end",
             "daily_functional_pickups", "daily_functional_deliveries",
             "daily_depot_visits", "daily_depot_deliveries",
@@ -144,7 +160,9 @@ class SimulationRunLogger:
     @staticmethod
     def _decisions_columns() -> list[str]:
         cols = [
-            "seed", "day", "hour", "minute",
+            "seed", "scenario_name", "day", "hour", "minute",
+            "vehicle_id", "vehicle_policy_type", "vehicle_role",
+            "active_time_window", "vehicle_active",
             "current_station_id", "is_at_depot",
             "functional_load_before", "depot_load_before", "total_load_before",
             "functional_deliveries", "functional_pickups",
@@ -161,6 +179,8 @@ class SimulationRunLogger:
             "n_total_candidates", "vfa_top1_next_station",
             "rollout_changed_decision", "winning_candidate_rank",
             "decision_runtime_s", "winning_profile_type",
+            "action_type", "num_rebalancing_actions", "num_maintenance_actions",
+            "num_depot_trips", "vehicle_time_min",
         ]
         cols += [f"phi_{name}" for name in _decision_feature_names()]
         return cols
@@ -184,6 +204,7 @@ class SimulationRunLogger:
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
         self._exp_name: str = ""
+        self._scenario_name: str = ""
         self._alpha: float = 0.0
         self._policy_type: str = "Hybrid"
         self._duration_hours: int | float | None = None
@@ -199,6 +220,7 @@ class SimulationRunLogger:
         self._policy_dir: Path | None = None
         self._current_seed_dir: Path | None = None
         self._active_files: set[str] = set(self.log_files)
+        self._decision_context: dict[str, Any] = {}
 
         self._fleet_total_start: int = 0
         self._fleet_func_start: int = 0
@@ -261,7 +283,7 @@ class SimulationRunLogger:
         policy_type = _safe_path_part(self._policy_type)
         parts = [policy_type]
 
-        if self._policy_type.lower() in {"vfa", "hybrid"} and self._exp_name:
+        if self._policy_type.lower() in {"vfa", "hybrid", "scenario"} and self._exp_name:
             parts.append(_safe_path_part(self._exp_name))
 
         if self._policy_type.lower() == "hybrid":
@@ -316,11 +338,13 @@ class SimulationRunLogger:
         n_time_steps: int | None = None,
         shift_hour_start: int = 5,
         results_only: bool = False,
+        scenario_name: str | None = None,
     ) -> None:
         self._close_seed_files()
         self._close_policy_files()
 
         self._exp_name = exp_name
+        self._scenario_name = scenario_name or exp_name
         self._alpha = alpha
         self._policy_type = policy_type
         self._duration_hours = duration_hours
@@ -348,12 +372,24 @@ class SimulationRunLogger:
                 self._results_w.writeheader()
 
         self.debug(
-            f"Run label: exp={exp_name} alpha={alpha} policy={policy_type} "
+            f"Run label: scenario={self._scenario_name} exp={exp_name} alpha={alpha} policy={policy_type} "
             f"H={lookahead_minutes} S={num_scenarios} R={n_routing_candidates} T={n_time_steps} "
             f"folder={self._policy_dir.name} results_only={results_only} "
             f"log_files={sorted(self.log_files)}"
         )
-        print(f"[SimulationRunLogger] Policy output folder: {self._policy_dir}")
+    print(f"[SimulationRunLogger] Policy output folder: {self._policy_dir}")
+
+    def set_decision_context(self, context: dict[str, Any] | None) -> None:
+        self._decision_context = dict(context or {})
+
+    def clear_decision_context(self) -> None:
+        self._decision_context = {}
+
+    def set_decision_context(self, context: dict[str, Any] | None) -> None:
+        self._decision_context = dict(context or {})
+
+    def clear_decision_context(self) -> None:
+        self._decision_context = {}
 
     def set_seed(self, seed: int) -> None:
         self._close_seed_files()
@@ -447,6 +483,18 @@ class SimulationRunLogger:
         self._fleet_func_start = max(total - n_onsite - n_depot, 0)
 
     def log_decision(self, row: dict) -> None:
+        if self._decision_context:
+            merged = dict(self._decision_context)
+            merged.update(row)
+            row = merged
+
+        row.setdefault("scenario_name", self._scenario_name)
+        row.setdefault("vehicle_id", "")
+        row.setdefault("vehicle_policy_type", "")
+        row.setdefault("vehicle_role", "")
+        row.setdefault("active_time_window", "")
+        row.setdefault("vehicle_active", "")
+
         fp = int(row.get("functional_pickups", 0))
         fd = int(row.get("functional_deliveries", 0))
         orr = int(row.get("onsite_repairs", 0))
@@ -454,6 +502,47 @@ class SimulationRunLogger:
         dd = int(row.get("depot_deliveries", 0))
         dv = 1 if row.get("is_at_depot", False) else 0
         lfq = int(row.get("load_from_queue", 0))
+
+        vehicle_active_value = str(row.get("vehicle_active", "")).lower()
+        vehicle_inactive = vehicle_active_value in {"false", "0", "no"}
+        rebalancing_action = 0 if vehicle_inactive else int((fp + fd) > 0)
+        maintenance_action = 0 if vehicle_inactive else int(
+            (orr + dp + dd + lfq) > 0
+            or str(row.get("selected_action_is_maintenance", "")).lower() in {"true", "1", "yes"}
+        )
+        next_station = str(row.get("next_station_id", "") or "")
+        current_station = str(row.get("current_station_id", "") or "")
+        depot_trip = 0 if vehicle_inactive else int(next_station.startswith("D") and not current_station.startswith("D"))
+
+        if vehicle_inactive:
+            action_type = "inactive"
+        elif depot_trip:
+            action_type = "go_to_depot"
+        elif orr > 0 and dp > 0:
+            action_type = "onsite_and_depot_collection"
+        elif orr > 0:
+            action_type = "onsite_repair"
+        elif dp > 0:
+            action_type = "depot_collection"
+        elif dd > 0 or lfq > 0 or current_station.startswith("D"):
+            action_type = "depot_service"
+        elif rebalancing_action:
+            action_type = "rebalancing"
+        else:
+            action_type = "no_operation"
+
+        row.setdefault("action_type", action_type)
+        row.setdefault("num_rebalancing_actions", rebalancing_action)
+        row.setdefault("num_maintenance_actions", maintenance_action)
+        row.setdefault("num_depot_trips", depot_trip)
+        try:
+            row.setdefault(
+                "vehicle_time_min",
+                float(row.get("action_duration_min", 0) or 0)
+                + float(row.get("travel_time_min", 0) or 0),
+            )
+        except Exception:
+            row.setdefault("vehicle_time_min", "")
 
         self._ep_func_pickups += fp
         self._ep_func_deliveries += fd
@@ -486,6 +575,7 @@ class SimulationRunLogger:
         row["operational_day"] = (absolute_hour - self._shift_hour_start) // 24
         row.update({
             "seed": self._current_seed,
+            "scenario_name": self._scenario_name,
             "functional_pickups": self._hour_func_pickups,
             "functional_deliveries": self._hour_func_deliveries,
             "depot_visits": self._hour_depot_visits,
@@ -547,6 +637,7 @@ class SimulationRunLogger:
         eod = rows[-1]
         daily_row = {
             "seed": self._current_seed,
+            "scenario_name": self._scenario_name,
             "day": day,
             "shift_hour_start": self._shift_hour_start,
             "shift_hour_end": (self._shift_hour_start + 24) % 24,
@@ -597,10 +688,12 @@ class SimulationRunLogger:
 
         row = {
             "seed": seed,
+            "scenario_name": self._scenario_name,
             "exp_name": self._exp_name,
             "alpha": self._alpha,
             "duration_hours": duration,
             "total_runtime_s": round(solve_time, 2),
+            "num_service_vehicles": self._num_vehicles,
             "lookahead_minutes": self._lookahead_minutes,
             "num_scenarios": self._num_scenarios,
             "n_routing_candidates": self._n_routing_candidates,
@@ -961,7 +1054,16 @@ class LoggingSimulator(sim.Simulator):
             damaged_fraction_onsite = round(n_onsite_now / fleet_total_now, 4)
             damaged_fraction_depot  = round(n_depot_now  / fleet_total_now, 4)
         else:
+            n_onsite_now = 0
+            n_depot_now = 0
             damaged_fraction_onsite = damaged_fraction_depot = 0.0
+        accumulated_component_odometer_km = round(
+            sum(
+                sum((getattr(bike, "component_odometers", {}) or {}).values())
+                for bike in all_bikes_now
+            ),
+            4,
+        )
         
         # Track individual component failures
         component_failure_counts = {}
@@ -1027,6 +1129,10 @@ class LoggingSimulator(sim.Simulator):
             'bike_departures': hourly_departures,
             'bike_arrivals': hourly_arrivals,
             # Fleet fractions at this hour
+            'broken_bikes_onsite': n_onsite_now,
+            'broken_bikes_depot': n_depot_now,
+            'broken_bikes_total': n_onsite_now + n_depot_now,
+            'accumulated_component_odometer_km': accumulated_component_odometer_km,
             'damaged_fraction_onsite': damaged_fraction_onsite,
             'damaged_fraction_depot':  damaged_fraction_depot,
         }
@@ -1083,6 +1189,10 @@ class LoggingSimulator(sim.Simulator):
                 'breakdowns_onsite':     hourly_onsite_failures,
                 'breakdowns_depot':      hourly_depot_failures,
                 'total_breakdowns':      hourly_total_failures,
+                'broken_bikes_onsite':   n_onsite_now,
+                'broken_bikes_depot':    n_depot_now,
+                'broken_bikes_total':    n_onsite_now + n_depot_now,
+                'accumulated_component_odometer_km': accumulated_component_odometer_km,
                 'damaged_fraction_onsite': damaged_fraction_onsite,
                 'damaged_fraction_depot':  damaged_fraction_depot,
             }

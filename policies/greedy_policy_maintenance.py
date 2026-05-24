@@ -395,6 +395,8 @@ class GreedyMaintenancePolicy(Policy):
             "day": day,
             "hour": clock_hour,
             "minute": minute,
+            "vehicle_id": vehicle.id,
+            "vehicle_policy_type": self.__class__.__name__,
             "current_station_id": vehicle.location.id,
             "is_at_depot": is_at_depot,
             "functional_load_before": func_before,
