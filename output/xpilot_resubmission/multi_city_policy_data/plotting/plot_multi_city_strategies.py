@@ -146,38 +146,33 @@ def plot_city_week(city: str, week: str, data: Dict[str, Tuple[pd.Series, pd.Ser
             mean_series = mean_series[mask]
             std_series = std_series[mask]
 
-        label = POLICY_LABELS.get(policy, policy)
-        ax.plot(mean_series.index, mean_series.values, label=label, color=color, linewidth=2)
-
-    ax.set_xlabel("Time", fontsize=13)
-    ax.set_ylabel("Average # of accumulated failed events", fontsize=13)
-        
-        # Get display name for policy
+        # Use display name mapping when available
         display_name = POLICY_DISPLAY_NAMES.get(policy, policy)
-        
-        # Plot mean line
-        ax.plot(mean_series.index, mean_series.values, label=display_name, 
-                color=color, linewidth=3)
-        
+        ax.plot(mean_series.index, mean_series.values, label=display_name, color=color, linewidth=3)
+
         if False:
             # Plot shaded std deviation band
             ax.fill_between(mean_series.index,
                             mean_series - std_series,
                             mean_series + std_series,
                             color=color, alpha=0.2)
-    
+
+    # Increase label font sizes by ~25% (was ~13-14)
+    ax.set_xlabel("Time", fontsize=16)
+    ax.set_ylabel("Average # of accumulated failed events", fontsize=16)
     # ax.set_title(f"Failed events over time - {city} {week} (average across {NUM_SEEDS} seeds)")
-    ax.set_xlabel("Time", fontsize=14)
-    ax.set_ylabel("Average # of accumulated failed events", fontsize=14)
     
     # Use daily ticks with weekday only
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%a"))
-    ax.tick_params(axis="x", rotation=45, labelsize=12, labelsize=12)
-    ax.tick_params(axis="y", labelsize=12)
-    ax.tick_params(axis="y", labelsize=12)
+    # Increase tick label sizes by ~25% (was 12 -> ~15)
+    ax.tick_params(axis="x", rotation=45, labelsize=15)
+    ax.tick_params(axis="y", labelsize=15)
     ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=12)
+    # Remove top and right frame for a cleaner look
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(fontsize=15)
     fig.autofmt_xdate()
     plt.tight_layout()
 
@@ -246,7 +241,7 @@ def create_congestion_bar_chart(city_weeks: List[Tuple[str, str]]):
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=12)
     ax.tick_params(axis='y', labelsize=12)
-    ax.legend(fontsize=12)
+    ax.legend(fontsize=15)
     ax.grid(True, alpha=0.3, axis='y')
     plt.tight_layout()
 
@@ -320,7 +315,8 @@ def create_congestion_bar_chart_with_pilot(city_weeks: List[Tuple[str, str]]):
     bar_data = [bar_data[i] for i in sorted_indices]
     labels = [labels[i] for i in sorted_indices]
     
-    fig, ax = plt.subplots(figsize=(14, 7))
+    # Increase figure height so legend can be placed above without overlap
+    fig, ax = plt.subplots(figsize=(14, 10))
     x = list(range(len(labels)))
     width = 0.16
     
@@ -349,17 +345,24 @@ def create_congestion_bar_chart_with_pilot(city_weeks: List[Tuple[str, str]]):
                      hatch=hatches[policy_key], edgecolor='black', alpha=0.8)
         for rect, value in zip(bar, values):
             ax.text(rect.get_x() + rect.get_width() / 2, rect.get_height() + 0.5,
-                    f"{value:.1f}", ha='center', va='bottom', fontsize=10)
+                    f"{value:.1f}", ha='center', va='bottom', fontsize=16)
     
-    ax.set_ylabel('Average percentage of failed events (%)', fontsize=14)
+    # Increase label/tick/legend sizes to match strategy plots (~+25%)
+    ax.set_ylabel('Average percentage of failed events (%)', fontsize=20)
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=12)
-    ax.tick_params(axis="y", labelsize=12)
-    ax.legend(fontsize=11, ncol=2)
+    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=18)
+    ax.tick_params(axis="y", labelsize=15)
     ax.grid(True, alpha=0.3, axis='y')
+    # Remove top/right spines for consistency
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    # Place legend above the bars to avoid overlap (move further up)
+    legend = ax.legend(fontsize=16, ncol=2, loc='upper center', bbox_to_anchor=(0.5, 1.1))
+    # Increase top margin to make room for legend
+    fig.subplots_adjust(top=0.75)
     plt.tight_layout()
     
-    output_file = DATA_DIR / "xpilot_and_pilot_congestion_starvation_comparison.png"
+    output_file = OUTPUT_DIR / "xpilot_and_pilot_congestion_starvation_comparison.pdf"
     fig.savefig(output_file, dpi=150, bbox_inches='tight')
     print(f"  ✓ Saved bar chart to {output_file.name}")
     plt.close(fig)
@@ -511,7 +514,7 @@ def main():
             if data:
                 print(f"    Loaded {len(data)} policies")
                 fig = plot_city_week(city, week, data)
-                output_file = OUTPUT_DIR / f"{city}_{week}_strategy_comparison.png"
+                output_file = OUTPUT_DIR / f"{city}_{week}_strategy_comparison.pdf"
                 fig.savefig(output_file, dpi=150, bbox_inches='tight')
                 print(f"    ✓ Saved to {output_file.name}")
                 plt.close(fig)
@@ -524,6 +527,8 @@ def main():
 
     print("\nDone! All plots saved.")
     create_congestion_bar_chart(city_weeks)
+    # Also create combined X-Pilot vs Kloimullner PILOT bar chart
+    create_congestion_bar_chart_with_pilot(city_weeks)
 
 
 if __name__ == "__main__":
